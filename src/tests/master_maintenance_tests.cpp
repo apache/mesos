@@ -70,6 +70,7 @@ using mesos::v1::scheduler::Mesos;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 using process::Queue;
 using process::Time;
@@ -189,7 +190,7 @@ ACTION_P(Enqueue, queue)
 TEST_F(MasterMaintenanceTest, UpdateSchedule)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Extra machine used in this test.
@@ -201,7 +202,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       {createWindow({machine1}, unavailability)});
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -210,7 +211,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
 
   // Get the maintenance schedule.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -237,7 +238,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       {createWindow({}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -251,7 +252,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
           createUnavailability(Time::create(-10).get()))});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -265,7 +266,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
           createUnavailability(Clock::now(), Seconds(-10)))});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -278,7 +279,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       createWindow({machine1}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -290,7 +291,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       {createWindow({badMachine}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -302,7 +303,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       {createWindow({machine1, machine2}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -312,7 +313,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
   // Delete the schedule (via an empty schedule).
   schedule = createSchedule({});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -325,7 +326,7 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
 TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Schedule two machines.
@@ -333,7 +334,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
       {createWindow({machine1, machine2}, unavailability)});
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -343,7 +344,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
   // Deactivate machine1.
   JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -354,7 +355,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
   schedule = createSchedule({createWindow({machine2}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -364,7 +365,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
   // Reactivate machine1.
   machines = createMachineList({machine1});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -381,12 +382,14 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   // NOTE: We don't use `StartMaster()` because we need to access these flags.
   master::Flags flags = CreateMasterFlags();
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -396,7 +399,8 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  scheduler::TestV1Mesos mesos(master.get(), ContentType::PROTOBUF, scheduler);
+  scheduler::TestV1Mesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
 
@@ -445,7 +449,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   // Schedule this slave for maintenance.
   MachineID machine;
   machine.set_hostname(maintenanceHostname);
-  machine.set_ip(stringify(slave.get().address.ip));
+  machine.set_ip(stringify(slave.get()->pid.address.ip));
 
   const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
@@ -460,7 +464,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   // a maintenance schedule update.  This update will also trigger the
   // rescinding of offers from the scheduled slave.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -502,8 +506,6 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -511,17 +513,19 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 // they aren't passed up to the top level API yet.
 TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -554,7 +558,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
   // Schedule this slave for maintenance.
   MachineID machine;
   machine.set_hostname(maintenanceHostname);
-  machine.set_ip(stringify(slave.get().address.ip));
+  machine.set_ip(stringify(slave.get()->pid.address.ip));
 
   const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
@@ -570,7 +574,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
   // from the scheduled slave.
   Future<Response> response =
     process::http::post(
-        master.get(),
+        master.get()->pid,
         "maintenance/schedule",
         headers,
         stringify(JSON::protobuf(schedule)));
@@ -590,8 +594,6 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -599,18 +601,23 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 // maintenance is started, and frameworks receive a task lost message.
 TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave>> slave = StartSlave(&exec, slaveFlags);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -648,7 +655,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   // Schedule this slave for maintenance.
   MachineID machine;
   machine.set_hostname(maintenanceHostname);
-  machine.set_ip(stringify(slave.get().address.ip));
+  machine.set_ip(stringify(slave.get()->pid.address.ip));
 
   const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
@@ -664,7 +671,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   // from the scheduled slave.
   Future<Response> response =
     process::http::post(
-        master.get(),
+        master.get()->pid,
         "maintenance/schedule",
         headers,
         stringify(JSON::protobuf(schedule)));
@@ -674,7 +681,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   // Verify that the master forces the slave to be shut down after the
   // maintenance is started.
   Future<ShutdownMessage> shutdownMessage =
-    FUTURE_PROTOBUF(ShutdownMessage(), master.get(), slave.get());
+    FUTURE_PROTOBUF(ShutdownMessage(), master.get()->pid, slave.get()->pid);
 
   // Verify that the framework will be informed that the slave is lost.
   Future<Nothing> slaveLost;
@@ -684,7 +691,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   // Start the maintenance.
   response =
     process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/down",
         headers,
         stringify(createMachineList({machine})));
@@ -708,26 +715,26 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   // Wait on the agent to terminate so that it wipes out it's latest symlink.
   // This way when we launch a new agent it will register with a new agent id.
-  wait(slave.get());
+  wait(slave.get()->pid);
 
   // Ensure that the slave gets shut down immediately if it tries to register
   // from a machine that is under maintenance.
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), master.get(), _);
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), master.get()->pid, _);
   EXPECT_TRUE(shutdownMessage.isPending());
 
-  slave = StartSlave();
+  slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(shutdownMessage);
 
   // Wait on the agent to terminate so that it wipes out it's latest symlink.
   // This way when we launch a new agent it will register with a new agent id.
-  wait(slave.get());
+  wait(slave.get()->pid);
 
   // Stop maintenance.
   response =
     process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/up",
         headers,
         stringify(createMachineList({machine})));
@@ -739,15 +746,14 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Start the agent again.
-  slave = StartSlave();
+  slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
 
   // Wait for agent registration.
   AWAIT_READY(slaveRegisteredMessage);
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -755,7 +761,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 TEST_F(MasterMaintenanceTest, BringDownMachines)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Extra machine used in this test.
@@ -765,7 +771,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Try to start maintenance on an unscheduled machine.
   JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -775,7 +781,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Try an empty list.
   machines = createMachineList({});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -785,7 +791,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Try an empty machine.
   machines = createMachineList({badMachine});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -797,7 +803,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       {createWindow({machine1, machine2}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -807,7 +813,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Down machine1.
   machines = createMachineList({machine1});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -816,7 +822,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
 
   // Fail to down machine1 again.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -826,7 +832,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Fail to down machine1 and machine2.
   machines = createMachineList({machine1, machine2});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -836,7 +842,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   // Down machine2.
   machines = createMachineList({machine2});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -849,13 +855,13 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
 TEST_F(MasterMaintenanceTest, BringUpMachines)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Try to bring up an unscheduled machine.
   JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -868,7 +874,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       createWindow({machine3}, unavailability)});
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -878,7 +884,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   // Try to bring up a non-down machine.
   machines = createMachineList({machine1, machine2});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -888,7 +894,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   // Down machine3.
   machines = createMachineList({machine3});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -897,7 +903,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   // Up machine3.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -906,7 +912,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   // Get the maintenance schedule.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -928,7 +934,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   // Down the other machines.
   machines = createMachineList({machine1, machine2});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -937,7 +943,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   // Up the other machines.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -946,7 +952,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   // Get the maintenance schedule again.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -969,7 +975,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 TEST_F(MasterMaintenanceTest, MachineStatus)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Try to stop maintenance on an unscheduled machine.
@@ -977,7 +983,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
       {createWindow({machine1, machine2}, unavailability)});
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -986,7 +992,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   // Get the maintenance statuses.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1008,7 +1014,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   // Deactivate machine1.
   JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/down",
       headers,
       stringify(machines));
@@ -1017,7 +1023,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   // Get the maintenance statuses.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1038,7 +1044,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   // Reactivate machine1.
   machines = createMachineList({machine1});
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "machine/up",
       headers,
       stringify(machines));
@@ -1047,7 +1053,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   // Get the maintenance statuses.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1072,20 +1078,27 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 // in the maintenance status endpoint.
 TEST_F(MasterMaintenanceTest, InverseOffers)
 {
+  // NOTE: The callbacks and event queue must be stack allocated below
+  // the master, as the master may send heartbeats during destruction.
+  Callbacks callbacks;
+  Queue<Event> events;
+
   // Set up a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   // Before starting any frameworks, put the one machine into `DRAINING` mode.
   MachineID machine;
   machine.set_hostname(maintenanceHostname);
-  machine.set_ip(stringify(slave.get().address.ip));
+  machine.set_ip(stringify(slave.get()->pid.address.ip));
 
   const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
@@ -1095,7 +1108,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
       {createWindow({machine}, unavailability)});
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -1105,7 +1118,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   // Sanity check that this machine shows up in the status endpoint
   // and there should be no inverse offer status.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1126,23 +1139,19 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   ASSERT_EQ(0, statuses.get().draining_machines(0).statuses().size());
 
   // Now start a framework.
-  Callbacks callbacks;
-
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   Mesos mesos(
-      master.get(),
+      master.get()->pid,
       ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
 
   AWAIT_READY(connected);
-
-  Queue<Event> events;
 
   EXPECT_CALL(callbacks, received(_))
     .WillRepeatedly(Enqueue(&events));
@@ -1276,7 +1285,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   // Check that the status endpoint shows the inverse offer as declined.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1340,7 +1349,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   // Check that the status endpoint shows the inverse offer as accepted.
   response = process::http::get(
-      master.get(),
+      master.get()->pid,
       "maintenance/status",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -1372,19 +1381,22 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   EXPECT_CALL(callbacks, disconnected())
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
 // Test ensures that inverse offers support filters.
 TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 {
+  // NOTE: The callbacks and event queue must be stack allocated below
+  // the master, as the master may send heartbeats during destruction.
+  Callbacks callbacks;
+  Queue<Event> events;
+
   // Set up a master.
   // NOTE: We don't use `StartMaster()` because we need to access these flags.
   master::Flags flags = CreateMasterFlags();
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   ExecutorInfo executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
@@ -1413,10 +1425,13 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   // Capture the registration message for the first slave.
   Future<SlaveRegisteredMessage> slave1RegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
 
   // We need two agents for this test.
-  Try<PID<Slave>> slave1 = StartSlave(&containerizer);
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave1);
 
   // We need to make sure the first slave registers before we schedule the
@@ -1425,12 +1440,14 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   // Capture the registration message for the second slave.
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), Not(slave1.get()));
+    FUTURE_PROTOBUF(
+        SlaveRegisteredMessage(), master.get()->pid, Not(slave1.get()->pid));
 
   slave::Flags slaveFlags2 = MesosTest::CreateSlaveFlags();
   slaveFlags2.hostname = maintenanceHostname + "-2";
 
-  Try<PID<Slave>> slave2 = StartSlave(&containerizer, slaveFlags2);
+  Try<Owned<cluster::Slave>> slave2 =
+    StartSlave(detector.get(), &containerizer, slaveFlags2);
   ASSERT_SOME(slave2);
 
   // We need to make sure the second slave registers before we schedule the
@@ -1440,11 +1457,11 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   // Before starting any frameworks, put the first machine into `DRAINING` mode.
   MachineID machine1;
   machine1.set_hostname(maintenanceHostname);
-  machine1.set_ip(stringify(slave1.get().address.ip));
+  machine1.set_ip(stringify(slave1.get()->pid.address.ip));
 
   MachineID machine2;
   machine2.set_hostname(slaveFlags2.hostname.get());
-  machine2.set_ip(stringify(slave2.get().address.ip));
+  machine2.set_ip(stringify(slave2.get()->pid.address.ip));
 
   const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
@@ -1454,7 +1471,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
       {createWindow({machine1, machine2}, unavailability)});
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "maintenance/schedule",
       headers,
       stringify(JSON::protobuf(schedule)));
@@ -1466,23 +1483,19 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   Clock::pause();
 
   // Now start a framework.
-  Callbacks callbacks;
-
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   Mesos mesos(
-      master.get(),
+      master.get()->pid,
       ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
 
   AWAIT_READY(connected);
-
-  Queue<Event> events;
 
   EXPECT_CALL(callbacks, received(_))
     .WillRepeatedly(Enqueue(&events));
@@ -1733,8 +1746,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   EXPECT_CALL(callbacks, disconnected())
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1743,7 +1754,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
 {
   // Set up a master with authentication required.
   // Note that the default master test flags enable HTTP authentication.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Headers for POSTs to maintenance endpoints without authentication.
@@ -1768,7 +1779,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
   {
     // Post the maintenance schedule without authentication.
     Future<Response> response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "maintenance/schedule",
         unauthenticatedHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1776,13 +1787,13 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
     // Get the maintenance schedule without authentication.
-    response = process::http::get(master.get(), "maintenance/schedule");
+    response = process::http::get(master.get()->pid, "maintenance/schedule");
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
     // Post the maintenance schedule with bad authentication.
     response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "maintenance/schedule",
         badAuthenticationHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1791,7 +1802,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
 
     // Get the maintenance schedule with bad authentication.
     response = process::http::get(
-        master.get(),
+        master.get()->pid,
         "maintenance/schedule",
         None(),
         createBasicAuthHeaders(badCredential));
@@ -1803,7 +1814,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
   {
     // Post to machine/up without authentication.
     Future<Response> response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/up",
         unauthenticatedHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1812,7 +1823,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
 
     // Post to machine/up with bad authentication.
     response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/up",
         badAuthenticationHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1824,7 +1835,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
   {
     // Post to machine/down without authentication.
     Future<Response> response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/down",
         unauthenticatedHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1833,7 +1844,7 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
 
     // Post to machine/down with bad authentication.
     response = process::http::post(
-        master.get(),
+        master.get()->pid,
         "machine/down",
         badAuthenticationHeaders,
         stringify(JSON::protobuf(schedule)));
@@ -1845,22 +1856,20 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
   {
     // Get the maintenance status without authentication.
     Future<Response> response = process::http::get(
-        master.get(),
+        master.get()->pid,
         "maintenance/status");
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
     // Get the maintenance status with bad authentication.
     response = process::http::get(
-        master.get(),
+        master.get()->pid,
         "maintenance/status",
         None(),
         createBasicAuthHeaders(badCredential));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
   }
-
-  Shutdown();
 }
 
 } // namespace tests {

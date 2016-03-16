@@ -31,6 +31,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/queue.hpp>
 
@@ -60,6 +61,7 @@ using mesos::v1::scheduler::Mesos;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 using process::Queue;
 
@@ -95,7 +97,7 @@ TEST_P(SchedulerTest, Subscribe)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -107,7 +109,7 @@ TEST_P(SchedulerTest, Subscribe)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -131,8 +133,6 @@ TEST_P(SchedulerTest, Subscribe)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
@@ -143,7 +143,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -155,7 +155,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -187,7 +187,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover to another scheduler instance.
-  scheduler::TestV1Mesos mesos2(master.get(), contentType, scheduler2);
+  scheduler::TestV1Mesos mesos2(master.get()->pid, contentType, scheduler2);
 
   AWAIT_READY(connected);
 
@@ -230,8 +230,6 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   EXPECT_CALL(*scheduler2, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
@@ -241,11 +239,11 @@ TEST_P(SchedulerTest, MasterFailover)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto detector = std::make_shared<StandaloneMasterDetector>(master.get());
+  auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -254,7 +252,8 @@ TEST_P(SchedulerTest, MasterFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler, detector);
+  scheduler::TestV1Mesos mesos(
+      master.get()->pid, contentType, scheduler, detector);
 
   AWAIT_READY(connected);
 
@@ -285,7 +284,7 @@ TEST_P(SchedulerTest, MasterFailover)
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover the master.
-  Stop(master.get());
+  master->reset();
   master = StartMaster(flags);
   ASSERT_SOME(master);
 
@@ -295,7 +294,7 @@ TEST_P(SchedulerTest, MasterFailover)
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   AWAIT_READY(connected);
 
@@ -317,8 +316,6 @@ TEST_P(SchedulerTest, MasterFailover)
   AWAIT_READY(subscribed);
 
   EXPECT_EQ(frameworkId, subscribed.get().framework_id());
-
-  Shutdown();
 }
 
 
@@ -327,7 +324,7 @@ TEST_P(SchedulerTest, TaskRunning)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -336,7 +333,8 @@ TEST_P(SchedulerTest, TaskRunning)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -346,7 +344,7 @@ TEST_P(SchedulerTest, TaskRunning)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -445,8 +443,6 @@ TEST_P(SchedulerTest, TaskRunning)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -455,7 +451,7 @@ TEST_P(SchedulerTest, ReconcileTask)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -464,7 +460,8 @@ TEST_P(SchedulerTest, ReconcileTask)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -474,7 +471,7 @@ TEST_P(SchedulerTest, ReconcileTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -578,8 +575,6 @@ TEST_P(SchedulerTest, ReconcileTask)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -588,7 +583,7 @@ TEST_P(SchedulerTest, KillTask)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -597,7 +592,8 @@ TEST_P(SchedulerTest, KillTask)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -607,7 +603,7 @@ TEST_P(SchedulerTest, KillTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -728,8 +724,6 @@ TEST_P(SchedulerTest, KillTask)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -738,7 +732,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -747,7 +741,8 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -757,7 +752,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -861,8 +856,6 @@ TEST_P(SchedulerTest, ShutdownExecutor)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -871,7 +864,7 @@ TEST_P(SchedulerTest, Teardown)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -880,7 +873,8 @@ TEST_P(SchedulerTest, Teardown)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -890,7 +884,7 @@ TEST_P(SchedulerTest, Teardown)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -980,8 +974,6 @@ TEST_P(SchedulerTest, Teardown)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -990,10 +982,11 @@ TEST_P(SchedulerTest, Decline)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1005,7 +998,7 @@ TEST_P(SchedulerTest, Decline)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1067,8 +1060,6 @@ TEST_P(SchedulerTest, Decline)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1077,10 +1068,11 @@ TEST_P(SchedulerTest, Revive)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1092,7 +1084,7 @@ TEST_P(SchedulerTest, Revive)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1170,8 +1162,6 @@ TEST_P(SchedulerTest, Revive)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1180,10 +1170,11 @@ TEST_P(SchedulerTest, Suppress)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1195,7 +1186,7 @@ TEST_P(SchedulerTest, Suppress)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1290,8 +1281,6 @@ TEST_P(SchedulerTest, Suppress)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1300,7 +1289,7 @@ TEST_P(SchedulerTest, Message)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1309,7 +1298,8 @@ TEST_P(SchedulerTest, Message)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -1319,7 +1309,7 @@ TEST_P(SchedulerTest, Message)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1421,8 +1411,6 @@ TEST_P(SchedulerTest, Message)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -1431,7 +1419,7 @@ TEST_P(SchedulerTest, Request)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1443,7 +1431,7 @@ TEST_P(SchedulerTest, Request)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1487,8 +1475,6 @@ TEST_P(SchedulerTest, Request)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
