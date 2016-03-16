@@ -2001,14 +2001,14 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
 
   // Ensure that both containers (with and without network isolation)
   // were recovered.
-  Future<hashset<ContainerID>> containers = containerizer3.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
   EXPECT_EQ(2u, containers.get().size());
 
   foreach (const ContainerID& containerId, containers.get()) {
     // Do some basic checks to make sure the network isolator can
     // handle mixed types of containers correctly.
-    Future<ResourceStatistics> usage = containerizer3.get()->usage(containerId);
+    Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
     AWAIT_READY(usage);
 
     // TODO(chzhcn): Write a more thorough test for update.
@@ -2071,6 +2071,8 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
+  slave.get()->terminate();
+
   // Wipe the slave meta directory so that the slave will treat the
   // above running task as an orphan.
   ASSERT_SOME(os::rmdir(paths::getMetaRootDir(flags.work_dir)));
@@ -2082,8 +2084,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
 
   // Restart the slave.
-  slave.get()->terminate();
-  slave = StartSlave(flags);
+  slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
