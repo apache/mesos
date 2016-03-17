@@ -56,8 +56,8 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
     if (plugin.isError()) {
       // NOTE: We skip the plugin if it cannot be created, instead of
       // returning an Error so that we can still use other plugins.
-      LOG(ERROR) << "Failed to create URI fetcher plugin "
-                 << "'"  << name << "': " << plugin.error();
+      LOG(INFO) << "Skipping URI fetcher plugin " << "'"  << name << "' "
+                << "as it could not be created: " << plugin.error();
       continue;
     }
 
