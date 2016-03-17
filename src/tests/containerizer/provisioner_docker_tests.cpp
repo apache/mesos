@@ -313,12 +313,12 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
 
 #ifdef __linux__
-class ProvisionerDockerRegistryPullerTest : public MesosTest {};
+class ProvisionerDockerPullerTest : public MesosTest {};
 
 
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
 // ROOT restriction after MESOS-4757 is resolved.
-TEST_F(ProvisionerDockerRegistryPullerTest, ROOT_INTERNET_CURL_ShellCommand)
+TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -349,10 +349,20 @@ TEST_F(ProvisionerDockerRegistryPullerTest, ROOT_INTERNET_CURL_ShellCommand)
 
   const Offer& offer = offers.get()[0];
 
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/bin' is not in the PATH by default.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/ls");
+  command.add_arguments("ls");
+  command.add_arguments("-al");
+  command.add_arguments("/");
+
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:1;mem:128").get(),
-      "ls -al /");
+      command);
 
   Image image;
   image.set_type(Image::DOCKER);
