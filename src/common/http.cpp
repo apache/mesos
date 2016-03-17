@@ -357,54 +357,6 @@ JSON::Object model(const ExecutorInfo& executorInfo)
 }
 
 
-// TODO(bmahler): Expose the executor name / source.
-JSON::Object model(
-    const TaskInfo& task,
-    const FrameworkID& frameworkId,
-    const TaskState& state,
-    const vector<TaskStatus>& statuses)
-{
-  JSON::Object object;
-  object.values["id"] = task.task_id().value();
-  object.values["name"] = task.name();
-  object.values["framework_id"] = frameworkId.value();
-
-  if (task.has_executor()) {
-    object.values["executor_id"] = task.executor().executor_id().value();
-  } else {
-    object.values["executor_id"] = "";
-  }
-
-  object.values["slave_id"] = task.slave_id().value();
-  object.values["state"] = TaskState_Name(state);
-  object.values["resources"] = model(task.resources());
-
-  {
-    JSON::Array array;
-    array.values.reserve(statuses.size()); // MESOS-2353.
-
-    foreach (const TaskStatus& status, statuses) {
-      array.values.push_back(model(status));
-    }
-    object.values["statuses"] = std::move(array);
-  }
-
-  if (task.has_labels()) {
-    object.values["labels"] = std::move(model(task.labels()));
-  }
-
-  if (task.has_discovery()) {
-    object.values["discovery"] = JSON::protobuf(task.discovery());
-  }
-
-  if (task.has_container()) {
-    object.values["container"] = JSON::protobuf(task.container());
-  }
-
-  return object;
-}
-
-
 void json(JSON::ObjectWriter* writer, const Task& task)
 {
   writer->field("id", task.task_id().value());

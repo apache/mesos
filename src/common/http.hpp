@@ -79,16 +79,7 @@ JSON::Object model(const Attributes& attributes);
 JSON::Object model(const CommandInfo& command);
 JSON::Object model(const ExecutorInfo& executorInfo);
 JSON::Array model(const Labels& labels);
-
-// These are the two identical ways to model a task, depending on
-// whether you have a 'Task' or a 'TaskInfo' available.
 JSON::Object model(const Task& task);
-JSON::Object model(
-    const TaskInfo& task,
-    const FrameworkID& frameworkId,
-    const TaskState& state,
-    const std::vector<TaskStatus>& statuses);
-
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 
