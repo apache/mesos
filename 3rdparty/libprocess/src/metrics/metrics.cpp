@@ -231,35 +231,37 @@ Future<http::Response> MetricsProcess::__snapshot(
     const hashmap<string, Future<double> >& metrics,
     const hashmap<string, Option<Statistics<double> > >& statistics)
 {
-  JSON::Object object;
+  auto snapshot = [&timeout,
+                   &metrics,
+                   &statistics](JSON::ObjectWriter* writer) {
+    foreachpair (const string& key, const Future<double>& value, metrics) {
+      // TODO(dhamon): Maybe add the failure message for this metric to the
+      // response if value.isFailed().
+      if (value.isPending()) {
+        CHECK_SOME(timeout);
+        VLOG(1) << "Exceeded timeout of " << timeout.get()
+                << " when attempting to get metric '" << key << "'";
+      } else if (value.isReady()) {
+        writer->field(key, value.get());
+      }
 
-  foreachpair (const string& key, const Future<double>& value, metrics) {
-    // TODO(dhamon): Maybe add the failure message for this metric to the
-    // response if value.isFailed().
-    if (value.isPending()) {
-      CHECK_SOME(timeout);
-      VLOG(1) << "Exceeded timeout of " << timeout.get() << " when attempting "
-              << "to get metric '" << key << "'";
-    } else if (value.isReady()) {
-      object.values[key] = value.get();
+      Option<Statistics<double> > statistics_ = statistics.get(key).get();
+
+      if (statistics_.isSome()) {
+        writer->field(key + "/count", statistics_.get().count);
+        writer->field(key + "/min", statistics_.get().min);
+        writer->field(key + "/max", statistics_.get().max);
+        writer->field(key + "/p50", statistics_.get().p50);
+        writer->field(key + "/p90", statistics_.get().p90);
+        writer->field(key + "/p95", statistics_.get().p95);
+        writer->field(key + "/p99", statistics_.get().p99);
+        writer->field(key + "/p999", statistics_.get().p999);
+        writer->field(key + "/p9999", statistics_.get().p9999);
+      }
     }
+  };
 
-    Option<Statistics<double> > statistics_ = statistics.get(key).get();
-
-    if (statistics_.isSome()) {
-      object.values[key + "/count"] = statistics_.get().count;
-      object.values[key + "/min"] = statistics_.get().min;
-      object.values[key + "/max"] = statistics_.get().max;
-      object.values[key + "/p50"] = statistics_.get().p50;
-      object.values[key + "/p90"] = statistics_.get().p90;
-      object.values[key + "/p95"] = statistics_.get().p95;
-      object.values[key + "/p99"] = statistics_.get().p99;
-      object.values[key + "/p999"] = statistics_.get().p999;
-      object.values[key + "/p9999"] = statistics_.get().p9999;
-    }
-  }
-
-  return http::OK(object, request.url.query.get("jsonp"));
+  return http::OK(jsonify(snapshot), request.url.query.get("jsonp"));
 }
 
 }  // namespace internal {
