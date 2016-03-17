@@ -410,7 +410,7 @@ protected:
 inline TaskInfo createTask(
     const SlaveID& slaveId,
     const Resources& resources,
-    const std::string& command,
+    const CommandInfo& command,
     const Option<mesos::ExecutorID>& executorId = None(),
     const std::string& name = "test-task",
     const std::string& id = UUID::random().toString())
@@ -423,13 +423,31 @@ inline TaskInfo createTask(
   if (executorId.isSome()) {
     ExecutorInfo executor;
     executor.mutable_executor_id()->CopyFrom(executorId.get());
-    executor.mutable_command()->set_value(command);
+    executor.mutable_command()->CopyFrom(command);
     task.mutable_executor()->CopyFrom(executor);
   } else {
-    task.mutable_command()->set_value(command);
+    task.mutable_command()->CopyFrom(command);
   }
 
   return task;
+}
+
+
+inline TaskInfo createTask(
+    const SlaveID& slaveId,
+    const Resources& resources,
+    const std::string& command,
+    const Option<mesos::ExecutorID>& executorId = None(),
+    const std::string& name = "test-task",
+    const std::string& id = UUID::random().toString())
+{
+  return createTask(
+      slaveId,
+      resources,
+      CREATE_COMMAND_INFO(command),
+      executorId,
+      name,
+      id);
 }
 
 
@@ -441,7 +459,12 @@ inline TaskInfo createTask(
     const std::string& id = UUID::random().toString())
 {
   return createTask(
-      offer.slave_id(), offer.resources(), command, executorId, name, id);
+      offer.slave_id(),
+      offer.resources(),
+      command,
+      executorId,
+      name,
+      id);
 }
 
 
