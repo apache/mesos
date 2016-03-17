@@ -8,6 +8,8 @@ breadcrumb: Downloads
     <h4>Previous Releases</h4>
 
     <ul>
+      <li><a href="http://archive.apache.org/dist/mesos/0.27.2/">0.27.2</a>
+           (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334913">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.27.1/">0.27.1</a>
            (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334748">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.27.0/">0.27.0</a>
@@ -39,23 +41,23 @@ breadcrumb: Downloads
       <li><a href="http://archive.apache.org/dist/mesos/0.20.0/">0.20.0</a>
            (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326835">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.19.1/">0.19.1</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12327173">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12327173">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.19.0/">0.19.0</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326253">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326253">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.18.2/">0.18.2</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326851">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326851">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.18.1/">0.18.1</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326752">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326752">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.18.0/">0.18.0</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326140">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12326140">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.17.0/">0.17.0</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325669">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325669">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.16.0/">0.16.0</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325295">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325295">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.15.0/">0.15.0</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12324901">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12324901">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.14.2/">0.14.2</a>
-      	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325324">Release Notes</a>)</li>
+	   (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325324">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.14.1/">0.14.1</a>
            (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12324994">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.14.0/">0.14.0</a>
@@ -78,8 +80,9 @@ breadcrumb: Downloads
   <div class="col-md-8">
     <h1>Download Mesos</h1>
       <p>Download the most recent stable release:
-	      <a href="http://www.apache.org/dyn/mirrors/mirrors.cgi/mesos/0.27.2/">0.27.2</a>
-        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334913">Release Notes</a>)
+	      <a
+href="http://www.apache.org/dyn/mirrors/mirrors.cgi/mesos/0.28.0/">0.28.0</a>
+        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334661">Release Notes</a>)
       </p>
 
       <h4>Getting the code via source control</h4>
