@@ -99,7 +99,8 @@ static Future<http::Response> curl(
     "-s",       // Don’t show progress meter or error messages.
     "-S",       // Make curl show an error message if it fails.
     "-L",       // Follow HTTP 3xx redirects.
-    "-D", "-",  // Write the protocol headers to stdout.
+    "-i",       // Include the HTTP-header in the output.
+    "--raw",    // Disable HTTP decoding of content or transfer encodings.
   };
 
   // Add additional headers.
