@@ -27,6 +27,7 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 
 #include "master/allocator/mesos/allocator.hpp"
