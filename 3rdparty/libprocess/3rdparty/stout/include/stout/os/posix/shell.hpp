@@ -32,10 +32,10 @@ namespace os {
 
 namespace Shell {
 
-// Canonical constants used as platform-dependent args to `exec` calls.
-// name() is the command name, arg0() is the first argument received
-// by the callee, usualy the command name and arg1() is the second
-// command argument received by the callee.
+  // Canonical constants used as platform-dependent args to `exec` calls.
+  // `name` is the command name, `arg0` is the first argument received
+  // by the callee, usually the command name and `arg1` is the second
+  // command argument received by the callee.
 
   constexpr const char* name = "sh";
   constexpr const char* arg0 = "sh";
