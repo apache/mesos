@@ -51,7 +51,6 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
-
 using process::Clock;
 using process::DESCRIPTION;
 using process::Future;
