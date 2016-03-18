@@ -40,6 +40,7 @@ namespace process {
 string HELP(
     const string& tldr,
     const Option<string>& description,
+    const Option<string>& authentication,
     const Option<string>& references)
 {
   // Construct the help string.
@@ -56,6 +57,13 @@ string HELP(
       "\n"
       "### DESCRIPTION ###\n" +
       description.get();
+  }
+
+  if (authentication.isSome()) {
+    help +=
+      "\n"
+      "### AUTHENTICATION ###\n" +
+      authentication.get();
   }
 
   if (!strings::endsWith(help, "\n")) {
