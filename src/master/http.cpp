@@ -74,6 +74,7 @@
 
 using google::protobuf::RepeatedPtrField;
 
+using process::AUTHENTICATION;
 using process::Clock;
 using process::DESCRIPTION;
 using process::Future;
@@ -326,9 +327,10 @@ string Master::Http::SCHEDULER_HELP()
 {
   return HELP(
     TLDR(
-        "Endpoint for schedulers to make Calls against the master."),
+        "Endpoint for schedulers to make calls against the master."),
     DESCRIPTION(
-        "Returns 202 Accepted iff the request is accepted."));
+        "Returns 202 Accepted iff the request is accepted."),
+    AUTHENTICATION(false));
 }
 
 
@@ -541,7 +543,8 @@ string Master::Http::CREATE_VOLUMES_HELP()
         "creation is done asynchronously and may fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
-        "the volumes to be created."));
+        "the volumes to be created."),
+    AUTHENTICATION(true));
 }
 
 
@@ -648,7 +651,8 @@ string Master::Http::DESTROY_VOLUMES_HELP()
         "destruction is done asynchronously and may fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
-        "the volumes to be destroyed."));
+        "the volumes to be destroyed."),
+    AUTHENTICATION(true));
 }
 
 
@@ -730,7 +734,9 @@ Future<Response> Master::Http::destroyVolumes(
 
 string Master::Http::FRAMEWORKS_HELP()
 {
-  return HELP(TLDR("Exposes the frameworks info."));
+  return HELP(
+    TLDR("Exposes the frameworks info."),
+    AUTHENTICATION(true));
 }
 
 
@@ -774,7 +780,9 @@ Future<Response> Master::Http::frameworks(
 
 string Master::Http::FLAGS_HELP()
 {
-  return HELP(TLDR("Exposes the master's flag configuration."));
+  return HELP(
+    TLDR("Exposes the master's flag configuration."),
+    AUTHENTICATION(true));
 }
 
 
@@ -806,7 +814,8 @@ string Master::Http::HEALTH_HELP()
         "Health check of the Master."),
     DESCRIPTION(
         "Returns 200 OK iff the Master is healthy.",
-        "Delayed responses are also indicative of poor health."));
+        "Delayed responses are also indicative of poor health."),
+    AUTHENTICATION(false));
 }
 
 
@@ -831,7 +840,8 @@ string Master::Http::OBSERVE_HELP()
         "The following fields should be supplied in a POST:",
         "1. " + MONITOR_KEY + " - name of the monitor that is being reported",
         "2. " + HOSTS_KEY + " - comma separated list of hosts",
-        "3. " + LEVEL_KEY + " - OK for healthy, anything else for unhealthy"));
+        "3. " + LEVEL_KEY + " - OK for healthy, anything else for unhealthy"),
+    AUTHENTICATION(true));
 }
 
 Try<string> getFormValue(
@@ -928,7 +938,8 @@ string Master::Http::REDIRECT_HELP()
         "running multiple Masters.",
         "2. This is broken currently \"on the cloud\" (e.g. EC2) as",
         "this will attempt to redirect to the private IP address, unless",
-        "advertise_ip points to an externally accessible IP"));
+        "advertise_ip points to an externally accessible IP"),
+    AUTHENTICATION(false));
 }
 
 
@@ -971,7 +982,8 @@ string Master::Http::RESERVE_HELP()
         "resource reservation is done asynchronously and may fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
-        "the resources to be reserved."));
+        "the resources to be reserved."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1062,7 +1074,8 @@ string Master::Http::SLAVES_HELP()
         "Information about registered slaves."),
     DESCRIPTION(
         "This endpoint shows information about the slaves registered in",
-        "this master formatted as a JSON object."));
+        "this master formatted as a JSON object."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1135,7 +1148,8 @@ string Master::Http::QUOTA_HELP()
         "Sets quota for a role."),
     DESCRIPTION(
         "POST: Validates the request body as JSON",
-        " and sets quota for a role."));
+        " and sets quota for a role."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1172,7 +1186,8 @@ string Master::Http::WEIGHTS_HELP()
         "Updates weights for the specified roles."),
     DESCRIPTION(
         "PUT: Validates the request body as JSON",
-        "and updates the weights for the specified roles."));
+        "and updates the weights for the specified roles."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1272,7 +1287,8 @@ string Master::Http::STATE_HELP()
         "    \"orphan_tasks\" : [],",
         "    \"unregistered_frameworks\" : []",
         "}",
-        "```"));
+        "```"),
+    AUTHENTICATION(true));
 }
 
 
@@ -1547,7 +1563,8 @@ string Master::Http::STATESUMMARY_HELP()
         "Summary of state of all tasks and registered frameworks in cluster."),
     DESCRIPTION(
         "This endpoint gives a summary of the state of all tasks and",
-        "registered frameworks in the cluster as a JSON object."));
+        "registered frameworks in the cluster as a JSON object."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1669,7 +1686,8 @@ string Master::Http::ROLES_HELP()
         "It returns information about every role that is on the role",
         "whitelist (if enabled), has one or more registered frameworks,",
         "or has a non-default weight or quota. For each role, it returns",
-        "the weight, total allocated resources, and registered frameworks."));
+        "the weight, total allocated resources, and registered frameworks."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1777,7 +1795,8 @@ string Master::Http::TEARDOWN_HELP()
     DESCRIPTION(
         "Please provide a \"frameworkId\" value designating the running",
         "framework to tear down.",
-        "Returns 200 OK if the framework was correctly teared down."));
+        "Returns 200 OK if the framework was correctly teared down."),
+    AUTHENTICATION(true));
 }
 
 
@@ -1870,7 +1889,8 @@ string Master::Http::TASKS_HELP()
       ">        offset=VALUE         Starts task list at offset.",
       ">        order=(asc|desc)     Ascending or descending sort order "
       "(default is descending)."
-      ""));
+      ""),
+    AUTHENTICATION(true));
 }
 
 
@@ -1987,7 +2007,8 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
         "GET: Returns the current maintenance schedule as JSON.",
         "",
         "POST: Validates the request body as JSON",
-        "  and updates the maintenance schedule."));
+        "  and updates the maintenance schedule."),
+    AUTHENTICATION(true));
 }
 
 
@@ -2124,7 +2145,8 @@ string Master::Http::MACHINE_DOWN_HELP()
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into DOWN mode.  Currently, only",
-        "  machines in DRAINING mode are allowed to be brought down."));
+        "  machines in DRAINING mode are allowed to be brought down."),
+    AUTHENTICATION(true));
 }
 
 
@@ -2229,7 +2251,8 @@ string Master::Http::MACHINE_UP_HELP()
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into UP mode.  This also removes",
-        "  the list of machines from the maintenance schedule."));
+        "  the list of machines from the maintenance schedule."),
+    AUTHENTICATION(true));
 }
 
 
@@ -2335,7 +2358,8 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
         "For draining machines, this list includes the frameworks' responses",
         "to inverse offers.  NOTE: Inverse offer responses are cleared if",
         "the master fails over.  However, new inverse offers will be sent",
-        "once the master recovers."));
+        "once the master recovers."),
+    AUTHENTICATION(true));
 }
 
 
@@ -2414,7 +2438,8 @@ string Master::Http::UNRESERVE_HELP()
         "resource unreservation is done asynchronously and may fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
-        "the resources to be unreserved."));
+        "the resources to be unreserved."),
+    AUTHENTICATION(true));
 }
 
 
