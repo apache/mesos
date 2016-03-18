@@ -111,18 +111,19 @@ protected:
 class ExecutorProcess : public ProtobufProcess<ExecutorProcess>
 {
 public:
-  ExecutorProcess(const UPID& _slave,
-                  MesosExecutorDriver* _driver,
-                  Executor* _executor,
-                  const SlaveID& _slaveId,
-                  const FrameworkID& _frameworkId,
-                  const ExecutorID& _executorId,
-                  bool _local,
-                  const string& _directory,
-                  bool _checkpoint,
-                  const Duration& _recoveryTimeout,
-                  std::recursive_mutex* _mutex,
-                  Latch* _latch)
+  ExecutorProcess(
+      const UPID& _slave,
+      MesosExecutorDriver* _driver,
+      Executor* _executor,
+      const SlaveID& _slaveId,
+      const FrameworkID& _frameworkId,
+      const ExecutorID& _executorId,
+      bool _local,
+      const string& _directory,
+      bool _checkpoint,
+      const Duration& _recoveryTimeout,
+      std::recursive_mutex* _mutex,
+      Latch* _latch)
     : ProcessBase(ID::generate("executor")),
       slave(_slave),
       driver(_driver),
@@ -202,11 +203,12 @@ protected:
     send(slave, message);
   }
 
-  void registered(const ExecutorInfo& executorInfo,
-                  const FrameworkID& frameworkId,
-                  const FrameworkInfo& frameworkInfo,
-                  const SlaveID& slaveId,
-                  const SlaveInfo& slaveInfo)
+  void registered(
+      const ExecutorInfo& executorInfo,
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
+      const SlaveID& slaveId,
+      const SlaveInfo& slaveInfo)
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring registered message from slave " << slaveId
@@ -358,10 +360,11 @@ protected:
     tasks.erase(taskId);
   }
 
-  void frameworkMessage(const SlaveID& slaveId,
-                        const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
-                        const string& data)
+  void frameworkMessage(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const string& data)
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring framework message because the driver is aborted!";
