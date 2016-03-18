@@ -403,7 +403,6 @@ public:
 #endif // __linux__
       }
 
-
       cout << commandString << endl;
 
       // The child has successfully setsid, now run the command.
@@ -725,12 +724,13 @@ public:
       const Option<string>& user,
       const Option<string>& taskCommand)
   {
-    process = new CommandExecutorProcess(override,
-                                         healthCheckDir,
-                                         sandboxDirectory,
-                                         workingDirectory,
-                                         user,
-                                         taskCommand);
+    process = new CommandExecutorProcess(
+        override,
+        healthCheckDir,
+        sandboxDirectory,
+        workingDirectory,
+        user,
+        taskCommand);
 
     spawn(process);
   }
