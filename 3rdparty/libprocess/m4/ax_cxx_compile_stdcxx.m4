@@ -89,27 +89,31 @@ AC_DEFUN([AX_CXX_COMPILE_STDCXX], [dnl
   fi])
 
   m4_if([$2], [ext], [], [dnl
-  if test x$ac_success = xno; then
-    dnl HP's aCC needs +std=c++11 according to:
-    dnl http://h21007.www2.hp.com/portal/download/files/unprot/aCxx/PDF_Release_Notes/769149-001.pdf
-    dnl Cray's crayCC needs "-h std=c++11"
-    for switch in -std=c++$1 -std=c++0x +std=c++$1 "-h std=c++$1"; do
-      cachevar=AS_TR_SH([ax_cv_cxx_compile_cxx$1_$switch])
-      AC_CACHE_CHECK(whether $CXX supports C++$1 features with $switch,
-                     $cachevar,
-        [ac_save_CXX="$CXX"
-         CXX="$CXX $switch"
-         AC_COMPILE_IFELSE([AC_LANG_SOURCE([_AX_CXX_COMPILE_STDCXX_testbody_$1])],
-          [eval $cachevar=yes],
-          [eval $cachevar=no])
-         CXX="$ac_save_CXX"])
-      if eval test x\$$cachevar = xyes; then
-        CXX="$CXX $switch"
-        ac_success=yes
-        break
-      fi
-    done
-  fi])
+  dnl Note that in "noext" mode, we still want to specify a "-std" flag
+  dnl if the compiler accepts it (even if the compiler supports the
+  dnl desired C++ dialect without any flags), because the default compiler
+  dnl dialect might include support for extensions.
+  dnl HP's aCC needs +std=c++11 according to:
+  dnl http://h21007.www2.hp.com/portal/download/files/unprot/aCxx/PDF_Release_Notes/769149-001.pdf
+  dnl Cray's crayCC needs "-h std=c++11"
+  for switch in -std=c++$1 -std=c++0x +std=c++$1 "-h std=c++$1"; do
+    cachevar=AS_TR_SH([ax_cv_cxx_compile_cxx$1_$switch])
+    AC_CACHE_CHECK(whether $CXX supports C++$1 features with $switch,
+                   $cachevar,
+      [ac_save_CXX="$CXX"
+       CXX="$CXX $switch"
+       AC_COMPILE_IFELSE([AC_LANG_SOURCE([_AX_CXX_COMPILE_STDCXX_testbody_$1])],
+        [eval $cachevar=yes],
+        [eval $cachevar=no])
+       CXX="$ac_save_CXX"])
+    if eval test x\$$cachevar = xyes; then
+      CXX="$CXX $switch"
+      ac_success=yes
+      break
+    fi
+  done
+  ])
+
   AC_LANG_POP([C++])
   if test x$ax_cxx_compile_cxx$1_required = xtrue; then
     if test x$ac_success = xno; then
