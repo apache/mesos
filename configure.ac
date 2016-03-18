@@ -569,9 +569,9 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
   ]
 )
 
-# Ensure we can build the C++11 features we expect, and set the --std=
-# flag and CXXFLAG environment variable as appropriate.
-AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+# Ensure that CXX supports C++11 (with "strict" conformance), and set
+# "--std=" flag and CXX environment variable as appropriate.
+AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
 
 # Blacklist known incompatible C++ standard libraries to reduce chance
 # of users accidentally using them.
