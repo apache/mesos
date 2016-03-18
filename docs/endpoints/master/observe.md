@@ -18,3 +18,8 @@ The following fields should be supplied in a POST:
 1. monitor - name of the monitor that is being reported
 2. hosts - comma separated list of hosts
 3. level - OK for healthy, anything else for unhealthy
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

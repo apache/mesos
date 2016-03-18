@@ -14,3 +14,8 @@ Sets quota for a role.
 ### DESCRIPTION ###
 POST: Validates the request body as JSON
  and sets quota for a role.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

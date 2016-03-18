@@ -10,3 +10,7 @@ layout: documentation
 
 ### TL;DR; ###
 Exposes the master's flag configuration.
+
+### DESCRIPTION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

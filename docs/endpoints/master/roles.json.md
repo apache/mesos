@@ -17,3 +17,8 @@ It returns information about every role that is on the role
 whitelist (if enabled), has one or more registered frameworks,
 or has a non-default weight or quota. For each role, it returns
 the weight, total allocated resources, and registered frameworks.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

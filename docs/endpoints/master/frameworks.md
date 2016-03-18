@@ -10,3 +10,7 @@ layout: documentation
 
 ### TL;DR; ###
 Exposes the frameworks info.
+
+### DESCRIPTION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

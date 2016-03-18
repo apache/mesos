@@ -15,3 +15,8 @@ Brings a set of machines down.
 POST: Validates the request body as JSON and transitions
   the list of machines into DOWN mode.  Currently, only
   machines in DRAINING mode are allowed to be brought down.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

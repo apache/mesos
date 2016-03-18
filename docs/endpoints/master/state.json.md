@@ -84,3 +84,8 @@ Example (**Note**: this is not exhaustive):
     "unregistered_frameworks" : []
 }
 ```
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

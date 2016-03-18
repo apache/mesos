@@ -14,3 +14,7 @@ Health check of the Master.
 ### DESCRIPTION ###
 Returns 200 OK iff the Master is healthy.
 Delayed responses are also indicative of poor health.
+
+
+### AUTHENTICATION ###
+This endpoint does not require authentication.

@@ -13,3 +13,7 @@ Endpoint for schedulers to make Calls against the master.
 
 ### DESCRIPTION ###
 Returns 202 Accepted iff the request is accepted.
+
+
+### AUTHENTICATION ###
+This endpoint does not require authentication.

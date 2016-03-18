@@ -14,3 +14,8 @@ Information about registered slaves.
 ### DESCRIPTION ###
 This endpoint shows information about the slaves registered in
 this master formatted as a JSON object.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

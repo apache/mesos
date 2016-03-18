@@ -18,3 +18,8 @@ resource reservation is done asynchronously and may fail.
 
 Please provide "slaveId" and "resources" values designating
 the resources to be reserved.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

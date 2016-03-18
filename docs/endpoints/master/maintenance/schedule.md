@@ -16,3 +16,8 @@ GET: Returns the current maintenance schedule as JSON.
 
 POST: Validates the request body as JSON
   and updates the maintenance schedule.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.
