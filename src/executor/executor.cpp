@@ -232,7 +232,7 @@ public:
       }
     }
 
-    // Get shutdown grace period from environment.
+    // Get executor shutdown grace period from the environment.
     value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
     if (value.isSome()) {
       Try<Duration> _shutdownGracePeriod = Duration::parse(value.get());
