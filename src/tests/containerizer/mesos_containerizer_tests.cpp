@@ -703,6 +703,122 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 }
 
 
+class MesosContainerizerProvisionerTest : public MesosTest {};
+
+
+class MockProvisioner : public mesos::internal::slave::Provisioner
+{
+public:
+  MockProvisioner() {}
+  MOCK_METHOD2(recover,
+               Future<Nothing>(const list<ContainerState>&,
+                               const hashset<ContainerID>&));
+
+  MOCK_METHOD2(provision,
+               Future<mesos::internal::slave::ProvisionInfo>(
+                   const ContainerID&,
+                   const Image&));
+
+  MOCK_METHOD1(destroy, Future<bool>(const ContainerID&));
+};
+
+
+// This test verifies that when the provision fails, the containerizer
+// can be destroyed successfully.
+TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Launcher*> launcher_ = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher_);
+
+  TestLauncher* launcher = new TestLauncher(Owned<Launcher>(launcher_.get()));
+
+  MockProvisioner* provisioner = new MockProvisioner();
+
+  Future<Nothing> provision;
+
+  // Simulate a provision failure.
+  EXPECT_CALL(*provisioner, provision(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&provision),
+                    Return(Failure("provision failure"))));
+
+  EXPECT_CALL(*provisioner, destroy(_))
+    .WillOnce(Return(true));
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MesosContainerizerProcess* process = new MesosContainerizerProcess(
+      flags,
+      true,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      Owned<Launcher>(launcher),
+      Owned<Provisioner>(provisioner),
+      vector<Owned<Isolator>>());
+
+  MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  Image::Docker dockerImage;
+  dockerImage.set_name(UUID::random().toString());
+  image.mutable_docker()->CopyFrom(dockerImage);
+
+  ContainerInfo::MesosInfo mesosInfo;
+  mesosInfo.mutable_image()->CopyFrom(image);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+
+  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  Future<bool> launch = containerizer.launch(
+      containerId,
+      taskInfo,
+      executorInfo,
+      os::getcwd(),
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  AWAIT_READY(provision);
+
+  AWAIT_FAILED(launch);
+
+  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+
+  containerizer.destroy(containerId);
+
+  AWAIT_READY(wait);
+
+  containerizer::Termination termination = wait.get();
+
+  // TODO(lins05): Improve the assertion once we add the
+  // "PROVISIONING" state. See MESOS-4985.
+  EXPECT_EQ(
+    "Container destroyed while preparing isolators",
+    termination.message());
+
+  EXPECT_FALSE(termination.has_status());
+}
+
+
 // This action destroys the container using the real launcher and
 // waits until the destroy is complete.
 ACTION_P(InvokeDestroyAndWait, launcher)

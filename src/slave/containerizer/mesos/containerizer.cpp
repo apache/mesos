@@ -672,6 +672,16 @@ Future<bool> MesosContainerizerProcess::launch(
   container->state = PREPARING;
   container->resources = executorInfo.resources();
 
+  // TODO(lins05): It's possible that we call provisioner->destroy
+  // while provisioner->provision is in progress.  This could cause
+  // leaking of the provisioned directory. See MESOS-4985.
+
+  // We need to set the `launchInfos` to be a ready future initially
+  // before we starting calling isolator->prepare() because otherwise,
+  // the destroy will wait forever trying to wait for this future to
+  // be ready , which it never will. See MESOS-4878.
+  container->launchInfos = list<Option<ContainerLaunchInfo>>();
+
   containers_.put(containerId, Owned<Container>(container));
 
   if (!executorInfo.has_container()) {
