@@ -442,7 +442,9 @@ public:
 
     cout << "Forked command at " << pid << endl;
 
-    launchHealthCheck(task);
+    if (task.has_health_check()) {
+      launchHealthCheck(task);
+    }
 
     // Monitor this process.
     process::reap(pid)
@@ -652,40 +654,41 @@ private:
 
   void launchHealthCheck(const TaskInfo& task)
   {
-    if (task.has_health_check()) {
-      JSON::Object json = JSON::protobuf(task.health_check());
+    CHECK(task.has_health_check());
 
-      // Launch the subprocess using 'exec' style so that quotes can
-      // be properly handled.
-      vector<string> argv(4);
-      argv[0] = "mesos-health-check";
-      argv[1] = "--executor=" + stringify(self());
-      argv[2] = "--health_check_json=" + stringify(json);
-      argv[3] = "--task_id=" + task.task_id().value();
+    JSON::Object json = JSON::protobuf(task.health_check());
 
-      cout << "Launching health check process: "
-           << path::join(healthCheckDir, "mesos-health-check")
-           << " " << argv[1] << " " << argv[2] << " " << argv[3] << endl;
+    // Launch the subprocess using 'exec' style so that quotes can
+    // be properly handled.
+    vector<string> argv(4);
+    argv[0] = "mesos-health-check";
+    argv[1] = "--executor=" + stringify(self());
+    argv[2] = "--health_check_json=" + stringify(json);
+    argv[3] = "--task_id=" + task.task_id().value();
 
-      Try<Subprocess> healthProcess =
-        process::subprocess(
-          path::join(healthCheckDir, "mesos-health-check"),
-          argv,
-          // Intentionally not sending STDIN to avoid health check
-          // commands that expect STDIN input to block.
-          Subprocess::PATH("/dev/null"),
-          Subprocess::FD(STDOUT_FILENO),
-          Subprocess::FD(STDERR_FILENO));
+    cout << "Launching health check process: "
+         << path::join(healthCheckDir, "mesos-health-check")
+         << " " << argv[1] << " " << argv[2] << " " << argv[3] << endl;
 
-      if (healthProcess.isError()) {
-        cerr << "Unable to launch health process: " << healthProcess.error();
-      } else {
-        healthPid = healthProcess.get().pid();
+    Try<Subprocess> healthProcess =
+      process::subprocess(
+        path::join(healthCheckDir, "mesos-health-check"),
+        argv,
+        // Intentionally not sending STDIN to avoid health check
+        // commands that expect STDIN input to block.
+        Subprocess::PATH("/dev/null"),
+        Subprocess::FD(STDOUT_FILENO),
+        Subprocess::FD(STDERR_FILENO));
 
-        cout << "Health check process launched at pid: "
-             << stringify(healthPid) << endl;
-      }
+    if (healthProcess.isError()) {
+      cerr << "Unable to launch health process: " << healthProcess.error();
+      return;
     }
+
+    healthPid = healthProcess.get().pid();
+
+    cout << "Health check process launched at pid: "
+         << stringify(healthPid) << endl;
   }
 
   enum State
