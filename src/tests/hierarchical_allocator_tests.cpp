@@ -831,18 +831,17 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   AWAIT_READY(allocation);
   frameworkAllocations[allocation.get().frameworkId] = allocation.get();
 
-  // NOTE: `slave1` and `slave2` have the same resources, we don't
-  // care which framework received which slave.. only that they each
-  // received one.
+  // NOTE: `slave1` and `slave2` have the same resources, we don't care
+  // which framework received which slave, only that they each received one.
   ASSERT_TRUE(frameworkAllocations.contains(framework1.id()));
   ASSERT_EQ(1u, frameworkAllocations[framework1.id()].resources.size());
   EXPECT_EQ(slave1.resources(),
             Resources::sum(frameworkAllocations[framework1.id()].resources));
 
   ASSERT_TRUE(frameworkAllocations.contains(framework2.id()));
-  ASSERT_EQ(1u, frameworkAllocations[framework1.id()].resources.size());
+  ASSERT_EQ(1u, frameworkAllocations[framework2.id()].resources.size());
   EXPECT_EQ(slave2.resources(),
-            Resources::sum(frameworkAllocations[framework1.id()].resources));
+            Resources::sum(frameworkAllocations[framework2.id()].resources));
 }
 
 
