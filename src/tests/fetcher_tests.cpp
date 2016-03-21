@@ -27,6 +27,7 @@
 #include <process/http.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/base64.hpp>
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -542,12 +543,12 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 
   AWAIT_READY(fetch);
 
-  ASSERT_TRUE(os::exists(path::join(".", path.get())));
+  ASSERT_TRUE(os::exists(path::join(os::getcwd(), path.get())));
 
-  ASSERT_SOME_EQ("hello world", os::read(path::join(".", path.get())));
+  ASSERT_SOME_EQ("hello world", os::read(path::join(os::getcwd(), path.get())));
 
   Try<os::Permissions> permissions =
-    os::permissions(path::join(".", path.get()));
+    os::permissions(path::join(os::getcwd(), path.get()));
 
   ASSERT_SOME(permissions);
   EXPECT_FALSE(permissions.get().owner.x);
@@ -593,9 +594,9 @@ TEST_F(FetcherTest, ExtractTar)
 
   AWAIT_READY(fetch);
 
-  ASSERT_TRUE(os::exists(path::join(".", path.get())));
+  ASSERT_TRUE(os::exists(path::join(os::getcwd(), path.get())));
 
-  ASSERT_SOME_EQ("hello tar", os::read(path::join(".", path.get())));
+  ASSERT_SOME_EQ("hello tar", os::read(path::join(os::getcwd(), path.get())));
 
   ASSERT_SOME(os::rm(path.get()));
 }
@@ -631,12 +632,175 @@ TEST_F(FetcherTest, ExtractGzipFile)
 
   AWAIT_READY(fetch);
 
-  string extractFile = path::join(".", Path(path.get()).basename());
-  ASSERT_TRUE(os::exists(extractFile));
+  string extractedFile = path::join(os::getcwd(), Path(path.get()).basename());
+  ASSERT_TRUE(os::exists(extractedFile));
 
-  ASSERT_SOME_EQ("hello world", os::read(extractFile));
+  ASSERT_SOME_EQ("hello world", os::read(extractedFile));
 
   ASSERT_SOME(os::rm(path.get() + ".gz"));
+}
+
+
+TEST_F(FetcherTest, ExtractZipFile)
+{
+  // Construct a tmp file that can be fetched and archived with zip.
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+
+  Try<string> path = os::mktemp(path::join(fromDir, "XXXXXX"));
+  ASSERT_SOME(path);
+
+  //  Length     Size  Cmpr    Date    Time   CRC-32   Name    Content
+  // --------  ------- ---- ---------- ----- --------  ----    ------
+  //       12       12   0% 2016-03-19 10:08 af083b2d  hello   hello world\n
+  // --------  -------  ---                            ------- ------
+  //       12       12   0%                            1 file
+  ASSERT_SOME(os::write(path.get(), base64::decode(
+      "UEsDBAoAAAAAABBRc0gtOwivDAAAAAwAAAAFABwAaGVsbG9VVAkAAxAX7VYQ"
+      "F+1WdXgLAAEE6AMAAARkAAAAaGVsbG8gd29ybGQKUEsBAh4DCgAAAAAAEFFz"
+      "SC07CK8MAAAADAAAAAUAGAAAAAAAAQAAAKSBAAAAAGhlbGxvVVQFAAMQF+1W"
+      "dXgLAAEE6AMAAARkAAAAUEsFBgAAAAABAAEASwAAAEsAAAAAAA==").get()));
+
+  ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".zip");
+  uri->set_extract(true);
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId,
+      commandInfo,
+      os::getcwd(),
+      None(),
+      slaveId,
+      flags);
+
+  AWAIT_READY(fetch);
+
+  string extractedFile = path::join(os::getcwd(), "hello");
+  ASSERT_TRUE(os::exists(extractedFile));
+
+  ASSERT_SOME_EQ("hello world\n", os::read(extractedFile));
+}
+
+
+TEST_F(FetcherTest, ExtractInvalidZipFile)
+{
+  // Construct a tmp file that can be filled with broken zip.
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+
+  Try<string> path = os::mktemp(path::join(fromDir, "XXXXXX"));
+  ASSERT_SOME(path);
+
+  // Write broken zip to file [bad CRC 440a6aa5  (should be af083b2d)].
+  //  Length     Date    Time  CRC expected  CRC actual  Name    Content
+  // -------- ---------- ----- ------------  ----------  ----    ------
+  //       12 2016-03-19 10:08  af083b2d     440a6aa5    world   hello hello\n
+  // --------                                            ------- ------
+  //       12                                            1 file
+  ASSERT_SOME(os::write(path.get(), base64::decode(
+      "UEsDBAoAAAAAABBRc0gtOwivDAAAAAwAAAAFABwAd29ybG9VVAkAAxAX7VYQ"
+      "F+1WdXgLAAEE6AMAAARkAAAAaGVsbG8gaGVsbG8KUEsBAh4DCgAAAAAAEFFz"
+      "SC07CK8MAAAADAAAAAUAGAAAAAAAAQAAAKSBAAAAAHdvcmxkVVQFAAMQF+1W"
+      "dXgLAAEE6AMAAARkAAAAUEsFBgAAAAABAAEASwAAAEsAAAAAAA==").get()));
+
+  ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".zip");
+  uri->set_extract(true);
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId,
+      commandInfo,
+      os::getcwd(),
+      None(),
+      slaveId,
+      flags);
+
+  AWAIT_FAILED(fetch);
+
+  string extractedFile = path::join(os::getcwd(), "world");
+  ASSERT_TRUE(os::exists(extractedFile));
+
+  ASSERT_SOME_EQ("hello hello\n", os::read(extractedFile));
+}
+
+
+TEST_F(FetcherTest, ExtractZipFileWithDuplicatedEntries)
+{
+  // Construct a tmp file that can be filled with zip containing
+  // duplicates.
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+
+  Try<string> path = os::mktemp(path::join(fromDir, "XXXXXX"));
+  ASSERT_SOME(path);
+
+  // Create zip file with duplicates.
+  //   Length  Method    Size  Cmpr    Date    Time   CRC-32   Name   Content
+  // --------  ------  ------- ---- ---------- ----- --------  ----   -------
+  //       1   Stored        1   0% 2016-03-18 22:49 83dcefb7  A          1
+  //       1   Stored        1   0% 2016-03-18 22:49 1ad5be0d  A          2
+  // --------          -------  ---                           ------- -------
+  //       2                2   0%                            2 files
+  ASSERT_SOME(os::write(path.get(), base64::decode(
+      "UEsDBBQAAAAAADC2cki379yDAQAAAAEAAAABAAAAQTFQSwMEFAAAAAAAMrZy"
+      "SA2+1RoBAAAAAQAAAAEAAABBMlBLAQIUAxQAAAAAADC2cki379yDAQAAAAEA"
+      "AAABAAAAAAAAAAAAAACAAQAAAABBUEsBAhQDFAAAAAAAMrZySA2+1RoBAAAA"
+      "AQAAAAEAAAAAAAAAAAAAAIABIAAAAEFQSwUGAAAAAAIAAgBeAAAAQAAAAAAA").get()));
+
+  ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".zip");
+  uri->set_extract(true);
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId,
+      commandInfo,
+      os::getcwd(),
+      None(),
+      slaveId,
+      flags);
+
+  AWAIT_READY(fetch);
+
+  string extractedFile = path::join(os::getcwd(), "A");
+  ASSERT_TRUE(os::exists(extractedFile));
+
+  ASSERT_SOME_EQ("2", os::read(extractedFile));
 }
 
 

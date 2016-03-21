@@ -74,7 +74,7 @@ static Try<bool> extract(
     string filename = Path(pathWithoutExtension).basename();
     command = "gzip -dc > '" + destinationDirectory + "/" + filename + "' <";
   } else if (strings::endsWith(sourcePath, ".zip")) {
-    command = "unzip -d '" + destinationDirectory + "'";
+    command = "unzip -o -d '" + destinationDirectory + "'";
   } else {
     return false;
   }
