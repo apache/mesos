@@ -1,3 +1,11 @@
+Release Notes - Mesos - Version 0.29.0 (WIP)
+--------------------------------------------
+
+Additional API Changes:
+  * [MESOS-4735] - Add 'filename' field to CommandInfo.URI in Scheduler API
+    and v1 Scheduler HTTP API.
+
+
 Release Notes - Mesos - Version 0.28.0
 --------------------------------------------
 This release contains the following new features:

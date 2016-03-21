@@ -67,6 +67,9 @@ public:
   // reported to the user.
   static Try<Nothing> validateUri(const std::string& uri);
 
+  // Checks to make sure the URI filename is valid.
+  static Try<Nothing> validateFilename(const std::string& filename);
+
   // Determines if the given URI refers to a local file system path
   // and prepends frameworksHome if it is a relative path. Fails if
   // frameworksHome is empty and a local path is indicated.

@@ -249,7 +249,10 @@ static Try<string> fetchBypassingCache(
 {
   LOG(INFO) << "Fetching directly into the sandbox directory";
 
-  Try<string> basename = Fetcher::basename(uri.value());
+  Try<string> basename = uri.has_filename()
+      ? uri.filename()
+      : Fetcher::basename(uri.value());
+
   if (basename.isError()) {
     return Error("Failed to determine the basename of the URI '" +
                  uri.value() + "' with error: " + basename.error());
@@ -288,7 +291,10 @@ static Try<string> fetchFromCache(
 {
   LOG(INFO) << "Fetching from cache";
 
-  Try<string> basename = Fetcher::basename(item.uri().value());
+  Try<string> basename = item.uri().has_filename()
+      ? item.uri().filename()
+      : Fetcher::basename(item.uri().value());
+
   if (basename.isError()) {
     return Error(basename.error());
   }

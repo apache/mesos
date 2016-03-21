@@ -73,6 +73,7 @@ each URI are determined based on the following protobuf structure. (See
         optional bool executable = 2;
         optional bool extract = 3 [default = true];
         optional bool cache = 4;
+        optional string filename = 5;
       }
       ...
       optional string user = 5;
@@ -84,6 +85,9 @@ If the "executable" field is "true", the "extract" field is ignored and
 has no effect.
 
 If the "cache" field is true, the fetcher cache is to be used for the URI.
+
+If the "filename" field is set, the fetcher will use that name for the copy
+stored in the sandbox directory.
 
 ### Specifying a user name
 
@@ -126,6 +130,10 @@ in the sandbox directory. These file extensions are recognized:
 In case the cache is bypassed, both the archive and the unpacked results will be
 found together in the sandbox. In case a cache file is unpacked, only the
 extraction result will be found in the sandbox.
+
+The "filename" field is useful here for cases where the URI ends with query
+parameters, since these will otherwise end up in the file copied to the sandbox
+and will subsequently fail to be recognized as archives.
 
 ### Bypassing the cache
 

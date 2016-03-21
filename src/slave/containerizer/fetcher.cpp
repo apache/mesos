@@ -145,12 +145,31 @@ Try<Nothing> Fetcher::validateUri(const string& uri)
 }
 
 
+Try<Nothing> Fetcher::validateFilename(const string& filename)
+{
+  Try<string> result = Path(filename).basename();
+  if (result.isError()) {
+    return Error(result.error());
+  }
+
+  return Nothing();
+}
+
+
 static Try<Nothing> validateUris(const CommandInfo& commandInfo)
 {
   foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
-    Try<Nothing> validation = Fetcher::validateUri(uri.value());
-    if (validation.isError()) {
-      return Error(validation.error());
+    Try<Nothing> uriValidation = Fetcher::validateUri(uri.value());
+    if (uriValidation.isError()) {
+      return Error(uriValidation.error());
+    }
+
+    if (uri.has_filename()) {
+      Try<Nothing> filenameValidation =
+          Fetcher::validateFilename(uri.filename());
+      if (filenameValidation.isError()) {
+        return Error(filenameValidation.error());
+      }
     }
   }
 

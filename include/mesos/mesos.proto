@@ -375,6 +375,11 @@ message CommandInfo {
     // downloading. See also "docs/fetcher.md" and
     // "docs/fetcher-cache-internals.md".
     optional bool cache = 4;
+
+    // The fetcher's default behavior is to use the URI string's basename to
+    // name the local copy. If this field is provided, the local copy will be
+    // named with its value instead.
+    optional string filename = 5;
   }
 
   repeated URI uris = 1;

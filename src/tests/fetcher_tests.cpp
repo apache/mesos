@@ -429,6 +429,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
 TEST_F(FetcherTest, NoExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched.
+  // TODO(mrbrowning): Fix other tests to use this tempfile pattern.
   Try<string> path = os::mktemp();
 
   ASSERT_SOME(path);
@@ -801,6 +802,87 @@ TEST_F(FetcherTest, ExtractZipFileWithDuplicatedEntries)
   ASSERT_TRUE(os::exists(extractedFile));
 
   ASSERT_SOME_EQ("2", os::read(extractedFile));
+}
+
+
+TEST_F(FetcherTest, UseCustomFilename)
+{
+  // First construct a temporary file that can be fetched.
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
+  ASSERT_SOME(path);
+
+  ASSERT_SOME(os::write(path.get(), "hello renamed file"));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  const string customFilename = "custom.txt";
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get());
+  uri->set_extract(true);
+  uri->set_filename(customFilename);
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+
+  AWAIT_READY(fetch);
+
+  ASSERT_TRUE(os::exists(path::join(".", customFilename)));
+
+  ASSERT_SOME_EQ(
+      "hello renamed file", os::read(path::join(".", customFilename)));
+}
+
+
+TEST_F(FetcherTest, CustomGzipFilename)
+{
+  // First construct a temporary file that can be fetched.
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
+  ASSERT_SOME(path);
+
+  ASSERT_SOME(os::write(path.get(), "hello renamed gzip file"));
+  ASSERT_SOME(os::shell("gzip " + path.get()));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  const string customFilename = "custom";
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".gz");
+  uri->set_extract(true);
+  uri->set_filename(customFilename + ".gz");
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+
+  AWAIT_READY(fetch);
+
+  string extractFile = path::join(".", customFilename);
+  ASSERT_TRUE(os::exists(extractFile));
+
+  ASSERT_SOME_EQ("hello renamed gzip file", os::read(extractFile));
 }
 
 
