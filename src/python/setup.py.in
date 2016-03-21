@@ -21,7 +21,7 @@ config = {
     'version': '@PACKAGE_VERSION@',
     'description': 'Python bindings for mesos',
     'author': 'Apache Mesos',
-    'author_email': 'mesos@apache.com',
+    'author_email': 'dev@mesos.apache.org',
     'url': 'http://pypi.python.org/pypi/mesos',
     'packages': [ 'mesos' ],
     'package_dir': { '': 'src' },
