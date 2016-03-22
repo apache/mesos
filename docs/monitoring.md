@@ -873,6 +873,21 @@ and resource allocations in the allocator.
   <td>Number of dispatch events in the event queue</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>allocator/mesos/quota/roles/&lt;role&gt;/resources/&lt;resource&gt;/offered_or_allocated</code>
+  </td>
+  <td>Amount of resources considered offered or allocated towards
+      a role's quota guarantee</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/quota/roles/&lt;role&gt;/resources/&lt;resource&gt;/guarantee</code>
+  </td>
+  <td>Amount of resources guaranteed for a role via quota</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 ### Basic Alerts

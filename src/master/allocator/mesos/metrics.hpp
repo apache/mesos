@@ -17,7 +17,13 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 #define __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 
+#include <string>
+
 #include <process/metrics/gauge.hpp>
+
+#include <process/pid.hpp>
+
+#include <stout/hashmap.hpp>
 
 namespace mesos {
 namespace internal {
@@ -28,18 +34,33 @@ namespace internal {
 // Forward declarations.
 class HierarchicalAllocatorProcess;
 
-class Metrics
+// Collection of metrics for the allocator; these begin
+// with the following prefix: `allocator/mesos/`.
+struct Metrics
 {
-public:
   explicit Metrics(const HierarchicalAllocatorProcess& allocator);
 
   ~Metrics();
 
+  void setQuota(const std::string& role, const Quota& quota);
+  void removeQuota(const std::string& role);
+
+  const process::PID<HierarchicalAllocatorProcess> allocator;
+
+  // Number of dispatch events currently waiting in the allocator process.
   process::metrics::Gauge event_queue_dispatches;
 
   // TODO(bbannier) This metric is identical to `event_queue_dispatches`, but
   // uses a name deprecated in 0.29. This metric should be removed with 0.30.
   process::metrics::Gauge event_queue_dispatches_;
+
+  // Gauges for the per-role quota allocation for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::Gauge>>
+    quota_allocated;
+
+  // Gauges for the per-role quota guarantee for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::Gauge>>
+    quota_guarantee;
 };
 
 } // namespace internal {

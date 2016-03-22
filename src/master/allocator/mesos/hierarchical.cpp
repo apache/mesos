@@ -1018,6 +1018,8 @@ void HierarchicalAllocatorProcess::setQuota(
     }
   }
 
+  metrics.setQuota(role, quota);
+
   // TODO(alexr): Print all quota info for the role.
   LOG(INFO) << "Set quota " << quota.info.guarantee() << " for role '" << role
             << "'";
@@ -1044,6 +1046,8 @@ void HierarchicalAllocatorProcess::removeQuota(
   // Remove the role from the quota'ed allocation group.
   quotas.erase(role);
   quotaRoleSorter->remove(role);
+
+  metrics.removeQuota(role);
 
   // Trigger the allocation explicitly in order to promptly react to the
   // operator's request.
@@ -1681,6 +1685,18 @@ bool HierarchicalAllocatorProcess::allocatable(
 
   return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
          (mem.isSome() && mem.get() >= MIN_MEM);
+}
+
+
+double HierarchicalAllocatorProcess::_quota_allocated(
+    const string& role,
+    const string& resource)
+{
+  Option<Value::Scalar> used =
+    quotaRoleSorter->allocationScalarQuantities(role)
+      .get<Value::Scalar>(resource);
+
+  return used.isSome() ? used->value() : 0;
 }
 
 } // namespace internal {

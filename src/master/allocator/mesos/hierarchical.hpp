@@ -287,6 +287,10 @@ protected:
     return static_cast<double>(eventCount<process::DispatchEvent>());
   }
 
+  double _quota_allocated(
+      const std::string& role,
+      const std::string& resource);
+
   hashmap<FrameworkID, Framework> frameworks;
 
   struct Slave

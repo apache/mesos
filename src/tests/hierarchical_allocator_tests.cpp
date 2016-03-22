@@ -33,6 +33,7 @@
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/json.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
@@ -44,6 +45,7 @@
 
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
@@ -1653,6 +1655,22 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
   //   framework1 share = 1
   // NO_QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
   //   framework2 share = 1
+
+  JSON::Object metrics = Metrics();
+
+  string metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/cpus"
+    "/offered_or_allocated";
+  EXPECT_EQ(0u, metrics.values.count(metric));
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/mem"
+    "/offered_or_allocated";
+  EXPECT_EQ(0u, metrics.values.count(metric));
 }
 
 
@@ -1875,6 +1893,22 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  JSON::Object metrics = Metrics();
+
+  string metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/cpus"
+    "/guarantee";
+  EXPECT_EQ(0.25, metrics.values[metric]);
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/mem"
+    "/guarantee";
+  EXPECT_EQ(128, metrics.values[metric]);
+
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1899,6 +1933,29 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent1.resources() - Resources(quota1.info.guarantee()),
             Resources::sum(allocation.get().resources));
+
+  metrics = Metrics();
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/cpus"
+    "/offered_or_allocated";
+  EXPECT_EQ(0.25, metrics.values[metric]);
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/mem"
+    "/offered_or_allocated";
+  EXPECT_EQ(128, metrics.values[metric]);
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/disk"
+    "/offered_or_allocated";
+  EXPECT_EQ(0u, metrics.values.count(metric));
 
   // Total cluster resources (1 agent): cpus=1, mem=512.
   // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
