@@ -258,6 +258,12 @@ message FrameworkInfo {
 
   message Capability {
     enum Type {
+      // This must be the first enum value in this list, to
+      // ensure that if 'type' is not set, the default value
+      // is UNKNOWN. This enables enum values to be added
+      // in a backwards-compatible way. See: MESOS-4997.
+      UNKNOWN = 0;
+
       // Receive offers with revocable resources. See 'Resource'
       // message for details.
       // TODO(vinod): This is currently a no-op.
@@ -269,7 +275,8 @@ message FrameworkInfo {
       TASK_KILLING_STATE = 2;
     }
 
-    required Type type = 1;
+    // Enum fields should be optional, see: MESOS-4997.
+    optional Type type = 1;
   }
 
   // This field allows a framework to advertise its set of
