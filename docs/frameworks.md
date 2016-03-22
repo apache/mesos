@@ -31,7 +31,7 @@ layout: documentation
 
 ## Data Storage
 
+* [Alluxio](http://alluxio.org) is a memory-centric distributed storage system enabling reliable data sharing at memory-speed across cluster frameworks.
 * [Cassandra](https://github.com/mesosphere/cassandra-mesos) is a performant and highly available distributed database. Linear scalability and proven fault-tolerance on commodity hardware or cloud infrastructure make it the perfect platform for mission-critical data.
 * [ElasticSearch](https://github.com/mesosphere/elasticsearch-mesos) is a distributed search engine. Mesos makes it easy to run and scale.
 * [Hypertable](https://code.google.com/p/hypertable/wiki/Mesos) is a high performance, scalable, distributed storage and processing system for structured and unstructured data.
-* [Tachyon](http://tachyon-project.org) is a memory-centric distributed storage system enabling reliable data sharing at memory-speed across cluster frameworks.
