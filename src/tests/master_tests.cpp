@@ -1623,7 +1623,10 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("registrar/state_store_ms"));
 
   // Allocator Metrics.
-  EXPECT_EQ(1u, snapshot.values.count("allocator/event_queue_dispatches"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "allocator/event_queue_dispatches"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "allocator/mesos/event_queue_dispatches"));
 }
 
 

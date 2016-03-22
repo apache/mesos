@@ -36,6 +36,10 @@ public:
   ~Metrics();
 
   process::metrics::Gauge event_queue_dispatches;
+
+  // TODO(bbannier) This metric is identical to `event_queue_dispatches`, but
+  // uses a name deprecated in 0.29. This metric should be removed with 0.30.
+  process::metrics::Gauge event_queue_dispatches_;
 };
 
 } // namespace internal {

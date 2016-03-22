@@ -27,18 +27,25 @@ namespace internal {
 
 Metrics::Metrics(const HierarchicalAllocatorProcess& allocator)
   : event_queue_dispatches(
+        "allocator/mesos/event_queue_dispatches",
+        process::defer(
+            allocator.self(),
+            &HierarchicalAllocatorProcess::_event_queue_dispatches)),
+    event_queue_dispatches_(
         "allocator/event_queue_dispatches",
         process::defer(
             allocator.self(),
             &HierarchicalAllocatorProcess::_event_queue_dispatches))
 {
   process::metrics::add(event_queue_dispatches);
+  process::metrics::add(event_queue_dispatches_);
 }
 
 
 Metrics::~Metrics()
 {
   process::metrics::remove(event_queue_dispatches);
+  process::metrics::remove(event_queue_dispatches_);
 }
 
 } // namespace internal {

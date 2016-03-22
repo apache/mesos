@@ -43,6 +43,24 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  0.29.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>CD <a href="#0-29-x-allocator-metrics">Allocator Metrics</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   0.28.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
@@ -133,6 +151,12 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 0.28.x to 0.29.x ##
+
+<a name="0-29-x-allocator-metrics"></a>
+
+* The allocator metric named <code>allocator/event_queue_dispatches</code> is now deprecated and will be removed with 0.30. The new name is <code>allocator/mesos/event_queue_dispatches</code> to better support metrics for alternative allocator implementations.
 
 ## Upgrading from 0.27.x to 0.28.x ##
 
