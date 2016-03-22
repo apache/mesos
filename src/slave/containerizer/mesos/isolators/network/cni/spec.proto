@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mesos.internal.slave.cni;
+package mesos.internal.slave.cni.spec;
 
 message Route {
   required string dst = 1;
@@ -27,6 +27,13 @@ message DNS {
   optional string domain = 2;
   repeated string search = 3;
   repeated string options = 4;
+}
+
+
+message IPConfig {
+  required string ip = 1;
+  optional string gateway = 2;
+  repeated Route routes = 3;
 }
 
 
@@ -44,4 +51,15 @@ message NetworkConfig {
   required string type = 2;
   optional IPAM ipam = 3;
   optional DNS dns = 4;
+}
+
+
+/**
+ * Protobuf for the CNI network result JSON schema returned by the CNI plugin:
+ * https://github.com/appc/cni/blob/master/SPEC.md#result
+ */
+message NetworkInfo {
+  optional IPConfig ip4 = 1;
+  optional IPConfig ip6 = 2;
+  optional DNS dns = 3;
 }

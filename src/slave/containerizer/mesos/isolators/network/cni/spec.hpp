@@ -26,9 +26,11 @@ namespace mesos {
 namespace internal {
 namespace slave {
 namespace cni {
+namespace spec {
 
-Try<cni::NetworkConfig> parse(const std::string& s);
+Try<NetworkConfig> parse(const std::string& s);
 
+} // namespace spec {
 } // namespace cni {
 } // namespace slave {
 } // namespace internal {

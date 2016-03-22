@@ -25,16 +25,16 @@ namespace mesos {
 namespace internal {
 namespace slave {
 namespace cni {
+namespace spec {
 
-Try<cni::NetworkConfig> parse(const string& s)
+Try<NetworkConfig> parse(const string& s)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
   if (json.isError()) {
     return Error("JSON parse failed: " + json.error());
   }
 
-  Try<cni::NetworkConfig> parse =
-    ::protobuf::parse<cni::NetworkConfig>(json.get());
+  Try<NetworkConfig> parse = ::protobuf::parse<NetworkConfig>(json.get());
 
   if (parse.isError()) {
     return Error("Protobuf parse failed: " + parse.error());
@@ -43,6 +43,7 @@ Try<cni::NetworkConfig> parse(const string& s)
   return parse.get();
 }
 
+} // namespace spec {
 } // namespace cni {
 } // namespace slave {
 } // namespace internal {

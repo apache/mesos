@@ -76,7 +76,7 @@ private:
     std::string path;
 
     // Protobuf of CNI network configuration.
-    cni::NetworkConfig config;
+    cni::spec::NetworkConfig config;
   };
 
   NetworkCniIsolatorProcess(

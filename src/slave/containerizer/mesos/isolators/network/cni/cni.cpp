@@ -21,6 +21,8 @@
 
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 
+namespace spec = mesos::internal::slave::cni::spec;
+
 using std::list;
 using std::set;
 using std::string;
@@ -117,14 +119,14 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
           path + "': " + read.error());
     }
 
-    Try<cni::NetworkConfig> parse = cni::parse(read.get());
+    Try<spec::NetworkConfig> parse = spec::parse(read.get());
     if (parse.isError()) {
       return Error(
           "Failed to parse CNI network configuration file '" +
           path + "': " + parse.error());
     }
 
-    const cni::NetworkConfig& networkConfig = parse.get();
+    const spec::NetworkConfig& networkConfig = parse.get();
     const string& name = networkConfig.name();
     if (networkConfigs.contains(name)) {
       return Error(
