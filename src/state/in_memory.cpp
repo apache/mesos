@@ -104,7 +104,7 @@ InMemoryStorage::~InMemoryStorage()
 }
 
 
-Future<Option<Entry> > InMemoryStorage::get(const string& name)
+Future<Option<Entry>> InMemoryStorage::get(const string& name)
 {
   return dispatch(process, &InMemoryStorageProcess::get, name);
 }
@@ -122,7 +122,7 @@ Future<bool> InMemoryStorage::expunge(const Entry& entry)
 }
 
 
-Future<std::set<string> > InMemoryStorage::names()
+Future<std::set<string>> InMemoryStorage::names()
 {
   return dispatch(process, &InMemoryStorageProcess::names);
 }

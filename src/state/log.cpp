@@ -81,10 +81,10 @@ public:
   virtual ~LogStorageProcess();
 
   // Storage implementation.
-  Future<Option<state::Entry> > get(const string& name);
+  Future<Option<state::Entry>> get(const string& name);
   Future<bool> set(const state::Entry& entry, const UUID& uuid);
   Future<bool> expunge(const state::Entry& entry);
-  Future<std::set<string> > names();
+  Future<std::set<string>> names();
 
 protected:
   virtual void finalize();
@@ -107,7 +107,7 @@ private:
       const Option<Log::Position>& position);
 
   // Continuations.
-  Future<Option<state::Entry> > _get(const string& name);
+  Future<Option<state::Entry>> _get(const string& name);
 
   Future<bool> _set(const state::Entry& entry, const UUID& uuid);
   Future<bool> __set(const state::Entry& entry, const UUID& uuid);
@@ -122,7 +122,7 @@ private:
       const state::Entry& entry,
       const Option<Log::Position>& position);
 
-  Future<std::set<string> > _names();
+  Future<std::set<string>> _names();
 
   Log::Reader reader;
   Log::Writer writer;
@@ -133,7 +133,7 @@ private:
   Mutex mutex;
 
   // Whether or not we've started the ability to append to log.
-  Option<Future<Nothing> > starting;
+  Option<Future<Nothing>> starting;
 
   // Last position in the log that we've read or written.
   Option<Log::Position> index;
@@ -431,14 +431,14 @@ Future<Nothing> LogStorageProcess::__truncate(
 }
 
 
-Future<Option<state::Entry> > LogStorageProcess::get(const string& name)
+Future<Option<state::Entry>> LogStorageProcess::get(const string& name)
 {
   return start()
     .then(defer(self(), &Self::_get, name));
 }
 
 
-Future<Option<state::Entry> > LogStorageProcess::_get(const string& name)
+Future<Option<state::Entry>> LogStorageProcess::_get(const string& name)
 {
   Option<Snapshot> snapshot = snapshots.get(name);
 
@@ -635,14 +635,14 @@ Future<bool> LogStorageProcess::___expunge(
 }
 
 
-Future<std::set<string> > LogStorageProcess::names()
+Future<std::set<string>> LogStorageProcess::names()
 {
   return start()
     .then(defer(self(), &Self::_names));
 }
 
 
-Future<std::set<string> > LogStorageProcess::_names()
+Future<std::set<string>> LogStorageProcess::_names()
 {
   const hashset<string>& keys = snapshots.keys();
   return std::set<string>(keys.begin(), keys.end());
@@ -664,7 +664,7 @@ LogStorage::~LogStorage()
 }
 
 
-Future<Option<state::Entry> > LogStorage::get(const string& name)
+Future<Option<state::Entry>> LogStorage::get(const string& name)
 {
   return dispatch(process, &LogStorageProcess::get, name);
 }
@@ -682,7 +682,7 @@ Future<bool> LogStorage::expunge(const state::Entry& entry)
 }
 
 
-Future<std::set<string> > LogStorage::names()
+Future<std::set<string>> LogStorage::names()
 {
   return dispatch(process, &LogStorageProcess::names);
 }

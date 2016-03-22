@@ -103,13 +103,13 @@ public:
   // Returns the variable specified if it was successfully stored in
   // the state, otherwise returns none if the version of the variable
   // was no longer valid, or an error if one occurs.
-  process::Future<Option<Variable> > store(const Variable& variable);
+  process::Future<Option<Variable>> store(const Variable& variable);
 
   // Returns true if successfully expunged the variable from the state.
   process::Future<bool> expunge(const Variable& variable);
 
   // Returns the collection of variable names in the state.
-  process::Future<std::set<std::string> > names();
+  process::Future<std::set<std::string>> names();
 
 private:
   // Helpers to handle future results from fetch and swap. We make
@@ -119,7 +119,7 @@ private:
       const std::string& name,
       const Option<Entry>& option);
 
-  static process::Future<Option<Variable> > _store(
+  static process::Future<Option<Variable>> _store(
       const Entry& entry,
       const bool& b); // TODO(benh): Remove 'const &' after fixing libprocess.
 
@@ -152,7 +152,7 @@ inline process::Future<Variable> State::_fetch(
 }
 
 
-inline process::Future<Option<Variable> > State::store(const Variable& variable)
+inline process::Future<Option<Variable>> State::store(const Variable& variable)
 {
   // Note that we try and swap an entry even if the value didn't change!
   UUID uuid = UUID::fromBytes(variable.entry.uuid());
@@ -169,7 +169,7 @@ inline process::Future<Option<Variable> > State::store(const Variable& variable)
 }
 
 
-inline process::Future<Option<Variable > > State::_store(
+inline process::Future<Option<Variable>> State::_store(
     const Entry& entry,
     const bool& b) // TODO(benh): Remove 'const &' after fixing libprocess.
 {
@@ -187,7 +187,7 @@ inline process::Future<bool> State::expunge(const Variable& variable)
 }
 
 
-inline process::Future<std::set<std::string> > State::names()
+inline process::Future<std::set<std::string>> State::names()
 {
   return storage->names();
 }

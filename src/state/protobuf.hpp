@@ -78,13 +78,13 @@ public:
   // Returns a variable from the state, creating a new one if one
   // previously did not exist (or an error if one occurs).
   template <typename T>
-  process::Future<Variable<T> > fetch(const std::string& name);
+  process::Future<Variable<T>> fetch(const std::string& name);
 
   // Returns the variable specified if it was successfully stored in
   // the state, otherwise returns none if the version of the variable
   // was no longer valid, or an error if one occurs.
   template <typename T>
-  process::Future<Option<Variable<T> > > store(const Variable<T>& variable);
+  process::Future<Option<Variable<T>>> store(const Variable<T>& variable);
 
   // Expunges the variable from the state.
   template <typename T>
@@ -95,18 +95,18 @@ private:
   // these static members of State for friend access to Variable's
   // constructor.
   template <typename T>
-  static process::Future<Variable<T> > _fetch(
+  static process::Future<Variable<T>> _fetch(
       const state::Variable& option);
 
   template <typename T>
-  static process::Future<Option<Variable<T> > > _store(
+  static process::Future<Option<Variable<T>>> _store(
       const T& t,
       const Option<state::Variable>& variable);
 };
 
 
 template <typename T>
-process::Future<Variable<T> > State::fetch(const std::string& name)
+process::Future<Variable<T>> State::fetch(const std::string& name)
 {
   return state::State::fetch(name)
     .then(lambda::bind(&State::template _fetch<T>, lambda::_1));
@@ -114,7 +114,7 @@ process::Future<Variable<T> > State::fetch(const std::string& name)
 
 
 template <typename T>
-process::Future<Variable<T> > State::_fetch(
+process::Future<Variable<T>> State::_fetch(
     const state::Variable& variable)
 {
   Try<T> t = messages::deserialize<T>(variable.value());
@@ -127,7 +127,7 @@ process::Future<Variable<T> > State::_fetch(
 
 
 template <typename T>
-process::Future<Option<Variable<T> > > State::store(
+process::Future<Option<Variable<T>>> State::store(
     const Variable<T>& variable)
 {
   Try<std::string> value = messages::serialize(variable.t);
@@ -142,7 +142,7 @@ process::Future<Option<Variable<T> > > State::store(
 
 
 template <typename T>
-process::Future<Option<Variable<T> > > State::_store(
+process::Future<Option<Variable<T>>> State::_store(
     const T& t,
     const Option<state::Variable>& variable)
 {

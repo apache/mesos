@@ -61,14 +61,14 @@ public:
   virtual void initialize();
 
   // Storage implementation.
-  Future<Option<Entry> > get(const string& name);
+  Future<Option<Entry>> get(const string& name);
   Future<bool> set(const Entry& entry, const UUID& uuid);
   Future<bool> expunge(const Entry& entry);
-  Future<std::set<string> > names();
+  Future<std::set<string>> names();
 
 private:
   // Helpers for interacting with leveldb.
-  Try<Option<Entry> > read(const string& name);
+  Try<Option<Entry>> read(const string& name);
   Try<bool> write(const Entry& entry);
 
   const string path;
@@ -105,7 +105,7 @@ void LevelDBStorageProcess::initialize()
 }
 
 
-Future<std::set<string> > LevelDBStorageProcess::names()
+Future<std::set<string>> LevelDBStorageProcess::names()
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -128,13 +128,13 @@ Future<std::set<string> > LevelDBStorageProcess::names()
 }
 
 
-Future<Option<Entry> > LevelDBStorageProcess::get(const string& name)
+Future<Option<Entry>> LevelDBStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
     return Failure(error.get());
   }
 
-  Try<Option<Entry> > option = read(name);
+  Try<Option<Entry>> option = read(name);
 
   if (option.isError()) {
     return Failure(option.error());
@@ -153,7 +153,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
   // We do a read first to make sure the version has not changed. This
   // could be optimized in the future, for now it will probably hit
   // the cache anyway.
-  Try<Option<Entry> > option = read(entry.name());
+  Try<Option<Entry>> option = read(entry.name());
 
   if (option.isError()) {
     return Failure(option.error());
@@ -188,7 +188,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
   // We do a read first to make sure the version has not changed. This
   // could be optimized in the future, for now it will probably hit
   // the cache anyway.
-  Try<Option<Entry> > option = read(entry.name());
+  Try<Option<Entry>> option = read(entry.name());
 
   if (option.isError()) {
     return Failure(option.error());
@@ -220,7 +220,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
 }
 
 
-Try<Option<Entry> > LevelDBStorageProcess::read(const string& name)
+Try<Option<Entry>> LevelDBStorageProcess::read(const string& name)
 {
   CHECK_NONE(error);
 
@@ -286,7 +286,7 @@ LevelDBStorage::~LevelDBStorage()
 }
 
 
-Future<Option<Entry> > LevelDBStorage::get(const string& name)
+Future<Option<Entry>> LevelDBStorage::get(const string& name)
 {
   return dispatch(process, &LevelDBStorageProcess::get, name);
 }
@@ -304,7 +304,7 @@ Future<bool> LevelDBStorage::expunge(const Entry& entry)
 }
 
 
-Future<std::set<string> > LevelDBStorage::names()
+Future<std::set<string>> LevelDBStorage::names()
 {
   return dispatch(process, &LevelDBStorageProcess::names);
 }

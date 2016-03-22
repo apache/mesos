@@ -76,10 +76,10 @@ public:
   virtual void initialize();
 
   // Storage implementation.
-  Future<Option<Entry> > get(const string& name);
+  Future<Option<Entry>> get(const string& name);
   Future<bool> set(const Entry& entry, const UUID& uuid);
   virtual Future<bool> expunge(const Entry& entry);
-  Future<std::set<string> > names();
+  Future<std::set<string>> names();
 
   // ZooKeeper events.
   // Note that events from previous sessions are dropped.
@@ -92,8 +92,8 @@ public:
 
 private:
   // Helpers for getting the names, fetching, and swapping.
-  Result<std::set<string> > doNames();
-  Result<Option<Entry> > doGet(const string& name);
+  Result<std::set<string>> doNames();
+  Result<Option<Entry>> doGet(const string& name);
   Result<bool> doSet(const Entry& entry, const UUID& uuid);
   Result<bool> doExpunge(const Entry& entry);
 
@@ -121,7 +121,7 @@ private:
 
   struct Names
   {
-    Promise<std::set<string> > promise;
+    Promise<std::set<string>> promise;
   };
 
   struct Get
@@ -129,7 +129,7 @@ private:
     explicit Get(const string& _name) : name(_name) {}
 
     string name;
-    Promise<Option<Entry> > promise;
+    Promise<Option<Entry>> promise;
   };
 
   struct Set
@@ -213,7 +213,7 @@ void ZooKeeperStorageProcess::initialize()
 }
 
 
-Future<std::set<string> > ZooKeeperStorageProcess::names()
+Future<std::set<string>> ZooKeeperStorageProcess::names()
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -223,7 +223,7 @@ Future<std::set<string> > ZooKeeperStorageProcess::names()
     return names->promise.future();
   }
 
-  Result<std::set<string> > result = doNames();
+  Result<std::set<string>> result = doNames();
 
   if (result.isNone()) { // Try again later.
     Names* names = new Names();
@@ -237,7 +237,7 @@ Future<std::set<string> > ZooKeeperStorageProcess::names()
 }
 
 
-Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
+Future<Option<Entry>> ZooKeeperStorageProcess::get(const string& name)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -247,7 +247,7 @@ Future<Option<Entry> > ZooKeeperStorageProcess::get(const string& name)
     return get->promise.future();
   }
 
-  Result<Option<Entry> > result = doGet(name);
+  Result<Option<Entry>> result = doGet(name);
 
   if (result.isNone()) { // Try again later.
     Get* get = new Get(name);
@@ -334,7 +334,7 @@ void ZooKeeperStorageProcess::connected(int64_t sessionId, bool reconnect)
 
   while (!pending.names.empty()) {
     Names* names = pending.names.front();
-    Result<std::set<string> > result = doNames();
+    Result<std::set<string>> result = doNames();
     if (result.isNone()) {
       return; // Try again later.
     } else if (result.isError()) {
@@ -348,7 +348,7 @@ void ZooKeeperStorageProcess::connected(int64_t sessionId, bool reconnect)
 
   while (!pending.gets.empty()) {
     Get* get = pending.gets.front();
-    Result<Option<Entry> > result = doGet(get->name);
+    Result<Option<Entry>> result = doGet(get->name);
     if (result.isNone()) {
       return; // Try again later.
     } else if (result.isError()) {
@@ -419,7 +419,7 @@ void ZooKeeperStorageProcess::deleted(int64_t sessionId, const string& path)
 }
 
 
-Result<std::set<string> > ZooKeeperStorageProcess::doNames()
+Result<std::set<string>> ZooKeeperStorageProcess::doNames()
 {
   // Get all children to determine current memberships.
   vector<string> results;
@@ -442,7 +442,7 @@ Result<std::set<string> > ZooKeeperStorageProcess::doNames()
 }
 
 
-Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
+Result<Option<Entry>> ZooKeeperStorageProcess::doGet(const string& name)
 {
   CHECK_NONE(error) << ": " << error.get();
   CHECK(state == CONNECTED);
@@ -644,7 +644,7 @@ ZooKeeperStorage::~ZooKeeperStorage()
 }
 
 
-Future<Option<Entry> > ZooKeeperStorage::get(const string& name)
+Future<Option<Entry>> ZooKeeperStorage::get(const string& name)
 {
   return dispatch(process, &ZooKeeperStorageProcess::get, name);
 }
@@ -662,7 +662,7 @@ Future<bool> ZooKeeperStorage::expunge(const Entry& entry)
 }
 
 
-Future<std::set<string> > ZooKeeperStorage::names()
+Future<std::set<string>> ZooKeeperStorage::names()
 {
   return dispatch(process, &ZooKeeperStorageProcess::names);
 }
