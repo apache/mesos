@@ -888,6 +888,48 @@ and resource allocations in the allocator.
   <td>Amount of resources guaranteed for a role via quota</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/cpus/offered_or_allocated</code>
+  </td>
+  <td>Number of CPUs offered or allocated</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/cpus/total</code>
+  </td>
+  <td>Number of CPUs</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/disk/offered_or_allocated</code>
+  </td>
+  <td>Allocated or offered disk space in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/disk/total</code>
+  </td>
+  <td>Total disk space in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/mem/offered_or_allocated</code>
+  </td>
+  <td>Allocated or offered memory in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/resources/mem/total</code>
+  </td>
+  <td>Total memory in MB</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 ### Basic Alerts

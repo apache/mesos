@@ -24,6 +24,7 @@
 #include "master/allocator/mesos/metrics.hpp"
 
 using std::string;
+using std::vector;
 
 using process::metrics::Gauge;
 
@@ -46,6 +47,35 @@ Metrics::Metrics(const HierarchicalAllocatorProcess& _allocator)
 {
   process::metrics::add(event_queue_dispatches);
   process::metrics::add(event_queue_dispatches_);
+
+  // Create and install gauges for the total and allocated
+  // amount of standard scalar resources.
+  //
+  // TODO(bbannier) Add support for more than just scalar resources.
+  // TODO(bbannier) Simplify this once MESOS-3214 is fixed.
+  // TODO(dhamon): Set these up dynamically when adding a slave based on the
+  // resources the slave exposes.
+  string resources[] = {"cpus", "mem", "disk"};
+
+  foreach (const string& resource, resources) {
+    Gauge total(
+        "allocator/mesos/resources/" + resource + "/total",
+        defer(allocator,
+              &HierarchicalAllocatorProcess::_resources_total,
+              resource));
+
+    Gauge offered_or_allocated(
+        "allocator/mesos/resources/" + resource + "/offered_or_allocated",
+        defer(allocator,
+              &HierarchicalAllocatorProcess::_resources_offered_or_allocated,
+              resource));
+
+    resources_total.push_back(total);
+    resources_offered_or_allocated.push_back(offered_or_allocated);
+
+    process::metrics::add(total);
+    process::metrics::add(offered_or_allocated);
+  }
 }
 
 
@@ -53,6 +83,14 @@ Metrics::~Metrics()
 {
   process::metrics::remove(event_queue_dispatches);
   process::metrics::remove(event_queue_dispatches_);
+
+  foreach (const Gauge& gauge, resources_total) {
+    process::metrics::remove(gauge);
+  }
+
+  foreach (const Gauge& gauge, resources_offered_or_allocated) {
+    process::metrics::remove(gauge);
+  }
 
   foreachkey(const string& role, quota_allocated) {
     foreachvalue(const Gauge& gauge, quota_allocated[role]) {

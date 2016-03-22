@@ -1688,6 +1688,35 @@ bool HierarchicalAllocatorProcess::allocatable(
 }
 
 
+double HierarchicalAllocatorProcess::_resources_offered_or_allocated(
+    const string& resource)
+{
+  double offered_or_allocated = 0;
+
+  foreachvalue (const Slave& slave, slaves) {
+    Option<Value::Scalar> value =
+      slave.allocated.get<Value::Scalar>(resource);
+
+    if (value.isSome()) {
+      offered_or_allocated += value->value();
+    }
+  }
+
+  return offered_or_allocated;
+}
+
+
+double HierarchicalAllocatorProcess::_resources_total(
+    const string& resource)
+{
+  Option<Value::Scalar> total =
+    roleSorter->totalScalarQuantities()
+      .get<Value::Scalar>(resource);
+
+  return total.isSome() ? total->value() : 0;
+}
+
+
 double HierarchicalAllocatorProcess::_quota_allocated(
     const string& role,
     const string& resource)
