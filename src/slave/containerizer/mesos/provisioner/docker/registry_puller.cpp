@@ -156,15 +156,46 @@ RegistryPullerProcess::RegistryPullerProcess(
     fetcher(_fetcher) {}
 
 
+static spec::ImageReference normalize(
+    const spec::ImageReference& _reference,
+    const http::URL& defaultRegistryUrl)
+{
+  spec::ImageReference reference = _reference;
+
+  // Determine which registry domain should be used.
+  Option<string> registryDomain;
+
+  if (_reference.has_registry()) {
+    registryDomain = _reference.registry();
+  } else {
+    registryDomain = defaultRegistryUrl.domain.isSome()
+      ? defaultRegistryUrl.domain.get()
+      : Option<string>();
+  }
+
+  // Check if necessary to add 'library/' prefix for the case that the
+  // registry is docker default 'https://registry-1.docker.io',
+  // because docker official images locate in 'library/' directory.
+  // For details, please see:
+  // https://github.com/docker-library/official-images
+  // https://github.com/docker/docker/blob/v1.10.2/reference/reference.go
+  if (registryDomain.isSome() &&
+      strings::contains(registryDomain.get(), "docker.io") &&
+      !strings::contains(_reference.repository(), "/")) {
+    const string repository = path::join("library", _reference.repository());
+
+    reference.set_repository(repository);
+  }
+
+  return reference;
+}
+
+
 Future<vector<string>> RegistryPullerProcess::pull(
-    const spec::ImageReference& reference,
+    const spec::ImageReference& _reference,
     const string& directory)
 {
-  // TODO(jieyu): Consider introducing a 'normalize' function to
-  // normalize 'reference' here. For instance, we need to add
-  // 'library/' prefix if the user does not specify a repository.
-  // Also consider merging the registry generation logic below into
-  // 'normalize'.
+  spec::ImageReference reference = normalize(_reference, defaultRegistryUrl);
 
   URI manifestUri;
   if (reference.has_registry()) {
