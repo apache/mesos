@@ -1,0 +1,47 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package mesos.internal.slave.cni;
+
+message Route {
+  required string dst = 1;
+  optional string gw = 2;
+}
+
+
+message DNS {
+  repeated string nameservers = 1;
+  optional string domain = 2;
+  repeated string search = 3;
+  repeated string options = 4;
+}
+
+
+/**
+ * Protobuf for the CNI network configuration JSON schema:
+ * https://github.com/appc/cni/blob/master/SPEC.md#network-configuration
+ */
+message NetworkConfig {
+  message IPAM {
+    required string type = 1;
+    repeated Route routes = 2;
+  }
+
+  required string name = 1;
+  required string type = 2;
+  optional IPAM ipam = 3;
+  optional DNS dns = 4;
+}

@@ -50,6 +50,7 @@ PROTOC_TO_SRC_DIR(LOG      messages/log)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
+PROTOC_TO_SRC_DIR(CNI_SPEC slave/containerizer/mesos/isolators/network/cni/spec)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -274,6 +275,8 @@ if (NOT WIN32)
     slave/containerizer/mesos/mount.cpp
     slave/containerizer/mesos/isolators/filesystem/posix.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
+    slave/containerizer/mesos/isolators/network/cni/spec.proto
+    slave/containerizer/mesos/isolators/network/cni/spec.cpp
     slave/containerizer/mesos/provisioner/docker/local_puller.cpp
     slave/containerizer/mesos/provisioner/paths.cpp
     slave/containerizer/mesos/provisioner/provisioner.cpp

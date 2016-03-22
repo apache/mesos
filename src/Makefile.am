@@ -233,7 +233,9 @@ CXX_PROTOS +=								\
   messages/messages.pb.cc						\
   messages/messages.pb.h						\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
-  slave/containerizer/mesos/provisioner/docker/message.pb.h
+  slave/containerizer/mesos/provisioner/docker/message.pb.h		\
+  slave/containerizer/mesos/isolators/network/cni/spec.pb.cc		\
+  slave/containerizer/mesos/isolators/network/cni/spec.pb.h
 
 CXX_LOG_PROTOS =							\
   messages/log.pb.cc							\
@@ -387,7 +389,7 @@ nodist_pkginclude_HEADERS =						\
 
 appcdir = $(pkgincludedir)/appc
 
-appc_HEADERS =						\
+appc_HEADERS =								\
   $(top_srcdir)/include/mesos/appc/spec.hpp				\
   $(top_srcdir)/include/mesos/appc/spec.proto
 
@@ -587,7 +589,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
   master/registry.proto							\
   messages/flags.proto							\
   messages/messages.proto						\
-  slave/containerizer/mesos/provisioner/docker/message.proto
+  slave/containerizer/mesos/provisioner/docker/message.proto		\
+  slave/containerizer/mesos/isolators/network/cni/spec.proto
 
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
 # lose the immediate cyrus-sasl2 dependency.
@@ -670,6 +673,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/launcher.cpp				\
   slave/containerizer/mesos/mount.cpp					\
   slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
+  slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
   slave/containerizer/mesos/isolators/posix/disk.cpp			\
   slave/containerizer/mesos/provisioner/backend.cpp			\
   slave/containerizer/mesos/provisioner/paths.cpp			\
@@ -782,6 +786,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/posix.hpp				\
   slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
   slave/containerizer/mesos/isolators/posix/disk.hpp			\
+  slave/containerizer/mesos/isolators/network/cni/spec.hpp		\
   slave/containerizer/mesos/provisioner/backend.hpp			\
   slave/containerizer/mesos/provisioner/paths.hpp			\
   slave/containerizer/mesos/provisioner/provisioner.hpp			\
