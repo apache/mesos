@@ -106,7 +106,7 @@ Metrics::~Metrics()
 }
 
 
-void Metrics::setQuota(const std::string& role, const Quota& quota)
+void Metrics::setQuota(const string& role, const Quota& quota)
 {
   CHECK(!quota_allocated.contains(role));
 
@@ -114,39 +114,31 @@ void Metrics::setQuota(const std::string& role, const Quota& quota)
   hashmap<string, Gauge> guarantees;
 
   foreach (const Resource& resource, quota.info.guarantee()) {
-    // And gauges for the currently offered or allocated
-    // resources under quota.
-    {
-      Gauge gauge = Gauge(
-          "allocator/mesos/quota"
-            "/roles/" + role +
-            "/resources/" + resource.name() +
-            "/offered_or_allocated",
-          process::defer(
-              allocator,
+    CHECK_EQ(Value::SCALAR, resource.type());
+    double value = resource.scalar().value();
+
+    Gauge guarantee = Gauge(
+        "allocator/mesos/quota"
+        "/roles/" + role +
+        "/resources/" + resource.name() +
+        "/guarantee",
+        process::defer([value]() { return value; }));
+
+    Gauge offered_or_allocated(
+        "allocator/mesos/quota"
+        "/roles/" + role +
+        "/resources/" + resource.name() +
+        "/offered_or_allocated",
+        defer(allocator,
               &HierarchicalAllocatorProcess::_quota_allocated,
               role,
               resource.name()));
 
-      allocated.put(resource.name(), gauge);
-      process::metrics::add(gauge);
-    }
+    guarantees.put(resource.name(), guarantee);
+    allocated.put(resource.name(), offered_or_allocated);
 
-    // Add gauges for the quota resource guarantees.
-    {
-      CHECK_EQ(Value::SCALAR, resource.type());
-      double value = resource.scalar().value();
-
-      Gauge gauge = Gauge(
-          "allocator/mesos/quota"
-          "/roles/" + role +
-          "/resources/" + resource.name() +
-          "/guarantee",
-          process::defer([value]() { return value; }));
-
-      guarantees.put(resource.name(), gauge);
-      process::metrics::add(gauge);
-    }
+    process::metrics::add(guarantee);
+    process::metrics::add(offered_or_allocated);
   }
 
   quota_allocated[role] = allocated;
@@ -154,7 +146,7 @@ void Metrics::setQuota(const std::string& role, const Quota& quota)
 }
 
 
-void Metrics::removeQuota(const std::string& role)
+void Metrics::removeQuota(const string& role)
 {
   CHECK(quota_allocated.contains(role));
 
