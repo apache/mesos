@@ -1300,6 +1300,27 @@ directory. (default: /usr/local/libexec/mesos)
 </tr>
 <tr>
   <td>
+    --network_cni_plugins_dir=VALUE
+  </td>
+  <td>
+Directory path of the CNI plugin binaries. The <code>network/cni</code>
+isolator will find CNI plugins under this directory so that it can execute
+the plugins to add/delete container from the CNI networks. It is the operator’s
+responsibility to install the CNI plugin binaries in the specified directory.
+  </td>
+</tr>
+<tr>
+  <td>
+    --network_cni_config_dir=VALUE
+  </td>
+  <td>
+Directory path of the CNI network configuration files. For each network that
+containers launched in Mesos agent can connect to, the operator should install
+a network configuration file in JSON format in the specified directory.
+  </td>
+</tr>
+<tr>
+  <td>
     --oversubscribed_resources_interval=VALUE
   </td>
   <td>

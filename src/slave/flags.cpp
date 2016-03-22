@@ -593,6 +593,21 @@ mesos::internal::slave::Flags::Flags()
 
 #endif // WITH_NETWORK_ISOLATOR
 
+  add(&Flags::network_cni_plugins_dir,
+      "network_cni_plugins_dir",
+      "Directory path of the CNI plugin binaries. The `network/cni`\n"
+      "isolator will find CNI plugins under this directory so that\n"
+      "it can execute the plugins to add/delete container from the CNI\n"
+      "networks. It is the operator’s responsibility to install the CNI\n"
+      "plugin binaries in the specified directory.");
+
+  add(&Flags::network_cni_config_dir,
+      "network_cni_config_dir",
+      "Directory path of the CNI network configuration files. For each\n"
+      "network that containers launched in Mesos agent can connect to,\n"
+      "the operator should install a network configuration file in JSON\n"
+      "format in the specified directory.");
+
   add(&Flags::container_disk_watch_interval,
       "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"
