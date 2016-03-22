@@ -642,7 +642,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
 }
 
 
-TEST_F(FetcherTest, ExtractZipFile)
+TEST_F(FetcherTest, UNZIP_ExtractFile)
 {
   // Construct a tmp file that can be fetched and archived with zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -695,7 +695,7 @@ TEST_F(FetcherTest, ExtractZipFile)
 }
 
 
-TEST_F(FetcherTest, ExtractInvalidZipFile)
+TEST_F(FetcherTest, UNZIP_ExtractInvalidFile)
 {
   // Construct a tmp file that can be filled with broken zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -749,7 +749,7 @@ TEST_F(FetcherTest, ExtractInvalidZipFile)
 }
 
 
-TEST_F(FetcherTest, ExtractZipFileWithDuplicatedEntries)
+TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
 {
   // Construct a tmp file that can be filled with zip containing
   // duplicates.

@@ -600,6 +600,31 @@ public:
 };
 
 
+class UnzipFilter : public TestFilter
+{
+public:
+  UnzipFilter()
+  {
+    unzipError = os::system("which unzip") != 0;
+    if (unzipError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'uznip' command found so no 'unzip' tests will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "UNZIP_") && unzipError;
+  }
+
+private:
+  bool unzipError;
+};
+
+
 // Return list of disabled tests based on test name based filters.
 static vector<string> disabled(
     const ::testing::UnitTest* unitTest,
@@ -680,6 +705,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
   filters.push_back(Owned<TestFilter>(new RootFilter()));
+  filters.push_back(Owned<TestFilter>(new UnzipFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
