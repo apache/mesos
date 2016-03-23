@@ -717,28 +717,28 @@ messages may indicate that there is a problem with the network.
   <td>
   <code>master/task_lost/source_master/reason_invalid_offers</code>
   </td>
-  <td>Number of tasks lost due to invalid offers</code>
+  <td>Number of tasks lost due to invalid offers</td>
   <td>Counter</td>
 </tr>
 <tr>
   <td>
   <code>master/task_lost/source_master/reason_slave_removed</code>
   </td>
-  <td>Number of tasks lost due to slave removal</code>
+  <td>Number of tasks lost due to slave removal</td>
   <td>Counter</td>
 </tr>
 <tr>
   <td>
   <code>master/task_lost/source_slave/reason_executor_terminated</code>
   </td>
-  <td>Number of tasks lost due to executor termination</code>
+  <td>Number of tasks lost due to executor termination</td>
   <td>Counter</td>
 </tr>
 <tr>
   <td>
   <code>master/valid_executor_to_framework_messages</code>
   </td>
-  <td>Number of valid executor to framework messages</code>
+  <td>Number of valid executor to framework messages</td>
   <td>Counter</td>
 </tr>
 </table>
@@ -943,7 +943,6 @@ and resource allocations in the allocator.
   <td>Number of times the allocation algorithm has run</td>
   <td>Counter</td>
 </tr>
-<tr>
 <tr>
   <td>
   <code>allocator/mesos/event_queue_dispatches</code>
