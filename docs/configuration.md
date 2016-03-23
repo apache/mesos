@@ -518,7 +518,7 @@ Human readable name for the cluster, displayed in the webui.
 Either a path to a text file with a list of credentials,
 each line containing <code>principal</code> and <code>secret</code> separated by whitespace,
 or, a path to a JSON-formatted file containing credentials.
-Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+Path can be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
 JSON file Example:
 <pre><code>{
   "credentials": [

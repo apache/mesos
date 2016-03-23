@@ -215,8 +215,8 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::authenticate_http,
       "authenticate_http",
       "If `true`, only authenticated requests for HTTP endpoints supporting\n"
-      "authentication are allowed.\n"
-      "If `false`, unauthenticated HTTP endpoint requests are also allowed.\n",
+      "authentication are allowed. If `false`, unauthenticated requests to\n"
+      "HTTP endpoints are also allowed.\n",
       false);
 
   add(&Flags::credentials,
@@ -225,7 +225,7 @@ mesos::internal::master::Flags::Flags()
       "each line containing `principal` and `secret` separated by "
       "whitespace,\n"
       "or, a path to a JSON-formatted file containing credentials.\n"
-      "Path could be of the form `file:///path/to/file` or `/path/to/file`."
+      "Path can be of the form `file:///path/to/file` or `/path/to/file`."
       "\n"
       "JSON file Example:\n"
       "{\n"
