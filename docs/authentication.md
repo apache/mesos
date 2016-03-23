@@ -77,6 +77,18 @@ Mesos master and slave processes. For more information, refer to the
   only one credential is allowed. This credential is used to identify the slave
   to the master.
 
+* `--[no-]authenticate_http` - If `true`, authentication is required to make
+  HTTP requests to the HTTP endpoints that support authentication. If `false`
+  (the default), all endpoints can be used without authentication.
+
+* `--http_authenticators` - Specifies which HTTP authenticator module to use.
+  The default is `basic`, but additional modules can be added using the
+  `--modules` option.
+
+* `--http_credentials` - The path to a text file which contains a list (in JSON
+  format) of accepted credentials.  This may be optional depending on the
+  authenticator being used.
+
 ### Framework
 
 If framework authentication is enabled, each framework must be configured to

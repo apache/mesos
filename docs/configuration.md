@@ -69,6 +69,16 @@ access Mesos master/slave.
 </tr>
 <tr>
   <td>
+    --[no-]authenticate_http
+  </td>
+  <td>
+If <code>true</code>, only authenticated requests for HTTP endpoints supporting
+authentication are allowed. If <code>false</code>, unauthenticated requests to
+HTTP endpoints are also allowed. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --firewall_rules=VALUE
   </td>
   <td>
@@ -96,6 +106,19 @@ Example:
   </td>
   <td>
 Show the help message and exit. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
+    --http_authenticators=VALUE
+  </td>
+  <td>
+HTTP authenticator implementation to use when handling requests to
+authenticated endpoints. Use the default
+<code>basic</code>, or load an alternate
+HTTP authenticator module using <code>--modules</code>.
+<p/>
+Currently there is no support for multiple HTTP authenticators. (default: basic)
   </td>
 </tr>
 <tr>
@@ -445,17 +468,6 @@ If <code>true</code>, only authenticated frameworks are allowed to register. If
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_http
-  </td>
-  <td>
-If <code>true</code> only authenticated requests for HTTP endpoints supporting
-authentication are allowed.
-If <code>false</code> unauthenticated HTTP endpoint requests are also allowed.
-(default: false)
-  </td>
-</tr>
-<tr>
-  <td>
     --[no-]authenticate_slaves
   </td>
   <td>
@@ -528,19 +540,6 @@ Text file Example:
 Policy to use for allocating resources
 between a given user's frameworks. Options
 are the same as for user_allocator. (default: drf)
-  </td>
-</tr>
-<tr>
-  <td>
-    --http_authenticators=VALUE
-  </td>
-  <td>
-HTTP authenticator implementation to use when handling requests to
-authenticated endpoints. Use the default
-<code>basic</code>, or load an alternate HTTP
-authenticator module using <code>--modules</code>.
-<p/>
-Currently there is no support for multiple HTTP authenticators. (default: basic)
   </td>
 </tr>
 <tr>
@@ -995,6 +994,7 @@ are specified is the order they are tried.
 Either a path to a text with a single line
 containing <code>principal</code> and <code>secret</code> separated by whitespace.
 Or a path containing the JSON-formatted information used for one credential.
+This credential is used to identify the slave to the master.
 Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
 Example:
 <pre><code>{
@@ -1243,6 +1243,27 @@ Path to find Hadoop installed (for
 fetching framework executors from HDFS)
 (no default, look for <code>HADOOP_HOME</code> in
 environment or find hadoop on <code>PATH</code>) (default: )
+  </td>
+</tr>
+<tr>
+  <td>
+    --http_credentials=VALUE
+  </td>
+  <td>
+Path to a JSON-formatted file containing credentials. These
+credentials are used to authenticate HTTP endpoints on the slave.
+Path can be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
+<p/>
+Example:
+<pre><code>{
+  "credentials": [
+    {
+      "principal": "yoda",
+      "secret": "usetheforce"
+    }
+  ]
+}
+</code></pre>
   </td>
 </tr>
 <tr>

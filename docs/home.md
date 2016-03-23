@@ -23,8 +23,8 @@ layout: documentation
   * [External Containerizer](external-containerizer.md) for custom containerization implementations (deprecated).
 * [Roles](roles.md)
 * [Weights](weights.md)
-* [Framework Authentication](authentication.md)
-* [Framework Authorization](authorization.md)
+* [Authentication](authentication.md)
+* [Authorization](authorization.md)
 * [Framework Rate Limiting](framework-rate-limiting.md)
 * [Logging](logging.md)
 * [High Availability](high-availability.md) for running multiple masters simultaneously.
