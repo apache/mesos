@@ -19,6 +19,10 @@
 #include <mesos/module/http_authenticator.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/json.hpp>
+#include <stout/protobuf.hpp>
+
+#include "credentials/credentials.hpp"
 
 #include "master/constants.hpp"
 
@@ -30,11 +34,14 @@ namespace authentication {
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using process::http::authentication::Authenticator;
 using process::http::authentication::BasicAuthenticator;
 
 
 Try<Authenticator*> BasicAuthenticatorFactory::create(
+    const string& realm,
     const Credentials& credentials)
 {
   hashmap<string, string> credentialMap;
@@ -43,27 +50,55 @@ Try<Authenticator*> BasicAuthenticatorFactory::create(
     credentialMap.put(credential.principal(), credential.secret());
   }
 
-  return create(credentialMap);
+  return create(realm, credentialMap);
 }
 
 
 Try<Authenticator*> BasicAuthenticatorFactory::create(
     const Parameters& parameters)
 {
-  hashmap<string, string> credentials;
+  Credentials credentials;
+  Option<string> realm;
 
   foreach (const Parameter& parameter, parameters.parameter()) {
-    credentials.put(parameter.key(), parameter.value());
+    if (parameter.key() == "credentials") {
+      Try<JSON::Value> json = JSON::parse(parameter.value());
+      if (json.isError()) {
+        return Error(
+            "Unable to parse HTTP credentials as JSON: " +
+            json.error());
+      }
+
+      Try<RepeatedPtrField<Credential>> credentials_ =
+        protobuf::parse<RepeatedPtrField<Credential>>(json.get());
+      if (credentials_.isError()) {
+        return Error(
+            "Unable to parse credentials for basic HTTP authenticator: " +
+            credentials_.error());
+      }
+
+      credentials.mutable_credentials()->CopyFrom(credentials_.get());
+    } else if (parameter.key() == "authentication_realm") {
+        realm = parameter.value();
+    } else {
+      return Error(
+          "Unknown basic authenticator parameter: " + parameter.key());
+    }
   }
 
-  return create(credentials);
+  if (realm.isNone()) {
+    return Error("Must specify a realm for the basic HTTP authenticator");
+  }
+
+  return create(realm.get(), credentials);
 }
 
 
 Try<Authenticator*> BasicAuthenticatorFactory::create(
+    const string& realm,
     const hashmap<string, string>& credentials)
 {
-  Authenticator* authenticator = new BasicAuthenticator("mesos", credentials);
+  Authenticator* authenticator = new BasicAuthenticator(realm, credentials);
 
   return authenticator;
 }

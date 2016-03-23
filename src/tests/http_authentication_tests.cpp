@@ -83,6 +83,30 @@ using process::http::authentication::Authenticator;
 using process::http::authentication::AuthenticationResult;
 
 
+static const std::string REALM = "tatooine";
+
+static Parameters createBasicAuthenticatorParameters(
+    const Option<std::string>& realm,
+    const Option<Credentials>& credentials)
+{
+  Parameters parameters;
+
+  if (realm.isSome()) {
+    Parameter* parameter = parameters.add_parameter();
+    parameter->set_key("authentication_realm");
+    parameter->set_value(realm.get());
+  }
+
+  if (credentials.isSome()) {
+    Parameter* parameter = parameters.add_parameter();
+    parameter->set_key("credentials");
+    parameter->set_value(
+        stringify(JSON::protobuf(credentials.get().credentials())));
+  }
+
+  return parameters;
+}
+
 template <typename T>
 class HttpAuthenticationTest : public MesosTest {};
 
@@ -98,7 +122,7 @@ TYPED_TEST_CASE(HttpAuthenticationTest, HttpAuthenticatorTypes);
 // Full HTTP stack tests are located in libprocess-tests.
 TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
 {
-  Parameters parameters;
+  Parameters parameters = createBasicAuthenticatorParameters(REALM, None());
 
   Try<Authenticator*> create = TypeParam::create(parameters);
   ASSERT_SOME(create);
@@ -110,7 +134,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
   {
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized({"Basic realm=\"mesos\""});
+      Unauthorized({"Basic realm=\"" + REALM + "\""});
 
     Request request;
 
@@ -126,7 +150,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized({"Basic realm=\"mesos\""});
+      Unauthorized({"Basic realm=\"" + REALM + "\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }
@@ -137,10 +161,13 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
 // Full HTTP stack tests are located in libprocess-tests.
 TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 {
-  Parameters parameters;
-  auto entry = parameters.add_parameter();
-  entry->set_key("user");
-  entry->set_value("password");
+  Credentials credentials;
+  Credential* credential = credentials.add_credentials();
+  credential->set_principal("user");
+  credential->set_secret("password");
+
+  Parameters parameters =
+    createBasicAuthenticatorParameters(REALM, credentials);
 
   Try<Authenticator*> create = TypeParam::create(parameters);
   ASSERT_SOME(create);
@@ -154,7 +181,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized({"Basic realm=\"mesos\""});
+      Unauthorized({"Basic realm=\"" + REALM + "\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }
@@ -169,7 +196,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized({"Basic realm=\"mesos\""});
+      Unauthorized({"Basic realm=\"" + REALM + "\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }
@@ -187,6 +214,24 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 
     AWAIT_EXPECT_EQ(principal, authenticator->authenticate(request));
   }
+}
+
+
+// Tests that the HTTP basic authenticator will return an error if it is given
+// module parameters that don't contain an authentication realm.
+TYPED_TEST(HttpAuthenticationTest, BasicWithoutRealm)
+{
+  Credentials credentials;
+  Credential* credential = credentials.add_credentials();
+  credential->set_principal("user");
+  credential->set_secret("password");
+
+  Parameters parameters =
+    createBasicAuthenticatorParameters(None(), credentials);
+
+  Try<Authenticator*> create = TypeParam::create(parameters);
+
+  ASSERT_ERROR(create);
 }
 
 } // namespace tests {

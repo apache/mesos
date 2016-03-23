@@ -25,6 +25,8 @@
 
 #include <stout/hashmap.hpp>
 
+#include "logging/logging.hpp"
+
 using namespace mesos;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
@@ -34,7 +36,17 @@ using process::http::authentication::Authenticator;
 
 static Authenticator* createHttpAuthenticator(const Parameters& parameters)
 {
-  return BasicAuthenticatorFactory::create(parameters).get();
+  Try<Authenticator*> authenticator =
+    BasicAuthenticatorFactory::create(parameters);
+
+  if (authenticator.isError()) {
+    LOG(ERROR) << "Failed to create basic HTTP authenticator: "
+               << authenticator.error();
+
+    return NULL;
+  }
+
+  return authenticator.get();
 }
 
 

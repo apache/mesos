@@ -538,7 +538,9 @@ void Master::initialize()
                 << "' HTTP authenticator";
 
       Try<authentication::Authenticator*> authenticator =
-        BasicAuthenticatorFactory::create(credentials.get());
+        BasicAuthenticatorFactory::create(
+            DEFAULT_HTTP_AUTHENTICATION_REALM,
+            credentials.get());
       if (authenticator.isError()) {
         EXIT(1) << "Could not create HTTP authenticator module '"
                 << httpAuthenticatorNames[0] << "': " << authenticator.error();
