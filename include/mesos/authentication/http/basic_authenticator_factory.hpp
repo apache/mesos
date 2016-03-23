@@ -34,13 +34,64 @@ class BasicAuthenticatorFactory {
 public:
   ~BasicAuthenticatorFactory() {}
 
+  /**
+   * Creates a basic HTTP authenticator from module parameters. Two keys may be
+   * specified in the parameters: `authentication_realm` (required) and
+   * `credentials` (optional). Credentials must be provided as a string which
+   * represents a JSON array, similar to the format of the `--credentials`
+   * command-line flag.
+   *
+   * Example parameters as JSON:
+   * {
+   *   "parameters": [
+   *     {
+   *       "key": "authentication_realm",
+   *       "value": "tatooine"
+   *     },
+   *     {
+   *       "key": "credentials",
+   *       "value": "[
+   *         {
+   *           \"principal\": \"luke\",
+   *           \"secret\": \"skywalker\"
+   *         }
+   *       ]"
+   *     }
+   *   ]
+   * }
+   *
+   * @param parameters The input parameters. This object may contain two keys:
+   *     `authentication_realm` (required) and `credentials` (optional).
+   * @return A `Try` containing a new authenticator if successful, or an
+   *     `Error` if unsuccessful.
+   */
   static Try<process::http::authentication::Authenticator*> create(
       const Parameters& parameters);
 
+  /**
+   * Creates a basic HTTP authenticator for the specified realm, initialized
+   * with the provided credentials.
+   *
+   * @param realm The authentication realm associated with this authenticator.
+   * @param credentials The credentials that this authenticator will use to
+   *     evaluate authentication requests.
+   * @return A `Try` containing a new authenticator if successful, or an
+   *     `Error` if unsuccessful.
+   */
   static Try<process::http::authentication::Authenticator*> create(
       const std::string& realm,
       const Credentials& credentials);
 
+  /**
+   * Creates a basic HTTP authenticator for the specified realm, initialized
+   * with the provided credentials.
+   *
+   * @param realm The authentication realm associated with this authenticator.
+   * @param credentials The credentials that this authenticator will use to
+   *     evaluate authentication requests.
+   * @return A `Try` containing a new authenticator if successful, or an
+   *     `Error` if unsuccessful.
+   */
   static Try<process::http::authentication::Authenticator*> create(
       const std::string& realm,
       const hashmap<std::string, std::string>& credentials);
