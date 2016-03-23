@@ -818,10 +818,8 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   containerizer::Termination termination = wait.get();
 
-  // TODO(lins05): Improve the assertion once we add the
-  // "PROVISIONING" state. See MESOS-4985.
   EXPECT_EQ(
-    "Container destroyed while preparing isolators",
+    "Container destroyed while provisioning images",
     termination.message());
 
   EXPECT_FALSE(termination.has_status());
