@@ -2530,6 +2530,45 @@ TEST_F(HierarchicalAllocatorTest, ResourceMetrics)
 }
 
 
+// This test checks that the number of times the allocation
+// algorithm has run is correctly reflected in the metric.
+TEST_F(HierarchicalAllocatorTest, AllocationRunsMetric)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  size_t allocations = 0;
+
+  JSON::Object expected;
+
+  expected.values = { {"allocator/mesos/allocation_runs", allocations} };
+
+  JSON::Value metrics = Metrics();
+
+  EXPECT_TRUE(metrics.contains(expected));
+
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+  ++allocations; // Adding an agent triggers allocations.
+
+  FrameworkInfo framework = createFrameworkInfo("role");
+  allocator->addFramework(framework.id(), framework, {});
+  ++allocations; // Adding a framework triggers allocations.
+
+  Clock::settle();
+
+  expected.values = { {"allocator/mesos/allocation_runs", allocations} };
+
+  metrics = Metrics();
+
+  EXPECT_TRUE(metrics.contains(expected));
+}
+
+
 // This test ensures that resource allocation is done according to each role's
 // weight. This is done by having six agents and three frameworks and making
 // sure each framework gets the appropriate number of resources.

@@ -868,6 +868,14 @@ and resource allocations in the allocator.
 </thead>
 <tr>
   <td>
+  <code>allocator/mesos/allocation_runs</code>
+  </td>
+  <td>Number of times the allocation algorithm has run</td>
+  <td>Counter</td>
+</tr>
+<tr>
+<tr>
+  <td>
   <code>allocator/mesos/event_queue_dispatches</code>
   </td>
   <td>Number of dispatch events in the event queue</td>

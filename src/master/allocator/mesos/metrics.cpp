@@ -43,10 +43,12 @@ Metrics::Metrics(const HierarchicalAllocatorProcess& _allocator)
     event_queue_dispatches_(
         "allocator/event_queue_dispatches",
         process::defer(
-            allocator, &HierarchicalAllocatorProcess::_event_queue_dispatches))
+            allocator, &HierarchicalAllocatorProcess::_event_queue_dispatches)),
+    allocation_runs("allocator/mesos/allocation_runs")
 {
   process::metrics::add(event_queue_dispatches);
   process::metrics::add(event_queue_dispatches_);
+  process::metrics::add(allocation_runs);
 
   // Create and install gauges for the total and allocated
   // amount of standard scalar resources.
@@ -83,6 +85,7 @@ Metrics::~Metrics()
 {
   process::metrics::remove(event_queue_dispatches);
   process::metrics::remove(event_queue_dispatches_);
+  process::metrics::remove(allocation_runs);
 
   foreach (const Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);
