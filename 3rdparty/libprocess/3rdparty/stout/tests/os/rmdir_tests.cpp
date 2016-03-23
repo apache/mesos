@@ -222,7 +222,7 @@ TEST_F(RmdirTest, RemoveDirectoryWithNoTargetSymbolicLink)
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
 
-  const string& link = path::join(newDirectory, "link");
+  const string link = path::join(newDirectory, "link");
 
   // Create a symlink to non-existent file 'tmp'.
   ASSERT_SOME(fs::symlink("tmp", link));

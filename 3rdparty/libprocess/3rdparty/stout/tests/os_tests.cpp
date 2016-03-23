@@ -166,7 +166,7 @@ TEST_F(OsTest, Nonblock)
 // non-existing file.
 TEST_F(OsTest, Size)
 {
-  const string& file = path::join(os::getcwd(), UUID::random().toString());
+  const string file = path::join(os::getcwd(), UUID::random().toString());
 
   const Bytes size = 1053;
 
@@ -179,7 +179,7 @@ TEST_F(OsTest, Size)
 
   EXPECT_ERROR(os::stat::size("aFileThatDoesNotExist"));
 
-  const string& link = path::join(os::getcwd(), UUID::random().toString());
+  const string link = path::join(os::getcwd(), UUID::random().toString());
 
   ASSERT_SOME(fs::symlink(file, link));
 
