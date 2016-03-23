@@ -44,6 +44,10 @@
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
+#include "tests/mesos.hpp"
+
+#include "tests/containerizer/rootfs.hpp"
+
 using std::list;
 using std::string;
 using std::vector;
@@ -746,6 +750,166 @@ TEST_F(AppcImageFetcherTest, SimpleFileFetch)
   // Verify that the image fetched is the same as on the server.
   ASSERT_SOME_EQ("test", os::read(path::join(imageRootfs, "tmp", "test")));
 }
+
+
+#ifdef __linux__
+// Test fixture for Appc image provisioner integration tests. It also provides a
+// helper for creating a base linux image bundle.
+class AppcProvisionerIntegrationTest : public MesosTest
+{
+protected:
+  // Prepares a base 'linux' Appc image bundle from host's rootfs.
+  void prepareImageBundle(const string& imageName, const string& mntDir)
+  {
+    // TODO(jojy): Consider parameterizing the labels for image name decoration.
+    const string imageBundleName = imageName + "-latest-linux-amd64.aci";
+
+    const string imagesPath = path::join(mntDir, "images");
+    const string imagePath = path::join(imagesPath, imageBundleName);
+
+    const string manifest = strings::format(
+        R"~(
+        {
+          "acKind": "ImageManifest",
+            "acVersion": "0.6.1",
+            "name": "%s",
+            "labels": [
+            {
+              "name": "version",
+              "value": "latest"
+            },
+            {
+              "name": "arch",
+              "value": "amd64"
+            },
+            {
+              "name": "os",
+              "value": "linux"
+            }
+          ],
+            "annotations": [
+            {
+              "name": "created",
+              "value": "1438983392"
+            }
+          ]
+        })~",
+        imageName).get();
+
+    const string rootfsPath = path::join(imagePath, "rootfs");
+
+    // Setup image on the server.
+    Try<Owned<Rootfs>> rootfs = LinuxRootfs::create(rootfsPath);
+    ASSERT_SOME(rootfs);
+
+    // 'modules' directory is usually very large and is an easy one to exclude.
+    // TODO(jojy): Consider adding directory exclusion filter in LinuxRootfs.
+    Try<Nothing> rmdir = os::rmdir(path::join(rootfsPath, "lib", "modules"));
+    ASSERT_SOME(rmdir);
+
+    Try<Nothing> manifestWrite = os::write(
+        path::join(imagePath, "manifest"),
+        manifest);
+
+    ASSERT_SOME(manifestWrite);
+
+    const string imageBundlePath = path::join(mntDir, imageBundleName);
+
+    Future<Nothing> future = command::tar(
+        Path("."),
+        Path(imageBundlePath),
+        imagePath,
+        command::Compression::GZIP);
+
+    AWAIT_READY_FOR(future, Seconds(120));
+  }
+};
+
+
+// Tests the Appc image provisioner for a single layered Linux image. The
+// image's rootfs is built from local host's file system.
+TEST_F(AppcProvisionerIntegrationTest, ROOT_SimpleLinuxImageTest)
+{
+  const string imageName = "linux";
+
+  // Represents the directory where image bundles would be mounted.
+  const string mntDir = path::join(os::getcwd(), "mnt");
+
+  // Prepare the image bundle at the mount point.
+  prepareImageBundle(imageName, mntDir);
+
+  // Start master.
+  Try<PID<master::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+  flags.image_providers = "APPC";
+  flags.appc_simple_discovery_uri_prefix = path::join(mntDir, "");
+
+  Try<PID<slave::Slave>> slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      "ls -al /");
+
+  // Setup image for task.
+  Image::Appc appc = getAppcImage(imageName);
+
+  Image image;
+  image.set_type(Image::APPC);
+  image.mutable_appc()->CopyFrom(appc);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusRunning, Seconds(120));
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+#endif
+
+// TODO(jojy): Add integration test for image with dependencies.
 
 } // namespace tests {
 } // namespace internal {
