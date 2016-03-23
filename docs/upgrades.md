@@ -139,7 +139,7 @@ We categorize the changes as follows:
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
     <ul style="padding-left:10px;">
-      <li>C <a href="#0-25-x-scheduler-bindings">C++/Java/Python Scheduler Bindings</a></li?
+      <li>C <a href="#0-25-x-scheduler-bindings">C++/Java/Python Scheduler Bindings</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
