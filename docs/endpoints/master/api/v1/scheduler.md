@@ -9,7 +9,7 @@ layout: documentation
 >        /master/api/v1/scheduler
 
 ### TL;DR; ###
-Endpoint for schedulers to make Calls against the master.
+Endpoint for schedulers to make calls against the master.
 
 ### DESCRIPTION ###
 Returns 202 Accepted iff the request is accepted.

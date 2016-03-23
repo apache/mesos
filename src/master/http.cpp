@@ -782,6 +782,7 @@ string Master::Http::FLAGS_HELP()
 {
   return HELP(
     TLDR("Exposes the master's flag configuration."),
+    None(),
     AUTHENTICATION(true));
 }
 
