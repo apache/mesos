@@ -138,3 +138,30 @@ index 0daf308..1136e0d 100644
      return false;
    }
    const char *p = char_class;
+diff --git a/src/stacktrace_powerpc-inl.h b/src/stacktrace_powerpc-inl.h
+index 1090dde..03b9108 100644
+--- a/src/stacktrace_powerpc-inl.h
++++ b/src/stacktrace_powerpc-inl.h
+@@ -111,7 +111,7 @@ int GetStackTrace(void** result, int max_depth, int skip_count) {
+       result[n++] = *(sp+2);
+ #elif defined(_CALL_SYSV)
+       result[n++] = *(sp+1);
+-#elif defined(__APPLE__) || (defined(__linux) && defined(__PPC64__))
++#elif defined(__APPLE__) || ((defined(__linux) || defined(__linux__)) && defined(__PPC64__))
+       // This check is in case the compiler doesn't define _CALL_AIX/etc.
+       result[n++] = *(sp+2);
+ #elif defined(__linux)
+diff --git a/config.guess b/config.guess
+index 278f9e9..f048baa 100755
+--- a/config.guess
++++ b/config.guess
+@@ -911,6 +911,9 @@ EOF
+     ppc64:Linux:*:*)
+ 	echo powerpc64-unknown-linux-gnu
+ 	exit ;;
++    ppc64le:Linux:*:*)
++	echo powerpc64le-unknown-linux-gnu
++	exit ;;
+     alpha:Linux:*:*)
+ 	case `sed -n '/^cpu model/s/^.*: \(.*\)/\1/p' < /proc/cpuinfo` in
+ 	  EV5)   UNAME_MACHINE=alphaev5 ;;
