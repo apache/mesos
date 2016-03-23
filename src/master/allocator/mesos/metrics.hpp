@@ -22,6 +22,7 @@
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
+#include <process/metrics/timer.hpp>
 
 #include <process/pid.hpp>
 
@@ -58,6 +59,9 @@ struct Metrics
 
   // Number of times the allocation algorithm has run.
   process::metrics::Counter allocation_runs;
+
+  // Latency of the allocation aglorithm.
+  process::metrics::Timer<Milliseconds> allocation_run;
 
   // Gauges for the total amount of each resource in the cluster.
   std::vector<process::metrics::Gauge> resources_total;
