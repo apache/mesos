@@ -111,6 +111,12 @@ constexpr Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
+// Name of the default HTTP authenticator.
+constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
+
+// Name of the default agent HTTP authentication realm.
+constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos-agent";
+
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 

@@ -30,7 +30,10 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <mesos/module/authenticatee.hpp>
+#include <mesos/module/http_authenticator.hpp>
 
 #include <process/async.hpp>
 #include <process/check.hpp>
@@ -115,6 +118,9 @@ namespace slave {
 
 using namespace state;
 
+namespace authentication = process::http::authentication;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
 
 Slave::Slave(const std::string& id,
              const slave::Flags& _flags,
@@ -311,6 +317,7 @@ void Slave::initialize()
 
   authenticateeName = flags.authenticatee;
 
+  // Load credential for agent authentication with the master.
   if (flags.credential.isSome()) {
     Result<Credential> _credential =
       credentials::readCredential(flags.credential.get());
@@ -324,6 +331,102 @@ void Slave::initialize()
       LOG(INFO) << "Slave using credential for: "
                 << credential.get().principal();
     }
+  }
+
+  vector<string> httpAuthenticatorNames =
+    strings::split(flags.http_authenticators, ",");
+
+  // If the `http_authenticators` flag is not specified, the default value will
+  // be filled in. Passing an empty string into the `http_authenticators` flag
+  // is considered an error.
+  if (httpAuthenticatorNames.empty()) {
+    EXIT(1) << "No HTTP authenticator specified";
+  }
+  if (httpAuthenticatorNames.size() > 1) {
+    EXIT(1) << "Multiple HTTP authenticators not supported";
+  }
+  if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
+      !modules::ModuleManager::contains<authentication::Authenticator>(
+          httpAuthenticatorNames[0])) {
+    EXIT(1) << "HTTP authenticator '" << httpAuthenticatorNames[0]
+            << "' not found. Check the spelling (compare to '"
+            << DEFAULT_HTTP_AUTHENTICATOR << "') or verify that the "
+            << "authenticator was loaded successfully (see --modules)";
+  }
+
+  if (flags.authenticate_http) {
+    authentication::Authenticator* httpAuthenticator = NULL;
+
+    if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR) {
+      // Load credentials for HTTP authentication.
+      Credentials httpCredentials;
+      if (flags.http_credentials.isSome()) {
+        Result<Credentials> credentials =
+          credentials::read(flags.http_credentials.get());
+        if (credentials.isError()) {
+          EXIT(1) << credentials.error() << " (see --http_credentials flag)";
+        } else if (credentials.isNone()) {
+          EXIT(1) << "Credentials file must contain at least one credential"
+                  << " (see --http_credentials flag)";
+        }
+
+        httpCredentials = credentials.get();
+      } else {
+        EXIT(1) << "No credentials provided for the default '"
+                << DEFAULT_HTTP_AUTHENTICATOR
+                << "' HTTP authenticator";
+      }
+
+      LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
+                << "' HTTP authenticator";
+
+      Try<authentication::Authenticator*> authenticator =
+        BasicAuthenticatorFactory::create(
+            DEFAULT_HTTP_AUTHENTICATION_REALM,
+            httpCredentials);
+      if (authenticator.isError()) {
+        EXIT(1) << "Could not create HTTP authenticator module '"
+                << httpAuthenticatorNames[0] << "': " << authenticator.error();
+      }
+
+      httpAuthenticator = authenticator.get();
+    } else {
+      if (flags.http_credentials.isSome()) {
+        EXIT(1) << "The '--http_credentials' flag is only used by the default "
+                << "basic HTTP authenticator, but a custom authenticator "
+                << "module was specified via '--http_authenticators'";
+      }
+
+      Try<authentication::Authenticator*> module =
+        modules::ModuleManager::create<authentication::Authenticator>(
+            httpAuthenticatorNames[0]);
+      if (module.isError()) {
+        EXIT(1) << "Could not create HTTP authenticator module '"
+                << httpAuthenticatorNames[0] << "': " << module.error();
+      }
+
+      LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
+                << "' HTTP authenticator";
+
+      httpAuthenticator = module.get();
+    }
+
+    if (httpAuthenticator == NULL) {
+      EXIT(1) << "An error occurred while initializing the '"
+              << httpAuthenticatorNames[0] << "' HTTP authenticator";
+    }
+
+    // Ownership of the `httpAuthenticator` is passed to libprocess.
+    process::http::authentication::setAuthenticator(
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
+        Owned<authentication::Authenticator>(httpAuthenticator));
+  } else if (flags.http_credentials.isSome()) {
+    EXIT(1) << "The '--http_credentials' flag was provided, but HTTP "
+            << "authentication was not enabled via '--authenticate_http'";
+  } else if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR) {
+    EXIT(1) << "A custom HTTP authenticator was specified with the "
+            << "'--http_authenticators' flag, but HTTP authentication was not "
+            << "enabled via '--authenticate_http'";
   }
 
   if ((flags.gc_disk_headroom < 0) || (flags.gc_disk_headroom > 1)) {

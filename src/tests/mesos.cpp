@@ -147,26 +147,59 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.launcher_dir = getLauncherDir();
 
-  // Create a default credential file.
-  const string& path = path::join(directory.get(), "credential");
+  {
+    // Create a default credential file for master/agent authentication.
+    const string& path = path::join(directory.get(), "credential");
 
-  Try<int> fd = os::open(
-      path,
-      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP);
+    Try<int> fd = os::open(
+        path,
+        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        S_IRUSR | S_IWUSR | S_IRGRP);
 
-  CHECK_SOME(fd);
+    CHECK_SOME(fd);
 
-  Credential credential;
-  credential.set_principal(DEFAULT_CREDENTIAL.principal());
-  credential.set_secret(DEFAULT_CREDENTIAL.secret());
+    Credential credential;
+    credential.set_principal(DEFAULT_CREDENTIAL.principal());
+    credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credential))))
-    << "Failed to write slave credential to '" << path << "'";
+    CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credential))))
+      << "Failed to write slave credential to '" << path << "'";
 
-  CHECK_SOME(os::close(fd.get()));
+    CHECK_SOME(os::close(fd.get()));
 
-  flags.credential = path;
+    flags.credential = path;
+  }
+
+  flags.authenticate_http = true;
+
+  {
+    // Create a default HTTP credentials file.
+    const string& path = path::join(directory.get(), "http_credentials");
+
+    Try<int> fd = os::open(
+        path,
+        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        S_IRUSR | S_IWUSR | S_IRGRP);
+
+    CHECK_SOME(fd);
+
+    Credentials httpCredentials;
+
+    Credential* httpCredential = httpCredentials.add_credentials();
+    httpCredential->set_principal(DEFAULT_CREDENTIAL.principal());
+    httpCredential->set_secret(DEFAULT_CREDENTIAL.secret());
+
+    httpCredential = httpCredentials.add_credentials();
+    httpCredential->set_principal(DEFAULT_CREDENTIAL_2.principal());
+    httpCredential->set_secret(DEFAULT_CREDENTIAL_2.secret());
+
+    CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(httpCredentials))))
+      << "Failed to write HTTP credentials to '" << path << "'";
+
+    CHECK_SOME(os::close(fd.get()));
+
+    flags.http_credentials = path;
+  }
 
   flags.resources = defaultAgentResourcesString;
 

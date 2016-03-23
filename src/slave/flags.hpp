@@ -127,6 +127,9 @@ public:
   bool enforce_container_disk_quota;
   Option<Modules> modules;
   std::string authenticatee;
+  std::string http_authenticators;
+  bool authenticate_http;
+  Option<Path> http_credentials;
   Option<std::string> hooks;
   Option<std::string> resource_estimator;
   Option<std::string> qos_controller;
