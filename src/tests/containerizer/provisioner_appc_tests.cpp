@@ -64,6 +64,41 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+/**
+ * Helper function that returns a Appc protobuf object for given
+ * parameters.
+ *
+ * @param name Appc image name.
+ * @param arch Machine architecture(e.g, x86, amd64).
+ * @param os Operating system(e.g, linux).
+ * @return Appc protobuff message object.
+ */
+static Image::Appc getAppcImage(
+    const string& name,
+    const string& arch = "amd64",
+    const string& os = "linux")
+{
+  Image::Appc appc;
+  appc.set_name(name);
+
+  Label archLabel;
+  archLabel.set_key("arch");
+  archLabel.set_value(arch);
+
+  Label osLabel;
+  osLabel.set_key("os");
+  osLabel.set_value(os);
+
+  Labels labels;
+  labels.add_labels()->CopyFrom(archLabel);
+  labels.add_labels()->CopyFrom(osLabel);
+
+  appc.mutable_labels()->CopyFrom(labels);
+
+  return appc;
+}
+
+
 // TODO(jojy): Move AppcSpecTest to its own test file.
 class AppcSpecTest : public TemporaryDirectoryTest {};
 
@@ -611,22 +646,7 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
       stringify(server.self().address) ,
       imageName).get();
 
-  Image::Appc imageInfo;
-  imageInfo.set_name(discoverableImageName);
-
-  Label archLabel;
-  archLabel.set_key("arch");
-  archLabel.set_value("amd64");
-
-  Label osLabel;
-  osLabel.set_key("os");
-  osLabel.set_value("linux");
-
-  Labels labels;
-  labels.add_labels()->CopyFrom(archLabel);
-  labels.add_labels()->CopyFrom(osLabel);
-
-  imageInfo.mutable_labels()->CopyFrom(labels);
+  Image::Appc appc = getAppcImage(discoverableImageName);
 
   // Create image fetcher.
   Try<Owned<uri::Fetcher>> uriFetcher = uri::fetcher::create();
@@ -646,7 +666,7 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
   ASSERT_SOME(mkdir);
 
   // Now fetch the image.
-  AWAIT_READY(fetcher.get()->fetch(imageInfo, imageFetchDir));
+  AWAIT_READY(fetcher.get()->fetch(appc, imageFetchDir));
 
   // Verify that there is an image directory.
   Try<list<string>> imageDirs = os::ls(imageFetchDir);
@@ -683,22 +703,7 @@ TEST_F(AppcImageFetcherTest, SimpleFileFetch)
   // Setup the image bundle.
   prepareImage(imageDirMountPath, imageBundlePath, getManifest());
 
-  Image::Appc imageInfo;
-  imageInfo.set_name("image");
-
-  Label archLabel;
-  archLabel.set_key("arch");
-  archLabel.set_value("amd64");
-
-  Label osLabel;
-  osLabel.set_key("os");
-  osLabel.set_value("linux");
-
-  Labels labels;
-  labels.add_labels()->CopyFrom(archLabel);
-  labels.add_labels()->CopyFrom(osLabel);
-
-  imageInfo.mutable_labels()->CopyFrom(labels);
+  Image::Appc appc = getAppcImage("image");
 
   // Create image fetcher.
   Try<Owned<uri::Fetcher>> uriFetcher = uri::fetcher::create();
@@ -721,7 +726,7 @@ TEST_F(AppcImageFetcherTest, SimpleFileFetch)
   ASSERT_SOME(mkdir);
 
   // Now fetch the image.
-  AWAIT_READY(fetcher.get()->fetch(imageInfo, imageFetchDir));
+  AWAIT_READY(fetcher.get()->fetch(appc, imageFetchDir));
 
   // Verify that there is an image directory.
   Try<list<string>> imageDirs = os::ls(imageFetchDir);
