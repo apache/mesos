@@ -124,8 +124,8 @@ constexpr char DEFAULT_AUTHORIZER[] = "local";
 // Name of the default, basic authenticator.
 constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 
-// Name of the default, "mesos" HTTP authentication realm.
-constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos";
+// Name of the default master HTTP authentication realm.
+constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos-master";
 
 } // namespace master {
 } // namespace internal {
