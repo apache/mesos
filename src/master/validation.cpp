@@ -368,6 +368,14 @@ Option<Error> validateExecutorInfo(
           stringify(task.executor()) + "\n"
           "------------------------------------------------------------\n");
     }
+
+    // Make sure provided duration is non-negative.
+    if (task.executor().has_shutdown_grace_period() &&
+        Nanoseconds(task.executor().shutdown_grace_period().nanoseconds()) <
+          Duration::zero()) {
+      return Error(
+          "ExecutorInfo's 'shutdown_grace_period' must be non-negative");
+    }
   }
 
   return None();
