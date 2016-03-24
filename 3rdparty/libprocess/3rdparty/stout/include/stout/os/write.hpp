@@ -13,16 +13,17 @@
 #ifndef __STOUT_OS_WRITE_HPP__
 #define __STOUT_OS_WRITE_HPP__
 
-
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
 #include <stout/os/open.hpp>
-
+#include <stout/os/socket.hpp>
 #ifdef __WINDOWS__
-#include <stout/windows.hpp>
+#include <stout/os/windows/write.hpp>
+#else
+#include <stout/os/posix/write.hpp>
 #endif // __WINDOWS__
 
 
@@ -35,11 +36,17 @@ inline Try<Nothing> write(int fd, const std::string& message)
 
   while (offset < message.length()) {
     ssize_t length =
-      ::write(fd, message.data() + offset, message.length() - offset);
+      os::write(fd, message.data() + offset, message.length() - offset);
+
+#ifdef __WINDOWS__
+      int error = WSAGetLastError();
+#else
+      int error = errno;
+#endif // __WINDOWS__
 
     if (length < 0) {
-      // TODO(benh): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
-      if (errno == EINTR) {
+      // TODO(benh): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK).
+      if (net::is_restartable_error(error)) {
         continue;
       }
       return ErrnoError();
@@ -78,4 +85,4 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
 } // namespace os {
 
 
-#endif // __STOUT_OS_READ_HPP__
+#endif // __STOUT_OS_WRITE_HPP__

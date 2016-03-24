@@ -115,6 +115,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/signals.hpp			\
   stout/os/posix/stat.hpp			\
   stout/os/posix/su.hpp				\
+  stout/os/posix/write.hpp			\
   stout/os/raw/environment.hpp			\
   stout/os/windows/bootid.hpp			\
   stout/os/windows/chroot.hpp			\
@@ -132,6 +133,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/signals.hpp			\
   stout/os/windows/stat.hpp			\
   stout/os/windows/su.hpp			\
+  stout/os/windows/write.hpp			\
   stout/path.hpp				\
   stout/preprocessor.hpp			\
   stout/proc.hpp				\

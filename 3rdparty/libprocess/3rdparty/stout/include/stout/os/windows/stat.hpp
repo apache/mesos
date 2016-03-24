@@ -57,8 +57,8 @@ inline bool isfile(const std::string& path)
 
 inline bool islink(const std::string& path)
 {
-  Try<internal::windows::SymbolicLink> symlink =
-    internal::windows::query_symbolic_link_data(path);
+  Try<::internal::windows::SymbolicLink> symlink =
+    ::internal::windows::query_symbolic_link_data(path);
 
   return symlink.isSome();
 }
@@ -83,8 +83,8 @@ inline Try<Bytes> size(
 {
   switch (follow) {
     case DO_NOT_FOLLOW_SYMLINK: {
-      Try<internal::windows::SymbolicLink> symlink =
-        internal::windows::query_symbolic_link_data(path);
+      Try<::internal::windows::SymbolicLink> symlink =
+        ::internal::windows::query_symbolic_link_data(path);
 
       if (symlink.isError()) {
         return Error(symlink.error());
@@ -111,8 +111,8 @@ inline Try<Bytes> size(
 
 inline Try<long> mtime(const std::string& path)
 {
-  Try<internal::windows::SymbolicLink> symlink =
-    internal::windows::query_symbolic_link_data(path);
+  Try<::internal::windows::SymbolicLink> symlink =
+    ::internal::windows::query_symbolic_link_data(path);
 
   if (symlink.isSome()) {
     return Error(
