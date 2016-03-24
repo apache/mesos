@@ -96,8 +96,6 @@ public:
   // ContainerID created for each container.
   void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
 
-  virtual void destroy(const ContainerID& containerId);
-
   virtual process::Future<hashset<ContainerID> > containers();
 
   MOCK_METHOD1(
@@ -116,6 +114,10 @@ public:
       wait,
       process::Future<containerizer::Termination>(const ContainerID&));
 
+  MOCK_METHOD1(
+      destroy,
+      void(const ContainerID&));
+
 private:
   void setup();
 
@@ -131,6 +133,8 @@ private:
 
   process::Future<containerizer::Termination> _wait(
       const ContainerID& containerId);
+
+  void _destroy(const ContainerID& containerID);
 
   hashmap<ExecutorID, Executor*> executors;
   hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
