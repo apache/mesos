@@ -329,8 +329,17 @@ map<string, string> executorEnvironment(
   environment["MESOS_SLAVE_PID"] = stringify(slavePid);
   environment["MESOS_AGENT_ENDPOINT"] = stringify(slavePid.address);
   environment["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+
+  // Set executor's shutdown grace period. If set, the customized value
+  // from `ExecutorInfo` overrides the default from agent flags.
+  Duration executorShutdownGracePeriod = flags.executor_shutdown_grace_period;
+  if (executorInfo.has_shutdown_grace_period()) {
+    executorShutdownGracePeriod =
+      Nanoseconds(executorInfo.shutdown_grace_period().nanoseconds());
+  }
+
   environment["MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD"] =
-    stringify(flags.executor_shutdown_grace_period);
+    stringify(executorShutdownGracePeriod);
 
   if (checkpoint) {
     environment["MESOS_RECOVERY_TIMEOUT"] = stringify(flags.recovery_timeout);

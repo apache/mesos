@@ -4346,8 +4346,16 @@ void Slave::_shutdownExecutor(Framework* framework, Executor* executor)
   // will be dropped to the floor!
   executor->send(ShutdownExecutorMessage());
 
+  // If the executor specifies shutdown grace period,
+  // pass it instead of the default.
+  Duration shutdownTimeout = flags.executor_shutdown_grace_period;
+  if (executor->info.has_shutdown_grace_period()) {
+    shutdownTimeout = Nanoseconds(
+        executor->info.shutdown_grace_period().nanoseconds());
+  }
+
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(flags.executor_shutdown_grace_period,
+  delay(shutdownTimeout,
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id(),

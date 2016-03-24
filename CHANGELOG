@@ -1,5 +1,14 @@
 Release Notes - Mesos - Version 0.29.0 (WIP)
 --------------------------------------------
+This release contains the following new features:
+  * [MESOS-4949] - The executor shutdown grace period can now be configured in
+    `ExecutorInfo`, which overrides the agent flag. When shutting down an
+    executor the agent will wait in a best-effort manner for the grace period
+    specified here before forcibly destroying the container. The executor must
+    not assume that it will always be allotted the full grace period, as the
+    agent may decide to allot a shorter period and failures / forcible
+    terminations may occur. Together with kill policies this gives frameworks
+    flexibility around how to clean up tasks and executors.
 
 Deprecations:
   * [MESOS-5001] - The 'allocator/event_queue_dispatches' metric is now

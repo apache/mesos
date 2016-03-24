@@ -41,12 +41,21 @@ message Event {
 
     // Received when the agent asks the executor to shutdown/kill itself.
     // The executor is then required to kill all its active tasks, send
-    // `TASK_KILLED` status updates and gracefully exit. If an executor
-    // does not terminate within a `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`
-    // period (an environment variable set by the agent upon executor
-    // startup), the agent will forcefully destroy the container where the
-    // executor is running. The agent would then send `TASK_LOST` updates
-    // for any remaining active tasks of this executor.
+    // `TASK_KILLED` status updates and gracefully exit. The executor
+    // should terminate within a `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`
+    // (an environment variable set by the agent upon executor startup);
+    // it can be configured via `ExecutorInfo.shutdown_grace_period`. If
+    // the executor fails to do so, the agent will forcefully destroy the
+    // container where the executor is running. The agent would then send
+    // `TASK_LOST` updates for any remaining active tasks of this executor.
+    //
+    // NOTE: The executor must not assume that it will always be allotted
+    // the full grace period, as the agent may decide to allot a shorter
+    // period and failures / forcible terminations may occur.
+    //
+    // TODO(alexr): Consider adding a duration field into the `Shutdown`
+    // message so that the agent can communicate when a shorter period
+    // has been allotted.
     SHUTDOWN = 7;
   }
 

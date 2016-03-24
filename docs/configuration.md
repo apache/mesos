@@ -1181,8 +1181,13 @@ shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
     --executor_shutdown_grace_period=VALUE
   </td>
   <td>
-Amount of time to wait for an executor
-to shut down (e.g., 60secs, 3mins, etc) (default: 5secs)
+Default amount of time to wait for an executor to shut down
+(e.g. 60secs, 3mins, etc). ExecutorInfo.shutdown_grace_period
+overrides this default. Note that the executor must not assume
+that it will always be allotted the full grace period, as the
+agent may decide to allot a shorter period, and failures / forcible
+terminations may occur.
+(default: 5secs)
   </td>
 </tr>
 <tr>

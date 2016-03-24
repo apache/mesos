@@ -450,6 +450,14 @@ message ExecutorInfo {
   // discovery system to use this information as needed and to handle
   // executors without service discovery information.
   optional DiscoveryInfo discovery = 12;
+
+  // When shutting down an executor the agent will wait in a
+  // best-effort manner for the grace period specified here
+  // before forcibly destroying the container. The executor
+  // must not assume that it will always be allotted the full
+  // grace period, as the agent may decide to allot a shorter
+  // period and failures / forcible terminations may occur.
+  optional DurationInfo shutdown_grace_period = 13;
 }
 
 
