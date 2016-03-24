@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <sys/stat.h>
 
@@ -364,7 +366,7 @@ Future<Response> FilesProcess::read(const Request& request)
   }
 
   // Cap the read length at 16 pages.
-  length = std::min<ssize_t>(length, sysconf(_SC_PAGE_SIZE) * 16);
+  length = std::min<ssize_t>(length, os::pagesize() * 16);
 
   if (offset >= size) {
     os::close(fd.get());
