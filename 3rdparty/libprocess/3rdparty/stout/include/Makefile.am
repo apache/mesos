@@ -91,6 +91,7 @@ nobase_include_HEADERS =			\
   stout/os/sendfile.hpp				\
   stout/os/shell.hpp				\
   stout/os/signals.hpp				\
+  stout/os/socket.hpp				\
   stout/os/stat.hpp				\
   stout/os/strerror.hpp				\
   stout/os/su.hpp				\
