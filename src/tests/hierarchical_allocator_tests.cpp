@@ -540,6 +540,12 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   // Ensure the offer filter timeout is set before advancing the clock.
   Clock::settle();
 
+  JSON::Object metrics = Metrics();
+
+  string activeOfferFilters =
+    "allocator/mesos/offer_filters/roles/" + ROLE + "/active";
+  EXPECT_EQ(1, metrics.values[activeOfferFilters]);
+
   // Trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
@@ -557,6 +563,10 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  metrics = Metrics();
+
+  EXPECT_EQ(0, metrics.values[activeOfferFilters]);
 }
 
 
@@ -2640,6 +2650,98 @@ TEST_F(HierarchicalAllocatorTest, AllocationRunTimerMetrics)
     EXPECT_EQ(1u, values.count(statistic))
       << "Expected " << statistic << " to be present";
   }
+}
+
+
+// This test checks that per-role active offer filter metrics
+// are correctly reported in the metrics endpoint.
+TEST_F(HierarchicalAllocatorTest, ActiveOfferFiltersMetrics)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+
+  // Register three frameworks, two of which are in the same role.
+  // For every offer the frameworks install practically indefinite
+  // offer filters.
+  Duration filterTimeout = flags.allocation_interval * 100;
+  Filters offerFilter;
+  offerFilter.set_refuse_seconds(filterTimeout.secs());
+
+  FrameworkInfo framework1 = createFrameworkInfo("roleA");
+  allocator->addFramework(framework1.id(), framework1, {});
+
+  Future<Allocation> allocation = allocations.get();
+
+  AWAIT_READY(allocation);
+  ASSERT_EQ(framework1.id(), allocation->frameworkId);
+
+  allocator->recoverResources(
+      allocation->frameworkId,
+      agent.id(),
+      allocation->resources.get(agent.id()).get(),
+      offerFilter);
+
+  JSON::Object expected;
+  expected.values = {
+      {"allocator/mesos/offer_filters/roles/roleA/active", 1},
+  };
+
+  JSON::Value metrics = Metrics();
+
+  EXPECT_TRUE(metrics.contains(expected));
+
+  FrameworkInfo framework2 = createFrameworkInfo("roleB");
+  allocator->addFramework(framework2.id(), framework2, {});
+
+  allocation = allocations.get();
+
+  AWAIT_READY(allocation);
+  ASSERT_EQ(framework2.id(), allocation->frameworkId);
+
+  allocator->recoverResources(
+      allocation->frameworkId,
+      agent.id(),
+      allocation->resources.get(agent.id()).get(),
+      offerFilter);
+
+  expected.values = {
+      {"allocator/mesos/offer_filters/roles/roleA/active", 1},
+      {"allocator/mesos/offer_filters/roles/roleB/active", 1},
+  };
+
+  metrics = Metrics();
+
+  EXPECT_TRUE(metrics.contains(expected));
+
+  FrameworkInfo framework3 = createFrameworkInfo("roleA");
+  allocator->addFramework(framework3.id(), framework3, {});
+
+  allocation = allocations.get();
+
+  AWAIT_READY(allocation);
+  ASSERT_EQ(framework3.id(), allocation->frameworkId);
+
+  allocator->recoverResources(
+      allocation->frameworkId,
+      agent.id(),
+      allocation->resources.get(agent.id()).get(),
+      offerFilter);
+
+  expected.values = {
+      {"allocator/mesos/offer_filters/roles/roleA/active", 2},
+      {"allocator/mesos/offer_filters/roles/roleB/active", 1},
+  };
+
+  metrics = Metrics();
+
+  EXPECT_TRUE(metrics.contains(expected));
 }
 
 

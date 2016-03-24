@@ -295,6 +295,9 @@ protected:
       const std::string& role,
       const std::string& resource);
 
+  double _offer_filters_active(
+      const std::string& role);
+
   hashmap<FrameworkID, Framework> frameworks;
 
   struct Slave

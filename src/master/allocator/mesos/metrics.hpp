@@ -48,6 +48,9 @@ struct Metrics
   void setQuota(const std::string& role, const Quota& quota);
   void removeQuota(const std::string& role);
 
+  void addRole(const std::string& role);
+  void removeRole(const std::string& role);
+
   const process::PID<HierarchicalAllocatorProcess> allocator;
 
   // Number of dispatch events currently waiting in the allocator process.
@@ -76,6 +79,9 @@ struct Metrics
   // Gauges for the per-role quota guarantee for each resource.
   hashmap<std::string, hashmap<std::string, process::metrics::Gauge>>
     quota_guarantee;
+
+  // Gauges for the per-role count of active offer filters.
+  hashmap<std::string, process::metrics::Gauge> offer_filters_active;
 };
 
 } // namespace internal {

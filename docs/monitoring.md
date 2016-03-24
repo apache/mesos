@@ -952,6 +952,13 @@ and resource allocations in the allocator.
 </tr>
 <tr>
   <td>
+  <code>allocator/mesos/offer_filters/roles/&lt;role&gt;/active</code>
+  </td>
+  <td>Number of active offer filters for all frameworks within the role</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>allocator/mesos/quota/roles/&lt;role&gt;/resources/&lt;resource&gt;/offered_or_allocated</code>
   </td>
   <td>Amount of resources considered offered or allocated towards

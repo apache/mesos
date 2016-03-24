@@ -226,6 +226,7 @@ void HierarchicalAllocatorProcess::addFramework(
     activeRoles[role] = 1;
     roleSorter->add(role, roleWeight(role));
     frameworkSorters[role] = frameworkSorterFactory();
+    metrics.addRole(role);
   } else {
     activeRoles[role]++;
   }
@@ -315,6 +316,8 @@ void HierarchicalAllocatorProcess::removeFramework(
     CHECK(frameworkSorters.contains(role));
     delete frameworkSorters[role];
     frameworkSorters.erase(role);
+
+    metrics.removeRole(role);
   }
 
   // Do not delete the filters contained in this
@@ -1756,6 +1759,25 @@ double HierarchicalAllocatorProcess::_quota_allocated(
       .get<Value::Scalar>(resource);
 
   return used.isSome() ? used->value() : 0;
+}
+
+
+double HierarchicalAllocatorProcess::_offer_filters_active(
+    const string& role)
+{
+  double result = 0;
+
+  foreachvalue (const Framework& framework, frameworks) {
+    if (framework.role != role) {
+      continue;
+    }
+
+    foreachkey (const SlaveID& slaveId, framework.offerFilters) {
+      result += framework.offerFilters.get(slaveId)->size();
+    }
+  }
+
+  return result;
 }
 
 } // namespace internal {

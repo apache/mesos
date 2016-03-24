@@ -109,6 +109,10 @@ Metrics::~Metrics()
       process::metrics::remove(gauge);
     }
   }
+
+  foreachvalue (const Gauge& gauge, offer_filters_active) {
+    process::metrics::remove(gauge);
+  }
 }
 
 
@@ -161,6 +165,34 @@ void Metrics::removeQuota(const string& role)
   }
 
   quota_allocated.erase(role);
+}
+
+
+void Metrics::addRole(const string& role)
+{
+  CHECK(!offer_filters_active.contains(role));
+
+  Gauge gauge(
+      "allocator/mesos/offer_filters/roles/" + role + "/active",
+      defer(allocator,
+            &HierarchicalAllocatorProcess::_offer_filters_active,
+            role));
+
+  offer_filters_active.put(role, gauge);
+
+  process::metrics::add(gauge);
+}
+
+
+void Metrics::removeRole(const string& role)
+{
+  Option<Gauge> gauge = offer_filters_active.get(role);
+
+  CHECK_SOME(gauge);
+
+  offer_filters_active.erase(role);
+
+  process::metrics::remove(gauge.get());
 }
 
 } // namespace internal {
