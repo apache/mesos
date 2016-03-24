@@ -379,6 +379,12 @@ Try<Subprocess> subprocess(
   // us and we needed to allocate the space.
   if (environment.isSome()) {
     CHECK_NE(os::environ(), envp);
+
+    // We ignore the last 'envp' entry since it is NULL.
+    for (size_t index = 0; index < environment.get().size(); index++) {
+      delete[] envp[index];
+    }
+
     delete[] envp;
   }
 
