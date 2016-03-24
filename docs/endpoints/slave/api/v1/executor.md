@@ -20,3 +20,7 @@ transfer encoding. The executors can process the response
 incrementally.
 Returns 202 Accepted for all other Call messages iff the
 request is accepted.
+
+
+### AUTHENTICATION ###
+This endpoint does not require authentication.

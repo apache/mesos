@@ -98,3 +98,8 @@ Example (**Note**: this is not exhaustive):
     },
 }
 ```
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

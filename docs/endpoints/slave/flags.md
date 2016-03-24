@@ -10,3 +10,7 @@ layout: documentation
 
 ### TL;DR; ###
 Exposes the agent's flag configuration.
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.
