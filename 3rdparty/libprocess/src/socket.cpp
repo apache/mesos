@@ -10,8 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <unistd.h> // For sysconf.
-
 #include <memory>
 #include <string>
 
@@ -20,6 +18,8 @@
 #include <process/network.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
+
+#include <stout/os.hpp>
 
 #ifdef USE_SSL_SOCKET
 #include "libevent_ssl_socket.hpp"
@@ -195,7 +195,7 @@ Future<string> Socket::Impl::recv(const Option<ssize_t>& size)
 {
   // Default chunk size to attempt to receive when nothing is
   // specified represents roughly 16 pages.
-  static const size_t DEFAULT_CHUNK = 16 * sysconf(_SC_PAGESIZE);
+  static const size_t DEFAULT_CHUNK = 16 * os::pagesize();
 
   size_t chunk = (size.isNone() || size.get() < 0)
     ? DEFAULT_CHUNK
