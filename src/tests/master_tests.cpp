@@ -1681,6 +1681,8 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
   ASSERT_SOME(slave1);
 
+  AWAIT_READY(slave1RegisteredMessage);
+
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
     FUTURE_PROTOBUF(
         SlaveRegisteredMessage(), master.get()->pid, Not(slave1.get()->pid));
@@ -1688,8 +1690,6 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
 
-  // Wait for the slaves to be registered.
-  AWAIT_READY(slave1RegisteredMessage);
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
@@ -1707,7 +1707,7 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
 
   ASSERT_SOME(parse);
 
-  // Check that there are at least two elements in the array.
+  // Check that there are two elements in the array.
   Result<JSON::Array> array = parse.get().find<JSON::Array>("slaves");
   ASSERT_SOME(array);
   EXPECT_EQ(2u, array.get().values.size());
