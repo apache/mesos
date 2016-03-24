@@ -460,6 +460,13 @@ inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
 }
 
 
+// The alternative `getpagesize()` does not exist when enforcing
+// strict POSIX compliance.
+inline int pagesize()
+{
+  return sysconf(_SC_PAGESIZE);
+}
+
 namespace libraries {
 
 // Returns the full library name by adding prefix and extension to

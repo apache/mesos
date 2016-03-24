@@ -38,6 +38,12 @@
 
 namespace os {
 
+inline int pagesize()
+{
+  SYSTEM_INFO si = {0};
+  GetSystemInfo(&si);
+  return si.dwPageSize;
+}
 
 /*
 // Sets the value associated with the specified key in the set of
