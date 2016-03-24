@@ -909,10 +909,6 @@ TEST_P(RegistrarTest, UpdateWeights)
   double WEIGHT2 = 3.5;
 
   {
-    hashmap<string, double> weights;
-    weights[ROLE1] = WEIGHT1;
-    vector<WeightInfo> weightInfos = getWeightInfos(weights);
-
     // Prepare the registrar.
     Registrar registrar(flags, state);
     Future<Registry> registry = registrar.recover(master);
@@ -920,17 +916,16 @@ TEST_P(RegistrarTest, UpdateWeights)
 
     ASSERT_EQ(0, registry.get().weights_size());
 
-    // Store the weight for 'ROLE1' without weight in registry before.
+    // Store the weight for 'ROLE1' previously without weight.
+    hashmap<string, double> weights;
+    weights[ROLE1] = WEIGHT1;
+    vector<WeightInfo> weightInfos = getWeightInfos(weights);
+
     AWAIT_EQ(true, registrar.apply(
         Owned<Operation>(new UpdateWeights(weightInfos))));
   }
 
   {
-    hashmap<string, double> weights;
-    weights[ROLE1] = UPDATED_WEIGHT1;
-    weights[ROLE2] = WEIGHT2;
-    vector<WeightInfo> weightInfos = getWeightInfos(weights);
-
     Registrar registrar(flags, state);
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
@@ -942,6 +937,11 @@ TEST_P(RegistrarTest, UpdateWeights)
     ASSERT_EQ(WEIGHT1, registry.get().weights(0).info().weight());
 
     // Change weight for 'ROLE1', and store the weight for 'ROLE2'.
+    hashmap<string, double> weights;
+    weights[ROLE1] = UPDATED_WEIGHT1;
+    weights[ROLE2] = WEIGHT2;
+    vector<WeightInfo> weightInfos = getWeightInfos(weights);
+
     AWAIT_EQ(true, registrar.apply(
         Owned<Operation>(new UpdateWeights(weightInfos))));
   }
