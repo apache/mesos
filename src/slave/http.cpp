@@ -350,7 +350,9 @@ string Slave::Http::FLAGS_HELP()
 }
 
 
-Future<Response> Slave::Http::flags(const Request& request) const
+Future<Response> Slave::Http::flags(
+    const Request& request,
+    const Option<string>& /* principal */) const
 {
   JSON::Object object;
 
@@ -480,7 +482,9 @@ string Slave::Http::STATE_HELP() {
 }
 
 
-Future<Response> Slave::Http::state(const Request& request) const
+Future<Response> Slave::Http::state(
+    const Request& request,
+    const Option<string>& /* principal */) const
 {
   if (slave->state == Slave::RECOVERING) {
     return ServiceUnavailable("Agent has not finished recovery");

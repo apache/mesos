@@ -526,7 +526,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   EXPECT_SOME_EQ(false, find);
 
   // Check if container information is exposed through slave's state endpoint.
-  response = http::get(slave.get()->pid, "state");
+  response = http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);

@@ -690,22 +690,28 @@ void Slave::initialize()
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/state.json",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [http](const process::http::Request& request) {
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.state(request);
+          return http.state(request, principal);
         });
   route("/state",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [http](const process::http::Request& request) {
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.state(request);
+          return http.state(request, principal);
         });
   route("/flags",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::FLAGS_HELP(),
-        [http](const process::http::Request& request) {
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.flags(request);
+          return http.flags(request, principal);
         });
   route("/health",
         Http::HEALTH_HELP(),

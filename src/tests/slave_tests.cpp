@@ -78,6 +78,7 @@ using process::UPID;
 using process::http::OK;
 using process::http::Response;
 using process::http::ServiceUnavailable;
+using process::http::Unauthorized;
 
 using std::map;
 using std::shared_ptr;
@@ -1213,7 +1214,11 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_READY(__recover);
   Clock::settle();
 
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -1322,7 +1327,11 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  response = http::get(slave.get()->pid, "state");
+  response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -1442,12 +1451,74 @@ TEST_F(SlaveTest, StateEndpointUnavailableDuringRecovery)
   // Ensure slave has setup the route for "/state".
   AWAIT_READY(_recover);
 
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(ServiceUnavailable().status, response);
 
   driver.stop();
   driver.join();
+}
+
+
+// Tests that a client will receive an `Unauthorized` response when agent HTTP
+// authentication is enabled and requests for the `/state` and `/flags`
+// endpoints include invalid credentials or no credentials at all.
+TEST_F(SlaveTest, HTTPEndpointsBadAuthentication)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // A credential that will not be accepted by the agent.
+  Credential badCredential;
+  badCredential.set_principal("bad-principal");
+  badCredential.set_secret("bad-secret");
+
+  // Capture the start time deterministically.
+  Clock::pause();
+
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // HTTP authentication is enabled by default in `StartSlave`.
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Ensure slave has finished recovery.
+  AWAIT_READY(recover);
+  Clock::settle();
+
+  // Requests containing invalid credentials.
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    response = process::http::get(
+        slave.get()->pid,
+        "flags",
+        None(),
+        createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // Requests containing no authentication headers.
+  {
+    Future<Response> response = process::http::get(slave.get()->pid, "state");
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    response = process::http::get(slave.get()->pid, "flags");
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
 }
 
 
@@ -2375,7 +2446,11 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   AWAIT_READY(launchTask);
 
   // Verify label key and value in slave state endpoint.
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2481,7 +2556,11 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in slave state endpoint.
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2580,7 +2659,11 @@ TEST_F(SlaveTest, TaskStatusLabels)
   AWAIT_READY(status);
 
   // Verify label key and value in master state endpoint.
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2674,7 +2757,11 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
       status.get().container_status().network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<Response> response = process::http::get(slave.get()->pid, "state");
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

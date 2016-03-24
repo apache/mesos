@@ -433,7 +433,8 @@ private:
 
     // /slave/flags
     process::Future<process::http::Response> flags(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& /* principal */) const;
 
     // /slave/health
     process::Future<process::http::Response> health(
@@ -441,7 +442,8 @@ private:
 
     // /slave/state
     process::Future<process::http::Response> state(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& /* principal */) const;
 
     static std::string EXECUTOR_HELP();
     static std::string FLAGS_HELP();

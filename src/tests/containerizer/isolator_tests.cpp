@@ -1083,8 +1083,8 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 }
 
 
-// This test verifies that are able to retrieve the `net_cls` handle
-// from `state.json`.
+// This test verifies that we are able to retrieve the `net_cls` handle
+// from `/state`.
 TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1142,8 +1142,12 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
-  // Task is ready. Verify `ContainerStatus` is present in slave state.json.
-  Future<Response> response = http::get(slave.get()->pid, "state.json");
+  // Task is ready. Verify `ContainerStatus` is present in slave state.
+  Future<Response> response = http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

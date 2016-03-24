@@ -250,7 +250,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
       1u,
       masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
-  Future<Response> slaveState = process::http::get(slave.get()->pid, "state");
+  Future<Response> slaveState = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
 
@@ -301,7 +305,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
       1u,
       masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
-  slaveState = process::http::get(slave.get()->pid, "state");
+  slaveState = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
 
@@ -332,7 +340,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   AWAIT_READY(executorLost);
 
   // Verify slave sees completed framework.
-  slaveState = process::http::get(slave.get()->pid, "state");
+  slaveState = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
 
