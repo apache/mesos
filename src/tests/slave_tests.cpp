@@ -545,6 +545,82 @@ TEST_F(SlaveTest, ComamndTaskWithArguments)
 }
 
 
+// Tests that task's kill policy grace period does not extend the time
+// a task responsive to SIGTERM needs to exit and the terminal status
+// to be delivered to the master.
+TEST_F(SlaveTest, CommandTaskWithKillPolicy)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+  Offer offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+  task.mutable_command()->MergeFrom(command);
+
+  // Set task's kill policy grace period to a large value.
+  Duration gracePeriod = Seconds(100);
+  task.mutable_kill_policy()->mutable_grace_period()->set_nanoseconds(
+      gracePeriod.ns());
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Kill the task.
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.killTask(statusRunning->task_id());
+
+  // Since "sleep 1000" task is responsive to SIGTERM, we should
+  // observe TASK_KILLED update sooner than after `gracePeriod`
+  // elapses. This indicates that extended grace period does not
+  // influence the time a task and its command executor need to
+  // exit. We add a small buffer for a task to clean up and the
+  // update to be processed by the master.
+  AWAIT_READY_FOR(statusKilled, Seconds(1) + process::MAX_REAP_INTERVAL());
+
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR,
+            statusKilled->source());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // Don't let args from the CommandInfo struct bleed over into
 // mesos-executor forking. For more details of this see MESOS-1873.
 TEST_F(SlaveTest, GetExecutorInfo)

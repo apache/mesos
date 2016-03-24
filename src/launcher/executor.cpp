@@ -84,14 +84,15 @@ public:
       const Option<string>& _sandboxDirectory,
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
-      const Option<string>& _taskCommand)
+      const Option<string>& _taskCommand,
+      const Duration& _shutdownGracePeriod)
     : state(REGISTERING),
       launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      shutdownGracePeriod(_shutdownGracePeriod),
       driver(None()),
       frameworkInfo(None()),
       taskId(None()),
@@ -150,6 +151,11 @@ public:
 
     // Capture the TaskID.
     taskId = task.task_id();
+
+    // Capture the kill policy.
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
+    }
 
     // Determine the command to launch the task.
     CommandInfo command;
@@ -471,6 +477,34 @@ public:
 
   void shutdown(ExecutorDriver* driver)
   {
+    // If the kill policy's grace period is set, we use it for the signal
+    // escalation timeout. The agent adjusts executor's shutdown grace
+    // period based on it, hence the executor will be given enough time
+    // to clean up. If the kill policy is not specified, the executor's
+    // shutdown grace period is used, which is set to some default value.
+    //
+    // NOTE: We leave a small buffer of time to do the forced kill, otherwise
+    // the agent may destroy the container before we can send `TASK_KILLED`.
+    //
+    // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
+    // immediately after the watched process has exited.
+    Duration gracePeriod =
+      shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1);
+
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    // TODO(bmahler): If a shutdown arrives after a kill task within
+    // the grace period of the `KillPolicy`, we may need to escalate
+    // more quickly (e.g. the shutdown grace period allotted by the
+    // agent is smaller than the kill grace period).
+
+    shutdown(driver, gracePeriod);
+  }
+
+  void shutdown(ExecutorDriver* driver, const Duration& gracePeriod)
+  {
     cout << "Shutting down" << endl;
 
     if (launched && !killed) {
@@ -509,12 +543,8 @@ public:
              << stringify(trees.get()) << endl;
       }
 
-      // TODO(nnielsen): Make escalationTimeout configurable through
-      // slave flags and/or per-framework/executor.
-      escalationTimer = delay(
-          escalationTimeout,
-          self(),
-          &Self::escalated);
+      escalationTimer =
+        delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
       killed = true;
     }
@@ -625,11 +655,10 @@ private:
     driver->stop();
   }
 
-  void escalated()
+  void escalated(Duration timeout)
   {
-    cout << "Process " << pid << " did not terminate after "
-         << escalationTimeout << ", sending SIGKILL to "
-         << "process tree at " << pid << endl;
+    cout << "Process " << pid << " did not terminate after " << timeout
+         << ", sending SIGKILL to process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
     // shutdown may leave orphan processes hanging off init. This
@@ -702,7 +731,8 @@ private:
   bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
-  Duration escalationTimeout;
+  Duration shutdownGracePeriod;
+  Option<KillPolicy> killPolicy;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
@@ -725,7 +755,8 @@ public:
       const Option<string>& sandboxDirectory,
       const Option<string>& workingDirectory,
       const Option<string>& user,
-      const Option<string>& taskCommand)
+      const Option<string>& taskCommand,
+      const Duration& shutdownGracePeriod)
   {
     process = new CommandExecutorProcess(
         override,
@@ -733,7 +764,8 @@ public:
         sandboxDirectory,
         workingDirectory,
         user,
-        taskCommand);
+        taskCommand,
+        shutdownGracePeriod);
 
     spawn(process);
   }
@@ -889,13 +921,33 @@ int main(int argc, char** argv)
     ? envPath.get()
     : os::realpath(Path(argv[0]).dirname()).get();
 
+  // Get executor shutdown grace period from the environment.
+  //
+  // NOTE: We avoided introducing a command executor flag for this
+  // because the command executor exits if it sees an unknown flag.
+  // This makes it difficult to add or remove command executor flags
+  // that are unconditionally set by the agent.
+  Duration shutdownGracePeriod = DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+  if (value.isSome()) {
+    Try<Duration> parse = Duration::parse(value.get());
+    if (parse.isError()) {
+      cerr << "Failed to parse value '" << value.get() << "'"
+           << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
+      return EXIT_FAILURE;
+    }
+
+    shutdownGracePeriod = parse.get();
+  }
+
   mesos::internal::CommandExecutor executor(
       override,
       path,
       flags.sandbox_directory,
       flags.working_directory,
       flags.user,
-      flags.task_command);
+      flags.task_command,
+      shutdownGracePeriod);
 
   mesos::MesosExecutorDriver driver(&executor);
 

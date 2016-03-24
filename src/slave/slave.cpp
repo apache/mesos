@@ -43,6 +43,7 @@
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
+#include <process/reap.hpp>
 #include <process/time.hpp>
 
 #include <stout/bytes.hpp>
@@ -3810,6 +3811,23 @@ ExecutorInfo Slave::getExecutorInfo(
     if (task.command().has_environment()) {
       executor.mutable_command()->mutable_environment()->MergeFrom(
           task.command().environment());
+    }
+
+    // Adjust the executor shutdown grace period if the kill policy is
+    // set. We add a small buffer of time to avoid destroying the
+    // container before `TASK_KILLED` is sent by the executor.
+    //
+    // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
+    // immediately after the watched process has exited.
+    if (task.has_kill_policy() &&
+        task.kill_policy().has_grace_period()) {
+      Duration gracePeriod =
+        Nanoseconds(task.kill_policy().grace_period().nanoseconds()) +
+        process::MAX_REAP_INTERVAL() +
+        Seconds(1);
+
+      executor.mutable_shutdown_grace_period()->set_nanoseconds(
+          gracePeriod.ns());
     }
 
     // We skip setting the user for the command executor that has
