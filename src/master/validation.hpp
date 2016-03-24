@@ -78,6 +78,9 @@ namespace internal {
 // Validates resources of the task and executor (if present).
 Option<Error> validateResources(const TaskInfo& task);
 
+// Validates the kill policy of the task.
+Option<Error> validateKillPolicy(const TaskInfo& task);
+
 } // namespace internal {
 
 } // namespace task {

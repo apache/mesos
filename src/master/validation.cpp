@@ -487,6 +487,20 @@ Option<Error> validateResources(const TaskInfo& task)
   return None();
 }
 
+
+Option<Error> validateKillPolicy(const TaskInfo& task)
+{
+  if (task.has_kill_policy() &&
+      task.kill_policy().has_grace_period() &&
+      Nanoseconds(task.kill_policy().grace_period().nanoseconds()) <
+        Duration::zero()) {
+    return Error("Task's 'kill_policy.grace_period' must be non-negative");
+  }
+
+  return None();
+}
+
+
 } // namespace internal {
 
 
@@ -509,6 +523,7 @@ Option<Error> validate(
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateExecutorInfo, task, framework, slave),
     lambda::bind(internal::validateResources, task),
+    lambda::bind(internal::validateKillPolicy, task),
     lambda::bind(
         internal::validateResourceUsage, task, framework, slave, offered)
   };
