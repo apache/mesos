@@ -1,6 +1,17 @@
 Release Notes - Mesos - Version 0.29.0 (WIP)
 --------------------------------------------
 This release contains the following new features:
+  * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
+    because machine failures or forcible terminations may occur. Currently, the
+    only available kill policy is how long to wait between graceful and forcible
+    task kill. In the future, more policies may be available (e.g. hitting an
+    HTTP endpoint, running a command, etc). Note that it is the executor's
+    responsibility to enforce kill policies. For executor-less command-based
+    tasks, the kill is performed via sending a signal to the task process:
+    SIGTERM for the graceful kill and SIGKILL for the forcible kill. For docker
+    executor-less tasks the grace period is passed to 'docker stop --time'. This
+    feature supersedes the '--docker_stop_timeout', which is now deprecated.
+
   * [MESOS-4949] - The executor shutdown grace period can now be configured in
     `ExecutorInfo`, which overrides the agent flag. When shutting down an
     executor the agent will wait in a best-effort manner for the grace period
