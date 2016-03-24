@@ -79,6 +79,27 @@ private:
     cni::spec::NetworkConfig config;
   };
 
+  struct NetworkInfo
+  {
+    // CNI network name.
+    std::string networkName;
+
+    // Interface name.
+    std::string ifName;
+
+    // Protobuf of CNI network information returned by CNI plugin.
+    Option<cni::spec::NetworkInfo> network;
+  };
+
+  struct Info
+  {
+    Info (const hashmap<std::string, NetworkInfo>& _networkInfos)
+      : networkInfos (_networkInfos) {}
+
+    // CNI network information keyed by network name.
+    hashmap<std::string, NetworkInfo> networkInfos;
+  };
+
   NetworkCniIsolatorProcess(
       const Flags& _flags,
       const hashmap<std::string, NetworkConfigInfo>& _networkConfigs)
@@ -89,6 +110,9 @@ private:
 
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;
+
+  // Information of CNI networks that each container joins.
+  hashmap<ContainerID, process::Owned<Info>> infos;
 };
 
 } // namespace slave {

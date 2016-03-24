@@ -19,6 +19,8 @@
 
 #include <stout/os.hpp>
 
+#include "linux/ns.hpp"
+
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 
 namespace spec = mesos::internal::slave::cni::spec;
@@ -26,9 +28,11 @@ namespace spec = mesos::internal::slave::cni::spec;
 using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 using process::Future;
 using process::Owned;
+using process::Failure;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -204,6 +208,60 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
+  if (infos.contains(containerId)) {
+    return Failure("Container has already been prepared");
+  }
+
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
+  if (!executorInfo.has_container()) {
+    return None();
+  }
+
+  if (executorInfo.container().type() != ContainerInfo::MESOS) {
+    return Failure("Can only prepare CNI networks for a MESOS container");
+  }
+
+  if (executorInfo.container().network_infos_size() == 0) {
+    return None();
+  }
+
+  int ifIndex = 0;
+  hashset<string> networkNames;
+  hashmap<string, NetworkInfo> networkInfos;
+  foreach (const mesos::NetworkInfo& netInfo,
+           executorInfo.container().network_infos()) {
+    if (!netInfo.has_name()) {
+      continue;
+    }
+
+    const string& name = netInfo.name();
+    if (!networkConfigs.contains(name)) {
+      return Failure("Unknown CNI network '" + name + "'");
+    }
+
+    if (networkNames.contains(name)) {
+      return Failure(
+          "Attempted to join CNI network '" + name + "' multiple times");
+    }
+
+    networkNames.insert(name);
+
+    NetworkInfo networkInfo;
+    networkInfo.networkName = name;
+    networkInfo.ifName = "eth" + stringify(ifIndex++);
+
+    networkInfos.put(name, networkInfo);
+  }
+
+  if (!networkInfos.empty()) {
+    infos.put(containerId, Owned<Info>(new Info(networkInfos)));
+
+    ContainerLaunchInfo launchInfo;
+    launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+
+    return launchInfo;
+  }
+
   return None();
 }
 
