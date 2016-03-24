@@ -398,6 +398,13 @@ public:
   // Returns the resource usage information for all executors.
   process::Future<ResourceUsage> usage();
 
+  // Handle the second phase of shutting down an executor for those
+  // executors that have not properly shutdown within a timeout.
+  void shutdownExecutorTimeout(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId);
+
 private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
@@ -408,13 +415,6 @@ private:
   // (kill phase, via the isolator) if the executor has not
   // exited.
   void _shutdownExecutor(Framework* framework, Executor* executor);
-
-  // Handle the second phase of shutting down an executor for those
-  // executors that have not properly shutdown within a timeout.
-  void shutdownExecutorTimeout(
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId);
 
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).
