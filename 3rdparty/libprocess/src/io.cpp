@@ -22,7 +22,9 @@
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/os/read.hpp>
 #include <stout/os/strerror.hpp>
+#include <stout/os/write.hpp>
 #include <stout/try.hpp>
 
 using std::string;
@@ -65,15 +67,23 @@ void read(
   } else {
     ssize_t length;
     if (flags == NONE) {
-      length = ::read(fd, data, size);
+      length = os::read(fd, data, size);
     } else { // PEEK.
       // In case 'fd' is not a socket ::recv() will fail with ENOTSOCK and the
       // error will be propagted out.
-      length = ::recv(fd, data, size, MSG_PEEK);
+      // NOTE: We cast to `char*` here because the function prototypes on
+      // Windows use `char*` instead of `void*`.
+      length = ::recv(fd, (char*) data, size, MSG_PEEK);
     }
 
+#ifdef __WINDOWS__
+    int error = WSAGetLastError();
+#else
+    int error = errno;
+#endif // __WINDOWS__
+
     if (length < 0) {
-      if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+      if (net::is_restartable_error(error) || net::is_retryable_error(error)) {
         // Restart the read operation.
         Future<short> future =
           io::poll(fd, process::io::READ).onAny(
@@ -123,10 +133,16 @@ void write(
   } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else {
-    ssize_t length = ::write(fd, data, size);
+    ssize_t length = os::write(fd, data, size);
+
+#ifdef __WINDOWS__
+    int error = WSAGetLastError();
+#else
+    int error = errno;
+#endif // __WINDOWS__
 
     if (length < 0) {
-      if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+      if (net::is_restartable_error(error) || net::is_retryable_error(error)) {
         // Restart the write operation.
         Future<short> future =
           io::poll(fd, process::io::WRITE).onAny(
