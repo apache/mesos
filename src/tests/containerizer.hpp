@@ -71,6 +71,12 @@ public:
 
   virtual ~TestContainerizer();
 
+  virtual process::Future<hashset<ContainerID>> containers();
+
+  MOCK_METHOD1(
+      recover,
+      process::Future<Nothing>(const Option<slave::state::SlaveState>&));
+
   MOCK_METHOD7(
       launch,
       process::Future<bool>(
@@ -92,16 +98,6 @@ public:
       const process::PID<slave::Slave>& slavePid,
       bool checkpoint);
 
-  // Additional destroy method for testing because we won't know the
-  // ContainerID created for each container.
-  void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
-
-  virtual process::Future<hashset<ContainerID> > containers();
-
-  MOCK_METHOD1(
-      recover,
-      process::Future<Nothing>(const Option<slave::state::SlaveState>&));
-
   MOCK_METHOD2(
       update,
       process::Future<Nothing>(const ContainerID&, const Resources&));
@@ -118,10 +114,14 @@ public:
       destroy,
       void(const ContainerID&));
 
+  // Additional destroy method for testing because we won't know the
+  // ContainerID created for each container.
+  void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
+
 private:
   void setup();
 
-  // Default 'launch' implementation.
+  // Default implementations of mock methods.
   process::Future<bool> _launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
