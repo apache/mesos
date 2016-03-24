@@ -36,8 +36,6 @@ constexpr Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
 // shut down before destroying the container.
 constexpr Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 
-constexpr Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
-
 constexpr Duration RECOVERY_TIMEOUT = Minutes(15);
 
 constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
