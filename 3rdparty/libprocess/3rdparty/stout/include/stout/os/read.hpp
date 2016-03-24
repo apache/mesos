@@ -13,7 +13,6 @@
 #ifndef __STOUT_OS_READ_HPP__
 #define __STOUT_OS_READ_HPP__
 
-
 #include <stdio.h>
 #ifndef __WINDOWS__
 #include <unistd.h>
@@ -28,9 +27,15 @@
 #include <stout/error.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
-
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
+#endif // __WINDOWS__
+
+#include <stout/os/socket.hpp>
+#ifdef __WINDOWS__
+#include <stout/os/windows/read.hpp>
+#else
+#include <stout/os/posix/read.hpp>
 #endif // __WINDOWS__
 
 
@@ -45,11 +50,17 @@ inline Result<std::string> read(int fd, size_t size)
   size_t offset = 0;
 
   while (offset < size) {
-    ssize_t length = ::read(fd, buffer + offset, size - offset);
+    ssize_t length = os::read(fd, buffer + offset, size - offset);
+
+#ifdef __WINDOWS__
+      int error = WSAGetLastError();
+#else
+      int error = errno;
+#endif // __WINDOWS__
 
     if (length < 0) {
       // TODO(bmahler): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
-      if (errno == EINTR) {
+      if (net::is_restartable_error(error)) {
         continue;
       }
       ErrnoError error; // Constructed before 'delete' to capture errno.
