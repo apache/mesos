@@ -60,10 +60,11 @@ message SlaveID {
 
 
 /**
- * A framework generated ID to distinguish a task. The ID must remain
- * unique while the task is active. However, a framework can reuse an
- * ID _only_ if a previous task with the same ID has reached a
- * terminal state (e.g., TASK_FINISHED, TASK_LOST, TASK_KILLED, etc.).
+ * A framework-generated ID to distinguish a task. The ID must remain
+ * unique while the task is active. A framework can reuse an ID _only_
+ * if the previous task with the same ID has reached a terminal state
+ * (e.g., TASK_FINISHED, TASK_LOST, TASK_KILLED, etc.). However,
+ * reusing task IDs is strongly discouraged (MESOS-2198).
  */
 message TaskID {
   required string value = 1;
@@ -71,9 +72,9 @@ message TaskID {
 
 
 /**
- * A framework generated ID to distinguish an executor. Only one
+ * A framework-generated ID to distinguish an executor. Only one
  * executor with the same ID can be active on the same slave at a
- * time.
+ * time. However, reusing executor IDs is discouraged.
  */
 message ExecutorID {
   required string value = 1;
@@ -81,7 +82,7 @@ message ExecutorID {
 
 
 /**
- * A slave generated ID to distinguish a container. The ID must be unique
+ * A slave-generated ID to distinguish a container. The ID must be unique
  * between any active or completed containers on the slave. In particular,
  * containers for different runs of the same (framework, executor) pair must be
  * unique.
@@ -670,19 +671,19 @@ message Resource {
 
   message DiskInfo {
     // Describes a persistent disk volume.
+    //
     // A persistent disk volume will not be automatically garbage
-    // collected if the task/executor/slave terminates, but is
+    // collected if the task/executor/slave terminates, but will be
     // re-offered to the framework(s) belonging to the 'role'.
-    // A framework can set the ID (if it is not set yet) to express
-    // the intention to create a new persistent disk volume from a
-    // regular disk resource. To reuse a previously created volume, a
-    // framework can launch a task/executor when it receives an offer
-    // with a persistent volume, i.e., ID is set.
-    // NOTE: Currently, we do not allow a persistent disk volume
-    // without a reservation (i.e., 'role' should not be '*').
+    //
+    // NOTE: Currently, we do not allow persistent disk volumes
+    // without a reservation (i.e., 'role' cannot be '*').
     message Persistence {
-      // A unique ID for the persistent disk volume.
-      // NOTE: The ID needs to be unique per role on each slave.
+      // A unique ID for the persistent disk volume. This ID must be
+      // unique per role on each slave. Although it is possible to use
+      // the same ID on different slaves in the cluster and to reuse
+      // IDs after a volume with that ID has been destroyed, both
+      // practices are discouraged.
       required string id = 1;
 
       // This field indicates the principal of the operator or
