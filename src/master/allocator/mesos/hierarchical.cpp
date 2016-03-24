@@ -1281,11 +1281,16 @@ void HierarchicalAllocatorProcess::allocate(
         Resources resources =
           (available.unreserved() + available.reserved(role)).nonRevocable();
 
+        // It is safe to break here, because all frameworks under a role would
+        // consider the same resources, so in case we don't have allocatable
+        // resources, we don't have to check for other frameworks under the
+        // same role. We only break out of the innermost loop, so the next step
+        // will use the same slaveId, but a different role.
         // NOTE: The resources may not be allocatable here, but they can be
         // accepted by one of the frameworks during the second allocation
         // stage.
         if (!allocatable(resources)) {
-          continue;
+          break;
         }
 
         // If the framework filters these resources, ignore. The unallocated
@@ -1409,6 +1414,19 @@ void HierarchicalAllocatorProcess::allocate(
           resources += available.unreserved();
         }
 
+        // It is safe to break here, because all frameworks under a role would
+        // consider the same resources, so in case we don't have allocatable
+        // resources, we don't have to check for other frameworks under the
+        // same role. We only break out of the innermost loop, so the next step
+        // will use the same slaveId, but a different role.
+        // The difference to the second `allocatable` check is that here we also
+        // check for revocable resources, which can be disabled on a per frame-
+        // work basis, which requires us to go through all frameworks in case we
+        // have allocatable revocable resources.
+        if (!allocatable(resources)) {
+          break;
+        }
+
         // Remove revocable resources if the framework has not opted
         // for them.
         if (!frameworks[frameworkId].revocable) {
@@ -1416,6 +1434,9 @@ void HierarchicalAllocatorProcess::allocate(
         }
 
         // If the resources are not allocatable, ignore.
+        // We can not break here, because another framework under the same role
+        // could accept revocable resources and breaking would skip all other
+        // frameworks.
         if (!allocatable(resources)) {
           continue;
         }
