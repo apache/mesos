@@ -115,6 +115,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/sendfile.hpp			\
   stout/os/posix/shell.hpp			\
   stout/os/posix/signals.hpp			\
+  stout/os/posix/socket.hpp			\
   stout/os/posix/stat.hpp			\
   stout/os/posix/su.hpp				\
   stout/os/posix/write.hpp			\
@@ -134,6 +135,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/sendfile.hpp			\
   stout/os/windows/shell.hpp			\
   stout/os/windows/signals.hpp			\
+  stout/os/windows/socket.hpp			\
   stout/os/windows/stat.hpp			\
   stout/os/windows/su.hpp			\
   stout/os/windows/write.hpp			\
