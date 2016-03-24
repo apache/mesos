@@ -406,7 +406,7 @@ void json(JSON::ObjectWriter* writer, const Attributes& attributes)
 }
 
 
-static void json(JSON::ObjectWriter* writer, const CommandInfo& command)
+void json(JSON::ObjectWriter* writer, const CommandInfo& command)
 {
   if (command.has_shell()) {
     writer->field("shell", command.shell());
