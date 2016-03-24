@@ -78,7 +78,7 @@ using std::string;
 
 namespace mesos {
 
-void json(JSON::ObjectWriter* writer, const TaskInfo& task)
+static void json(JSON::ObjectWriter* writer, const TaskInfo& task)
 {
   writer->field("id", task.task_id().value());
   writer->field("name", task.name());
@@ -104,7 +104,7 @@ using process::http::Response;
 using process::http::Request;
 
 
-void json(JSON::ObjectWriter* writer, const Executor& executor)
+static void json(JSON::ObjectWriter* writer, const Executor& executor)
 {
   writer->field("id", executor.id.value());
   writer->field("name", executor.info.name());
@@ -141,7 +141,7 @@ void json(JSON::ObjectWriter* writer, const Executor& executor)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Framework& framework)
+static void json(JSON::ObjectWriter* writer, const Framework& framework)
 {
   writer->field("id", framework.id().value());
   writer->field("name", framework.info.name());

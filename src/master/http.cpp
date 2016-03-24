@@ -107,14 +107,14 @@ using std::vector;
 
 namespace mesos {
 
-void json(
+static void json(
     JSON::StringWriter* writer, const FrameworkInfo::Capability& capability)
 {
   writer->append(FrameworkInfo::Capability::Type_Name(capability.type()));
 }
 
 
-void json(JSON::ObjectWriter* writer, const Offer& offer)
+static void json(JSON::ObjectWriter* writer, const Offer& offer)
 {
   writer->field("id", offer.id().value());
   writer->field("framework_id", offer.framework_id().value());
@@ -152,7 +152,7 @@ struct Full : Representation<T>
 };
 
 
-void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
+static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
 {
   const Slave& slave = summary;
 
@@ -178,7 +178,7 @@ void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Full<Slave>& full)
+static void json(JSON::ObjectWriter* writer, const Full<Slave>& full)
 {
   const Slave& slave = full;
 
@@ -186,7 +186,7 @@ void json(JSON::ObjectWriter* writer, const Full<Slave>& full)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
+static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
 {
   const Framework& framework = summary;
 
@@ -208,7 +208,7 @@ void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Full<Framework>& full)
+static void json(JSON::ObjectWriter* writer, const Full<Framework>& full)
 {
   const Framework& framework = full;
 
