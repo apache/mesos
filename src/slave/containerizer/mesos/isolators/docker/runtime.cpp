@@ -165,8 +165,8 @@ Option<Environment> DockerRuntimeIsolatorProcess::getLaunchEnvironment(
 
   Environment environment;
 
-  foreach(const string& env,
-          containerConfig.docker().manifest().config().env()) {
+  foreach (const string& env,
+           containerConfig.docker().manifest().config().env()) {
     // Use `find_first_of` to prevent to case that there are
     // multiple '=' existing.
     size_t position = env.find_first_of('=');
