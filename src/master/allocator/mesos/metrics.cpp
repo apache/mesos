@@ -98,14 +98,14 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
 
-  foreachkey(const string& role, quota_allocated) {
-    foreachvalue(const Gauge& gauge, quota_allocated[role]) {
+  foreachkey (const string& role, quota_allocated) {
+    foreachvalue (const Gauge& gauge, quota_allocated[role]) {
       process::metrics::remove(gauge);
     }
   }
 
-  foreachkey(const string& role, quota_guarantee) {
-    foreachvalue(const Gauge& gauge, quota_guarantee[role]) {
+  foreachkey (const string& role, quota_guarantee) {
+    foreachvalue (const Gauge& gauge, quota_guarantee[role]) {
       process::metrics::remove(gauge);
     }
   }
