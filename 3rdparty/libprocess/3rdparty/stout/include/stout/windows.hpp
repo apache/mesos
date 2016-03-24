@@ -24,6 +24,7 @@
 #include <BaseTsd.h> // For `SSIZE_T`.
 // We include `Winsock2.h` before `Windows.h` explicitly to avoid symbold
 // re-definitions. This is a known pattern in the windows community.
+#include <WS2tcpip.h>
 #include <Winsock2.h>
 #include <Windows.h>
 
@@ -180,6 +181,7 @@ typedef SSIZE_T ssize_t;
 // the Windows versions of these flags to their POSIX equivalents so we don't
 // have to change any socket code.
 constexpr int SHUT_RD = SD_RECEIVE;
+constexpr int MSG_NOSIGNAL = 0; // `SIGPIPE` signal does not exist on Windows.
 
 // The following functions are usually macros on POSIX; we provide them here as
 // functions to avoid having global macros lying around. Note that these
