@@ -50,6 +50,7 @@
 #include "master/master.hpp"
 #include "master/quota.hpp"
 #include "master/registrar.hpp"
+#include "master/weights.hpp"
 
 #include "state/log.hpp"
 #include "state/protobuf.hpp"
@@ -90,18 +91,36 @@ namespace internal {
 namespace tests {
 
 namespace quota = mesos::internal::master::quota;
+namespace weights = mesos::internal::master::weights;
 
 using namespace mesos::maintenance;
 using namespace mesos::quota;
 
 using namespace mesos::internal::master::maintenance;
 using namespace mesos::internal::master::quota;
+using namespace mesos::internal::master::weights;
 
 using state::Entry;
 using state::LogStorage;
 using state::Storage;
 
 using state::protobuf::State;
+
+
+static vector<WeightInfo> getWeightInfos(
+    const hashmap<string, double>& weights) {
+  vector<WeightInfo> weightInfos;
+
+  foreachpair (const string& role, double weight, weights) {
+    WeightInfo weightInfo;
+    weightInfo.set_role(role);
+    weightInfo.set_weight(weight);
+    weightInfos.push_back(weightInfo);
+  }
+
+  return weightInfos;
+}
+
 
 // TODO(xujyan): This class copies code from LogStateTest. It would
 // be nice to find a common location for log related base tests when
@@ -875,6 +894,70 @@ TEST_P(RegistrarTest, RemoveQuota)
 
     // Check that there are no more quotas at this point.
     ASSERT_EQ(0, registry.get().quotas().size());
+  }
+}
+
+
+// Tests that updating weights in the registry works properly.
+TEST_P(RegistrarTest, UpdateWeights)
+{
+  const string ROLE1 = "role1";
+  double WEIGHT1 = 2.0;
+  double UPDATED_WEIGHT1 = 1.0;
+
+  const string ROLE2 = "role2";
+  double WEIGHT2 = 3.5;
+
+  {
+    hashmap<string, double> weights;
+    weights[ROLE1] = WEIGHT1;
+    vector<WeightInfo> weightInfos = getWeightInfos(weights);
+
+    // Prepare the registrar.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(0, registry.get().weights_size());
+
+    // Store the weight for 'ROLE1' without weight in registry before.
+    AWAIT_EQ(true, registrar.apply(
+        Owned<Operation>(new UpdateWeights(weightInfos))));
+  }
+
+  {
+    hashmap<string, double> weights;
+    weights[ROLE1] = UPDATED_WEIGHT1;
+    weights[ROLE2] = WEIGHT2;
+    vector<WeightInfo> weightInfos = getWeightInfos(weights);
+
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    // Check that the recovered weights matches the weights we stored
+    // previously.
+    ASSERT_EQ(1, registry.get().weights_size());
+    EXPECT_EQ(ROLE1, registry.get().weights(0).info().role());
+    ASSERT_EQ(WEIGHT1, registry.get().weights(0).info().weight());
+
+    // Change weight for 'ROLE1', and store the weight for 'ROLE2'.
+    AWAIT_EQ(true, registrar.apply(
+        Owned<Operation>(new UpdateWeights(weightInfos))));
+  }
+
+  {
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    // Check that the recovered weights matches the weights we updated
+    // previously.
+    ASSERT_EQ(2, registry.get().weights_size());
+    EXPECT_EQ(ROLE1, registry.get().weights(0).info().role());
+    ASSERT_EQ(UPDATED_WEIGHT1, registry.get().weights(0).info().weight());
+    EXPECT_EQ(ROLE2, registry.get().weights(1).info().role());
+    ASSERT_EQ(WEIGHT2, registry.get().weights(1).info().weight());
   }
 }
 

@@ -185,7 +185,7 @@ protected:
           "    }"
           "  ]"
           "}");
-    } else if (weights == UPDATED_WEIGHTS) {
+    } else if (weights == UPDATED_WEIGHTS1) {
       expected = JSON::parse(
           "{"
           "  \"roles\": ["
@@ -221,6 +221,52 @@ protected:
           "    }"
           "  ]"
           "}");
+    } else if (weights == UPDATED_WEIGHTS2) {
+      expected = JSON::parse(
+          "{"
+          "  \"roles\": ["
+          "    {"
+          "      \"frameworks\": [],"
+          "      \"name\": \"*\","
+          "      \"resources\": {"
+          "        \"cpus\": 0,"
+          "        \"disk\": 0,"
+          "        \"mem\":  0"
+          "      },"
+          "      \"weight\": 1.0"
+          "    },"
+          "    {"
+          "      \"frameworks\": [],"
+          "      \"name\": \"role1\","
+          "      \"resources\": {"
+          "        \"cpus\": 0,"
+          "        \"disk\": 0,"
+          "        \"mem\":  0"
+          "      },"
+          "      \"weight\": 1.0"
+          "    },"
+          "    {"
+          "      \"frameworks\": [],"
+          "      \"name\": \"role2\","
+          "      \"resources\": {"
+          "        \"cpus\": 0,"
+          "        \"disk\": 0,"
+          "        \"mem\":  0"
+          "      },"
+          "      \"weight\": 4.0"
+          "    },"
+          "    {"
+          "      \"frameworks\": [],"
+          "      \"name\": \"role3\","
+          "      \"resources\": {"
+          "        \"cpus\": 0,"
+          "        \"disk\": 0,"
+          "        \"mem\":  0"
+          "      },"
+          "      \"weight\": 2.5"
+          "    }"
+          "  ]"
+          "}");
     } else {
       expected = Error("Unexpected weights string.");
     }
@@ -233,7 +279,8 @@ protected:
   const string ROLE1 = "role1";
   const string ROLE2 = "role2";
   const string DEFAULT_WEIGHTS = "role1=1.0,role2=1.0";
-  const string UPDATED_WEIGHTS = "role1=2.0,role2=4.0";
+  const string UPDATED_WEIGHTS1 = "role1=2.0,role2=4.0";
+  const string UPDATED_WEIGHTS2 = "role1=1.0,role3=2.5";
 };
 
 
@@ -449,12 +496,12 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
           false,
           "weights",
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -479,7 +526,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           false,
           "weights",
           createBasicAuthHeaders(credential),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
     << response1.get().body;
@@ -494,7 +541,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           false,
           "weights",
           None(),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
     << response2.get().body;
@@ -529,12 +576,12 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
           false,
           "weights",
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -568,12 +615,12 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
           false,
           "weights",
           None(),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -599,12 +646,83 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
           false,
           "weights",
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS))));
+          createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS1))));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
     << response.get().body;
 
   checkWithRolesEndpoint(master.get()->pid);
+}
+
+
+// Checks that the weights information can be recovered from the registry.
+TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
+{
+  // Start a master with `--weights` flag.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.weights = UPDATED_WEIGHTS1;
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Tests whether the weights replicated log is initialized with the
+  // `--weights` flag when bootstrapping the cluster.
+  {
+    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+
+    // Stop the master
+    master->reset();
+
+    // Restart the master.
+    masterFlags.weights = None();
+    master = StartMaster(masterFlags);
+    ASSERT_SOME(master);
+
+    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+  }
+
+  // Tests whether the weights replicated log can be updated with
+  // `/weights` endpoint.
+  {
+    // Send a weights update request for the specified roles.
+    Future<Response> response = process::http::request(
+        process::http::createRequest(
+            master.get()->pid,
+            "PUT",
+            false,
+            "weights",
+            createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+            createUpdateRequestBody(createWeightInfos(UPDATED_WEIGHTS2))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+
+    // Stop the master
+    master->reset();
+
+    // Restart the master without `--weights` flag.
+    masterFlags.weights = None();
+    master = StartMaster(masterFlags);
+    ASSERT_SOME(master);
+
+    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+  }
+
+  // Tests whether the `--weights` flag is ignored and use the registry value
+  // instead when Mesos master subsequently starts with `--weights` flag
+  // still specified.
+  {
+    // Stop the master
+    master->reset();
+
+    // Restart the master with `--weights` flag.
+    masterFlags.weights = UPDATED_WEIGHTS1;
+    master = StartMaster(masterFlags);
+    ASSERT_SOME(master);
+
+    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+  }
 }
 
 } // namespace tests {
