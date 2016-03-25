@@ -188,6 +188,10 @@ public:
           cout << "Received an ERROR event" << endl;
           break;
         }
+
+        default: {
+          UNREACHABLE();
+        }
       }
     }
   }

@@ -1055,6 +1055,8 @@ public:
       case Event::ERROR:
         error(mesos, event.error());
         break;
+      default:
+        UNREACHABLE();
     }
   }
 };

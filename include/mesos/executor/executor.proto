@@ -32,6 +32,12 @@ message Event {
   // Possible event types, followed by message definitions if
   // applicable.
   enum Type {
+    // This must be the first enum value in this list, to
+    // ensure that if 'type' is not set, the default value
+    // is UNKNOWN. This enables enum values to be added
+    // in a backwards-compatible way. See: MESOS-4997.
+    UNKNOWN = 0;
+
     SUBSCRIBED = 1;   // See 'Subscribed' below.
     LAUNCH = 2;       // See 'Launch' below.
     KILL = 3;         // See 'Kill' below.
@@ -113,7 +119,8 @@ message Event {
 
   // Type of the event, indicates which optional field below should be
   // present if that type has a nested message definition.
-  required Type type = 1;
+  // Enum fields should be optional, see: MESOS-4997.
+  optional Type type = 1;
 
   optional Subscribed subscribed = 2;
   optional Acknowledged acknowledged = 3;
@@ -134,6 +141,9 @@ message Event {
   // Possible call types, followed by message definitions if
   // applicable.
   enum Type {
+    // See comments above on `Event::Type` for more details on this enum value.
+    UNKNOWN = 0;
+
     SUBSCRIBE = 1;    // See 'Subscribe' below.
     UPDATE = 2;       // See 'Update' below.
     MESSAGE = 3;      // See 'Message' below.
@@ -175,7 +185,8 @@ message Event {
   // Type of the call, indicates which optional field below should be
   // present if that type has a nested message definition.
   // In case type is SUBSCRIBED, no message needs to be set.
-  required Type type = 3;
+  // See comments on `Event::Type` above on the reasoning behind this field being optional.
+  optional Type type = 3;
 
   optional Subscribe subscribe = 4;
   optional Update update = 5;

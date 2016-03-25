@@ -35,6 +35,9 @@ Additional API Changes:
   * [MESOS-5014] - Changes Call and Event Type enums in scheduler.proto
     from required to optional for the purpose of backwards compatibility.
 
+  * [MESOS-5015] - Changes Call and Event Type enums in executor.proto
+    from required to optional for the purpose of backwards compatibility.
+
 
 Release Notes - Mesos - Version 0.28.0
 --------------------------------------------

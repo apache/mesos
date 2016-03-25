@@ -29,6 +29,10 @@ Option<Error> validate(const mesos::executor::Call& call)
     return Error("Not initialized: " + call.InitializationErrorString());
   }
 
+  if (!call.has_type()) {
+    return Error("Expecting 'type' to be present");
+  }
+
   // All calls should have executor id set.
   if (!call.has_executor_id()) {
     return Error("Expecting 'executor_id' to be present");
