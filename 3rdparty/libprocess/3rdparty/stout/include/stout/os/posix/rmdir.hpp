@@ -69,8 +69,8 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
         case FTS_DEFAULT:
         case FTS_F:
         case FTS_SL:
-        // `FTS_SLNONE` should never be the case as we dont set
-        // FTS_COMFOLLOW. Adding here for completion.
+        // `FTS_SLNONE` should never be the case as we don't set
+        // `FTS_COMFOLLOW` or `FTS_LOGICAL`. Adding here for completion.
         case FTS_SLNONE:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
             Error error = ErrnoError();
