@@ -59,6 +59,10 @@ Option<Error> validate(const mesos::scheduler::Call& call)
     return Error("Not initialized: " + call.InitializationErrorString());
   }
 
+  if (!call.has_type()) {
+    return Error("Expecting 'type' to be present");
+  }
+
   if (call.type() == mesos::scheduler::Call::SUBSCRIBE) {
     if (!call.has_subscribe()) {
       return Error("Expecting 'subscribe' to be present");

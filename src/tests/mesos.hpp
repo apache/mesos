@@ -930,6 +930,8 @@ public:
       case Event::HEARTBEAT:
         heartbeat(mesos);
         break;
+      default:
+        UNREACHABLE();
     }
   }
 };
