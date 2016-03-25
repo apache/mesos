@@ -543,6 +543,22 @@ protected:
       return;
     }
 
+    if (response->code == process::http::Status::NOT_FOUND) {
+      // This could happen if the master libprocess process has not yet set up
+      // HTTP routes.
+      LOG(WARNING) << "Received '" << response->status << "' ("
+                   << response->body << ") for " << call.type();
+      return;
+    }
+
+    if (response->code == process::http::Status::TEMPORARY_REDIRECT) {
+      // This could happen if the detector detects a new leading master before
+      // master itself realizes it (e.g., ZK watch delay).
+      LOG(WARNING) << "Received '" << response->status << "' ("
+                   << response->body << ") for " << call.type();
+      return;
+    }
+
     // We should be able to get here only for AuthN errors which is not
     // yet supported for HTTP frameworks.
     error("Received unexpected '" + response->status + "' (" +
