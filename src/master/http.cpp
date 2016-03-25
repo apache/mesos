@@ -968,7 +968,7 @@ Future<Response> Master::Http::redirect(const Request& request) const
   // http://stackoverflow.com/questions/12436669/using-protocol-relative-uris-within-location-headers
   // which discusses this.
   return TemporaryRedirect(
-      "//" + hostname.get() + ":" + stringify(info.port()));
+    "//" + hostname.get() + ":" + stringify(info.port()) + request.url.path);
 }
 
 
