@@ -47,7 +47,9 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 
     char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
 
-    FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
+    // Using `FTS_PHYSICAL` here because we need `FTSENT` for the
+    // symbolic link in the directory and not the target it links to.
+    FTS* tree = fts_open(paths, (FTS_NOCHDIR | FTS_PHYSICAL), NULL);
     if (tree == NULL) {
       return ErrnoError();
     }

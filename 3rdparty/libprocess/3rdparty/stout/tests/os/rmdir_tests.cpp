@@ -229,3 +229,49 @@ TEST_F(RmdirTest, RemoveDirectoryWithNoTargetSymbolicLink)
 
   EXPECT_SOME(os::rmdir(newDirectory));
 }
+
+
+// This test verifies that `rmdir` will only remove the symbolic link and not
+// the target directory.
+TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetDirectory)
+{
+  const string newDirectory = path::join(os::getcwd(), "newDirectory");
+  ASSERT_SOME(os::mkdir(newDirectory));
+
+  const string link = path::join(newDirectory, "link");
+
+  const string targetDirectory = path::join(os::getcwd(), "targetDirectory");
+
+  ASSERT_SOME(os::mkdir(targetDirectory));
+
+  // Create a symlink that targets a directory outside the 'newDirectory'.
+  ASSERT_SOME(fs::symlink(targetDirectory, link));
+
+  EXPECT_SOME(os::rmdir(newDirectory));
+
+  // Verify that the target directory is not removed.
+  ASSERT_TRUE(os::exists(targetDirectory));
+}
+
+
+// This test verifies that `rmdir` will only remove the symbolic link and not
+// the target file.
+TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetFile)
+{
+  const string newDirectory = path::join(os::getcwd(), "newDirectory");
+  ASSERT_SOME(os::mkdir(newDirectory));
+
+  const string link = path::join(newDirectory, "link");
+
+  const string targetFile = path::join(os::getcwd(), "targetFile");
+
+  ASSERT_SOME(os::touch(targetFile));
+
+  // Create a symlink that targets a file outside the 'newDirectory'.
+  ASSERT_SOME(fs::symlink(targetFile, link));
+
+  EXPECT_SOME(os::rmdir(newDirectory));
+
+  // Verify that the target file is not removed.
+  ASSERT_TRUE(os::exists(targetFile));
+}
