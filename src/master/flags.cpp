@@ -221,13 +221,10 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::credentials,
       "credentials",
-      "Either a path to a text file with a list of credentials,\n"
-      "each line containing `principal` and `secret` separated by "
-      "whitespace,\n"
-      "or, a path to a JSON-formatted file containing credentials.\n"
-      "Path can be of the form `file:///path/to/file` or `/path/to/file`."
+      "Path to a JSON-formatted file containing credentials.\n"
+      "Path could be of the form `file:///path/to/file` or `/path/to/file`."
       "\n"
-      "JSON file Example:\n"
+      "Example:\n"
       "{\n"
       "  \"credentials\": [\n"
       "    {\n"
@@ -235,9 +232,7 @@ mesos::internal::master::Flags::Flags()
       "      \"secret\": \"kitesurf\"\n"
       "    }\n"
       "  ]\n"
-      "}\n"
-      "Text file Example:\n"
-      "username secret");
+      "}");
 
   add(&Flags::acls,
       "acls",

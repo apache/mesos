@@ -515,11 +515,9 @@ Human readable name for the cluster, displayed in the webui.
     --credentials=VALUE
   </td>
   <td>
-Either a path to a text file with a list of credentials,
-each line containing <code>principal</code> and <code>secret</code> separated by whitespace,
-or, a path to a JSON-formatted file containing credentials.
+Path to a JSON-formatted file containing credentials.
 Path can be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
-JSON file Example:
+Example:
 <pre><code>{
   "credentials": [
     {
@@ -528,8 +526,6 @@ JSON file Example:
     }
   ]
 }</code></pre>
-Text file Example:
-<pre><code>username secret</code></pre>
   </td>
 </tr>
 <tr>
@@ -991,10 +987,8 @@ are specified is the order they are tried.
     --credential=VALUE
   </td>
   <td>
-Either a path to a text with a single line
-containing <code>principal</code> and <code>secret</code> separated by whitespace.
-Or a path containing the JSON-formatted information used for one credential.
-This credential is used to identify the slave to the master.
+Path to a JSON-formatted file containing the credential
+to use to authenticate with the master.
 Path could be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
 Example:
 <pre><code>{

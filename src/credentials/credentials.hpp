@@ -52,7 +52,8 @@ inline Result<Credentials> read(const Path& path)
                  << "credentials file is NOT accessible by others.";
   }
 
-  // TODO(ijimenez): Deprecate text and support only JSON like ACLs.
+  // TODO(nfnt): Remove text format support at the end of the deprecation cycle
+  // which started with version 0.29.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
   if (!json.isError()) {
     Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
@@ -100,7 +101,6 @@ inline Result<Credential> readCredential(const Path& path)
                  << "credential file is NOT accessible by others.";
   }
 
-  // TODO(ijimenez): Deprecate text support for only JSON ACLs.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
   if (!json.isError()) {
     Try<Credential> credential = ::protobuf::parse<Credential>(json.get());
@@ -109,6 +109,8 @@ inline Result<Credential> readCredential(const Path& path)
     }
   }
 
+  // TODO(nfnt): Remove text format support at the end of the deprecation cycle
+  // which started with version 0.29.
   Credential credential;
   const std::vector<std::string>& line = strings::tokenize(read.get(), "\n");
   if (line.size() != 1) {

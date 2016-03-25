@@ -64,9 +64,8 @@ Mesos master and slave processes. For more information, refer to the
   The default is `basic` (basic HTTP authentication), but additional modules can
   be added using the `--modules` option.
 
-* `--credentials` - The path to a text file which contains a list (in plaintext
-  or JSON format) of accepted credentials.  This may be optional depending on
-  the authenticator being used.
+* `--credentials` - The path to a text file which contains a list of accepted
+  credentials.  This may be optional depending on the authenticator being used.
 
 ### Slave
 
@@ -106,8 +105,18 @@ the `Credential.principal` into `FrameworkInfo.principal` when registering.
 
 1. Create the master's credentials file with the following content:
 
-        principal1 secret1
-        principal2 secret2
+        {
+          "credentials" : [
+            {
+              "principal": "principal1",
+              "secret": "secret1"
+            },
+            {
+              "principal": "principal2",
+              "secret": "secret2"
+            }
+          ]
+        }
 
 2. Start the master using the credentials file (assuming the file is `~/credentials`):
 
@@ -115,7 +124,10 @@ the `Credential.principal` into `FrameworkInfo.principal` when registering.
 
 3. Create another file with a single credential in it (`~/slave_credential`):
 
-        principal1 secret1
+        {
+          "principal": "principal1",
+          "secret": "secret1"
+        }
 
 4. Start the slave:
 

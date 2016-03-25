@@ -431,11 +431,8 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::credential,
       "credential",
-      "Either a path to a text with a single line\n"
-      "containing `principal` and `secret` separated by whitespace.\n"
-      "Or a path containing the JSON-formatted "
-      "information used for one credential.\n"
-      "This credential is used to identify the slave to the master.\n"
+      "Path to a JSON-formatted file containing the credential\n"
+      "to use to authenticate with the master.\n"
       "Path could be of the form `file:///path/to/file` or `/path/to/file`."
       "\n"
       "Example:\n"

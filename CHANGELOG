@@ -22,6 +22,9 @@ This release contains the following new features:
     flexibility around how to clean up tasks and executors.
 
 Deprecations:
+  * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
+    the JSON format.
+
   * [MESOS-5001] - The 'allocator/event_queue_dispatches' metric is now
     deprecated in favor 'of allocator/mesos/event_queue_dispatches'.
 

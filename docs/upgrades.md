@@ -48,6 +48,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
       <li>CD <a href="#0-29-x-allocator-metrics">Allocator Metrics</a></li>
+      <li>D <a href="#0-29-x-credentials">--credential(s) (plain text format)</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
@@ -157,6 +158,10 @@ We categorize the changes as follows:
 <a name="0-29-x-allocator-metrics"></a>
 
 * The allocator metric named <code>allocator/event_queue_dispatches</code> is now deprecated and will be removed with 0.30. The new name is <code>allocator/mesos/event_queue_dispatches</code> to better support metrics for alternative allocator implementations.
+
+<a name="0-29-x-credentials"></a>
+
+* Mesos 0.29 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
 
 ## Upgrading from 0.27.x to 0.28.x ##
 
