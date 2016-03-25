@@ -142,9 +142,12 @@ public:
       const process::PID<Slave>& slavePid,
       bool checkpoint);
 
+  // force = true causes the containerizer to update the resources
+  // for the container, even if they match what it has cached.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources);
+      const Resources& resources,
+      bool force);
 
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
