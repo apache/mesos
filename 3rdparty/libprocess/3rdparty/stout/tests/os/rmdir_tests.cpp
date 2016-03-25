@@ -16,10 +16,8 @@
 #include <string>
 
 #include <stout/fs.hpp>
-
-#include <stout/path.hpp>
-
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include <stout/os/getcwd.hpp>
 #include <stout/os/ls.hpp>
