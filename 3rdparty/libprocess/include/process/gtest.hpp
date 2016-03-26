@@ -292,6 +292,10 @@ template <typename T1, typename T2>
   AWAIT_ASSERT_EQ_FOR(expected, actual, Seconds(15))
 
 
+#define AWAIT_EQ_FOR(expected, actual, duration)              \
+  AWAIT_ASSERT_EQ_FOR(expected, actual, duration)
+
+
 #define AWAIT_EQ(expected, actual)              \
   AWAIT_ASSERT_EQ(expected, actual)
 
@@ -304,12 +308,36 @@ template <typename T1, typename T2>
   AWAIT_EXPECT_EQ_FOR(expected, actual, Seconds(15))
 
 
+#define AWAIT_ASSERT_TRUE_FOR(actual, duration)                 \
+  AWAIT_ASSERT_EQ_FOR(true, actual, duration)
+
+
+#define AWAIT_ASSERT_TRUE(actual)       \
+  AWAIT_ASSERT_EQ(true, actual)
+
+
+#define AWAIT_EXPECT_TRUE_FOR(actual, duration)               \
+  AWAIT_EXPECT_EQ_FOR(true, actual, duration)
+
+
 #define AWAIT_EXPECT_TRUE(actual)               \
-  AWAIT_EXPECT_EQ_FOR(true, actual, Seconds(15))
+  AWAIT_EXPECT_EQ(true, actual)
+
+
+#define AWAIT_ASSERT_FALSE_FOR(actual, duration)                 \
+  AWAIT_ASSERT_EQ_FOR(false, actual, duration)
+
+
+#define AWAIT_ASSERT_FALSE(actual)       \
+  AWAIT_ASSERT_EQ(false, actual)
+
+
+#define AWAIT_EXPECT_FALSE_FOR(actual, duration)               \
+  AWAIT_EXPECT_EQ_FOR(false, actual, duration)
 
 
 #define AWAIT_EXPECT_FALSE(actual)               \
-  AWAIT_EXPECT_EQ_FOR(false, actual, Seconds(15))
+  AWAIT_EXPECT_EQ(false, actual)
 
 
 inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
