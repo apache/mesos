@@ -482,7 +482,7 @@ Try<Subprocess> subprocess(
       Try<Nothing> callback = hook.parent_callback(pid);
 
       // If the hook callback fails, we shouldn't proceed with the
-      // execution.
+      // execution and hence the child process should be killed.
       if (callback.isError()) {
         LOG(WARNING)
           << "Failed to execute Subprocess::Hook in parent for child '"
