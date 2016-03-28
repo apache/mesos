@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
@@ -33,21 +35,64 @@
 
 #include "files/files.hpp"
 
+#include "tests/mesos.hpp"
+
+namespace authentication = process::http::authentication;
+
 using process::Future;
+using process::Owned;
 
 using process::http::BadRequest;
 using process::http::NotFound;
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using std::string;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
+class FilesTest : public TemporaryDirectoryTest
+{
+protected:
+  void setBasicHttpAuthenticator(
+      const string& realm,
+      const Credentials& credentials)
+  {
+    Try<authentication::Authenticator*> authenticator =
+      BasicAuthenticatorFactory::create(realm, credentials);
 
-class FilesTest : public TemporaryDirectoryTest {};
+    ASSERT_SOME(authenticator);
+
+    // Add this realm to the set of realms which will be unset during teardown.
+    realms.insert(realm);
+
+    // Pass ownership of the authenticator to libprocess.
+    AWAIT_READY(authentication::setAuthenticator(
+        realm,
+        Owned<authentication::Authenticator>(authenticator.get())));
+  }
+
+  virtual void TearDown()
+  {
+    foreach (const string& realm, realms) {
+      // We need to wait in order to ensure that the operation completes before
+      // we leave `TearDown`. Otherwise, we may leak a mock object.
+      AWAIT_READY(authentication::unsetAuthenticator(realm));
+    }
+
+    realms.clear();
+
+    TemporaryDirectoryTest::TearDown();
+  }
+
+private:
+  hashset<string> realms;
+};
 
 
 TEST_F(FilesTest, AttachTest)
@@ -295,6 +340,55 @@ TEST_F(FilesTest, DownloadTest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("image/gif", "Content-Type", response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ(data, response);
+}
+
+
+// Tests that requests to the '/files/*' endpoints receive an `Unauthorized`
+// response when HTTP authentication is enabled and an invalid credential is
+// provided.
+TEST_F(FilesTest, AuthenticationTest)
+{
+  const string AUTHENTICATION_REALM = "realm";
+
+  Credentials credentials;
+  credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
+
+  // Create a basic HTTP authenticator with the specified credentials and set it
+  // as the authenticator for `AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(AUTHENTICATION_REALM, credentials);
+
+  // The realm is passed to `Files` to enable
+  // HTTP authentication on its endpoints.
+  Files files(AUTHENTICATION_REALM);
+
+  process::UPID upid("files", process::address());
+
+  Credential badCredential;
+  badCredential.set_principal("bad-principal");
+  badCredential.set_secret("bad-secret");
+
+  const string expectedAuthorizationHeader =
+    "Basic realm=\"" + AUTHENTICATION_REALM + "\"";
+
+  Future<Response> response = process::http::get(upid, "browse");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+            expectedAuthorizationHeader);
+
+  response = process::http::get(upid, "read");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+            expectedAuthorizationHeader);
+
+  response = process::http::get(upid, "download");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+            expectedAuthorizationHeader);
+
+  response = process::http::get(upid, "debug");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+            expectedAuthorizationHeader);
 }
 
 } // namespace tests {
