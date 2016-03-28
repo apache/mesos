@@ -2266,6 +2266,31 @@ TEST(ResourcesOperationTest, StrippedResourcesNonScalar)
 }
 
 
+TEST(ResourcesOperationTest, CreatePersistentVolumeFromMount)
+{
+  Resource::DiskInfo::Source source = createDiskSourceMount("mnt");
+  Resources total = createDiskResource("200", "role", None(), None(), source);
+
+  Resource volume1 = createDiskResource("200", "role", "1", "path", source);
+
+  Offer::Operation create1;
+  create1.set_type(Offer::Operation::CREATE);
+  create1.mutable_create()->add_volumes()->CopyFrom(volume1);
+
+  EXPECT_SOME(total.apply(create1));
+
+  // Check the case of sufficient (but subset of) disk resources from
+  // an exclusive mount.
+  Resource volume2 = createDiskResource("50", "role", "1", "path", source);
+
+  Offer::Operation create2;
+  create2.set_type(Offer::Operation::CREATE);
+  create2.mutable_create()->add_volumes()->CopyFrom(volume2);
+
+  EXPECT_ERROR(total.apply(create2));
+}
+
+
 // Helper for creating a revocable resource.
 static Resource createRevocableResource(
     const string& name,
