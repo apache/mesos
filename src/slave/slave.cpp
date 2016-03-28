@@ -2448,16 +2448,15 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
       newCheckpointedResources))
     << "Failed to checkpoint resources " << newCheckpointedResources;
 
-  // Creates persistent volumes that do not exist and schedules
-  // releasing those persistent volumes that are no longer needed.
+  Resources newVolumes = newCheckpointedResources.persistentVolumes();
+
+  // Create persistent volumes that do not already exist.
   //
   // TODO(jieyu): Consider introducing a volume manager once we start
   // to support multiple disks, or raw disks. Depending on the
   // DiskInfo, we may want to create either directories under a root
   // directory, or LVM volumes from a given device.
-  Resources volumes = newCheckpointedResources.persistentVolumes();
-
-  foreach (const Resource& volume, volumes) {
+  foreach (const Resource& volume, newVolumes) {
     // This is validated in master.
     CHECK_NE(volume.role(), "*");
 
@@ -2465,14 +2464,61 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
 
     if (!os::exists(path)) {
       CHECK_SOME(os::mkdir(path, true))
-        << "Failed to create persistent volume at '" << path << "'";
+        << "Failed to create persistent volume '"
+        << volume.disk().persistence().id()
+        << "' at '" << path << "'";
     }
   }
 
-  // TODO(jieyu): Schedule gc for released persistent volumes. We need
-  // to consider dynamic reservation here because the framework can
-  // release dynamic reservation while still wants to keep the
-  // persistent volume.
+  // If a persistent volume that in the slave's previous checkpointed
+  // resources doesn't appear in the new checkpointed resources, this
+  // implies the volume has been explicitly destroyed. We immediately
+  // remove the filesystem objects for the removed volume. Note that
+  // for MOUNT disks, we don't remove the root directory (mount point)
+  // of the volume.
+  //
+  // TODO(neilc): There is a window during which the filesystem
+  // content for destroyed persistent volumes might be orphaned if we
+  // crash after checkpointing the new resources to disk but before we
+  // finish removing the associated filesystem objects. Particularly
+  // for MOUNT disks, this might result in exposing data from a
+  // previous persistent volume on the disk to a framework that
+  // creates a new volume. We might address this by doing a "cleanup"
+  // operation to remove data from MOUNT disks before creating
+  // persistent volumes on them.
+  Resources oldVolumes = checkpointedResources.persistentVolumes();
+
+  foreach (const Resource& volume, oldVolumes) {
+    if (newVolumes.contains(volume)) {
+      continue;
+    }
+
+    string path = paths::getPersistentVolumePath(flags.work_dir, volume);
+
+    LOG(INFO) << "Deleting persistent volume '"
+              << volume.disk().persistence().id()
+              << "' at '" << path << "'";
+
+    if (!os::exists(path)) {
+      LOG(WARNING) << "Failed to find persistent volume '"
+                   << volume.disk().persistence().id()
+                   << "' at '" << path << "'";
+    } else {
+      const Resource::DiskInfo::Source& source = volume.disk().source();
+
+      bool removeRoot = true;
+      if (source.type() == Resource::DiskInfo::Source::MOUNT) {
+        removeRoot = false;
+      }
+
+      Try<Nothing> result = os::rmdir(path, true, removeRoot);
+      if (result.isError()) {
+        LOG(ERROR) << "Failed to remove persistent volume '"
+                   << volume.disk().persistence().id()
+                   << "' at '" << path << "'";
+      }
+    }
+  }
 
   LOG(INFO) << "Updated checkpointed resources from "
             << checkpointedResources << " to "
