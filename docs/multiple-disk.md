@@ -134,25 +134,21 @@ Mesos currently does not allow operators to expose raw block devices. It may do
 so in the future, but there are security and flexibility concerns that need to
 be addressed in a design document first.
 
-### Storage Management
-
-Mesos currently does not clean up or destroy data when persistent volumes are
-destroyed. It may do so in the future; however, the expectation is currently
-upon the framework, executor, and application to delete their data before
-destroying their persistent volumes. This is strongly encouraged for both
-security and ensuring that future users of the underlying disk resource are not
-penalized due to prior consumption of the disk capacity.
-
 ### Implementation
 
 A `Path` disk will have sub-directories created within the `root` which will be
-used to differentiate the different volumes that are created on it.
+used to differentiate the different volumes that are created on it. When a
+persistent volume on a `Path` disk is destroyed, Mesos will remove all the files
+and directories stored in the volume, as well as the sub-directory within `root`
+that was created by Mesos for the volume.
 
 A `Mount` disk will __not__ have sub-directories created, allowing applications
 to use the full file system mounted on the device. This construct allows Mesos
 tasks to access volumes that contain pre-existing directory structures. This can
 be useful to simplify ingesting data such as a pre-existing Postgres database or
-HDFS data directory.
+HDFS data directory. Note that when a persistent volume on a `Mount` disk is
+destroyed, Mesos will remove all the files and directories stored in the volume,
+but will __not__ remove the root directory (i.e., the mount point).
 
 Operators should be aware of these distinctions when inspecting or cleaning up
 remnant data.

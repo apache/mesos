@@ -160,8 +160,9 @@ We categorize the changes as follows:
 * The allocator metric named <code>allocator/event_queue_dispatches</code> is now deprecated and will be removed with 0.30. The new name is <code>allocator/mesos/event_queue_dispatches</code> to better support metrics for alternative allocator implementations.
 
 <a name="0-29-x-credentials"></a>
-
 * Mesos 0.29 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
+
+* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
 
 ## Upgrading from 0.27.x to 0.28.x ##
 

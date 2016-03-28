@@ -73,6 +73,10 @@ a slave that have been reserved for a role. In this case, the unreserved
 resources will be subtracted from the previous reservation and any remaining
 resources will still be reserved.
 
+Dynamic reservations cannot be unreserved if they are still being used by a
+running task or if a [persistent volume](persistent-volume.md) has been created
+using the reserved resources. In the latter case, the volume should be destroyed
+before unreserving the resources.
 
 ### Labeled Reservations
 
