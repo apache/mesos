@@ -3664,9 +3664,10 @@ void Slave::exited(const UPID& pid)
   LOG(INFO) << pid << " exited";
 
   if (master.isNone() || master.get() == pid) {
+    // TODO(neilc): Try to re-link to the master (MESOS-1963).
+    // TODO(benh): After so long waiting for a master, commit suicide.
     LOG(WARNING) << "Master disconnected!"
                  << " Waiting for a new master to be elected";
-    // TODO(benh): After so long waiting for a master, commit suicide.
   }
 }
 
