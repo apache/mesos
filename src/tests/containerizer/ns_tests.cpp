@@ -16,11 +16,9 @@
 
 #include <sys/wait.h>
 
-#include <iostream>
-
 #include <unistd.h>
 
-#include <list>
+#include <iostream>
 #include <set>
 #include <thread>
 #include <vector>
@@ -33,7 +31,6 @@
 
 #include <process/gtest.hpp>
 #include <process/latch.hpp>
-#include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
 #include "linux/ns.hpp"
@@ -45,7 +42,6 @@
 
 using namespace process;
 
-using std::list;
 using std::set;
 using std::string;
 using std::vector;

@@ -27,8 +27,6 @@
 #include <process/http.hpp>
 
 #include <stout/base64.hpp>
-#include <stout/hashmap.hpp>
-#include <stout/hashset.hpp>
 
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
