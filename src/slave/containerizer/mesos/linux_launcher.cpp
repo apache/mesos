@@ -272,17 +272,14 @@ Try<pid_t> LinuxLauncher::fork(
     const process::Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
     const Option<map<string, string>>& environment,
-    const Option<int>& namespaces)
+    const Option<int>& namespaces,
+    vector<Subprocess::Hook> parentHooks)
 {
   int cloneFlags = namespaces.isSome() ? namespaces.get() : 0;
   cloneFlags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
 
   LOG(INFO) << "Cloning child process with flags = "
             << ns::stringify(cloneFlags);
-
-  // NOTE: The child process will be blocked until all hooks have been
-  // executed.
-  vector<Subprocess::Hook> parentHooks;
 
   // NOTE: Currently we don't care about the order of the hooks, as
   // both hooks are independent.
