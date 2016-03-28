@@ -143,7 +143,7 @@ TEST_F(RmdirTest, TrivialFailToRemoveInvalidPath)
 }
 
 
-TEST_F(RmdirTest, FailTRemoveNestedInvalidPath)
+TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 {
   const string tmpdir = os::getcwd();
   hashset<string> expectedRootListing = EMPTY;
@@ -272,4 +272,27 @@ TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetFile)
 
   // Verify that the target file is not removed.
   ASSERT_TRUE(os::exists(targetFile));
+}
+
+
+// This tests that when appropriately instructed, `rmdir` can remove
+// the files and subdirectories that appear in a directory but
+// preserve the directory itself.
+TEST_F(RmdirTest, RemoveDirectoryButPreserveRoot)
+{
+  const string newDirectory = path::join(os::getcwd(), "newDirectory");
+  ASSERT_SOME(os::mkdir(newDirectory));
+
+  const string subDirectory = path::join(newDirectory, "subDirectory");
+  ASSERT_SOME(os::mkdir(subDirectory));
+
+  const string file1 = path::join(newDirectory, "file1");
+  ASSERT_SOME(os::touch(file1));
+
+  const string file2 = path::join(subDirectory, "file2");
+  ASSERT_SOME(os::touch(file2));
+
+  EXPECT_SOME(os::rmdir(newDirectory, true, false));
+  EXPECT_TRUE(os::exists(newDirectory));
+  EXPECT_EQ(EMPTY, listfiles(newDirectory));
 }

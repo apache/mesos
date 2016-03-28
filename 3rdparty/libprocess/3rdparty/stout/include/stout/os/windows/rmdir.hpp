@@ -29,7 +29,8 @@ namespace internal {
 
 // Recursive version of `RemoveDirectory`. NOTE: unlike `rmdir`, this requires
 // Windows-formatted paths, and therefore should be in the `internal` namespace.
-inline Try<Nothing> recursive_remove_directory(const std::string& path)
+inline Try<Nothing> recursive_remove_directory(
+    const std::string& path, bool removeRoot)
 {
   // Appending a slash here if the path doesn't already have one simplifies
   // path join logic later, because (unlike Unix) Windows doesn't like double
@@ -90,8 +91,8 @@ inline Try<Nothing> recursive_remove_directory(const std::string& path)
     }
   } while (FindNextFile(search_handle.get(), &found));
 
-  // Finally, remove current directory.
-  if (::_rmdir(current_path.c_str()) == -1) {
+  // Finally, remove current directory unless `removeRoot` is disabled.
+  if (removeRoot && ::_rmdir(current_path.c_str()) == -1) {
     return ErrnoError(
         "`os::internal::recursive_remove_directory` attempted to delete file "
         "'" + current_path + "', but failed");
@@ -103,10 +104,16 @@ inline Try<Nothing> recursive_remove_directory(const std::string& path)
 } // namespace internal {
 
 
-// By default, recursively deletes a directory akin to: 'rm -r'. If the
-// programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
+// By default, recursively deletes a directory akin to: 'rm -r'. If
+// `recursive` is false, it deletes a directory akin to: 'rmdir'. In
+// recursive mode, `removeRoot` can be set to false to enable removing
+// all the files and directories beneath the given root directory, but
+// not the root directory itself.
 // Note that this function expects an absolute path.
-inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
+inline Try<Nothing> rmdir(
+    const std::string& directory,
+    bool recursive = true,
+    bool removeRoot = true)
 {
   // Canonicalize the path to Windows style for the call to
   // `recursive_remove_directory`.
@@ -127,7 +134,7 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
       return Nothing();
     }
   } else {
-    return os::internal::recursive_remove_directory(root.get());
+    return os::internal::recursive_remove_directory(root.get(), removeRoot);
   }
 }
 

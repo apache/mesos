@@ -26,11 +26,17 @@
 
 namespace os {
 
-// By default, recursively deletes a directory akin to: 'rm -r'. If the
-// programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
+// By default, recursively deletes a directory akin to: 'rm -r'. If
+// `recursive` is false, it deletes a directory akin to: 'rmdir'. In
+// recursive mode, `removeRoot` can be set to false to enable removing
+// all the files and directories beneath the given root directory, but
+// not the root directory itself.
 // Note that this function expects an absolute path.
 #ifndef __sun // FTS is not available on Solaris.
-inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
+inline Try<Nothing> rmdir(
+    const std::string& directory,
+    bool recursive = true,
+    bool removeRoot = true)
 {
   if (!recursive) {
     if (::rmdir(directory.c_str()) < 0) {
@@ -58,6 +64,12 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
     while ((node = fts_read(tree)) != NULL) {
       switch (node->fts_info) {
         case FTS_DP:
+          // Don't remove the root of the traversal of `removeRoot`
+          // is false.
+          if (!removeRoot && node->fts_level == FTS_ROOTLEVEL) {
+            continue;
+          }
+
           if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
             Error error = ErrnoError();
             fts_close(tree);
