@@ -49,6 +49,7 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"
@@ -99,7 +100,7 @@ public:
   process::PID<master::Master> pid;
 
 private:
-  Master() = default;
+  Master() : files(master::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
 
   // Not copyable, not assignable.
   Master(const Master&) = delete;
@@ -165,7 +166,7 @@ public:
   process::PID<slave::Slave> pid;
 
 private:
-  Slave() = default;
+  Slave() : files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
 
   // Not copyable, not assignable.
   Slave(const Slave&) = delete;

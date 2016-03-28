@@ -471,7 +471,11 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   process::UPID filesUpid("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(filesUpid, "browse", "path=" + frameworkDir));
+      process::http::get(
+          filesUpid,
+          "browse",
+          "path=" + frameworkDir,
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
 
   Clock::resume();
 }
@@ -574,7 +578,11 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   process::UPID files("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(files, "browse", "path=" + executorDir));
+      process::http::get(
+          files,
+          "browse",
+          "path=" + executorDir,
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
 
   Clock::resume();
 
@@ -691,7 +699,11 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   process::UPID files("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(files, "browse", "path=" + executorDir));
+      process::http::get(
+          files,
+          "browse",
+          "path=" + executorDir,
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
 
   Clock::resume();
 

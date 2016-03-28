@@ -59,7 +59,7 @@ class FilesProcess;
 class Files
 {
 public:
-  Files();
+  Files(const Option<std::string>& authenticationRealm = None());
   ~Files();
 
   // Returns the result of trying to attach the specified path

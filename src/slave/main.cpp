@@ -302,7 +302,7 @@ int main(int argc, char** argv)
     // terminating.
   }
 
-  Files files;
+  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
   GarbageCollector gc;
   StatusUpdateManager statusUpdateManager(flags);
 

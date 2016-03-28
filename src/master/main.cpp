@@ -329,7 +329,7 @@ int main(int argc, char** argv)
   Registrar* registrar = new Registrar(flags, state);
   Repairer* repairer = new Repairer();
 
-  Files files;
+  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
 
   MasterContender* contender;
   MasterDetector* detector;

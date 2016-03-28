@@ -80,7 +80,7 @@ namespace internal {
 class FilesProcess : public Process<FilesProcess>
 {
 public:
-  FilesProcess();
+  FilesProcess(const Option<string>& _authenticationRealm);
 
   // Files implementation.
   Future<Nothing> attach(const string& path, const string& name);
@@ -104,19 +104,27 @@ private:
   //   path: The directory to browse. Required.
   // The response will contain a list of JSON files and directories contained
   // in the path (see files::jsonFileInfo for the format).
-  Future<Response> browse(const Request& request);
+  Future<Response> browse(
+      const Request& request,
+      const Option<string>& principal);
 
   // Reads data from a file at a given offset and for a given length.
   // See the jquery pailer for the expected behavior.
-  Future<Response> read(const Request& request);
+  Future<Response> read(
+      const Request& request,
+      const Option<string>& principal);
 
   // Returns the raw file contents for a given path.
   // Requests have the following parameters:
   //   path: The directory to browse. Required.
-  Future<Response> download(const Request& request);
+  Future<Response> download(
+      const Request& request,
+      const Option<string>& principal);
 
   // Returns the internal virtual path mapping.
-  Future<Response> debug(const Request& request);
+  Future<Response> debug(
+      const Request& request,
+      const Option<string>& principal);
 
   const static string BROWSE_HELP;
   const static string READ_HELP;
@@ -124,43 +132,87 @@ private:
   const static string DEBUG_HELP;
 
   hashmap<string, string> paths;
+
+  // The authentication realm, if any, into which this process'
+  // endpoints will be installed.
+  Option<string> authenticationRealm;
 };
 
 
-FilesProcess::FilesProcess()
+FilesProcess::FilesProcess(const Option<string>& _authenticationRealm)
   : ProcessBase("files")
-{}
+{
+  authenticationRealm = _authenticationRealm;
+}
 
 
 void FilesProcess::initialize()
 {
-  // TODO(ijimenez): Remove these endpoints at the end of the
-  // deprecation cycle on 0.26.
-  route("/browse.json",
-        FilesProcess::BROWSE_HELP,
-        &FilesProcess::browse);
-  route("/read.json",
-        FilesProcess::READ_HELP,
-        &FilesProcess::read);
-  route("/download.json",
-        FilesProcess::DOWNLOAD_HELP,
-        &FilesProcess::download);
-  route("/debug.json",
-        FilesProcess::DEBUG_HELP,
-        &FilesProcess::debug);
+  if (authenticationRealm.isSome()) {
+    // TODO(ijimenez): Remove these endpoints at the end of the
+    // deprecation cycle on 0.26.
+    route("/browse.json",
+          authenticationRealm.get(),
+          FilesProcess::BROWSE_HELP,
+          &FilesProcess::browse);
+    route("/read.json",
+          authenticationRealm.get(),
+          FilesProcess::READ_HELP,
+          &FilesProcess::read);
+    route("/download.json",
+          authenticationRealm.get(),
+          FilesProcess::DOWNLOAD_HELP,
+          &FilesProcess::download);
+    route("/debug.json",
+          authenticationRealm.get(),
+          FilesProcess::DEBUG_HELP,
+          &FilesProcess::debug);
 
-  route("/browse",
-        FilesProcess::BROWSE_HELP,
-        &FilesProcess::browse);
-  route("/read",
-        FilesProcess::READ_HELP,
-        &FilesProcess::read);
-  route("/download",
-        FilesProcess::DOWNLOAD_HELP,
-        &FilesProcess::download);
-  route("/debug",
-        FilesProcess::DEBUG_HELP,
-        &FilesProcess::debug);
+    route("/browse",
+          authenticationRealm.get(),
+          FilesProcess::BROWSE_HELP,
+          &FilesProcess::browse);
+    route("/read",
+          authenticationRealm.get(),
+          FilesProcess::READ_HELP,
+          &FilesProcess::read);
+    route("/download",
+          authenticationRealm.get(),
+          FilesProcess::DOWNLOAD_HELP,
+          &FilesProcess::download);
+    route("/debug",
+          authenticationRealm.get(),
+          FilesProcess::DEBUG_HELP,
+          &FilesProcess::debug);
+  } else {
+    // TODO(ijimenez): Remove these endpoints at the end of the
+    // deprecation cycle on 0.26.
+    route("/browse.json",
+          FilesProcess::BROWSE_HELP,
+          lambda::bind(&FilesProcess::browse, this, lambda::_1, None()));
+    route("/read.json",
+          FilesProcess::READ_HELP,
+          lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
+    route("/download.json",
+          FilesProcess::DOWNLOAD_HELP,
+          lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
+    route("/debug.json",
+          FilesProcess::DEBUG_HELP,
+          lambda::bind(&FilesProcess::debug, this, lambda::_1, None()));
+
+    route("/browse",
+          FilesProcess::BROWSE_HELP,
+          lambda::bind(&FilesProcess::browse, this, lambda::_1, None()));
+    route("/read",
+          FilesProcess::READ_HELP,
+          lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
+    route("/download",
+          FilesProcess::DOWNLOAD_HELP,
+          lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
+    route("/debug",
+          FilesProcess::DEBUG_HELP,
+          lambda::bind(&FilesProcess::debug, this, lambda::_1, None()));
+  }
 }
 
 
@@ -212,7 +264,9 @@ const string FilesProcess::BROWSE_HELP = HELP(
         ">        path=VALUE          The path of directory to browse."));
 
 
-Future<Response> FilesProcess::browse(const Request& request)
+Future<Response> FilesProcess::browse(
+    const Request& request,
+    const Option<string>& /* principal */)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -285,7 +339,9 @@ const string FilesProcess::READ_HELP = HELP(
         ">        length=VALUE        Length of file to read."));
 
 
-Future<Response> FilesProcess::read(const Request& request)
+Future<Response> FilesProcess::read(
+    const Request& request,
+    const Option<string>& /* principal */)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -425,7 +481,9 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
         ">        path=VALUE          The path of directory to browse."));
 
 
-Future<Response> FilesProcess::download(const Request& request)
+Future<Response> FilesProcess::download(
+    const Request& request,
+    const Option<string>& /* principal */)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -474,7 +532,9 @@ const string FilesProcess::DEBUG_HELP = HELP(
         "JSON object."));
 
 
-Future<Response> FilesProcess::debug(const Request& request)
+Future<Response> FilesProcess::debug(
+    const Request& request,
+    const Option<string>& /* principal */)
 {
   JSON::Object object;
   foreachpair (const string& name, const string& path, paths) {
@@ -551,9 +611,9 @@ Result<string> FilesProcess::resolve(const string& path)
 }
 
 
-Files::Files()
+Files::Files(const Option<string>& authenticationRealm)
 {
-  process = new FilesProcess();
+  process = new FilesProcess(authenticationRealm);
   spawn(process);
 }
 

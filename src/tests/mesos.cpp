@@ -462,7 +462,8 @@ MockSlave::MockSlave(
         &gc,
         statusUpdateManager = new slave::StatusUpdateManager(flags),
         &resourceEstimator,
-        _qosController.isSome() ? _qosController.get() : &qosController)
+        _qosController.isSome() ? _qosController.get() : &qosController),
+    files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))

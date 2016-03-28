@@ -72,6 +72,7 @@
 #include "master/detector.hpp"
 #include "master/master.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
