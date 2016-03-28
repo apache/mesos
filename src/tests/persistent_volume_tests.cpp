@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using std::list;
 using std::string;
 using std::vector;
 
@@ -240,14 +242,15 @@ INSTANTIATE_TEST_CASE_P(
 // slave when the framework creates/destroys persistent volumes, and
 // the resources in the messages correctly reflect the resources that
 // need to be checkpointed on the slave.
-TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
+TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
 {
+  Clock::pause();
+
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
   masterFlags.roles = frameworkInfo.role();
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -272,6 +275,8 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
+
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
@@ -298,6 +303,24 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
       "id2",
       "path2",
       None());
+
+  string volume1Path = slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir, volume1);
+
+  string volume2Path = slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir, volume2);
+
+  // For MOUNT disks, we expect the volume's directory to already
+  // exist (it is created by the test `SetUp()` function). For
+  // non-MOUNT disks, the directory is created when the persistent
+  // volume is created.
+  if (GetParam() == MOUNT) {
+    EXPECT_TRUE(os::exists(volume1Path));
+    EXPECT_TRUE(os::exists(volume2Path));
+  } else {
+    EXPECT_FALSE(os::exists(volume1Path));
+    EXPECT_FALSE(os::exists(volume2Path));
+  }
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -327,6 +350,14 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   EXPECT_EQ(Resources(message2.get().resources()),
             Resources(volume1) + Resources(volume2));
 
+  // Ensure that the `CheckpointResourcesMessage`s reach the slave.
+  Clock::settle();
+
+  EXPECT_TRUE(os::exists(volume1Path));
+  EXPECT_TRUE(os::exists(volume2Path));
+
+  Clock::advance(masterFlags.allocation_interval);
+
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
 
@@ -346,6 +377,27 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   // volume2 but not volume1.
   AWAIT_READY(message3);
   EXPECT_EQ(Resources(message3.get().resources()), volume2);
+
+  // Ensure that the `CheckpointResourcesMessage`s reach the slave.
+  Clock::settle();
+
+  // For MOUNT disks, we preserve the top-level volume directory (but
+  // delete all of the files and subdirectories underneath it). For
+  // non-MOUNT disks, the volume directory should be removed when the
+  // volume is destroyed.
+  if (GetParam() == MOUNT) {
+    EXPECT_TRUE(os::exists(volume1Path));
+
+    Try<list<string>> files = fs::list(path::join(volume1Path, "*"));
+    CHECK_SOME(files);
+    EXPECT_EQ(0, files.get().size());
+  } else {
+    EXPECT_FALSE(os::exists(volume1Path));
+  }
+
+  EXPECT_TRUE(os::exists(volume2Path));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -666,7 +718,10 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 // the container path it specifies.
 TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -756,9 +811,53 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
       slaveFlags.work_dir,
       volume);
 
-  EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
+  string filePath1 = path::join(volumePath, "file");
 
-  EXPECT_SOME(os::rm(path::join(volumePath, "file")));
+  EXPECT_SOME_EQ("abc\n", os::read(filePath1));
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  Future<CheckpointResourcesMessage> checkpointMessage =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+
+  driver.acceptOffers({offer.id()}, {DESTROY(volume)});
+
+  AWAIT_READY(checkpointMessage);
+
+  Resources checkpointResources = checkpointMessage.get().resources();
+  EXPECT_FALSE(checkpointResources.contains(volume));
+
+  // Ensure that `checkpointMessage` reaches the slave.
+  Clock::settle();
+
+  EXPECT_FALSE(os::exists(filePath1));
+
+  // For MOUNT disks, we preserve the top-level volume directory (but
+  // delete all of the files and subdirectories underneath it). For
+  // non-MOUNT disks, the volume directory should be removed when the
+  // volume is destroyed.
+  if (GetParam() == MOUNT) {
+    EXPECT_TRUE(os::exists(volumePath));
+
+    Try<list<string>> files = fs::list(path::join(volumePath, "*"));
+    CHECK_SOME(files);
+    EXPECT_EQ(0, files.get().size());
+  } else {
+    EXPECT_FALSE(os::exists(volumePath));
+  }
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
