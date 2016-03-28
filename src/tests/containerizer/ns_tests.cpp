@@ -91,7 +91,7 @@ TEST(NsTest, ROOT_setns)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      NO_SETSID,
       None(),
       None(),
       lambda::bind(&os::clone, lambda::_1, flags | SIGCHLD));

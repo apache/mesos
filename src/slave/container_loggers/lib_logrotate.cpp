@@ -140,9 +140,9 @@ public:
         Subprocess::FD(outfds.read, Subprocess::IO::OWNED),
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
+        NO_SETSID,
         outFlags,
         environment,
-        None(),
         None(),
         parentHooks);
 
@@ -187,9 +187,9 @@ public:
         Subprocess::FD(errfds.read, Subprocess::IO::OWNED),
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
+        NO_SETSID,
         errFlags,
         environment,
-        None(),
         None(),
         parentHooks);
 

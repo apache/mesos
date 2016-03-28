@@ -78,8 +78,8 @@ public:
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO),
+        NO_SETSID,
         launchFlags,
-        None(),
         None(),
         lambda::bind(&os::clone, lambda::_1, CLONE_NEWNS | SIGCHLD));
 

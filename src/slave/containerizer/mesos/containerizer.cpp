@@ -1127,7 +1127,6 @@ Future<bool> MesosContainerizerProcess::__launch(
                : Subprocess::IO(subprocessInfo.err)),
         launchFlags,
         environment,
-        None(),
         namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
     if (forked.isError()) {

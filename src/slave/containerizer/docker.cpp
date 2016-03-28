@@ -734,28 +734,6 @@ Future<hashset<ContainerID>> DockerContainerizer::containers()
 }
 
 
-// A Subprocess async-safe "setup" helper used by
-// DockerContainerizerProcess when launching the mesos-docker-executor
-// that does a 'setsid' and then synchronizes with the parent.
-static int setup(const string& directory)
-{
-  // Put child into its own process session to prevent slave suicide
-  // on child process SIGKILL/SIGTERM.
-  if (::setsid() == -1) {
-    return errno;
-  }
-
-  // Run the process in the specified directory.
-  if (!directory.empty()) {
-    if (::chdir(directory.c_str()) == -1) {
-      return errno;
-    }
-  }
-
-  return 0;
-}
-
-
 Future<Nothing> DockerContainerizerProcess::recover(
     const Option<SlaveState>& state)
 {
@@ -1238,11 +1216,12 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
         Subprocess::PIPE(),
         subprocessInfo.out,
         subprocessInfo.err,
+        SETSID,
         dockerFlags(flags, container->name(), container->directory),
         environment,
-        lambda::bind(&setup, container->directory),
         None(),
-        parentHooks);
+        parentHooks,
+        container->directory);
 
     if (s.isError()) {
       return Failure("Failed to fork executor: " + s.error());

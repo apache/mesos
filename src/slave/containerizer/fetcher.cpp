@@ -789,6 +789,7 @@ Future<Nothing> FetcherProcess::run(
       Subprocess::PIPE(),
       Subprocess::FD(out.get(), Subprocess::IO::OWNED),
       Subprocess::FD(err.get(), Subprocess::IO::OWNED),
+      NO_SETSID,
       environment);
 
   if (fetcherSubprocess.isError()) {

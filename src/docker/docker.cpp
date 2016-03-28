@@ -664,6 +664,7 @@ Future<Nothing> Docker::run(
       Subprocess::PATH("/dev/null"),
       stdout,
       stderr,
+      NO_SETSID,
       None(),
       environment);
 
@@ -1091,6 +1092,7 @@ Future<Docker::Image> Docker::pull(
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      NO_SETSID,
       None());
 
   if (s.isError()) {
@@ -1167,6 +1169,7 @@ Future<Docker::Image> Docker::__pull(
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      NO_SETSID,
       None(),
       environment);
 

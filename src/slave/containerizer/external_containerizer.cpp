@@ -1045,33 +1045,6 @@ void ExternalContainerizerProcess::unwait(const ContainerID& containerId)
 }
 
 
-// Post fork, pre exec function.
-// TODO(tillt): Consider having the kernel notify us when our parent
-// process dies e.g. by invoking prctl(PR_SET_PDEATHSIG, ..) on linux.
-static int setup(const string& directory)
-{
-  // Put child into its own process session to prevent slave suicide
-  // on child process SIGKILL/SIGTERM.
-  if (::setsid() == -1) {
-    return errno;
-  }
-
-  // Re/establish the sandbox conditions for the containerizer.
-  if (!directory.empty()) {
-    if (::chdir(directory.c_str()) == -1) {
-      return errno;
-    }
-  }
-
-  // Sync parent and child process.
-  int sync = 0;
-  while (::write(STDOUT_FILENO, &sync, sizeof(sync)) == -1 &&
-         errno == EINTR);
-
-  return 0;
-}
-
-
 Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const Option<Sandbox>& sandbox,
@@ -1114,25 +1087,23 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 
   // Fork exec of external process. Run a chdir and a setsid within
   // the child-context.
+  // TODO(tillt): Consider having the kernel notify us when our parent
+  // process dies e.g. by invoking prctl(PR_SET_PDEATHSIG, ..) on linux.
   Try<Subprocess> external = process::subprocess(
       execute,
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
+      process::SETSID,
       environment,
-      lambda::bind(&setup, sandbox.isSome() ? sandbox.get().directory
-                                            : string()));
+      None(),
+      Subprocess::Hook::None(),
+      sandbox.isSome() ? Option<string>::some(sandbox->directory) : None());
 
   if (external.isError()) {
     return Error("Failed to execute external containerizer: " +
                  external.error());
   }
-
-  // Sync parent and child process to make sure we have done the
-  // setsid within the child context before continuing.
-  int sync;
-  while (::read(external.get().out().get(), &sync, sizeof(sync)) == -1 &&
-         errno == EINTR);
 
   // Set stderr into non-blocking mode.
   Try<Nothing> nonblock = os::nonblock(external.get().err().get());

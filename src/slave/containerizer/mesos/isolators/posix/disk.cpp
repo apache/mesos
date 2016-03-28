@@ -435,20 +435,6 @@ private:
     Promise<Bytes> promise;
   };
 
-  // This function is invoked right before each 'du' is exec'ed. Note
-  // that this function needs to be async signal safe.
-  static int setupChild()
-  {
-#ifdef __linux__
-    // Kill the child process if the parent exits.
-    // NOTE: This function should never returns non-zero because we
-    // are passing in a valid signal.
-    return ::prctl(PR_SET_PDEATHSIG, SIGKILL);
-#else
-    return 0;
-#endif
-  }
-
   void discard(const string& path)
   {
     for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -501,15 +487,13 @@ private:
     // Add path on which 'du' must be run.
     command.push_back(entry->path);
 
+    // TODO(joerg84): Add correct killing behavior.
     Try<Subprocess> s = subprocess(
         "du",
         command,
         Subprocess::PATH("/dev/null"),
         Subprocess::PIPE(),
-        Subprocess::PIPE(),
-        None(),
-        None(),
-        setupChild);
+        Subprocess::PIPE());
 
     if (s.isError()) {
       entry->promise.fail("Failed to exec 'du': " + s.error());

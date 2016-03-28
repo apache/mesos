@@ -113,27 +113,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-static int childSetup(int pipes[2])
-{
-  // In child process.
-  ::close(pipes[1]);
-
-  // Wait until the parent signals us to continue.
-  char dummy;
-  ssize_t length;
-  while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
-         errno == EINTR);
-
-  if (length != sizeof(dummy)) {
-    ABORT("Failed to synchronize with parent");
-  }
-
-  ::close(pipes[0]);
-
-  return 0;
-}
-
-
 template <typename T>
 class CpuIsolatorTest : public MesosTest {};
 
@@ -148,7 +127,7 @@ typedef ::testing::Types<
 
 TYPED_TEST_CASE(CpuIsolatorTest, CpuIsolatorTypes);
 
-
+// TODO(joerg84): Move isolate call to parentHook tests.
 TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 {
   slave::Flags flags;
@@ -184,7 +163,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
-  // Max out a single core in userspace. This will run for at most one second.
+  // Max out a single core in userspace. This will run for at most onesecond.
   string command = "while true ; do true ; done &"
     "touch " + file + "; " // Signals the command is running.
     "sleep 60";
@@ -204,6 +183,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
+      false,
       None(),
       None(),
       lambda::bind(&childSetup, pipes),
@@ -296,7 +276,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
-  // Generating random numbers is done by the kernel and will max out a single
+  // Generating random numbers is done by the kernel and will max out asingle
   // core and run almost exclusively in the kernel, i.e., system time.
   string command = "cat /dev/urandom > /dev/null & "
     "touch " + file + "; " // Signals the command is running.
@@ -504,7 +484,6 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       Subprocess::PATH("/dev/null"),
       None(),
       None(),
-      None(),
       None());
 
   ASSERT_SOME(pid);
@@ -579,7 +558,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
-  // cpu time when limited to 0.5 cpu. We use /dev/urandom to prevent blocking
+  // cpu time when limited to 0.5 cpu. We use /dev/urandom to preventblocking
   // on Linux when there's insufficient entropy.
   string command = "cat /dev/urandom > /dev/null & "
     "export MESOS_TEST_PID=$! && "
@@ -630,7 +609,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   AWAIT_READY(usage);
 
   // Expect that no more than 300 ms of cpu time has been consumed. We also
-  // check that at least 50 ms of cpu time has been consumed so this test will
+  // check that at least 50 ms of cpu time has been consumed so this testwill
   // fail if the host system is very heavily loaded. This behavior is correct
   // because under such conditions we aren't actually testing the CFS cpu
   // limiter.
@@ -1331,7 +1310,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      None(),
       prepare.get().get().namespaces());
   ASSERT_SOME(pid);
 
@@ -1436,7 +1414,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
       None(),
       None(),
       prepare.get().get().namespaces());

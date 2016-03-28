@@ -57,10 +57,8 @@ public:
   // Fork a new process in the containerized context. The child will
   // exec the binary at the given path with the given argv, flags and
   // environment. The I/O of the child will be redirected according to
-  // the specified I/O descriptors. The user can provide a 'setup'
-  // function which will be invoked in the child process right before
-  // the exec. The 'setup' function has to be async signal safe. The
-  // parent will return the child's pid if the fork is successful.
+  // the specified I/O descriptors. The parent will return the child's
+  // pid if the fork is successful.
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
       const std::string& path,
@@ -70,7 +68,6 @@ public:
       const process::Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<lambda::function<int()>>& setup,
       const Option<int>& namespaces) = 0;
 
   // Kill all processes in the containerized context.
@@ -101,7 +98,6 @@ public:
       const process::Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<lambda::function<int()>>& setup,
       const Option<int>& namespaces);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
