@@ -111,7 +111,7 @@ protected:
   {
     // Kill the perf process (if it's still running) by sending
     // SIGTERM to the signal handler which will then SIGKILL the
-    // perf process group created by setupChild.
+    // perf process group created by the watchdog process.
     if (perf.isSome() && perf->status().isPending()) {
       kill(perf->pid(), SIGTERM);
     }
@@ -120,92 +120,23 @@ protected:
   }
 
 private:
-  static void signalHandler(int signal)
-  {
-    // Send SIGKILL to every process in the process group of the
-    // calling process. This will terminate both the perf process
-    // (including its children) and the bookkeeping process.
-    kill(0, SIGKILL);
-    abort();
-  }
-
-  // This function is invoked right before each 'perf' is exec'ed.
-  // Note that this function needs to be async signal safe. In fact,
-  // all the library functions we used in this function are async
-  // signal safe.
-  static int setupChild()
-  {
-    // Send SIGTERM to the current process if the parent (i.e., the
-    // slave) exits. Note that this function should always succeed
-    // because we are passing in a valid signal.
-    prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-    // Put the current process into a separate process group so that
-    // we can kill it and all its children easily.
-    if (setpgid(0, 0) != 0) {
-      abort();
-    }
-
-    // Install a SIGTERM handler which will kill the current process
-    // group. Since we already setup the death signal above, the
-    // signal handler will be triggered when the parent (i.e., the
-    // slave) exits.
-    if (os::signals::install(SIGTERM, &signalHandler) != 0) {
-      abort();
-    }
-
-    pid_t pid = fork();
-    if (pid == -1) {
-      abort();
-    } else if (pid == 0) {
-      // Child. This is the process that is going to exec the perf
-      // process if zero is returned.
-
-      // We setup death signal for the perf process as well in case
-      // someone, though unlikely, accidentally kill the parent of
-      // this process (the bookkeeping process).
-      prctl(PR_SET_PDEATHSIG, SIGKILL);
-
-      // NOTE: We don't need to clear the signal handler explicitly
-      // because the subsequent 'exec' will clear them.
-      return 0;
-    } else {
-      // Parent. This is the bookkeeping process which will wait for
-      // the perf process to finish.
-
-      // Close the files to prevent interference on the communication
-      // between the slave and the perf process.
-      close(STDIN_FILENO);
-      close(STDOUT_FILENO);
-      close(STDERR_FILENO);
-
-      // Block until the perf process finishes.
-      int status = 0;
-      if (waitpid(pid, &status, 0) == -1) {
-        abort();
-      }
-
-      // Forward the exit status if the perf process exits normally.
-      if (WIFEXITED(status)) {
-        _exit(WEXITSTATUS(status));
-      }
-
-      abort();
-      UNREACHABLE();
-    }
-  }
-
   void execute()
   {
+    // NOTE: The watchdog process places perf in its own process group
+    // and will kill the perf process when the parent dies.
     Try<Subprocess> _perf = subprocess(
         "perf",
         argv,
         Subprocess::PIPE(),
         Subprocess::PIPE(),
         Subprocess::PIPE(),
+        NO_SETSID,
         None(),
         None(),
-        setupChild);
+        None(),
+        Subprocess::Hook::None(),
+        None(),
+        MONITOR);
 
     if (_perf.isError()) {
       promise.fail("Failed to launch perf process: " + _perf.error());
