@@ -124,8 +124,8 @@ else
 endif
 
 if WITH_BUNDLED_HTTP_PARSER
-  RY_HTTP_PARSER = 3rdparty/ry-http-parser-$(RY_HTTP_PARSER_VERSION)
-  libprocess_la_CPPFLAGS += -I$(RY_HTTP_PARSER)
+  HTTP_PARSER = 3rdparty/http-parser-$(HTTP_PARSER_VERSION)
+  libprocess_la_CPPFLAGS += -I$(HTTP_PARSER)
 
   HTTP_PARSER_LIB = 3rdparty/libry_http_parser.la
 else

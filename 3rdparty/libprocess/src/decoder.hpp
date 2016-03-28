@@ -57,6 +57,8 @@ public:
     settings.on_headers_complete = &DataDecoder::on_headers_complete;
     settings.on_body = &DataDecoder::on_body;
     settings.on_message_complete = &DataDecoder::on_message_complete;
+    settings.on_chunk_complete = &DataDecoder::on_chunk_complete;
+    settings.on_chunk_header = &DataDecoder::on_chunk_header;
 
     http_parser_init(&parser, HTTP_REQUEST);
 
@@ -110,6 +112,16 @@ private:
     return 0;
   }
 
+  static int on_chunk_complete(http_parser* p)
+  {
+    return 0;
+  }
+
+  static int on_chunk_header(http_parser* p)
+  {
+    return 0;
+  }
+
 #if !(HTTP_PARSER_VERSION_MAJOR >= 2)
   static int on_path(http_parser* p, const char* data, size_t length)
   {
@@ -160,6 +172,9 @@ private:
       }
 
       if (url.field_set & (1 << UF_FRAGMENT)) {
+        if (decoder->request->url.fragment.isNone()) {
+          decoder->request->url.fragment = "";
+        }
         decoder->request->url.fragment->append(
             data + url.field_data[UF_FRAGMENT].off,
             url.field_data[UF_FRAGMENT].len);
@@ -306,6 +321,9 @@ public:
     settings.on_headers_complete = &ResponseDecoder::on_headers_complete;
     settings.on_body = &ResponseDecoder::on_body;
     settings.on_message_complete = &ResponseDecoder::on_message_complete;
+    settings.on_status = &ResponseDecoder::on_status;
+    settings.on_chunk_complete = &ResponseDecoder::on_chunk_complete;
+    settings.on_chunk_header = &ResponseDecoder::on_chunk_header;
 
     http_parser_init(&parser, HTTP_RESPONSE);
 
@@ -355,6 +373,16 @@ private:
     decoder->response->body.clear();
     decoder->response->path.clear();
 
+    return 0;
+  }
+
+  static int on_chunk_complete(http_parser* p)
+  {
+    return 0;
+  }
+
+  static int on_chunk_header(http_parser* p)
+  {
     return 0;
   }
 
@@ -464,6 +492,11 @@ private:
     return 0;
   }
 
+  static int on_status(http_parser* p, const char* data, size_t length)
+  {
+    return 0;
+  }
+
   bool failure;
 
   http_parser parser;
@@ -521,6 +554,12 @@ public:
       &StreamingResponseDecoder::on_body;
     settings.on_message_complete =
       &StreamingResponseDecoder::on_message_complete;
+    settings.on_status =
+      &StreamingResponseDecoder::on_status;
+    settings.on_chunk_complete =
+      &StreamingResponseDecoder::on_chunk_complete;
+    settings.on_chunk_header =
+      &StreamingResponseDecoder::on_chunk_header;
 
     http_parser_init(&parser, HTTP_RESPONSE);
 
@@ -585,6 +624,16 @@ private:
     return 0;
   }
 
+  static int on_chunk_complete(http_parser* p)
+  {
+    return 0;
+  }
+
+  static int on_chunk_header(http_parser* p)
+  {
+    return 0;
+  }
+
 #if !(HTTP_PARSER_VERSION_MAJOR >= 2)
   static int on_path(http_parser* p, const char* data, size_t length)
   {
@@ -601,6 +650,11 @@ private:
     return 0;
   }
 #endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
+
+  static int on_status(http_parser* p, const char* data, size_t length)
+  {
+    return 0;
+  }
 
   static int on_url(http_parser* p, const char* data, size_t length)
   {

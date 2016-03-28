@@ -34,7 +34,7 @@ GLOG = glog-$(GLOG_VERSION)
 GMOCK = gmock-$(GMOCK_VERSION)
 GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
-RY_HTTP_PARSER = ry-http-parser-$(RY_HTTP_PARSER_VERSION)
+HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
@@ -46,7 +46,7 @@ EXTRA_DIST =			\
   $(GPERFTOOLS).tar.gz		\
   $(LIBEV).tar.gz		\
   $(PROTOBUF).tar.gz		\
-  $(RY_HTTP_PARSER).tar.gz	\
+  $(HTTP_PARSER).tar.gz		\
   $(PICOJSON).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
@@ -65,7 +65,7 @@ CLEAN_EXTRACTED =	\
   $(GPERFTOOLS)		\
   $(LIBEV)		\
   $(PROTOBUF)		\
-  $(RY_HTTP_PARSER)	\
+  $(HTTP_PARSER)	\
   $(PICOJSON)
 
 ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
@@ -81,12 +81,12 @@ ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 if WITH_BUNDLED_HTTP_PARSER
   # Convenience library for Ryan Dahl's HTTP parser.
   noinst_LTLIBRARIES = libry_http_parser.la
-  nodist_libry_http_parser_la_SOURCES = $(RY_HTTP_PARSER)/http_parser.c
-  libry_http_parser_la_CPPFLAGS = -I$(RY_HTTP_PARSER)
+  nodist_libry_http_parser_la_SOURCES = $(HTTP_PARSER)/http_parser.c
+  libry_http_parser_la_CPPFLAGS = -I$(HTTP_PARSER)
 
   BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 
-  $(RY_HTTP_PARSER)/http_parser.c: $(RY_HTTP_PARSER)-stamp
+  $(HTTP_PARSER)/http_parser.c: $(HTTP_PARSER)-stamp
 endif
 
 if WITH_BUNDLED_PROTOBUF
