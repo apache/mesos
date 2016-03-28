@@ -343,6 +343,31 @@ TEST_F(FilesTest, DownloadTest)
 }
 
 
+// Tests that the '/files/debug' endpoint works as expected.
+TEST_F(FilesTest, DebugTest)
+{
+  Files files;
+  process::UPID upid("files", process::address());
+
+  ASSERT_SOME(os::mkdir("real-path-1"));
+  ASSERT_SOME(os::mkdir("real-path-2"));
+
+  AWAIT_EXPECT_READY(files.attach("real-path-1", "virtual-path-1"));
+  AWAIT_EXPECT_READY(files.attach("real-path-2", "virtual-path-2"));
+
+  // Construct the expected JSON output.
+  const string cwd = os::getcwd();
+  JSON::Object expected;
+  expected.values["virtual-path-1"] = path::join(cwd, "real-path-1");
+  expected.values["virtual-path-2"] = path::join(cwd, "real-path-2");
+
+  Future<Response> response = process::http::get(upid, "debug");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+}
+
+
 // Tests that requests to the '/files/*' endpoints receive an `Unauthorized`
 // response when HTTP authentication is enabled and an invalid credential is
 // provided.
