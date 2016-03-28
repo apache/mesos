@@ -744,7 +744,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   ExecutorID executorId;
   executorId.set_value(task.task_id().value());
 
-  const string& directory = slave::paths::getExecutorLatestRunPath(
+  string directory = slave::paths::getExecutorLatestRunPath(
       slaveFlags.work_dir,
       offer.slave_id(),
       frameworkId.get(),
@@ -752,7 +752,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   EXPECT_FALSE(os::exists(path::join(directory, "path1")));
 
-  const string& volumePath = slave::paths::getPersistentVolumePath(
+  string volumePath = slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
       volume);
 
@@ -815,7 +815,8 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
       "path1",
       None());
 
-  // Create a task which writes a file in the persistent volume.
+  // Create a task which tests for the existence of
+  // the persistent volume directory.
   Resources taskResources = Resources::parse("cpus:1;mem:128").get() + volume;
 
   TaskInfo task = createTask(

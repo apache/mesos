@@ -122,7 +122,7 @@ inline Try<Nothing> checkpoint(
 //   - mesos::Resources
 //
 // NOTE: We provide atomic (all-or-nothing) semantics here by always
-// writing to a temporary file first then use os::rename to atomically
+// writing to a temporary file first then using os::rename to atomically
 // move it to the desired path.
 template <typename T>
 Try<Nothing> checkpoint(const std::string& path, const T& t)
@@ -178,7 +178,7 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
 
 struct TaskState
 {
-  TaskState () : errors(0) {}
+  TaskState() : errors(0) {}
 
   static Try<TaskState> recover(
       const std::string& rootDir,
@@ -199,7 +199,7 @@ struct TaskState
 
 struct RunState
 {
-  RunState () : completed(false), errors(0) {}
+  RunState() : completed(false), errors(0) {}
 
   static Try<RunState> recover(
       const std::string& rootDir,
@@ -227,7 +227,7 @@ struct RunState
 
 struct ExecutorState
 {
-  ExecutorState () : errors(0) {}
+  ExecutorState() : errors(0) {}
 
   static Try<ExecutorState> recover(
       const std::string& rootDir,
@@ -246,7 +246,7 @@ struct ExecutorState
 
 struct FrameworkState
 {
-  FrameworkState () : errors(0) {}
+  FrameworkState() : errors(0) {}
 
   static Try<FrameworkState> recover(
       const std::string& rootDir,
@@ -281,7 +281,7 @@ struct ResourcesState
 
 struct SlaveState
 {
-  SlaveState () : errors(0) {}
+  SlaveState() : errors(0) {}
 
   static Try<SlaveState> recover(
       const std::string& rootDir,
