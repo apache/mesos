@@ -58,6 +58,10 @@ EXTRA_DIST +=			\
 EXTRA_DIST +=			\
   $(LIBEV).patch
 
+# We patch http-parser to avoid a name collision with our `flags` namespace.
+EXTRA_DIST +=			\
+  $(HTTP_PARSER).patch
+
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
   $(GLOG)		\

@@ -121,7 +121,7 @@ if (NOT WIN32)
 elseif (WIN32)
   # Set the patch command which will utilize patch.exe under
   # `\Users\<user>\AppData\Local\Temp with no elevation prompt`
-  set(HTTP_PARSER_PATCH_CMD ${PATCHEXE_LOCATION} --binary -p1 < ${PROCESS_3RD_SRC}/ry-http-parser-${HTTP_PARSER_VERSION}.patch)
+  set(HTTP_PARSER_PATCH_CMD ${PATCHEXE_LOCATION} --binary -p1 < ${PROCESS_3RD_SRC}/http-parser-${HTTP_PARSER_VERSION}.patch)
 endif (NOT WIN32)
 
 set(LIBEVENT_CMAKE_ARGS
