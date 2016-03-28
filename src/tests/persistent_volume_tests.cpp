@@ -388,9 +388,9 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   if (GetParam() == MOUNT) {
     EXPECT_TRUE(os::exists(volume1Path));
 
-    Try<list<string>> files = fs::list(path::join(volume1Path, "*"));
+    Try<list<string>> files = ::fs::list(path::join(volume1Path, "*"));
     CHECK_SOME(files);
-    EXPECT_EQ(0, files.get().size());
+    EXPECT_EQ(0u, files.get().size());
   } else {
     EXPECT_FALSE(os::exists(volume1Path));
   }
@@ -850,9 +850,9 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   if (GetParam() == MOUNT) {
     EXPECT_TRUE(os::exists(volumePath));
 
-    Try<list<string>> files = fs::list(path::join(volumePath, "*"));
+    Try<list<string>> files = ::fs::list(path::join(volumePath, "*"));
     CHECK_SOME(files);
-    EXPECT_EQ(0, files.get().size());
+    EXPECT_EQ(0u, files.get().size());
   } else {
     EXPECT_FALSE(os::exists(volumePath));
   }
