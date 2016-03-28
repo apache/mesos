@@ -244,12 +244,13 @@ static int childMain(
     const string& path,
     char** argv,
     char** envp,
-    const Option<lambda::function<int()>>& setup,
+    const Setsid set_sid,
     const InputFileDescriptors& stdinfds,
     const OutputFileDescriptors& stdoutfds,
     const OutputFileDescriptors& stderrfds,
     bool blocking,
-    int pipes[2])
+    int pipes[2],
+    const Option<string>& working_directory)
 {
   // Close parent's end of the pipes.
   if (stdinfds.write.isSome()) {
@@ -310,10 +311,21 @@ static int childMain(
     ::close(pipes[0]);
   }
 
-  if (setup.isSome()) {
-    int status = setup.get()();
-    if (status != 0) {
-      _exit(status);
+  // Move to a different session (and new process group) so we're
+  // independent from the caller's session (otherwise children will
+  // receive SIGHUP if the slave exits).
+  if (set_sid == SETSID) {
+    // POSIX guarantees a forked child's pid does not match any existing
+    // process group id so only a single `setsid()` is required and the
+    // session id will be the pid.
+    if (::setsid() == -1) {
+      ABORT("Failed to put child in a new session");
+    }
+  }
+
+  if (working_directory.isSome()) {
+    if (::chdir(working_directory->c_str()) == -1) {
+      ABORT("Failed to change directory");
     }
   }
 
@@ -329,12 +341,13 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
+    const Setsid set_sid,
     const Option<flags::FlagsBase>& flags,
     const Option<map<string, string>>& environment,
-    const Option<lambda::function<int()>>& setup,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
-    const std::vector<Subprocess::Hook>& parent_hooks)
+    const vector<Subprocess::Hook>& parent_hooks,
+    const Option<string>& working_directory)
 {
   // File descriptors for redirecting stdin/stdout/stderr.
   // These file descriptors are used for different purposes depending
@@ -439,12 +452,13 @@ Try<Subprocess> subprocess(
       path,
       _argv,
       envp,
-      setup,
+      set_sid,
       stdinfds,
       stdoutfds,
       stderrfds,
       blocking,
-      pipes));
+      pipes,
+      working_directory));
 
   delete[] _argv;
 

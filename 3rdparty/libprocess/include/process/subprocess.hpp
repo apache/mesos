@@ -35,6 +35,13 @@
 
 namespace process {
 
+// Flag describing whether a new process should generate a new sid.
+enum Setsid
+{
+  SETSID,
+  NO_SETSID,
+};
+
 /**
  * Represents a fork() exec()ed subprocess. Access is provided to the
  * input / output of the process, as well as the exit status. The
@@ -122,12 +129,13 @@ public:
         const Subprocess::IO& in,
         const Subprocess::IO& out,
         const Subprocess::IO& err,
+        const Setsid set_sid,
         const Option<flags::FlagsBase>& flags,
         const Option<std::map<std::string, std::string>>& environment,
-        const Option<lambda::function<int()>>& setup,
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
-        const std::vector<Subprocess::Hook>& parent_hooks);
+        const std::vector<Subprocess::Hook>& parent_hooks,
+        const Option<std::string>& working_directory);
 
     IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
        const lambda::function<Try<OutputFileDescriptors>()>& _output)
@@ -223,12 +231,13 @@ private:
       const Subprocess::IO& in,
       const Subprocess::IO& out,
       const Subprocess::IO& err,
+      const Setsid setsid,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<lambda::function<int()>>& setup,
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
-      const std::vector<Subprocess::Hook>& parent_hooks);
+      const std::vector<Subprocess::Hook>& parent_hooks,
+      const Option<std::string>& working_directory);
 
   struct Data
   {
@@ -257,15 +266,10 @@ private:
   std::shared_ptr<Data> data;
 };
 
-
 /**
  * Forks a subprocess and execs the specified 'path' with the
  * specified 'argv', redirecting stdin, stdout, and stderr as
  * specified by 'in', 'out', and 'err' respectively.
- *
- * If 'setup' is not None, runs the specified function after forking
- * but before exec'ing. If the return value of 'setup' is non-zero
- * then that gets returned in 'status()' and we will not exec.
  *
  * @param path Relative or absolute path in the filesytem to the
  *     executable.
@@ -273,17 +277,18 @@ private:
  * @param in Redirection specification for stdin.
  * @param out Redirection specification for stdout.
  * @param err Redirection specification for stderr.
+ * @param set_sid Indicator whether the process should be placed in
+ *     a new session after the 'parent_hooks' have been executed.
  * @param flags Flags to be stringified and appended to 'argv'.
  * @param environment Environment variables to use for the new
  *     subprocess or if None (the default) then the new subprocess
  *     will inherit the environment of the current process.
- * @param setup Function to be invoked after forking but before
- *     exec'ing. NOTE: Take extra care not to invoke any
- *     async unsafe code in the body of this function.
  * @param clone Function to be invoked in order to fork/clone the
  *     subprocess.
  * @param parent_hooks Hooks that will be executed in the parent
  *     before the child execs.
+ * @param working_directory Directory in which the process should
+ *     chdir before exec after the 'parent_hooks' have been executed.
  * @return The subprocess or an error if one occured.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -294,13 +299,14 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& in = Subprocess::FD(STDIN_FILENO),
     const Subprocess::IO& out = Subprocess::FD(STDOUT_FILENO),
     const Subprocess::IO& err = Subprocess::FD(STDERR_FILENO),
+    const Setsid set_sid = NO_SETSID,
     const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string>>& environment = None(),
-    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::Hook>& parent_hooks =
-      Subprocess::Hook::None());
+      Subprocess::Hook::None(),
+    const Option<std::string>& working_directory = None());
 
 
 /**
@@ -314,16 +320,17 @@ Try<Subprocess> subprocess(
  * @param in Redirection specification for stdin.
  * @param out Redirection specification for stdout.
  * @param err Redirection specification for stderr.
+ * @param set_sid Indicator whether the process should be placed in
+ *     a new session after the 'parent_hooks' have been executed.
  * @param environment Environment variables to use for the new
  *     subprocess or if None (the default) then the new subprocess
  *     will inherit the environment of the current process.
- * @param setup Function to be invoked after forking but before
- *     exec'ing. NOTE: Take extra care not to invoke any
- *     async unsafe code in the body of this function.
  * @param clone Function to be invoked in order to fork/clone the
  *     subprocess.
  * @param parent_hooks Hooks that will be executed in the parent
  *     before the child execs.
+ * @param working_directory Directory in which the process should
+ *     chdir before exec after the 'parent_hooks' have been executed.
  * @return The subprocess or an error if one occured.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -333,12 +340,13 @@ inline Try<Subprocess> subprocess(
     const Subprocess::IO& in = Subprocess::FD(STDIN_FILENO),
     const Subprocess::IO& out = Subprocess::FD(STDOUT_FILENO),
     const Subprocess::IO& err = Subprocess::FD(STDERR_FILENO),
+    const Setsid set_sid = NO_SETSID,
     const Option<std::map<std::string, std::string>>& environment = None(),
-    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::Hook>& parent_hooks =
-      Subprocess::Hook::None())
+      Subprocess::Hook::None(),
+    const Option<std::string>& working_directory = None())
 {
   std::vector<std::string> argv = {"sh", "-c", command};
 
@@ -348,11 +356,12 @@ inline Try<Subprocess> subprocess(
       in,
       out,
       err,
+      set_sid,
       None(),
       environment,
-      setup,
       clone,
-      parent_hooks);
+      parent_hooks,
+      working_directory);
 }
 
 } // namespace process {
