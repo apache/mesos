@@ -573,6 +573,7 @@ TEST_F(SubprocessTest, Flags)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PATH(out),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       flags);
 
   ASSERT_SOME(s);
@@ -637,6 +638,7 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       environment);
 
   ASSERT_SOME(s);
@@ -668,6 +670,7 @@ TEST_F(SubprocessTest, Environment)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       environment);
 
   ASSERT_SOME(s);
@@ -702,6 +705,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpaces)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       environment);
 
   ASSERT_SOME(s);
@@ -736,6 +740,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       environment);
 
   ASSERT_SOME(s);
@@ -773,6 +778,7 @@ TEST_F(SubprocessTest, EnvironmentOverride)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
+      process::NO_SETSID,
       environment);
 
   ASSERT_SOME(s);
@@ -807,102 +813,5 @@ static int setupChdir(const string& directory)
 }
 
 
-TEST_F(SubprocessTest, Setup)
-{
-  Try<string> directory = os::mkdtemp();
-  ASSERT_SOME(directory);
-
-  // chdir().
-  Try<Subprocess> s = subprocess(
-      "echo hello world > file",
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
-      None(),
-      lambda::bind(&setupChdir, directory.get()));
-
-  ASSERT_SOME(s);
-
-  // Advance time until the internal reaper reaps the subprocess.
-  Clock::pause();
-  while (s.get().status().isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
-  Clock::resume();
-
-  AWAIT_ASSERT_READY(s.get().status());
-  ASSERT_SOME(s.get().status().get());
-
-  // Make sure 'file' is there and contains 'hello world'.
-  const string path = path::join(directory.get(), "file");
-  EXPECT_TRUE(os::exists(path));
-  EXPECT_SOME_EQ("hello world\n", os::read(path));
-
-  os::rmdir(directory.get());
-}
-
-
-static int setupStatus(int ret)
-{
-  return ret;
-}
-
-
-TEST_F(SubprocessTest, SetupStatus)
-{
-  // Exit 0 && setup 1.
-  Try<Subprocess> s = subprocess(
-      "exit 0",
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
-      None(),
-      lambda::bind(&setupStatus, 1));
-
-  ASSERT_SOME(s);
-
-  // Advance time until the internal reaper reaps the subprocess.
-  Clock::pause();
-  while (s.get().status().isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
-  Clock::resume();
-
-  AWAIT_ASSERT_READY(s.get().status());
-  ASSERT_SOME(s.get().status().get());
-
-  int status = s.get().status().get().get();
-
-  // Verify we received the setup returned value instead of the
-  // command status.
-  ASSERT_EQ(1, WEXITSTATUS(status));
-
-  // Exit 1 && setup 0.
-  s = subprocess(
-      "exit 1",
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
-      None(),
-      lambda::bind(&setupStatus, 0));
-
-  ASSERT_SOME(s);
-
-  // Advance time until the internal reaper reaps the subprocess.
-  Clock::pause();
-  while (s.get().status().isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
-  Clock::resume();
-
-  AWAIT_ASSERT_READY(s.get().status());
-  ASSERT_SOME(s.get().status().get());
-
-  status = s.get().status().get().get();
-
-  // Verify we received the command status.
-  ASSERT_EQ(1, WEXITSTATUS(status));
-}
+// TODO(joerg84): Consider adding tests for setsid, working_directory,
+// and watchdog options.

@@ -10,10 +10,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <unistd.h>
+
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif // __linux__
+#include <sys/types.h>
 
 #include <string>
 
@@ -238,8 +243,91 @@ static pid_t defaultClone(const lambda::function<int()>& func)
 }
 
 
-// The main entry of the child process. Note that this function has to
-// be async signal safe.
+static void signalHandler(int signal)
+{
+  // Send SIGKILL to every process in the process group of the
+  // calling process.
+  kill(0, SIGKILL);
+  abort();
+}
+
+
+// Creates a seperate watchdog process to monitor the child process and
+// kill it in case the parent process dies.
+//
+// NOTE: This function needs to be async signal safe. In fact,
+// all the library functions we used in this function are async
+// signal safe.
+static int watchdogProcess()
+{
+#ifdef __linux__
+  // Send SIGTERM to the current process if the parent (i.e., the
+  // slave) exits.
+  // NOTE:: This function should always succeed because we are passing
+  // in a valid signal.
+  prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+  // Put the current process into a separate process group so that
+  // we can kill it and all its children easily.
+  if (setpgid(0, 0) != 0) {
+    abort();
+  }
+
+  // Install a SIGTERM handler which will kill the current process
+  // group. Since we already setup the death signal above, the
+  // signal handler will be triggered when the parent (e.g., the
+  // slave) exits.
+  if (os::signals::install(SIGTERM, &signalHandler) != 0) {
+    abort();
+  }
+
+  pid_t pid = fork();
+  if (pid == -1) {
+    abort();
+  } else if (pid == 0) {
+    // Child. This is the process that is going to exec the
+    // process if zero is returned.
+
+    // We setup death signal for the process as well in case
+    // someone, though unlikely, accidentally kill the parent of
+    // this process (the bookkeeping process).
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+
+    // NOTE: We don't need to clear the signal handler explicitly
+    // because the subsequent 'exec' will clear them.
+    return 0;
+  } else {
+    // Parent. This is the bookkeeping process which will wait for
+    // the child process to finish.
+
+    // Close the files to prevent interference on the communication
+    // between the slave and the child process.
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    // Block until the child process finishes.
+    int status = 0;
+    if (waitpid(pid, &status, 0) == -1) {
+      abort();
+    }
+
+    // Forward the exit status if the child process exits normally.
+    if (WIFEXITED(status)) {
+      _exit(WEXITSTATUS(status));
+    }
+
+    abort();
+    UNREACHABLE();
+  }
+#endif
+  return 0;
+}
+
+
+// The main entry of the child process.
+//
+// NOTE: This function has to be async signal safe.
 static int childMain(
     const string& path,
     char** argv,
@@ -250,7 +338,8 @@ static int childMain(
     const OutputFileDescriptors& stderrfds,
     bool blocking,
     int pipes[2],
-    const Option<string>& working_directory)
+    const Option<string>& working_directory,
+    const WATCHDOG watchdog)
 {
   // Close parent's end of the pipes.
   if (stdinfds.write.isSome()) {
@@ -329,6 +418,16 @@ static int childMain(
     }
   }
 
+  // If the child process should die together with its parent we spawn a
+  // separate watchdog process which kills the child when the parent dies.
+  //
+  // NOTE: The watchdog process sets the process group id in order for it and
+  // its child processes to be killed together. We should not (re)set the sid
+  // after this.
+  if (watchdog == MONITOR) {
+    watchdogProcess();
+  }
+
   os::execvpe(path.c_str(), argv, envp);
 
   ABORT("Failed to os::execvpe on path '" + path + "': " + os::strerror(errno));
@@ -347,7 +446,8 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::Hook>& parent_hooks,
-    const Option<string>& working_directory)
+    const Option<string>& working_directory,
+    const WATCHDOG watchdog)
 {
   // File descriptors for redirecting stdin/stdout/stderr.
   // These file descriptors are used for different purposes depending
@@ -458,7 +558,8 @@ Try<Subprocess> subprocess(
       stderrfds,
       blocking,
       pipes,
-      working_directory));
+      working_directory,
+      watchdog));
 
   delete[] _argv;
 

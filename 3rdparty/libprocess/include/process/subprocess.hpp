@@ -42,6 +42,14 @@ enum Setsid
   NO_SETSID,
 };
 
+// Flag describing whether a new process should be monitored by a seperate
+// watch process and be killed in case the parent process dies.
+enum WATCHDOG
+{
+  MONITOR,
+  NO_MONITOR,
+};
+
 /**
  * Represents a fork() exec()ed subprocess. Access is provided to the
  * input / output of the process, as well as the exit status. The
@@ -135,7 +143,8 @@ public:
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
         const std::vector<Subprocess::Hook>& parent_hooks,
-        const Option<std::string>& working_directory);
+        const Option<std::string>& working_directory,
+        const WATCHDOG watchdog);
 
     IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
        const lambda::function<Try<OutputFileDescriptors>()>& _output)
@@ -237,7 +246,8 @@ private:
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
       const std::vector<Subprocess::Hook>& parent_hooks,
-      const Option<std::string>& working_directory);
+      const Option<std::string>& working_directory,
+      const WATCHDOG watchdog);
 
   struct Data
   {
@@ -289,6 +299,8 @@ private:
  *     before the child execs.
  * @param working_directory Directory in which the process should
  *     chdir before exec after the 'parent_hooks' have been executed.
+ * @param watchdog Indicator whether to new process should be monitored
+ *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occured.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -306,7 +318,8 @@ Try<Subprocess> subprocess(
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::Hook>& parent_hooks =
       Subprocess::Hook::None(),
-    const Option<std::string>& working_directory = None());
+    const Option<std::string>& working_directory = None(),
+    const WATCHDOG watchdog = NO_MONITOR);
 
 
 /**
@@ -331,6 +344,8 @@ Try<Subprocess> subprocess(
  *     before the child execs.
  * @param working_directory Directory in which the process should
  *     chdir before exec after the 'parent_hooks' have been executed.
+ * @param watchdog Indicator whether to new process should be monitored
+ *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occured.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -346,7 +361,8 @@ inline Try<Subprocess> subprocess(
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::Hook>& parent_hooks =
       Subprocess::Hook::None(),
-    const Option<std::string>& working_directory = None())
+    const Option<std::string>& working_directory = None(),
+    const WATCHDOG watchdog = NO_MONITOR)
 {
   std::vector<std::string> argv = {"sh", "-c", command};
 
@@ -361,7 +377,8 @@ inline Try<Subprocess> subprocess(
       environment,
       clone,
       parent_hooks,
-      working_directory);
+      working_directory,
+      watchdog);
 }
 
 } // namespace process {
