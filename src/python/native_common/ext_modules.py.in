@@ -32,7 +32,7 @@ def _create_module(module_name):
         'src', 'python', 'native_common')
 
     leveldb = os.path.join('3rdparty', 'leveldb-1.4')
-    zookeeper = os.path.join('3rdparty', 'zookeeper-3.4.5', 'src', 'c')
+    zookeeper = os.path.join('3rdparty', 'zookeeper-3.4.8', 'src', 'c')
     libprocess = os.path.join('3rdparty', 'libprocess')
 
     # Even though a statically compiled libprocess should include glog,
