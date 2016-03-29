@@ -44,8 +44,7 @@ enum Setsid
 
 // Flag describing whether a new process should be monitored by a seperate
 // watch process and be killed in case the parent process dies.
-enum WATCHDOG
-{
+enum Watchdog {
   MONITOR,
   NO_MONITOR,
 };
@@ -144,7 +143,7 @@ public:
             pid_t(const lambda::function<int()>&)>>& clone,
         const std::vector<Subprocess::Hook>& parent_hooks,
         const Option<std::string>& working_directory,
-        const WATCHDOG watchdog);
+        const Watchdog watchdog);
 
     IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
        const lambda::function<Try<OutputFileDescriptors>()>& _output)
@@ -247,7 +246,7 @@ private:
           pid_t(const lambda::function<int()>&)>>& clone,
       const std::vector<Subprocess::Hook>& parent_hooks,
       const Option<std::string>& working_directory,
-      const WATCHDOG watchdog);
+      const Watchdog watchdog);
 
   struct Data
   {
@@ -319,7 +318,7 @@ Try<Subprocess> subprocess(
     const std::vector<Subprocess::Hook>& parent_hooks =
       Subprocess::Hook::None(),
     const Option<std::string>& working_directory = None(),
-    const WATCHDOG watchdog = NO_MONITOR);
+    const Watchdog watchdog = NO_MONITOR);
 
 
 /**
@@ -362,7 +361,7 @@ inline Try<Subprocess> subprocess(
     const std::vector<Subprocess::Hook>& parent_hooks =
       Subprocess::Hook::None(),
     const Option<std::string>& working_directory = None(),
-    const WATCHDOG watchdog = NO_MONITOR)
+    const Watchdog watchdog = NO_MONITOR)
 {
   std::vector<std::string> argv = {"sh", "-c", command};
 
