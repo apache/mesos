@@ -731,7 +731,7 @@ Option<Error> Resources::validate(const RepeatedPtrField<Resource>& resources)
     if (error.isSome()) {
       return Error(
           "Resource '" + stringify(resource) +
-          "' is invalid: " + error.get().message);
+          "' is invalid: " + error->message);
     }
   }
 
@@ -972,7 +972,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     case Offer::Operation::RESERVE: {
       Option<Error> error = validate(operation.reserve().resources());
       if (error.isSome()) {
-        return Error("Invalid RESERVE Operation: " + error.get().message);
+        return Error("Invalid RESERVE Operation: " + error->message);
       }
 
       foreach (const Resource& reserved, operation.reserve().resources()) {
@@ -998,7 +998,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     case Offer::Operation::UNRESERVE: {
       Option<Error> error = validate(operation.unreserve().resources());
       if (error.isSome()) {
-        return Error("Invalid UNRESERVE Operation: " + error.get().message);
+        return Error("Invalid UNRESERVE Operation: " + error->message);
       }
 
       foreach (const Resource& reserved, operation.unreserve().resources()) {
@@ -1024,7 +1024,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     case Offer::Operation::CREATE: {
       Option<Error> error = validate(operation.create().volumes());
       if (error.isSome()) {
-        return Error("Invalid CREATE Operation: " + error.get().message);
+        return Error("Invalid CREATE Operation: " + error->message);
       }
 
       foreach (const Resource& volume, operation.create().volumes()) {
@@ -1062,7 +1062,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     case Offer::Operation::DESTROY: {
       Option<Error> error = validate(operation.destroy().volumes());
       if (error.isSome()) {
-        return Error("Invalid DESTROY Operation: " + error.get().message);
+        return Error("Invalid DESTROY Operation: " + error->message);
       }
 
       foreach (const Resource& volume, operation.destroy().volumes()) {
@@ -1220,7 +1220,7 @@ Option<double> Resources::cpus() const
 {
   Option<Value::Scalar> value = get<Value::Scalar>("cpus");
   if (value.isSome()) {
-    return value.get().value();
+    return value->value();
   } else {
     return None();
   }
@@ -1231,7 +1231,7 @@ Option<Bytes> Resources::mem() const
 {
   Option<Value::Scalar> value = get<Value::Scalar>("mem");
   if (value.isSome()) {
-    return Megabytes(static_cast<uint64_t>(value.get().value()));
+    return Megabytes(static_cast<uint64_t>(value->value()));
   } else {
     return None();
   }
@@ -1242,7 +1242,7 @@ Option<Bytes> Resources::disk() const
 {
   Option<Value::Scalar> value = get<Value::Scalar>("disk");
   if (value.isSome()) {
-    return Megabytes(static_cast<uint64_t>(value.get().value()));
+    return Megabytes(static_cast<uint64_t>(value->value()));
   } else {
     return None();
   }
