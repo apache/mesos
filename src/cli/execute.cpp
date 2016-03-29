@@ -41,15 +41,15 @@
 using namespace mesos;
 using namespace mesos::internal;
 
-using process::Future;
-using process::Owned;
-using process::UPID;
-
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
+
+using process::Future;
+using process::Owned;
+using process::UPID;
 
 
 class Flags : public flags::FlagsBase
