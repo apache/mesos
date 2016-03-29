@@ -218,6 +218,15 @@ public:
 };
 
 
+class CgroupsAnyHierarchyDevicesTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyDevicesTest()
+    : CgroupsAnyHierarchyTest("devices") {}
+};
+
+
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Enabled)
 {
   EXPECT_SOME_TRUE(cgroups::enabled(""));
@@ -1266,6 +1275,139 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_CpuAcctsStats)
   CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
 
   AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+}
+
+
+// TODO(klueska): Ideally we would call this test CgroupsDevicesTest,
+// but currently we filter tests on the keyword 'Cgroup' and only run
+// them if we have root access. However, this test doesn't require
+// root access since it's just testing the parsing aspects of the
+// cgroups devices whitelist. If we ever modify this filter to be less
+// restrictive, we should rename this test accordingly.
+TEST(DevicesTest, Parse)
+{
+  EXPECT_ERROR(cgroups::devices::Entry::parse(""));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("x"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b x"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b *:*"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b *:* x"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b *:* rwmx"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b *:* rwm x"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b x:x rwm"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b *:x rwm"));
+  EXPECT_ERROR(cgroups::devices::Entry::parse("b x:* rwm"));
+
+  Try<cgroups::devices::Entry> entry =
+    cgroups::devices::Entry::parse("a");
+  EXPECT_EQ("a *:* rwm", stringify(entry.get()));
+
+  // Note that if the first character is "a", the rest
+  // of the input is ignored, even if it is invalid!
+  entry = cgroups::devices::Entry::parse("a x x");
+  EXPECT_EQ("a *:* rwm", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b *:* rwm");
+  EXPECT_EQ("b *:* rwm", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b *:* r");
+  EXPECT_EQ("b *:* r", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b *:* w");
+  EXPECT_EQ("b *:* w", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b *:* m");
+  EXPECT_EQ("b *:* m", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b 1:* rwm");
+  EXPECT_EQ("b 1:* rwm", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b *:3 rwm");
+  EXPECT_EQ("b *:3 rwm", stringify(entry.get()));
+
+  entry = cgroups::devices::Entry::parse("b 1:3 rwm");
+  EXPECT_EQ("b 1:3 rwm", stringify(entry.get()));
+}
+
+
+TEST_F(CgroupsAnyHierarchyDevicesTest, ROOT_CGROUPS_Devices)
+{
+  // Create a cgroup in the devices hierarchy.
+  string hierarchy = path::join(baseHierarchy, "devices");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  // Assign ourselves to the cgroup.
+  CHECK_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
+
+  // When a devices cgroup is first created, its whitelist inherits
+  // all devices from its parent's whitelist (i.e., "a *:* rwm" by
+  // default). In theory, we should be able to add and remove devices
+  // from the whitelist by writing to the respective `devices.allow`
+  // and `devices.deny` files associated with the cgroup. However, the
+  // semantics of the whitelist are such that writing to the deny file
+  // will only remove entries in the whitelist that are explicitly
+  // listed in there (i.e., denying "b 1:3 rwm" when the whitelist
+  // only contains "a *:* rwm" will not modify the whitelist because
+  // "b 1:3 rwm" is not explicitly listed).  Although the whitelist
+  // doesn't change, access to the device is still denied as expected
+  // (there is just no way of querying the system to detect it).
+  // Because of this, we first deny access to all devices and
+  // selectively add some back in so we can control the entries in the
+  // whitelist explicitly.
+  Try<cgroups::devices::Entry> entry =
+    cgroups::devices::Entry::parse("a *:* rwm");
+
+  ASSERT_SOME(entry);
+
+  Try<Nothing> deny = cgroups::devices::deny(
+      hierarchy,
+      TEST_CGROUPS_ROOT,
+      entry.get());
+
+  EXPECT_SOME(deny);
+
+  // Verify that there are no entries in the whitelist.
+  Try<vector<cgroups::devices::Entry>> whitelist =
+      cgroups::devices::list(hierarchy, TEST_CGROUPS_ROOT);
+
+  ASSERT_SOME(whitelist);
+
+  EXPECT_TRUE(whitelist->empty());
+
+  // Verify that we can't open /dev/null.
+  Try<int> fd = os::open("/dev/null", O_RDWR);
+  EXPECT_ERROR(fd);
+
+  // Add /dev/null to the list of allowed devices.
+  entry = cgroups::devices::Entry::parse("c 1:3 rwm");
+
+  ASSERT_SOME(entry);
+
+  Try<Nothing> allow = cgroups::devices::allow(
+      hierarchy,
+      TEST_CGROUPS_ROOT,
+      entry.get());
+
+  EXPECT_SOME(allow);
+
+  // Verify that /dev/null is in the whitelist.
+  whitelist = cgroups::devices::list(hierarchy, TEST_CGROUPS_ROOT);
+
+  ASSERT_SOME(whitelist);
+
+  ASSERT_EQ(1u, whitelist->size());
+
+  EXPECT_EQ(entry.get(), whitelist.get()[0]);
+
+  // Verify that we can now open and write to /dev/null.
+  fd = os::open("/dev/null", O_WRONLY);
+  ASSERT_SOME(fd);
+
+  Try<Nothing> write = os::write(fd.get(), "nonsense");
+  EXPECT_SOME(write);
+
+  // Move ourselves to the root cgroup.
+  CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
 }
 
 } // namespace tests {
