@@ -177,14 +177,13 @@ TEST_F(FsTest, List)
 
   // Search all files in folder
   Try<list<string>> allFiles = fs::list(path::join(testdir, "*"));
-  ASSERT_TRUE(allFiles.get().size() == 3);
+  EXPECT_EQ(3u, allFiles.get().size());
 
   // Search .jpg files in folder
   Try<list<string>> jpgFiles = fs::list(path::join(testdir, "*.jpg"));
-  ASSERT_TRUE(jpgFiles.get().size() == 1);
+  EXPECT_EQ(1u, jpgFiles.get().size());
 
-  // Search test*.txt files in folder
-  Try<list<string>> testTxtFiles = fs::list(path::join(testdir, "*.txt"));
-
-  ASSERT_TRUE(testTxtFiles.get().size() == 2);
+  // Search .txt files in folder
+  Try<list<string>> txtFiles = fs::list(path::join(testdir, "*.txt"));
+  EXPECT_EQ(2u, txtFiles.get().size());
 }
