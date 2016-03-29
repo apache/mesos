@@ -2472,9 +2472,9 @@ ostream& operator<<(ostream& stream, const Entry::Access& access)
 }
 
 
-ostream& operator<<(ostream& stream, const Entry& ListEntry)
+ostream& operator<<(ostream& stream, const Entry& entry)
 {
-  return stream << ListEntry.selector << " " << ListEntry.access;
+  return stream << entry.selector << " " << entry.access;
 }
 
 

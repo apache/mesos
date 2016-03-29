@@ -665,7 +665,7 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
     std::ostream& stream,
-    const Entry& ListEntry);
+    const Entry& entry);
 
 
 bool operator==(
