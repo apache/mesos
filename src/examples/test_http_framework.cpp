@@ -279,7 +279,7 @@ private:
 
       Call::Acknowledge* ack = call.mutable_acknowledge();
       ack->mutable_agent_id()->CopyFrom(status.agent_id());
-      ack->mutable_task_id ()->CopyFrom(status.task_id ());
+      ack->mutable_task_id()->CopyFrom(status.task_id());
       ack->set_uuid(status.uuid());
 
       mesos->send(call);
