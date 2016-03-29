@@ -140,10 +140,8 @@ private:
 
 
 FilesProcess::FilesProcess(const Option<string>& _authenticationRealm)
-  : ProcessBase("files")
-{
-  authenticationRealm = _authenticationRealm;
-}
+  : ProcessBase("files"),
+    authenticationRealm(_authenticationRealm) {}
 
 
 void FilesProcess::initialize()
