@@ -210,6 +210,18 @@ AC_ARG_WITH([nl],
                             (required for network-isolator). [default: /usr]]),
             [], [])
 
+AC_ARG_WITH([nvml-include],
+            AS_HELP_STRING([--with-nvml-include@<:@=DIR@:>@],
+                           [specify where to locate the Nvidia NVML headers
+                            (required for Nvidia GPU support)]),
+            [], [])
+
+AC_ARG_WITH([nvml-lib],
+            AS_HELP_STRING([--with-nvml-lib@<:@=DIR@:>@],
+                           [specify where to locate the Nvidia NVML libraries
+                            (required for Nvidia GPU support)]),
+            [], [])
+
 AC_ARG_ENABLE([bundled-distribute],
               AS_HELP_STRING([--disable-bundled-distribute],
                              [excludes building and using the bundled distribute
@@ -256,6 +268,11 @@ AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
                              [use libevent instead of libev default: no]),
               [enable_libevent=yes], [])
+
+AC_ARG_ENABLE([nvidia-gpu-support],
+              AS_HELP_STRING([--enable-nvidia-gpu-support],
+                             [build with Nvidia GPU support default: no]),
+              [enable_nvidia_gpu_support=yes], [])
 
 AC_ARG_ENABLE([ssl],
               AS_HELP_STRING([--enable-ssl],
@@ -919,6 +936,51 @@ fi
 
 AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
                [test "x$with_network_isolator" = "xyes"])
+
+
+# Check if Nvidia GPU support is enabled, and if so, verify we can
+# access the NVML header files and libs.
+if test x"$enable_nvidia_gpu_support" = "xyes"; then
+  # If the paths to the NVML headers and/or NVML libraries have been
+  # specified, make sure that those paths are absolute. If everything
+  # is in order, add these paths to the CPPFLAGS and LDFLAGS
+  # respectively.
+  if test -n "`echo $with_nvml_include`"; then
+    if test "$with_nvml_include" = "${with_nvml_include#/}"; then
+      AC_MSG_ERROR([The path passed to --with-nvml-include must be absolute.])
+    fi
+    CPPFLAGS="-I${with_nvml_include} $CPPFLAGS"
+  fi
+  if test -n "`echo $with_nvml_lib`"; then
+    if test "$with_nvml_lib" = "${with_nvml_lib#/}"; then
+      AC_MSG_ERROR([The path passed to --with-nvml-lib must be absolute.])
+    fi
+    LDFLAGS="-L${with_nvml_lib} $LDFLAGS"
+  fi
+
+  AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
+                   [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
+-------------------------------------------------------------------
+The Nvidia NVML headers are required to build Mesos with Nvidia
+GPU support. Make sure these headers are either installed on the
+system or the path passed via --with-nvml-include is correct.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_LIB([nvidia-ml], [nvmlInit], [],
+               [AC_MSG_ERROR([Cannot find the Nvidia NVML libraries
+-------------------------------------------------------------------
+The Nvidia NVML libraries are required to build Mesos with Nvidia
+GPU support. Make sure these libraries are either installed on the
+system or the path passed via --with-nvml-lib is correct.
+-------------------------------------------------------------------
+  ])])
+
+  AC_DEFINE([ENABLE_NVIDIA_GPU_SUPPORT])
+fi
+
+AM_CONDITIONAL([ENABLE_NVIDIA_GPU_SUPPORT],
+  [test x"$enable_nvidia_gpu_support" = "xyes"])
 
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
