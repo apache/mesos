@@ -1808,6 +1808,10 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
     delete process;
   }
 
+  if (credential != NULL) {
+    delete credential;
+  }
+
   delete latch;
 
   detector.reset();
