@@ -17,11 +17,14 @@
 #ifndef __NETWORK_CNI_ISOLATOR_HPP__
 #define __NETWORK_CNI_ISOLATOR_HPP__
 
+#include <process/subprocess.hpp>
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
 #include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
+#include "slave/containerizer/mesos/isolators/network/cni/paths.hpp"
 
 namespace mesos {
 namespace internal {
@@ -101,15 +104,34 @@ private:
   };
 
   NetworkCniIsolatorProcess(
-      const Flags& _flags,
-      const hashmap<std::string, NetworkConfigInfo>& _networkConfigs)
-    : flags(_flags),
-      networkConfigs(_networkConfigs) {}
+      const hashmap<std::string, NetworkConfigInfo>& _networkConfigs,
+      const Option<std::string>& _rootDir = None(),
+      const Option<std::string>& _pluginDir = None())
+    : networkConfigs(_networkConfigs),
+      rootDir(_rootDir),
+      pluginDir(_pluginDir) {}
 
-  const Flags flags;
+  process::Future<Nothing> attach(
+      const ContainerID& containerId,
+      const std::string& networkName,
+      const std::string& netNsHandle);
+
+  process::Future<Nothing> _attach(
+      const ContainerID& containerId,
+      const std::string& networkName,
+      const std::string& plugin,
+      const std::tuple<
+          process::Future<Option<int>>,
+          process::Future<std::string>>& t);
 
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;
+
+  // CNI network information root directory.
+  const Option<std::string> rootDir;
+
+  // CNI plugins directory.
+  const Option<std::string> pluginDir;
 
   // Information of CNI networks that each container joins.
   hashmap<ContainerID, process::Owned<Info>> infos;
