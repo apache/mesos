@@ -218,7 +218,23 @@ v1::scheduler::Event evolve(const RescindResourceOfferMessage& message)
   event.set_type(v1::scheduler::Event::RESCIND);
 
   v1::scheduler::Event::Rescind* rescind = event.mutable_rescind();
+
   rescind->mutable_offer_id()->CopyFrom(evolve(message.offer_id()));
+
+  return event;
+}
+
+
+v1::scheduler::Event evolve(const RescindInverseOfferMessage& message)
+{
+  v1::scheduler::Event event;
+  event.set_type(v1::scheduler::Event::RESCIND_INVERSE_OFFER);
+
+  v1::scheduler::Event::RescindInverseOffer* rescindInverseOffer =
+    event.mutable_rescind_inverse_offer();
+
+  rescindInverseOffer->mutable_inverse_offer_id()->CopyFrom(evolve(
+      message.inverse_offer_id()));
 
   return event;
 }

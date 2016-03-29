@@ -449,6 +449,7 @@ protected:
         case Event::INVERSE_OFFERS:
         case Event::FAILURE:
         case Event::RESCIND:
+        case Event::RESCIND_INVERSE_OFFER:
         case Event::MESSAGE: {
           break;
         }

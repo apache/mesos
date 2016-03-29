@@ -253,6 +253,19 @@ message RescindResourceOfferMessage {
 
 
 /**
+ * Notifies the scheduler that a particular inverse offer is not longer
+ * valid.
+ * NOTE: This message is only sent through the V1 HTTP API. Driver
+ * based schedulers will not receive it.
+ *
+ * See scheduler::Event::RescindInverseOffer.
+ */
+message RescindInverseOfferMessage {
+  required OfferID inverse_offer_id = 1;
+}
+
+
+/**
  * Removes all filters previously set by the scheduler.
  *
  * Used by the pre-Event/Call Mesos scheduler driver.

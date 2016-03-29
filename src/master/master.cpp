@@ -7023,8 +7023,8 @@ void Master::removeInverseOffer(InverseOffer* inverseOffer, bool rescind)
   slave->removeInverseOffer(inverseOffer);
 
   if (rescind) {
-    RescindResourceOfferMessage message;
-    message.mutable_offer_id()->CopyFrom(inverseOffer->id());
+    RescindInverseOfferMessage message;
+    message.mutable_inverse_offer_id()->CopyFrom(inverseOffer->id());
     framework->send(message);
   }
 
