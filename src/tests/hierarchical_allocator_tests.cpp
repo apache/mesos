@@ -1972,7 +1972,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
   //   framework1 share = 1
   // NO_QUOTA_ROLE share = 0.75 (cpus=0.75, mem=384)
-  //   framework2 share = 0
+  //   framework2 share = 1
 
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
