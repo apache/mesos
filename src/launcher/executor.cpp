@@ -466,23 +466,27 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    cout << "Received killTask" << endl;
+    cout << "Received killTask for task " << taskId.value() << endl;
 
-    // Since the command executor manages a single task, we
-    // shutdown completely when we receive a killTask.
-    shutdown(driver);
+    // Default grace period is set to 3s for backwards compatibility.
+    //
+    // TODO(alexr): Replace it with a more meaningful default, e.g.
+    // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
+    Duration gracePeriod = Seconds(3);
+
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    killTask(driver, taskId, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
 
   void shutdown(ExecutorDriver* driver)
   {
-    // If the kill policy's grace period is set, we use it for the signal
-    // escalation timeout. The agent adjusts executor's shutdown grace
-    // period based on it, hence the executor will be given enough time
-    // to clean up. If the kill policy is not specified, the executor's
-    // shutdown grace period is used, which is set to some default value.
-    //
+    cout << "Shutting down" << endl;
+
     // NOTE: We leave a small buffer of time to do the forced kill, otherwise
     // the agent may destroy the container before we can send `TASK_KILLED`.
     //
@@ -491,26 +495,68 @@ public:
     Duration gracePeriod =
       shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
-      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
-    }
-
+    // Since the command executor manages a single task,
+    // shutdown boils down to killing this task.
+    //
     // TODO(bmahler): If a shutdown arrives after a kill task within
     // the grace period of the `KillPolicy`, we may need to escalate
     // more quickly (e.g. the shutdown grace period allotted by the
     // agent is smaller than the kill grace period).
-
-    shutdown(driver, gracePeriod);
+    if (launched) {
+      CHECK_SOME(taskId);
+      killTask(driver, taskId.get(), gracePeriod);
+    } else {
+      driver->stop();
+    }
   }
 
-  void shutdown(ExecutorDriver* driver, const Duration& gracePeriod)
-  {
-    cout << "Shutting down" << endl;
+  virtual void error(ExecutorDriver* driver, const string& message) {}
 
+protected:
+  virtual void initialize()
+  {
+    install<TaskHealthStatus>(
+        &CommandExecutorProcess::taskHealthUpdated,
+        &TaskHealthStatus::task_id,
+        &TaskHealthStatus::healthy,
+        &TaskHealthStatus::kill_task);
+  }
+
+  void taskHealthUpdated(
+      const TaskID& taskID,
+      const bool& healthy,
+      const bool& initiateTaskKill)
+  {
+    if (driver.isNone()) {
+      return;
+    }
+
+    cout << "Received task health update, healthy: "
+         << stringify(healthy) << endl;
+
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(taskID);
+    status.set_healthy(healthy);
+    status.set_state(TASK_RUNNING);
+    driver.get()->sendStatusUpdate(status);
+
+    if (initiateTaskKill) {
+      killedByHealthCheck = true;
+      killTask(driver.get(), taskID);
+    }
+  }
+
+private:
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& _taskId,
+      const Duration& gracePeriod)
+  {
     if (launched && !killed) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
       CHECK_SOME(taskId);
+      CHECK(taskId.get() == _taskId);
 
       foreach (const FrameworkInfo::Capability& c,
                frameworkInfo->capabilities()) {
@@ -560,44 +606,6 @@ public:
     }
   }
 
-  virtual void error(ExecutorDriver* driver, const string& message) {}
-
-protected:
-  virtual void initialize()
-  {
-    install<TaskHealthStatus>(
-        &CommandExecutorProcess::taskHealthUpdated,
-        &TaskHealthStatus::task_id,
-        &TaskHealthStatus::healthy,
-        &TaskHealthStatus::kill_task);
-  }
-
-  void taskHealthUpdated(
-      const TaskID& taskID,
-      const bool& healthy,
-      const bool& initiateTaskKill)
-  {
-    if (driver.isNone()) {
-      return;
-    }
-
-    cout << "Received task health update, healthy: "
-         << stringify(healthy) << endl;
-
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskID);
-    status.set_healthy(healthy);
-    status.set_state(TASK_RUNNING);
-    driver.get()->sendStatusUpdate(status);
-
-    if (initiateTaskKill) {
-      killedByHealthCheck = true;
-      killTask(driver.get(), taskID);
-    }
-  }
-
-
-private:
   void reaped(
       ExecutorDriver* driver,
       pid_t pid,
