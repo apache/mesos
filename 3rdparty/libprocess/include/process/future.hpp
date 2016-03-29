@@ -1413,7 +1413,7 @@ bool Future<T>::set(const T& _t)
 
   // Invoke all callbacks associated with this future being READY. We
   // don't need a lock because the state is now in READY so there
-  // should not be any concurrent modications.
+  // should not be any concurrent modifications.
   if (result) {
     internal::run(data->onReadyCallbacks, data->result.get());
     internal::run(data->onAnyCallbacks, *this);
@@ -1440,7 +1440,7 @@ bool Future<T>::fail(const std::string& _message)
 
   // Invoke all callbacks associated with this future being FAILED. We
   // don't need a lock because the state is now in FAILED so there
-  // should not be any concurrent modications.
+  // should not be any concurrent modifications.
   if (result) {
     internal::run(data->onFailedCallbacks, data->result.error());
     internal::run(data->onAnyCallbacks, *this);
