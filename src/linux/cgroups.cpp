@@ -2418,6 +2418,255 @@ Future<uint64_t> Counter::value() const
 } // namespace memory {
 
 
+namespace devices {
+
+ostream& operator<<(ostream& stream, const Entry::Selector& selector)
+{
+  switch (selector.type) {
+    case Entry::Selector::Type::ALL:
+      stream << "a";
+      break;
+    case Entry::Selector::Type::BLOCK:
+      stream << "b";
+      break;
+    case Entry::Selector::Type::CHARACTER:
+      stream << "c";
+      break;
+    // We omit the default case because we assume -Wswitch
+    // will trigger a compile-time error if a case is missed.
+  }
+
+  stream << " ";
+
+  if (selector.major.isSome()) {
+    stream << stringify(selector.major.get());
+  } else {
+    stream << "*";
+  }
+
+  stream << ":";
+
+  if (selector.minor.isSome()) {
+    stream << stringify(selector.minor.get());
+  } else {
+    stream << "*";
+  }
+
+  return stream;
+}
+
+
+ostream& operator<<(ostream& stream, const Entry::Access& access)
+{
+  if (access.read) {
+    stream << "r";
+  }
+  if (access.write) {
+    stream << "w";
+  }
+  if (access.mknod) {
+    stream << "m";
+  }
+
+  return stream;
+}
+
+
+ostream& operator<<(ostream& stream, const Entry& ListEntry)
+{
+  return stream << ListEntry.selector << " " << ListEntry.access;
+}
+
+
+bool operator==(const Entry::Selector& left, const Entry::Selector& right)
+{
+  return left.type == right.type &&
+         left.minor == right.minor &&
+         left.major == right.major;
+}
+
+
+bool operator==(const Entry::Access& left, const Entry::Access& right)
+{
+  return left.read == right.read &&
+         left.write == right.write &&
+         left.mknod == right.mknod;
+}
+
+
+bool operator==(const Entry& left, const Entry& right)
+{
+  return left.selector == right.selector &&
+         left.access == right.access;
+}
+
+
+Try<Entry> Entry::parse(const string& s)
+{
+  vector<string> tokens = strings::tokenize(s, " ");
+
+  if (tokens.empty()) {
+    return Error("Invalid format");
+  }
+
+  Entry entry;
+
+  // Parse the device type.
+  // By default, when "a" is set as the device type
+  // all other fields in the device entry are ignored!
+  // (i.e. "a" implies a *:* rwm").
+  if (tokens[0] == "a") {
+    entry.selector.type = Selector::Type::ALL;
+    entry.selector.major = None();
+    entry.selector.minor = None();
+    entry.access.read = true;
+    entry.access.write = true;
+    entry.access.mknod = true;
+    return entry;
+  }
+
+  if (tokens.size() != 3) {
+    return Error("Invalid format");
+  }
+
+  // Other than for the "a" device, a correctly formed entry must
+  // contain exactly 3 space-separated tokens of the form:
+  // "{b,c} <major>:<minor> [r][w][m]".
+  if (tokens[0] == "b") {
+    entry.selector.type = Selector::Type::BLOCK;
+  } else if (tokens[0] == "c") {
+    entry.selector.type = Selector::Type::CHARACTER;
+  } else {
+    return Error("Invalid format");
+  }
+
+  // Parse the device major/minor numbers.
+  vector<string> deviceNumbers = strings::tokenize(tokens[1], ":");
+
+  if (deviceNumbers.size() != 2) {
+    return Error("Invalid format");
+  }
+
+  // The device major/minor numbers must either be "*"
+  // or an unsigned integer. A value of None() means "*".
+  entry.selector.major = None();
+  entry.selector.minor = None();
+
+  if (deviceNumbers[0] != "*") {
+    Try<dev_t> major = numify<dev_t>(deviceNumbers[0]);
+
+    if (major.isError()) {
+      return Error("Invalid format");
+    }
+
+    entry.selector.major = major.get();
+  }
+
+  if (deviceNumbers[1] != "*") {
+    Try<dev_t> minor = numify<dev_t>(deviceNumbers[1]);
+
+    if (minor.isError()) {
+      return Error("Invalid format");
+    }
+
+    entry.selector.minor = minor.get();
+  }
+
+  // Parse the access bits.
+  string permissions = tokens[2];
+
+  if (permissions.size() > 3) {
+    return Error("Invalid format");
+  }
+
+  entry.access.read = false;
+  entry.access.write = false;
+  entry.access.mknod = false;
+
+  foreach (char permission, permissions) {
+    if (permission == 'r') {
+      entry.access.read = true;
+    } else if (permission == 'w') {
+      entry.access.write = true;
+    } else if (permission == 'm') {
+      entry.access.mknod = true;
+    } else {
+      return Error("Invalid format");
+    }
+  }
+
+  return entry;
+}
+
+
+Try<vector<Entry>> list(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  Try<string> read = cgroups::read(hierarchy, cgroup, "devices.list");
+
+  if (read.isError()) {
+    return Error("Failed to read from 'devices.list': " + read.error());
+  }
+
+  vector<Entry> entries;
+
+  foreach (const string& s, strings::tokenize(read.get(), "\n")) {
+    Try<Entry> entry = Entry::parse(s);
+
+    if (entry.isError()) {
+      return Error("Failed to parse device entry '" + s + "'"
+                   " from 'devices.list': " + entry.error());
+    }
+
+    entries.push_back(entry.get());
+  }
+
+  return entries;
+}
+
+
+Try<Nothing> allow(
+    const string& hierarchy,
+    const string& cgroup,
+    const Entry& entry)
+{
+  Try<Nothing> write = cgroups::write(
+     hierarchy,
+     cgroup,
+     "devices.allow",
+     stringify(entry));
+
+  if (write.isError()) {
+    return Error("Failed to write to 'devices.allow': " + write.error());
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> deny(
+    const string& hierarchy,
+    const string& cgroup,
+    const Entry& entry)
+{
+  Try<Nothing> write = cgroups::write(
+     hierarchy,
+     cgroup,
+     "devices.deny",
+     stringify(entry));
+
+  if (write.isError()) {
+    return Error("Failed to write to 'devices.deny': " + write.error());
+  }
+
+  return Nothing();
+}
+
+
+} // namespace devices {
+
+
 namespace freezer {
 
 Future<Nothing> freeze(

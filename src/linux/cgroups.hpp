@@ -622,6 +622,85 @@ private:
 } // namespace memory {
 
 
+// Device controls.
+namespace devices {
+
+struct Entry
+{
+  static Try<Entry> parse(const std::string& s);
+
+  struct Selector
+  {
+    enum Type
+    {
+      ALL,
+      BLOCK,
+      CHARACTER,
+    };
+
+    Type type;
+    Option<dev_t> major; // Matches all `major` numbers if None.
+    Option<dev_t> minor; // Matches all `minor` numbers if None.
+  };
+
+  struct Access
+  {
+    bool read;
+    bool write;
+    bool mknod;
+  };
+
+  Selector selector;
+  Access access;
+};
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Entry::Selector& selector);
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Entry::Access& access);
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Entry& ListEntry);
+
+
+bool operator==(
+    const Entry::Selector& left,
+    const Entry::Selector& right);
+
+bool operator==(
+    const Entry::Access& left,
+    const Entry::Access& right);
+
+bool operator==(
+    const Entry& left,
+    const Entry& right);
+
+
+// Returns the entries within devices.list.
+Try<std::vector<Entry>> list(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+// Writes the provided `entry` into devices.allow.
+Try<Nothing> allow(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Entry& entry);
+
+// Writes the provided `entry` into devices.deny.
+Try<Nothing> deny(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const Entry& entry);
+
+} // namespace devices {
+
+
 // Freezer controls.
 // The freezer can be in one of three states:
 // 1. THAWED   : No process in the cgroup is frozen.
