@@ -109,6 +109,12 @@ Credential devolve(const v1::Credential& credential)
 }
 
 
+TaskStatus devolve(const v1::TaskStatus& status)
+{
+  return devolve<TaskStatus>(status);
+}
+
+
 executor::Call devolve(const v1::executor::Call& call)
 {
   return devolve<executor::Call>(call);

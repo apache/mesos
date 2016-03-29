@@ -45,6 +45,7 @@ ExecutorID devolve(const v1::ExecutorID& executorId);
 Offer devolve(const v1::Offer& offer);
 InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Credential devolve(const v1::Credential& credential);
+TaskStatus devolve(const v1::TaskStatus& status);
 
 scheduler::Call devolve(const v1::scheduler::Call& call);
 scheduler::Event devolve(const v1::scheduler::Event& event);
