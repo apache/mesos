@@ -39,13 +39,14 @@ message Event {
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
 
-    SUBSCRIBED = 1; // See 'Subscribed' below.
-    OFFERS = 2;     // See 'Offers' below.
-    RESCIND = 3;    // See 'Rescind' below.
-    UPDATE = 4;     // See 'Update' below.
-    MESSAGE = 5;    // See 'Message' below.
-    FAILURE = 6;    // See 'Failure' below.
-    ERROR = 7;      // See 'Error' below.
+    SUBSCRIBED = 1;     // See 'Subscribed' below.
+    OFFERS = 2;         // See 'Offers' below.
+    INVERSE_OFFERS = 9; // See 'InverseOffers' below.
+    RESCIND = 3;        // See 'Rescind' below.
+    UPDATE = 4;         // See 'Update' below.
+    MESSAGE = 5;        // See 'Message' below.
+    FAILURE = 6;        // See 'Failure' below.
+    ERROR = 7;          // See 'Error' below.
 
     // Periodic message sent by the Mesos master according to
     // 'Subscribed.heartbeat_interval_seconds'. If the scheduler does
@@ -67,15 +68,22 @@ message Event {
   }
 
   // Received whenever there are new resources that are offered to the
-  // scheduler or resources requested back from the scheduler. Each
-  // offer corresponds to a set of resources on a slave. Until the
-  // scheduler accepts or declines an offer the resources are
-  // considered allocated to the scheduler. Accepting or Declining an
-  // inverse offer informs the allocator of the scheduler's ability to
-  // release the resources without violating an SLA.
+  // scheduler. Each offer corresponds to a set of resources on an
+  // agent. Until the scheduler accepts or declines an offer the
+  // resources are considered allocated to the scheduler.
   message Offers {
     repeated Offer offers = 1;
-    repeated InverseOffer inverse_offers = 2;
+  }
+
+  // Received whenever there are resources requested back from the
+  // scheduler. Each inverse offer specifies the agent, and
+  // optionally specific resources. Accepting or Declining an inverse
+  // offer informs the allocator of the scheduler's ability to release
+  // the specified resources without violating an SLA. If no resources
+  // are specified then all resources on the agent are requested to be
+  // released.
+  message InverseOffers {
+    repeated InverseOffer inverse_offers = 1;
   }
 
   // Received when a particular offer is no longer valid (e.g., the
@@ -144,6 +152,7 @@ message Event {
 
   optional Subscribed subscribed = 2;
   optional Offers offers = 3;
+  optional InverseOffers inverse_offers = 9;
   optional Rescind rescind = 4;
   optional Update update = 5;
   optional Message message = 6;

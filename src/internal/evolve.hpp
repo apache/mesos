@@ -83,6 +83,7 @@ v1::scheduler::Event evolve(const scheduler::Event& event);
 v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message);
 v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message);
 v1::scheduler::Event evolve(const ResourceOffersMessage& message);
+v1::scheduler::Event evolve(const InverseOffersMessage& message);
 v1::scheduler::Event evolve(const RescindResourceOfferMessage& message);
 v1::scheduler::Event evolve(const StatusUpdateMessage& message);
 v1::scheduler::Event evolve(const LostSlaveMessage& message);

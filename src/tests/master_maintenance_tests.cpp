@@ -434,9 +434,11 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
     .WillOnce(FutureSatisfy(&offerRescinded));
 
   Future<Event::Offers> unavailabilityOffers;
-  Future<Event::Offers> inverseOffers;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&unavailabilityOffers))
+    .WillOnce(FutureArg<1>(&unavailabilityOffers));
+
+  Future<Event::InverseOffers> inverseOffers;
+  EXPECT_CALL(*scheduler, inverseOffers(_, _))
     .WillOnce(FutureArg<1>(&inverseOffers));
 
   // Schedule this slave for maintenance.
@@ -1172,7 +1174,6 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
-  EXPECT_EQ(0, event.get().offers().inverse_offers().size());
 
   // All the offers should have unavailability.
   foreach (const v1::Offer& offer, event.get().offers().offers()) {
@@ -1212,12 +1213,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   // Expect an inverse offer.
   event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
+  EXPECT_EQ(1, event.get().inverse_offers().inverse_offers().size());
 
   // Save this inverse offer so we can decline it later.
-  v1::InverseOffer inverseOffer = event.get().offers().inverse_offers(0);
+  v1::InverseOffer inverseOffer =
+    event.get().inverse_offers().inverse_offers(0);
 
   // Wait for the task to start running.
   event = events.get();
@@ -1271,12 +1272,11 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   // Expect another inverse offer.
   event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
   Clock::resume();
 
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
-  inverseOffer = event.get().offers().inverse_offers(0);
+  EXPECT_EQ(1, event.get().inverse_offers().inverse_offers().size());
+  inverseOffer = event.get().inverse_offers().inverse_offers(0);
 
   // Check that the status endpoint shows the inverse offer as declined.
   response = process::http::get(
@@ -1336,11 +1336,10 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   // Expect yet another inverse offer.
   event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
   Clock::resume();
 
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(1, event.get().inverse_offers().inverse_offers().size());
 
   // Check that the status endpoint shows the inverse offer as accepted.
   response = process::http::get(
@@ -1517,7 +1516,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_EQ(2, event.get().offers().offers().size());
-  EXPECT_EQ(0, event.get().offers().inverse_offers().size());
 
   // All the offers should have unavailability.
   foreach (const v1::Offer& offer, event.get().offers().offers()) {
@@ -1570,13 +1568,15 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   // Expect two inverse offers.
   event = events.get();
   AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(2, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
+  EXPECT_EQ(2, event.get().inverse_offers().inverse_offers().size());
 
   // Save these inverse offers.
-  v1::InverseOffer inverseOffer1 = event.get().offers().inverse_offers(0);
-  v1::InverseOffer inverseOffer2 = event.get().offers().inverse_offers(1);
+  v1::InverseOffer inverseOffer1 =
+    event.get().inverse_offers().inverse_offers(0);
+
+  v1::InverseOffer inverseOffer2 =
+    event.get().inverse_offers().inverse_offers(1);
 
   // We want to acknowledge TASK_RUNNING updates for the two tasks we
   // have launched. We don't know which task will be launched first,
@@ -1689,14 +1689,13 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   event = events.get();
   AWAIT_READY(event);
 
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
+  EXPECT_EQ(1, event.get().inverse_offers().inverse_offers().size());
   EXPECT_EQ(
       inverseOffer1.agent_id(),
-      event.get().offers().inverse_offers(0).agent_id());
+      event.get().inverse_offers().inverse_offers(0).agent_id());
 
-  inverseOffer1 = event.get().offers().inverse_offers(0);
+  inverseOffer1 = event.get().inverse_offers().inverse_offers(0);
 
   updateInverseOffer =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
@@ -1725,12 +1724,11 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   event = events.get();
   AWAIT_READY(event);
 
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(0, event.get().offers().offers().size());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(Event::INVERSE_OFFERS, event.get().type());
+  EXPECT_EQ(1, event.get().inverse_offers().inverse_offers().size());
   EXPECT_EQ(
       inverseOffer1.agent_id(),
-      event.get().offers().inverse_offers(0).agent_id());
+      event.get().inverse_offers().inverse_offers(0).agent_id());
 
   EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));

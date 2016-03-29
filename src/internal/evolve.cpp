@@ -192,7 +192,20 @@ v1::scheduler::Event evolve(const ResourceOffersMessage& message)
 
   v1::scheduler::Event::Offers* offers = event.mutable_offers();
   offers->mutable_offers()->CopyFrom(evolve<v1::Offer>(message.offers()));
-  offers->mutable_inverse_offers()->CopyFrom(evolve<v1::InverseOffer>(
+
+  return event;
+}
+
+
+v1::scheduler::Event evolve(const InverseOffersMessage& message)
+{
+  v1::scheduler::Event event;
+  event.set_type(v1::scheduler::Event::INVERSE_OFFERS);
+
+  v1::scheduler::Event::InverseOffers* inverse_offers =
+    event.mutable_inverse_offers();
+
+  inverse_offers->mutable_inverse_offers()->CopyFrom(evolve<v1::InverseOffer>(
       message.inverse_offers()));
 
   return event;

@@ -972,6 +972,9 @@ public:
   MOCK_METHOD1_T(heartbeat, void(Mesos*));
   MOCK_METHOD2_T(subscribed, void(Mesos*, const typename Event::Subscribed&));
   MOCK_METHOD2_T(offers, void(Mesos*, const typename Event::Offers&));
+  MOCK_METHOD2_T(
+      inverseOffers,
+      void(Mesos*, const typename Event::InverseOffers&));
   MOCK_METHOD2_T(rescind, void(Mesos*, const typename Event::Rescind&));
   MOCK_METHOD2_T(update, void(Mesos*, const typename Event::Update&));
   MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
@@ -986,6 +989,9 @@ public:
         break;
       case Event::OFFERS:
         offers(mesos, event.offers());
+        break;
+      case Event::INVERSE_OFFERS:
+        inverseOffers(mesos, event.inverse_offers());
         break;
       case Event::RESCIND:
         rescind(mesos, event.rescind());

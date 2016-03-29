@@ -5707,7 +5707,7 @@ void Master::inverseOffer(
   }
 
   // Create an inverse offer for each slave and add it to the message.
-  ResourceOffersMessage message;
+  InverseOffersMessage message;
 
   Framework* framework = CHECK_NOTNULL(frameworks.registered[frameworkId]);
   foreachpair (const SlaveID& slaveId,

@@ -446,6 +446,7 @@ protected:
         }
 
         case Event::HEARTBEAT:
+        case Event::INVERSE_OFFERS:
         case Event::FAILURE:
         case Event::RESCIND:
         case Event::MESSAGE: {

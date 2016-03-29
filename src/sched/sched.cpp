@@ -671,6 +671,7 @@ protected:
         break;
       }
 
+      case Event::INVERSE_OFFERS:
       case Event::HEARTBEAT: {
         break;
       }
