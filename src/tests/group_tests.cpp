@@ -24,7 +24,6 @@
 
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 
 #include "tests/zookeeper.hpp"
 

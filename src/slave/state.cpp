@@ -23,7 +23,6 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/format.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>

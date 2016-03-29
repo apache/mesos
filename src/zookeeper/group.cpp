@@ -29,7 +29,6 @@
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
 #include <stout/some.hpp>
@@ -46,7 +45,6 @@ using namespace process;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
-using std::make_pair;
 using std::queue;
 using std::set;
 using std::string;

@@ -30,7 +30,6 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
-#include <stout/format.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>

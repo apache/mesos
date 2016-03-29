@@ -29,12 +29,10 @@
 
 #include <stout/base64.hpp>
 #include <stout/gtest.hpp>
-#include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 

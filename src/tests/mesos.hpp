@@ -56,11 +56,9 @@
 #include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
-#include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>

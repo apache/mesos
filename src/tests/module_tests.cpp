@@ -22,7 +22,6 @@
 #include <mesos/slave/isolator.hpp>
 
 #include <stout/dynamiclibrary.hpp>
-#include <stout/os.hpp>
 
 #include "common/parse.hpp"
 #include "examples/test_module.hpp"

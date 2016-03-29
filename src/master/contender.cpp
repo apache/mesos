@@ -20,7 +20,6 @@
 
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
-#include <stout/protobuf.hpp>
 
 #include "master/constants.hpp"
 #include "master/contender.hpp"

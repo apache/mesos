@@ -29,7 +29,6 @@
 #include <process/owned.hpp>
 
 #include <stout/foreach.hpp>
-#include <stout/format.hpp>
 #include <stout/fs.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>

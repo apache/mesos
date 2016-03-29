@@ -33,9 +33,7 @@
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/nothing.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 #include "common/protobuf_utils.hpp"

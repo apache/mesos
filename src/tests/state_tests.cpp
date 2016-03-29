@@ -32,7 +32,6 @@
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 #include <stout/tests/utils.hpp>

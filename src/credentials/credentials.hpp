@@ -21,10 +21,12 @@
 #include <vector>
 
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/permissions.hpp>
+#include <stout/os/read.hpp>
 
 namespace mesos {
 namespace internal {

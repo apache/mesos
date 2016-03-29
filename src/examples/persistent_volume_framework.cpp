@@ -29,11 +29,9 @@
 #include <mesos/authorizer/acls.hpp>
 
 #include <stout/flags.hpp>
-#include <stout/format.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
