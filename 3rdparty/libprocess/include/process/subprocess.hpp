@@ -299,7 +299,7 @@ private:
  *     before the child execs.
  * @param working_directory Directory in which the process should
  *     chdir before exec after the 'parent_hooks' have been executed.
- * @param watchdog Indicator whether to new process should be monitored
+ * @param watchdog Indicator whether the new process should be monitored
  *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occured.
  */
@@ -344,7 +344,7 @@ Try<Subprocess> subprocess(
  *     before the child execs.
  * @param working_directory Directory in which the process should
  *     chdir before exec after the 'parent_hooks' have been executed.
- * @param watchdog Indicator whether to new process should be monitored
+ * @param watchdog Indicator whether the new process should be monitored
  *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occured.
  */
