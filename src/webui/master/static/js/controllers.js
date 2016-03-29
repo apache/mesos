@@ -215,7 +215,7 @@
   // Add a filter to convert small float number to decimal string
   mesosApp.filter('decimalFloat', function() {
     return function(num) {
-      return parseFloat(num.toFixed(4)).toString();
+      return num ? parseFloat(num.toFixed(4)).toString() : num;
     }
   });
 
