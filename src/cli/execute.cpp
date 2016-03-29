@@ -165,22 +165,6 @@ public:
 
   virtual ~CommandScheduler() {}
 
-  virtual void registered(
-      SchedulerDriver* _driver,
-      const FrameworkID& _frameworkId,
-      const MasterInfo& _masterInfo) {
-    cout << "Framework registered with " << _frameworkId << endl;
-  }
-
-  virtual void reregistered(
-      SchedulerDriver* _driver,
-      const MasterInfo& _masterInfo) {
-    cout << "Framework re-registered" << endl;
-  }
-
-  virtual void disconnected(
-      SchedulerDriver* driver) {}
-
   virtual void resourceOffers(
       SchedulerDriver* driver,
       const vector<Offer>& offers)
@@ -276,10 +260,6 @@ public:
     }
   }
 
-  virtual void offerRescinded(
-      SchedulerDriver* driver,
-      const OfferID& offerId) {}
-
   virtual void statusUpdate(
       SchedulerDriver* driver,
       const TaskStatus& status)
@@ -291,26 +271,6 @@ public:
       driver->stop();
     }
   }
-
-  virtual void frameworkMessage(
-      SchedulerDriver* driver,
-      const ExecutorID& executorId,
-      const SlaveID& slaveId,
-      const string& data) {}
-
-  virtual void slaveLost(
-      SchedulerDriver* driver,
-      const SlaveID& sid) {}
-
-  virtual void executorLost(
-      SchedulerDriver* driver,
-      const ExecutorID& executorID,
-      const SlaveID& slaveID,
-      int status) {}
-
-  virtual void error(
-      SchedulerDriver* driver,
-      const string& message) {}
 
 private:
   const string name;
