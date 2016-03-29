@@ -342,7 +342,6 @@ protected:
         Subprocess::FD(STDERR_FILENO),
         launchFlags,
         None(),
-        None(),
         CLONE_NEWNET | CLONE_NEWNS);
 
     return pid;
@@ -374,6 +373,7 @@ protected:
         Subprocess::PATH("/dev/null"),
         Subprocess::PIPE(),
         Subprocess::FD(STDERR_FILENO),
+        NO_SETSID,
         statistics.flags);
 
     CHECK_SOME(s);
