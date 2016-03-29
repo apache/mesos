@@ -924,6 +924,12 @@ MESOS_NETWORK_ISOLATOR_FILES +=						\
   linux/routing/queueing/statistics.hpp					\
   slave/containerizer/mesos/isolators/network/port_mapping.hpp
 
+MESOS_NVIDIA_GPU_ISOLATOR_FILES =					\
+  slave/containerizer/mesos/isolators/cgroups/devices/gpus/nvidia.cpp
+
+MESOS_NVIDIA_GPU_ISOLATOR_FILES +=					\
+  slave/containerizer/mesos/isolators/cgroups/devices/gpus/nvidia.hpp
+
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_FILES)
 else
@@ -934,6 +940,12 @@ if WITH_NETWORK_ISOLATOR
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_ISOLATOR_FILES)
 else
 EXTRA_DIST += $(MESOS_NETWORK_ISOLATOR_FILES)
+endif
+
+if ENABLE_NVIDIA_GPU_SUPPORT
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_NVIDIA_GPU_ISOLATOR_FILES)
+else
+EXTRA_DIST += $(MESOS_NVIDIA_GPU_ISOLATOR_FILES)
 endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1117,6 +1129,11 @@ libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
 else
 libmesos_la_LIBADD += -lprotobuf
 LDADD += -lprotobuf
+endif
+
+if ENABLE_NVIDIA_GPU_SUPPORT
+libmesos_la_LIBADD += -lnvidia-ml
+LDADD += -lnvidia-ml
 endif
 
 

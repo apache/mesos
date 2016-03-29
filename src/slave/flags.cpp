@@ -90,6 +90,8 @@ mesos::internal::slave::Flags::Flags()
       "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem`, or\n"
       "`cgroups/cpu,cgroups/mem`, or network/port_mapping\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
+      "or `cgroups/devices/gpus/nvidia` for nvidia specific gpu isolation\n"
+      "(configure with flag: `--enable-nvidia-gpu-support` to enable),\n"
       "or `external`, or load an alternate isolator module using\n"
       "the `--modules` flag. Note that this flag is only relevant\n"
       "for the Mesos Containerizer.",

@@ -1291,6 +1291,8 @@ e.g., <code>bind</code>, <code>copy</code>. (default: copy)
 Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
 <code>cgroups/cpu,cgroups/mem</code>, or network/port_mapping
 (configure with flag: <code>--with-network-isolator</code> to enable),
+or `cgroups/devices/gpus/nvidia` for nvidia specific gpu isolation
+(configure with flag: `--enable-nvidia-gpu-support` to enable),
 or <code>external</code>, or load an alternate isolator module using
 the <code>--modules</code> flag. Note that this flag is only relevant
 for the Mesos Containerizer. (default: posix/cpu,posix/mem)
