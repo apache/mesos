@@ -21,6 +21,12 @@ This release contains the following new features:
     terminations may occur. Together with kill policies this gives frameworks
     flexibility around how to clean up tasks and executors.
 
+  * [MESOS-4090] - The `mesos.native` python module has been split into two,
+    `mesos.executor` and `mesos.scheduler`. This change also removes
+    un-necessary 3rd party dependencies from `mesos.executor` and
+    `mesos.scheduler`. `mesos.native` still exists, combining both modules for
+    backwards compatibility with existing code.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
