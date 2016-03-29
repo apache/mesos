@@ -99,7 +99,6 @@
               {{executor.resources.cpus | number}}</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.mem_rss_bytes | dataSize}} /
               {{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
-          <td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.data_used_bytes | dataSize}} /
               {{executor.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
