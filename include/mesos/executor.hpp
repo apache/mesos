@@ -128,7 +128,7 @@ public:
   // TASK_FAILED, etc) a TASK_LOST status update will be created.
   virtual void shutdown(ExecutorDriver* driver) = 0;
 
-  // Invoked when a fatal error has occured with the executor and/or
+  // Invoked when a fatal error has occurred with the executor and/or
   // executor driver. The driver will be aborted BEFORE invoking this
   // callback.
   virtual void error(
