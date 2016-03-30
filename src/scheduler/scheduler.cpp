@@ -428,8 +428,19 @@ protected:
       const UPID& upid = future.get().get().pid();
       latest = future.get();
 
+      string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+      Option<string> value;
+
+      value = os::getenv("SSL_ENABLED");
+      if (value.isSome() && (value.get() == "1" || value.get() == "true")) {
+        scheme = "https";
+      }
+#endif
+
       master = ::URL(
-        "http",
+        scheme,
         upid.address.ip,
         upid.address.port,
         upid.id +
