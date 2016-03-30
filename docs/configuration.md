@@ -1322,6 +1322,21 @@ directory. (default: /usr/local/libexec/mesos)
 </tr>
 <tr>
   <td>
+    --nvidia_gpu_devices=VALUE
+  </td>
+  <td>
+A comma-separated list of Nvidia GPU devices. When `gpus` is specified
+in the `--resources` flag, this flag determines which GPU devices will
+be made available. The devices should be listed as numbers that
+correspond to Nvidia's NVML device enumeration (as seen by running the
+command `nvidia-smi` on an Nvidia GPU equipped system). The GPUs
+listed will only be isolated if the `--isolation` flag contains the
+string `cgroups/devices/gpus/nvidia`. This flag will only work if
+mesos has been configured with `--enable-nvidia-gpu-support`.
+  </td>
+</tr>
+<tr>
+  <td>
     --network_cni_plugins_dir=VALUE
   </td>
   <td>

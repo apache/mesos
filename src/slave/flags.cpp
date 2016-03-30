@@ -530,6 +530,18 @@ mesos::internal::slave::Flags::Flags()
       "before it kills that instance.",
       Seconds(0));
 
+#ifdef ENABLE_NVIDIA_GPU_SUPPORT
+  add(&Flags::nvidia_gpu_devices,
+      "nvidia_gpu_devices",
+      "A comma-separated list of Nvidia GPU devices. When `gpus` is\n"
+      "specified in the `--resources` flag, this flag determines which GPU\n"
+      "devices will be made available. The devices should be listed as\n"
+      "numbers that correspond to Nvidia's NVML device enumeration (as\n"
+      "seen by running the command `nvidia-smi` on an Nvidia GPU\n"
+      "equipped system).  The GPUs listed will only be isolated if the\n"
+      "`--isolation` flag contains the string `cgroups/devices/gpus/nvidia`.");
+#endif // ENABLE_NVIDIA_GPU_SUPPORT
+
 #ifdef WITH_NETWORK_ISOLATOR
   add(&Flags::ephemeral_ports_per_container,
       "ephemeral_ports_per_container",
