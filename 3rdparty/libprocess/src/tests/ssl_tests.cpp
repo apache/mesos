@@ -627,8 +627,7 @@ TEST_F(SSLTest, PeerAddress)
 
 
 // Basic Https GET test.
-// NOTE: Temporarily disabled due to MESOS-5063.
-TEST_F(SSLTest, DISABLED_HTTPSGet)
+TEST_F(SSLTest, HTTPSGet)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
@@ -655,7 +654,7 @@ TEST_F(SSLTest, DISABLED_HTTPSGet)
   // Construct response and send(server side).
   const string buffer =
     string("HTTP/1.1 200 OK\r\n") +
-    "Content-Length : " +
+    "Content-Length: " +
     stringify(data.length()) + "\r\n" +
     "\r\n" +
     data;
@@ -668,8 +667,7 @@ TEST_F(SSLTest, DISABLED_HTTPSGet)
 
 
 // Basic Https POST test.
-// NOTE: Temporarily disabled due to MESOS-5063.
-TEST_F(SSLTest, DISABLED_HTTPSPost)
+TEST_F(SSLTest, HTTPSPost)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
@@ -697,7 +695,7 @@ TEST_F(SSLTest, DISABLED_HTTPSPost)
   // Construct response and send(server side).
   const string buffer =
     string("HTTP/1.1 200 OK\r\n") +
-    "Content-Length : " +
+    "Content-Length: " +
     stringify(data.length()) + "\r\n" +
     "\r\n" +
     data;
