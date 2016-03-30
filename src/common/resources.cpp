@@ -1101,9 +1101,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
   // The following are sanity checks to ensure the amount of each type of
   // resource does not change.
   // TODO(jieyu): Currently, we only check known resource types like
-  // cpus, mem, disk, ports, etc. We should generalize this.
+  // cpus, gpus, mem, disk, ports, etc. We should generalize this.
 
   CHECK(result.cpus() == cpus());
+  CHECK(result.gpus() == gpus());
   CHECK(result.mem() == mem());
   CHECK(result.disk() == disk());
   CHECK(result.ports() == ports());
@@ -1219,6 +1220,17 @@ map<string, Value_Type> Resources::types() const
 Option<double> Resources::cpus() const
 {
   Option<Value::Scalar> value = get<Value::Scalar>("cpus");
+  if (value.isSome()) {
+    return value->value();
+  } else {
+    return None();
+  }
+}
+
+
+Option<double> Resources::gpus() const
+{
+  Option<Value::Scalar> value = get<Value::Scalar>("gpus");
   if (value.isSome()) {
     return value->value();
   } else {

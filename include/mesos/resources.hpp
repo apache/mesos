@@ -324,6 +324,7 @@ public:
   // TODO(vinod): Fix this when we make these types as first class
   // protobufs.
   Option<double> cpus() const;
+  Option<double> gpus() const;
   Option<Bytes> mem() const;
   Option<Bytes> disk() const;
 
