@@ -201,6 +201,11 @@ public:
 
         return authorized(request, acls_);
         break;
+      default:
+        LOG(WARNING) << "Authorization request for action '" << request.action()
+                     << "' is not defined and therefore not authorized";
+        return false;
+        break;
     }
     UNREACHABLE();
   }

@@ -42,6 +42,12 @@ message Object {
 
 // List of authorizable actions supported in Mesos.
 enum Action {
+  // This must be the first enum value in this list, to
+  // ensure that if 'type' is not set, the default value
+  // is UNKNOWN. This enables enum values to be added
+  // in a backwards-compatible way. See: MESOS-4997.
+  UNKNOWN = 0;
+
   REGISTER_FRAMEWORK_WITH_ROLE = 1;
   RUN_TASK_WITH_USER = 2;
   TEARDOWN_FRAMEWORK_WITH_PRINCIPAL = 3;
@@ -59,6 +65,9 @@ enum Action {
 // as "Can `subject` perform `action` with `object`?".
 message Request {
   required Subject subject = 1;
-  required Action action = 2;
+
+  // Enum fields should be optional, see: MESOS-4997.
+  optional Action action = 2;
+
   required Object object = 3;
 }
