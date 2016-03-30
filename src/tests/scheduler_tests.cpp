@@ -1478,6 +1478,70 @@ TEST_P(SchedulerTest, Request)
 }
 
 
+// This test verifies that the scheduler is able to force a reconnection with
+// the master.
+TEST_P(SchedulerTest, SchedulerReconnect)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  ContentType contentType = GetParam();
+
+  scheduler::TestV1Mesos mesos(
+      master.get()->pid, contentType, scheduler, detector);
+
+  AWAIT_READY(connected);
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected));
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  // Force a reconnection with the master. This should result in a
+  // `disconnected` callback followed by a `connected` callback.
+  mesos.reconnect();
+
+  AWAIT_READY(disconnected);
+
+  // The scheduler should be able to immediately reconnect with the master.
+  AWAIT_READY(connected);
+
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected));
+
+  // Simulate a spurious master failure event at the scheduler.
+  detector->appoint(None());
+
+  AWAIT_READY(disconnected);
+
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .Times(0);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .Times(0);
+
+  mesos.reconnect();
+
+  // Flush any possible remaining events. The mocked scheduler will fail if the
+  // reconnection attempt resulted in any additional callbacks after the
+  // scheduler has disconnected.
+  Clock::pause();
+  Clock::settle();
+}
+
+
 // TODO(benh): Write test for sending Call::Acknowledgement through
 // master to slave when Event::Update was generated locally.
 
