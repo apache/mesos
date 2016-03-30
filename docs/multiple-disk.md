@@ -28,6 +28,11 @@ values in JSON format can be found below. By default (if `--resources` is not
 specified), the Mesos agent will only make the root disk available to the
 cluster.
 
+**NOTE:** Once you specify any `Disk` resource manually (i.e., via the
+`--resources` flag), Mesos will stop auto-detecting the `Root` disk resource.
+Hence if you want to use the `Root` disk you will need to manually specify it
+using the format described below.
+
 ### `Root` disk
 
 A `Root` disk is the basic disk resource in Mesos. It usually maps to the
