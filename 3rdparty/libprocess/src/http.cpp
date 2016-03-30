@@ -10,7 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#ifndef __WINDOWS__
 #include <arpa/inet.h>
+#endif // __WINDOWS__
 
 #include <stdint.h>
 #include <stdlib.h>
