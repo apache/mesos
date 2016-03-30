@@ -267,6 +267,23 @@ public:
                          lambda::_1));
   }
 
+  void reconnect()
+  {
+    // Ignore the reconnection request if we are currently disconnected
+    // from the master.
+    if (state == DISCONNECTED) {
+      VLOG(1) << "Ignoring reconnect request from scheduler since we are"
+              << " disconnected";
+
+      return;
+    }
+
+    CHECK_SOME(connectionId);
+
+    disconnected(connectionId.get(),
+                 "Received reconnect request from scheduler");
+  }
+
 protected:
   virtual void initialize()
   {
@@ -751,6 +768,12 @@ Mesos::~Mesos()
 void Mesos::send(const Call& call)
 {
   dispatch(process, &MesosProcess::send, call);
+}
+
+
+void Mesos::reconnect()
+{
+  dispatch(process, &MesosProcess::reconnect);
 }
 
 

@@ -73,6 +73,19 @@ public:
   // disconnected).
   virtual void send(const Call& call);
 
+  // Force a reconnection with the master.
+  //
+  // In the case of a one-way network partition, the connection between the
+  // scheduler and master might not necessarily break. If the scheduler detects
+  // a partition, due to lack of `HEARTBEAT` events (e.g., 5) within a time
+  // window, it can explicitly ask the library to force a reconnection with
+  // the master.
+  //
+  // This call would be ignored if the scheduler is already disconnected with
+  // the master (e.g., no new master has been elected). Otherwise, the scheduler
+  // would get a 'disconnected' callback followed by a 'connected' callback.
+  virtual void reconnect();
+
 protected:
   // NOTE: This constructor is used for testing.
   Mesos(
