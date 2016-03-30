@@ -21,7 +21,9 @@
 #include <mach/mach.h>
 #endif // __MACH__
 
+#ifndef __WINDOWS__
 #include <sys/time.h>
+#endif
 
 #include "duration.hpp"
 
