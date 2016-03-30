@@ -88,7 +88,7 @@
 //
 // It's important to note that the process tree returned represents
 // the instant in time after the forking has completed but before
-// 'Exec', 'Wait' or 'exit(0)' has occured (i.e., the process tree
+// 'Exec', 'Wait' or 'exit(0)' has occurred (i.e., the process tree
 // will be complete).
 
 namespace os {
