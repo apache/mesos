@@ -189,6 +189,8 @@ message Call {
     TEARDOWN = 2;    // Shuts down all tasks/executors and removes framework.
     ACCEPT = 3;      // See 'Accept' below.
     DECLINE = 4;     // See 'Decline' below.
+    ACCEPT_INVERSE_OFFERS = 13;  // See 'AcceptInverseOffers' below.
+    DECLINE_INVERSE_OFFERS = 14; // See 'DeclineInverseOffers' below.
     REVIVE = 5;      // Removes any previous filters set via ACCEPT or DECLINE.
     KILL = 6;        // See 'Kill' below.
     SHUTDOWN = 7;    // See 'Shutdown' below.
@@ -196,7 +198,7 @@ message Call {
     RECONCILE = 9;   // See 'Reconcile' below.
     MESSAGE = 10;    // See 'Message' below.
     REQUEST = 11;    // See 'Request' below.
-    SUPPRESS = 12;    // Inform master to stop sending offers to the framework.
+    SUPPRESS = 12;   // Inform master to stop sending offers to the framework.
 
     // TODO(benh): Consider adding an 'ACTIVATE' and 'DEACTIVATE' for
     // already subscribed frameworks as a way of stopping offers from
@@ -249,6 +251,22 @@ message Call {
   // top of 'Accept' for semantics.
   message Decline {
     repeated OfferID offer_ids = 1;
+    optional Filters filters = 2;
+  }
+
+  // Accepts an inverse offer. Inverse offers should only be accepted
+  // if the resources in the offer can be safely evacuated before the
+  // provided unavailability.
+  message AcceptInverseOffers {
+    repeated OfferID inverse_offer_ids = 1;
+    optional Filters filters = 2;
+  }
+
+  // Declines an inverse offer. Inverse offers should be declined if
+  // the resources in the offer might not be safely evacuated before
+  // the provided unavailability.
+  message DeclineInverseOffers {
+    repeated OfferID inverse_offer_ids = 1;
     optional Filters filters = 2;
   }
 
@@ -343,6 +361,8 @@ message Call {
   optional Subscribe subscribe = 3;
   optional Accept accept = 4;
   optional Decline decline = 5;
+  optional AcceptInverseOffers accept_inverse_offers = 13;
+  optional DeclineInverseOffers decline_inverse_offers = 14;
   optional Kill kill = 6;
   optional Shutdown shutdown = 7;
   optional Acknowledge acknowledge = 8;

@@ -271,6 +271,18 @@ Option<Error> validate(
       }
       return None();
 
+    case mesos::scheduler::Call::ACCEPT_INVERSE_OFFERS:
+      if (!call.has_accept_inverse_offers()) {
+        return Error("Expecting 'accept_inverse_offers' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::DECLINE_INVERSE_OFFERS:
+      if (!call.has_decline_inverse_offers()) {
+        return Error("Expecting 'decline_inverse_offers' to be present");
+      }
+      return None();
+
     case mesos::scheduler::Call::REVIVE:
       return None();
 

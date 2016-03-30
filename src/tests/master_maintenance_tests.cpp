@@ -1250,10 +1250,10 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     // Decline an inverse offer, with a filter.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::DECLINE);
+    call.set_type(Call::DECLINE_INVERSE_OFFERS);
 
-    Call::Decline* decline = call.mutable_decline();
-    decline->add_offer_ids()->CopyFrom(inverseOffer.id());
+    Call::DeclineInverseOffers* decline = call.mutable_decline_inverse_offers();
+    decline->add_inverse_offer_ids()->CopyFrom(inverseOffer.id());
 
     // Set a 0 second filter to immediately get another inverse offer.
     v1::Filters filters;
@@ -1314,10 +1314,10 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     // Accept an inverse offer, with filter.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::ACCEPT);
+    call.set_type(Call::ACCEPT_INVERSE_OFFERS);
 
-    Call::Accept* accept = call.mutable_accept();
-    accept->add_offer_ids()->CopyFrom(inverseOffer.id());
+    Call::AcceptInverseOffers* accept = call.mutable_accept_inverse_offers();
+    accept->add_inverse_offer_ids()->CopyFrom(inverseOffer.id());
 
     // Set a 0 second filter to immediately get another inverse offer.
     v1::Filters filters;
@@ -1646,10 +1646,10 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     // allocations for the remainder of this test.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::DECLINE);
+    call.set_type(Call::DECLINE_INVERSE_OFFERS);
 
-    Call::Decline* decline = call.mutable_decline();
-    decline->add_offer_ids()->CopyFrom(inverseOffer2.id());
+    Call::DeclineInverseOffers* decline = call.mutable_decline_inverse_offers();
+    decline->add_inverse_offer_ids()->CopyFrom(inverseOffer2.id());
 
     v1::Filters filters;
     filters.set_refuse_seconds(flags.allocation_interval.secs() + 100);
@@ -1669,10 +1669,10 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::ACCEPT);
+    call.set_type(Call::ACCEPT_INVERSE_OFFERS);
 
-    Call::Accept* accept = call.mutable_accept();
-    accept->add_offer_ids()->CopyFrom(inverseOffer1.id());
+    Call::AcceptInverseOffers* accept = call.mutable_accept_inverse_offers();
+    accept->add_inverse_offer_ids()->CopyFrom(inverseOffer1.id());
 
     v1::Filters filters;
     filters.set_refuse_seconds(0);
@@ -1704,10 +1704,10 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     // Do another immediate filter, but decline it this time.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::DECLINE);
+    call.set_type(Call::DECLINE_INVERSE_OFFERS);
 
-    Call::Decline* decline = call.mutable_decline();
-    decline->add_offer_ids()->CopyFrom(inverseOffer1.id());
+    Call::DeclineInverseOffers* decline = call.mutable_decline_inverse_offers();
+    decline->add_inverse_offer_ids()->CopyFrom(inverseOffer1.id());
 
     v1::Filters filters;
     filters.set_refuse_seconds(0);
