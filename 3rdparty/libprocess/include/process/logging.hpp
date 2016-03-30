@@ -52,7 +52,13 @@ private:
     if (FLAGS_v != v) {
       VLOG(FLAGS_v) << "Setting verbose logging level to " << v;
       FLAGS_v = v;
-      __sync_synchronize(); // Ensure 'FLAGS_v' visible in other threads.
+
+      // Ensure 'FLAGS_v' visible in other threads.
+#ifdef __WINDOWS__
+      MemoryBarrier();
+#else
+      __sync_synchronize();
+#endif // __WINDOWS__
     }
   }
 
