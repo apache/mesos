@@ -26,6 +26,7 @@
 
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/utils.hpp>
 
 #include "master/weights.hpp"
 
@@ -131,8 +132,58 @@ Future<http::Response> Master::WeightsHandler::_update(
 
       // Notify allocator for updating weights.
       master->allocator->updateWeights(weightInfos);
+
+      // If any active role is updated, we rescind all outstanding offers,
+      // to facilitate satisfying the updated weights.
+      // NOTE: We update weights before we rescind to avoid a race. If we were
+      // to rescind first, then recovered resources may get allocated again
+      // before our call to `updateWeights` was handled.
+      // The consequence of updating weights first is that (in the hierarchical
+      // allocator) it will trigger an allocation if at least one of the
+      // updated roles has registered frameworks. This means the rescinded
+      // offer resources will only be available to the updated weights once
+      // another allocation is invoked.
+      // This can be resolved in the future with an explicit allocation call,
+      // and this solution is preferred to having the race described earlier.
+      rescindOffers(weightInfos);
+
       return OK();
     }));
+}
+
+
+void Master::WeightsHandler::rescindOffers(
+    const std::vector<WeightInfo>& weightInfos) const
+{
+  bool rescind = false;
+
+  foreach (const WeightInfo& weightInfo, weightInfos) {
+    const string& role = weightInfo.role();
+
+    // This should have been validated earlier.
+    CHECK(master->isWhitelistedRole(role));
+
+    // Rescind all outstanding offers if at least one of the
+    // updated roles has a registered frameworks.
+    if (master->activeRoles.contains(role)) {
+      rescind = true;
+      break;
+    }
+  }
+
+  if (rescind) {
+    foreachvalue (const Slave* slave, master->slaves.registered) {
+      foreach (Offer* offer, utils::copy(slave->offers)) {
+        master->allocator->recoverResources(
+            offer->framework_id(),
+            offer->slave_id(),
+            offer->resources(),
+            None());
+
+        master->removeOffer(offer, true);
+      }
+    }
+  }
 }
 
 
