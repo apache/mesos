@@ -352,7 +352,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
 
-  // Generating random numbers is done by the kernel and will max out asingle
+  // Generating random numbers is done by the kernel and will max out a single
   // core and run almost exclusively in the kernel, i.e., system time.
   string command = "cat /dev/urandom > /dev/null & "
     "touch " + file + "; " // Signals the command is running.
@@ -634,7 +634,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
-  // cpu time when limited to 0.5 cpu. We use /dev/urandom to preventblocking
+  // cpu time when limited to 0.5 cpu. We use /dev/urandom to prevent blocking
   // on Linux when there's insufficient entropy.
   string command = "cat /dev/urandom > /dev/null & "
     "export MESOS_TEST_PID=$! && "
@@ -685,7 +685,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   AWAIT_READY(usage);
 
   // Expect that no more than 300 ms of cpu time has been consumed. We also
-  // check that at least 50 ms of cpu time has been consumed so this testwill
+  // check that at least 50 ms of cpu time has been consumed so this test will
   // fail if the host system is very heavily loaded. This behavior is correct
   // because under such conditions we aren't actually testing the CFS cpu
   // limiter.
