@@ -47,7 +47,9 @@ class MesosProcess; // Forward declaration.
 // 'received' which will get invoked _serially_ when it's determined
 // that we've connected (i.e., detected master), disconnected
 // (i.e, detected no master), or received events from the master.
-// Note that we drop events while disconnected.
+// The library reconnects with the master upon a disconnection.
+//
+// NOTE: All calls and events are dropped while disconnected.
 class Mesos
 {
 public:
@@ -66,6 +68,10 @@ public:
   virtual ~Mesos();
 
   // Attempts to send a call to the master.
+  //
+  // The scheduler should only invoke this method once it has received the
+  // 'connected' callback. Otherwise, all calls would be dropped while
+  // disconnected.
   //
   // Some local validation of calls is performed which may generate
   // events without ever being sent to the master. This includes when
