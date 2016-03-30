@@ -99,7 +99,7 @@ Future<size_t> write(int fd, const void* data, size_t size);
  * Performs a series of asynchronous writes, until all of data has been
  * written.
  *
- * @return Nothing or a failure if an error occured.
+ * @return Nothing or a failure if an error occurred.
  *     A failure will be returned if the file descriptor is bad, or if the
  *     file descriptor cannot be duplicated, set to close-on-exec,
  *     or made non-blocking.

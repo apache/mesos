@@ -300,7 +300,7 @@ private:
  *     chdir before exec after the 'parent_hooks' have been executed.
  * @param watchdog Indicator whether the new process should be monitored
  *     and killed if the parent process terminates.
- * @return The subprocess or an error if one occured.
+ * @return The subprocess or an error if one occurred.
  */
 // TODO(jmlvanre): Consider removing default argument for
 // `parent_hooks` to force the caller to think about setting them.
@@ -345,7 +345,7 @@ Try<Subprocess> subprocess(
  *     chdir before exec after the 'parent_hooks' have been executed.
  * @param watchdog Indicator whether the new process should be monitored
  *     and killed if the parent process terminates.
- * @return The subprocess or an error if one occured.
+ * @return The subprocess or an error if one occurred.
  */
 // TODO(jmlvanre): Consider removing default argument for
 // `parent_hooks` to force the caller to think about setting them.

@@ -335,7 +335,7 @@ void _splice(
     boost::shared_array<char> data,
     std::shared_ptr<Promise<Nothing>> promise)
 {
-  // Stop splicing if a discard occured on our future.
+  // Stop splicing if a discard occurred on our future.
   if (promise->future().hasDiscard()) {
     // TODO(benh): Consider returning the number of bytes already
     // spliced on discarded, or a failure. Same for the 'onDiscarded'
@@ -361,7 +361,7 @@ void _splice(
         promise->set(Nothing());
       } else {
         // Note that we always try and complete the write, even if a
-        // discard has occured on our future, in order to provide
+        // discard has occurred on our future, in order to provide
         // semantics where everything read is written. The promise
         // will eventually be discarded in the next read.
         io::write(to, string(data.get(), size))
