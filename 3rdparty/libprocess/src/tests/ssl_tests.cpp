@@ -627,7 +627,8 @@ TEST_F(SSLTest, PeerAddress)
 
 
 // Basic Https GET test.
-TEST_F(SSLTest, HTTPSGet)
+// NOTE: Temporarily disabled due to MESOS-5063.
+TEST_F(SSLTest, DISABLED_HTTPSGet)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
@@ -667,7 +668,8 @@ TEST_F(SSLTest, HTTPSGet)
 
 
 // Basic Https POST test.
-TEST_F(SSLTest, HTTPSPost)
+// NOTE: Temporarily disabled due to MESOS-5063.
+TEST_F(SSLTest, DISABLED_HTTPSPost)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
