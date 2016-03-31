@@ -721,6 +721,11 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 
   listeners.Append(process::FilterTestEventListener::instance());
   listeners.Append(process::ClockTestEventListener::instance());
+
+  // Add the temporary directory event listener which will clean up
+  // any directories created after each test finishes.
+  temporaryDirectoryEventListener = new TemporaryDirectoryEventListener();
+  listeners.Append(temporaryDirectoryEventListener);
 }
 
 
@@ -756,6 +761,29 @@ void Environment::SetUp()
 
 void Environment::TearDown()
 {
+  // Make sure we haven't left any child processes lying around.
+  // TODO(benh): Look for processes in the same group or session that
+  // might have been reparented.
+  // TODO(jmlvanre): Consider doing this `OnTestEnd` in a listener so
+  // that we can identify leaked processes more precisely.
+  Try<os::ProcessTree> pstree = os::pstree(0);
+
+  if (pstree.isSome() && !pstree.get().children.empty()) {
+    FAIL() << "Tests completed with child processes remaining:\n"
+           << pstree.get();
+  }
+}
+
+
+Try<string> Environment::mkdtemp()
+{
+  return temporaryDirectoryEventListener->mkdtemp();
+}
+
+
+void tests::Environment::TemporaryDirectoryEventListener::OnTestEnd(
+    const testing::TestInfo&)
+{
   foreach (const string& directory, directories) {
 #ifdef __linux__
     // Try to remove any mounts under 'directory'.
@@ -779,21 +807,12 @@ void Environment::TearDown()
                  << "': " << rmdir.error();
     }
   }
+
   directories.clear();
-
-  // Make sure we haven't left any child processes lying around.
-  // TODO(benh): Look for processes in the same group or session that
-  // might have been reparented.
-  Try<os::ProcessTree> pstree = os::pstree(0);
-
-  if (pstree.isSome() && !pstree.get().children.empty()) {
-    FAIL() << "Tests completed with child processes remaining:\n"
-           << pstree.get();
-  }
 }
 
 
-Try<string> Environment::mkdtemp()
+Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
 {
   const ::testing::TestInfo* const testInfo =
     ::testing::UnitTest::GetInstance()->current_test_info();

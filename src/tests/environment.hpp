@@ -43,14 +43,27 @@ public:
   // case name and test name (derived from TestInfo via
   // ::testing::UnitTest::GetInstance()->current_test_info()). Note
   // that the directory will automagically get removed when the
-  // environment is teared down.
+  // test finishes.
   Try<std::string> mkdtemp();
 
 private:
-  // Temporary directories that we created and need to remove.
-  std::list<std::string> directories;
+  // Used to clean up temporary directories after tests finish.
+  class TemporaryDirectoryEventListener
+    : public ::testing::EmptyTestEventListener
+  {
+  public:
+    Try<std::string> mkdtemp();
+
+  protected:
+    virtual void OnTestEnd(const ::testing::TestInfo&);
+
+    // Temporary directories that we created and need to remove.
+    std::list<std::string> directories;
+  };
 
   const Flags flags;
+
+  TemporaryDirectoryEventListener* temporaryDirectoryEventListener;
 };
 
 
