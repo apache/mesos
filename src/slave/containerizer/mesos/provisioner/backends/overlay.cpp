@@ -66,7 +66,7 @@ Try<Owned<Backend>> OverlayBackend::create(const Flags&)
       user.get());
   }
 
-  Try<bool> supported = fs::supported("overlayfs");
+  Try<bool> supported = fs::overlay::supported();
   if (supported.isError()) {
     return Error(supported.error());
   }

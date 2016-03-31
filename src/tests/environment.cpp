@@ -465,7 +465,7 @@ public:
   OverlayFSTestFilter()
   {
 #ifdef __linux__
-    Try<bool> check = fs::supported("overlayfs");
+    Try<bool> check = fs::overlay::supported();
     if (check.isError()) {
       overlayfsError = check.error();
     } else if (!check.get()) {

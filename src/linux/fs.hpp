@@ -156,6 +156,14 @@ namespace fs {
 Try<bool> supported(const std::string& fsname);
 
 
+namespace overlay {
+
+// Check if overlay fs is supported.
+Try<bool> supported();
+
+} // namespace overlay {
+
+
 // TODO(idownes): These three variations on mount information should
 // be consolidated and moved to stout, along with mount and umount.
 
