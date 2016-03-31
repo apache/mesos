@@ -218,6 +218,82 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
         (rootDir.isError() ? rootDir.error() : "No such file or directory"));
   }
 
+  LOG(INFO) << "Making '" << rootDir.get() << "' a shared mount";
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  Option<fs::MountInfoTable::Entry> rootDirMount;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == rootDir.get()) {
+      rootDirMount = entry;
+      break;
+    }
+  }
+
+  // Do a self bind mount if needed. If the mount already exists, make
+  // sure it is a shared mount of its own peer group.
+  if (rootDirMount.isNone()) {
+    Try<string> mount = os::shell(
+        "mount --bind %s %s && "
+        "mount --make-slave %s && "
+        "mount --make-shared %s",
+        rootDir.get().c_str(),
+        rootDir.get().c_str(),
+        rootDir.get().c_str(),
+        rootDir.get().c_str());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to self bind mount '" + rootDir.get() +
+          "' and make it a shared mount: " + mount.error());
+    }
+  } else {
+    if (rootDirMount.get().shared().isNone()) {
+      // This is the case where the CNI network information root directory
+      // mount is not a shared mount yet (possibly due to agent crash while
+      // preparing the directory mount). It's safe to re-do the following.
+      Try<string> mount = os::shell(
+          "mount --make-slave %s && "
+          "mount --make-shared %s",
+          rootDir.get().c_str(),
+          rootDir.get().c_str());
+
+      if (mount.isError()) {
+        return Error(
+            "Failed to self bind mount '" + rootDir.get() +
+            "' and make it a shared mount: " + mount.error());
+      }
+    } else {
+      // We need to make sure that the shared mount is in its own peer
+      // group. To check that, we need to get the parent mount.
+      foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+        if (entry.id == rootDirMount.get().parent) {
+          // If the CNI network information root directory mount and its
+          // parent mount are in the same peer group, we need to re-do the
+          // following commands so that they are in different peer groups.
+          if (entry.shared() == rootDirMount.get().shared()) {
+            Try<string> mount = os::shell(
+                "mount --make-slave %s && "
+                "mount --make-shared %s",
+                rootDir.get().c_str(),
+                rootDir.get().c_str());
+
+            if (mount.isError()) {
+              return Error(
+                  "Failed to self bind mount '" + rootDir.get() +
+                  "' and make it a shared mount: " + mount.error());
+            }
+          }
+
+          break;
+        }
+      }
+    }
+  }
+
   Result<string> pluginDir = os::realpath(flags.network_cni_plugins_dir.get());
   if (!pluginDir.isSome()) {
     return Error(
