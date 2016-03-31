@@ -378,55 +378,55 @@ private:
 
       // Wrap the original health check command in "docker exec".
       if (healthCheck.has_command()) {
-          CommandInfo command = healthCheck.command();
+        CommandInfo command = healthCheck.command();
 
-          // "docker exec" require docker version greater than 1.3.0.
-          Try<Nothing> validateVersion =
-            docker->validateVersion(Version(1, 3, 0));
-          if (validateVersion.isError()) {
+        // "docker exec" require docker version greater than 1.3.0.
+        Try<Nothing> validateVersion =
+          docker->validateVersion(Version(1, 3, 0));
+        if (validateVersion.isError()) {
+          cerr << "Unable to launch health process: "
+               << validateVersion.error() << endl;
+          return;
+        }
+
+        vector<string> argv;
+        argv.push_back(docker->getPath());
+        argv.push_back("exec");
+        argv.push_back(containerName);
+
+        if (command.shell()) {
+          if (!command.has_value()) {
             cerr << "Unable to launch health process: "
-                 << validateVersion.error() << endl;
+                 << "Shell command is not specified." << endl;
             return;
           }
 
-          vector<string> argv;
-          argv.push_back(docker->getPath());
-          argv.push_back("exec");
-          argv.push_back(containerName);
-
-          if (command.shell()) {
-            if (!command.has_value()) {
-              cerr << "Unable to launch health process: "
-                   << "Shell command is not specified." << endl;
-              return;
-            }
-
-            argv.push_back("sh");
-            argv.push_back("-c");
-            argv.push_back("\"");
-            argv.push_back(command.value());
-            argv.push_back("\"");
-          } else {
-            if (!command.has_value()) {
-              cerr << "Unable to launch health process: "
-                   << "Executable path is not specified." << endl;
-              return;
-            }
-
-            argv.push_back(command.value());
-            foreach (const string& argument, command.arguments()) {
-              argv.push_back(argument);
-            }
+          argv.push_back("sh");
+          argv.push_back("-c");
+          argv.push_back("\"");
+          argv.push_back(command.value());
+          argv.push_back("\"");
+        } else {
+          if (!command.has_value()) {
+            cerr << "Unable to launch health process: "
+                 << "Executable path is not specified." << endl;
+            return;
           }
 
-          command.set_shell(true);
-          command.clear_arguments();
-          command.set_value(strings::join(" ", argv));
-          healthCheck.mutable_command()->CopyFrom(command);
+          argv.push_back(command.value());
+          foreach (const string& argument, command.arguments()) {
+            argv.push_back(argument);
+          }
+        }
+
+        command.set_shell(true);
+        command.clear_arguments();
+        command.set_value(strings::join(" ", argv));
+        healthCheck.mutable_command()->CopyFrom(command);
       } else {
-          cerr << "Unable to launch health process: "
-               << "Only command health check is supported now." << endl;
-          return;
+        cerr << "Unable to launch health process: "
+             << "Only command health check is supported now." << endl;
+        return;
       }
 
       JSON::Object json = JSON::protobuf(healthCheck);
