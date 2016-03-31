@@ -41,6 +41,8 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/constants.hpp"
+
 using namespace mesos;
 using namespace process;
 
@@ -70,7 +72,7 @@ public:
       const string& containerName,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout,
+      const Duration& shutdownGracePeriod,
       const string& healthCheckDir)
     : killed(false),
       killedByHealthCheck(false),
@@ -80,7 +82,7 @@ public:
       containerName(containerName),
       sandboxDirectory(sandboxDirectory),
       mappedDirectory(mappedDirectory),
-      stopTimeout(stopTimeout),
+      shutdownGracePeriod(shutdownGracePeriod),
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -124,6 +126,11 @@ public:
 
     // Capture the TaskID.
     taskId = task.task_id();
+
+    // Capture the kill policy.
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
+    }
 
     cout << "Starting task " << taskId.get() << endl;
 
@@ -190,7 +197,15 @@ public:
   {
     cout << "Received killTask for task " << taskId.value() << endl;
 
-    killTask(driver, taskId, stopTimeout);
+    // Using shutdown grace period as a default is backwards compatible
+    // with the `stop_timeout` flag, deprecated in 0.29.
+    Duration gracePeriod = shutdownGracePeriod;
+
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    killTask(driver, taskId, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -198,6 +213,16 @@ public:
   void shutdown(ExecutorDriver* driver)
   {
     cout << "Shutting down" << endl;
+
+    // Currently, 'docker->run' uses the reaper internally, hence we need
+    // to account for the reap interval. We also leave a small buffer of
+    // time to do the forced kill, otherwise the agent may destroy the
+    // container before we can send `TASK_KILLED`.
+    //
+    // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
+    // immediately after the watched process has exited.
+    Duration gracePeriod =
+      shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1);
 
     // Since the docker executor manages a single task,
     // shutdown boils down to killing this task.
@@ -208,7 +233,7 @@ public:
     // agent is smaller than the kill grace period).
     if (run.isSome()) {
       CHECK_SOME(taskId);
-      killTask(driver, taskId.get(), stopTimeout);
+      killTask(driver, taskId.get(), gracePeriod);
     } else {
       driver->stop();
     }
@@ -448,7 +473,8 @@ private:
   string containerName;
   string sandboxDirectory;
   string mappedDirectory;
-  Duration stopTimeout;
+  Duration shutdownGracePeriod;
+  Option<KillPolicy> killPolicy;
   Option<Future<Nothing>> run;
   Future<Nothing> stop;
   Future<Nothing> inspect;
@@ -466,7 +492,7 @@ public:
       const string& container,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout,
+      const Duration& shutdownGracePeriod,
       const string& healthCheckDir)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
@@ -474,7 +500,7 @@ public:
         container,
         sandboxDirectory,
         mappedDirectory,
-        stopTimeout,
+        shutdownGracePeriod,
         healthCheckDir));
 
     spawn(process.get());
@@ -598,9 +624,32 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.stop_timeout.isNone()) {
-    cerr << flags.usage("Missing required option --stop_timeout") << endl;
-    return EXIT_FAILURE;
+  // Get executor shutdown grace period from the environment.
+  //
+  // NOTE: We avoided introducing a docker executor flag for this
+  // because the docker executor exits if it sees an unknown flag.
+  // This makes it difficult to add or remove docker executor flags
+  // that are unconditionally set by the agent.
+  Duration shutdownGracePeriod =
+    mesos::internal::slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+  if (value.isSome()) {
+    Try<Duration> parse = Duration::parse(value.get());
+    if (parse.isError()) {
+      cerr << "Failed to parse value '" << value.get() << "'"
+           << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
+      return EXIT_FAILURE;
+    }
+
+    shutdownGracePeriod = parse.get();
+  }
+
+  // If the deprecated flag is set, respect it and choose the bigger value.
+  //
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  if (flags.stop_timeout.isSome() &&
+      flags.stop_timeout.get() > shutdownGracePeriod) {
+    shutdownGracePeriod = flags.stop_timeout.get();
   }
 
   if (flags.launcher_dir.isNone()) {
@@ -626,7 +675,7 @@ int main(int argc, char** argv)
       flags.container.get(),
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),
-      flags.stop_timeout.get(),
+      shutdownGracePeriod,
       flags.launcher_dir.get());
 
   mesos::MesosExecutorDriver driver(&executor);

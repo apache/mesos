@@ -364,7 +364,8 @@ message HealthCheck {
  *
  * NOTE: For executor-less command-based tasks, the kill is performed
  * via sending a signal to the task process: SIGTERM for the graceful
- * kill and SIGKILL for the forcible kill.
+ * kill and SIGKILL for the forcible kill. For the docker executor-less
+ * tasks the grace period is passed to 'docker stop --time'.
  */
 message KillPolicy {
   // The grace period specifies how long to wait before forcibly
@@ -1250,8 +1251,9 @@ message TaskInfo {
   optional HealthCheck health_check = 8;
 
   // A kill policy for the task. Implemented for executor-less
-  // command-based tasks. For tasks that specify an executor, it is
-  // the executor's responsibility to implement the kill policy.
+  // command-based and docker tasks. For tasks that specify other
+  // executor, it is the executor's responsibility to implement
+  // the kill policy.
   optional KillPolicy kill_policy = 12;
 
   optional bytes data = 6;
