@@ -37,6 +37,41 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// This isolator uses the cgroups devices subsystem to control
+// access to Nvidia GPUs. Since this is the very first device
+// isolator, it currently contains generic device isolation
+// logic that needs to be pulled up into a generic device
+// isolator.
+//
+// GPUs are allocated to containers in an arbitrary fashion.
+// For example, if a container requires 2 GPUs, we will
+// arbitrarily choose 2 from the GPUs that are available.
+// This may not behave well if tasks within an executor use
+// GPUs since we cannot identify which task are using which
+// GPUs (i.e. when a task terminates, we may remove a GPU
+// that is still being used by a different task!).
+//
+// Note that this isolator is not responsible for ensuring
+// that the necessary Nvidia libraries are visible in the
+// container. If filesystem isolation is not enabled, this
+// means that the container can simply use the libraries
+// available on the host. When filesystem isolation is
+// enabled, it is the responsibility of the operator /
+// application developer to ensure that the necessary
+// libraries are visible to the container (note that they
+// must be version compatible with the kernel driver on
+// the host).
+//
+// TODO(klueska): To better support containers with a
+// provisioned filesystem, we will need to add a mechanism
+// for operators to inject the libraries as a volume into
+// containers that require GPU access.
+//
+// TODO(klueska): If multiple containerizers are enabled,
+// they need to co-ordinate their allocation of GPUs.
+//
+// TODO(klueska): Move generic device isolation logic
+// out into its own component.
 class CgroupsNvidiaGpuIsolatorProcess : public MesosIsolatorProcess
 {
 public:
@@ -68,6 +103,45 @@ public:
 
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
+
+private:
+  // TODO(klueska): Consider exposing this as a generic
+  // device type in a library (possibly cgroups or stout?).
+  struct Gpu
+  {
+    nvmlDevice_t handle;
+    dev_t major;
+    dev_t minor;
+  };
+
+  struct Info
+  {
+    Info(const ContainerID& _containerId, const std::string& _cgroup)
+      : containerId(_containerId), cgroup(_cgroup) {}
+
+    const ContainerID containerId;
+    const std::string cgroup;
+    std::list<Gpu> allocated;
+  };
+
+  CgroupsNvidiaGpuIsolatorProcess(
+      const Flags& _flags,
+      const std::string& hierarchy,
+      std::list<Gpu> gpus);
+
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const process::Future<Nothing>& future);
+
+  const Flags flags;
+
+  // The path to the cgroups subsystem hierarchy root.
+  const std::string hierarchy;
+
+  // TODO(bmahler): Use Owned<Info>.
+  hashmap<ContainerID, Info*> infos;
+
+  std::list<Gpu> available;
 };
 
 } // namespace slave {
