@@ -262,15 +262,6 @@ protected:
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
         task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
 
-
-        // Inject `KillPolicy` for testing.
-        task.mutable_kill_policy()->mutable_grace_period()->
-            set_nanoseconds(Seconds(11).ns());
-
-
-
-
-
         CommandInfo* commandInfo = task.mutable_command();
 
         if (shell) {
@@ -280,12 +271,7 @@ protected:
           commandInfo->set_value(command.get());
         } else {
           // TODO(gilbert): Treat 'command' as executable value and arguments.
-          // TODO(alexr): Add support for arguments.
-
           commandInfo->set_shell(false);
-
-          commandInfo->set_value(command.get());
-          commandInfo->add_arguments()->assign(command.get());
         }
 
         if (environment.isSome()) {
@@ -425,23 +411,6 @@ protected:
 
     cout << "Received status update " << status.state()
          << " for task " << status.task_id() << endl;
-
-
-    if (mesos::v1::TASK_RUNNING == status.state()) {
-      Call call;
-      call.set_type(Call::KILL);
-
-      CHECK(frameworkInfo.has_id());
-      call.mutable_framework_id()->CopyFrom(frameworkInfo.id());
-
-      Call::Kill* kill = call.mutable_kill();
-      kill->mutable_task_id()->CopyFrom(status.task_id());
-      kill->mutable_agent_id()->CopyFrom(status.agent_id());
-
-      mesos->send(call);
-    }
-
-
 
     if (status.has_uuid()) {
       Call call;
