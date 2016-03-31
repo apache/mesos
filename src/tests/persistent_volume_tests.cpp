@@ -122,6 +122,7 @@ protected:
       }
     }
 #endif // __linux__
+    MesosTest::TearDown();
   }
 
   master::Flags MasterFlags(const vector<FrameworkInfo>& frameworks)
