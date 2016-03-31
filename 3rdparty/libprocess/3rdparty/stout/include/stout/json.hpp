@@ -166,6 +166,15 @@ struct Object
   template <typename T>
   Result<T> find(const std::string& path) const;
 
+  // Returns the JSON value by indexing this object with the key. Unlike
+  // find(), the key is not a path into the JSON structure, it is just
+  // a JSON object key name.
+  //
+  // Returns 'None' if there key doesn't exist, or an error if a JSON
+  // value of the wrong type is found.
+  template <typename T>
+  Result<T> at(const std::string& key) const;
+
   std::map<std::string, Value> values;
 };
 
@@ -396,6 +405,30 @@ Result<T> Object::find(const std::string& path) const
   }
 
   return value.as<Object>().find<T>(names[1]);
+}
+
+
+template <typename T>
+Result<T> Object::at(const std::string& key) const
+{
+  if (key.empty()) {
+    return None();
+  }
+
+  std::map<std::string, Value>::const_iterator entry = values.find(key);
+
+  if (entry == values.end()) {
+    return None();
+  }
+
+  Value value = entry->second;
+
+  if (!value.is<T>()) {
+    // TODO(benh): Use a visitor to print out the type found.
+    return Error("Found JSON value of wrong type");
+  }
+
+  return value.as<T>();
 }
 
 
