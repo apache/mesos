@@ -580,24 +580,28 @@ Future<Response> Master::Http::createVolumes(
 
   const hashmap<string, string>& values = decode.get();
 
-  if (values.get("slaveId").isNone()) {
+  Option<string> value;
+
+  value = values.get("slaveId");
+  if (value.isNone()) {
     return BadRequest("Missing 'slaveId' query parameter");
   }
 
   SlaveID slaveId;
-  slaveId.set_value(values.get("slaveId").get());
+  slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
     return BadRequest("No slave found with specified ID");
   }
 
-  if (values.get("volumes").isNone()) {
+  value = values.get("volumes");
+  if (value.isNone()) {
     return BadRequest("Missing 'volumes' query parameter");
   }
 
   Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(values.get("volumes").get());
+    JSON::parse<JSON::Array>(value.get());
 
   if (parse.isError()) {
     return BadRequest(
@@ -675,24 +679,28 @@ Future<Response> Master::Http::destroyVolumes(
 
   const hashmap<string, string>& values = decode.get();
 
-  if (values.get("slaveId").isNone()) {
+  Option<string> value;
+
+  value = values.get("slaveId");
+  if (value.isNone()) {
     return BadRequest("Missing 'slaveId' query parameter");
   }
 
   SlaveID slaveId;
-  slaveId.set_value(values.get("slaveId").get());
+  slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
     return BadRequest("No slave found with specified ID");
   }
 
-  if (values.get("volumes").isNone()) {
+  value = values.get("volumes");
+  if (value.isNone()) {
     return BadRequest("Missing 'volumes' query parameter");
   }
 
   Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(values.get("volumes").get());
+    JSON::parse<JSON::Array>(value.get());
 
   if (parse.isError()) {
     return BadRequest(
@@ -1007,24 +1015,28 @@ Future<Response> Master::Http::reserve(
 
   const hashmap<string, string>& values = decode.get();
 
-  if (values.get("slaveId").isNone()) {
+  Option<string> value;
+
+  value = values.get("slaveId");
+  if (value.isNone()) {
     return BadRequest("Missing 'slaveId' query parameter");
   }
 
   SlaveID slaveId;
-  slaveId.set_value(values.get("slaveId").get());
+  slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
     return BadRequest("No slave found with specified ID");
   }
 
-  if (values.get("resources").isNone()) {
+  value = values.get("resources");
+  if (value.isNone()) {
     return BadRequest("Missing 'resources' query parameter");
   }
 
   Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(values.get("resources").get());
+    JSON::parse<JSON::Array>(value.get());
 
   if (parse.isError()) {
     return BadRequest(
@@ -1819,14 +1831,15 @@ Future<Response> Master::Http::teardown(
     return BadRequest("Unable to decode query string: " + decode.error());
   }
 
-  hashmap<string, string> values = decode.get();
+  const hashmap<string, string>& values = decode.get();
 
-  if (values.get("frameworkId").isNone()) {
+  Option<string> value = values.get("frameworkId");
+  if (value.isNone()) {
     return BadRequest("Missing 'frameworkId' query parameter");
   }
 
   FrameworkID id;
-  id.set_value(values.get("frameworkId").get());
+  id.set_value(value.get());
 
   Framework* framework = master->getFramework(id);
 
@@ -2463,24 +2476,28 @@ Future<Response> Master::Http::unreserve(
 
   const hashmap<string, string>& values = decode.get();
 
-  if (values.get("slaveId").isNone()) {
+  Option<string> value;
+
+  value = values.get("slaveId");
+  if (value.isNone()) {
     return BadRequest("Missing 'slaveId' query parameter");
   }
 
   SlaveID slaveId;
-  slaveId.set_value(values.get("slaveId").get());
+  slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
     return BadRequest("No slave found with specified ID");
   }
 
-  if (values.get("resources").isNone()) {
+  value = values.get("resources");
+  if (value.isNone()) {
     return BadRequest("Missing 'resources' query parameter");
   }
 
   Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(values.get("resources").get());
+    JSON::parse<JSON::Array>(value.get());
 
   if (parse.isError()) {
     return BadRequest(
