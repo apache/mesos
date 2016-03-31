@@ -15,10 +15,12 @@
 // limitations under the License.
 
 #include <stout/path.hpp>
+#include <stout/fs.hpp>
 
 #include "slave/containerizer/mesos/isolators/network/cni/paths.hpp"
 
 using std::string;
+using std::list;
 
 namespace mesos {
 namespace internal {
@@ -47,6 +49,32 @@ string getNetworkDir(
 }
 
 
+Try<list<string>> getNetworkNames(
+    const string& rootDir,
+    const string& containerId)
+{
+  const string& networkInfoDir = getNetworkInfoDir(rootDir, containerId);
+
+  Try<list<string>> entries = os::ls(networkInfoDir);
+  if (entries.isError()) {
+    return Error(
+        "Unable to list the CNI network information directory '" +
+        networkInfoDir + "': " + entries.error());
+  }
+
+  list<string> networkNames;
+  foreach (const string& entry, entries.get()) {
+    const string path = path::join(networkInfoDir, entry);
+
+    if (os::stat::isdir(path)) {
+      networkNames.push_back(entry);
+    }
+  }
+
+  return networkNames;
+}
+
+
 string getInterfaceDir(
     const string& rootDir,
     const string& containerId,
@@ -54,6 +82,33 @@ string getInterfaceDir(
     const string& ifName)
 {
   return path::join(getNetworkDir(rootDir, containerId, networkName), ifName);
+}
+
+
+Try<list<string>> getInterfaces(
+    const string& rootDir,
+    const string& containerId,
+    const string& networkName)
+{
+  const string& networkDir = getNetworkDir(rootDir, containerId, networkName);
+
+  Try<list<string>> entries = os::ls(networkDir);
+  if (entries.isError()) {
+    return Error(
+        "Unable to list the CNI network directory '" + networkDir + "': " +
+        entries.error());
+  }
+
+  list<string> ifNames;
+  foreach (const string& entry, entries.get()) {
+    const string path = path::join(networkDir, entry);
+
+    if (os::stat::isdir(path)) {
+      ifNames.push_back(entry);
+    }
+  }
+
+  return ifNames;
 }
 
 

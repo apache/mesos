@@ -28,7 +28,10 @@ namespace slave {
 namespace cni {
 namespace spec {
 
-Try<NetworkConfig> parse(const std::string& s);
+Try<NetworkConfig> parseNetworkConfig(const std::string& s);
+
+
+Try<NetworkInfo> parseNetworkInfo(const std::string& s);
 
 } // namespace spec {
 } // namespace cni {

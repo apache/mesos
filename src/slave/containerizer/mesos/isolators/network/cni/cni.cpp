@@ -134,7 +134,7 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
           path + "': " + read.error());
     }
 
-    Try<spec::NetworkConfig> parse = spec::parse(read.get());
+    Try<spec::NetworkConfig> parse = spec::parseNetworkConfig(read.get());
     if (parse.isError()) {
       return Error(
           "Failed to parse CNI network configuration file '" +
@@ -218,47 +218,6 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
         (rootDir.isError() ? rootDir.error() : "No such file or directory"));
   }
 
-  // Self bind mount the CNI network information root directory.
-  Try<Nothing> mount = fs::mount(
-      rootDir.get(),
-      rootDir.get(),
-      None(),
-      MS_BIND,
-      NULL);
-
-  if (mount.isError()) {
-    return Error(
-        "Failed to self bind mount '" + rootDir.get() +
-        "': " + mount.error());
-  }
-
-  // Mark the mount as shared + slave.
-  mount = fs::mount(
-      None(),
-      rootDir.get(),
-      None(),
-      MS_SLAVE,
-      NULL);
-
-  if (mount.isError()) {
-    return Error(
-        "Failed to mark mount '" + rootDir.get() +
-        "' as a slave mount: " + mount.error());
-  }
-
-  mount = fs::mount(
-      None(),
-      rootDir.get(),
-      None(),
-      MS_SHARED,
-      NULL);
-
-  if (mount.isError()) {
-    return Error(
-        "Failed to mark mount '" + rootDir.get() +
-        "' as a shared mount: " + mount.error());
-  }
-
   Result<string> pluginDir = os::realpath(flags.network_cni_plugins_dir.get());
   if (!pluginDir.isSome()) {
     return Error(
@@ -281,6 +240,153 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  foreach (const ContainerState& state, states) {
+    const ContainerID& containerId = state.container_id();
+
+    Try<Nothing> recover = _recover(containerId);
+    if (recover.isError()) {
+      infos.clear();
+      return Failure(
+          "Failed to recover CNI network information for container "
+          + stringify(containerId) + ": " + recover.error());
+    }
+  }
+
+  Try<list<string>> entries = os::ls(rootDir.get());
+  if (entries.isError()) {
+    infos.clear();
+    return Failure(
+        "Unable to list CNI network information root directory '" +
+        rootDir.get() + "': " + entries.error());
+  }
+
+  foreach (const string& entry, entries.get()) {
+    ContainerID containerId;
+    containerId.set_value(Path(entry).basename());
+
+    if (infos.contains(containerId)) {
+      continue;
+    }
+
+    // Recover CNI network information for orphan container.
+    Try<Nothing> recover = _recover(containerId);
+    if (recover.isError()) {
+      infos.clear();
+      return Failure(
+          "Failed to recover CNI network information for orphan container "
+          + stringify(containerId) + ": " + recover.error());
+    }
+
+    // Known orphan containers will be cleaned up by containerizer
+    // using the normal cleanup path. See MESOS-2367 for details.
+    if (orphans.contains(containerId)) {
+      continue;
+    }
+
+    LOG(INFO) << "Removing unknown orphaned container " << containerId;
+
+    cleanup(containerId);
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> NetworkCniIsolatorProcess::_recover(
+    const ContainerID& containerId)
+{
+  const string networkInfoDir =
+      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+
+  if (!os::exists(networkInfoDir)) {
+    // This may occur in two cases:
+    //   1. Executor has exited and the isolator has removed the CNI network
+    //      information directory in '_cleanup()' but agent dies before
+    //      noticing this.
+    //   2. Agent dies before the isolator creates the CNI network information
+    //      directory in 'isolate()'.
+    // For these two cases, we do not need to do anything since there is nothing
+    // to clean up after agent restarts.
+    return Nothing();
+  }
+
+  Try<list<string>> networkNames =
+      paths::getNetworkNames(rootDir.get(), containerId.value());
+
+  if (networkNames.isError()) {
+    return Error(
+        "Failed to find CNI network directories for container " +
+        stringify(containerId) + ": " + networkNames.error());
+  }
+
+  hashmap<string, NetworkInfo> networkInfos;
+  foreach (const string& networkName, networkNames.get()) {
+    if (!networkConfigs.contains(networkName)) {
+      return Error("Unknown CNI network '" + networkName + "'");
+    }
+
+    Try<list<string>> interfaces = paths::getInterfaces(
+        rootDir.get(),
+        containerId.value(),
+        networkName);
+
+    if (interfaces.isError()) {
+      return Error(
+          "Failed to find interface directory for container " +
+          stringify(containerId));
+    }
+
+    // Currently we only support one interface in one CNI network for
+    // a container.
+    if (interfaces.get().size() != 1) {
+      return Error(
+          "Unable to find interface directory for container " +
+          stringify(containerId));
+    }
+
+    NetworkInfo networkInfo;
+    networkInfo.networkName = networkName;
+    networkInfo.ifName = interfaces->front();
+
+    const string networkInfoPath = paths::getNetworkInfoPath(
+        rootDir.get(),
+        containerId.value(),
+        networkInfo.networkName,
+        networkInfo.ifName);
+
+    if (!os::exists(networkInfoPath)) {
+      // This may occur in the case that agent dies before the isolator
+      // checkpoints the output of CNI plugin in '_attach()'.
+      LOG(WARNING)
+          << "The checkpointed CNI plugin output '" << networkInfoPath
+          << "' for container " << containerId << " does not exist";
+      networkInfos.put(networkName, networkInfo);
+      continue;
+    }
+
+    Try<string> read = os::read(networkInfoPath);
+    if (read.isError()) {
+      return Error(
+          "Failed to read CNI network information file '" +
+          networkInfoPath + "': " + read.error());
+    }
+
+    Try<spec::NetworkInfo> parse = spec::parseNetworkInfo(read.get());
+    if (parse.isError()) {
+      return Error(
+          "Failed to parse CNI network information file '" +
+          networkInfoPath + "': " + parse.error());
+    }
+
+    networkInfo.network = parse.get();
+
+    networkInfos.put(networkName, networkInfo);
+  }
+
+  if (!networkInfos.empty()) {
+    infos.put(containerId, Owned<Info>(new Info(networkInfos)));
+  }
+
   return Nothing();
 }
 
@@ -533,20 +639,11 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   }
 
   // Parse the output of CNI plugin.
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(output.get());
-  if (json.isError()) {
-    return Failure(
-        "Failed to parse the output of CNI plugin '" + plugin +
-        "' as JSON format: " + json.error());
-  }
-
-  Try<spec::NetworkInfo> parse =
-      ::protobuf::parse<spec::NetworkInfo>(json.get());
-
+  Try<spec::NetworkInfo> parse = spec::parseNetworkInfo(output.get());
   if (parse.isError()) {
     return Failure(
-        "Failed to parse the output of CNI plugin '" + plugin +
-        "' as protobuf: " + parse.error());
+        "Failed to parse the output of the CNI plugin '" +
+        plugin + "': " + parse.error());
   }
 
   if (parse.get().has_ip4()) {
@@ -617,13 +714,48 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  if (!infos.contains(containerId)) {
+  const string networkInfoDir =
+      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+
+  Option<list<string>> networkNames = None();
+  if (os::exists(networkInfoDir)) {
+    Try<list<string>> result =
+        paths::getNetworkNames(rootDir.get(), containerId.value());
+
+    if (result.isError()) {
+      return Failure(
+          "Failed to find CNI network directories for container " +
+          stringify(containerId) + ": " + result.error());
+    }
+
+    networkNames = result.get();
+    if (networkNames->empty()) {
+      // This is to handle two recovery cases:
+      //   1. Agent dies right before the isolator calls 'attach()' to attach
+      //      the container to CNI networks.
+      //   2. Agent dies right before the isolator removes the CNI network
+      //      information directory in '_cleanup()'.
+      // For these two cases, we just need to remove the CNI network
+      // information directory here and there is nothing else to clean up.
+      return _cleanup(containerId);
+    }
+  } else {
+    // This is to handle the following two cases:
+    //   1. The isolator fails to create the CNI network information directory
+    //      for the container in 'isolate()'.
+    //   2. The container does not want to opt in CNI network.
+    // For 1, we need to remove the container's info struct, and for 2, we do
+    // not need to do anything.
+    if (infos.contains(containerId)) {
+      infos.erase(containerId);
+    }
+
     return Nothing();
   }
 
   // Invoke CNI plugin to detach container from CNI networks.
   list<Future<Nothing>> futures;
-  foreachkey (const string& networkName, infos[containerId]->networkInfos) {
+  foreach (const string& networkName, networkNames.get()) {
     futures.push_back(detach(containerId, networkName));
   }
 
@@ -754,19 +886,19 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
 
 Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
     const ContainerID& containerId,
-    const list<Future<Nothing>>& invocations)
+    const Option<std::list<Future<Nothing>>>& invocations)
 {
-  CHECK(infos.contains(containerId));
-
-  vector<string> messages;
-  for (const Future<Nothing>& invocation : invocations) {
-    if (invocation.isFailed()) {
-      messages.push_back(invocation.failure());
+  if (invocations.isSome()) {
+    vector<string> messages;
+    for (const Future<Nothing>& invocation : invocations.get()) {
+      if (invocation.isFailed()) {
+        messages.push_back(invocation.failure());
+      }
     }
-  }
 
-  if (!messages.empty()) {
-    return Failure(strings::join("\n", messages));
+    if (!messages.empty()) {
+      return Failure(strings::join("\n", messages));
+    }
   }
 
   const string networkInfoDir =
@@ -774,11 +906,13 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
   const string target =
       paths::getNamespacePath(rootDir.get(), containerId.value());
 
-  Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
-  if (unmount.isError()) {
-    return Failure(
-        "Failed to unmount the network namespace handle '"  + target + "': " +
-        unmount.error());
+  if (os::exists(target)) {
+    Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
+    if (unmount.isError()) {
+      return Failure(
+          "Failed to unmount the network namespace handle '"  + target + "': " +
+          unmount.error());
+    }
   }
 
   Try<Nothing> rmdir = os::rmdir(networkInfoDir);
@@ -788,10 +922,13 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
         networkInfoDir + "': " + rmdir.error());
   }
 
-  infos.erase(containerId);
+  if (infos.contains(containerId)) {
+    infos.erase(containerId);
+  }
 
   return Nothing();
 }
+
 
 } // namespace slave {
 } // namespace internal {

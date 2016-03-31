@@ -18,6 +18,7 @@
 #define __ISOLATOR_CNI_PATHS_HPP__
 
 using std::string;
+using std::list;
 
 namespace mesos {
 namespace internal {
@@ -53,11 +54,22 @@ string getNetworkDir(
     const string& networkName);
 
 
+Try<list<string>> getNetworkNames(
+    const string& rootDir,
+    const string& containerId);
+
+
 string getInterfaceDir(
     const string& rootDir,
     const string& containerId,
     const string& networkName,
     const string& ifName);
+
+
+Try<list<string>> getInterfaces(
+    const string& rootDir,
+    const string& containerId,
+    const string& networkName);
 
 
 string getNetworkInfoPath(

@@ -138,7 +138,9 @@ private:
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
-      const std::list<process::Future<Nothing>>& invocations);
+      const Option<std::list<process::Future<Nothing>>>& invocations = None());
+
+  Try<Nothing> _recover(const ContainerID& containerId);
 
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;
