@@ -2,14 +2,20 @@ Release Notes - Mesos - Version 0.25.1
 --------------------------------------------
 
 ** Bug
+  * [MESOS-1187] - precision errors with allocation calculations.
   * [MESOS-3307] - Configurable size of completed task / framework history.
+  * [MESOS-3397] - sorter.cpp: Check failed: total.resources.contains(slaveId).
   * [MESOS-3411] - ReservationEndpointsTest.AvailableResources appears to be faulty.
+  * [MESOS-3560] - JSON-based credential files do not work correctly.
   * [MESOS-3602] - hdfs du fails due to prepended / on path.
   * [MESOS-3605] - hdfs.du() fails on os x due to lack of native-hadoop library.
+  * [MESOS-3719] - Core dump on /teardown.
+  * [MESOS-3738] - Mesos health check is invoked incorrectly when Mesos slave is within the docker container.
   * [MESOS-3773] - RegistryClientTest.SimpleGetBlob is flaky.
   * [MESOS-3834] - slave upgrade framework checkpoint incompatibility.
   * [MESOS-4031] - slave crashed in cgroupstatistics().
   * [MESOS-4069] - libevent_ssl_socket assertion fails.
+  * [MESOS-4071] - Master crash during framework teardown ( Check failed: total.resources.contains(slaveId)).
   * [MESOS-4106] - The health checker may fail to inform the executor to kill an unhealthy task after max_consecutive_failures.
   * [MESOS-4283] - Accept 3-field version of HDFS du output.
   * [MESOS-4311] - Protobuf parse should pass error messages when parsing nested JSON.
@@ -20,6 +26,8 @@ Release Notes - Mesos - Version 0.25.1
   * [MESOS-4639] - Posix process executor can die with agent unit on systemd.
   * [MESOS-4711] - Race condition in libevent poll implementation causes crash.
   * [MESOS-4754] - The "executors" field is exposed under a backwards incompatible schema.
+  * [MESOS-4979] - os::rmdir does not handle special files (e.g., device, socket).
+  * [MESOS-5021] - Memory leak in subprocess when 'environment' argument is provided.
 
 ** Improvement
   * [MESOS-920]  - Set GLOG_drop_log_memory=false in environment prior to logging initialization.
