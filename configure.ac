@@ -1580,7 +1580,7 @@ correct if youre already doing this.
   fi
 else
   with_bundled_protobuf=yes
-  PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar"
+  PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.6.1.jar"
 fi
 
 

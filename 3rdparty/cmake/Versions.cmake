@@ -9,6 +9,6 @@ set(LIBEV_VERSION       "4.15")
 # TODO(hausdorff): (MESOS-3529) transition this back to a non-beta version.
 set(LIBEVENT_VERSION    "2.1.5-beta")
 set(PICOJSON_VERSION    "1.3.0")
-set(PROTOBUF_VERSION    "2.5.0")
+set(PROTOBUF_VERSION    "2.6.1")
 set(ZOOKEEPER_VERSION   "3.4.5")
 set(ZLIB_VERSION        "1.2.8")
