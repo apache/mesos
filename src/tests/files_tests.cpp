@@ -388,10 +388,6 @@ TEST_F(FilesTest, AuthenticationTest)
 
   process::UPID upid("files", process::address());
 
-  Credential badCredential;
-  badCredential.set_principal("bad-principal");
-  badCredential.set_secret("bad-secret");
-
   const string expectedAuthorizationHeader =
     "Basic realm=\"" + AUTHENTICATION_REALM + "\"";
 
