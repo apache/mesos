@@ -47,7 +47,7 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
 #ifdef __linux__
   creators.put("bind", &BindBackend::create);
 
-  Try<bool> overlayfsSupported = fs::supported("overlayfs");
+  Try<bool> overlayfsSupported = fs::overlay::supported();
   if (overlayfsSupported.isError()) {
     LOG(WARNING) << "Failed to check overlayfs availability: '"
                  << overlayfsSupported.error();
