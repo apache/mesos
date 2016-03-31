@@ -169,8 +169,18 @@ Future<vector<string>> LocalPullerProcess::_pull(
     return Failure("Failed to parse 'repositories': " + repositories.error());
   }
 
+  // We are looking for the topmost layer, so we know that is it OK to
+  // use at() rather than find() on the JSON object.
   Result<JSON::Object> repository =
-    repositories->find<JSON::Object>(reference.repository());
+    repositories->at<JSON::Object>(reference.repository());
+
+  // If we didn't find the bare repository name, try
+  // with the registry-qualified name. This would look like
+  // "registry.example.com/image".
+  if (repository.isNone() && reference.has_registry()) {
+    repository = repositories->at<JSON::Object>(
+        path::join(reference.registry(), reference.repository()));
+  }
 
   if (repository.isError()) {
     return Failure(
@@ -187,22 +197,20 @@ Future<vector<string>> LocalPullerProcess::_pull(
     : "latest";
 
   // NOTE: We don't use JSON find here since a tag might contain '.'.
-  if (repository->values.count(tag) == 0) {
-    return Failure("Tag '" + tag + "' is not found");
-  }
+  Result<JSON::String> layerId = repository->at<JSON::String>(tag);
 
-  JSON::Value _layerId = repository->values.at(tag);
-  if (!_layerId.is<JSON::String>()) {
-    return Failure("Layer id is not a string");
+  if (layerId.isError()) {
+    return Failure(
+        "Failed to access layer id '" + tag + "': " + layerId.error());
+  } else if (layerId.isNone()) {
+    return Failure("Layer id '" + tag + "' is not found");
   }
-
-  string layerId = _layerId.as<JSON::String>().value;
 
   // Do a traverse to find all parent image layer ids. Here, we assume
   // that all the parent layers are part of the archive tar, thus are
   // already extracted under 'directory'.
-  vector<string> layerIds = { layerId };
-  Result<string> parentLayerId = getParentLayerId(directory, layerId);
+  vector<string> layerIds = { layerId->value };
+  Result<string> parentLayerId = getParentLayerId(directory, layerId->value);
   while (parentLayerId.isSome()) {
     // NOTE: We put parent layer ids in front because that's what the
     // provisioner backends assume.
@@ -212,7 +220,7 @@ Future<vector<string>> LocalPullerProcess::_pull(
 
   if (parentLayerId.isError()) {
     return Failure(
-        "Failed to find parent layer id for layer '" + layerId +
+        "Failed to find parent layer id for layer '" + layerId->value +
         "': " + parentLayerId.error());
   }
 
