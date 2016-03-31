@@ -124,6 +124,22 @@ private:
           process::Future<Option<int>>,
           process::Future<std::string>>& t);
 
+  process::Future<Nothing> detach(
+      const ContainerID& containerId,
+      const std::string& networkName);
+
+  process::Future<Nothing> _detach(
+      const ContainerID& containerId,
+      const std::string& networkName,
+      const std::string& plugin,
+      const std::tuple<
+          process::Future<Option<int>>,
+          process::Future<std::string>>& t);
+
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const std::list<process::Future<Nothing>>& invocations);
+
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;
 

@@ -391,14 +391,14 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   LOG(INFO) << "Bind mounted '" << source << "' to '" << target
             << "' for container " << containerId;
 
-  // Invoke CNI plugin to connect container into CNI network.
+  // Invoke CNI plugin to attach container to CNI networks.
   list<Future<Nothing>> futures;
-  foreachkey(const string& networkName, infos[containerId]->networkInfos) {
+  foreachkey (const string& networkName, infos[containerId]->networkInfos) {
     futures.push_back(attach(containerId, networkName, target));
   }
 
-  // NOTE: Here, we wait for all 'attach' to finish before returning
-  // to make sure DEL on plugin is not called (via cleanup) if some
+  // NOTE: Here, we wait for all 'attach()' to finish before returning
+  // to make sure DEL on plugin is not called (via 'cleanup()') if some
   // ADD on plugin is still pending.
   return await(futures)
     .then([](const list<Future<Nothing>>& invocations) -> Future<Nothing> {
@@ -424,6 +424,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
     const std::string& netNsHandle)
 {
   CHECK(infos.contains(containerId));
+  CHECK(infos[containerId]->networkInfos.contains(networkName));
 
   const NetworkInfo& networkInfo =
       infos[containerId]->networkInfos[networkName];
@@ -446,9 +447,9 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   map<string, string> environment;
   environment["CNI_COMMAND"] = "ADD";
   environment["CNI_CONTAINERID"] = containerId.value();
-  environment["CNI_NETNS"] = netNsHandle;
   environment["CNI_PATH"] = pluginDir.get();
   environment["CNI_IFNAME"] = networkInfo.ifName;
+  environment["CNI_NETNS"] = netNsHandle;
 
   // Some CNI plugins need to run "iptables" to set up IP Masquerade,
   // so we need to set the "PATH" environment variable so that the
@@ -499,6 +500,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
     const tuple<Future<Option<int>>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
+  CHECK(infos[containerId]->networkInfos.contains(networkName));
 
   Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
@@ -525,8 +527,9 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 
   if (status.get() != 0) {
     return Failure(
-        "Failed to execute the CNI plugin '" +
-        plugin + "': " + output.get());
+        "The CNI plugin '" + plugin + "' failed to attach container " +
+        containerId.value() + " to CNI network '" + networkName +
+        "': " + output.get());
   }
 
   // Parse the output of CNI plugin.
@@ -559,13 +562,9 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   }
 
   // Checkpoint the output of CNI plugin.
-  //
   // The destruction of the container cannot happen in the middle of
   // 'attach()' and '_attach()' because the containerizer will wait
   // for 'isolate()' to finish before destroying the container.
-  CHECK(infos.contains(containerId));
-  CHECK(infos[containerId]->networkInfos.contains(networkName));
-
   NetworkInfo& networkInfo = infos[containerId]->networkInfos[networkName];
 
   const string networkInfoPath = paths::getNetworkInfoPath(
@@ -618,6 +617,179 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  if (!infos.contains(containerId)) {
+    return Nothing();
+  }
+
+  // Invoke CNI plugin to detach container from CNI networks.
+  list<Future<Nothing>> futures;
+  foreachkey (const string& networkName, infos[containerId]->networkInfos) {
+    futures.push_back(detach(containerId, networkName));
+  }
+
+  return await(futures)
+    .then(defer(
+        PID<NetworkCniIsolatorProcess>(this),
+        &NetworkCniIsolatorProcess::_cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> NetworkCniIsolatorProcess::detach(
+    const ContainerID& containerId,
+    const std::string& networkName)
+{
+  CHECK(infos.contains(containerId));
+  CHECK(infos[containerId]->networkInfos.contains(networkName));
+
+  const NetworkInfo& networkInfo =
+      infos[containerId]->networkInfos[networkName];
+
+  // Prepare environment variables for CNI plugin.
+  map<string, string> environment;
+  environment["CNI_COMMAND"] = "DEL";
+  environment["CNI_CONTAINERID"] = containerId.value();
+  environment["CNI_PATH"] = pluginDir.get();
+  environment["CNI_IFNAME"] = networkInfo.ifName;
+  environment["CNI_NETNS"] =
+      paths::getNamespacePath(rootDir.get(), containerId.value());
+
+  // Some CNI plugins need to run "iptables" to set up IP Masquerade, so we
+  // need to set the "PATH" environment variable so that the plugin can locate
+  // the "iptables" executable file.
+  Option<string> value = os::getenv("PATH");
+  if (value.isSome()) {
+    environment["PATH"] = value.get();
+  } else {
+    environment["PATH"] =
+        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+  }
+
+  const NetworkConfigInfo& networkConfig = networkConfigs[networkName];
+
+  // Invoke the CNI plugin.
+  const string& plugin = networkConfig.config.type();
+  Try<Subprocess> s = subprocess(
+      path::join(pluginDir.get(), plugin),
+      {plugin},
+      Subprocess::PATH(networkConfig.path),
+      Subprocess::PIPE(),
+      Subprocess::PATH("/dev/null"),
+      NO_SETSID,
+      None(),
+      environment);
+
+  if (s.isError()) {
+    return Failure(
+        "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
+  }
+
+  return await(s->status(), io::read(s->out().get()))
+    .then(defer(
+        PID<NetworkCniIsolatorProcess>(this),
+        &NetworkCniIsolatorProcess::_detach,
+        containerId,
+        networkName,
+        plugin,
+        lambda::_1));
+}
+
+
+Future<Nothing> NetworkCniIsolatorProcess::_detach(
+    const ContainerID& containerId,
+    const std::string& networkName,
+    const string& plugin,
+    const tuple<Future<Option<int>>, Future<string>>& t)
+{
+  CHECK(infos.contains(containerId));
+  CHECK(infos[containerId]->networkInfos.contains(networkName));
+
+  Future<Option<int>> status = std::get<0>(t);
+  if (!status.isReady()) {
+    return Failure(
+        "Failed to get the exit status of the CNI plugin '" +
+        plugin + "' subprocess: " +
+        (status.isFailed() ? status.failure() : "discarded"));
+  }
+
+  if (status->isNone()) {
+    return Failure(
+        "Failed to reap the CNI plugin '" + plugin + "' subprocess");
+  }
+
+  if (status.get() == 0) {
+    const string ifDir = paths::getInterfaceDir(
+        rootDir.get(),
+        containerId.value(),
+        networkName,
+        infos[containerId]->networkInfos[networkName].ifName);
+
+    Try<Nothing> rmdir = os::rmdir(ifDir);
+    if (rmdir.isError()) {
+      return Failure(
+          "Failed to remove interface directory '"
+          + ifDir + "': "+ rmdir.error());
+    }
+
+    return Nothing();
+  }
+
+  // CNI plugin will print result (in case of success) or error (in
+  // case of failure) to stdout.
+  Future<string> output = std::get<1>(t);
+  if (!output.isReady()) {
+    return Failure(
+        "Failed to read stdout from the CNI plugin '" +
+        plugin + "' subprocess: " +
+        (output.isFailed() ? output.failure() : "discarded"));
+  }
+
+  return Failure(
+      "The CNI plugin '" + plugin + "' failed to detach container " +
+      containerId.value() + " from CNI network '" + networkName +
+      "': " + output.get());
+}
+
+
+Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const list<Future<Nothing>>& invocations)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<string> messages;
+  for (const Future<Nothing>& invocation : invocations) {
+    if (invocation.isFailed()) {
+      messages.push_back(invocation.failure());
+    }
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  const string networkInfoDir =
+      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+  const string target =
+      paths::getNamespacePath(rootDir.get(), containerId.value());
+
+  Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
+  if (unmount.isError()) {
+    return Failure(
+        "Failed to unmount the network namespace handle '"  + target + "': " +
+        unmount.error());
+  }
+
+  Try<Nothing> rmdir = os::rmdir(networkInfoDir);
+  if (rmdir.isError()) {
+    return Failure(
+        "Failed to remove CNI network information directory '" +
+        networkInfoDir + "': " + rmdir.error());
+  }
+
+  infos.erase(containerId);
+
   return Nothing();
 }
 
