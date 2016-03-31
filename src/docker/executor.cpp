@@ -383,6 +383,7 @@ private:
         // "docker exec" require docker version greater than 1.3.0.
         Try<Nothing> validateVersion =
           docker->validateVersion(Version(1, 3, 0));
+
         if (validateVersion.isError()) {
           cerr << "Unable to launch health process: "
                << validateVersion.error() << endl;
@@ -397,7 +398,7 @@ private:
         if (command.shell()) {
           if (!command.has_value()) {
             cerr << "Unable to launch health process: "
-                 << "Shell command is not specified." << endl;
+                 << "Shell command is not specified" << endl;
             return;
           }
 
@@ -409,11 +410,12 @@ private:
         } else {
           if (!command.has_value()) {
             cerr << "Unable to launch health process: "
-                 << "Executable path is not specified." << endl;
+                 << "Executable path is not specified" << endl;
             return;
           }
 
           argv.push_back(command.value());
+
           foreach (const string& argument, command.arguments()) {
             argv.push_back(argument);
           }
@@ -425,22 +427,24 @@ private:
         healthCheck.mutable_command()->CopyFrom(command);
       } else {
         cerr << "Unable to launch health process: "
-             << "Only command health check is supported now." << endl;
+             << "Only command health check is supported now" << endl;
         return;
       }
 
       JSON::Object json = JSON::protobuf(healthCheck);
 
+      const string path = path::join(healthCheckDir, "mesos-health-check");
+
       // Launch the subprocess using 'exec' style so that quotes can
       // be properly handled.
       vector<string> argv;
-      string path = path::join(healthCheckDir, "mesos-health-check");
       argv.push_back(path);
       argv.push_back("--executor=" + stringify(self()));
       argv.push_back("--health_check_json=" + stringify(json));
       argv.push_back("--task_id=" + task.task_id().value());
 
-      string cmd = strings::join(" ", argv);
+      const string cmd = strings::join(" ", argv);
+
       cout << "Launching health check process: " << cmd << endl;
 
       Try<Subprocess> healthProcess =
