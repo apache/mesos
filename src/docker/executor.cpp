@@ -373,100 +373,96 @@ private:
 
   void launchHealthCheck(const string& containerName, const TaskInfo& task)
   {
-    if (!killed && task.has_health_check()) {
-      HealthCheck healthCheck = task.health_check();
+    // Bail out early if we have been already killed or if the task has no
+    // associated health checks.
+    if (killed || !task.has_health_check()) {
+      return;
+    }
 
-      // Wrap the original health check command in "docker exec".
-      if (healthCheck.has_command()) {
-        CommandInfo command = healthCheck.command();
+    HealthCheck healthCheck = task.health_check();
+    if (!healthCheck.has_command()) {
+      cerr << "Unable to launch health process: "
+           << "Only command health check is supported now" << endl;
+      return;
+    }
 
-        // "docker exec" require docker version greater than 1.3.0.
-        Try<Nothing> validateVersion =
-          docker->validateVersion(Version(1, 3, 0));
+    // "docker exec" require docker version greater than 1.3.0.
+    Try<Nothing> validateVersion =
+      docker->validateVersion(Version(1, 3, 0));
 
-        if (validateVersion.isError()) {
-          cerr << "Unable to launch health process: "
-               << validateVersion.error() << endl;
-          return;
-        }
+    if (validateVersion.isError()) {
+      cerr << "Unable to launch health process: "
+           << validateVersion.error() << endl;
+      return;
+    }
 
-        vector<string> argv;
-        argv.push_back(docker->getPath());
-        argv.push_back("exec");
-        argv.push_back(containerName);
+    // Wrap the original health check command in "docker exec".
+    const CommandInfo& command = healthCheck.command();
+    if (!command.has_value()) {
+      cerr << "Unable to launch health process: "
+           << (command.shell() ? "Shell command" : "Executable path")
+           << " is not specified" << endl;
+      return;
+    }
 
-        if (command.shell()) {
-          if (!command.has_value()) {
-            cerr << "Unable to launch health process: "
-                 << "Shell command is not specified" << endl;
-            return;
-          }
+    vector<string> argv;
+    argv.push_back(docker->getPath());
+    argv.push_back("exec");
+    argv.push_back(containerName);
 
-          argv.push_back("sh");
-          argv.push_back("-c");
-          argv.push_back("\"");
-          argv.push_back(command.value());
-          argv.push_back("\"");
-        } else {
-          if (!command.has_value()) {
-            cerr << "Unable to launch health process: "
-                 << "Executable path is not specified" << endl;
-            return;
-          }
+    if (command.shell()) {
+      argv.push_back("sh");
+      argv.push_back("-c");
+      argv.push_back("\"");
+      argv.push_back(command.value());
+      argv.push_back("\"");
+    } else {
+      argv.push_back(command.value());
 
-          argv.push_back(command.value());
-
-          foreach (const string& argument, command.arguments()) {
-            argv.push_back(argument);
-          }
-        }
-
-        command.set_shell(true);
-        command.clear_arguments();
-        command.set_value(strings::join(" ", argv));
-        healthCheck.mutable_command()->CopyFrom(command);
-      } else {
-        cerr << "Unable to launch health process: "
-             << "Only command health check is supported now" << endl;
-        return;
-      }
-
-      JSON::Object json = JSON::protobuf(healthCheck);
-
-      const string path = path::join(healthCheckDir, "mesos-health-check");
-
-      // Launch the subprocess using 'exec' style so that quotes can
-      // be properly handled.
-      vector<string> argv;
-      argv.push_back(path);
-      argv.push_back("--executor=" + stringify(self()));
-      argv.push_back("--health_check_json=" + stringify(json));
-      argv.push_back("--task_id=" + task.task_id().value());
-
-      const string cmd = strings::join(" ", argv);
-
-      cout << "Launching health check process: " << cmd << endl;
-
-      Try<Subprocess> healthProcess =
-        process::subprocess(
-          path,
-          argv,
-          // Intentionally not sending STDIN to avoid health check
-          // commands that expect STDIN input to block.
-          Subprocess::PATH("/dev/null"),
-          Subprocess::FD(STDOUT_FILENO),
-          Subprocess::FD(STDERR_FILENO));
-
-      if (healthProcess.isError()) {
-        cerr << "Unable to launch health process: "
-             << healthProcess.error() << endl;
-      } else {
-        healthPid = healthProcess.get().pid();
-
-        cout << "Health check process launched at pid: "
-             << stringify(healthPid) << endl;
+      foreach (const string& argument, command.arguments()) {
+        argv.push_back(argument);
       }
     }
+
+    healthCheck.mutable_command()->set_shell(true);
+    healthCheck.mutable_command()->clear_arguments();
+    healthCheck.mutable_command()->set_value(strings::join(" ", argv));
+
+    JSON::Object json = JSON::protobuf(healthCheck);
+
+    const string path = path::join(healthCheckDir, "mesos-health-check");
+
+    // Launch the subprocess using 'exec' style so that quotes can
+    // be properly handled.
+    argv.push_back(path);
+    argv.push_back("--executor=" + stringify(self()));
+    argv.push_back("--health_check_json=" + stringify(json));
+    argv.push_back("--task_id=" + task.task_id().value());
+
+    const string cmd = strings::join(" ", argv);
+
+    cout << "Launching health check process: " << cmd << endl;
+
+    Try<Subprocess> healthProcess =
+      process::subprocess(
+        path,
+        argv,
+        // Intentionally not sending STDIN to avoid health check
+        // commands that expect STDIN input to block.
+        Subprocess::PATH("/dev/null"),
+        Subprocess::FD(STDOUT_FILENO),
+        Subprocess::FD(STDERR_FILENO));
+
+    if (healthProcess.isError()) {
+      cerr << "Unable to launch health process: "
+           << healthProcess.error() << endl;
+      return;
+    }
+
+    healthPid = healthProcess.get().pid();
+
+    cout << "Health check process launched at pid: "
+         << stringify(healthPid) << endl;
   }
 
   bool killed;
