@@ -42,7 +42,7 @@ namespace paths {
 constexpr char ROOT_DIR[] = "/var/run/mesos/isolators/network/cni";
 
 
-string getNetworkInfoDir(const string& rootDir, const string& containerId);
+string getContainerDir(const string& rootDir, const string& containerId);
 
 
 string getNamespacePath(const string& rootDir, const string& containerId);

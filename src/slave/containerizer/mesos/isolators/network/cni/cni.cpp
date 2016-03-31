@@ -371,16 +371,15 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
 Try<Nothing> NetworkCniIsolatorProcess::_recover(
     const ContainerID& containerId)
 {
-  const string networkInfoDir =
-      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+  const string containerDir =
+      paths::getContainerDir(rootDir.get(), containerId.value());
 
-  if (!os::exists(networkInfoDir)) {
+  if (!os::exists(containerDir)) {
     // This may occur in two cases:
-    //   1. Executor has exited and the isolator has removed the CNI network
-    //      information directory in '_cleanup()' but agent dies before
-    //      noticing this.
-    //   2. Agent dies before the isolator creates the CNI network information
-    //      directory in 'isolate()'.
+    //   1. Executor has exited and the isolator has removed the container
+    //      directory in '_cleanup()' but agent dies before noticing this.
+    //   2. Agent dies before the isolator creates the container directory
+    //      in 'isolate()'.
     // For these two cases, we do not need to do anything since there is nothing
     // to clean up after agent restarts.
     return Nothing();
@@ -540,15 +539,15 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     return Nothing();
   }
 
-  // Create the CNI network information directory for the container.
-  const string networkInfoDir =
-      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+  // Create the container directory.
+  const string containerDir =
+      paths::getContainerDir(rootDir.get(), containerId.value());
 
-  Try<Nothing> mkdir = os::mkdir(networkInfoDir);
+  Try<Nothing> mkdir = os::mkdir(containerDir);
   if (mkdir.isError()) {
     return Failure(
-        "Failed to create CNI network information directory at '" +
-        networkInfoDir + "': " + mkdir.error());
+        "Failed to create the container directory at '" +
+        containerDir + "': " + mkdir.error());
   }
 
   // Bind mount the network namespace handle of the process 'pid' to
@@ -790,11 +789,11 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  const string networkInfoDir =
-      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+  const string containerDir =
+      paths::getContainerDir(rootDir.get(), containerId.value());
 
   Option<list<string>> networkNames = None();
-  if (os::exists(networkInfoDir)) {
+  if (os::exists(containerDir)) {
     Try<list<string>> result =
         paths::getNetworkNames(rootDir.get(), containerId.value());
 
@@ -809,18 +808,17 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
       // This is to handle two recovery cases:
       //   1. Agent dies right before the isolator calls 'attach()' to attach
       //      the container to CNI networks.
-      //   2. Agent dies right before the isolator removes the CNI network
-      //      information directory in '_cleanup()'.
-      // For these two cases, we just need to remove the CNI network
-      // information directory here and there is nothing else to clean up.
+      //   2. Agent dies right before the isolator removes the container
+      //      directory in '_cleanup()'.
+      // For these two cases, we just need to remove the container directory,
+      // and there is nothing else to clean up.
       return _cleanup(containerId);
     }
   } else {
     // This is to handle the following two cases:
-    //   1. The isolator fails to create the CNI network information directory
-    //      for the container in 'isolate()'.
+    //   1. The isolator fails to create the container directory in 'isolate()'.
     //   2. The container does not want to opt in CNI network.
-    // For 1, we need to remove the container's info struct, and for 2, we do
+    // For 1, we need to remove the container's Info struct, and for 2, we do
     // not need to do anything.
     if (infos.contains(containerId)) {
       infos.erase(containerId);
@@ -977,8 +975,8 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
     }
   }
 
-  const string networkInfoDir =
-      paths::getNetworkInfoDir(rootDir.get(), containerId.value());
+  const string containerDir =
+      paths::getContainerDir(rootDir.get(), containerId.value());
   const string target =
       paths::getNamespacePath(rootDir.get(), containerId.value());
 
@@ -991,11 +989,11 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
     }
   }
 
-  Try<Nothing> rmdir = os::rmdir(networkInfoDir);
+  Try<Nothing> rmdir = os::rmdir(containerDir);
   if (rmdir.isError()) {
     return Failure(
-        "Failed to remove CNI network information directory '" +
-        networkInfoDir + "': " + rmdir.error());
+        "Failed to remove the container directory '" + containerDir + "': " +
+        rmdir.error());
   }
 
   if (infos.contains(containerId)) {

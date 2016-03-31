@@ -28,7 +28,7 @@ namespace slave {
 namespace cni {
 namespace paths {
 
-string getNetworkInfoDir(const string& rootDir, const string& containerId)
+string getContainerDir(const string& rootDir, const string& containerId)
 {
   return path::join(rootDir, containerId);
 }
@@ -36,7 +36,7 @@ string getNetworkInfoDir(const string& rootDir, const string& containerId)
 
 string getNamespacePath(const string& rootDir, const string& containerId)
 {
-  return path::join(getNetworkInfoDir(rootDir, containerId), "ns");
+  return path::join(getContainerDir(rootDir, containerId), "ns");
 }
 
 
@@ -45,7 +45,7 @@ string getNetworkDir(
     const string& containerId,
     const string& networkName)
 {
-  return path::join(getNetworkInfoDir(rootDir, containerId), networkName);
+  return path::join(getContainerDir(rootDir, containerId), networkName);
 }
 
 
@@ -53,7 +53,7 @@ Try<list<string>> getNetworkNames(
     const string& rootDir,
     const string& containerId)
 {
-  const string& networkInfoDir = getNetworkInfoDir(rootDir, containerId);
+  const string& networkInfoDir = getContainerDir(rootDir, containerId);
 
   Try<list<string>> entries = os::ls(networkInfoDir);
   if (entries.isError()) {
