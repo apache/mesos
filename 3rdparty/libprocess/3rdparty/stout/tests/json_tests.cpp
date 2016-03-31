@@ -342,6 +342,49 @@ TEST(JsonTest, Find)
 }
 
 
+TEST(JsonTest, At)
+{
+  JSON::Object object;
+
+  object.values["this.string"] = "string";
+  object.values["this.integer"] = -1;
+  object.values["this.double"] = -1.42;
+  object.values["this.null"] = JSON::Null();
+
+  ASSERT_NONE(object.find<JSON::String>("this.string"));
+  ASSERT_ERROR(object.at<JSON::Number>("this.string"));
+  ASSERT_ERROR(object.at<JSON::Null>("this.string"));
+  ASSERT_SOME_EQ(
+      JSON::String("string"),
+      object.at<JSON::String>("this.string"));
+
+  ASSERT_NONE(object.find<JSON::Number>("this.integer"));
+  ASSERT_ERROR(object.at<JSON::String>("this.integer"));
+  ASSERT_ERROR(object.at<JSON::Null>("this.integer"));
+  ASSERT_SOME_EQ(
+      JSON::Number(-1),
+      object.at<JSON::Number>("this.integer"));
+
+  ASSERT_NONE(object.find<JSON::Number>("this.double"));
+  ASSERT_ERROR(object.at<JSON::String>("this.double"));
+  ASSERT_ERROR(object.at<JSON::Null>("this.double"));
+  ASSERT_SOME_EQ(
+      JSON::Number(-1.42),
+      object.at<JSON::Number>("this.double"));
+
+  ASSERT_NONE(object.find<JSON::Null>("this.null"));
+  ASSERT_ERROR(object.at<JSON::Number>("this.null"));
+  ASSERT_ERROR(object.at<JSON::String>("this.null"));
+  ASSERT_SOME_EQ(
+      JSON::Null(),
+      object.at<JSON::Null>("this.null"));
+
+  ASSERT_NONE(object.at<JSON::String>("something.else"));
+  ASSERT_NONE(object.at<JSON::String>("none"));
+  ASSERT_NONE(object.at<JSON::String>(string()));
+}
+
+
 // Test the equality operator between two objects.
 TEST(JsonTest, Equals)
 {
