@@ -641,6 +641,26 @@ inline process::http::Headers createBasicAuthHeaders(
 }
 
 
+// Create WeightInfos from the specified weights flag.
+inline google::protobuf::RepeatedPtrField<WeightInfo> createWeightInfos(
+    const std::string& weightsFlag)
+{
+  google::protobuf::RepeatedPtrField<WeightInfo> infos;
+  std::vector<std::string> tokens = strings::tokenize(weightsFlag, ",");
+  foreach (const std::string& token, tokens) {
+    std::vector<std::string> pair = strings::tokenize(token, "=");
+    EXPECT_EQ(2u, pair.size());
+    double weight = atof(pair[1].c_str());
+    WeightInfo weightInfo;
+    weightInfo.set_role(pair[0]);
+    weightInfo.set_weight(weight);
+    infos.Add()->CopyFrom(weightInfo);
+  }
+
+  return infos;
+}
+
+
 // Helpers for creating reserve operations.
 inline Offer::Operation RESERVE(const Resources& resources)
 {

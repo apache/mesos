@@ -49,6 +49,8 @@
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
@@ -60,6 +62,9 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+
+using process::http::OK;
+using process::http::Response;
 
 using std::map;
 using std::string;
@@ -1494,6 +1499,139 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     driver.stop();
     driver.join();
   }
+}
+
+
+// This test ensures that resource allocation is correctly rebalanced
+// according to the updated weights.
+TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
+{
+  TestAllocator<TypeParam> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  // Start Mesos master.
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  vector<Owned<cluster::Slave>> slaves;
+
+  // Register three agents with the same resources.
+  string agentResources = "cpus:2;mem:1024;disk:4096;ports:[31000-32000]";
+  for (int i = 0; i < 3; i++) {
+    Future<Nothing> addSlave;
+    EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+      .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                      FutureSatisfy(&addSlave)));
+
+    slave::Flags flags = this->CreateSlaveFlags();
+    flags.resources = agentResources;
+
+    Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
+    ASSERT_SOME(slave);
+    slaves.push_back(slave.get());
+    AWAIT_READY(addSlave);
+  }
+
+  // Total cluster resources (3 agents): cpus=6, mem=3072.
+
+  // Framework1 registers with 'role1' which uses the default weight (1.0),
+  // and all resources will be offered to this framework since it is the only
+  // framework running so far.
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_role("role1");
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered1;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureSatisfy(&registered1));
+
+  Future<vector<Offer>> framework1offers1;
+  Future<vector<Offer>> framework1offers2;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&framework1offers1))
+    .WillOnce(FutureArg<1>(&framework1offers2));
+
+  driver1.start();
+
+  AWAIT_READY(registered1);
+  AWAIT_READY(framework1offers1);
+
+  ASSERT_EQ(3u, framework1offers1.get().size());
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(Resources(framework1offers1.get()[i].resources()),
+              Resources::parse(agentResources).get());
+  }
+
+  // Framework2 registers with 'role2' which also uses the default weight.
+  // It will not get any offers due to all resources having outstanding offers
+  // to framework1 when it registered.
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.set_role("role2");
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered2;
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
+    .WillOnce(FutureSatisfy(&registered2));
+
+  Future<vector<Offer>> framework2offers;
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&framework2offers));
+
+  driver2.start();
+  AWAIT_READY(registered2);
+
+  // role1 share = 1 (cpus=6, mem=3072)
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  // Expect offer rescinded.
+  EXPECT_CALL(sched1, offerRescinded(&driver1, _)).Times(3);
+
+  // Update the weight of 'role2' to 2.0.
+  RepeatedPtrField<WeightInfo> infos = createWeightInfos("role2=2.0");
+  Future<Response> response = process::http::request(
+      process::http::createRequest(
+          master.get()->pid,
+          "PUT",
+          false,
+          "weights",
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+          strings::format("%s", JSON::protobuf(infos)).get()));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+
+  // 'updateWeights' will rescind all outstanding offers and trigger
+  // the allocation immediately.
+
+  // role1 share = 0.33 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // role2 share = 0.66 (cpus=4, mem=2048)
+  //   framework2 share = 1
+
+  AWAIT_READY(framework1offers2);
+  ASSERT_EQ(1u, framework1offers2.get().size());
+  EXPECT_EQ(Resources(framework1offers2.get()[0].resources()),
+            Resources::parse(agentResources).get());
+
+  AWAIT_READY(framework2offers);
+  ASSERT_EQ(2u, framework2offers.get().size());
+  for (int i = 0; i < 2; i++) {
+    EXPECT_EQ(Resources(framework2offers.get()[i].resources()),
+              Resources::parse(agentResources).get());
+  }
+
+  driver1.stop();
+  driver1.join();
+  driver2.stop();
+  driver2.join();
 }
 
 } // namespace tests {
