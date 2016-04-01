@@ -326,7 +326,8 @@ int main(int argc, char** argv)
   CHECK_NOTNULL(storage);
 
   state::protobuf::State* state = new state::protobuf::State(storage);
-  Registrar* registrar = new Registrar(flags, state);
+  Registrar* registrar =
+    new Registrar(flags, state, DEFAULT_HTTP_AUTHENTICATION_REALM);
   Repairer* repairer = new Repairer();
 
   Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);

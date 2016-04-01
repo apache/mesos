@@ -24,6 +24,8 @@
 #include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <process/clock.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -56,6 +58,8 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
+#include "tests/mesos.hpp"
+
 using namespace mesos::internal::master;
 
 using namespace process;
@@ -71,6 +75,11 @@ using std::string;
 using std::vector;
 
 using process::Clock;
+using process::Owned;
+
+using process::http::OK;
+using process::http::Response;
+using process::http::Unauthorized;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -93,12 +102,16 @@ namespace tests {
 namespace quota = mesos::internal::master::quota;
 namespace weights = mesos::internal::master::weights;
 
+namespace authentication = process::http::authentication;
+
 using namespace mesos::maintenance;
 using namespace mesos::quota;
 
 using namespace mesos::internal::master::maintenance;
 using namespace mesos::internal::master::quota;
 using namespace mesos::internal::master::weights;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
 
 using state::Entry;
 using state::LogStorage;
@@ -1090,6 +1103,57 @@ TEST_P(RegistrarTest, Abort)
 
   // The registrar should now be aborted!
   AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+}
+
+
+// Tests that requests to the '/registry' endpoint are authenticated when HTTP
+// authentication is enabled.
+TEST_P(RegistrarTest, Authentication)
+{
+  const string AUTHENTICATION_REALM = "realm";
+
+  Credentials credentials;
+  credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
+
+  Try<authentication::Authenticator*> authenticator =
+    BasicAuthenticatorFactory::create(AUTHENTICATION_REALM, credentials);
+
+  ASSERT_SOME(authenticator);
+
+  AWAIT_READY(authentication::setAuthenticator(
+      AUTHENTICATION_REALM,
+      Owned<authentication::Authenticator>(authenticator.get())));
+
+  Registrar registrar(flags, state, AUTHENTICATION_REALM);
+
+  // Requests without credentials should be rejected.
+  Future<Response> response = process::http::get(registrar.pid(), "registry");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
+    << response.get().body;
+
+  Credential badCredential;
+  badCredential.set_principal("bad-principal");
+  badCredential.set_secret("bad-secret");
+
+  // Requests with bad credentials should be rejected.
+  response = process::http::get(
+      registrar.pid(),
+      "registry",
+      None(),
+      createBasicAuthHeaders(badCredential));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
+    << response.get().body;
+
+  // Requests with good credentials should be permitted.
+  response = process::http::get(
+      registrar.pid(),
+      "registry",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+
+  AWAIT_READY(authentication::unsetAuthenticator(AUTHENTICATION_REALM));
 }
 
 

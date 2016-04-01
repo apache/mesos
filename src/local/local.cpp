@@ -210,7 +210,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     CHECK_NOTNULL(storage);
 
     state = new state::protobuf::State(storage);
-    registrar = new Registrar(flags, state);
+    registrar =
+      new Registrar(flags, state, master::DEFAULT_HTTP_AUTHENTICATION_REALM);
     repairer = new Repairer();
 
     contender = new StandaloneMasterContender();

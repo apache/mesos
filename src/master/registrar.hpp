@@ -23,6 +23,7 @@
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/pid.hpp>
 
 #include "master/flags.hpp"
 #include "master/registry.hpp"
@@ -102,7 +103,9 @@ class Registrar
 public:
   // If flags.registry_strict is true, all operations will be
   // permitted.
-  Registrar(const Flags& flags, state::protobuf::State* state);
+  Registrar(const Flags& flags,
+            state::protobuf::State* state,
+            const Option<std::string>& authenticationRealm = None());
   ~Registrar();
 
   // Recovers the Registry, persisting the new Master information.
@@ -121,6 +124,10 @@ public:
   //   Failure if the operation fails (possibly lost log leadership),
   //     or recovery failed.
   process::Future<bool> apply(process::Owned<Operation> operation);
+
+  // Gets the pid of the underlying process.
+  // Used in tests.
+  process::PID<RegistrarProcess> pid() const;
 
 private:
   RegistrarProcess* process;

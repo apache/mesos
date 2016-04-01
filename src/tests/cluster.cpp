@@ -213,7 +213,8 @@ Try<process::Owned<Master>> Master::start(
 
   // Instantiate some other master dependencies.
   master->state.reset(new state::protobuf::State(master->storage.get()));
-  master->registrar.reset(new master::Registrar(flags, master->state.get()));
+  master->registrar.reset(new master::Registrar(
+      flags, master->state.get(), master::DEFAULT_HTTP_AUTHENTICATION_REALM));
   master->repairer.reset(new master::Repairer());
 
   if (slaveRemovalLimiter.isNone() && flags.slave_removal_rate_limit.isSome()) {
