@@ -285,7 +285,7 @@ __NOTE:__ A quota'ed role may not be allocated any unreserved non-revocable
           quota to any value that is less than the role's fair share may reduce
           the amount of resources offered to this role.
 
-__NOTE:__ In Mesos 0.27 quota guarantee also serves as quota limit, i.e. once
+__NOTE:__ Currently quota guarantee also serves as quota limit, i.e. once
           quota for the role is satisfied, frameworks in this role will not
           be offered any resources except those reserved for the role. This
           behavior aims to mitigate the absence of quota limit and will be
