@@ -138,7 +138,7 @@ private:
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
-      const Option<std::list<process::Future<Nothing>>>& invocations = None());
+      const std::list<process::Future<Nothing>>& detaches);
 
   Try<Nothing> _recover(const ContainerID& containerId);
 
