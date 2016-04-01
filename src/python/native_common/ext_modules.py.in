@@ -107,7 +107,7 @@ def _create_module(module_name):
     # TODO(hartem): this entire block MUST be removed once libev is deprecated
     # in favor of libevent.
     if '@ENABLE_LIBEVENT_TRUE@' == '#':
-        libev = os.path.join(libprocess, '3rdparty', 'libev-4.15')
+        libev = os.path.join(libprocess, '3rdparty', 'libev-4.22')
         libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
 
         if os.path.exists(libev):
