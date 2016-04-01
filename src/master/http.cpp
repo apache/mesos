@@ -898,6 +898,14 @@ Future<Response> Master::Http::scheduler(
       master->decline(framework, call.decline());
       return Accepted();
 
+    case scheduler::Call::ACCEPT_INVERSE_OFFERS:
+      master->acceptInverseOffers(framework, call.accept_inverse_offers());
+      return Accepted();
+
+    case scheduler::Call::DECLINE_INVERSE_OFFERS:
+      master->declineInverseOffers(framework, call.decline_inverse_offers());
+      return Accepted();
+
     case scheduler::Call::REVIVE:
       master->revive(framework);
       return Accepted();

@@ -880,9 +880,17 @@ private:
     const scheduler::Call::Accept& accept,
     const process::Future<std::list<process::Future<bool>>>& authorizations);
 
+  void acceptInverseOffers(
+      Framework* framework,
+      const scheduler::Call::AcceptInverseOffers& accept);
+
   void decline(
       Framework* framework,
       const scheduler::Call::Decline& decline);
+
+  void declineInverseOffers(
+      Framework* framework,
+      const scheduler::Call::DeclineInverseOffers& decline);
 
   void revive(Framework* framework);
 
@@ -1311,9 +1319,12 @@ private:
   friend struct Framework;
   friend struct Metrics;
 
-  // NOTE: Since 'getOffer' and 'slaves' are protected,
-  // we need to make the following functions friends.
+  // NOTE: Since 'getOffer', 'getInverseOffer' and 'slaves' are
+  // protected, we need to make the following functions friends.
   friend Offer* validation::offer::getOffer(
+      Master* master, const OfferID& offerId);
+
+  friend InverseOffer* validation::offer::getInverseOffer(
       Master* master, const OfferID& offerId);
 
   friend Slave* validation::offer::getSlave(

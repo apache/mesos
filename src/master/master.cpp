@@ -2128,6 +2128,14 @@ void Master::receive(
       decline(framework, call.decline());
       break;
 
+    case scheduler::Call::ACCEPT_INVERSE_OFFERS:
+      acceptInverseOffers(framework, call.accept_inverse_offers());
+      break;
+
+    case scheduler::Call::DECLINE_INVERSE_OFFERS:
+      declineInverseOffers(framework, call.decline_inverse_offers());
+      break;
+
     case scheduler::Call::REVIVE:
       revive(framework);
       break;
@@ -3365,11 +3373,6 @@ void Master::accept(
     // validation failed, return resources to the allocator.
     foreach (const OfferID& offerId, accept.offer_ids()) {
       Offer* offer = getOffer(offerId);
-
-      // Since we re-use `OfferID`s, it is possible to arrive here with either
-      // a resource offer, or an inverse offer. We first try as a resource offer
-      // and if that fails, then we assume it is an inverse offer. This is
-      // correct as those are currently the only 2 ways to get an `OfferID`.
       if (offer != NULL) {
         slaveId = offer->slave_id();
         offeredResources += offer->resources();
@@ -3385,30 +3388,8 @@ void Master::accept(
         continue;
       }
 
-      // Try it as an inverse offer. If this fails then the offer is no longer
-      // valid.
-      InverseOffer* inverseOffer = getInverseOffer(offerId);
-      if (inverseOffer != NULL) {
-        mesos::master::InverseOfferStatus status;
-        status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
-        status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
-        status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
-
-        allocator->updateInverseOffer(
-            inverseOffer->slave_id(),
-            inverseOffer->framework_id(),
-            UnavailableResources{
-                inverseOffer->resources(),
-                inverseOffer->unavailability()},
-            status,
-            accept.filters());
-
-        removeInverseOffer(inverseOffer);
-        continue;
-      }
-
-      // If the offer was neither in our offer or inverse offer sets, then this
-      // offer is no longer valid.
+      // If the offer was not in our offer set, then this offer is no
+      // longer valid.
       LOG(WARNING) << "Ignoring accept of offer " << offerId
                    << " since it is no longer valid";
     }
@@ -3992,6 +3973,74 @@ void Master::_accept(
 }
 
 
+void Master::acceptInverseOffers(
+    Framework* framework,
+    const scheduler::Call::AcceptInverseOffers& accept)
+{
+  CHECK_NOTNULL(framework);
+
+  Option<Error> error = None();
+
+  if (accept.inverse_offer_ids().size() == 0) {
+    error = Error("No inverse offers specified");
+  } else {
+    // Validate the inverse offers.
+    error = validation::offer::validateInverseOffers(
+        accept.inverse_offer_ids(),
+        this,
+        framework);
+
+    Option<SlaveID> slaveId;
+
+    // Update each inverse offer in the allocator with the accept and
+    // filter.
+    foreach (const OfferID& offerId, accept.inverse_offer_ids()) {
+      InverseOffer* inverseOffer = getInverseOffer(offerId);
+      if (inverseOffer != NULL) {
+        CHECK(inverseOffer->has_slave_id());
+        slaveId = inverseOffer->slave_id();
+
+        mesos::master::InverseOfferStatus status;
+        status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
+        status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
+        status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
+
+        allocator->updateInverseOffer(
+            inverseOffer->slave_id(),
+            inverseOffer->framework_id(),
+            UnavailableResources{
+                inverseOffer->resources(),
+                inverseOffer->unavailability()},
+            status,
+            accept.filters());
+
+        removeInverseOffer(inverseOffer);
+        continue;
+      }
+
+      // If the offer was not in our inverse offer set, then this
+      // offer is no longer valid.
+      LOG(WARNING) << "Ignoring accept of inverse offer " << offerId
+                   << " since it is no longer valid";
+    }
+
+    CHECK_SOME(slaveId);
+    Slave* slave = slaves.registered.get(slaveId.get());
+    CHECK_NOTNULL(slave);
+
+    LOG(INFO)
+        << "Processing ACCEPT_INVERSE_OFFERS call for inverse offers: "
+        << accept.inverse_offer_ids() << " on slave " << *slave
+        << " for framework " << *framework;
+  }
+
+  if (error.isSome()) {
+    LOG(WARNING) << "ACCEPT_INVERSE_OFFERS call used invalid offers '"
+                 << accept.inverse_offer_ids() << "': " << error.get().message;
+  }
+}
+
+
 void Master::decline(
     Framework* framework,
     const scheduler::Call::Decline& decline)
@@ -4005,10 +4054,6 @@ void Master::decline(
 
   //  Return resources to the allocator.
   foreach (const OfferID& offerId, decline.offer_ids()) {
-    // Since we re-use `OfferID`s, it is possible to arrive here with either a
-    // resource offer, or an inverse offer. We first try as a resource offer and
-    // if that fails, then we assume it is an inverse offer. This is correct as
-    // those are currently the only 2 ways to get an `OfferID`.
     Offer* offer = getOffer(offerId);
     if (offer != NULL) {
       allocator->recoverResources(
@@ -4021,8 +4066,28 @@ void Master::decline(
       continue;
     }
 
-    // Try it as an inverse offer. If this fails then the offer is no longer
-    // valid.
+    // If the offer was not in our offer set, then this offer is no
+    // longer valid.
+    LOG(WARNING) << "Ignoring decline of offer " << offerId
+                 << " since it is no longer valid";
+  }
+}
+
+
+void Master::declineInverseOffers(
+    Framework* framework,
+    const scheduler::Call::DeclineInverseOffers& decline)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing DECLINE_INVERSE_OFFERS call for inverse offers: "
+            << decline.inverse_offer_ids() << " for framework " << *framework;
+
+  // Update each inverse offer in the allocator with the decline and
+  // filter.
+  foreach (const OfferID& offerId, decline.inverse_offer_ids()) {
+    // Try it as an inverse offer. If this fails then the offer is no
+    // longer valid.
     InverseOffer* inverseOffer = getInverseOffer(offerId);
     if (inverseOffer != NULL) { // If this is an inverse offer.
       mesos::master::InverseOfferStatus status;
@@ -4043,9 +4108,9 @@ void Master::decline(
       continue;
     }
 
-    // If the offer was neither in our offer or inverse offer sets, then this
+    // If the offer was not in our inverse offer set, then this
     // offer is no longer valid.
-    LOG(WARNING) << "Ignoring decline of offer " << offerId
+    LOG(WARNING) << "Ignoring decline of inverse offer " << offerId
                  << " since it is no longer valid";
   }
 }

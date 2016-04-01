@@ -765,10 +765,82 @@ Offer* getOffer(Master* master, const OfferID& offerId)
 }
 
 
+InverseOffer* getInverseOffer(Master* master, const OfferID& offerId)
+{
+  CHECK_NOTNULL(master);
+  return master->getInverseOffer(offerId);
+}
+
+
 Slave* getSlave(Master* master, const SlaveID& slaveId)
 {
   CHECK_NOTNULL(master);
   return master->slaves.registered.get(slaveId);
+}
+
+
+Try<SlaveID> getSlaveId(Master* master, const OfferID& offerId)
+{
+  // Try as an offer.
+  Offer* offer = getOffer(master, offerId);
+  if (offer != NULL) {
+    return offer->slave_id();
+  }
+
+  InverseOffer* inverseOffer = getInverseOffer(master, offerId);
+  if (inverseOffer != NULL) {
+    return inverseOffer->slave_id();
+  }
+
+  return Error("Offer id no longer valid");
+}
+
+
+Try<FrameworkID> getFrameworkId(Master* master, const OfferID& offerId)
+{
+  // Try as an offer.
+  Offer* offer = getOffer(master, offerId);
+  if (offer != NULL) {
+    return offer->framework_id();
+  }
+
+  InverseOffer* inverseOffer = getInverseOffer(master, offerId);
+  if (inverseOffer != NULL) {
+    return inverseOffer->framework_id();
+  }
+
+  return Error("Offer id no longer valid");
+}
+
+
+Option<Error> validateOfferIds(
+    Master* master,
+    const RepeatedPtrField<OfferID>& offerIds)
+{
+  foreach (const OfferID& offerId, offerIds) {
+    Offer* offer = getOffer(master, offerId);
+    if (offer == NULL) {
+      return Error("Offer " + stringify(offerId) + " is no longer valid");
+    }
+  }
+
+  return None();
+}
+
+
+Option<Error> validateInverseOfferIds(
+    Master* master,
+    const RepeatedPtrField<OfferID>& offerIds)
+{
+  foreach (const OfferID& offerId, offerIds) {
+    InverseOffer* inverseOffer = getInverseOffer(master, offerId);
+    if (inverseOffer == NULL) {
+      return Error(
+          "Inverse offer " + stringify(offerId) + " is no longer valid");
+    }
+  }
+
+  return None();
 }
 
 
@@ -796,15 +868,15 @@ Option<Error> validateFramework(
     Framework* framework)
 {
   foreach (const OfferID& offerId, offerIds) {
-    Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
-      return Error("Offer " + stringify(offerId) + " is no longer valid");
+    Try<FrameworkID> offerFrameworkId = getFrameworkId(master, offerId);
+    if (offerFrameworkId.isError()) {
+      return offerFrameworkId.error();
     }
 
-    if (framework->id() != offer->framework_id()) {
+    if (framework->id() != offerFrameworkId.get()) {
       return Error(
-          "Offer " + stringify(offer->id()) +
-          " has invalid framework " + stringify(offer->framework_id()) +
+          "Offer " + stringify(offerId) +
+          " has invalid framework " + stringify(offerFrameworkId.get()) +
           " while framework " + stringify(framework->id()) + " is expected");
     }
   }
@@ -820,17 +892,17 @@ Option<Error> validateSlave(
   Option<SlaveID> slaveId;
 
   foreach (const OfferID& offerId, offerIds) {
-    Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
-      return Error("Offer " + stringify(offerId) + " is no longer valid");
+    Try<SlaveID> offerSlaveId = getSlaveId(master, offerId);
+    if (offerSlaveId.isError()) {
+      return offerSlaveId.error();
     }
 
-    Slave* slave = getSlave(master, offer->slave_id());
+    Slave* slave = getSlave(master, offerSlaveId.get());
 
     // This is not possible because the offer should've been removed.
     CHECK(slave != NULL)
       << "Offer " << offerId
-      << " outlived agent " << offer->slave_id();
+      << " outlived agent " << offerSlaveId.get();
 
     // This is not possible because the offer should've been removed.
     CHECK(slave->connected)
@@ -865,6 +937,33 @@ Option<Error> validate(
 
   vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(validateUniqueOfferID, offerIds),
+    lambda::bind(validateOfferIds, master, offerIds),
+    lambda::bind(validateFramework, offerIds, master, framework),
+    lambda::bind(validateSlave, offerIds, master)
+  };
+
+  foreach (const lambda::function<Option<Error>()>& validator, validators) {
+    Option<Error> error = validator();
+    if (error.isSome()) {
+      return error;
+    }
+  }
+
+  return None();
+}
+
+
+Option<Error> validateInverseOffers(
+    const RepeatedPtrField<OfferID>& offerIds,
+    Master* master,
+    Framework* framework)
+{
+  CHECK_NOTNULL(master);
+  CHECK_NOTNULL(framework);
+
+  vector<lambda::function<Option<Error>()>> validators = {
+    lambda::bind(validateUniqueOfferID, offerIds),
+    lambda::bind(validateInverseOfferIds, master, offerIds),
     lambda::bind(validateFramework, offerIds, master, framework),
     lambda::bind(validateSlave, offerIds, master)
   };

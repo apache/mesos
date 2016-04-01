@@ -108,11 +108,19 @@ namespace offer {
 // NOTE: These two functions are placed in the header file because we
 // need to declare them as friends of Master.
 Offer* getOffer(Master* master, const OfferID& offerId);
+InverseOffer* getInverseOffer(Master* master, const OfferID& offerId);
 Slave* getSlave(Master* master, const SlaveID& slaveId);
 
 
 // Validates the given offers.
 Option<Error> validate(
+    const google::protobuf::RepeatedPtrField<OfferID>& offerIds,
+    Master* master,
+    Framework* framework);
+
+
+// Validates the given inverse offers.
+Option<Error> validateInverseOffers(
     const google::protobuf::RepeatedPtrField<OfferID>& offerIds,
     Master* master,
     Framework* framework);
