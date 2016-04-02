@@ -821,6 +821,7 @@ Release Notes - Mesos - Version 0.24.2
 
 ** Bug
   * [MESOS-1187] - precision errors with allocation calculations.
+  * [MESOS-3030] - Build failure on OS 10.11 using Xcode 7.
   * [MESOS-3046] - Stout's UUID re-seeds a new random generator during each call to UUID::random.
   * [MESOS-3051] - performance issues with port ranges comparison.
   * [MESOS-3052] - Allocator performance issue when using a large number of filters.
@@ -828,6 +829,7 @@ Release Notes - Mesos - Version 0.24.2
   * [MESOS-3397] - sorter.cpp: Check failed: total.resources.contains(slaveId).
   * [MESOS-3560] - JSON-based credential files do not work correctly.
   * [MESOS-3602] - hdfs du fails due to prepended / on path.
+  * [MESOS-3604] - ExamplesTest.PersistentVolumeFramework does not work in OS X El Capitan.
   * [MESOS-3605] - hdfs.du() fails on os x due to lack of native-hadoop library.
   * [MESOS-3719] - Core dump on /teardown.
   * [MESOS-3738] - Mesos health check is invoked incorrectly when Mesos slave is within the docker container.
