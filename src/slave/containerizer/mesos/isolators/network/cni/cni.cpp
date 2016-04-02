@@ -899,6 +899,9 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
           "Failed to unmount the network namespace handle '" +
           target + "': " + unmount.error());
     }
+
+    LOG(INFO) << "Unmounted the network namespace handle '"
+              << target << "' for container " << containerId;
   }
 
   Try<Nothing> rmdir = os::rmdir(containerDir);
@@ -907,6 +910,8 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
         "Failed to remove the container directory '" +
         containerDir + "': " + rmdir.error());
   }
+
+  LOG(INFO) << "Removed the container directory '" << containerDir << "'";
 
   infos.erase(containerId);
 
