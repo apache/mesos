@@ -397,7 +397,7 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
     return Error("Failed to list CNI network names: " + networkNames.error());
   }
 
-  hashmap<string, NetworkInfo> networkInfos;
+  hashmap<string, ContainerNetwork> containerNetworks;
   foreach (const string& networkName, networkNames.get()) {
     if (!networkConfigs.contains(networkName)) {
       return Error("Unknown CNI network name '" + networkName + "'");
@@ -430,15 +430,15 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
           networkName + "'");
     }
 
-    NetworkInfo networkInfo;
-    networkInfo.networkName = networkName;
-    networkInfo.ifName = interfaces->front();
+    ContainerNetwork containerNetwork;
+    containerNetwork.networkName = networkName;
+    containerNetwork.ifName = interfaces->front();
 
     if (executorInfo.isSome()) {
       foreach (const mesos::NetworkInfo& _networkInfo,
                executorInfo->container().network_infos()) {
         if (_networkInfo.name() == networkName) {
-          networkInfo.networkInfo = _networkInfo;
+          containerNetwork.networkInfo = _networkInfo;
         }
       }
     }
@@ -446,8 +446,8 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
     const string networkInfoPath = paths::getNetworkInfoPath(
         rootDir.get(),
         containerId.value(),
-        networkInfo.networkName,
-        networkInfo.ifName);
+        containerNetwork.networkName,
+        containerNetwork.ifName);
 
     if (!os::exists(networkInfoPath)) {
       // This may occur in the case that agent dies before the isolator
@@ -456,7 +456,7 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
           << "The checkpointed CNI plugin output '" << networkInfoPath
           << "' for container " << containerId << " does not exist";
 
-      networkInfos.put(networkName, networkInfo);
+      containerNetworks.put(networkName, containerNetwork);
       continue;
     }
 
@@ -478,16 +478,17 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
           networkInfoPath + "': " + parse.error());
     }
 
-    networkInfo.network = parse.get();
+    containerNetwork.cniNetworkInfo = parse.get();
 
-    networkInfos.put(networkName, networkInfo);
+    containerNetworks.put(networkName, containerNetwork);
   }
 
-  // We add to 'infos' even if 'networkInfos' is empty. This is because it's
-  // likely that the slave crashed after removing all interface directories but
-  // before it is able to unmount the namespace handle and remove the container
-  // directory. In that case, we still rely on 'cleanup' to clean it up.
-  infos.put(containerId, Owned<Info>(new Info(networkInfos)));
+  // We add to 'infos' even if 'containerNetworks' is empty. This is because
+  // it's likely that the slave crashed after removing all interface
+  // directories but before it is able to unmount the namespace handle and
+  // remove the container directory. In that case, we still rely on 'cleanup'
+  // to clean it up.
+  infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
 
   return Nothing();
 }
@@ -516,7 +517,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
 
   int ifIndex = 0;
   hashset<string> networkNames;
-  hashmap<string, NetworkInfo> networkInfos;
+  hashmap<string, ContainerNetwork> containerNetworks;
   foreach (const mesos::NetworkInfo& _networkInfo,
            executorInfo.container().network_infos()) {
     if (!_networkInfo.has_name()) {
@@ -535,16 +536,16 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
 
     networkNames.insert(name);
 
-    NetworkInfo networkInfo;
-    networkInfo.networkName = name;
-    networkInfo.ifName = "eth" + stringify(ifIndex++);
-    networkInfo.networkInfo = _networkInfo;
+    ContainerNetwork containerNetwork;
+    containerNetwork.networkName = name;
+    containerNetwork.ifName = "eth" + stringify(ifIndex++);
+    containerNetwork.networkInfo = _networkInfo;
 
-    networkInfos.put(name, networkInfo);
+    containerNetworks.put(name, containerNetwork);
   }
 
-  if (!networkInfos.empty()) {
-    infos.put(containerId, Owned<Info>(new Info(networkInfos)));
+  if (!containerNetworks.empty()) {
+    infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
 
     ContainerLaunchInfo launchInfo;
     launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
@@ -602,7 +603,8 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
 
   // Invoke CNI plugin to attach container to CNI networks.
   list<Future<Nothing>> futures;
-  foreachkey (const string& networkName, infos[containerId]->networkInfos) {
+  foreachkey (const string& networkName,
+              infos[containerId]->containerNetworks) {
     futures.push_back(attach(containerId, networkName, target));
   }
 
@@ -634,23 +636,23 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
     const std::string& netNsHandle)
 {
   CHECK(infos.contains(containerId));
-  CHECK(infos[containerId]->networkInfos.contains(networkName));
+  CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  const NetworkInfo& networkInfo =
-      infos[containerId]->networkInfos[networkName];
+  const ContainerNetwork& containerNetwork =
+      infos[containerId]->containerNetworks[networkName];
 
   const string ifDir = paths::getInterfaceDir(
       rootDir.get(),
       containerId.value(),
       networkName,
-      networkInfo.ifName);
+      containerNetwork.ifName);
 
   Try<Nothing> mkdir = os::mkdir(ifDir);
   if (mkdir.isError()) {
     return Failure(
         "Failed to create interface directory for the interface '" +
-        networkInfo.ifName + "' of the network '" +
-        networkInfo.networkName + "': "+ mkdir.error());
+        containerNetwork.ifName + "' of the network '" +
+        containerNetwork.networkName + "': "+ mkdir.error());
   }
 
   // Prepare environment variables for CNI plugin.
@@ -658,7 +660,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   environment["CNI_COMMAND"] = "ADD";
   environment["CNI_CONTAINERID"] = containerId.value();
   environment["CNI_PATH"] = pluginDir.get();
-  environment["CNI_IFNAME"] = networkInfo.ifName;
+  environment["CNI_IFNAME"] = containerNetwork.ifName;
   environment["CNI_NETNS"] = netNsHandle;
 
   // Some CNI plugins need to run "iptables" to set up IP Masquerade,
@@ -673,7 +675,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   }
 
   const NetworkConfigInfo& networkConfig =
-      networkConfigs[networkInfo.networkName];
+      networkConfigs[containerNetwork.networkName];
 
   // Invoke the CNI plugin.
   const string& plugin = networkConfig.config.type();
@@ -710,7 +712,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
     const tuple<Future<Option<int>>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
-  CHECK(infos[containerId]->networkInfos.contains(networkName));
+  CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
   Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
@@ -766,13 +768,14 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   // The destruction of the container cannot happen in the middle of
   // 'attach()' and '_attach()' because the containerizer will wait
   // for 'isolate()' to finish before destroying the container.
-  NetworkInfo& networkInfo = infos[containerId]->networkInfos[networkName];
+  ContainerNetwork& containerNetwork =
+      infos[containerId]->containerNetworks[networkName];
 
   const string networkInfoPath = paths::getNetworkInfoPath(
       rootDir.get(),
       containerId.value(),
       networkName,
-      networkInfo.ifName);
+      containerNetwork.ifName);
 
   Try<Nothing> write = os::write(networkInfoPath, output.get());
   if (write.isError()) {
@@ -781,7 +784,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
         output.get() + "': " + write.error());
   }
 
-  networkInfo.network = parse.get();
+  containerNetwork.cniNetworkInfo = parse.get();
 
   return Nothing();
 }
@@ -816,24 +819,24 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
   }
 
   ContainerStatus status;
-  foreachvalue (const NetworkInfo& _networkInfo,
-                infos[containerId]->networkInfos) {
+  foreachvalue (const ContainerNetwork& _containerNetwork,
+                infos[containerId]->containerNetworks) {
     mesos::NetworkInfo* networkInfo = status.add_network_infos();
-    networkInfo->CopyFrom(_networkInfo.networkInfo);
+    networkInfo->CopyFrom(_containerNetwork.networkInfo);
 
-    if (_networkInfo.network.isSome()) {
+    if (_containerNetwork.cniNetworkInfo.isSome()) {
       networkInfo->clear_ip_addresses();
 
-      if (_networkInfo.network->has_ip4()) {
+      if (_containerNetwork.cniNetworkInfo->has_ip4()) {
         mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
         ip->set_protocol(mesos::NetworkInfo::IPv4);
-        ip->set_ip_address(_networkInfo.network->ip4().ip());
+        ip->set_ip_address(_containerNetwork.cniNetworkInfo->ip4().ip());
       }
 
-      if (_networkInfo.network->has_ip6()) {
+      if (_containerNetwork.cniNetworkInfo->has_ip6()) {
         mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
         ip->set_protocol(mesos::NetworkInfo::IPv6);
-        ip->set_ip_address(_networkInfo.network->ip6().ip());
+        ip->set_ip_address(_containerNetwork.cniNetworkInfo->ip6().ip());
       }
     }
   }
@@ -855,7 +858,8 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
 
   // Invoke CNI plugin to detach container from CNI networks.
   list<Future<Nothing>> futures;
-  foreachkey (const string& networkName, infos[containerId]->networkInfos) {
+  foreachkey (const string& networkName,
+              infos[containerId]->containerNetworks) {
     futures.push_back(detach(containerId, networkName));
   }
 
@@ -924,17 +928,17 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
     const std::string& networkName)
 {
   CHECK(infos.contains(containerId));
-  CHECK(infos[containerId]->networkInfos.contains(networkName));
+  CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  const NetworkInfo& networkInfo =
-      infos[containerId]->networkInfos[networkName];
+  const ContainerNetwork& containerNetwork =
+      infos[containerId]->containerNetworks[networkName];
 
   // Prepare environment variables for CNI plugin.
   map<string, string> environment;
   environment["CNI_COMMAND"] = "DEL";
   environment["CNI_CONTAINERID"] = containerId.value();
   environment["CNI_PATH"] = pluginDir.get();
-  environment["CNI_IFNAME"] = networkInfo.ifName;
+  environment["CNI_IFNAME"] = containerNetwork.ifName;
   environment["CNI_NETNS"] =
       paths::getNamespacePath(rootDir.get(), containerId.value());
 
@@ -986,7 +990,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
     const tuple<Future<Option<int>>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
-  CHECK(infos[containerId]->networkInfos.contains(networkName));
+  CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
   Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
@@ -1006,7 +1010,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
         rootDir.get(),
         containerId.value(),
         networkName,
-        infos[containerId]->networkInfos[networkName].ifName);
+        infos[containerId]->containerNetworks[networkName].ifName);
 
     Try<Nothing> rmdir = os::rmdir(ifDir);
     if (rmdir.isError()) {
