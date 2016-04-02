@@ -166,7 +166,7 @@ static Try<Nothing> validateUris(const CommandInfo& commandInfo)
 
     if (uri.has_filename()) {
       Try<Nothing> filenameValidation =
-          Fetcher::validateFilename(uri.filename());
+        Fetcher::validateFilename(uri.filename());
       if (filenameValidation.isError()) {
         return Error(filenameValidation.error());
       }
