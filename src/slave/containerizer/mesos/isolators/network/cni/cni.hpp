@@ -90,6 +90,10 @@ private:
     // Interface name.
     std::string ifName;
 
+    // NetworkInfo copied from the ExecutorInfo.containerInfo.network_infos
+    // in 'prepare()' and '_recover()'.
+    mesos::NetworkInfo networkInfo;
+
     // Protobuf of CNI network information returned by CNI plugin.
     Option<cni::spec::NetworkInfo> network;
   };
@@ -140,7 +144,9 @@ private:
       const ContainerID& containerId,
       const std::list<process::Future<Nothing>>& detaches);
 
-  Try<Nothing> _recover(const ContainerID& containerId);
+  Try<Nothing> _recover(
+      const ContainerID& containerId,
+      const Option<ExecutorInfo>& executorInfo = None());
 
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;

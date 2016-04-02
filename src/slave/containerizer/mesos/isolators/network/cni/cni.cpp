@@ -319,7 +319,7 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
 
-    Try<Nothing> recover = _recover(containerId);
+    Try<Nothing> recover = _recover(containerId, state.executor_info());
     if (recover.isError()) {
       return Failure(
           "Failed to recover CNI network information for container " +
@@ -366,7 +366,8 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
 
 
 Try<Nothing> NetworkCniIsolatorProcess::_recover(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Option<ExecutorInfo>& executorInfo)
 {
   // NOTE: This method will add an 'Info' to 'infos' only if the container was
   // launched by the CNI isolator and joined CNI network(s), and cleanup _might_
@@ -432,6 +433,15 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
     NetworkInfo networkInfo;
     networkInfo.networkName = networkName;
     networkInfo.ifName = interfaces->front();
+
+    if (executorInfo.isSome()) {
+      foreach (const mesos::NetworkInfo& _networkInfo,
+               executorInfo->container().network_infos()) {
+        if (_networkInfo.name() == networkName) {
+          networkInfo.networkInfo = _networkInfo;
+        }
+      }
+    }
 
     const string networkInfoPath = paths::getNetworkInfoPath(
         rootDir.get(),
@@ -507,13 +517,13 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
   int ifIndex = 0;
   hashset<string> networkNames;
   hashmap<string, NetworkInfo> networkInfos;
-  foreach (const mesos::NetworkInfo& netInfo,
+  foreach (const mesos::NetworkInfo& _networkInfo,
            executorInfo.container().network_infos()) {
-    if (!netInfo.has_name()) {
+    if (!_networkInfo.has_name()) {
       continue;
     }
 
-    const string& name = netInfo.name();
+    const string& name = _networkInfo.name();
     if (!networkConfigs.contains(name)) {
       return Failure("Unknown CNI network '" + name + "'");
     }
@@ -528,6 +538,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     NetworkInfo networkInfo;
     networkInfo.networkName = name;
     networkInfo.ifName = "eth" + stringify(ifIndex++);
+    networkInfo.networkInfo = _networkInfo;
 
     networkInfos.put(name, networkInfo);
   }
@@ -569,7 +580,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
 
   // Bind mount the network namespace handle of the process 'pid' to
   // /var/run/mesos/isolators/network/cni/<containerId>/ns to hold an extra
-  // reference to the network namespace which will be released in 'cleanup'.
+  // reference to the network namespace which will be released in '_cleanup'.
   const string source = path::join("/proc", stringify(pid), "ns", "net");
   const string target =
       paths::getNamespacePath(rootDir.get(), containerId.value());
@@ -800,7 +811,34 @@ Future<ResourceStatistics> NetworkCniIsolatorProcess::usage(
 Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     const ContainerID& containerId)
 {
-  return ContainerStatus();
+  if (!infos.contains(containerId)) {
+    return ContainerStatus();
+  }
+
+  ContainerStatus status;
+  foreachvalue (const NetworkInfo& _networkInfo,
+                infos[containerId]->networkInfos) {
+    mesos::NetworkInfo* networkInfo = status.add_network_infos();
+    networkInfo->CopyFrom(_networkInfo.networkInfo);
+
+    if (_networkInfo.network.isSome()) {
+      networkInfo->clear_ip_addresses();
+
+      if (_networkInfo.network->has_ip4()) {
+        mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
+        ip->set_protocol(mesos::NetworkInfo::IPv4);
+        ip->set_ip_address(_networkInfo.network->ip4().ip());
+      }
+
+      if (_networkInfo.network->has_ip6()) {
+        mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
+        ip->set_protocol(mesos::NetworkInfo::IPv6);
+        ip->set_ip_address(_networkInfo.network->ip6().ip());
+      }
+    }
+  }
+
+  return status;
 }
 
 
