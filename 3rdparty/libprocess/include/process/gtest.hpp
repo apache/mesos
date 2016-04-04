@@ -383,6 +383,14 @@ inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
 }
 
 
+#define AWAIT_ASSERT_RESPONSE_STATUS_EQ_FOR(expected, actual, duration) \
+  ASSERT_PRED_FORMAT3(AwaitAssertResponseStatusEq, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_RESPONSE_STATUS_EQ(expected, actual)               \
+  AWAIT_ASSERT_RESPONSE_STATUS_EQ_FOR(expected, actual, Seconds(15))
+
+
 #define AWAIT_EXPECT_RESPONSE_STATUS_EQ_FOR(expected, actual, duration) \
   EXPECT_PRED_FORMAT3(AwaitAssertResponseStatusEq, expected, actual, duration)
 
@@ -416,6 +424,14 @@ inline ::testing::AssertionResult AwaitAssertResponseBodyEq(
 
   return result;
 }
+
+
+#define AWAIT_ASSERT_RESPONSE_BODY_EQ_FOR(expected, actual, duration)   \
+  ASSERT_PRED_FORMAT3(AwaitAssertResponseBodyEq, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_RESPONSE_BODY_EQ(expected, actual)                 \
+  AWAIT_ASSERT_RESPONSE_BODY_EQ_FOR(expected, actual, Seconds(15))
 
 
 #define AWAIT_EXPECT_RESPONSE_BODY_EQ_FOR(expected, actual, duration)   \
@@ -457,6 +473,14 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
 
   return result;
 }
+
+
+#define AWAIT_ASSERT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, duration) \
+  ASSERT_PRED_FORMAT4(AwaitAssertResponseHeaderEq, expected, key, actual, duration) // NOLINT(whitespace/line_length)
+
+
+#define AWAIT_ASSERT_RESPONSE_HEADER_EQ(expected, key, actual)          \
+  AWAIT_ASSERT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, Seconds(15))
 
 
 #define AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, duration) \
