@@ -1,0 +1,19 @@
+diff --git a/src/c/src/mt_adaptor.c b/src/c/src/mt_adaptor.c
+index 7dc7878..9c62991 100644
+--- a/src/c/src/mt_adaptor.c
++++ b/src/c/src/mt_adaptor.c
+@@ -483,13 +483,7 @@ int32_t inc_ref_counter(zhandle_t* zh,int i)
+ int32_t fetch_and_add(volatile int32_t* operand, int incr)
+ {
+ #ifndef WIN32
+-    int32_t result;
+-    asm __volatile__(
+-         "lock xaddl %0,%1\n"
+-         : "=r"(result), "=m"(*(int *)operand)
+-         : "0"(incr)
+-         : "memory");
+-   return result;
++    return __sync_fetch_and_add(operand, incr);
+ #else
+     volatile int32_t result;
+     _asm
