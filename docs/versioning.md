@@ -82,7 +82,7 @@ include/mesos/v1/scheduler/scheduler.proto
 package mesos.v1.scheduler;
 option java_package = "org.apache.mesos.v1.scheduler";
 option java_outer_classname = "Protos";
-…
+...
 ```
 
 The corresponding internal protobufs for the Scheduler API are located at:
@@ -93,7 +93,7 @@ include/mesos/scheduler/scheduler.proto
 package mesos.scheduler;
 option java_package = "org.apache.mesos.scheduler";
 option java_outer_classname = "Protos";
-…
+...
 ```
 
 The users of the API send requests (and receive responses) based on the versioned protobufs. We implemented [evolve](https://github.com/apache/mesos/blob/master/src/internal/evolve.hpp)/[devolve](https://github.com/apache/mesos/blob/master/src/internal/devolve.hpp) converters that can convert protobufs from any supported version to the internal protobuf and vice versa.

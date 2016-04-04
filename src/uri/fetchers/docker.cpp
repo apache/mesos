@@ -96,7 +96,7 @@ static Future<http::Response> curl(
 {
   vector<string> argv = {
     "curl",
-    "-s",       // Don’t show progress meter or error messages.
+    "-s",       // Don't show progress meter or error messages.
     "-S",       // Make curl show an error message if it fails.
     "-L",       // Follow HTTP 3xx redirects.
     "-i",       // Include the HTTP-header in the output.
@@ -195,7 +195,7 @@ static Future<int> download(
 
   vector<string> argv = {
     "curl",
-    "-s",                 // Don’t show progress meter or error messages.
+    "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Make curl show an error message if it fails.
     "-L",                 // Follow HTTP 3xx redirects.
     "-w", "%{http_code}", // Display HTTP response code on stdout.

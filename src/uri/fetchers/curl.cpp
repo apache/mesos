@@ -87,7 +87,7 @@ Future<Nothing> CurlFetcherPlugin::fetch(
 
   const vector<string> argv = {
     "curl",
-    "-s",                 // Don’t show progress meter or error messages.
+    "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Makes curl show an error message if it fails.
     "-L",                 // Follow HTTP 3xx redirects.
     "-w", "%{http_code}", // Display HTTP response code on stdout.
