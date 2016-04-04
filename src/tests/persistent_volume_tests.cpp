@@ -171,7 +171,7 @@ protected:
             "role1",
             None(),
             None(),
-            createDiskSourcePath(diskPath + "disk" + stringify(id)));
+            createDiskSourcePath(path::join(diskPath, "disk" + stringify(id))));
 
         break;
       }
@@ -182,7 +182,7 @@ protected:
             None(),
             None(),
             createDiskSourceMount(
-                path::join(diskPath, + "disk" + stringify(id))));
+                path::join(diskPath, "disk" + stringify(id))));
 
         break;
       }
