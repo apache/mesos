@@ -843,7 +843,7 @@ void initialize(const Option<string>& delegate)
   EventLoop::initialize();
 
   // Setup processing threads.
-  long cpus = process_manager->init_threads();
+  long num_worker_threads = process_manager->init_threads();
 
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
@@ -983,8 +983,8 @@ void initialize(const Option<string>& delegate)
 
   new Route("/__processes__", None(), __processes__);
 
-  VLOG(1) << "libprocess is initialized on " << address() << " for " << cpus
-          << " cpus";
+  VLOG(1) << "libprocess is initialized on " << address() << " with "
+          << num_worker_threads << " worker threads";
 }
 
 
@@ -2190,11 +2190,40 @@ long ProcessManager::init_threads()
   // Allocating a static number of threads can cause starvation if
   // there are more waiting Processes than the number of worker
   // threads.
-  long cpus = std::max(8L, sysconf(_SC_NPROCESSORS_ONLN));
-  threads.reserve(cpus+1);
+  long num_worker_threads = std::max(8L, sysconf(_SC_NPROCESSORS_ONLN));
+
+  // We allow the operator to set the number of libprocess worker
+  // threads, using an environment variable. The motivation is that
+  // for machines with a large number of cores, setting the number of
+  // worker threads to sysconf(_SC_NPROCESSORS_ONLN) can be very high
+  // and affect performance negatively. Furthermore, libprocess is
+  // widely used in Mesos and there may be a large number of Mesos
+  // processes (e.g., executors) on the same machine.
+  //
+  // See https://issues.apache.org/jira/browse/MESOS-4353.
+  constexpr char env_var[] = "LIBPROCESS_NUM_WORKER_THREADS";
+  Option<string> value = os::getenv(env_var);
+  if (value.isSome()) {
+    constexpr long maxval = 1024;
+    Try<long> number = numify<long>(value.get().c_str());
+    if (number.isSome() && number.get() > 0L && number.get() <= maxval) {
+      VLOG(1) << "Overriding default number of worker threads "
+              << num_worker_threads << ", using the value "
+              <<  env_var << "=" << number.get() << " instead";
+      num_worker_threads = number.get();
+    } else {
+      LOG(WARNING) << "Ignoring invalid value " << value.get()
+                   << " for " << env_var
+                   << ", using default value " << num_worker_threads
+                   << ". Valid values are integers in the range 1 to "
+                   << maxval;
+    }
+  }
+
+  threads.reserve(num_worker_threads + 1);
 
   // Create processing threads.
-  for (long i = 0; i < cpus; i++) {
+  for (long i = 0; i < num_worker_threads; i++) {
     // Retain the thread handles so that we can join when shutting down.
     threads.emplace_back(
         // We pass a constant reference to `joining` to make it clear that this
@@ -2224,7 +2253,7 @@ long ProcessManager::init_threads()
   // Create a thread for the event loop.
   threads.emplace_back(new std::thread(&EventLoop::run));
 
-  return cpus;
+  return num_worker_threads;
 }
 
 
