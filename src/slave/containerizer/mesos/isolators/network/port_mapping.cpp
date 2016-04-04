@@ -1916,12 +1916,18 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   if (bindMountEntry.isNone()) {
     // NOTE: Instead of using fs::mount to perform the bind mount, we
     // use the shell command here because the syscall 'mount' does not
-    // update the mount table (i.e., /etc/mtab), which could cause
-    // issues for the shell command 'mount --make-rslave' inside the
-    // container. It's OK to use the blocking os::shell here because
+    // update the mount table (i.e., /etc/mtab). In other words, the
+    // mount will not be visible if the operator types command
+    // 'mount'. Since this mount will still be presented after all
+    // containers and the slave are stopped, it's better to make it
+    // visible. It's OK to use the blocking os::shell here because
     // 'create' will only be invoked during initialization.
     Try<string> mount = os::shell(
-        "mount --bind %s %s",
+        "mount --bind %s %s && "
+        "mount --make-slave %s && "
+        "mount --make-shared %s",
+        bindMountRoot->c_str(),
+        bindMountRoot->c_str(),
         bindMountRoot->c_str(),
         bindMountRoot->c_str());
 
@@ -1930,17 +1936,48 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           "Failed to self bind mount '" + bindMountRoot.get() +
           "' and make it a shared mount: " + mount.error());
     }
-  }
+  } else {
+    if (bindMountEntry->shared().isNone()) {
+      // This is the case where the work directory mount is not a
+      // shared mount yet (possibly due to slave crash while preparing
+      // the work directory mount). It's safe to re-do the following.
+      Try<string> mount = os::shell(
+          "mount --make-slave %s && "
+          "mount --make-shared %s",
+          bindMountRoot->c_str(),
+          bindMountRoot->c_str());
 
-  // Mark the mount point bindMountRoot as recursively shared.
-  Try<string> mountShared = os::shell(
-      "mount --make-rshared %s",
-      bindMountRoot->c_str());
+      if (mount.isError()) {
+        return Error(
+            "Failed to self bind mount '" + bindMountRoot.get() +
+            "' and make it a shared mount: " + mount.error());
+      }
+    } else {
+      // We need to make sure that the shared mount is in its own peer
+      // group. To check that, we need to get the parent mount.
+      foreach (const fs::MountInfoTable::Entry& entry, mountTable->entries) {
+        if (entry.id == bindMountEntry->parent) {
+          // If the bind mount root and its parent mount are in the
+          // same peer group, we need to re-do the following commands
+          // so that they are in different peer groups.
+          if (entry.shared() == bindMountEntry->shared()) {
+            Try<string> mount = os::shell(
+                "mount --make-slave %s && "
+                "mount --make-shared %s",
+                bindMountRoot->c_str(),
+                bindMountRoot->c_str());
 
-  if (mountShared.isError()) {
-    return Error(
-        "Failed to mark '" + bindMountRoot.get() +
-        "' as recursively shared: " + mountShared.error());
+            if (mount.isError()) {
+              return Error(
+                  "Failed to self bind mount '" + bindMountRoot.get() +
+                  "' and make it a shared mount: " + mount.error());
+            }
+          }
+
+          break;
+        }
+      }
+    }
   }
 
   // Create the network namespace handle symlink directory if it does
