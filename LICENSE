@@ -516,7 +516,7 @@ file under either the BSD or the GPL.
 
 ======================================================================
 For http-parser
-(3rdparty/libprocess/3rdparty/http-parser-2.6.1.tar.gz):
+(3rdparty/libprocess/3rdparty/http-parser-2.6.2.tar.gz):
 ======================================================================
 
 http_parser.c is based on src/http/ngx_http_parse.c from NGINX copyright
