@@ -524,8 +524,8 @@ protected:
 
   void taskHealthUpdated(
       const TaskID& taskID,
-      const bool& healthy,
-      const bool& initiateTaskKill)
+      const bool healthy,
+      const bool initiateTaskKill)
   {
     if (driver.isNone()) {
       return;
@@ -538,6 +538,7 @@ protected:
     status.mutable_task_id()->CopyFrom(taskID);
     status.set_healthy(healthy);
     status.set_state(TASK_RUNNING);
+
     driver.get()->sendStatusUpdate(status);
 
     if (initiateTaskKill) {
