@@ -316,6 +316,14 @@ template <typename T1, typename T2>
   AWAIT_ASSERT_EQ(true, actual)
 
 
+#define AWAIT_TRUE_FOR(actual, duration)                 \
+  AWAIT_ASSERT_TRUE_FOR(actual, duration)
+
+
+#define AWAIT_TRUE(actual)       \
+  AWAIT_ASSERT_TRUE(actual)
+
+
 #define AWAIT_EXPECT_TRUE_FOR(actual, duration)               \
   AWAIT_EXPECT_EQ_FOR(true, actual, duration)
 
@@ -330,6 +338,14 @@ template <typename T1, typename T2>
 
 #define AWAIT_ASSERT_FALSE(actual)       \
   AWAIT_ASSERT_EQ(false, actual)
+
+
+#define AWAIT_FALSE_FOR(actual, duration)                 \
+  AWAIT_ASSERT_FALSE_FOR(actual, duration)
+
+
+#define AWAIT_FALSE(actual)       \
+  AWAIT_ASSERT_FALSE(actual)
 
 
 #define AWAIT_EXPECT_FALSE_FOR(actual, duration)               \
