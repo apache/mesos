@@ -427,9 +427,11 @@ TEST_F(FetcherTest, FileLocalhostURI)
 TEST_F(FetcherTest, NoExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched.
-  // TODO(mrbrowning): Fix other tests to use this tempfile pattern.
-  Try<string> path = os::mktemp();
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
 
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
   ASSERT_SOME(path);
 
   ContainerID containerId;
@@ -459,16 +461,17 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
   EXPECT_FALSE(permissions.get().owner.x);
   EXPECT_FALSE(permissions.get().group.x);
   EXPECT_FALSE(permissions.get().others.x);
-
-  ASSERT_SOME(os::rm(path.get()));
 }
 
 
 TEST_F(FetcherTest, NoExtractExecutable)
 {
   // First construct a temporary file that can be fetched.
-  Try<string> path = os::mktemp();
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
 
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
   ASSERT_SOME(path);
 
   ContainerID containerId;
@@ -499,17 +502,18 @@ TEST_F(FetcherTest, NoExtractExecutable)
   EXPECT_TRUE(permissions.get().owner.x);
   EXPECT_TRUE(permissions.get().group.x);
   EXPECT_TRUE(permissions.get().others.x);
-
-  ASSERT_SOME(os::rm(path.get()));
 }
 
 
 TEST_F(FetcherTest, ExtractNotExecutable)
 {
-  // First construct a temporary file that can be fetched and archive
-  // with tar gzip.
-  Try<string> path = os::mktemp();
+  // First construct a temporary file that can be fetched and archived with tar
+  // gzip.
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
 
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
   ASSERT_SOME(path);
 
   ASSERT_SOME(os::write(path.get(), "hello world"));
@@ -546,23 +550,24 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 
   ASSERT_SOME_EQ("hello world", os::read(path::join(os::getcwd(), path.get())));
 
-  Try<os::Permissions> permissions =
-    os::permissions(path::join(os::getcwd(), path.get()));
+  Try<os::Permissions> permissions = os::permissions(path.get());
 
   ASSERT_SOME(permissions);
   EXPECT_FALSE(permissions.get().owner.x);
   EXPECT_FALSE(permissions.get().group.x);
   EXPECT_FALSE(permissions.get().others.x);
-
-  ASSERT_SOME(os::rm(path.get()));
 }
 
 // Tests extracting tar file with extension .tar.
 TEST_F(FetcherTest, ExtractTar)
 {
-  // First construct a temporary file that can be fetched and archive
-  // with tar.
-  Try<string> path = os::mktemp();
+  // First construct a temporary file that can be fetched and archived with
+  // tar.
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
   ASSERT_SOME(path);
 
   ASSERT_SOME(os::write(path.get(), "hello tar"));
@@ -596,17 +601,18 @@ TEST_F(FetcherTest, ExtractTar)
   ASSERT_TRUE(os::exists(path::join(os::getcwd(), path.get())));
 
   ASSERT_SOME_EQ("hello tar", os::read(path::join(os::getcwd(), path.get())));
-
-  ASSERT_SOME(os::rm(path.get()));
 }
 
 
 TEST_F(FetcherTest, ExtractGzipFile)
 {
-  // First construct a temporary file that can be fetched and archive
-  // with gzip.
-  Try<string> path = os::mktemp();
+  // First construct a temporary file that can be fetched and archived with
+  // gzip.
+  Try<string> dir =
+      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
 
+  Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
   ASSERT_SOME(path);
 
   ASSERT_SOME(os::write(path.get(), "hello world"));
@@ -635,8 +641,6 @@ TEST_F(FetcherTest, ExtractGzipFile)
   ASSERT_TRUE(os::exists(extractedFile));
 
   ASSERT_SOME_EQ("hello world", os::read(extractedFile));
-
-  ASSERT_SOME(os::rm(path.get() + ".gz"));
 }
 
 

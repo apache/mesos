@@ -83,7 +83,7 @@ void ModuleManager::initialize()
   // another Mesos version?
   //
   // Mesos can admit modules built against earlier versions of itself
-  // by stating so explicitly in 'kindToVersion'.  If a modules is
+  // by stating so explicitly in 'kindToVersion'.  If a module is
   // built with a Mesos version greater than or equal to the one
   // stated in 'kindToVersion', it passes this verification step.
   // Otherwise it is rejected when attempting to load it.

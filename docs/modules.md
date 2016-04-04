@@ -276,7 +276,7 @@ mesos::modules::Module<TestModule> org_apache_mesos_TestModule(
     g++ -lmesos -fpic -o test_module.o test_module.cpp
     $ gcc -shared -o libtest_module.so test_module.o
 
-### Testing a modules
+### Testing a module
 
 Apart from testing the module by hand with explicit use of --modules flag, one
 can run the entire mesos test suite with the given module. For example, the
