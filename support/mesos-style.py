@@ -4,6 +4,7 @@
 
 import os
 import re
+import string
 import subprocess
 import sys
 
@@ -94,6 +95,35 @@ def check_license_header(source_paths):
 
     return error_count
 
+def check_encoding(source_paths):
+    '''
+    Checks for encoding errors in the given files. Source
+    code files must contain only printable ascii characters.
+    This excludes the extended ascii characters 128-255.
+    http://www.asciitable.com/
+    '''
+    error_count = 0
+    for path in source_paths:
+        with open(path) as source_file:
+            for line_number, line in enumerate(source_file):
+                # If we find an error, add 1 to both the character and
+                # the line offset to give them 1-based indexing
+                # instead of 0 (as is common in most editors).
+                char_errors = [offset for offset, char in enumerate(line)
+                               if char not in string.printable]
+                if char_errors:
+                    sys.stderr.write(
+                        "{path}:{line_number}:  Non-printable characters"
+                        " found at [{offsets}]: \"{line}\"\n".format(
+                            path=path,
+                            line_number=line_number + 1,
+                            offsets=', '.join([str(offset + 1) for offset
+                                               in char_errors]),
+                            line=line.rstrip()))
+                    error_count += 1
+
+    return error_count
+
 
 if __name__ == '__main__':
     # Verify that source roots are accessible from current working directory.
@@ -126,8 +156,9 @@ if __name__ == '__main__':
         print 'Checking {num_files} files'.\
                 format(num_files=len(filtered_candidates_set))
         license_errors = check_license_header(filtered_candidates_set)
+        encoding_errors = check_encoding(list(filtered_candidates_set))
         lint_errors = run_lint(list(filtered_candidates_set))
-        total_errors = license_errors + lint_errors
+        total_errors = license_errors + encoding_errors + lint_errors
         sys.stderr.write('Total errors found: {num_errors}\n'.\
                             format(num_errors=total_errors))
         sys.exit(total_errors)
