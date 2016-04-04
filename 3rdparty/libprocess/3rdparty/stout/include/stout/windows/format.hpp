@@ -1,7 +1,7 @@
 // Copyright 2015 Mesosphere, Inc.
 //
 // This file has been modified from its original form by Mesosphere, Inc.
-// All modifications made to this file by Mesosphere (the “Modifications”)
+// All modifications made to this file by Mesosphere (the "Modifications")
 // are copyright 2015 Mesosphere, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
