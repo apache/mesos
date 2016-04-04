@@ -247,6 +247,7 @@ private:
 
   PortMappingIsolatorProcess(
       const Flags& _flags,
+      const std::string& _bindMountRoot,
       const std::string& _eth0,
       const std::string& _lo,
       const net::MAC& _hostMAC,
@@ -260,6 +261,7 @@ private:
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
       const std::set<uint16_t>& _flowIDs)
     : flags(_flags),
+      bindMountRoot(_bindMountRoot),
       eth0(_eth0),
       lo(_lo),
       hostMAC(_hostMAC),
@@ -306,6 +308,7 @@ private:
   uint16_t getNextFlowId();
 
   const Flags flags;
+  const std::string bindMountRoot;
 
   const std::string eth0;
   const std::string lo;
