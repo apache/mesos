@@ -160,21 +160,23 @@ static void cleanup(const string& eth0, const string& lo)
     }
   }
 
-  Try<list<string> > entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
-  ASSERT_SOME(entries);
+  if (os::exists(slave::PORT_MAPPING_BIND_MOUNT_ROOT())) {
+    Try<list<string> > entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
+    ASSERT_SOME(entries);
 
-  foreach (const string& file, entries.get()) {
-    string target = path::join(slave::PORT_MAPPING_BIND_MOUNT_ROOT(), file);
+    foreach (const string& file, entries.get()) {
+      string target = path::join(slave::PORT_MAPPING_BIND_MOUNT_ROOT(), file);
 
-    // NOTE: Here, we ignore the unmount errors because previous tests
-    // may have created the file and died before mounting.
-    if (!os::stat::islink(target)) {
-      mesos::internal::fs::unmount(target, MNT_DETACH);
+      // NOTE: Here, we ignore the unmount errors because previous tests
+      // may have created the file and died before mounting.
+      if (!os::stat::islink(target)) {
+        mesos::internal::fs::unmount(target, MNT_DETACH);
+      }
+
+      // Remove the network namespace handle and the corresponding
+      // symlinks. The removal here is best effort.
+      os::rm(target);
     }
-
-    // Remove the network namespace handle and the corresponding
-    // symlinks. The removal here is best effort.
-    os::rm(target);
   }
 }
 
