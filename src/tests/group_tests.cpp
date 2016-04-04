@@ -283,7 +283,7 @@ TEST_F(GroupTest, MultipleGroups)
 
   server->expireSession(session1.get().get());
 
-  AWAIT_ASSERT_EQ(false, cancelled);
+  AWAIT_ASSERT_FALSE(cancelled);
 }
 
 

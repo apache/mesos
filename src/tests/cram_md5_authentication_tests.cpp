@@ -109,7 +109,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Success)
   Future<Option<string>> principal =
     authenticator.get()->authenticate(message.get().from);
 
-  AWAIT_EQ(true, client);
+  AWAIT_TRUE(client);
   AWAIT_READY(principal);
   EXPECT_SOME_EQ("benh", principal.get());
 
@@ -154,7 +154,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed1)
   Future<Option<string>> server =
     authenticator.get()->authenticate(message.get().from);
 
-  AWAIT_EQ(false, client);
+  AWAIT_FALSE(client);
   AWAIT_READY(server);
   EXPECT_NONE(server.get());
 
@@ -199,7 +199,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed2)
   Future<Option<string>> server =
     authenticator.get()->authenticate(message.get().from);
 
-  AWAIT_EQ(false, client);
+  AWAIT_FALSE(client);
   AWAIT_READY(server);
   EXPECT_NONE(server.get());
 
@@ -281,7 +281,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticateeSecretMissing)
   Future<bool> future =
     authenticatee.get()->authenticate(UPID(), UPID(), credential);
 
-  AWAIT_EQ(false, future);
+  AWAIT_FALSE(future);
 
   delete authenticatee.get();
 }

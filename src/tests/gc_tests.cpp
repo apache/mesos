@@ -148,7 +148,7 @@ TEST_F(GarbageCollectorTest, Unschedule)
   GarbageCollector gc;
 
   // Attempt to unschedule a file that is not scheduled.
-  AWAIT_ASSERT_EQ(false, gc.unschedule("bogus"));
+  AWAIT_ASSERT_FALSE(gc.unschedule("bogus"));
 
   // Make some temporary files to gc.
   const string& file1 = "file1";
@@ -171,9 +171,9 @@ TEST_F(GarbageCollectorTest, Unschedule)
   Future<Nothing> schedule3 = gc.schedule(Seconds(10), file3);
 
   // Unschedule each operation.
-  AWAIT_ASSERT_EQ(true, gc.unschedule(file2));
-  AWAIT_ASSERT_EQ(true, gc.unschedule(file3));
-  AWAIT_ASSERT_EQ(true, gc.unschedule(file1));
+  AWAIT_ASSERT_TRUE(gc.unschedule(file2));
+  AWAIT_ASSERT_TRUE(gc.unschedule(file3));
+  AWAIT_ASSERT_TRUE(gc.unschedule(file1));
 
   // Advance the clock to ensure nothing was GCed.
   Clock::advance(Seconds(10));
@@ -219,7 +219,7 @@ TEST_F(GarbageCollectorTest, Prune)
   Future<Nothing> schedule3 = gc.schedule(Seconds(15), file3);
   Future<Nothing> schedule4 = gc.schedule(Seconds(15), file4);
 
-  AWAIT_ASSERT_EQ(true, gc.unschedule(file3));
+  AWAIT_ASSERT_TRUE(gc.unschedule(file3));
   AWAIT_DISCARDED(schedule3);
 
   // Prune file1 and file2.

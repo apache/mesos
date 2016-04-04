@@ -114,7 +114,7 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
 
-  EXPECT_EQ(true, update.get().has_slave_id());
+  EXPECT_TRUE(update.get().has_slave_id());
 
   const TaskID taskId = update.get().task_id();
   const SlaveID slaveId = update.get().slave_id();
@@ -193,7 +193,7 @@ TEST_F(ReconciliationTest, TaskStateMatch)
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
 
-  EXPECT_EQ(true, update.get().has_slave_id());
+  EXPECT_TRUE(update.get().has_slave_id());
 
   const TaskID taskId = update.get().task_id();
   const SlaveID slaveId = update.get().slave_id();

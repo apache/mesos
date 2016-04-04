@@ -523,7 +523,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   Result<JSON::Value> find = parse.get().find<JSON::Value>(
       "frameworks[0].tasks[0].container.docker.privileged");
 
-  EXPECT_SOME_EQ(false, find);
+  EXPECT_SOME_FALSE(find);
 
   // Check if container information is exposed through slave's state endpoint.
   response = http::get(
@@ -540,7 +540,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   find = parse.get().find<JSON::Value>(
       "frameworks[0].executors[0].tasks[0].container.docker.privileged");
 
-  EXPECT_SOME_EQ(false, find);
+  EXPECT_SOME_FALSE(find);
 
   // Now verify that the TaskStatus contains the container IP address.
   ASSERT_TRUE(statusRunning.get().has_container_status());

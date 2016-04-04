@@ -254,9 +254,9 @@ TEST_P(RegistrarTest, Recover)
   AWAIT_READY(registry);
   EXPECT_EQ(master, registry.get().master().info());
 
-  AWAIT_EQ(true, admit);
-  AWAIT_EQ(true, readmit);
-  AWAIT_EQ(true, remove);
+  AWAIT_TRUE(admit);
+  AWAIT_TRUE(readmit);
+  AWAIT_TRUE(remove);
 }
 
 
@@ -265,12 +265,12 @@ TEST_P(RegistrarTest, Admit)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+    AWAIT_FALSE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   }
 }
 
@@ -294,14 +294,14 @@ TEST_P(RegistrarTest, Readmit)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new ReadmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(info1))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
+    AWAIT_FALSE(registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
   }
 }
 
@@ -332,34 +332,34 @@ TEST_P(RegistrarTest, Remove)
   info3.set_hostname("localhost");
   info3.mutable_id()->CopyFrom(id3);
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
+    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
   }
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
+    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
   }
 
-  AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
 
   if (flags.registry_strict) {
-    AWAIT_EQ(false, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
+    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
   } else {
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
   }
 }
 
@@ -740,7 +740,7 @@ TEST_P(RegistrarTest, UpdateQuota)
     AWAIT_READY(registry);
 
     // Store quota for a role without quota.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
   }
 
   {
@@ -760,7 +760,7 @@ TEST_P(RegistrarTest, UpdateQuota)
     quota1.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update the only stored quota.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
   }
 
   {
@@ -777,7 +777,7 @@ TEST_P(RegistrarTest, UpdateQuota)
     EXPECT_EQ(quotaResources2, storedResources);
 
     // Store one more quota for a role without quota.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
   }
 
   {
@@ -803,7 +803,7 @@ TEST_P(RegistrarTest, UpdateQuota)
     quota2.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update quota for `role2` in presence of multiple quotas.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
   }
 
   {
@@ -866,8 +866,8 @@ TEST_P(RegistrarTest, RemoveQuota)
     Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
     EXPECT_NONE(validateError2);
 
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
   }
 
   {
@@ -884,7 +884,7 @@ TEST_P(RegistrarTest, RemoveQuota)
     EXPECT_EQ(ROLE2, registry.get().quotas(1).info().role());
 
     // Remove quota for `role2`.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveQuota(ROLE2))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE2))));
   }
 
   {
@@ -897,7 +897,7 @@ TEST_P(RegistrarTest, RemoveQuota)
     EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
 
     // Remove quota for `ROLE1`.
-    AWAIT_EQ(true, registrar.apply(Owned<Operation>(new RemoveQuota(ROLE1))));
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE1))));
   }
 
   {
@@ -934,7 +934,7 @@ TEST_P(RegistrarTest, UpdateWeights)
     weights[ROLE1] = WEIGHT1;
     vector<WeightInfo> weightInfos = getWeightInfos(weights);
 
-    AWAIT_EQ(true, registrar.apply(
+    AWAIT_TRUE(registrar.apply(
         Owned<Operation>(new UpdateWeights(weightInfos))));
   }
 
@@ -955,7 +955,7 @@ TEST_P(RegistrarTest, UpdateWeights)
     weights[ROLE2] = WEIGHT2;
     vector<WeightInfo> weightInfos = getWeightInfos(weights);
 
-    AWAIT_EQ(true, registrar.apply(
+    AWAIT_TRUE(registrar.apply(
         Owned<Operation>(new UpdateWeights(weightInfos))));
   }
 
@@ -984,11 +984,9 @@ TEST_P(RegistrarTest, Bootstrap)
 
     // If not strict, we should be allowed to readmit the slave.
     if (flags.registry_strict) {
-      AWAIT_EQ(false,
-               registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
+      AWAIT_FALSE(registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
     } else {
-      AWAIT_EQ(true,
-               registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
+      AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
     }
   }
 
