@@ -2382,7 +2382,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     // Info struct here and let the 'cleanup' function clean it up
     // later.
     LOG(WARNING) << "No ephemeral ports found for container with pid "
-                 << stringify(pid) << ". This could happen if slave crashes "
+                 << stringify(pid) << ". This could happen if agent crashes "
                  << "while isolating a container";
 
     info = new Info(nonEphemeralPorts, Interval<uint16_t>(), pid);

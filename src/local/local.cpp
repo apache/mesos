@@ -263,7 +263,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         EXIT(EXIT_FAILURE)
           << "Invalid slave_removal_rate_limit: "
           << flags.slave_removal_rate_limit.get()
-          << ". Format is <Number of slaves>/<Duration>";
+          << ". Format is <Number of agents>/<Duration>";
       }
 
       Try<int> permits = numify<int>(tokens[0]);
@@ -271,7 +271,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         EXIT(EXIT_FAILURE)
           << "Invalid slave_removal_rate_limit: "
           << flags.slave_removal_rate_limit.get()
-          << ". Format is <Number of slaves>/<Duration>"
+          << ". Format is <Number of agents>/<Duration>"
           << ": " << permits.error();
       }
 
@@ -280,7 +280,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         EXIT(EXIT_FAILURE)
           << "Invalid slave_removal_rate_limit: "
           << flags.slave_removal_rate_limit.get()
-          << ". Format is <Number of slaves>/<Duration>"
+          << ". Format is <Number of agents>/<Duration>"
           << ": " << duration.error();
       }
 
@@ -335,7 +335,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to start a local cluster while loading"
-        << " slave flags from the environment: " << load.error();
+        << " agent flags from the environment: " << load.error();
     }
 
     // Use a different work directory for each slave.

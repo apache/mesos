@@ -503,7 +503,7 @@ void Slave::wait()
           << "Failed to find cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy
-          << " for slave: " + exists.error();
+          << " for agent: " + exists.error();
       }
 
       // Move all of our threads into the root cgroup.
@@ -513,7 +513,7 @@ void Slave::wait()
           << "Failed to move slave threads into cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy
-          << " for slave: " + assign.error();
+          << " for agent: " + assign.error();
       }
     }
   }

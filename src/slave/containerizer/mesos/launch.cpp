@@ -151,7 +151,7 @@ int MesosContainerizerLaunch::execute()
   if (length != sizeof(dummy)) {
      // There's a reasonable probability this will occur during slave
      // restarts across a large/busy cluster.
-     cerr << "Failed to synchronize with slave (it's probably exited)" << endl;
+     cerr << "Failed to synchronize with agent (it's probably exited)" << endl;
      return 1;
   }
 

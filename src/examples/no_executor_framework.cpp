@@ -102,7 +102,7 @@ public:
       const vector<Offer>& offers)
   {
     foreach (const Offer& offer, offers) {
-      LOG(INFO) << "Received offer " << offer.id() << " from slave "
+      LOG(INFO) << "Received offer " << offer.id() << " from agent "
                 << offer.slave_id() << " (" << offer.hostname() << ") "
                 << "with " << offer.resources();
 
@@ -189,14 +189,14 @@ public:
       const string& data)
   {
     LOG(FATAL) << "Received framework message from executor '" << executorId
-               << "' on slave " << slaveId << ": '" << data << "'";
+               << "' on agent " << slaveId << ": '" << data << "'";
   }
 
   virtual void slaveLost(
       SchedulerDriver* driver,
       const SlaveID& slaveId)
   {
-    LOG(INFO) << "Lost slave " << slaveId;
+    LOG(INFO) << "Lost agent " << slaveId;
   }
 
   virtual void executorLost(
@@ -205,7 +205,7 @@ public:
       const SlaveID& slaveId,
       int status)
   {
-    LOG(INFO) << "Lost executor '" << executorId << "' on slave "
+    LOG(INFO) << "Lost executor '" << executorId << "' on agent "
               << slaveId << ", " << WSTRINGIFY(status);
   }
 

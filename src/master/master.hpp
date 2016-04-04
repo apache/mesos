@@ -176,7 +176,7 @@ struct Slave
 
     LOG(INFO) << "Adding task " << taskId
               << " with resources " << task->resources()
-              << " on slave " << id << " (" << info.hostname() << ")";
+              << " on agent " << id << " (" << info.hostname() << ")";
   }
 
   // Notification of task termination, for resource accounting.
@@ -1908,7 +1908,7 @@ struct Framework
   {
     CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
       << "Duplicate executor '" << executorInfo.executor_id()
-      << "' on slave " << slaveId;
+      << "' on agent " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
     totalUsedResources += executorInfo.resources();
@@ -1921,7 +1921,7 @@ struct Framework
     CHECK(hasExecutor(slaveId, executorId))
       << "Unknown executor '" << executorId
       << "' of framework " << id()
-      << " of slave " << slaveId;
+      << " of agent " << slaveId;
 
     totalUsedResources -= executors[slaveId][executorId].resources();
     usedResources[slaveId] -= executors[slaveId][executorId].resources();

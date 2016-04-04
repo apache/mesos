@@ -1200,7 +1200,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
     result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
-  LOG(INFO) << "Admitted " << slaveCount << " slaves in " << watch.elapsed();
+  LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
 
   // Shuffle the slaves so we are readmitting them in random order (
   // same as in production).
@@ -1212,7 +1212,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
     result = registrar.apply(Owned<Operation>(new ReadmitSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
-  LOG(INFO) << "Readmitted " << slaveCount << " slaves in " << watch.elapsed();
+  LOG(INFO) << "Readmitted " << slaveCount << " agents in " << watch.elapsed();
 
   // Recover slaves.
   Registrar registrar2(flags, state);
@@ -1223,7 +1223,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   info.set_port(5050);
   Future<Registry> registry = registrar2.recover(info);
   AWAIT_READY(registry);
-  LOG(INFO) << "Recovered " << slaveCount << " slaves ("
+  LOG(INFO) << "Recovered " << slaveCount << " agents ("
             << Bytes(registry.get().ByteSize()) << ") in " << watch.elapsed();
 
   // Shuffle the slaves so we are removing them in random order (same
@@ -1236,7 +1236,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
     result = registrar2.apply(Owned<Operation>(new RemoveSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
-  cout << "Removed " << slaveCount << " slaves in " << watch.elapsed() << endl;
+  cout << "Removed " << slaveCount << " agents in " << watch.elapsed() << endl;
 }
 
 } // namespace tests {

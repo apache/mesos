@@ -108,7 +108,7 @@ public:
 
   void disconnected(ExecutorDriver* driver)
   {
-    cout << "Disconnected from the slave" << endl;
+    cout << "Disconnected from the agent" << endl;
   }
 
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)

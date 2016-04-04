@@ -217,12 +217,12 @@ protected:
       const SlaveInfo& slaveInfo)
   {
     if (aborted.load()) {
-      VLOG(1) << "Ignoring registered message from slave " << slaveId
+      VLOG(1) << "Ignoring registered message from agent " << slaveId
               << " because the driver is aborted!";
       return;
     }
 
-    LOG(INFO) << "Executor registered on slave " << slaveId;
+    LOG(INFO) << "Executor registered on agent " << slaveId;
 
     connected = true;
     connection = UUID::random();
@@ -240,12 +240,12 @@ protected:
   void reregistered(const SlaveID& slaveId, const SlaveInfo& slaveInfo)
   {
     if (aborted.load()) {
-      VLOG(1) << "Ignoring re-registered message from slave " << slaveId
+      VLOG(1) << "Ignoring re-registered message from agent " << slaveId
               << " because the driver is aborted!";
       return;
     }
 
-    LOG(INFO) << "Executor re-registered on slave " << slaveId;
+    LOG(INFO) << "Executor re-registered on agent " << slaveId;
 
     connected = true;
     connection = UUID::random();
@@ -263,12 +263,12 @@ protected:
   void reconnect(const UPID& from, const SlaveID& slaveId)
   {
     if (aborted.load()) {
-      VLOG(1) << "Ignoring reconnect message from slave " << slaveId
+      VLOG(1) << "Ignoring reconnect message from agent " << slaveId
               << " because the driver is aborted!";
       return;
     }
 
-    LOG(INFO) << "Received reconnect request from slave " << slaveId;
+    LOG(INFO) << "Received reconnect request from agent " << slaveId;
 
     // Update the slave link.
     slave = from;
@@ -469,8 +469,8 @@ protected:
     if (checkpoint && connected) {
       connected = false;
 
-      LOG(INFO) << "Slave exited, but framework has checkpointing enabled. "
-                << "Waiting " << recoveryTimeout << " to reconnect with slave "
+      LOG(INFO) << "Agent exited, but framework has checkpointing enabled. "
+                << "Waiting " << recoveryTimeout << " to reconnect with agent "
                 << slaveId;
 
       delay(recoveryTimeout, self(), &Self::_recoveryTimeout, connection);
@@ -478,7 +478,7 @@ protected:
       return;
     }
 
-    LOG(INFO) << "Slave exited ... shutting down";
+    LOG(INFO) << "Agent exited ... shutting down";
 
     connected = false;
 

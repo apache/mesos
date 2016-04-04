@@ -2977,7 +2977,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
         FrameworkInfo::Capability::REVOCABLE_RESOURCES);
   }
 
-  cout << "Using " << slaveCount << " slaves"
+  cout << "Using " << slaveCount << " agents"
        << " and " << frameworkCount << " frameworks" << endl;
 
   Clock::pause();
@@ -3030,7 +3030,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     os::sleep(Milliseconds(10));
   }
 
-  cout << "Added " << slaveCount << " slaves"
+  cout << "Added " << slaveCount << " agents"
        << " in " << watch.elapsed() << endl;
 
   // Oversubscribed resources on each slave.
@@ -3048,7 +3048,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     os::sleep(Milliseconds(10));
   }
 
-  cout << "Updated " << slaveCount << " slaves in " << watch.elapsed() << endl;
+  cout << "Updated " << slaveCount << " agents in " << watch.elapsed() << endl;
 }
 
 
@@ -3095,7 +3095,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   vector<SlaveInfo> slaves;
   vector<FrameworkInfo> frameworks;
 
-  cout << "Using " << slaveCount << " slaves and "
+  cout << "Using " << slaveCount << " agents and "
        << frameworkCount << " frameworks" << endl;
 
   slaves.reserve(slaveCount);
@@ -3235,7 +3235,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   vector<SlaveInfo> slaves;
   vector<FrameworkInfo> frameworks;
 
-  cout << "Using " << slaveCount << " slaves and "
+  cout << "Using " << slaveCount << " agents and "
        << frameworkCount << " frameworks" << endl;
 
   slaves.reserve(slaveCount);

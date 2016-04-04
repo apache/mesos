@@ -197,12 +197,12 @@ void Slave::signaled(int signal, int uid)
 
 void Slave::initialize()
 {
-  LOG(INFO) << "Slave started on " << string(self()).substr(6);
+  LOG(INFO) << "Agent started on " << string(self()).substr(6);
   LOG(INFO) << "Flags at startup: " << flags;
 
   if (self().address.ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
-                 << "Slave bound to loopback interface!"
+                 << "Agent bound to loopback interface!"
                  << " Cannot communicate with remote master(s)."
                  << " You might want to set '--ip' flag to a routable"
                  << " IP address.\n"
@@ -218,7 +218,7 @@ void Slave::initialize()
   if (flags.slave_subsystems.isSome()) {
     foreach (const string& subsystem,
             strings::tokenize(flags.slave_subsystems.get(), ",")) {
-      LOG(INFO) << "Moving slave process into its own cgroup for"
+      LOG(INFO) << "Moving agent process into its own cgroup for"
                 << " subsystem: " << subsystem;
 
       // Ensure the subsystem is mounted and the Mesos root cgroup is
@@ -243,7 +243,7 @@ void Slave::initialize()
           << "Failed to find cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy.get()
-          << " for slave: " << exists.error();
+          << " for agent: " << exists.error();
       }
 
       if (!exists.get()) {
@@ -253,7 +253,7 @@ void Slave::initialize()
             << "Failed to create cgroup " << cgroup
             << " for subsystem " << subsystem
             << " under hierarchy " << hierarchy.get()
-            << " for slave: " << create.error();
+            << " for agent: " << create.error();
         }
       }
 
@@ -265,7 +265,7 @@ void Slave::initialize()
           << "Failed to check for existing threads in cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy.get()
-          << " for slave: " << processes.error();
+          << " for agent: " << processes.error();
       }
 
       // Log if there are any processes in the slave's cgroup. They
@@ -295,7 +295,7 @@ void Slave::initialize()
           }
         }
 
-        LOG(INFO) << "A slave (or child process) is still running, please"
+        LOG(INFO) << "A agent (or child process) is still running, please"
                   << " consider checking the following process(es) listed in "
                   << path::join(hierarchy.get(), cgroup, "cgroups.proc")
                   << ":\n" << strings::join("\n", infos);
@@ -305,10 +305,10 @@ void Slave::initialize()
       Try<Nothing> assign = cgroups::assign(hierarchy.get(), cgroup, getpid());
       if (assign.isError()) {
         EXIT(EXIT_FAILURE)
-          << "Failed to move slave into cgroup " << cgroup
+          << "Failed to move agent into cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy.get()
-          << " for slave: " << assign.error();
+          << " for agent: " << assign.error();
       }
     }
   }
@@ -335,7 +335,7 @@ void Slave::initialize()
         << " (see --credential flag)";
     } else {
       credential = _credential.get();
-      LOG(INFO) << "Slave using credential for: "
+      LOG(INFO) << "Agent using credential for: "
                 << credential.get().principal();
     }
   }
@@ -468,12 +468,12 @@ void Slave::initialize()
 
   // Ensure slave work directory exists.
   CHECK_SOME(os::mkdir(flags.work_dir))
-    << "Failed to create slave work directory '" << flags.work_dir << "'";
+    << "Failed to create agent work directory '" << flags.work_dir << "'";
 
   Try<Resources> resources = Containerizer::resources(flags);
   if (resources.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Failed to determine slave resources: " << resources.error();
+      << "Failed to determine agent resources: " << resources.error();
   }
 
   // Ensure disk `source`s are accessible.
@@ -586,7 +586,7 @@ void Slave::initialize()
         HookManager::slaveResourcesDecorator(info));
   }
 
-  LOG(INFO) << "Slave resources: " << info.resources();
+  LOG(INFO) << "Agent resources: " << info.resources();
 
   info.mutable_attributes()->CopyFrom(attributes);
   if (HookManager::hooksAvailable()) {
@@ -594,12 +594,12 @@ void Slave::initialize()
         HookManager::slaveAttributesDecorator(info));
   }
 
-  LOG(INFO) << "Slave attributes: " << info.attributes();
+  LOG(INFO) << "Agent attributes: " << info.attributes();
 
   // Checkpointing of slaves is always enabled.
   info.set_checkpoint(true);
 
-  LOG(INFO) << "Slave hostname: " << info.hostname();
+  LOG(INFO) << "Agent hostname: " << info.hostname();
 
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
 
@@ -754,7 +754,7 @@ void Slave::initialize()
       logging::getLogFile(logging::getLogSeverity(flags.logging_level));
 
     if (log.isError()) {
-      LOG(ERROR) << "Slave log file cannot be found: " << log.error();
+      LOG(ERROR) << "Agent log file cannot be found: " << log.error();
     } else {
       files->attach(log.get(), "/slave/log")
         .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
@@ -765,7 +765,7 @@ void Slave::initialize()
   if (flags.recover != "reconnect" && flags.recover != "cleanup") {
     EXIT(EXIT_FAILURE)
       << "Unknown option for 'recover' flag " << flags.recover << "."
-      << " Please run the slave with '--help' to see the valid options";
+      << " Please run the agent with '--help' to see the valid options";
   }
 
   struct sigaction action;
@@ -797,7 +797,7 @@ void Slave::initialize()
 
 void Slave::finalize()
 {
-  LOG(INFO) << "Slave terminating";
+  LOG(INFO) << "Agent terminating";
 
   // NOTE: We use 'frameworks.keys()' here because 'shutdownFramework'
   // can potentially remove a framework from 'frameworks'.
@@ -839,7 +839,7 @@ void Slave::shutdown(const UPID& from, const string& message)
   }
 
   if (from) {
-    LOG(INFO) << "Slave asked to shut down by " << from
+    LOG(INFO) << "Agent asked to shut down by " << from
               << (message.empty() ? "" : " because '" + message + "'");
   } else if (info.has_id()) {
     if (message.empty()) {
@@ -929,7 +929,7 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
     link(master.get());
 
     if (state == TERMINATING) {
-      LOG(INFO) << "Skipping registration because slave is terminating";
+      LOG(INFO) << "Skipping registration because agent is terminating";
       return;
     }
 
@@ -1103,7 +1103,7 @@ void Slave::registered(
   switch (state) {
     case DISCONNECTED: {
       LOG(INFO) << "Registered with master " << master.get()
-                << "; given slave ID " << slaveId;
+                << "; given agent ID " << slaveId;
 
       // TODO(bernd-mesos): Make this an instance method call, see comment
       // in "fetcher.hpp"".
@@ -1152,11 +1152,11 @@ void Slave::registered(
 
       break;
     case TERMINATING:
-      LOG(WARNING) << "Ignoring registration because slave is terminating";
+      LOG(WARNING) << "Ignoring registration because agent is terminating";
       break;
     case RECOVERING:
     default:
-      LOG(FATAL) << "Unexpected slave state " << state;
+      LOG(FATAL) << "Unexpected agent state " << state;
       break;
   }
 
@@ -1224,7 +1224,7 @@ void Slave::reregistered(
       LOG(WARNING) << "Already re-registered with master " << master.get();
       break;
     case TERMINATING:
-      LOG(WARNING) << "Ignoring re-registration because slave is terminating";
+      LOG(WARNING) << "Ignoring re-registration because agent is terminating";
       return;
     case RECOVERING:
       // It's possible to receive a message intended for the previous
@@ -1234,7 +1234,7 @@ void Slave::reregistered(
       // https://issues.apache.org/jira/browse/MESOS-676
       // https://issues.apache.org/jira/browse/MESOS-677
     default:
-      LOG(FATAL) << "Unexpected slave state " << state;
+      LOG(FATAL) << "Unexpected agent state " << state;
       return;
   }
 
@@ -1280,9 +1280,9 @@ void Slave::reregistered(
       // unknown (so that the master removes it). Otherwise, the
       // master correctly holds the task and will receive updates.
       if (!known) {
-        LOG(WARNING) << "Slave reconciling task " << taskId
+        LOG(WARNING) << "Agent reconciling task " << taskId
                      << " of framework " << reconcile.framework_id()
-                     << " in state TASK_LOST: task unknown to the slave";
+                     << " in state TASK_LOST: task unknown to the agent";
 
         const StatusUpdate update = protobuf::createStatusUpdate(
             reconcile.framework_id(),
@@ -1325,7 +1325,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
   }
 
   if (state == TERMINATING) {
-    LOG(INFO) << "Skipping registration because slave is terminating";
+    LOG(INFO) << "Skipping registration because agent is terminating";
     return;
   }
 
@@ -1499,8 +1499,8 @@ void Slave::runTask(
 
   if (!(task.slave_id() == info.id())) {
     LOG(WARNING)
-      << "Slave " << info.id() << " ignoring task " << task.task_id()
-      << " because it was intended for old slave " << task.slave_id();
+      << "Agent " << info.id() << " ignoring task " << task.task_id()
+      << " because it was intended for old agent " << task.slave_id();
     return;
   }
 
@@ -1511,7 +1511,7 @@ void Slave::runTask(
   // TODO(bmahler): Also ignore if we're DISCONNECTED.
   if (state == RECOVERING || state == TERMINATING) {
     LOG(WARNING) << "Ignoring task " << task.task_id()
-                 << " because the slave is " << state;
+                 << " because the agent is " << state;
     // TODO(vinod): Consider sending a TASK_LOST here.
     // Currently it is tricky because 'statusUpdate()'
     // ignores updates for unknown frameworks.
@@ -1778,7 +1778,7 @@ void Slave::_runTask(
   if (state == TERMINATING) {
     LOG(WARNING) << "Ignoring run task " << task.task_id()
                  << " of framework " << frameworkId
-                 << " because the slave is terminating";
+                 << " because the agent is terminating";
 
     // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
@@ -2035,7 +2035,7 @@ void Slave::killTask(
   if (state == RECOVERING || state == TERMINATING) {
     LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << frameworkId
-                 << " because the slave is " << state;
+                 << " because the agent is " << state;
     // TODO(vinod): Consider sending a TASK_LOST here.
     // Currently it is tricky because 'statusUpdate()'
     // ignores updates for unknown frameworks.
@@ -2221,7 +2221,7 @@ void Slave::shutdownFramework(
 
   if (state == RECOVERING || state == DISCONNECTED) {
     LOG(WARNING) << "Ignoring shutdown framework message for " << frameworkId
-                 << " because the slave has not yet registered with the master";
+                 << " because the agent has not yet registered with the master";
     return;
   }
 
@@ -2290,7 +2290,7 @@ void Slave::schedulerMessage(
 
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping message from framework " << frameworkId
-                 << " because the slave is in " << state << " state";
+                 << " because the agent is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2363,7 +2363,7 @@ void Slave::updateFramework(
 
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping updateFramework message for " << frameworkId
-                 << " because the slave is in " << state << " state";
+                 << " because the agent is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
   }
@@ -2552,7 +2552,7 @@ void Slave::statusUpdateAcknowledgement(
   if (strings::startsWith(from.id, "master")) {
     if (state != RUNNING) {
       LOG(WARNING) << "Dropping status update acknowledgement message for "
-                   << frameworkId << " because the slave is in "
+                   << frameworkId << " because the agent is in "
                    << state << " state";
       return;
     }
@@ -2662,7 +2662,7 @@ void Slave::subscribe(
     << state;
 
   if (state == TERMINATING) {
-    LOG(WARNING) << "Shutting down executor " << *executor << " as the slave "
+    LOG(WARNING) << "Shutting down executor " << *executor << " as the agent "
                  << "is terminating";
     http.send(ShutdownExecutorMessage());
     http.close();
@@ -2833,7 +2833,7 @@ void Slave::registerExecutor(
   if (state == RECOVERING) {
     LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " because the slave is still recovering";
+                 << " because the agent is still recovering";
     reply(ShutdownExecutorMessage());
     return;
   }
@@ -2841,7 +2841,7 @@ void Slave::registerExecutor(
   if (state == TERMINATING) {
     LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " because the slave is terminating";
+                 << " because the agent is terminating";
     reply(ShutdownExecutorMessage());
     return;
   }
@@ -2966,7 +2966,7 @@ void Slave::reregisterExecutor(
   if (state != RECOVERING) {
     LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " because the slave is not in recovery mode";
+                 << " because the agent is not in recovery mode";
     reply(ShutdownExecutorMessage());
     return;
   }
@@ -3526,7 +3526,7 @@ void Slave::forward(StatusUpdate update)
 
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping status update " << update
-                 << " sent by status update manager because the slave"
+                 << " sent by status update manager because the agent"
                  << " is in " << state << " state";
     return;
   }
@@ -3612,7 +3612,7 @@ void Slave::executorMessage(
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping framework message from executor '"
                  << executorId << "' to framework " << frameworkId
-                 << " because the slave is in " << state << " state";
+                 << " because the agent is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
   }
@@ -3669,7 +3669,7 @@ void Slave::ping(const UPID& from, bool connected)
     // event and marking the slave disconnected but the slave
     // thinking it is still connected. Force a re-registration with
     // the master to reconcile.
-    LOG(INFO) << "Master marked the slave as disconnected but the slave"
+    LOG(INFO) << "Master marked the agent as disconnected but the agent"
               << " considers itself registered! Forcing re-registration.";
     detection.discard();
   }
@@ -4343,7 +4343,7 @@ void Slave::shutdownExecutor(
   if (state == RECOVERING || state == DISCONNECTED) {
     LOG(WARNING) << "Ignoring shutdown executor message for executor '"
                  << executorId << "' of framework " << frameworkId
-                 << " because the slave has not yet registered with the master";
+                 << " because the agent has not yet registered with the master";
     return;
   }
 
@@ -4658,7 +4658,7 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
     info = slaveState.get().info.get(); // Recover the slave info.
 
     if (slaveState.get().errors > 0) {
-      LOG(WARNING) << "Errors encountered during slave recovery: "
+      LOG(WARNING) << "Errors encountered during agent recovery: "
                    << slaveState.get().errors;
 
       metrics.recovery_errors += slaveState.get().errors;
@@ -4766,8 +4766,8 @@ void Slave::__recover(const Future<Nothing>& future)
       << (future.isFailed() ? future.failure() : "future discarded") << "\n"
       << "To remedy this do as follows:\n"
       << "Step 1: rm -f " << paths::getLatestSlavePath(metaDir) << "\n"
-      << "        This ensures slave doesn't recover old live executors.\n"
-      << "Step 2: Restart the slave.";
+      << "        This ensures agent doesn't recover old live executors.\n"
+      << "Step 2: Restart the agent.";
   }
 
   LOG(INFO) << "Finished recovery";
@@ -4803,7 +4803,7 @@ void Slave::__recover(const Future<Nothing>& future)
       SlaveID slaveId;
       slaveId.set_value(entry);
       if (!info.has_id() || !(slaveId == info.id())) {
-        LOG(INFO) << "Garbage collecting old slave " << slaveId;
+        LOG(INFO) << "Garbage collecting old agent " << slaveId;
 
         // NOTE: We update the modification time of the slave work/meta
         // directories even though these are old because these
@@ -5018,7 +5018,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
     << state;
 
   if (state == RECOVERING || state == TERMINATING) {
-    LOG(WARNING) << "Cannot perform QoS corrections because the slave is "
+    LOG(WARNING) << "Cannot perform QoS corrections because the agent is "
                  << state;
     return;
   }
@@ -5165,7 +5165,7 @@ Future<ResourceUsage> Slave::usage()
 
   CHECK_SOME(totalResources)
     << "Failed to apply checkpointed resources "
-    << checkpointedResources << " to slave's resources "
+    << checkpointedResources << " to agent's resources "
     << info.resources();
 
   usage->mutable_total()->CopyFrom(totalResources.get());

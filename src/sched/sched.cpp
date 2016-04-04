@@ -1021,13 +1021,13 @@ protected:
   void lostSlave(const UPID& from, const SlaveID& slaveId)
   {
     if (!running.load()) {
-      VLOG(1) << "Ignoring lost slave message because the driver is not"
+      VLOG(1) << "Ignoring lost agent message because the driver is not"
               << " running!";
       return;
     }
 
     if (!connected) {
-      VLOG(1) << "Ignoring lost slave message because the driver is "
+      VLOG(1) << "Ignoring lost agent message because the driver is "
               << "disconnected!";
       return;
     }
@@ -1035,13 +1035,13 @@ protected:
     CHECK_SOME(master);
 
     if (from != master.get().pid()) {
-      VLOG(1) << "Ignoring lost slave message because it was sent "
+      VLOG(1) << "Ignoring lost agent message because it was sent "
               << "from '" << from << "' instead of the leading master '"
               << master.get().pid() << "'";
       return;
     }
 
-    VLOG(1) << "Lost slave " << slaveId;
+    VLOG(1) << "Lost agent " << slaveId;
 
     savedSlavePids.erase(slaveId);
 
@@ -1082,7 +1082,7 @@ protected:
     }
 
     VLOG(1)
-      << "Executor " << executorId << " on slave " << slaveId
+      << "Executor " << executorId << " on agent " << slaveId
       << " exited with status " << status;
 
     Stopwatch stopwatch;
@@ -1318,7 +1318,7 @@ protected:
               savedSlavePids[slaveId] = savedOffers[offerId][slaveId];
             } else {
               LOG(WARNING) << "Attempting to launch task " << task.task_id()
-                           << " with the wrong slave id " << slaveId;
+                           << " with the wrong agent id " << slaveId;
             }
           }
         }
@@ -1421,7 +1421,7 @@ protected:
 
       VLOG(2) << "Sending ACK for status update " << status.uuid()
               << " of task " << status.task_id()
-              << " on slave " << status.slave_id()
+              << " on agent " << status.slave_id()
               << " to " << master.get().pid();
 
       Call call;
@@ -1454,7 +1454,7 @@ protected:
      return;
     }
 
-    VLOG(2) << "Asked to send framework message to slave "
+    VLOG(2) << "Asked to send framework message to agent "
             << slaveId;
 
     // TODO(benh): After a scheduler has re-registered it won't have
@@ -1476,7 +1476,7 @@ protected:
       message.set_data(data);
       send(slave, message);
     } else {
-      VLOG(1) << "Cannot send directly to slave " << slaveId
+      VLOG(1) << "Cannot send directly to agent " << slaveId
               << "; sending through master";
 
       Call call;

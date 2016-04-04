@@ -325,7 +325,7 @@ int main(int argc, char** argv)
   }
 
 
-  LOG(INFO) << "Starting Mesos slave";
+  LOG(INFO) << "Starting Mesos agent";
 
   Slave* slave = new Slave(
       id,

@@ -49,6 +49,10 @@ Additional API Changes:
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
 
+Binary API Changes:
+  * [MESOS-5055] - Replace Master/Slave Terminology Phase I - Update strings in
+    the log message and standard output
+
 
 Release Notes - Mesos - Version 0.28.0
 --------------------------------------

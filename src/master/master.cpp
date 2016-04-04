@@ -221,7 +221,7 @@ protected:
     Future<Nothing> acquire = Nothing();
 
     if (limiter.isSome()) {
-      LOG(INFO) << "Scheduling shutdown of slave " << slaveId
+      LOG(INFO) << "Scheduling shutdown of agent " << slaveId
                 << " due to health check timeout";
 
       acquire = limiter.get()->acquire();
@@ -240,7 +240,7 @@ protected:
     CHECK(!future.isFailed());
 
     if (future.isReady()) {
-      LOG(INFO) << "Shutting down slave " << slaveId
+      LOG(INFO) << "Shutting down agent " << slaveId
                 << " due to health check timeout";
 
       ++metrics->slave_shutdowns_completed;
@@ -250,7 +250,7 @@ protected:
                slaveId,
                "health check timed out");
     } else if (future.isDiscarded()) {
-      LOG(INFO) << "Canceling shutdown of slave " << slaveId
+      LOG(INFO) << "Canceling shutdown of agent " << slaveId
                 << " since a pong is received!";
 
       ++metrics->slave_shutdowns_canceled;
@@ -380,7 +380,7 @@ void Master::initialize()
   if (process::address().ip.isLoopback()) {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Master bound to loopback interface!"
-                 << " Cannot communicate with remote schedulers or slaves."
+                 << " Cannot communicate with remote schedulers or agents."
                  << " You might want to set '--ip' flag to a routable"
                  << " IP address.\n"
                  << "**************************************************";
@@ -429,9 +429,9 @@ void Master::initialize()
     LOG(INFO) << "Master allowing unauthenticated frameworks to register";
   }
   if (flags.authenticate_slaves) {
-    LOG(INFO) << "Master only allowing authenticated slaves to register";
+    LOG(INFO) << "Master only allowing authenticated agents to register";
   } else {
-    LOG(INFO) << "Master allowing unauthenticated slaves to register";
+    LOG(INFO) << "Master allowing unauthenticated agents to register";
   }
 
   // Load credentials.
@@ -500,7 +500,7 @@ void Master::initialize()
       // A failure to initialize the authenticator does lead to
       // unusable authentication but still allows non authenticating
       // frameworks and slaves to connect.
-      LOG(WARNING) << "Only non-authenticating frameworks and slaves are "
+      LOG(WARNING) << "Only non-authenticating frameworks and agents are "
                    << "allowed to connect. "
                    << "Authentication is disabled: " << error;
       delete authenticator.get();
@@ -636,7 +636,7 @@ void Master::initialize()
   // If the rate limiter is injected for testing,
   // the flag may not be set.
   if (slaves.limiter.isSome() && flags.slave_removal_rate_limit.isSome()) {
-    LOG(INFO) << "Slave removal is rate limited to "
+    LOG(INFO) << "Agent removal is rate limited to "
               << flags.slave_removal_rate_limit.get();
   }
 
@@ -1227,7 +1227,7 @@ void Master::exited(const UPID& pid)
     Slave* slave = slaves.registered.get(pid);
     CHECK_NOTNULL(slave);
 
-    LOG(INFO) << "Slave " << *slave << " disconnected";
+    LOG(INFO) << "Agent " << *slave << " disconnected";
 
     if (slave->connected) {
       disconnect(slave);
@@ -1247,7 +1247,7 @@ void Master::exited(const UPID& pid)
         Framework* framework = getFramework(frameworkId);
         if (framework != NULL && !framework->info.checkpoint()) {
           LOG(INFO) << "Removing framework " << *framework
-                    << " from disconnected slave " << *slave
+                    << " from disconnected agent " << *slave
                     << " because the framework is not checkpointing";
 
           removeFramework(slave, framework);
@@ -1258,7 +1258,7 @@ void Master::exited(const UPID& pid)
       // because its PID doesn't change on restart. See MESOS-675
       // for details.
       LOG(WARNING) << "Ignoring duplicate exited() notification for "
-                   << "slave " << *slave;
+                   << "agent " << *slave;
     }
   }
 }
@@ -1631,10 +1631,10 @@ Future<Nothing> Master::_recover(const Registry& registry)
   }
 
   // Recovery is now complete!
-  LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
+  LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " agents"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
             << " ; allowing " << flags.slave_reregister_timeout
-            << " for slaves to re-register";
+            << " for agents to re-register";
 
   return Nothing();
 }
@@ -1666,7 +1666,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       << "Post-recovery slave removal limit exceeded! After "
       << flags.slave_reregister_timeout
       << " there were " << slaves.recovered.size()
-      << " (" << removalPercentage * 100 << "%) slaves recovered from the"
+      << " (" << removalPercentage * 100 << "%) agents recovered from the"
       << " registry that did not re-register: \n"
       << stringify(slaves.recovered) << "\n "
       << " The configured removal limit is " << limit * 100 << "%. Please"
@@ -1684,7 +1684,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     Future<Nothing> acquire = Nothing();
 
     if (slaves.limiter.isSome()) {
-      LOG(INFO) << "Scheduling removal of slave "
+      LOG(INFO) << "Scheduling removal of agent "
                 << slave.info().id() << " (" << slave.info().hostname() << ")"
                 << "; did not re-register within "
                 << flags.slave_reregister_timeout << " after master failover";
@@ -1712,7 +1712,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
 {
   // The slave is removed from 'recovered' when it re-registers.
   if (!slaves.recovered.contains(slave.info().id())) {
-    LOG(INFO) << "Canceling removal of slave "
+    LOG(INFO) << "Canceling removal of agent "
               << slave.info().id() << " (" << slave.info().hostname() << ")"
               << " since it re-registered!";
 
@@ -1721,7 +1721,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
     return Nothing();
   }
 
-  LOG(WARNING) << "Slave " << slave.info().id()
+  LOG(WARNING) << "Agent " << slave.info().id()
                << " (" << slave.info().hostname() << ") did not re-register"
                << " within " << flags.slave_reregister_timeout
                << " after master failover; removing it from the registrar";
@@ -2698,7 +2698,7 @@ void Master::disconnect(Slave* slave)
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Disconnecting slave " << *slave;
+  LOG(INFO) << "Disconnecting agent " << *slave;
 
   slave->connected = false;
 
@@ -2717,7 +2717,7 @@ void Master::deactivate(Slave* slave)
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Deactivating slave " << *slave;
+  LOG(INFO) << "Deactivating agent " << *slave;
 
   slave->active = false;
 
@@ -3126,7 +3126,7 @@ Resources Master::addTask(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
   CHECK(slave->connected) << "Adding task " << task.task_id()
-                          << " to disconnected slave " << *slave;
+                          << " to disconnected agent " << *slave;
 
   // The resources consumed.
   Resources resources = task.resources();
@@ -3140,7 +3140,7 @@ Resources Master::addTask(
       CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
         << "Executor '" << task.executor().executor_id()
         << "' known to the framework " << *framework
-        << " but unknown to the slave " << *slave;
+        << " but unknown to the agent " << *slave;
 
       slave->addExecutor(framework->id(), task.executor());
       framework->addExecutor(slave->id, task.executor());
@@ -3286,7 +3286,7 @@ void Master::accept(
   CHECK_NOTNULL(slave);
 
   LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
-            << " on slave " << *slave << " for framework " << *framework;
+            << " on agent " << *slave << " for framework " << *framework;
 
   list<Future<bool>> futures;
   foreach (const Offer::Operation& operation, accept.operations()) {
@@ -3514,7 +3514,7 @@ void Master::_accept(
 
         LOG(INFO) << "Applying RESERVE operation for resources "
                   << operation.reserve().resources() << " from framework "
-                  << *framework << " to slave " << *slave;
+                  << *framework << " to agent " << *slave;
 
         apply(framework, slave, operation);
         break;
@@ -3566,7 +3566,7 @@ void Master::_accept(
 
         LOG(INFO) << "Applying UNRESERVE operation for resources "
                   << operation.unreserve().resources() << " from framework "
-                  << *framework << " to slave " << *slave;
+                  << *framework << " to agent " << *slave;
 
         apply(framework, slave, operation);
         break;
@@ -3616,7 +3616,7 @@ void Master::_accept(
 
         LOG(INFO) << "Applying CREATE operation for volumes "
                   << operation.create().volumes() << " from framework "
-                  << *framework << " to slave " << *slave;
+                  << *framework << " to agent " << *slave;
 
         apply(framework, slave, operation);
         break;
@@ -3666,7 +3666,7 @@ void Master::_accept(
 
         LOG(INFO) << "Applying DESTROY operation for volumes "
                   << operation.create().volumes() << " from framework "
-                  << *framework << " to slave " << *slave;
+                  << *framework << " to agent " << *slave;
 
         apply(framework, slave, operation);
         break;
@@ -3773,7 +3773,7 @@ void Master::_accept(
             LOG(INFO) << "Launching task " << task_.task_id()
                       << " of framework " << *framework
                       << " with resources " << task_.resources()
-                      << " on slave " << *slave;
+                      << " on agent " << *slave;
 
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
@@ -3985,16 +3985,16 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
   }
 
   if (slaveId.isSome() && !(slaveId.get() == task->slave_id())) {
-    LOG(WARNING) << "Cannot kill task " << taskId << " of slave "
+    LOG(WARNING) << "Cannot kill task " << taskId << " of agent "
                  << slaveId.get() << " of framework " << *framework
-                 << " because it belongs to different slave "
+                 << " because it belongs to different agent "
                  << task->slave_id();
     // TODO(vinod): Return a "Bad Request" when using HTTP API.
     return;
   }
 
   Slave* slave = slaves.registered.get(task->slave_id());
-  CHECK(slave != NULL) << "Unknown slave " << task->slave_id();
+  CHECK(slave != NULL) << "Unknown agent " << task->slave_id();
 
   // We add the task to 'killedTasks' here because the slave
   // might be partitioned or disconnected but the master
@@ -4007,7 +4007,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
   // the previous one was dropped by the network but it didn't trigger a slave
   // re-registration (and hence reconciliation).
   if (slave->connected) {
-    LOG(INFO) << "Telling slave " << *slave
+    LOG(INFO) << "Telling agent " << *slave
               << " to kill task " << taskId
               << " of framework " << *framework;
 
@@ -4018,8 +4018,8 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
   } else {
     LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << *framework
-                 << " because the slave " << *slave << " is disconnected."
-                 << " Kill will be retried if the slave re-registers";
+                 << " because the agent " << *slave << " is disconnected."
+                 << " Kill will be retried if the agent re-registers";
   }
 }
 
@@ -4044,7 +4044,7 @@ void Master::statusUpdateAcknowledgement(
     LOG(WARNING)
       << "Ignoring status update acknowledgement " << UUID::fromBytes(uuid)
       << " for task " << taskId << " of framework " << frameworkId
-      << " on slave " << slaveId << " because the framework cannot be found";
+      << " on agent " << slaveId << " because the framework cannot be found";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -4053,7 +4053,7 @@ void Master::statusUpdateAcknowledgement(
     LOG(WARNING)
       << "Ignoring status update acknowledgement " << UUID::fromBytes(uuid)
       << " for task " << taskId << " of framework " << *framework
-      << " on slave " << slaveId << " because it is not expected from " << from;
+      << " on agent " << slaveId << " because it is not expected from " << from;
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -4085,7 +4085,7 @@ void Master::acknowledge(
     LOG(WARNING)
       << "Cannot send status update acknowledgement " << uuid
       << " for task " << taskId << " of framework " << *framework
-      << " to slave " << slaveId << " because slave is not registered";
+      << " to agent " << slaveId << " because agent is not registered";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -4094,13 +4094,13 @@ void Master::acknowledge(
     LOG(WARNING)
       << "Cannot send status update acknowledgement " << uuid
       << " for task " << taskId << " of framework " << *framework
-      << " to slave " << *slave << " because slave is disconnected";
+      << " to agent " << *slave << " because agent is disconnected";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
   LOG(INFO) << "Processing ACKNOWLEDGE call " << uuid << " for task " << taskId
-            << " of framework " << *framework << " on slave " << slaveId;
+            << " of framework " << *framework << " on agent " << slaveId;
 
   Task* task = slave->getTask(framework->id(), taskId);
 
@@ -4121,7 +4121,7 @@ void Master::acknowledge(
       LOG(ERROR)
         << "Ignoring status update acknowledgement " << uuid
         << " for task " << taskId << " of framework " << *framework
-        << " to slave " << *slave << " because the update was not"
+        << " to agent " << *slave << " because the update was not"
         << " sent by this master";
       metrics->invalid_status_update_acknowledgements++;
       return;
@@ -4198,8 +4198,8 @@ void Master::executorMessage(
     LOG(WARNING) << "Ignoring executor message"
                  << " from executor" << " '" << executorId << "'"
                  << " of framework " << frameworkId
-                 << " on removed slave " << slaveId
-                 << " ; asking slave to shutdown";
+                 << " on removed agent " << slaveId
+                 << " ; asking agent to shutdown";
 
     ShutdownMessage message;
     message.set_message("Executor message from unknown slave");
@@ -4214,7 +4214,7 @@ void Master::executorMessage(
     LOG(WARNING) << "Ignoring executor message"
                  << " from executor '" << executorId << "'"
                  << " of framework " << frameworkId
-                 << " on unknown slave " << slaveId;
+                 << " on unknown agent " << slaveId;
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
@@ -4228,7 +4228,7 @@ void Master::executorMessage(
     LOG(WARNING) << "Not forwarding executor message"
                  << " for executor '" << executorId << "'"
                  << " of framework " << frameworkId
-                 << " on slave " << *slave
+                 << " on agent " << *slave
                  << " because the framework is unknown";
     metrics->invalid_executor_to_framework_messages++;
     return;
@@ -4258,22 +4258,22 @@ void Master::message(
 
   if (slave == NULL) {
     LOG(WARNING) << "Cannot send framework message for framework "
-                 << *framework << " to slave " << message.slave_id()
-                 << " because slave is not registered";
+                 << *framework << " to agent " << message.slave_id()
+                 << " because agent is not registered";
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
   if (!slave->connected) {
     LOG(WARNING) << "Cannot send framework message for framework "
-                 << *framework << " to slave " << *slave
-                 << " because slave is disconnected";
+                 << *framework << " to agent " << *slave
+                 << " because agent is disconnected";
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
   LOG(INFO) << "Processing MESSAGE call from framework "
-            << *framework << " to slave " << *slave;
+            << *framework << " to agent " << *slave;
 
   FrameworkToExecutorMessage message_;
   message_.mutable_slave_id()->MergeFrom(message.slave_id());
@@ -4312,7 +4312,7 @@ void Master::registerSlave(
     // This could happen if another authentication request came
     // through before we are here or if a slave tried to register
     // without authentication.
-    LOG(WARNING) << "Refusing registration of slave at " << from
+    LOG(WARNING) << "Refusing registration of agent at " << from
                  << " because it is not authenticated";
     ShutdownMessage message;
     message.set_message("Slave is not authenticated");
@@ -4328,7 +4328,7 @@ void Master::registerSlave(
   // `DOWN` mode.
   if (machines.contains(machineId) &&
       machines[machineId].info.mode() == MachineInfo::DOWN) {
-    LOG(WARNING) << "Refusing registration of slave at " << from
+    LOG(WARNING) << "Refusing registration of agent at " << from
                  << " because the machine '" << machineId << "' that it is "
                  << "running on is `DOWN`";
 
@@ -4348,16 +4348,16 @@ void Master::registerSlave(
       // to register as a new slave. This could happen if the slave
       // failed recovery and hence registering as a new slave before
       // the master removed the old slave from its map.
-      LOG(INFO) << "Removing old disconnected slave " << *slave
+      LOG(INFO) << "Removing old disconnected agent " << *slave
                 << " because a registration attempt occurred";
       removeSlave(slave,
                   "a new slave registered at the same address",
                   metrics->slave_removals_reason_registered);
     } else {
       CHECK(slave->active)
-        << "Unexpected connected but deactivated slave " << *slave;
+        << "Unexpected connected but deactivated agent " << *slave;
 
-      LOG(INFO) << "Slave " << *slave << " already registered,"
+      LOG(INFO) << "Agent " << *slave << " already registered,"
                 << " resending acknowledgement";
 
       Duration pingTimeout =
@@ -4375,7 +4375,7 @@ void Master::registerSlave(
 
   // We need to generate a SlaveID and admit this slave only *once*.
   if (slaves.registering.contains(from)) {
-    LOG(INFO) << "Ignoring register slave message from " << from
+    LOG(INFO) << "Ignoring register agent message from " << from
               << " (" << slaveInfo.hostname() << ") as admission is"
               << " already in progress";
     return;
@@ -4387,7 +4387,7 @@ void Master::registerSlave(
   SlaveInfo slaveInfo_ = slaveInfo;
   slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
 
-  LOG(INFO) << "Registering slave at " << from << " ("
+  LOG(INFO) << "Registering agent at " << from << " ("
             << slaveInfo.hostname() << ") with id " << slaveInfo_.id();
 
   registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
@@ -4413,12 +4413,12 @@ void Master::_registerSlave(
   CHECK(!admit.isDiscarded());
 
   if (admit.isFailed()) {
-    LOG(FATAL) << "Failed to admit slave " << slaveInfo.id() << " at " << pid
+    LOG(FATAL) << "Failed to admit agent " << slaveInfo.id() << " at " << pid
                << " (" << slaveInfo.hostname() << "): " << admit.failure();
   } else if (!admit.get()) {
     // This means the slave is already present in the registrar, it's
     // likely we generated a duplicate slave id!
-    LOG(ERROR) << "Slave " << slaveInfo.id() << " at " << pid
+    LOG(ERROR) << "Agent " << slaveInfo.id() << " at " << pid
                << " (" << slaveInfo.hostname() << ") was not admitted, "
                << "asking to shut down";
     slaves.removed.put(slaveInfo.id(), Nothing());
@@ -4455,7 +4455,7 @@ void Master::_registerSlave(
     message.mutable_connection()->CopyFrom(connection);
     send(slave->pid, message);
 
-    LOG(INFO) << "Registered slave " << *slave
+    LOG(INFO) << "Registered agent " << *slave
               << " with " << slave->info.resources();
   }
 }
@@ -4493,7 +4493,7 @@ void Master::reregisterSlave(
     // This could happen if another authentication request came
     // through before we are here or if a slave tried to
     // re-register without authentication.
-    LOG(WARNING) << "Refusing re-registration of slave at " << from
+    LOG(WARNING) << "Refusing re-registration of agent at " << from
                  << " because it is not authenticated";
     ShutdownMessage message;
     message.set_message("Slave is not authenticated");
@@ -4509,7 +4509,7 @@ void Master::reregisterSlave(
   // 'DOWN` mode.
   if (machines.contains(machineId) &&
       machines[machineId].info.mode() == MachineInfo::DOWN) {
-    LOG(WARNING) << "Refusing re-registration of slave at " << from
+    LOG(WARNING) << "Refusing re-registration of agent at " << from
                  << " because the machine '" << machineId << "' that it is "
                  << "running on is `DOWN`";
 
@@ -4525,7 +4525,7 @@ void Master::reregisterSlave(
     // re-registering. This is because a non-strict registrar cannot
     // enforce this. We've already told frameworks the tasks were
     // lost so it's important to deny the slave from re-registering.
-    LOG(WARNING) << "Slave " << slaveInfo.id() << " at " << from
+    LOG(WARNING) << "Agent " << slaveInfo.id() << " at " << from
                  << " (" << slaveInfo.hostname() << ") attempted to "
                  << "re-register after removal; shutting it down";
 
@@ -4547,7 +4547,7 @@ void Master::reregisterSlave(
     // For now, we assume this slave is not nefarious (eventually
     // this will be handled by orthogonal security measures like key
     // based authentication).
-    LOG(INFO) << "Re-registering slave " << *slave;
+    LOG(INFO) << "Re-registering agent " << *slave;
 
     // We don't allow re-registering this way with a different IP or
     // hostname. This is because maintenance is scheduled at the
@@ -4555,7 +4555,7 @@ void Master::reregisterSlave(
     // unavailability if the machine it is running on changed.
     if (slave->pid.address.ip != from.address.ip ||
         slave->info.hostname() != slaveInfo.hostname()) {
-      LOG(WARNING) << "Slave " << slaveInfo.id() << " at " << from
+      LOG(WARNING) << "Agent " << slaveInfo.id() << " at " << from
                    << " (" << slaveInfo.hostname() << ") attempted to "
                    << "re-register with different IP / hostname; expected "
                    << slave->pid.address.ip << " (" << slave->info.hostname()
@@ -4598,7 +4598,7 @@ void Master::reregisterSlave(
     }
 
     CHECK(slave->active)
-      << "Unexpected connected but deactivated slave " << *slave;
+      << "Unexpected connected but deactivated agent " << *slave;
 
     // Inform the slave of the new framework pids for its tasks.
     __reregisterSlave(slave, tasks);
@@ -4614,13 +4614,13 @@ void Master::reregisterSlave(
   // the registrar again.
   if (slaves.reregistering.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register slave message from slave "
+      << "Ignoring re-register agent message from agent "
       << slaveInfo.id() << " at " << from << " ("
       << slaveInfo.hostname() << ") as readmission is already in progress";
     return;
   }
 
-  LOG(INFO) << "Re-registering slave " << slaveInfo.id() << " at " << from
+  LOG(INFO) << "Re-registering agent " << slaveInfo.id() << " at " << from
             << " (" << slaveInfo.hostname() << ")";
 
   slaves.reregistering.insert(slaveInfo.id());
@@ -4657,10 +4657,10 @@ void Master::_reregisterSlave(
   CHECK(!readmit.isDiscarded());
 
   if (readmit.isFailed()) {
-    LOG(FATAL) << "Failed to readmit slave " << slaveInfo.id() << " at " << pid
+    LOG(FATAL) << "Failed to readmit agent " << slaveInfo.id() << " at " << pid
                << " (" << slaveInfo.hostname() << "): " << readmit.failure();
   } else if (!readmit.get()) {
-    LOG(WARNING) << "The slave " << slaveInfo.id() << " at "
+    LOG(WARNING) << "The agent " << slaveInfo.id() << " at "
                  << pid << " (" << slaveInfo.hostname() << ") could not be"
                  << " readmitted; shutting it down";
     slaves.removed.put(slaveInfo.id(), Nothing());
@@ -4702,7 +4702,7 @@ void Master::_reregisterSlave(
     message.mutable_connection()->CopyFrom(connection);
     send(slave->pid, message);
 
-    LOG(INFO) << "Re-registered slave " << *slave
+    LOG(INFO) << "Re-registered agent " << *slave
               << " with " << slave->info.resources();
 
     __reregisterSlave(slave, tasks);
@@ -4739,7 +4739,7 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
   // less than 0.22.0 will drop it silently which is OK.
   LOG(INFO) << "Sending updated checkpointed resources "
             << slave->checkpointedResources
-            << " to slave " << *slave;
+            << " to agent " << *slave;
 
   CheckpointResourcesMessage message;
   message.mutable_resources()->CopyFrom(slave->checkpointedResources);
@@ -4752,14 +4752,14 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 {
   ++metrics->messages_unregister_slave;
 
-  LOG(INFO) << "Asked to unregister slave " << slaveId;
+  LOG(INFO) << "Asked to unregister agent " << slaveId;
 
   Slave* slave = slaves.registered.get(slaveId);
 
   if (slave != NULL) {
     if (slave->pid != from) {
-      LOG(WARNING) << "Ignoring unregister slave message from " << from
-                   << " because it is not the slave " << slave->pid;
+      LOG(WARNING) << "Ignoring unregister agent message from " << from
+                   << " because it is not the agent " << slave->pid;
       return;
     }
     removeSlave(slave,
@@ -4780,9 +4780,9 @@ void Master::updateSlave(
     // frameworks that its tasks were LOST, so the slave should
     // shut down.
     LOG(WARNING)
-      << "Ignoring update of slave with total oversubscribed resources "
-      << oversubscribedResources << " on removed slave " << slaveId
-      << " ; asking slave to shutdown";
+      << "Ignoring update of agent with total oversubscribed resources "
+      << oversubscribedResources << " on removed agent " << slaveId
+      << " ; asking agent to shutdown";
 
     ShutdownMessage message;
     message.set_message("Update slave message from unknown slave");
@@ -4792,14 +4792,14 @@ void Master::updateSlave(
 
   if (!slaves.registered.contains(slaveId)) {
     LOG(WARNING)
-      << "Ignoring update of slave with total oversubscribed resources "
-      << oversubscribedResources << " on unknown slave " << slaveId;
+      << "Ignoring update of agent with total oversubscribed resources "
+      << oversubscribedResources << " on unknown agent " << slaveId;
     return;
   }
 
   Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId));
 
-  LOG(INFO) << "Received update of slave " << *slave << " with total"
+  LOG(INFO) << "Received update of agent " << *slave << " with total"
             << " oversubscribed resources " <<  oversubscribedResources;
 
   // First, rescind any outstanding offers with revocable resources.
@@ -4809,7 +4809,7 @@ void Master::updateSlave(
     if (!offered.revocable().empty()) {
       LOG(INFO) << "Removing offer " << offer->id()
                 << " with revocable resources " << offered
-                << " on slave " << *slave;
+                << " on agent " << *slave;
 
       allocator->recoverResources(
           offer->framework_id(), offer->slave_id(), offer->resources(), None());
@@ -4855,11 +4855,11 @@ void Master::updateUnavailability(
 
       if (unavailability.isSome()) {
         // TODO(jmlvanre): Add stream operator for unavailability.
-        LOG(INFO) << "Updating unavailability of slave " << *slave
+        LOG(INFO) << "Updating unavailability of agent " << *slave
                   << ", starting at "
                   << Nanoseconds(unavailability.get().start().nanoseconds());
       } else {
-        LOG(INFO) << "Removing unavailability of slave " << *slave;
+        LOG(INFO) << "Removing unavailability of agent " << *slave;
       }
 
       // Remove and rescind offers since we want to inform frameworks of the
@@ -4912,8 +4912,8 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
     // frameworks that its tasks were LOST, so the slave should
     // shut down.
     LOG(WARNING) << "Ignoring status update " << update
-                 << " from removed slave " << pid
-                 << " with id " << update.slave_id() << " ; asking slave "
+                 << " from removed agent " << pid
+                 << " with id " << update.slave_id() << " ; asking agent "
                  << " to shutdown";
 
     ShutdownMessage message;
@@ -4928,7 +4928,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 
   if (slave == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
-                 << " from unknown slave " << pid
+                 << " from unknown agent " << pid
                  << " with id " << update.slave_id();
     metrics->invalid_status_updates++;
     return;
@@ -4938,13 +4938,13 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 
   if (framework == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
-                 << " from slave " << *slave
+                 << " from agent " << *slave
                  << " because the framework is unknown";
     metrics->invalid_status_updates++;
     return;
   }
 
-  LOG(INFO) << "Status update " << update << " from slave " << *slave;
+  LOG(INFO) << "Status update " << update << " from agent " << *slave;
 
   // We ensure that the uuid of task status matches the update's uuid, in case
   // the task status uuid is not set by the slave.
@@ -4962,7 +4962,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
   Task* task = slave->getTask(update.framework_id(), update.status().task_id());
   if (task == NULL) {
     LOG(WARNING) << "Could not lookup task for status update " << update
-                 << " from slave " << *slave;
+                 << " from agent " << *slave;
     metrics->invalid_status_updates++;
     return;
   }
@@ -5017,8 +5017,8 @@ void Master::exitedExecutor(
     // shut down.
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " on removed slave " << slaveId
-                 << " ; asking slave to shutdown";
+                 << " on removed agent " << slaveId
+                 << " ; asking agent to shutdown";
 
     ShutdownMessage message;
     message.set_message("Executor exited message from unknown slave");
@@ -5029,7 +5029,7 @@ void Master::exitedExecutor(
   if (!slaves.registered.contains(slaveId)) {
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " on unknown slave " << slaveId;
+                 << " on unknown agent " << slaveId;
     return;
   }
 
@@ -5042,13 +5042,13 @@ void Master::exitedExecutor(
   if (!slave->hasExecutor(frameworkId, executorId)) {
     LOG(WARNING) << "Ignoring unknown exited executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " on slave " << *slave;
+                 << " on agent " << *slave;
     return;
   }
 
   LOG(INFO) << "Executor '" << executorId
             << "' of framework " << frameworkId
-            << " on slave " << *slave << ": "
+            << " on agent " << *slave << ": "
             << WSTRINGIFY(status);
 
   removeExecutor(slave, frameworkId, executorId);
@@ -5058,7 +5058,7 @@ void Master::exitedExecutor(
   if (framework == NULL) {
     LOG(WARNING)
       << "Not forwarding exited executor message for executor '" << executorId
-      << "' of framework " << frameworkId << " on slave " << *slave
+      << "' of framework " << frameworkId << " on agent " << *slave
       << " because the framework is unknown";
 
     return;
@@ -5085,7 +5085,7 @@ void Master::shutdown(
   if (!slaves.registered.contains(shutdown.slave_id())) {
     LOG(WARNING) << "Unable to shutdown executor '" << shutdown.executor_id()
                  << "' of framework " << framework->id()
-                 << " of unknown slave " << shutdown.slave_id();
+                 << " of unknown agent " << shutdown.slave_id();
     return;
   }
 
@@ -5104,14 +5104,14 @@ void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
   if (!slaves.registered.contains(slaveId)) {
     // Possible when the SlaveObserver dispatched to shutdown a slave,
     // but exited() was already called for this slave.
-    LOG(WARNING) << "Unable to shutdown unknown slave " << slaveId;
+    LOG(WARNING) << "Unable to shutdown unknown agent " << slaveId;
     return;
   }
 
   Slave* slave = slaves.registered.get(slaveId);
   CHECK_NOTNULL(slave);
 
-  LOG(WARNING) << "Shutting down slave " << *slave << " with message '"
+  LOG(WARNING) << "Shutting down agent " << *slave << " with message '"
                << message << "'";
 
   ShutdownMessage message_;
@@ -5318,7 +5318,7 @@ void Master::_reconcileTasks(
       // (4) Task is unknown, slave is transitionary: no-op.
       LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
                 << " for framework " << *framework
-                << " because there are transitional slaves";
+                << " because there are transitional agents";
     } else {
       // (5) Task is unknown, slave is unknown: TASK_LOST.
       update = protobuf::createStatusUpdate(
@@ -5388,7 +5388,7 @@ void Master::offer(const FrameworkID& frameworkId,
     if (!slaves.registered.contains(slaveId)) {
       LOG(WARNING)
         << "Master returning resources offered to framework " << *framework
-        << " because slave " << slaveId << " is not valid";
+        << " because agent " << slaveId << " is not valid";
 
       allocator->recoverResources(frameworkId, slaveId, offered, None());
       continue;
@@ -5401,7 +5401,7 @@ void Master::offer(const FrameworkID& frameworkId,
     // the slave was deactivated in the allocator.
     if (!slave->active) {
       LOG(WARNING)
-        << "Master returning resources offered because slave " << *slave
+        << "Master returning resources offered because agent " << *slave
         << " is " << (slave->connected ? "deactivated" : "disconnected");
 
       allocator->recoverResources(frameworkId, slaveId, offered, None());
@@ -5421,7 +5421,7 @@ void Master::offer(const FrameworkID& frameworkId,
       }
 
       if (numExecutors >= flags.max_executors_per_slave.get()) {
-        LOG(WARNING) << "Master returning resources offered because slave "
+        LOG(WARNING) << "Master returning resources offered because agent "
                      << *slave << " has reached the maximum number of "
                      << "executors";
         // Pass a default filter to avoid getting this same offer immediately
@@ -5533,7 +5533,7 @@ void Master::inverseOffer(
     if (!slaves.registered.contains(slaveId)) {
       LOG(INFO)
         << "Master ignoring inverse offers to framework " << *framework
-        << " because slave " << slaveId << " is not valid";
+        << " because agent " << slaveId << " is not valid";
       continue;
     }
 
@@ -5544,7 +5544,7 @@ void Master::inverseOffer(
     // before the slave was deactivated in the allocator.
     if (!slave->active) {
       LOG(INFO)
-        << "Master ignoring inverse offers because slave " << *slave
+        << "Master ignoring inverse offers because agent " << *slave
         << " is " << (slave->connected ? "deactivated" : "disconnected");
 
       continue;
@@ -5775,8 +5775,8 @@ void Master::reconcile(
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
         LOG(WARNING) << "Task " << task->task_id()
                      << " of framework " << task->framework_id()
-                     << " unknown to the slave " << *slave
-                     << " during re-registration : reconciling with the slave";
+                     << " unknown to the agent " << *slave
+                     << " during re-registration : reconciling with the agent";
 
         // NOTE: Currently the slave doesn't look at the task state
         // when it reconciles the task state; we include the correct
@@ -5814,7 +5814,7 @@ void Master::reconcile(
     // as we've added code in 0.14.0 to ensure the framework id is set
     // in the scheduler driver.
     if (!executor.has_framework_id()) {
-      LOG(ERROR) << "Slave " << *slave
+      LOG(ERROR) << "Agent " << *slave
                  << " re-registered with executor '" << executor.executor_id()
                  << "' without setting the framework id";
       continue;
@@ -5833,7 +5833,7 @@ void Master::reconcile(
         // MESOS-1466, MESOS-1800, and MESOS-1720.
         LOG(WARNING) << "Executor '" << executorId
                      << "' of framework " << frameworkId
-                     << " possibly unknown to the slave " << *slave;
+                     << " possibly unknown to the agent " << *slave;
 
         removeExecutor(slave, frameworkId, executorId);
       }
@@ -5847,7 +5847,7 @@ void Master::reconcile(
   foreach (const Task& task, tasks) {
     if (!protobuf::isTerminalState(task.state()) &&
         slave->killedTasks.contains(task.framework_id(), task.task_id())) {
-      LOG(WARNING) << " Slave " << *slave
+      LOG(WARNING) << " Agent " << *slave
                    << " has non-terminal task " << task.task_id()
                    << " that is supposed to be killed. Killing it now!";
 
@@ -5868,9 +5868,9 @@ void Master::reconcile(
   // likely involve storing this information in the registrar.
   foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
     if (slaveTasks.contains(framework->id())) {
-      LOG(WARNING) << "Slave " << *slave
+      LOG(WARNING) << "Agent " << *slave
                    << " re-registered with completed framework " << *framework
-                   << ". Shutting down the framework on the slave";
+                   << ". Shutting down the framework on the agent";
 
       ShutdownFrameworkMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id());
@@ -6116,7 +6116,7 @@ void Master::removeFramework(Framework* framework)
     // Since we only find out about tasks when the slave re-registers,
     // it must be the case that the slave exists!
     CHECK(slave != NULL)
-      << "Unknown slave " << task->slave_id()
+      << "Unknown agent " << task->slave_id()
       << " for task " << task->task_id();
 
     // The task is implicitly killed, and TASK_KILLED is the closest
@@ -6238,7 +6238,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
   CHECK_NOTNULL(framework);
 
   LOG(INFO) << "Removing framework " << *framework
-            << " from slave " << *slave;
+            << " from agent " << *slave;
 
   // Remove pointers to framework's tasks in slaves, and send status
   // updates.
@@ -6329,7 +6329,7 @@ void Master::addSlave(
         // reregister and claim them.
         LOG(WARNING) << "Possibly orphaned task " << task->task_id()
                      << " of framework " << task->framework_id()
-                     << " running on slave " << *slave;
+                     << " running on agent " << *slave;
       }
     }
   }
@@ -6348,7 +6348,7 @@ void Master::addSlave(
       if (framework != NULL) {
         VLOG(2) << "Re-adding completed task " << task.task_id()
                 << " of framework " << *framework
-                << " that ran on slave " << *slave;
+                << " that ran on agent " << *slave;
         framework->addCompletedTask(task);
       } else {
         // We could be here if the framework hasn't registered yet.
@@ -6356,7 +6356,7 @@ void Master::addSlave(
         // information in the registrar.
         LOG(WARNING) << "Possibly orphaned completed task " << task.task_id()
                      << " of framework " << task.framework_id()
-                     << " that ran on slave " << *slave;
+                     << " that ran on agent " << *slave;
       }
     }
   }
@@ -6385,7 +6385,7 @@ void Master::removeSlave(
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Removing slave " << *slave << ": " << message;
+  LOG(INFO) << "Removing agent " << *slave << ": " << message;
 
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
@@ -6495,16 +6495,16 @@ void Master::_removeSlave(
   CHECK(!removed.isDiscarded());
 
   if (removed.isFailed()) {
-    LOG(FATAL) << "Failed to remove slave " << slaveInfo.id()
+    LOG(FATAL) << "Failed to remove agent " << slaveInfo.id()
                << " (" << slaveInfo.hostname() << ")"
                << " from the registrar: " << removed.failure();
   }
 
   CHECK(removed.get())
-    << "Slave " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
+    << "Agent " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
     << "already removed from the registrar";
 
-  LOG(INFO) << "Removed slave " << slaveInfo.id() << " ("
+  LOG(INFO) << "Removed agent " << slaveInfo.id() << " ("
             << slaveInfo.hostname() << "): " << message;
 
   ++metrics->slave_removals;
@@ -6527,7 +6527,7 @@ void Master::_removeSlave(
 
   // Notify all frameworks of the lost slave.
   foreachvalue (Framework* framework, frameworks.registered) {
-    LOG(INFO) << "Notifying framework " << *framework << " of lost slave "
+    LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
               << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
               << "after recovering";
     LostSlaveMessage message;
@@ -6660,7 +6660,7 @@ void Master::removeTask(Task* task)
     LOG(WARNING) << "Removing task " << task->task_id()
                  << " with resources " << task->resources()
                  << " of framework " << task->framework_id()
-                 << " on slave " << *slave
+                 << " on agent " << *slave
                  << " in non-terminal state " << task->state();
 
     // If the task is not terminal, then the resources have
@@ -6674,7 +6674,7 @@ void Master::removeTask(Task* task)
     LOG(INFO) << "Removing task " << task->task_id()
               << " with resources " << task->resources()
               << " of framework " << task->framework_id()
-              << " on slave " << *slave;
+              << " on agent " << *slave;
   }
 
   // Remove from framework.
@@ -6702,7 +6702,7 @@ void Master::removeExecutor(
 
   LOG(INFO) << "Removing executor '" << executorId
             << "' with resources " << executor.resources()
-            << " of framework " << frameworkId << " on slave " << *slave;
+            << " of framework " << frameworkId << " on agent " << *slave;
 
   allocator->recoverResources(
     frameworkId, slave->id, executor.resources(), None());
@@ -6746,7 +6746,7 @@ void Master::_apply(Slave* slave, const Offer::Operation& operation) {
 
   LOG(INFO) << "Sending checkpointed resources "
             << slave->checkpointedResources
-            << " to slave " << *slave;
+            << " to agent " << *slave;
 
   CheckpointResourcesMessage message;
   message.mutable_resources()->CopyFrom(slave->checkpointedResources);
@@ -6782,7 +6782,7 @@ void Master::removeOffer(Offer* offer, bool rescind)
   Slave* slave = slaves.registered.get(offer->slave_id());
 
   CHECK(slave != NULL)
-    << "Unknown slave " << offer->slave_id()
+    << "Unknown agent " << offer->slave_id()
     << " in the offer " << offer->id();
 
   slave->removeOffer(offer);
@@ -6837,7 +6837,7 @@ void Master::removeInverseOffer(InverseOffer* inverseOffer, bool rescind)
   Slave* slave = slaves.registered.get(inverseOffer->slave_id());
 
   CHECK(slave != NULL)
-    << "Unknown slave " << inverseOffer->slave_id()
+    << "Unknown agent " << inverseOffer->slave_id()
     << " in the inverse offer " << inverseOffer->id();
 
   slave->removeInverseOffer(inverseOffer);

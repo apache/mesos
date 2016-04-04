@@ -371,7 +371,7 @@ Timeout StatusUpdateManagerProcess::forward(
 {
   CHECK(!paused);
 
-  VLOG(1) << "Forwarding update " << update << " to the slave";
+  VLOG(1) << "Forwarding update " << update << " to the agent";
 
   // Forward the update.
   forward_(update);

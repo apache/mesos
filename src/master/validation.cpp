@@ -623,12 +623,12 @@ Option<Error> validateSlave(
     // This is not possible because the offer should've been removed.
     CHECK(slave != NULL)
       << "Offer " << offerId
-      << " outlived slave " << offer->slave_id();
+      << " outlived agent " << offer->slave_id();
 
     // This is not possible because the offer should've been removed.
     CHECK(slave->connected)
       << "Offer " << offerId
-      << " outlived disconnected slave " << *slave;
+      << " outlived disconnected agent " << *slave;
 
     if (slaveId.isNone()) {
       // Set slave id and use as base case for validation.

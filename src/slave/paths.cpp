@@ -555,7 +555,7 @@ string createSlaveDirectory(
   Try<Nothing> mkdir = os::mkdir(directory);
 
   CHECK_SOME(mkdir)
-    << "Failed to create slave directory '" << directory << "'";
+    << "Failed to create agent directory '" << directory << "'";
 
   // Remove the previous "latest" symlink.
   const string latest = getLatestSlavePath(rootDir);

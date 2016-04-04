@@ -155,7 +155,7 @@ public:
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid)
   {
-    std::cout << "Slave lost" << std::endl;
+    std::cout << "Agent lost" << std::endl;
   }
 
   virtual void executorLost(SchedulerDriver* driver,

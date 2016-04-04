@@ -397,7 +397,7 @@ int main(int argc, char** argv)
       EXIT(EXIT_FAILURE)
         << "Invalid slave_removal_rate_limit: "
         << flags.slave_removal_rate_limit.get()
-        << ". Format is <Number of slaves>/<Duration>";
+        << ". Format is <Number of agents>/<Duration>";
     }
 
     Try<int> permits = numify<int>(tokens[0]);
@@ -405,7 +405,7 @@ int main(int argc, char** argv)
       EXIT(EXIT_FAILURE)
         << "Invalid slave_removal_rate_limit: "
         << flags.slave_removal_rate_limit.get()
-        << ". Format is <Number of slaves>/<Duration>"
+        << ". Format is <Number of agents>/<Duration>"
         << ": " << permits.error();
     }
 
@@ -414,7 +414,7 @@ int main(int argc, char** argv)
       EXIT(EXIT_FAILURE)
         << "Invalid slave_removal_rate_limit: "
         << flags.slave_removal_rate_limit.get()
-        << ". Format is <Number of slaves>/<Duration>"
+        << ". Format is <Number of agents>/<Duration>"
         << ": " << duration.error();
     }
 

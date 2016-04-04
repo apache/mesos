@@ -108,7 +108,7 @@ public:
 
   virtual Try<Nothing> masterSlaveLostHook(const SlaveInfo& slaveInfo)
   {
-    LOG(INFO) << "Executing 'masterSlaveLostHook' in slave '"
+    LOG(INFO) << "Executing 'masterSlaveLostHook' in agent '"
               << slaveInfo.id() << "'";
 
     // TODO(nnielsen): Add argument to signal(), so we can filter messages from

@@ -70,7 +70,7 @@ void WhitelistWatcher::initialize()
       << "Explicitly specifying '*' for the whitelist in order to "
       << "\"accept all\" is deprecated and will be removed in a future "
       << "release; simply don't specify the whitelist flag in order to "
-      << "\"accept all\" slaves";
+      << "\"accept all\" agents";
   }
 
   if (path.isNone() || path.get().value == "*") { // Accept all nodes.

@@ -85,7 +85,7 @@ Result<State> recover(const string& rootDir, bool strict)
       CHECK_SOME(id);
 
       if (id.get() != strings::trim(read.get())) {
-        LOG(INFO) << "Slave host rebooted";
+        LOG(INFO) << "Agent host rebooted";
         return state;
       }
     }
@@ -97,7 +97,7 @@ Result<State> recover(const string& rootDir, bool strict)
   if (!os::exists(latest)) {
     // The slave was asked to shutdown or died before it registered
     // and had a chance to create the "latest" symlink.
-    LOG(INFO) << "Failed to find the latest slave from '" << rootDir << "'";
+    LOG(INFO) << "Failed to find the latest agent from '" << rootDir << "'";
     return state;
   }
 
@@ -137,7 +137,7 @@ Try<SlaveState> SlaveState::recover(
   if (!os::exists(path)) {
     // This could happen if the slave died before it registered with
     // the master.
-    LOG(WARNING) << "Failed to find slave info file '" << path << "'";
+    LOG(WARNING) << "Failed to find agent info file '" << path << "'";
     return state;
   }
 
@@ -158,7 +158,7 @@ Try<SlaveState> SlaveState::recover(
   if (slaveInfo.isNone()) {
     // This could happen if the slave died after opening the file for
     // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty slave info file '" << path << "'";
+    LOG(WARNING) << "Found empty agent info file '" << path << "'";
     return state;
   }
 

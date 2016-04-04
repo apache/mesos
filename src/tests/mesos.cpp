@@ -163,7 +163,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
     credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
     CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credential))))
-      << "Failed to write slave credential to '" << path << "'";
+      << "Failed to write agent credential to '" << path << "'";
 
     CHECK_SOME(os::close(fd.get()));
 
