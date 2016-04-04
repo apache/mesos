@@ -1770,6 +1770,16 @@ isolator. (default: false)
       Examples: `10/1secs`, `100/10secs`, etc.
     </td>
   </tr>
+  <tr>
+    <td>
+      LIBPROCESS_NUM_WORKER_THREADS
+    </td>
+    <td>
+      If set to an integer value in the range 1 to 1024, it overrides
+      the default setting of the number of libprocess worker threads,
+      which is the maximum of 8 and the number of cores on the machine.
+    </td>
+  </tr>
 </table>
 
 
