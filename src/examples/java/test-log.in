@@ -20,8 +20,8 @@ test ! -e ${PROTOBUF_JAR} && \
   exit 1
 
 # TODO(vinod): Deduce the zookeeper version.
-ZOOKEEPER=${MESOS_BUILD_DIR}/3rdparty/zookeeper-3.4.5
-ZOOKEEPER_JAR=${ZOOKEEPER}/zookeeper-3.4.5.jar
+ZOOKEEPER=${MESOS_BUILD_DIR}/3rdparty/zookeeper-3.4.8
+ZOOKEEPER_JAR=${ZOOKEEPER}/zookeeper-3.4.8.jar
 
 test ! -e ${ZOOKEEPER_JAR} && \
   echo "${RED}Failed to find ${ZOOKEEPER_JAR}${NORMAL}" && \
