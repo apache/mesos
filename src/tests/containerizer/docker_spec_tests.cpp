@@ -23,6 +23,8 @@
 
 namespace spec = docker::spec;
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -96,6 +98,73 @@ TEST_F(DockerSpecTest, ParseImageReference)
   EXPECT_EQ("library/busybox", reference->repository());
   EXPECT_FALSE(reference->has_tag());
   EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb", reference->digest()); // NOLINT(whitespace/line_length)
+}
+
+
+TEST_F(DockerSpecTest, GetRegistrySpec)
+{
+  string registry = "";
+  Result<int> port = spec::getRegistryPort(registry);
+  Try<string> scheme = spec::getRegistryScheme(registry);
+  string host = spec::getRegistryHost(registry);
+
+  ASSERT_NONE(port);
+  EXPECT_SOME_EQ("https", scheme);
+  EXPECT_TRUE(host.empty());
+
+  registry = ":";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  ASSERT_ERROR(port);
+  ASSERT_ERROR(scheme);
+  EXPECT_TRUE(host.empty());
+
+  registry = "invalid_port:x80";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  ASSERT_ERROR(port);
+  ASSERT_ERROR(scheme);
+  EXPECT_EQ("invalid_port", host);
+
+  registry = "invalid_port:80:80";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  ASSERT_ERROR(port);
+  ASSERT_ERROR(scheme);
+  EXPECT_EQ("invalid_port", host);
+
+  registry = "index.docker.io";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  ASSERT_NONE(port);
+  EXPECT_SOME_EQ("https", scheme);
+  EXPECT_EQ("index.docker.io", host);
+
+  registry = "localhost:80";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  EXPECT_SOME_EQ(80, port);
+  EXPECT_SOME_EQ("http", scheme);
+  EXPECT_EQ("localhost", host);
+
+  registry = "registry-1.docker.io:443";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  EXPECT_SOME_EQ(443, port);
+  EXPECT_SOME_EQ("https", scheme);
+  EXPECT_EQ("registry-1.docker.io", host);
 }
 
 
