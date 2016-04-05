@@ -28,10 +28,13 @@ class WindowsError : public Error
 {
 public:
   WindowsError()
-    : Error(get_last_error_as_string()) {}
+    : Error(get_last_error_as_string()), code(::GetLastError()) {}
 
   WindowsError(const std::string& message)
-    : Error(message + ": " + get_last_error_as_string()) {}
+    : Error(message + ": " + get_last_error_as_string()),
+      code(::GetLastError()) {}
+
+  const DWORD code;
 
 private:
   static std::string get_last_error_as_string()

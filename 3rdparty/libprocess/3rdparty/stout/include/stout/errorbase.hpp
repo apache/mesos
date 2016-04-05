@@ -44,10 +44,12 @@ public:
 class ErrnoError : public Error
 {
 public:
-  ErrnoError() : Error(os::strerror(errno)) {}
+  ErrnoError() : Error(os::strerror(errno)), code(errno) {}
 
   ErrnoError(const std::string& message)
-    : Error(message + ": " + os::strerror(errno)) {}
+    : Error(message + ": " + os::strerror(errno)), code(errno) {}
+
+  const int code;
 };
 
 #endif // __STOUT_ERROR_BASE_HPP__
