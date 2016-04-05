@@ -30,19 +30,16 @@
 // case calling 'get' will return a constant reference to the T
 // stored. Calling 'isError' will return true if it stores an error,
 // in which case calling 'error' will return the error string.
-template <typename T>
+template <typename T, typename E = Error>
 class Try
 {
 public:
-  static Try<T> some(const T& t)
-  {
-    return Try<T>(t);
-  }
+  static_assert(
+      std::is_base_of<Error, E>::value,
+      "An error type must be, or be inherited from 'Error'.");
 
-  static Try<T> error(const std::string& message)
-  {
-    return Try<T>(Error(message));
-  }
+  static Try some(const T& t) { return Try(t); }
+  static Try error(const E& e) { return Try(e); }
 
   Try(const T& t)
     : data(Some(t)) {}
@@ -53,16 +50,15 @@ public:
           std::is_constructible<T, const U&>::value>::type>
   Try(const U& u) : data(Some(u)) {}
 
-  Try(const Error& error)
-    : message(error.message) {}
+  Try(const E& error) : error_(error) {}
 
   // TODO(bmahler): Add move constructor.
 
   // We don't need to implement these because we are leveraging
   // Option<T>.
-  Try(const Try<T>& that) = default;
+  Try(const Try& that) = default;
   ~Try() = default;
-  Try<T>& operator=(const Try<T>& that) = default;
+  Try& operator=(const Try& that) = default;
 
   // 'isSome' and 'isError' are mutually exclusive. They correspond
   // to the underlying state of the Option.
@@ -72,7 +68,8 @@ public:
   const T& get() const
   {
     if (!data.isSome()) {
-      ABORT("Try::get() but state == ERROR: " + message);
+      assert(error_.isSome());
+      ABORT("Try::get() but state == ERROR: " + error_.get().message);
     }
     return data.get();
   }
@@ -85,9 +82,23 @@ public:
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
 
-  const std::string& error() const { assert(data.isNone()); return message; }
+  // NOTE: This function is intended to return the error of type `E`.
+  // However, we return a `std::string` if `E` == `Error` since that's what it
+  // used to return, and it's the only data that `Error` holds anyway.
+  const typename std::conditional<
+      std::is_same<E, Error>::value, std::string, E>::type& error() const
+  {
+    assert(data.isNone());
+    assert(error_.isSome());
+    return error_impl(error_.get());
+  }
 
 private:
+  static const std::string& error_impl(const Error& err) { return err.message; }
+
+  template <typename Err>
+  static const Err& error_impl(const Err& err) { return err; }
+
   // We leverage Option<T> to avoid dynamic allocation of T. This
   // means that the storage for T will be included in this object
   // (Try<T>). Since Option<T> keeps track of whether a value is
@@ -96,7 +107,7 @@ private:
   // Option<T> is that it takes care of all the manual construction
   // and destruction. This makes the code for Try<T> really simple!
   Option<T> data;
-  std::string message;
+  Option<E> error_;
 };
 
 
