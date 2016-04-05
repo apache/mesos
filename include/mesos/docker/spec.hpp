@@ -54,6 +54,24 @@ Try<ImageReference> parseImageReference(const std::string& s);
 std::ostream& operator<<(std::ostream& stream, const ImageReference& reference);
 
 
+/**
+ * Returns the port of a docker registry.
+ */
+Result<int> getRegistryPort(const std::string& registry);
+
+
+/**
+ * Returns the scheme of a docker registry.
+ */
+Try<std::string> getRegistryScheme(const std::string& registry);
+
+
+/**
+ * Returns the host of a docker registry.
+ */
+std::string getRegistryHost(const std::string& registry);
+
+
 namespace v1 {
 
 /**

@@ -199,12 +199,22 @@ Future<vector<string>> RegistryPullerProcess::pull(
 
   URI manifestUri;
   if (reference.has_registry()) {
-    // TODO(jieyu): The user specified registry might contain port. We
-    // need to parse it and set the 'scheme' and 'port' accordingly.
+    Result<int> port = spec::getRegistryPort(reference.registry());
+    if (port.isError()) {
+      return Failure("Failed to get registry port: " + port.error());
+    }
+
+    Try<string> scheme = spec::getRegistryScheme(reference.registry());
+    if (scheme.isError()) {
+      return Failure("Failed to get registry scheme: " + scheme.error());
+    }
+
     manifestUri = uri::docker::manifest(
         reference.repository(),
         (reference.has_tag() ? reference.tag() : "latest"),
-        reference.registry());
+        spec::getRegistryHost(reference.registry()),
+        scheme.get(),
+        port.isSome() ? port.get() : Option<int>());
   } else {
     const string registry = defaultRegistryUrl.domain.isSome()
       ? defaultRegistryUrl.domain.get()
@@ -368,12 +378,25 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
     URI blobUri;
 
     if (reference.has_registry()) {
-      // TODO(jieyu): The user specified registry might contain port. We
-      // need to parse it and set the 'scheme' and 'port' accordingly.
+      Result<int> port = spec::getRegistryPort(reference.registry());
+      if (port.isError()) {
+        return Failure("Failed to get registry port: " + port.error());
+      }
+
+      Try<string> scheme = spec::getRegistryScheme(reference.registry());
+      if (scheme.isError()) {
+        return Failure("Failed to get registry scheme: " + scheme.error());
+      }
+
+      // If users want to use the registry specified in '--docker_image',
+      // an URL scheme must be specified in '--docker_registry', because
+      // there is no scheme allowed in docker image name.
       blobUri = uri::docker::blob(
           reference.repository(),
           blobSum,
-          reference.registry());
+          spec::getRegistryHost(reference.registry()),
+          scheme.get(),
+          port.isSome() ? port.get() : Option<int>());
     } else {
       const string registry = defaultRegistryUrl.domain.isSome()
         ? defaultRegistryUrl.domain.get()

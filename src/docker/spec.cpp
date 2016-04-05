@@ -98,6 +98,53 @@ ostream& operator<<(ostream& stream, const ImageReference& reference)
 }
 
 
+Result<int> getRegistryPort(const string& registry)
+{
+  if (registry.empty()) {
+    return None();
+  }
+
+  Option<int> port;
+
+  vector<string> split = strings::split(registry, ":", 2);
+  if (split.size() != 1) {
+    Try<int> numified = numify<int>(split[1]);
+    if (numified.isError()) {
+      return Error("Failed to numify '" + split[1] + "'");
+    }
+
+    port = numified.get();
+  }
+
+  return port;
+}
+
+
+Try<string> getRegistryScheme(const string& registry)
+{
+  Result<int> port = getRegistryPort(registry);
+  if (port.isError()) {
+    return Error("Failed to get registry port: " + port.error());
+  } else if (port.isSome() && port.get() == 80) {
+    return "http";
+  }
+
+  return "https";
+}
+
+
+string getRegistryHost(const string& registry)
+{
+  if (registry.empty()) {
+    return "";
+  }
+
+  vector<string> split = strings::split(registry, ":", 2);
+
+  return split[0];
+}
+
+
 namespace v1 {
 
 Option<Error> validate(const ImageManifest& manifest)
