@@ -386,7 +386,7 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
   // an 'Info' to 'infos' and the corresponding 'cleanup' will be skipped.
 
   const string containerDir =
-      paths::getContainerDir(rootDir.get(), containerId.value());
+    paths::getContainerDir(rootDir.get(), containerId.value());
 
   if (!os::exists(containerDir)) {
     // This may occur in the following cases:
@@ -401,7 +401,7 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
   }
 
   Try<list<string>> networkNames =
-      paths::getNetworkNames(rootDir.get(), containerId.value());
+    paths::getNetworkNames(rootDir.get(), containerId.value());
 
   if (networkNames.isError()) {
     return Error("Failed to list CNI network names: " + networkNames.error());
@@ -588,7 +588,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
 
   // Create the container directory.
   const string containerDir =
-      paths::getContainerDir(rootDir.get(), containerId.value());
+    paths::getContainerDir(rootDir.get(), containerId.value());
 
   Try<Nothing> mkdir = os::mkdir(containerDir);
   if (mkdir.isError()) {
@@ -602,7 +602,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   // reference to the network namespace which will be released in '_cleanup'.
   const string source = path::join("/proc", stringify(pid), "ns", "net");
   const string target =
-      paths::getNamespacePath(rootDir.get(), containerId.value());
+    paths::getNamespacePath(rootDir.get(), containerId.value());
 
   Try<Nothing> touch = os::touch(target);
   if (touch.isError()) {
@@ -657,7 +657,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
   const ContainerNetwork& containerNetwork =
-      infos[containerId]->containerNetworks[networkName];
+    infos[containerId]->containerNetworks[networkName];
 
   const string ifDir = paths::getInterfaceDir(
       rootDir.get(),
@@ -693,7 +693,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   }
 
   const NetworkConfigInfo& networkConfig =
-      networkConfigs[containerNetwork.networkName];
+    networkConfigs[containerNetwork.networkName];
 
   // Invoke the CNI plugin.
   const string& plugin = networkConfig.config.type();
@@ -787,7 +787,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   // 'attach()' and '_attach()' because the containerizer will wait
   // for 'isolate()' to finish before destroying the container.
   ContainerNetwork& containerNetwork =
-      infos[containerId]->containerNetworks[networkName];
+    infos[containerId]->containerNetworks[networkName];
 
   const string networkInfoPath = paths::getNetworkInfoPath(
       rootDir.get(),
@@ -917,10 +917,10 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
   }
 
   const string containerDir =
-      paths::getContainerDir(rootDir.get(), containerId.value());
+    paths::getContainerDir(rootDir.get(), containerId.value());
 
   const string target =
-      paths::getNamespacePath(rootDir.get(), containerId.value());
+    paths::getNamespacePath(rootDir.get(), containerId.value());
 
   if (os::exists(target)) {
     Try<Nothing> unmount = fs::unmount(target);
@@ -957,7 +957,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
   const ContainerNetwork& containerNetwork =
-      infos[containerId]->containerNetworks[networkName];
+    infos[containerId]->containerNetworks[networkName];
 
   // Prepare environment variables for CNI plugin.
   map<string, string> environment;
