@@ -1,3 +1,22 @@
+Release Notes - Mesos - Version 0.28.1
+--------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+    * [MESOS-4662] - PortMapping network isolator should not assume BIND_MOUNT_ROOT is a realpath.
+    * [MESOS-4874] - overlayfs does not work with kernel 4.2.3
+    * [MESOS-4877] - Mesos containerizer can't handle top level docker image like "alpine" (must use "library/alpine")
+    * [MESOS-4878] - Task stuck in TASK_STAGING when docker fetcher failed to fetch the image
+    * [MESOS-4964] - curl based docker fetcher fails to decode chunked encoding
+    * [MESOS-4985] - Destroy a container while it's provisioning can lead to leaked provisioned directories.
+    * [MESOS-5009] - local docker puller fails to find private registry repositories
+    * [MESOS-5018] - FrameworkInfo Capability enum does not support upgrades.
+    * [MESOS-5021] - Memory leak in subprocess when 'environment' argument is provided.
+    * [MESOS-5023] - MesosContainerizerProvisionerTest.DestroyWhileProvisioning is flaky.
+    * [MESOS-5114] - Flags::parse does not handle empty string correctly.
+
+
 Release Notes - Mesos - Version 0.28.0
 --------------------------------------------
 This release contains the following new features:
