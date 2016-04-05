@@ -33,7 +33,6 @@ struct passwd
 };
 
 
-extern "C" {
 // Dummy implementation of `getpwuid` for POSIX compliance. Per the POSIX
 // specification[1], we are to return `NULL` if an entry matching the UID is
 // not found. On Windows, we will never find such an entry, so we always return
@@ -41,12 +40,10 @@ extern "C" {
 // function is not implemented.
 //
 // [1] http://pubs.opengroup.org/onlinepubs/009695399/functions/getgrgid.html
-struct passwd* getpwuid(uid_t)
+inline struct passwd* getpwuid(uid_t)
 {
   errno = ENOSYS;
   return NULL;
 }
-} // extern "C" {
-
 
 #endif // __STOUT_INTERNAL_WINDOWS_PWD_HPP__

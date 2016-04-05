@@ -32,7 +32,6 @@ struct group
 };
 
 
-extern "C" {
 // Dummy implementation of `getgrgid` for POSIX compliance. Per the POSIX
 // specification[1], we are to return `NULL` if an entry matching the GID is
 // not found. On Windows, we will never find such an entry, so we always return
@@ -40,12 +39,10 @@ extern "C" {
 // function is not implemented.
 //
 // [1] http://pubs.opengroup.org/onlinepubs/009695399/functions/getgrgid.html
-struct group* getgrgid(gid_t)
+inline struct group* getgrgid(gid_t)
 {
   errno = ENOSYS;
   return NULL;
 }
-} // extern "C" {
-
 
 #endif // __STOUT_INTERNAL_WINDOWS_GRP_HPP__
