@@ -131,15 +131,15 @@ arguments.
     <td>sh=0<br>value=0<br>argv=0</td>
     <td>Error</td>
     <td>/Cmd[0]<br>Cmd[1]..</td>
-    <td>/Entrypt[0]<br>Entrypy[1]..</td>
-    <td>/Entrypy[0]<br>Entrypy[1]..<br>Cmd..</td>
+    <td>/Entrypt[0]<br>Entrypt[1]..</td>
+    <td>/Entrypt[0]<br>Entrypt[1]..<br>Cmd..</td>
   </tr>
   <tr>
     <td>sh=0<br>value=0<br>argv=1</td>
     <td>Error</td>
     <td>/Cmd[0]<br>argv</td>
-    <td>/Entrypt[0]<br>Entrypy[1]..<br>argv</td>
-    <td>/Entrypy[0]<br>Entrypy[1]..<br>argv</td>
+    <td>/Entrypt[0]<br>Entrypt[1]..<br>argv</td>
+    <td>/Entrypt[0]<br>Entrypt[1]..<br>argv</td>
   </tr>
   <tr>
     <td>sh=0<br>value=1<br>argv=0</td>
