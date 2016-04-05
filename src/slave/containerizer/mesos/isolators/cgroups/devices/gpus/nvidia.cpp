@@ -38,7 +38,7 @@
 
 #include "slave/containerizer/mesos/isolators/cgroups/devices/gpus/nvidia.hpp"
 
-using cgroups::devices::Entry::Selector::Type::CHARACTER;
+using cgroups::devices::Entry;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -339,7 +339,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsNvidiaGpuIsolatorProcess::prepare(
   // isolator rather than stuck in the Nvidia GPU specific device
   // isolator. We should move this once we have such a component.
   cgroups::devices::Entry all;
-  all.selector.type = cgroups::devices::Entry::Selector::Type::ALL;
+  all.selector.type = Entry::Selector::Type::ALL;
   all.selector.major = None();
   all.selector.minor = None();
   all.access.read = true;
@@ -445,7 +445,7 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::update(
       const Gpu& gpu = available.front();
 
       cgroups::devices::Entry entry;
-      entry.selector.type = CHARACTER;
+      entry.selector.type = Entry::Selector::Type::CHARACTER;
       entry.selector.major = gpu.major;
       entry.selector.minor = gpu.minor;
       entry.access.read = true;
@@ -470,7 +470,7 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::update(
       const Gpu& gpu = info->allocated.front();
 
       cgroups::devices::Entry entry;
-      entry.selector.type = CHARACTER;
+      entry.selector.type = Entry::Selector::Type::CHARACTER;
       entry.selector.major = gpu.major;
       entry.selector.minor = gpu.minor;
       entry.access.read = true;

@@ -631,7 +631,7 @@ struct Entry
 
   struct Selector
   {
-    enum Type
+    enum class Type
     {
       ALL,
       BLOCK,
