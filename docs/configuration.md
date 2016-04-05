@@ -1065,6 +1065,28 @@ containerizer.
 </tr>
 <tr>
   <td>
+    --docker_config=VALUE
+  </td>
+  <td>
+The default docker config file for slave. Can be provided either as a
+path pointing to the slave local docker config file, or as a JSON-formatted
+string. The format of the docker config file should be identical to docker's
+default one (e.g., either <code>~/.docker/config.json</code> or
+<code>~/.dockercfg</code>).
+Example JSON (<code>~/.docker/config.json</code>):
+<pre><code>{
+  "auths": {
+    "https://index.docker.io/v1/": {
+      "auth": "xXxXxXxXxXx=",
+      "email": "username@example.com"
+    }
+  }
+}
+</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]docker_kill_orphans
   </td>
   <td>
