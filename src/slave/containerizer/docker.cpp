@@ -770,9 +770,11 @@ Future<Nothing> DockerContainerizerProcess::_recover(
   // checkpointed container id.
   // TODO(tnachen): Remove this explicit reconciliation 0.24.
   hashset<ContainerID> existingContainers;
+
   // Tracks all the task containers that launched an executor in
   // a docker container.
   hashset<ContainerID> executorContainers;
+
   foreach (const Docker::Container& container, _containers) {
     Option<ContainerID> id = parse(container);
     if (id.isSome()) {
@@ -884,6 +886,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
           framework.id,
           executor.id,
           containerId);
+
       container->directory = sandboxDirectory;
 
       // Pass recovered containers to the container logger.
