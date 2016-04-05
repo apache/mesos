@@ -316,6 +316,16 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  // If the `network/cni` isolator is providing network isolation to a
+  // container its `rootDir`should always be set.  This property of
+  // the isolator will not be set only if the operator does not
+  // specify the '--network_cni_plugins_dir' and
+  // '--network_cni_config_dir' flags at Agent startup. In this
+  // particular case the `network/cni` isolator should be a no-op.
+  if (rootDir.isNone()) {
+    return Nothing();
+  }
+
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
 
@@ -567,6 +577,14 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   if (!infos.contains(containerId)) {
     return Nothing();
   }
+
+  // If the `network/cni` isolator is providing network isolation to a
+  // container its `rootDir` and `pluginDir` should always be set.
+  // These properties of the isolator will not be set only if the
+  // operator does not specify the '--network_cni_plugins_dir' and
+  // '--network_cni_config_dir' flags at Agent startup.
+  CHECK_SOME(rootDir);
+  CHECK_SOME(pluginDir);
 
   // Create the container directory.
   const string containerDir =
