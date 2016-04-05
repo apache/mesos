@@ -47,20 +47,14 @@ public:
   Try(const T& t)
     : data(Some(t)) {}
 
-  template <typename U>
-  Try(const U& u)
-    : data(Some(u)) {}
+  template <
+      typename U,
+      typename = typename std::enable_if<
+          std::is_constructible<T, const U&>::value>::type>
+  Try(const U& u) : data(Some(u)) {}
 
   Try(const Error& error)
     : message(error.message) {}
-
-  Try(const ErrnoError& error)
-    : message(error.message) {}
-
-#ifdef __WINDOWS__
-  Try(const WindowsError& error)
-    : message(error.message) {}
-#endif // __WINDOWS__
 
   // TODO(bmahler): Add move constructor.
 
