@@ -141,7 +141,8 @@ Try<DockerContainerizer*> DockerContainerizer::create(
   Try<Owned<Docker>> create = Docker::create(
       flags.docker,
       flags.docker_socket,
-      true);
+      true,
+      flags.docker_config);
 
   if (create.isError()) {
     return Error("Failed to create docker: " + create.error());

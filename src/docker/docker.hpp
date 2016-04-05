@@ -47,7 +47,8 @@ public:
   static Try<process::Owned<Docker>> create(
       const std::string& path,
       const std::string& socket,
-      bool validate = true);
+      bool validate = true,
+      const Option<JSON::Object>& config = None());
 
   virtual ~Docker() {}
 
@@ -170,8 +171,11 @@ public:
 protected:
   // Uses the specified path to the Docker CLI tool.
   Docker(const std::string& _path,
-         const std::string& _socket)
-       : path(_path), socket("unix://" + _socket) {}
+         const std::string& _socket,
+         const Option<JSON::Object>& _config)
+       : path(_path),
+         socket("unix://" + _socket),
+         config(_config) {}
 
 private:
   static process::Future<Nothing> _run(
@@ -240,6 +244,7 @@ private:
       const std::string& image,
       const std::string& path,
       const std::string& socket,
+      const Option<JSON::Object>& config,
       process::Future<std::string> output);
 
   static process::Future<Image> __pull(
@@ -247,7 +252,8 @@ private:
       const std::string& directory,
       const std::string& image,
       const std::string& path,
-      const std::string& socket);
+      const std::string& socket,
+      const Option<JSON::Object>& config);
 
   static process::Future<Image> ___pull(
       const Docker& docker,
@@ -265,6 +271,7 @@ private:
 
   const std::string path;
   const std::string socket;
+  const Option<JSON::Object> config;
 };
 
 #endif // __DOCKER_HPP__

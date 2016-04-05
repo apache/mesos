@@ -1384,7 +1384,8 @@ class MockDocker : public Docker
 public:
   MockDocker(
       const std::string& path,
-      const std::string& socket);
+      const std::string& socket,
+      const Option<JSON::Object>& config = None());
   virtual ~MockDocker();
 
   MOCK_CONST_METHOD9(

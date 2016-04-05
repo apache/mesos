@@ -97,13 +97,14 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 Try<Owned<Docker>> Docker::create(
     const string& path,
     const string& socket,
-    bool validate)
+    bool validate,
+    const Option<JSON::Object>& config)
 {
   if (!strings::startsWith(socket, "/")) {
     return Error("Invalid Docker socket path: " + socket);
   }
 
-  Owned<Docker> docker(new Docker(path, socket));
+  Owned<Docker> docker(new Docker(path, socket, config));
   if (!validate) {
     return docker;
   }
@@ -651,11 +652,8 @@ Future<Nothing> Docker::run(
 
   map<string, string> environment = os::environment();
 
-  // Currently the Docker CLI picks up dockerconfig by looking for
-  // the config file in the $HOME directory. If one of the URIs
-  // provided is a docker config file we want docker to be able to
-  // pick it up from the sandbox directory where we store all the
-  // URI downloads.
+  // NOTE: This is non-relevant to pick up a docker config file,
+  // which is necessary for private registry.
   environment["HOME"] = sandboxDirectory;
 
   Try<Subprocess> s = subprocess(
@@ -1073,7 +1071,7 @@ Future<Docker::Image> Docker::pull(
 
   if (force) {
     // Skip inspect and docker pull the image.
-    return Docker::__pull(*this, directory, image, path, socket);
+    return Docker::__pull(*this, directory, image, path, socket, config);
   }
 
   argv.push_back(path);
@@ -1115,6 +1113,7 @@ Future<Docker::Image> Docker::pull(
         dockerImage,
         path,
         socket,
+        config,
         output));
 }
 
@@ -1126,6 +1125,7 @@ Future<Docker::Image> Docker::_pull(
     const string& image,
     const string& path,
     const string& socket,
+    const Option<JSON::Object>& config,
     Future<string> output)
 {
   Option<int> status = s.status().get();
@@ -1136,7 +1136,7 @@ Future<Docker::Image> Docker::_pull(
 
   output.discard();
 
-  return Docker::__pull(docker, directory, image, path, socket);
+  return Docker::__pull(docker, directory, image, path, socket, config);
 }
 
 
@@ -1145,7 +1145,8 @@ Future<Docker::Image> Docker::__pull(
     const string& directory,
     const string& image,
     const string& path,
-    const string& socket)
+    const string& socket,
+    const Option<JSON::Object>& config)
 {
   vector<string> argv;
   argv.push_back(path);
@@ -1158,10 +1159,57 @@ Future<Docker::Image> Docker::__pull(
 
   VLOG(1) << "Running " << cmd;
 
-  // Set HOME variable to pick up .dockercfg.
-  map<string, string> environment = os::environment();
+  // Set the HOME path where docker config file locates.
+  Option<string> home;
+  if (config.isSome()) {
+    Try<string> _home = os::mkdtemp();
 
-  environment["HOME"] = directory;
+    if (_home.isError()) {
+      return Failure("Failed to create temporary directory for docker config"
+                     "file: " + _home.error());
+    }
+
+    home = _home.get();
+
+    Result<JSON::Object> auths = config->find<JSON::Object>("auths");
+    if (auths.isError()) {
+      return Failure("Failed to find 'auths' in docker config file: " +
+                     auths.error());
+    }
+
+    const string path = auths.isSome()
+      ? path::join(home.get(), ".docker")
+      : home.get();
+
+    Try<Nothing> mkdir = os::mkdir(path);
+    if (mkdir.isError()) {
+      return Failure("Failed to create path '" + path + "': " + mkdir.error());
+    }
+
+    const string file = path::join(path, auths.isSome()
+        ? "config.json"
+        : ".dockercfg");
+
+    Try<Nothing> write = os::write(file, stringify(config.get()));
+    if (write.isError()) {
+      return Failure("Failed to write docker config file to '" +
+                     file + "': " + write.error());
+    }
+  }
+
+  // Currently the Docker CLI picks up .docker/config.json (old
+  // .dockercfg by looking for the config file in the $HOME
+  // directory. The docker config file can either be specified by
+  // the agent flag '--docker_config', or by one of the URIs
+  // provided which is a docker config file we want docker to be
+  // able to pick it up from the sandbox directory where we store
+  // all the URI downloads.
+  // TODO(gilbert): Deprecate the fetching docker config file
+  // specified as URI method on 0.30.0 release.
+  map<string, string> environment = os::environment();
+  environment["HOME"] = home.isSome()
+    ? home.get()
+    : directory;
 
   Try<Subprocess> s_ = subprocess(
       path,
@@ -1188,7 +1236,18 @@ Future<Docker::Image> Docker::__pull(
         cmd,
         directory,
         image))
-    .onDiscard(lambda::bind(&commandDiscarded, s_.get(), cmd));
+    .onDiscard(lambda::bind(&commandDiscarded, s_.get(), cmd))
+    .onAny([home]() {
+      if (home.isSome()) {
+        Try<Nothing> rmdir = os::rmdir(home.get());
+
+        if (rmdir.isError()) {
+          LOG(WARNING) << "Failed to remove docker config file temporary"
+                       << "'HOME' directory '" << home.get() << "': "
+                       << rmdir.error();
+        }
+      }
+    });
 }
 
 
