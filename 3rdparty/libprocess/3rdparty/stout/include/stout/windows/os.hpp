@@ -172,6 +172,12 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
   UNIMPLEMENTED;
 }
 */
+
+inline tm* gmtime_r(const time_t* timep, tm* result)
+{
+  return ::gmtime_s(result, timep) == ERROR_SUCCESS ? result : NULL;
+}
+
 } // namespace os {
 
 #endif // __STOUT_WINDOWS_OS_HPP__

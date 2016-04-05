@@ -87,6 +87,9 @@
 
 namespace os {
 
+// Import `::gmtime_r` into `os::` namespace
+using ::gmtime_r;
+
 // Forward declarations.
 inline Try<Nothing> utime(const std::string&);
 
