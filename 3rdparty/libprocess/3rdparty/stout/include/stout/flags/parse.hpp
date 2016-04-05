@@ -34,10 +34,12 @@ Try<T> parse(const std::string& value)
   T t;
   std::istringstream in(value);
   in >> t;
-  if (!in.good() && !in.eof()) {
-    return Error("Failed to convert into required type");
+
+  if (in && in.eof()) {
+    return t;
   }
-  return t;
+
+  return Error("Failed to convert into required type");
 }
 
 

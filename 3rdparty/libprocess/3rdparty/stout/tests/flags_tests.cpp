@@ -130,9 +130,16 @@ TEST(FlagsTest, Add)
             "name8",
             "Also set name8");
 
+  Option<string> name9;
+
+  flags.add(&name9,
+            "name9",
+            "Also set name9");
+
   const map<string, Option<string> > values = {
     {"name6", Some("ben folds")},
-    {"no-name7", None()}
+    {"no-name7", None()},
+    {"name9", Some("")}
   };
 
   flags.load(values);
@@ -142,7 +149,10 @@ TEST(FlagsTest, Add)
 
   EXPECT_FALSE(name7);
 
-  ASSERT_TRUE(name8.isNone());
+  EXPECT_NONE(name8);
+
+  ASSERT_SOME(name9);
+  EXPECT_EQ("", name9.get());
 }
 
 
@@ -495,6 +505,18 @@ TEST(FlagsTest, Errors)
 
   EXPECT_EQ("Failed to load non-boolean flag 'name2' "
             "via 'no-name2'", load.error());
+
+  Option<int> name6;
+  flags.add(&name6, "name6", "Also set name6");
+
+  // Now test a non-boolean flag using empty string value.
+  argv[1] = (char*) "--name6=";
+
+  load = flags.load("FLAGSTEST_", argc, argv);
+  EXPECT_ERROR(load);
+
+  EXPECT_EQ("Failed to load flag 'name6': Failed to load value '': "
+            "Failed to convert into required type", load.error());
 }
 
 
