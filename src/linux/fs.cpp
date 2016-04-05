@@ -439,6 +439,11 @@ Try<Nothing> pivot_root(
   // 'pivot_root' on the x86_64 architecture, see
   // arch/x86/syscalls/syscall_64.tbl
   int ret = ::syscall(155, newRoot.c_str(), putOld.c_str());
+#elif __powerpc__ || __ppc__ || __powerpc64__ || __ppc64__
+  // A workaround for powerpc. The magic number '203' is the syscall
+  // number for 'pivot_root' on the powerpc architecture, see
+  // https://w3challs.com/syscalls/?arch=powerpc_64
+  int ret = ::syscall(203, newRoot.c_str(), putOld.c_str());
 #else
 #error "pivot_root is not available"
 #endif
