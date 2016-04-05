@@ -119,9 +119,9 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> PollSocketImpl::connect(const Address& address)
 {
-  Try<int> connect = network::connect(get(), address);
+  Try<int, SocketError> connect = network::connect(get(), address);
   if (connect.isError()) {
-    if (errno == EINPROGRESS) {
+    if (connect.error().code == EINPROGRESS) {
       return io::poll(get(), io::WRITE)
         .then(lambda::bind(&internal::connect, socket()));
     }
