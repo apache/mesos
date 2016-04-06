@@ -54,8 +54,8 @@ public:
    * If both arguments are `None`, `StandaloneMasterDetector` is returned.
    */
   static Try<MasterDetector*> create(
-      const Option<std::String>& masterDetectorModule,
-      const Option<std::string>& zk);
+      const Option<std::string>& zk,
+      const Option<std::string>& masterDetectorModule = None());
 
   virtual ~MasterDetector() = 0;
 

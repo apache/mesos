@@ -19,6 +19,8 @@
 
 #include <mesos/master/detector.hpp>
 
+#include <mesos/module/detector.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -42,6 +44,8 @@
 
 #include "messages/messages.hpp"
 
+#include "module/manager.hpp"
+
 #include "zookeeper/url.hpp"
 
 using namespace process;
@@ -54,17 +58,23 @@ namespace mesos {
 namespace master {
 namespace detector {
 
-
-Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
+Try<MasterDetector*> MasterDetector::create(
+      const Option<std::string>& zk_,
+      const Option<std::string>& masterDetectorModule_)
 {
-  if (_mechanism.isNone()) {
+  if (masterDetectorModule_.isSome()) {
+    return modules::ModuleManager::create<MasterDetector>(
+        masterDetectorModule_.get());
+  }
+
+  if (zk_.isNone()) {
     return new StandaloneMasterDetector();
   }
 
-  string mechanism = _mechanism.get();
+  string zk = zk_.get();
 
-  if (strings::startsWith(mechanism, "zk://")) {
-    Try<zookeeper::URL> url = zookeeper::URL::parse(mechanism);
+  if (strings::startsWith(zk, "zk://")) {
+    Try<zookeeper::URL> url = zookeeper::URL::parse(zk);
     if (url.isError()) {
       return Error(url.error());
     }
@@ -73,7 +83,7 @@ Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
     return new ZooKeeperMasterDetector(url.get());
-  } else if (strings::startsWith(mechanism, "file://")) {
+  } else if (strings::startsWith(zk, "file://")) {
     // Load the configuration out of a file. While Mesos and related
     // programs always use <stout/flags> to process the command line
     // arguments (and therefore file://) this entrypoint is exposed by
@@ -91,7 +101,7 @@ Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
     LOG(WARNING) << "Specifying master detection mechanism / ZooKeeper URL to "
                     "be read out of a file via 'file://' is deprecated inside "
                     "Mesos and will be removed in a future release.";
-    const string& path = mechanism.substr(7);
+    const string& path = zk.substr(7);
     const Try<string> read = os::read(path);
     if (read.isError()) {
       return Error("Failed to read from file at '" + path + "'");
@@ -100,15 +110,15 @@ Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
     return create(strings::trim(read.get()));
   }
 
-  CHECK(!strings::startsWith(mechanism, "file://"));
+  CHECK(!strings::startsWith(zk, "file://"));
 
   // Okay, try and parse what we got as a PID.
-  UPID pid = mechanism.find("master@") == 0
-             ? UPID(mechanism)
-             : UPID("master@" + mechanism);
+  UPID pid = zk.find("master@") == 0
+             ? UPID(zk)
+             : UPID("master@" + zk);
 
   if (!pid) {
-    return Error("Failed to parse '" + mechanism + "'");
+    return Error("Failed to parse '" + zk + "'");
   }
 
   return new StandaloneMasterDetector(
@@ -117,7 +127,6 @@ Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
 
 
 MasterDetector::~MasterDetector() {}
-
 
 } // namespace detector {
 } // namespace master {

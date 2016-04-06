@@ -57,8 +57,8 @@ public:
    * Note that the returned contender still needs to be `initialize()`d.
    */
   static Try<MasterContender*> create(
-      const Option<std::String>& masterContenderModule,
-      const Option<std::string>& zk);
+      const Option<std::string>& zk,
+      const Option<std::string>& masterContenderModule = None());
 
   /**
    * Note that the contender's membership, if obtained, is scheduled
