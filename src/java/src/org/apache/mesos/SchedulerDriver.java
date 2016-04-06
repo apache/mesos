@@ -115,14 +115,17 @@ public interface SchedulerDriver {
   Status requestResources(Collection<Request> requests);
 
   /**
-   * Launches the given set of tasks on a set of offers. Resources
-   * from offers are aggregated when more then one is provided.
-   * Note that all offers must belong to same slave. Any resources
-   * remaining (i.e., not used by the tasks or their executors) will
-   * be considered declined. The specified filters are applied on all
-   * unused resources (see mesos.proto for a description of Filters).
-   * Invoking this function with an empty collection of tasks declines
-   * offers in their entirety (see {@link #declineOffer}).
+   * Launches the given set of tasks. Any remaining resources (i.e.,
+   * those that are not used by the launched tasks or their executors)
+   * will be considered declined. Note that this includes resources
+   * used by tasks that the framework attempted to launch but failed
+   * (with TASK_ERROR) due to a malformed task description. The
+   * specified filters are applied on all unused resources (see
+   * mesos.proto for a description of Filters). Available resources
+   * are aggregated when multiple offers are provided. Note that all
+   * offers must belong to the same slave. Invoking this function with
+   * an empty collection of tasks declines offers in their entirety
+   * (see {@link #declineOffer}).
    *
    * @param offerIds    The collection of offer IDs.
    * @param tasks       The collection of tasks to be launched.
@@ -195,11 +198,15 @@ public interface SchedulerDriver {
   /**
    * Accepts the given offers and performs a sequence of operations on
    * those accepted offers. See Offer.Operation in mesos.proto for the
-   * set of available operations. Available resources are aggregated
+   * set of available operations. Any remaining resources (i.e., those
+   * that are not used by the launched tasks or their executors) will
+   * be considered declined. Note that this includes resources used by
+   * tasks that the framework attempted to launch but failed (with
+   * TASK_ERROR) due to a malformed task description. The specified
+   * filters are applied on all unused resources (see mesos.proto for
+   * a description of Filters). Available resources are aggregated
    * when multiple offers are provided. Note that all offers must
-   * belong to the same slave. Any unused resources will be considered
-   * declined. The specified filters are applied on all unused
-   * resources (see mesos.proto for a description of Filters).
+   * belong to the same slave.
    *
    * @param offerIds    The collection of offer IDs.
    * @param operations  The collection of offer operations to perform.

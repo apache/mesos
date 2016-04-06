@@ -180,14 +180,17 @@ virtual Status run();
 // framework via Scheduler::resourceOffers callback, asynchronously.
 virtual Status requestResources(const std::vector<Request>& requests);
 
-// Launches the given set of tasks. Any resources remaining (i.e.,
-// not used by the tasks or their executors) will be considered
-// declined. The specified filters are applied on all unused
-// resources (see mesos.proto for a description of Filters).
-// Available resources are aggregated when multiple offers are
-// provided. Note that all offers must belong to the same slave.
-// Invoking this function with an empty collection of tasks declines
-// offers in their entirety (see Scheduler::declineOffer).
+// Launches the given set of tasks. Any remaining resources (i.e.,
+// those that are not used by the launched tasks or their executors)
+// will be considered declined. Note that this includes resources
+// used by tasks that the framework attempted to launch but failed
+// (with `TASK_ERROR`) due to a malformed task description. The
+// specified filters are applied on all unused resources (see
+// mesos.proto for a description of Filters). Available resources
+// are aggregated when multiple offers are provided. Note that all
+// offers must belong to the same slave. Invoking this function with
+// an empty collection of tasks declines offers in their entirety
+// (see Scheduler::declineOffer).
 virtual Status launchTasks(
     const std::vector<OfferID>& offerIds,
     const std::vector<TaskInfo>& tasks,
@@ -202,11 +205,15 @@ virtual Status killTask(const TaskID& taskId);
 
 // Accepts the given offers and performs a sequence of operations on
 // those accepted offers. See Offer.Operation in mesos.proto for the
-// set of available operations. Available resources are aggregated
+// set of available operations. Any remaining resources (i.e., those
+// that are not used by the launched tasks or their executors) will
+// be considered declined. Note that this includes resources used by
+// tasks that the framework attempted to launch but failed (with
+// `TASK_ERROR`) due to a malformed task description. The specified
+// filters are applied on all unused resources (see mesos.proto for
+// a description of Filters). Available resources are aggregated
 // when multiple offers are provided. Note that all offers must
-// belong to the same slave. Any unused resources will be considered
-// declined. The specified filters are applied on all unused
-// resources (see mesos.proto for a description of Filters).
+// belong to the same slave.
 virtual Status acceptOffers(
     const std::vector<OfferID>& offerIds,
     const std::vector<Offer::Operation>& operations,

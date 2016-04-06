@@ -184,15 +184,18 @@ class SchedulerDriver(object):
 
   def launchTasks(self, offerIds, tasks, filters=None):
     """
-      Launches the given set of tasks. Any resources remaining (i.e., not
-      used by the tasks or their executors) will be considered declined.
-      The specified filters are applied on all unused resources (see
-      mesos.proto for a description of Filters). Available resources are
-      aggregated when multiple offers are provided. Note that all offers
-      must belong to the same slave. Invoking this function with an empty
-      collection of tasks declines the offers in entirety (see
-      Scheduler.declineOffer). Note that passing a single offer is also
-      supported.
+      Launches the given set of tasks. Any remaining resources (i.e.,
+      those that are not used by the launched tasks or their executors)
+      will be considered declined. Note that this includes resources
+      used by tasks that the framework attempted to launch but failed
+      (with TASK_ERROR) due to a malformed task description. The
+      specified filters are applied on all unused resources (see
+      mesos.proto for a description of Filters). Available resources
+      are aggregated when multiple offers are provided. Note that all
+      offers must belong to the same slave. Invoking this function with
+      an empty collection of tasks declines offers in their entirety
+      (see Scheduler.declineOffer). Note that passing a single offer
+      is also supported.
     """
 
   def killTask(self, taskId):
@@ -206,13 +209,17 @@ class SchedulerDriver(object):
 
   def acceptOffers(self, offerIds, operations, filters=None):
     """
-      Accepts the given offers and performs a sequence of operations
-      on those accepted offers. See Offer.Operation in mesos.proto for
-      the set of available operations. Available resources are
-      aggregated when multiple offers are provided. Note that all
-      offers must belong to the same slave. Any unused resources will
-      be considered declined. The specified filters are applied on all
-      unused resources (see mesos.proto for a description of Filters).
+      Accepts the given offers and performs a sequence of operations on
+      those accepted offers. See Offer.Operation in mesos.proto for the
+      set of available operations. Any remaining resources (i.e., those
+      that are not used by the launched tasks or their executors) will
+      be considered declined. Note that this includes resources used by
+      tasks that the framework attempted to launch but failed (with
+      TASK_ERROR) due to a malformed task description. The specified
+      filters are applied on all unused resources (see mesos.proto for
+      a description of Filters). Available resources are aggregated
+      when multiple offers are provided. Note that all offers must
+      belong to the same slave.
     """
 
   def declineOffer(self, offerId, filters=None):
