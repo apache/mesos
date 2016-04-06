@@ -48,7 +48,7 @@ public:
 
   // Returns a future that becomes ready when the permit is acquired.
   // Discarding this future cancels this acquisition.
-  virtual Future<Nothing> acquire();
+  virtual Future<Nothing> acquire() const;
 
 private:
   // Not copyable, not assignable.
@@ -179,7 +179,7 @@ inline RateLimiter::~RateLimiter()
 }
 
 
-inline Future<Nothing> RateLimiter::acquire()
+inline Future<Nothing> RateLimiter::acquire() const
 {
   return dispatch(process, &RateLimiterProcess::acquire);
 }
