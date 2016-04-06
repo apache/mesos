@@ -1247,6 +1247,134 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 }
 
 
+// This test ensures that orphaned docker containers unknown to the current
+// agent instance are properly cleaned up.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
+{
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  SlaveID slaveId;
+  slaveId.set_value("s1");
+
+  SlaveID oldSlaveId;
+  oldSlaveId.set_value("old-slave-id");
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ContainerID orphanContainerId;
+  orphanContainerId.set_value(UUID::random().toString());
+
+  string container1 = containerName(slaveId, containerId);
+
+  // Start the orphan container with the old slave id.
+  string container2 = containerName(oldSlaveId, orphanContainerId);
+
+  // Clean up artifacts if containers still exists.
+  ASSERT_TRUE(docker->rm(container1, true).await(Seconds(30)));
+  ASSERT_TRUE(docker->rm(container2, true).await(Seconds(30)));
+
+  Resources resources = Resources::parse("cpus:1;mem:512").get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_value("sleep 1000");
+
+  Future<Nothing> d1 =
+    docker->run(
+        containerInfo,
+        commandInfo,
+        container1,
+        flags.work_dir,
+        flags.sandbox_directory,
+        resources);
+
+  Future<Nothing> d2 =
+    docker->run(
+        containerInfo,
+        commandInfo,
+        container2,
+        flags.work_dir,
+        flags.sandbox_directory,
+        resources);
+
+  ASSERT_TRUE(
+    exists(docker, slaveId, containerId, ContainerState::RUNNING));
+
+  ASSERT_TRUE(
+    exists(docker, oldSlaveId, orphanContainerId, ContainerState::RUNNING));
+
+  SlaveState slaveState;
+  slaveState.id = slaveId;
+
+  FrameworkState frameworkState;
+
+  ExecutorID execId;
+  execId.set_value("e1");
+
+  ExecutorState execState;
+  ExecutorInfo execInfo;
+
+  execState.info = execInfo;
+  execState.latest = containerId;
+
+  Try<process::Subprocess> wait =
+    process::subprocess(tests::flags.docker + " wait " + container1);
+
+  ASSERT_SOME(wait);
+
+  FrameworkID frameworkId;
+
+  RunState runState;
+  runState.id = containerId;
+  runState.forkedPid = wait.get().pid();
+
+  execState.runs.put(containerId, runState);
+  frameworkState.executors.put(execId, execState);
+
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  Future<Nothing> recover = dockerContainerizer.recover(slaveState);
+
+  AWAIT_READY(recover);
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId);
+
+  ASSERT_FALSE(termination.isFailed());
+
+  // The orphaned container should be correctly cleaned up.
+  AWAIT_FAILED(dockerContainerizer.wait(orphanContainerId));
+  ASSERT_FALSE(exists(docker, oldSlaveId, orphanContainerId));
+}
+
+
 // This test checks the docker containerizer doesn't recover executors
 // that were started by another containerizer (e.g: mesos).
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
