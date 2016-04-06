@@ -43,37 +43,6 @@ class StandaloneMasterDetectorProcess;
 class ZooKeeperMasterDetectorProcess;
 
 
-// An abstraction of a Master detector which can be used to
-// detect the leading master from a group.
-class MasterDetector
-{
-public:
-  // Attempts to create a master detector for the specified mechanism.
-  // The mechanism should be one of:
-  //   - host:port
-  //   - zk://host1:port1,host2:port2,.../path
-  //   - zk://username:password@host1:port1,host2:port2,.../path
-  static Try<MasterDetector*> create(const Option<std::string>& _mechanism);
-  virtual ~MasterDetector() = 0;
-
-  // Returns MasterInfo after an election has occurred and the elected
-  // master is different than that specified (if any), or NONE if an
-  // election occurs and no master is elected (e.g., all masters are
-  // lost). A failed future is returned if the detector is unable to
-  // detect the leading master due to a non-retryable error.
-  // Note that the detector transparently tries to recover from
-  // retryable errors.
-  // The future is never discarded unless it stays pending when the
-  // detector destructs.
-  //
-  // The 'previous' result (if any) should be passed back if this
-  // method is called repeatedly so the detector only returns when it
-  // gets a different result.
-  virtual process::Future<Option<MasterInfo> > detect(
-      const Option<MasterInfo>& previous = None()) = 0;
-};
-
-
 // A standalone implementation of the MasterDetector with no external
 // discovery mechanism so the user has to manually appoint a leader
 // to the detector for it to be detected.
