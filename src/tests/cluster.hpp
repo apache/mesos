@@ -115,10 +115,10 @@ private:
   process::Owned<MasterContender> contender;
   process::Owned<MasterDetector> detector;
   process::Owned<log::Log> log;
+  process::Owned<state::Storage> storage;
+  process::Owned<state::protobuf::State> state;
   process::Owned<master::Registrar> registrar;
   process::Owned<master::Repairer> repairer;
-  process::Owned<state::protobuf::State> state;
-  process::Owned<state::Storage> storage;
 
   Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
