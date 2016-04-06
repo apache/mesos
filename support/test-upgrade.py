@@ -77,7 +77,12 @@ class Framework(Process):
         # The test-framework can take these parameters as environment variables,
         # but not as command-line parameters.
         environment = {
+            # In Mesos 0.28.0, the `MESOS_BUILD_DIR` environment variable in the
+            # test framework was changed to `MESOS_HELPER_DIR`, and the '/src'
+            # subdirectory was added to the variable's path. Both are included
+            # here for backwards compatibility.
             'MESOS_BUILD_DIR': path,
+            'MESOS_HELPER_DIR': os.path.join(path, 'src'),
             'MESOS_AUTHENTICATE': '1',
             'DEFAULT_PRINCIPAL': DEFAULT_PRINCIPAL,
             'DEFAULT_SECRET': DEFAULT_SECRET
