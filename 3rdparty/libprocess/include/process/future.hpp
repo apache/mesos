@@ -1451,6 +1451,57 @@ bool Future<T>::fail(const std::string& _message)
   return result;
 }
 
+
+// Helper for setting a set of Promises.
+template <typename T>
+void setPromises(std::set<Promise<T>*>* promises, const T& t)
+{
+  foreach (Promise<T>* promise, *promises) {
+    promise->set(t);
+    delete promise;
+  }
+  promises->clear();
+}
+
+
+// Helper for failing a set of Promises.
+template <typename T>
+void failPromises(std::set<Promise<T>*>* promises, const std::string& failure)
+{
+  foreach (Promise<T>* promise, *promises) {
+    promise->fail(failure);
+    delete promise;
+  }
+  promises->clear();
+}
+
+
+// Helper for discarding a set of Promises.
+template <typename T>
+void discardPromises(std::set<Promise<T>*>* promises)
+{
+  foreach (Promise<T>* promise, *promises) {
+    promise->discard();
+    delete promise;
+  }
+  promises->clear();
+}
+
+
+// Helper for discarding an individual promise in the set.
+template <typename T>
+void discardPromises(std::set<Promise<T>*>* promises, const Future<T>& future)
+{
+  foreach (Promise<T>* promise, *promises) {
+    if (promise->future() == future) {
+      promise->discard();
+      promises->erase(promise);
+      delete promise;
+      return;
+    }
+  }
+}
+
 }  // namespace process {
 
 #endif // __PROCESS_FUTURE_HPP__
