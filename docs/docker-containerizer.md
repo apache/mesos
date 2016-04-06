@@ -61,8 +61,34 @@ The containerizer also supports optional force pulling of the image. It is set d
 
 ## Private Docker repository
 
-To run an image from a private repository, one can include the uri pointing to a `.dockercfg` that contains login information. The `.dockercfg` file will be pulled into the sandbox the Docker Containerizer
-set the HOME environment variable pointing to the sandbox so docker cli will automatically pick up the config file.
+To run an image from a private repository, one can include the
+uri pointing to a `.dockercfg` that contains login information.
+The `.dockercfg` file will be pulled into the sandbox the Docker
+Containerizer set the HOME environment variable pointing to the
+sandbox so docker cli will automatically pick up the config file.
+
+Starting from 0.29, we provide an alternative way to specify docker
+config file for pulling images from private registries. We allow
+operators to specify a shared docker config file using an agent
+flag. This docker config file will be used to pull images from
+private registries for all containers. See
+[configuration documentation](configuration.md) for detail. Operators
+can either use a local docker config file (need to manually configure
+.docker/config.json or .dockercfg on each slave), or specify the flag
+as a JSON-formatted string. For example:
+
+    --docker_config=file:///home/vagrant/.docker/config.json
+
+or as a JSON object,
+
+    --docker_config="{ \
+      \"auths\": { \
+        \"https://index.docker.io/v1/\": { \
+          \"auth\": \"xXxXxXxXxXx=\", \
+          \"email\": \"username@example.com\" \
+        } \
+      } \
+    }"
 
 ## CommandInfo to run Docker images
 
