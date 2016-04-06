@@ -609,7 +609,7 @@ Try<Value> parse(const string& text)
     // This is a Value::Ranges.
     value.set_type(Value::RANGES);
     Value::Ranges* ranges = value.mutable_ranges();
-    const vector<string>& tokens = strings::tokenize(temp, "[]-,\n");
+    const vector<string> tokens = strings::tokenize(temp, "[]-,\n");
     if (tokens.size() % 2 != 0) {
       return Error("Expecting one or more \"ranges\"");
     } else {
@@ -636,7 +636,7 @@ Try<Value> parse(const string& text)
       // This is a set.
       value.set_type(Value::SET);
       Value::Set* set = value.mutable_set();
-      const vector<string>& tokens = strings::tokenize(temp, "{},\n");
+      const vector<string> tokens = strings::tokenize(temp, "{},\n");
       for (size_t i = 0; i < tokens.size(); i++) {
         set->add_item(tokens[i]);
       }
