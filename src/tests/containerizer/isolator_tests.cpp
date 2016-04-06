@@ -46,7 +46,6 @@
 #endif // __linux__
 
 #include "master/master.hpp"
-#include "master/detector.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"

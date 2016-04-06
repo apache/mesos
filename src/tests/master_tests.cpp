@@ -54,6 +54,10 @@
 
 #include "master/allocator/mesos/allocator.hpp"
 
+#include "master/contender/zookeeper.hpp"
+
+#include "master/detector/standalone.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"

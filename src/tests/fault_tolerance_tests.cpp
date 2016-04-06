@@ -47,6 +47,12 @@
 
 #include "master/allocator/mesos/allocator.hpp"
 
+#include "master/contender/standalone.hpp"
+#include "master/contender/zookeeper.hpp"
+
+#include "master/detector/standalone.hpp"
+#include "master/detector/zookeeper.hpp"
+
 #include "sched/constants.hpp"
 
 #include "slave/constants.hpp"

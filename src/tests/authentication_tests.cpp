@@ -28,6 +28,8 @@
 
 #include <stout/nothing.hpp>
 
+#include "master/detector/standalone.hpp"
+
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 

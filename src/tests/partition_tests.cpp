@@ -33,6 +33,8 @@
 
 #include "master/allocator/mesos/allocator.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"

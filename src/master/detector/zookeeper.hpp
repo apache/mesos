@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MASTER_DETECTOR_HPP__
-#define __MASTER_DETECTOR_HPP__
+#ifndef __MASTER_DETECTOR_ZOOKEEPER_HPP__
+#define __MASTER_DETECTOR_ZOOKEEPER_HPP__
 
 #include <string>
 
@@ -33,44 +33,13 @@
 #include "zookeeper/url.hpp"
 
 namespace mesos {
-namespace internal {
+namespace master {
+namespace detector {
 
 extern const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT;
 
-
 // Forward declarations.
-class StandaloneMasterDetectorProcess;
 class ZooKeeperMasterDetectorProcess;
-
-
-// A standalone implementation of the MasterDetector with no external
-// discovery mechanism so the user has to manually appoint a leader
-// to the detector for it to be detected.
-class StandaloneMasterDetector : public MasterDetector
-{
-public:
-  StandaloneMasterDetector();
-  // Use this constructor if the leader is known beforehand so it is
-  // unnecessary to call 'appoint()' separately.
-  explicit StandaloneMasterDetector(const MasterInfo& leader);
-
-  // Same as above but takes UPID as the parameter.
-  explicit StandaloneMasterDetector(const process::UPID& leader);
-
-  virtual ~StandaloneMasterDetector();
-
-  // Appoint the leading master so it can be *detected*.
-  void appoint(const Option<MasterInfo>& leader);
-
-  // Same as above but takes 'UPID' as the parameter.
-  void appoint(const process::UPID& leader);
-
-  virtual process::Future<Option<MasterInfo> > detect(
-      const Option<MasterInfo>& previous = None());
-
-private:
-  StandaloneMasterDetectorProcess* process;
-};
 
 
 class ZooKeeperMasterDetector : public MasterDetector
@@ -87,14 +56,15 @@ public:
   // The detector transparently tries to recover from retryable
   // errors until the group session expires, in which case the Future
   // returns None.
-  virtual process::Future<Option<MasterInfo> > detect(
+  virtual process::Future<Option<MasterInfo>> detect(
       const Option<MasterInfo>& previous = None());
 
 private:
   ZooKeeperMasterDetectorProcess* process;
 };
 
-} // namespace internal {
+} // namespace detector {
+} // namespace master {
 } // namespace mesos {
 
-#endif // __MASTER_DETECTOR_HPP__
+#endif // __MASTER_DETECTOR_ZOOKEEPER_HPP__

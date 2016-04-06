@@ -47,8 +47,6 @@
 
 #include "logging/logging.hpp"
 
-#include "master/detector.hpp"
-
 #include "messages/flags.hpp"
 #include "messages/messages.hpp"
 

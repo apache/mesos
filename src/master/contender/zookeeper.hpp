@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MASTER_CONTENDER_HPP__
-#define __MASTER_CONTENDER_HPP__
+#ifndef __MASTER_CONTENDER_ZOOKEEPER_HPP__
+#define __MASTER_CONTENDER_ZOOKEEPER_HPP__
 
 #include <process/defer.hpp>
 #include <process/future.hpp>
@@ -32,41 +32,13 @@
 #include "zookeeper/url.hpp"
 
 namespace mesos {
-namespace internal {
+namespace master {
+namespace contender {
 
 extern const Duration MASTER_CONTENDER_ZK_SESSION_TIMEOUT;
 
 
-// Forward declarations.
-namespace master {
-class Master;
-}
-
-
 class ZooKeeperMasterContenderProcess;
-
-// A basic implementation which assumes only one master is
-// contending.
-class StandaloneMasterContender : public MasterContender
-{
-public:
-  StandaloneMasterContender()
-    : initialized(false),
-      promise(NULL) {}
-  virtual ~StandaloneMasterContender();
-
-  // MasterContender implementation.
-  virtual void initialize(const MasterInfo& masterInfo);
-
-  // In this basic implementation the outer Future directly returns
-  // and inner Future stays pending because there is only one
-  // contender in the contest.
-  virtual process::Future<process::Future<Nothing> > contend();
-
-private:
-  bool initialized;
-  process::Promise<Nothing>* promise;
-};
 
 
 class ZooKeeperMasterContender : public MasterContender
@@ -81,13 +53,14 @@ public:
 
   // MasterContender implementation.
   virtual void initialize(const MasterInfo& masterInfo);
-  virtual process::Future<process::Future<Nothing> > contend();
+  virtual process::Future<process::Future<Nothing>> contend();
 
 private:
   ZooKeeperMasterContenderProcess* process;
 };
 
-} // namespace internal {
+} // namespace contender {
+} // namespace master {
 } // namespace mesos {
 
-#endif // __MASTER_CONTENDER_HPP__
+#endif // __MASTER_CONTENDER_ZOOKEEPER_HPP__

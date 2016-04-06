@@ -57,12 +57,13 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/detector.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
+
+#include "master/detector/standalone.hpp"
 
 #include "module/manager.hpp"
 

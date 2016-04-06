@@ -38,9 +38,13 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "master/contender.hpp"
-#include "master/detector.hpp"
 #include "master/master.hpp"
+
+#include "master/contender/standalone.hpp"
+#include "master/contender/zookeeper.hpp"
+
+#include "master/detector/standalone.hpp"
+#include "master/detector/zookeeper.hpp"
 
 #include "messages/messages.hpp"
 

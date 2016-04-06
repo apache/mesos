@@ -31,7 +31,6 @@
 #include <stout/path.hpp>
 
 #include "master/master.hpp"
-#include "master/detector.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"

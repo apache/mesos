@@ -43,6 +43,8 @@
 
 #include "master/allocator/mesos/allocator.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "master/master.hpp"
 
 #include "tests/containerizer.hpp"

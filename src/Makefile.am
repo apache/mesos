@@ -641,7 +641,11 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/metrics.cpp					\
   master/allocator/sorter/drf/sorter.cpp				\
   master/contender/contender.cpp					\
+  master/contender/standalone.cpp					\
+  master/contender/zookeeper.cpp					\
   master/detector/detector.cpp						\
+  master/detector/standalone.cpp					\
+  master/detector/zookeeper.cpp						\
   messages/messages.cpp							\
   module/manager.cpp							\
   sched/sched.cpp							\
@@ -755,6 +759,10 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/metrics.hpp					\
   master/allocator/sorter/sorter.hpp					\
   master/allocator/sorter/drf/sorter.hpp				\
+  master/contender/standalone.hpp					\
+  master/contender/zookeeper.hpp					\
+  master/detector/standalone.hpp					\
+  master/detector/zookeeper.hpp						\
   messages/flags.hpp							\
   messages/messages.hpp							\
   module/manager.hpp							\

@@ -49,14 +49,16 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/contender.hpp"
-#include "master/detector.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
+
+#include "master/contender/standalone.hpp"
+
+#include "master/detector/standalone.hpp"
 
 #include "module/manager.hpp"
 

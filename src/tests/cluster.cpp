@@ -64,6 +64,12 @@
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
+#include "master/contender/standalone.hpp"
+#include "master/contender/zookeeper.hpp"
+
+#include "master/detector/standalone.hpp"
+#include "master/detector/zookeeper.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/slave.hpp"

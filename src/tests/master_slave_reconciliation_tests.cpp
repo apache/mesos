@@ -35,6 +35,8 @@
 
 #include "master/master.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"

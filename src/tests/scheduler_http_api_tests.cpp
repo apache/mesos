@@ -38,6 +38,8 @@
 #include "master/constants.hpp"
 #include "master/master.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 

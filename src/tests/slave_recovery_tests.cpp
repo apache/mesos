@@ -44,10 +44,11 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "master/detector.hpp"
 #include "master/master.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
+
+#include "master/detector/standalone.hpp"
 
 #include "slave/gc.hpp"
 #include "slave/paths.hpp"

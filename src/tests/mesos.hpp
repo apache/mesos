@@ -69,7 +69,6 @@
 
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
-#include "master/detector.hpp"
 #include "master/master.hpp"
 
 #include "slave/constants.hpp"

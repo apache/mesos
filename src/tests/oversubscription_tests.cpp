@@ -36,6 +36,8 @@
 
 #include "master/master.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "messages/messages.hpp"
 
 #include "module/manager.hpp"

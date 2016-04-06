@@ -35,6 +35,8 @@
 
 #include "master/allocator/mesos/allocator.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/slave.hpp"

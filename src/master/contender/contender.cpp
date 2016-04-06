@@ -25,53 +25,20 @@
 #include <stout/protobuf.hpp>
 
 #include "master/constants.hpp"
-#include "master/contender.hpp"
 #include "master/master.hpp"
 
-#include "zookeeper/contender.hpp"
-#include "zookeeper/detector.hpp"
-#include "zookeeper/group.hpp"
+#include "master/contender/standalone.hpp"
+#include "master/contender/zookeeper.hpp"
+
 #include "zookeeper/url.hpp"
 
 using std::string;
 
 using namespace process;
-using namespace zookeeper;
 
 namespace mesos {
 namespace master {
 namespace contender {
-
-using namespace internal;
-
-const Duration MASTER_CONTENDER_ZK_SESSION_TIMEOUT = Seconds(10);
-
-
-class ZooKeeperMasterContenderProcess
-  : public Process<ZooKeeperMasterContenderProcess>
-{
-public:
-  explicit ZooKeeperMasterContenderProcess(const zookeeper::URL& url);
-  explicit ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
-  virtual ~ZooKeeperMasterContenderProcess();
-
-  // Explicitely use 'initialize' since we're overloading below.
-  using process::ProcessBase::initialize;
-
-  void initialize(const MasterInfo& masterInfo);
-
-  // MasterContender implementation.
-  virtual Future<Future<Nothing>> contend();
-
-private:
-  Owned<zookeeper::Group> group;
-  LeaderContender* contender;
-
-  // The master this contender contends on behalf of.
-  Option<MasterInfo> masterInfo;
-  Option<Future<Future<Nothing>>> candidacy;
-};
-
 
 Try<MasterContender*> MasterContender::create(const Option<string>& _mechanism)
 {
@@ -125,130 +92,6 @@ Try<MasterContender*> MasterContender::create(const Option<string>& _mechanism)
 
 
 MasterContender::~MasterContender() {}
-
-
-StandaloneMasterContender::~StandaloneMasterContender()
-{
-  if (promise != NULL) {
-    promise->set(Nothing()); // Leadership lost.
-    delete promise;
-  }
-}
-
-
-void StandaloneMasterContender::initialize(const MasterInfo& masterInfo)
-{
-  // We don't really need to store the master in this basic
-  // implementation so we just restore an 'initialized' flag to make
-  // sure it is called.
-  initialized = true;
-}
-
-
-Future<Future<Nothing>> StandaloneMasterContender::contend()
-{
-  if (!initialized) {
-    return Failure("Initialize the contender first");
-  }
-
-  if (promise != NULL) {
-    LOG(INFO) << "Withdrawing the previous membership before recontending";
-    promise->set(Nothing());
-    delete promise;
-  }
-
-  // Directly return a future that is always pending because it
-  // represents a membership/leadership that is not going to be lost
-  // until we 'withdraw'.
-  promise = new Promise<Nothing>();
-  return promise->future();
-}
-
-
-ZooKeeperMasterContender::ZooKeeperMasterContender(const zookeeper::URL& url)
-{
-  process = new ZooKeeperMasterContenderProcess(url);
-  spawn(process);
-}
-
-
-ZooKeeperMasterContender::ZooKeeperMasterContender(Owned<Group> group)
-{
-  process = new ZooKeeperMasterContenderProcess(group);
-  spawn(process);
-}
-
-
-ZooKeeperMasterContender::~ZooKeeperMasterContender()
-{
-  terminate(process);
-  process::wait(process);
-  delete process;
-}
-
-
-void ZooKeeperMasterContender::initialize(const MasterInfo& masterInfo)
-{
-  process->initialize(masterInfo);
-}
-
-
-Future<Future<Nothing>> ZooKeeperMasterContender::contend()
-{
-  return dispatch(process, &ZooKeeperMasterContenderProcess::contend);
-}
-
-
-ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
-    const zookeeper::URL& url)
-  : ZooKeeperMasterContenderProcess(Owned<Group>(
-    new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT))) {}
-
-
-ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
-    Owned<Group> _group)
-  : ProcessBase(ID::generate("zookeeper-master-contender")),
-    group(_group),
-    contender(NULL) {}
-
-
-ZooKeeperMasterContenderProcess::~ZooKeeperMasterContenderProcess()
-{
-  delete contender;
-}
-
-void ZooKeeperMasterContenderProcess::initialize(const MasterInfo& _masterInfo)
-{
-  masterInfo = _masterInfo;
-}
-
-
-Future<Future<Nothing>> ZooKeeperMasterContenderProcess::contend()
-{
-  if (masterInfo.isNone()) {
-    return Failure("Initialize the contender first");
-  }
-
-  // Should not recontend if the last election is still ongoing.
-  if (candidacy.isSome() && candidacy.get().isPending()) {
-    return candidacy.get();
-  }
-
-  if (contender != NULL) {
-    LOG(INFO) << "Withdrawing the previous membership before recontending";
-    delete contender;
-  }
-
-  // Serialize the MasterInfo to JSON.
-  JSON::Object json = JSON::protobuf(masterInfo.get());
-
-  contender = new LeaderContender(
-      group.get(),
-      stringify(json),
-      mesos::internal::master::MASTER_INFO_JSON_LABEL);
-  candidacy = contender->contend();
-  return candidacy.get();
-}
 
 } // namespace contender  {
 } // namespace master {

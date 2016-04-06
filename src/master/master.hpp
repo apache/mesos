@@ -70,8 +70,6 @@
 #include "internal/evolve.hpp"
 
 #include "master/constants.hpp"
-#include "master/contender.hpp"
-#include "master/detector.hpp"
 #include "master/flags.hpp"
 #include "master/machine.hpp"
 #include "master/metrics.hpp"
