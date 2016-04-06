@@ -624,8 +624,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   local/local.cpp							\
   logging/flags.cpp							\
   logging/logging.cpp							\
-  master/contender.cpp							\
-  master/detector.cpp							\
   master/flags.cpp							\
   master/http.cpp							\
   master/maintenance.cpp						\
@@ -642,6 +640,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/hierarchical.cpp				\
   master/allocator/mesos/metrics.cpp					\
   master/allocator/sorter/drf/sorter.cpp				\
+  master/contender/contender.cpp					\
+  master/detector/detector.cpp						\
   messages/messages.cpp							\
   module/manager.cpp							\
   sched/sched.cpp							\
@@ -739,8 +739,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   logging/flags.hpp							\
   logging/logging.hpp							\
   master/constants.hpp							\
-  master/contender.hpp							\
-  master/detector.hpp							\
   master/flags.hpp							\
   master/machine.hpp							\
   master/maintenance.hpp						\
