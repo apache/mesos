@@ -17,6 +17,10 @@ FIRST_CHAR=$(echo -n $FIRST_LINE | head -c 1)
 
 while read LINE
 do
+    # In verbose mode, the diff of the commit is included in the commit message.
+    # Since git looks for the following line and skips everything after it,
+    # we also skip everything once this line is observed.
+    if [ "$LINE" = "# ------------------------ >8 ------------------------" ]; then break; fi
     if [ "$(echo -n $LINE | head -c 1)" = "#" ]; then continue; fi
     LENGTH=$(echo $LINE | wc -c)
     if [ "$LENGTH" -gt "73" ]; then
