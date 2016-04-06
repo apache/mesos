@@ -15,14 +15,14 @@ FIRST_LINE=$(head -n 1 $1)
 LAST_CHAR=$(echo -n $FIRST_LINE | tail -c 1)
 FIRST_CHAR=$(echo -n $FIRST_LINE | head -c 1)
 
-for LINE in $COMMIT_MESSAGE
+while read LINE
 do
     LENGTH=$(echo $LINE | wc -c)
     if [ "$LENGTH" -gt "73" ]; then
         echo >&2 "Error: No line in the commit message summary may exceed 72 characters."
         exit 1
     fi
-done
+done <<< "$COMMIT_MESSAGE"
 
 if [[ ! "$FIRST_CHAR" =~ [A-Z] ]]; then
     echo >&2 "Error: Commit message summary (the first line) must start with a capital letter."
