@@ -770,4 +770,10 @@ mesos::internal::slave::Flags::Flags()
       "and available. The interval between updates is controlled by this\n"
       "flag.",
       Seconds(15));
+
+  add(&Flags::master_detector,
+      "master_detector",
+      "The symbol name of the master detector to use. This symbol\n"
+      "should exist in a module specified through the --modules flag.\n"
+      "Cannot be used in conjunction with --master.");
 }

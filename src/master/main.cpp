@@ -236,6 +236,21 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
   }
 
+  if (zk.isNone()) {
+    if (flags.master_contender.isSome() ^ flags.master_detector.isSome()) {
+      EXIT(EXIT_FAILURE)
+        << flags.usage("Both --master_contender and --master_detector should "
+                       "be specified or omitted.");
+    }
+  } else {
+    if (flags.master_contender.isSome() || flags.master_detector.isSome()) {
+      EXIT(EXIT_FAILURE)
+        << flags.usage("Only one of --zk or the "
+                       "--master_contender/--master_detector "
+                       "pair should be specified.");
+    }
+  }
+
   // Initialize libprocess.
   process::initialize("master");
 
@@ -342,18 +357,24 @@ int main(int argc, char** argv)
   MasterContender* contender;
   MasterDetector* detector;
 
-  Try<MasterContender*> contender_ = MasterContender::create(zk);
+  Try<MasterContender*> contender_ = MasterContender::create(
+      zk, flags.master_contender);
+
   if (contender_.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to create a master contender: " << contender_.error();
   }
+
   contender = contender_.get();
 
-  Try<MasterDetector*> detector_ = MasterDetector::create(zk);
+  Try<MasterDetector*> detector_ = MasterDetector::create(
+      zk, flags.master_detector);
+
   if (detector_.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to create a master detector: " << detector_.error();
   }
+
   detector = detector_.get();
 
   Option<Authorizer*> authorizer_ = None();
@@ -477,7 +498,7 @@ int main(int argc, char** argv)
       slaveRemovalLimiter,
       flags);
 
-  if (zk.isNone()) {
+  if (zk.isNone() && flags.master_detector.isNone()) {
     // It means we are using the standalone detector so we need to
     // appoint this Master as the leader.
     dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->info());

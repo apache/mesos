@@ -82,6 +82,8 @@ public:
   std::string http_authenticators;
   size_t max_completed_frameworks;
   size_t max_completed_tasks_per_framework;
+  Option<std::string> master_contender;
+  Option<std::string> master_detector;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

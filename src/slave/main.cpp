@@ -61,6 +61,8 @@
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
@@ -164,8 +166,15 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
-  if (master.isNone()) {
-    cerr << flags.usage("Missing required option `--master`") << endl;
+  if (master.isNone() && flags.master_detector.isNone()) {
+    cerr << flags.usage("Missing required option `--master` or "
+                        "`--master_detector`.") << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (master.isSome() && flags.master_detector.isSome()) {
+    cerr << flags.usage("Only one of --master or --master_detector options "
+                        "should be specified.");
     return EXIT_FAILURE;
   }
 
@@ -262,12 +271,15 @@ int main(int argc, char** argv)
       << "Failed to create a containerizer: " << containerizer.error();
   }
 
-  Try<MasterDetector*> detector = MasterDetector::create(master.get());
+  Try<MasterDetector*> detector_ = MasterDetector::create(
+      master, flags.master_detector);
 
-  if (detector.isError()) {
+  if (detector_.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Failed to create a master detector: " << detector.error();
+      << "Failed to create a master detector: " << detector_.error();
   }
+
+  MasterDetector* detector = detector_.get();
 
   if (flags.firewall_rules.isSome()) {
     vector<Owned<FirewallRule>> rules;
@@ -332,7 +344,7 @@ int main(int argc, char** argv)
   Slave* slave = new Slave(
       id,
       flags,
-      detector.get(),
+      detector,
       containerizer.get(),
       &files,
       &gc,
@@ -349,7 +361,7 @@ int main(int argc, char** argv)
 
   delete qosController.get();
 
-  delete detector.get();
+  delete detector;
 
   delete containerizer.get();
 

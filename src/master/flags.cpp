@@ -472,4 +472,18 @@ mesos::internal::master::Flags::Flags()
       "max_completed_tasks_per_framework",
       "Maximum number of completed tasks per framework to store in memory.",
       DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK);
+
+  add(&Flags::master_contender,
+      "master_contender",
+      "The symbol name of the master contender to use.\n"
+      "This symbol should exist in a module specified through\n"
+      "the --modules flag. Cannot be used in conjunction with --zk.\n"
+      "Must be used in conjunction with --master_detector.");
+
+  add(&Flags::master_detector,
+      "master_detector",
+      "The symbol name of the master detector to use. This symbol\n"
+      "should exist in a module specified through the --modules flag.\n"
+      "Cannot be used in conjunction with --zk.\n"
+      "Must be used in conjunction with --master_contender.");
 }
