@@ -34,7 +34,7 @@ public:
   // be non-zero, but this value has no effect since this is a mock.
   MockRateLimiter() : process::RateLimiter(1, Seconds(1)) {}
 
-  MOCK_METHOD0(acquire, process::Future<Nothing>());
+  MOCK_CONST_METHOD0(acquire, process::Future<Nothing>());
 };
 
 } // namespace tests {

@@ -27,6 +27,7 @@
 
 #include <process/help.hpp>
 #include <process/owned.hpp>
+#include <process/limiter.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -546,6 +547,77 @@ Future<Response> Slave::Http::state(
   };
 
   return OK(jsonify(state), request.url.query.get("jsonp"));
+}
+
+
+string Slave::Http::STATISTICS_HELP()
+{
+  return HELP(
+      TLDR(
+          "Retrieve resource monitoring information."),
+      DESCRIPTION(
+          "Returns the current resource consumption data for containers",
+          "running under this slave.",
+          "",
+          "Example:",
+          "",
+          "```",
+          "[{",
+          "    \"executor_id\":\"executor\",",
+          "    \"executor_name\":\"name\",",
+          "    \"framework_id\":\"framework\",",
+          "    \"source\":\"source\",",
+          "    \"statistics\":",
+          "    {",
+          "        \"cpus_limit\":8.25,",
+          "        \"cpus_nr_periods\":769021,",
+          "        \"cpus_nr_throttled\":1046,",
+          "        \"cpus_system_time_secs\":34501.45,",
+          "        \"cpus_throttled_time_secs\":352.597023453,",
+          "        \"cpus_user_time_secs\":96348.84,",
+          "        \"mem_anon_bytes\":4845449216,",
+          "        \"mem_file_bytes\":260165632,",
+          "        \"mem_limit_bytes\":7650410496,",
+          "        \"mem_mapped_file_bytes\":7159808,",
+          "        \"mem_rss_bytes\":5105614848,",
+          "        \"timestamp\":1388534400.0",
+          "    }",
+          "}]",
+          "```"));
+}
+
+
+Future<Response> Slave::Http::statistics(const Request& request) const
+{
+  return statisticsLimiter->acquire()
+    .then(defer(slave->self(), &Slave::usage))
+    .then([=](const Future<ResourceUsage>& usage) -> Future<Response> {
+      JSON::Array result;
+
+      foreach (const ResourceUsage::Executor& executor,
+               usage.get().executors()) {
+        if (executor.has_statistics()) {
+          const ExecutorInfo info = executor.executor_info();
+
+          JSON::Object entry;
+          entry.values["framework_id"] = info.framework_id().value();
+          entry.values["executor_id"] = info.executor_id().value();
+          entry.values["executor_name"] = info.name();
+          entry.values["source"] = info.source();
+          entry.values["statistics"] = JSON::protobuf(executor.statistics());
+
+          result.values.push_back(entry);
+        }
+      }
+
+      return process::http::OK(result, request.url.query.get("jsonp"));
+    })
+    .repair([](const Future<Response>& future) {
+      LOG(WARNING) << "Could not collect resource usage: "
+                   << (future.isFailed() ? future.failure() : "discarded");
+
+      return process::http::InternalServerError();
+    });
 }
 
 } // namespace slave {

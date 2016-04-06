@@ -1304,6 +1304,10 @@ public:
       const process::Future<std::list<
           mesos::slave::QoSCorrection>>& correction));
 
+  MOCK_METHOD0(usage, process::Future<ResourceUsage>());
+
+  process::Future<ResourceUsage> unmocked_usage();
+
 private:
   Files files;
   MockGarbageCollector gc;

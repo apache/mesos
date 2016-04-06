@@ -1599,6 +1599,221 @@ TEST_F(SlaveTest, HTTPEndpointsBadAuthentication)
 }
 
 
+// This test verifies correct handling of statistics endpoint when
+// there is no exeuctor running.
+TEST_F(SlaveTest, StatisticsEndpointNoExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "/monitor/statistics",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
+}
+
+
+// This test verifies the correct handling of the statistics
+// endpoint when statistics is missing in ResourceUsage.
+TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  spawn(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Set up the containerizer so the next usage() will fail.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(Failure("Injected failure")));
+
+  Future<Response> response = process::http::get(
+      slave.self(),
+      "monitor/statistics",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  terminate(slave);
+  wait(slave);
+}
+
+
+// This test verifies the correct response of /monitor/statistics endpoint
+// when ResourceUsage collection fails.
+TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+
+  EXPECT_CALL(slave, usage())
+    .WillOnce(Return(Failure("Resource Collection Failure")));
+
+  spawn(slave);
+
+  Future<Response> response = process::http::get(
+      slave.self(),
+      "monitor/statistics",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::InternalServerError().status, response);
+
+  terminate(slave);
+  wait(slave);
+}
+
+
+// This is an end-to-end test that verifies that the slave returns the
+// correct ResourceUsage based on the currently running executors, and
+// the values returned by the /monitor/statistics endpoint are as expected.
+TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Launch a task and wait until it is in RUNNING status.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Hit the statistics endpoint and expect the response contains the
+  // resource statistics for the running container.
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "monitor/statistics",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  // Verify that the statistics in the response contains the proper
+  // resource limits for the container.
+  Try<JSON::Value> value = JSON::parse(response.get().body);
+  ASSERT_SOME(value);
+
+  Try<JSON::Value> expected = JSON::parse(strings::format(
+      "[{"
+          "\"statistics\":{"
+              "\"cpus_limit\":%g,"
+              "\"mem_limit_bytes\":%lu"
+          "}"
+      "}]",
+      1 + slave::DEFAULT_EXECUTOR_CPUS,
+      (Megabytes(32) + slave::DEFAULT_EXECUTOR_MEM).bytes()).get());
+
+  ASSERT_SOME(expected);
+  EXPECT_TRUE(value.get().contains(expected.get()));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test ensures that when a slave is shutting down, it will not
 // try to re-register with the master.
 TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)

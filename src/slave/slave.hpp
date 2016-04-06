@@ -42,8 +42,10 @@
 #include <process/http.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/limiter.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/shared.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/linkedhashmap.hpp>
@@ -71,7 +73,6 @@
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
 #include "slave/metrics.hpp"
-#include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
@@ -396,7 +397,7 @@ public:
           mesos::slave::QoSCorrection>>& correction);
 
   // Returns the resource usage information for all executors.
-  process::Future<ResourceUsage> usage();
+  virtual process::Future<ResourceUsage> usage();
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.
@@ -421,7 +422,8 @@ private:
   class Http
   {
   public:
-    explicit Http(Slave* _slave) : slave(_slave) {}
+    explicit Http(Slave* _slave)
+    : slave(_slave), statisticsLimiter(new RateLimiter(2, Seconds(1))) {}
 
     // Logs the request, route handlers can compose this with the
     // desired request handler to get consistent request logging.
@@ -445,13 +447,22 @@ private:
         const process::http::Request& request,
         const Option<std::string>& /* principal */) const;
 
+    // /slave/monitor/statistics
+    // /slave/monitor/statistics.json
+    process::Future<process::http::Response> statistics(
+        const process::http::Request& request) const;
+
     static std::string EXECUTOR_HELP();
     static std::string FLAGS_HELP();
     static std::string HEALTH_HELP();
     static std::string STATE_HELP();
+    static std::string STATISTICS_HELP();
 
   private:
     Slave* slave;
+
+    // Used to rate limit the statistics endpoint.
+    Shared<RateLimiter> statisticsLimiter;
   };
 
   friend struct Framework;
@@ -531,8 +542,6 @@ private:
   process::Time startTime;
 
   GarbageCollector* gc;
-
-  ResourceMonitor monitor;
 
   StatusUpdateManager* statusUpdateManager;
 

@@ -41,7 +41,6 @@
 #include "module/manager.hpp"
 
 #include "slave/flags.hpp"
-#include "slave/monitor.hpp"
 #include "slave/slave.hpp"
 #include "slave/qos_controllers/load.hpp"
 
@@ -55,7 +54,6 @@ using namespace process;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::LoadQoSController;
-using mesos::internal::slave::ResourceMonitor;
 using mesos::internal::slave::Slave;
 
 using mesos::slave::QoSCorrection;
@@ -173,9 +171,8 @@ private:
 
 
 // This test verifies that the ResourceEstimator is able to fetch
-// ResourceUsage statistics about running executor from
-// the ResourceMonitor.
-TEST_F(OversubscriptionTest, FetchResourceUsageFromMonitor)
+// ResourceUsage statistics about running executor.
+TEST_F(OversubscriptionTest, FetchResourceUsage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -618,9 +615,8 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
 
 
 // This test verifies that the QoS Controller is able to fetch
-// ResourceUsage statistics about running executor from
-// the ResourceMonitor.
-TEST_F(OversubscriptionTest, QoSFetchResourceUsageFromMonitor)
+// ResourceUsage statistics about running executor.
+TEST_F(OversubscriptionTest, QoSFetchResourceUsage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -652,7 +652,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/gc.cpp								\
   slave/http.cpp							\
   slave/metrics.cpp							\
-  slave/monitor.cpp							\
   slave/paths.cpp							\
   slave/qos_controller.cpp						\
   slave/qos_controllers/noop.cpp					\
@@ -767,7 +766,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/flags.hpp							\
   slave/gc.hpp								\
   slave/metrics.hpp							\
-  slave/monitor.hpp							\
   slave/paths.hpp							\
   slave/slave.hpp							\
   slave/state.hpp							\
@@ -1887,7 +1885,6 @@ mesos_tests_SOURCES =						\
   tests/metrics_tests.cpp					\
   tests/module.cpp						\
   tests/module_tests.cpp					\
-  tests/monitor_tests.cpp					\
   tests/oversubscription_tests.cpp				\
   tests/partition_tests.cpp					\
   tests/paths_tests.cpp						\
