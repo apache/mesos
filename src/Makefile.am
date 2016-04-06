@@ -475,7 +475,9 @@ masterdir = $(pkgincludedir)/master
 
 master_HEADERS =							\
   $(top_srcdir)/include/mesos/master/allocator.hpp			\
-  $(top_srcdir)/include/mesos/master/allocator.proto
+  $(top_srcdir)/include/mesos/master/allocator.proto			\
+  $(top_srcdir)/include/mesos/master/contender.hpp			\
+  $(top_srcdir)/include/mesos/master/detector.hpp
 
 nodist_master_HEADERS =							\
   ../include/mesos/master/allocator.pb.h
@@ -495,7 +497,9 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/module.hpp				\
   $(top_srcdir)/include/mesos/module/module.proto			\
   $(top_srcdir)/include/mesos/module/qos_controller.hpp			\
-  $(top_srcdir)/include/mesos/module/resource_estimator.hpp
+  $(top_srcdir)/include/mesos/module/resource_estimator.hpp		\
+  $(top_srcdir)/include/mesos/module/contender.hpp			\
+  $(top_srcdir)/include/mesos/module/detector.hpp
 
 nodist_module_HEADERS =							\
   ../include/mesos/module/module.pb.h
@@ -1817,6 +1821,18 @@ libtestcontainer_logger_la_SOURCES =		\
   examples/test_container_logger_module.cpp
 libtestcontainer_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestcontainer_logger_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
+
+# Library containing the test contender module.
+noinst_LTLIBRARIES += libtestmastercontender.la
+libtestmastercontender_la_SOURCES = examples/test_master_contender_module.cpp
+libtestmastercontender_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestmastercontender_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
+
+# Library containing the test detector module.
+noinst_LTLIBRARIES += libtestmasterdetector.la
+libtestmasterdetector_la_SOURCES = examples/test_master_detector_module.cpp
+libtestmasterdetector_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestmasterdetector_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing test Hook module.
 libtesthook_la_SOURCES = examples/test_hook_module.cpp

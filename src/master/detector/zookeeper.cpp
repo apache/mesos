@@ -19,6 +19,8 @@
 
 #include <mesos/master/detector.hpp>
 
+#include <mesos/module/detector.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -40,6 +42,8 @@
 #include "master/detector/zookeeper.hpp"
 
 #include "messages/messages.hpp"
+
+#include "module/manager.hpp"
 
 #include "zookeeper/detector.hpp"
 #include "zookeeper/group.hpp"

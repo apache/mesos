@@ -73,6 +73,8 @@ void ModuleManager::initialize()
   kindToVersion["Hook"] = MESOS_VERSION;
   kindToVersion["HttpAuthenticator"] = MESOS_VERSION;
   kindToVersion["Isolator"] = MESOS_VERSION;
+  kindToVersion["MasterContender"] = MESOS_VERSION;
+  kindToVersion["MasterDetector"] = MESOS_VERSION;
   kindToVersion["QoSController"] = MESOS_VERSION;
   kindToVersion["ResourceEstimator"] = MESOS_VERSION;
   kindToVersion["TestModule"] = MESOS_VERSION;

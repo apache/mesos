@@ -27,6 +27,8 @@
 
 #include <mesos/module/anonymous.hpp>
 #include <mesos/module/authorizer.hpp>
+#include <mesos/module/contender.hpp>
+#include <mesos/module/detector.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
 

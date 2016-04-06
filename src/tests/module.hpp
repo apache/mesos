@@ -49,6 +49,8 @@ enum ModuleID
   TestNoopResourceEstimator,
   TestLocalAuthorizer,
   TestSandboxContainerLogger,
+  TestMasterContender,
+  TestMasterDetector,
   LogrotateContainerLogger,
   TestHttpBasicAuthenticator
 };

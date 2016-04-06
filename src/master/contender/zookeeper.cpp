@@ -16,6 +16,8 @@
 
 #include <mesos/master/contender.hpp>
 
+#include <mesos/module/contender.hpp>
+
 #include <process/defer.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -25,6 +27,8 @@
 
 #include "master/constants.hpp"
 #include "master/master.hpp"
+
+#include "module/manager.hpp"
 
 #include "zookeeper/contender.hpp"
 #include "zookeeper/detector.hpp"

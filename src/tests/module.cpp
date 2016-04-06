@@ -222,6 +222,52 @@ static void addHttpAuthenticatorModules(Modules* modules)
 }
 
 
+static void addMasterContenderModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testmastercontender"));
+
+  // Now add our test anonymous module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library,
+      TestMasterContender,
+      "org_apache_mesos_TestMasterContender");
+}
+
+
+static void addMasterDetectorModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testmasterdetector"));
+
+  // Now add our test anonymous module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library,
+      TestMasterDetector,
+      "org_apache_mesos_TestMasterDetector");
+}
+
+
 Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
@@ -256,6 +302,12 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add HTTP authenticator modules from testhttpauthenticator library.
   addHttpAuthenticatorModules(&mergedModules);
+
+  // Add MasterContender module from testmastercontender library.
+  addMasterContenderModules(&mergedModules);
+
+  // Add MasterDetector module from testmasterdetector library.
+  addMasterDetectorModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }
