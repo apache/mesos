@@ -69,6 +69,8 @@ using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::FetcherProcess;
 
+using mesos::master::detector::MasterDetector;
+
 using process::Future;
 using process::HttpEvent;
 using process::Latch;

@@ -77,6 +77,12 @@ using namespace mesos::internal::log;
 
 using mesos::master::allocator::Allocator;
 
+using mesos::master::contender::MasterContender;
+using mesos::master::contender::StandaloneMasterContender;
+
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;

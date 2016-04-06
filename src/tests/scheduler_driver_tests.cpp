@@ -50,6 +50,8 @@ using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::master::Master;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Slave;
 

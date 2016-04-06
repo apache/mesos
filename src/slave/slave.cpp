@@ -94,6 +94,8 @@
 
 using mesos::executor::Call;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::QoSController;
 using mesos::slave::QoSCorrection;
 using mesos::slave::ResourceEstimator;

@@ -37,6 +37,8 @@
 
 #include <mesos/authentication/authenticatee.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include <mesos/module/authenticatee.hpp>
 
 #include <mesos/scheduler/scheduler.hpp>
@@ -80,8 +82,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/detector.hpp"
-
 #include "messages/messages.hpp"
 
 #include "module/manager.hpp"
@@ -95,6 +95,8 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
 using namespace mesos::scheduler;
+
+using mesos::master::detector::MasterDetector;
 
 using process::Clock;
 using process::DispatchEvent;

@@ -56,6 +56,9 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::LoadQoSController;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::slave::QoSCorrection;
 
 using std::list;

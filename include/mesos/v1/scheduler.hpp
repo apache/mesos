@@ -30,10 +30,11 @@
 
 namespace mesos {
 
-// Forward declaration.
-namespace internal {
+namespace master {
+namespace detector {
 class MasterDetector;
-} // namespace internal {
+} // namespace detector {
+} // namespace master {
 
 namespace v1 {
 namespace scheduler {
@@ -100,7 +101,8 @@ protected:
       const std::function<void()>& connected,
       const std::function<void()>& disconnected,
       const std::function<void(const std::queue<Event>&)>& received,
-      const Option<std::shared_ptr<mesos::internal::MasterDetector>>& detector);
+      const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
+        detector);
 
   // Stops the library so that:
   //   - No more calls can be sent to the master.

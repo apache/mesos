@@ -46,6 +46,8 @@ using mesos::internal::master::Master;
 
 using mesos::internal::recordio::Reader;
 
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
 

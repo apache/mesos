@@ -27,6 +27,8 @@
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/contender.hpp>
+#include <mesos/master/detector.hpp>
 
 #include <mesos/module/anonymous.hpp>
 #include <mesos/module/authorizer.hpp>
@@ -55,7 +57,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
@@ -85,6 +86,11 @@ using mesos::Parameter;
 using mesos::Parameters;
 
 using mesos::master::allocator::Allocator;
+
+using mesos::master::contender::MasterContender;
+
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;

@@ -40,6 +40,8 @@ using process::PID;
 
 using master::Master;
 
+using mesos::master::detector::MasterDetector;
+
 using slave::Slave;
 
 namespace mesos {

@@ -73,6 +73,9 @@ using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::v1::executor::Call;
 
 using std::map;

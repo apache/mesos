@@ -43,6 +43,8 @@ using mesos::internal::recordio::Reader;
 
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::v1::executor::Call;
 using mesos::v1::executor::Event;
 

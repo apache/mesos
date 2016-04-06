@@ -34,6 +34,8 @@
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/contender.hpp>
+#include <mesos/master/detector.hpp>
 
 #include <mesos/module/authenticator.hpp>
 #include <mesos/module/http_authenticator.hpp>
@@ -122,6 +124,10 @@ namespace master {
 namespace authentication = process::http::authentication;
 
 using mesos::master::allocator::Allocator;
+
+using mesos::master::contender::MasterContender;
+
+using mesos::master::detector::MasterDetector;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
 

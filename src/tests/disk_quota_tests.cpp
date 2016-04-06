@@ -61,6 +61,8 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 namespace mesos {
 namespace internal {
 namespace tests {

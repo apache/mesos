@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <mesos/master/contender.hpp>
+
 #include <process/defer.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -36,9 +38,8 @@ using namespace process;
 using namespace zookeeper;
 
 namespace mesos {
-namespace internal {
-
-using namespace master;
+namespace master {
+namespace contender {
 
 const Duration MASTER_CONTENDER_ZK_SESSION_TIMEOUT = Seconds(10);
 
@@ -241,10 +242,11 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
   contender = new LeaderContender(
       group.get(),
       stringify(json),
-      master::MASTER_INFO_JSON_LABEL);
+      mesos::internal::master::MASTER_INFO_JSON_LABEL);
   candidacy = contender->contend();
   return candidacy.get();
 }
 
-} // namespace internal {
+} // namespace contender  {
+} // namespace master {
 } // namespace mesos {

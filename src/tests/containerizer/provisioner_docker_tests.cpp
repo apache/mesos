@@ -55,6 +55,8 @@ using process::Promise;
 
 using master::Master;
 
+using mesos::master::detector::MasterDetector;
+
 using slave::ImageInfo;
 using slave::Slave;
 

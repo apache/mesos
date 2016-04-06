@@ -21,6 +21,8 @@
 
 #include <mesos/slave/container_logger.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
@@ -55,6 +57,8 @@ using testing::_;
 using testing::Invoke;
 
 using mesos::fetcher::FetcherInfo;
+
+using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerLogger;
 

@@ -16,6 +16,8 @@
 
 #include <iostream>
 
+#include <mesos/master/detector.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
@@ -25,8 +27,6 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
-
-#include "master/detector.hpp"
 
 #include "messages/messages.hpp"
 
@@ -80,7 +80,8 @@ int main(int argc, char** argv)
   }
 
   string master = argv[1];
-  Try<MasterDetector*> detector = MasterDetector::create(master);
+  Try<mesos::master::detector::MasterDetector*> detector =
+    mesos::master::detector::MasterDetector::create(master);
 
   if (detector.isError()) {
     cerr << "Failed to create a master detector: " << detector.error() << endl;

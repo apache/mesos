@@ -39,6 +39,8 @@
 
 #include <mesos/fetcher/fetcher.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
@@ -156,52 +158,52 @@ protected:
 
   // Starts a slave with the specified detector and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, containerizer, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, containerizer, id, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       const std::string& id,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, GC, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::GarbageCollector* gc,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, resource estimator, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, containerizer,
   // resource estimator, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, QoS Controller, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       mesos::slave::QoSController* qosController,
       const Option<slave::Flags>& flags = None());
 
   // Starts a slave with the specified detector, containerizer,
   // QoS Controller, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       mesos::slave::QoSController* qosController,
       const Option<slave::Flags>& flags = None());
@@ -855,7 +857,7 @@ class TestingMesosSchedulerDriver : public MesosSchedulerDriver
 public:
   TestingMesosSchedulerDriver(
       Scheduler* scheduler,
-      MasterDetector* _detector)
+      mesos::master::detector::MasterDetector* _detector)
     : MesosSchedulerDriver(
           scheduler,
           DEFAULT_FRAMEWORK_INFO,
@@ -865,12 +867,13 @@ public:
   {
     // No-op destructor as _detector lives on the stack.
     detector =
-      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
+      std::shared_ptr<mesos::master::detector::MasterDetector>(
+          _detector, [](mesos::master::detector::MasterDetector*) {});
   }
 
   TestingMesosSchedulerDriver(
       Scheduler* scheduler,
-      MasterDetector* _detector,
+      mesos::master::detector::MasterDetector* _detector,
       const FrameworkInfo& framework,
       bool implicitAcknowledgements = true)
     : MesosSchedulerDriver(
@@ -882,12 +885,13 @@ public:
   {
     // No-op destructor as _detector lives on the stack.
     detector =
-      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
+      std::shared_ptr<mesos::master::detector::MasterDetector>(
+          _detector, [](mesos::master::detector::MasterDetector*) {});
   }
 
   TestingMesosSchedulerDriver(
       Scheduler* scheduler,
-      MasterDetector* _detector,
+      mesos::master::detector::MasterDetector* _detector,
       const FrameworkInfo& framework,
       bool implicitAcknowledgements,
       const Credential& credential)
@@ -900,7 +904,8 @@ public:
   {
     // No-op destructor as _detector lives on the stack.
     detector =
-      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
+      std::shared_ptr<mesos::master::detector::MasterDetector>(
+          _detector, [](mesos::master::detector::MasterDetector*) {});
   }
 };
 
@@ -966,7 +971,8 @@ public:
       const std::string& master,
       ContentType contentType,
       const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
-      const Option<std::shared_ptr<MasterDetector>>& detector = None())
+      const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
+          detector = None())
     : Mesos(
           master,
           contentType,
@@ -1244,7 +1250,7 @@ class MockSlave : public slave::Slave
 public:
   MockSlave(
       const slave::Flags& flags,
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       const Option<mesos::slave::QoSController*>& qosController = None());
 

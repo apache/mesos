@@ -55,6 +55,9 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
 using mesos::v1::scheduler::Mesos;

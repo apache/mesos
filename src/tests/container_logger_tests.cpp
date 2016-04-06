@@ -73,6 +73,8 @@ using mesos::internal::slave::state::FrameworkState;
 using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerLogger;
 using mesos::slave::Isolator;
 

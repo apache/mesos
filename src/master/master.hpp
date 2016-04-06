@@ -33,6 +33,8 @@
 #include <mesos/maintenance/maintenance.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/contender.hpp>
+#include <mesos/master/detector.hpp>
 
 #include <mesos/module/authenticator.hpp>
 
@@ -372,8 +374,8 @@ public:
          Registrar* registrar,
          Repairer* repairer,
          Files* files,
-         MasterContender* contender,
-         MasterDetector* detector,
+         mesos::master::contender::MasterContender* contender,
+         mesos::master::detector::MasterDetector* detector,
          const Option<Authorizer*>& authorizer,
          const Option<std::shared_ptr<process::RateLimiter>>&
            slaveRemovalLimiter,
@@ -1260,8 +1262,8 @@ private:
   Repairer* repairer;
   Files* files;
 
-  MasterContender* contender;
-  MasterDetector* detector;
+  mesos::master::contender::MasterContender* contender;
+  mesos::master::detector::MasterDetector* detector;
 
   const Option<Authorizer*> authorizer;
 

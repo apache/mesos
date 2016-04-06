@@ -57,6 +57,16 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using mesos::master::contender::MASTER_CONTENDER_ZK_SESSION_TIMEOUT;
+using mesos::master::contender::MasterContender;
+using mesos::master::contender::StandaloneMasterContender;
+using mesos::master::contender::ZooKeeperMasterContender;
+
+using mesos::master::detector::MASTER_DETECTOR_ZK_SESSION_TIMEOUT;
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+using mesos::master::detector::ZooKeeperMasterDetector;
+
 using process::Clock;
 using process::Future;
 using process::Owned;

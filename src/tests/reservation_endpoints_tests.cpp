@@ -47,6 +47,8 @@ using mesos::internal::master::Master;
 using mesos::internal::protobuf::createLabel;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 using process::Clock;
 using process::Future;
 using process::Owned;

@@ -42,6 +42,9 @@
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using mesos::scheduler::Event;
 
 using process::Clock;

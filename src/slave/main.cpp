@@ -19,6 +19,8 @@
 #include <vector>
 #include <utility>
 
+#include <mesos/master/detector.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/module/anonymous.hpp>
@@ -63,6 +65,8 @@ using namespace mesos::internal::slave;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
+
+using mesos::master::detector::MasterDetector;
 
 using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;

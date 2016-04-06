@@ -79,6 +79,8 @@ using mesos::internal::slave::ProvisionerProcess;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Store;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerLogger;
 using mesos::slave::Isolator;
 

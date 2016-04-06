@@ -25,6 +25,8 @@
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/contender.hpp>
+#include <mesos/master/detector.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -42,8 +44,6 @@
 #include "log/log.hpp"
 
 #include "master/constants.hpp"
-#include "master/contender.hpp"
-#include "master/detector.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
@@ -91,7 +91,7 @@ public:
   ~Master();
 
   // Returns a new master detector for this instance of master.
-  process::Owned<MasterDetector> createDetector();
+  process::Owned<mesos::master::detector::MasterDetector> createDetector();
 
   // Returns the `MasterInfo` associated with the underlying master process.
   MasterInfo getMasterInfo();
@@ -112,8 +112,8 @@ private:
   // Dependencies that are created by the factory method.
   process::Owned<mesos::master::allocator::Allocator> allocator;
   process::Owned<Authorizer> authorizer;
-  process::Owned<MasterContender> contender;
-  process::Owned<MasterDetector> detector;
+  process::Owned<mesos::master::contender::MasterContender> contender;
+  process::Owned<mesos::master::detector::MasterDetector> detector;
   process::Owned<log::Log> log;
   process::Owned<state::Storage> storage;
   process::Owned<state::protobuf::State> state;
@@ -139,7 +139,7 @@ public:
   //   * Terminating the slave process.
   //   * On Linux, we will simulate an OS process exiting.
   static Try<process::Owned<Slave>> start(
-      MasterDetector* detector,
+      mesos::master::detector::MasterDetector* detector,
       const slave::Flags& flags = slave::Flags(),
       const Option<std::string>& id = None(),
       const Option<slave::Containerizer*>& containerizer = None(),
@@ -185,7 +185,7 @@ private:
   bool cleanUpContainersInDestructor = true;
 
   // Master detector that is not managed by this object.
-  MasterDetector* detector;
+  mesos::master::detector::MasterDetector* detector;
 
   // Containerizer that is either owned outside of this `Slave` object
   // or by `ownedContainerizer`.  We keep a copy of this pointer

@@ -36,6 +36,9 @@ using namespace process;
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
 using testing::_;
 using testing::Eq;
 using testing::Return;

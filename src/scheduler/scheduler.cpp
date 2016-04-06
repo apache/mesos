@@ -32,6 +32,8 @@
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/scheduler.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include <process/async.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -69,7 +71,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/detector.hpp"
 #include "master/validation.hpp"
 
 #include "messages/messages.hpp"
@@ -87,6 +88,8 @@ using std::string;
 using std::vector;
 
 using mesos::internal::recordio::Reader;
+
+using mesos::master::detector::MasterDetector;
 
 using process::Owned;
 using process::wait; // Necessary on some OS's to disambiguate.

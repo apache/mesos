@@ -56,6 +56,8 @@ using mesos::internal::slave::DockerContainerizerProcess;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerLogger;
 
 using std::list;

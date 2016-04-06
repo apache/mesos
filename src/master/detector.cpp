@@ -17,6 +17,8 @@
 #include <set>
 #include <string>
 
+#include <mesos/master/detector.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -49,7 +51,8 @@ using std::set;
 using std::string;
 
 namespace mesos {
-namespace internal {
+namespace master {
+namespace detector {
 
 const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT = Seconds(10);
 
@@ -250,7 +253,8 @@ Try<MasterDetector*> MasterDetector::create(const Option<string>& _mechanism)
     return Error("Failed to parse '" + mechanism + "'");
   }
 
-  return new StandaloneMasterDetector(protobuf::createMasterInfo(pid));
+  return new StandaloneMasterDetector(
+      internal::protobuf::createMasterInfo(pid));
 }
 
 
@@ -273,8 +277,8 @@ StandaloneMasterDetector::StandaloneMasterDetector(const MasterInfo& leader)
 
 StandaloneMasterDetector::StandaloneMasterDetector(const UPID& leader)
 {
-  process =
-    new StandaloneMasterDetectorProcess(protobuf::createMasterInfo(leader));
+  process = new StandaloneMasterDetectorProcess(
+      internal::protobuf::createMasterInfo(leader));
 
   spawn(process);
 }
@@ -298,7 +302,7 @@ void StandaloneMasterDetector::appoint(const UPID& leader)
 {
   dispatch(process,
            &StandaloneMasterDetectorProcess::appoint,
-           protobuf::createMasterInfo(leader));
+           internal::protobuf::createMasterInfo(leader));
 }
 
 
@@ -431,8 +435,9 @@ void ZooKeeperMasterDetectorProcess::fetched(
     // with the old format.
     UPID pid = UPID(data.get().get());
     LOG(WARNING) << "Leading master " << pid << " has data in old format";
-    leader = protobuf::createMasterInfo(pid);
-  } else if (label.isSome() && label.get() == master::MASTER_INFO_LABEL) {
+    leader = mesos::internal::protobuf::createMasterInfo(pid);
+  } else if (label.isSome() &&
+             label.get() == internal::master::MASTER_INFO_LABEL) {
     MasterInfo info;
     if (!info.ParseFromString(data.get().get())) {
       leader = None();
@@ -444,7 +449,8 @@ void ZooKeeperMasterDetectorProcess::fetched(
                  << "ZooKeeper (" << label.get() << "): this will be deprecated"
                  << " as of Mesos 0.24 (see MESOS-2340)";
     leader = info;
-  } else if (label.isSome() && label.get() == master::MASTER_INFO_JSON_LABEL) {
+  } else if (label.isSome() &&
+             label.get() == internal::master::MASTER_INFO_JSON_LABEL) {
     Try<JSON::Object> object = JSON::parse<JSON::Object>(data.get().get());
 
     if (object.isError()) {
@@ -456,7 +462,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
     }
 
     Try<mesos::MasterInfo> info =
-        ::protobuf::parse<mesos::MasterInfo>(object.get());
+      ::protobuf::parse<mesos::MasterInfo>(object.get());
 
     if (info.isError()) {
       leader = None();
@@ -511,5 +517,6 @@ Future<Option<MasterInfo> > ZooKeeperMasterDetector::detect(
   return dispatch(process, &ZooKeeperMasterDetectorProcess::detect, previous);
 }
 
-} // namespace internal {
+} // namespace detector {
+} // namespace master {
 } // namespace mesos {

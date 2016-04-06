@@ -46,10 +46,14 @@ class MesosProcess;
 } // namespace scheduler {
 
 namespace internal {
-class MasterDetector;
 class SchedulerProcess;
 } // namespace internal {
 
+namespace master {
+namespace detector {
+class MasterDetector;
+} // namespace detector {
+} // namespace master {
 
 // Callback interface to be implemented by frameworks' schedulers.
 // Note that only one callback will be invoked at a time, so it is not
@@ -442,7 +446,7 @@ public:
 
 protected:
   // Used to detect (i.e., choose) the master.
-  std::shared_ptr<internal::MasterDetector> detector;
+  std::shared_ptr<master::detector::MasterDetector> detector;
 
 private:
   void initialize();

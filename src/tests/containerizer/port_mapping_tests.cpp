@@ -78,6 +78,8 @@ using namespace routing::queueing;
 
 using mesos::internal::master::Master;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;

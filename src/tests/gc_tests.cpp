@@ -61,6 +61,8 @@ using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 using process::Clock;
 using process::Future;
 using process::Owned;

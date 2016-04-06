@@ -31,6 +31,8 @@
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
+using mesos::master::detector::MasterDetector;
+
 using process::Owned;
 
 namespace mesos {
