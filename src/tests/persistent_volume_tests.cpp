@@ -782,6 +782,12 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
+  Future<Nothing> statusUpdateAcknowledgement1 =
+    FUTURE_DISPATCH(slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> statusUpdateAcknowledgement2 =
+    FUTURE_DISPATCH(slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
   driver.acceptOffers(
       {offer.id()},
       {CREATE(volume),
@@ -819,6 +825,13 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   string filePath1 = path::join(volumePath, "file");
 
   EXPECT_SOME_EQ("abc\n", os::read(filePath1));
+
+  // Ensure that the slave has received the acknowledgment of the
+  // TASK_FINISHED status update; this implies the acknowledgement
+  // reached the master, which is necessary for the task's resources
+  // to be recovered by the allocator.
+  AWAIT_READY(statusUpdateAcknowledgement1);
+  AWAIT_READY(statusUpdateAcknowledgement2);
 
   // Expect an offer containing the persistent volume.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
