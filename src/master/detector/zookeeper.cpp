@@ -57,63 +57,6 @@ namespace detector {
 
 const Duration MASTER_DETECTOR_ZK_SESSION_TIMEOUT = Seconds(10);
 
-// TODO(bmahler): Consider moving these kinds of helpers into
-// libprocess or a common header within mesos.
-namespace promises {
-
-// Helper for setting a set of Promises.
-template <typename T>
-void set(std::set<Promise<T>*>* promises, const T& t)
-{
-  foreach (Promise<T>* promise, *promises) {
-    promise->set(t);
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for failing a set of Promises.
-template <typename T>
-void fail(std::set<Promise<T>*>* promises, const string& failure)
-{
-  foreach (Promise<Option<MasterInfo>>* promise, *promises) {
-    promise->fail(failure);
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for discarding a set of Promises.
-template <typename T>
-void discard(std::set<Promise<T>*>* promises)
-{
-  foreach (Promise<T>* promise, *promises) {
-    promise->discard();
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for discarding an individual promise in the set.
-template <typename T>
-void discard(std::set<Promise<T>*>* promises, const Future<T>& future)
-{
-  foreach (Promise<T>* promise, *promises) {
-    if (promise->future() == future) {
-      promise->discard();
-      promises->erase(promise);
-      delete promise;
-      return;
-    }
-  }
-}
-
-} // namespace promises {
-
-
 class ZooKeeperMasterDetectorProcess
   : public Process<ZooKeeperMasterDetectorProcess>
 {
@@ -168,7 +111,7 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 
 ZooKeeperMasterDetectorProcess::~ZooKeeperMasterDetectorProcess()
 {
-  promises::discard(&promises);
+  discardPromises(&promises);
 }
 
 
@@ -183,7 +126,7 @@ void ZooKeeperMasterDetectorProcess::discard(
     const Future<Option<MasterInfo>>& future)
 {
   // Discard the promise holding this future.
-  promises::discard(&promises, future);
+  discardPromises(&promises, future);
 }
 
 
@@ -224,7 +167,7 @@ void ZooKeeperMasterDetectorProcess::detected(
     error = Error(_leader.failure());
     leader = None();
 
-    promises::fail(&promises, _leader.failure());
+    failPromises(&promises, _leader.failure());
 
     return;
   }
@@ -232,7 +175,7 @@ void ZooKeeperMasterDetectorProcess::detected(
   if (_leader.get().isNone()) {
     leader = None();
 
-    promises::set(&promises, leader);
+    setPromises(&promises, leader);
   } else {
     // Fetch the data associated with the leader.
     group->data(_leader.get().get())
@@ -253,12 +196,12 @@ void ZooKeeperMasterDetectorProcess::fetched(
 
   if (data.isFailed()) {
     leader = None();
-    promises::fail(&promises, data.failure());
+    failPromises(&promises, data.failure());
     return;
   } else if (data.get().isNone()) {
     // Membership is gone before we can read its data.
     leader = None();
-    promises::set(&promises, leader);
+    setPromises(&promises, leader);
     return;
   }
 
@@ -276,7 +219,8 @@ void ZooKeeperMasterDetectorProcess::fetched(
     MasterInfo info;
     if (!info.ParseFromString(data.get().get())) {
       leader = None();
-      promises::fail(&promises, "Failed to parse data into MasterInfo");
+      failPromises(&promises,
+          "Failed to parse data into MasterInfo");
       return;
     }
     LOG(WARNING) << "Leading master " << info.pid()
@@ -290,7 +234,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
 
     if (object.isError()) {
       leader = None();
-      promises::fail(
+      failPromises(
           &promises,
           "Failed to parse data into valid JSON: " + object.error());
       return;
@@ -301,7 +245,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
 
     if (info.isError()) {
       leader = None();
-      promises::fail(
+      failPromises(
           &promises,
           "Failed to parse JSON into a valid MasterInfo protocol buffer: " +
           info.error());
@@ -311,7 +255,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
     leader = info.get();
   } else {
     leader = None();
-    promises::fail(
+    failPromises(
         &promises,
         "Failed to parse data of unknown label '" + label.get() + "'");
     return;
@@ -320,7 +264,7 @@ void ZooKeeperMasterDetectorProcess::fetched(
   LOG(INFO) << "A new leading master (UPID="
             << UPID(leader.get().pid()) << ") is detected";
 
-  promises::set(&promises, leader);
+  setPromises(&promises, leader);
 }
 
 

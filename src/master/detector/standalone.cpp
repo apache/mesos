@@ -50,63 +50,6 @@ namespace mesos {
 namespace master {
 namespace detector {
 
-// TODO(bmahler): Consider moving these kinds of helpers into
-// libprocess or a common header within mesos.
-namespace promises {
-
-// Helper for setting a set of Promises.
-template <typename T>
-void set(std::set<Promise<T>*>* promises, const T& t)
-{
-  foreach (Promise<T>* promise, *promises) {
-    promise->set(t);
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for failing a set of Promises.
-template <typename T>
-void fail(std::set<Promise<T>*>* promises, const string& failure)
-{
-  foreach (Promise<Option<MasterInfo>>* promise, *promises) {
-    promise->fail(failure);
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for discarding a set of Promises.
-template <typename T>
-void discard(std::set<Promise<T>*>* promises)
-{
-  foreach (Promise<T>* promise, *promises) {
-    promise->discard();
-    delete promise;
-  }
-  promises->clear();
-}
-
-
-// Helper for discarding an individual promise in the set.
-template <typename T>
-void discard(std::set<Promise<T>*>* promises, const Future<T>& future)
-{
-  foreach (Promise<T>* promise, *promises) {
-    if (promise->future() == future) {
-      promise->discard();
-      promises->erase(promise);
-      delete promise;
-      return;
-    }
-  }
-}
-
-} // namespace promises {
-
-
 class StandaloneMasterDetectorProcess
   : public Process<StandaloneMasterDetectorProcess>
 {
@@ -119,14 +62,14 @@ public:
 
   ~StandaloneMasterDetectorProcess()
   {
-    promises::discard(&promises);
+    discardPromises(&promises);
   }
 
   void appoint(const Option<MasterInfo>& leader_)
   {
     leader = leader_;
 
-    promises::set(&promises, leader);
+    setPromises(&promises, leader);
   }
 
   Future<Option<MasterInfo>> detect(
@@ -149,7 +92,7 @@ private:
   void discard(const Future<Option<MasterInfo>>& future)
   {
     // Discard the promise holding this future.
-    promises::discard(&promises, future);
+    discardPromises(&promises, future);
   }
 
   Option<MasterInfo> leader; // The appointed master.
@@ -207,7 +150,6 @@ Future<Option<MasterInfo>> StandaloneMasterDetector::detect(
 {
   return dispatch(process, &StandaloneMasterDetectorProcess::detect, previous);
 }
-
 
 } // namespace detector {
 } // namespace master {
