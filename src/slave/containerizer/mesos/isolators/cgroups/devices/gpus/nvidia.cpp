@@ -17,7 +17,10 @@
 #include <stdint.h>
 
 #include <list>
+#include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -51,6 +54,7 @@ using process::Future;
 using process::PID;
 
 using std::list;
+using std::map;
 using std::set;
 using std::string;
 using std::vector;
@@ -62,6 +66,40 @@ namespace slave {
 // TODO(klueska): Expand this when we support other GPU types.
 static constexpr dev_t NVIDIA_MAJOR_DEVICE = 195;
 
+// We also need to grant/revoke access to both /dev/nvidiactl
+// and /dev/nvidia-uvm when we grant/revoke access to GPUs in
+// a container.
+//
+// TODO(klueska): For now, we hard code the major/minor
+// numbers for these devices. In the future we should use
+// stat() on the device path.
+static const cgroups::devices::Entry* NVIDIA_CTL_DEVICE_ENTRY =
+  new cgroups::devices::Entry({
+      .selector = {
+        .type = Entry::Selector::Type::CHARACTER,
+        .major = NVIDIA_MAJOR_DEVICE,
+        .minor = 255,
+      },
+      .access = {
+        .read = true,
+        .write = true,
+        .mknod = true,
+      }
+    });
+
+static const cgroups::devices::Entry* NVIDIA_UVM_DEVICE_ENTRY =
+  new cgroups::devices::Entry({
+      .selector = {
+        .type = Entry::Selector::Type::CHARACTER,
+        .major = 246, // Nvidia uses the local/experimental device range.
+        .minor = 0,
+      },
+      .access = {
+        .read = true,
+        .write = true,
+        .mknod = true,
+      }
+    });
 
 // The default list of devices to whitelist when device isolation is
 // turned on. The full list of devices can be found here:
@@ -441,6 +479,25 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::update(
                      " " + stringify(additional) + " additional GPUs");
     }
 
+    // Grant access from /dev/nvidiactl and /dev/nvida-uvm
+    // if this container no longer has access to any GPUs.
+    if (info->allocated.empty()) {
+      map<string, const cgroups::devices::Entry*> entries = {
+        { "/dev/nvidiactl", NVIDIA_CTL_DEVICE_ENTRY },
+        { "/dev/nvidia-uvm", NVIDIA_UVM_DEVICE_ENTRY },
+      };
+
+      foreachkey (const string& device, entries) {
+        Try<Nothing> allow = cgroups::devices::allow(
+            hierarchy, info->cgroup, *entries[device]);
+
+        if (allow.isError()) {
+          return Failure("Failed to grant cgroups access to"
+                         " '" + device + "': " + allow.error());
+        }
+      }
+    }
+
     for (size_t i = 0; i < additional; i++) {
       const Gpu& gpu = available.front();
 
@@ -487,6 +544,25 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::update(
 
       info->allocated.pop_front();
       available.push_back(gpu);
+    }
+
+    // Revoke access from /dev/nvidiactl and /dev/nvida-uvm
+    // if this container no longer has access to any GPUs.
+    if (info->allocated.empty()) {
+      map<string, const cgroups::devices::Entry*> entries = {
+        { "/dev/nvidiactl", NVIDIA_CTL_DEVICE_ENTRY },
+        { "/dev/nvidia-uvm", NVIDIA_UVM_DEVICE_ENTRY },
+      };
+
+      foreachkey (const string& device, entries) {
+        Try<Nothing> deny = cgroups::devices::deny(
+            hierarchy, info->cgroup, *entries[device]);
+
+        if (deny.isError()) {
+          return Failure("Failed to deny cgroups access to"
+                         " '" + device + "': " + deny.error());
+        }
+      }
     }
   }
 
