@@ -23,6 +23,7 @@
 
 #include <process/future.hpp>
 #include <process/id.hpp>
+#include <process/owned.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
@@ -420,7 +421,7 @@ protected:
 
   // A sorter for active roles. This sorter determines the order in which
   // roles are allocated resources during Level 1 of the second stage.
-  Sorter* roleSorter;
+  process::Owned<Sorter> roleSorter;
 
   // A dedicated sorter for roles for which quota is set. This sorter
   // determines the order in which quota'ed roles are allocated resources
@@ -438,13 +439,13 @@ protected:
   // the quota roles as it pertains to their level of quota satisfaction.
   // Since revocable resources do not increase a role's level of satisfaction
   // toward its quota, we choose to exclude them from the quota role sorter.
-  Sorter* quotaRoleSorter;
+  process::Owned<Sorter> quotaRoleSorter;
 
   // A collection of sorters, one per active role. Each sorter determines
   // the order in which frameworks that belong to the same role are allocated
   // resources inside the role's share. These sorters are used during Level 2
   // for both the first and the second stages.
-  hashmap<std::string, Sorter*> frameworkSorters;
+  hashmap<std::string, process::Owned<Sorter>> frameworkSorters;
 
   // Factory functions for sorters.
   //

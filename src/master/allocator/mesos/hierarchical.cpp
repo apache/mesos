@@ -39,6 +39,7 @@ using mesos::master::InverseOfferStatus;
 
 using process::Failure;
 using process::Future;
+using process::Owned;
 using process::Timeout;
 
 namespace mesos {
@@ -138,8 +139,8 @@ void HierarchicalAllocatorProcess::initialize(
   // all roles.
   //
   // TODO(alexr): Consider introducing a sorter type for quota'ed roles.
-  roleSorter = roleSorterFactory();
-  quotaRoleSorter = roleSorterFactory();
+  roleSorter.reset(roleSorterFactory());
+  quotaRoleSorter.reset(roleSorterFactory());
 
   VLOG(1) << "Initialized hierarchical allocator process";
 
@@ -225,7 +226,7 @@ void HierarchicalAllocatorProcess::addFramework(
   if (!activeRoles.contains(role)) {
     activeRoles[role] = 1;
     roleSorter->add(role, roleWeight(role));
-    frameworkSorters[role] = frameworkSorterFactory();
+    frameworkSorters[role].reset(frameworkSorterFactory());
     metrics.addRole(role);
   } else {
     activeRoles[role]++;
@@ -314,7 +315,6 @@ void HierarchicalAllocatorProcess::removeFramework(
     roleSorter->remove(role);
 
     CHECK(frameworkSorters.contains(role));
-    delete frameworkSorters[role];
     frameworkSorters.erase(role);
 
     metrics.removeRole(role);
@@ -609,7 +609,8 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // remain unchanged.
 
   // Update the allocated resources.
-  Sorter* frameworkSorter = frameworkSorters[role];
+  CHECK(frameworkSorters.contains(role));
+  const Owned<Sorter>& frameworkSorter = frameworkSorters[role];
 
   Resources frameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
@@ -1526,7 +1527,7 @@ void HierarchicalAllocatorProcess::deallocate(
   // keep generating new inverse offers even though the framework had not
   // responded yet.
 
-  foreachvalue (Sorter* frameworkSorter, frameworkSorters) {
+  foreachvalue (const Owned<Sorter>& frameworkSorter, frameworkSorters) {
     foreach (const SlaveID& slaveId, slaveIds_) {
       CHECK(slaves.contains(slaveId));
 
