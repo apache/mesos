@@ -1975,6 +1975,11 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/routing_tests.cpp
 endif
 
+if ENABLE_NVIDIA_GPU_SUPPORT
+mesos_tests_SOURCES +=						\
+  tests/containerizer/nvidia_gpu_isolator_tests.cpp
+endif
+
 if HAS_JAVA
 mesos_tests_SOURCES +=						\
   tests/group_tests.cpp						\

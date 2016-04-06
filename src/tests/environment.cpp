@@ -251,6 +251,31 @@ private:
 };
 
 
+class NvidiaGpuFilter : public TestFilter
+{
+public:
+  NvidiaGpuFilter()
+  {
+    exists = os::system("which nvidia-smi") == 0;
+    if (!exists) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'nvidia-smi' command found so no Nvidia GPU tests will run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "NVIDIA_GPU_") && !exists;
+  }
+
+private:
+  bool exists;
+};
+
+
 class DockerFilter : public TestFilter
 {
 public:
@@ -701,6 +726,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new NetClsCgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
+  filters.push_back(Owned<TestFilter>(new NvidiaGpuFilter()));
   filters.push_back(Owned<TestFilter>(new OverlayFSTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
