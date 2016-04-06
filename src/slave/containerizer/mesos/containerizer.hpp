@@ -310,13 +310,13 @@ private:
 
     // We keep track of the future that is waiting for all the
     // isolators' prepare futures, so that destroy will only start
-    // calling cleanup after all isolators has finished preparing.
+    // calling cleanup after all isolators have finished preparing.
     process::Future<std::list<Option<mesos::slave::ContainerLaunchInfo>>>
       launchInfos;
 
     // We keep track of the future that is waiting for all the
     // isolators' isolate futures, so that destroy will only start
-    // calling cleanup after all isolators has finished isolating.
+    // calling cleanup after all isolators have finished isolating.
     process::Future<std::list<Nothing>> isolation;
 
     // We keep track of any limitations received from each isolator so we can
