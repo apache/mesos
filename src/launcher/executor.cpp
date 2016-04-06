@@ -79,7 +79,7 @@ class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
   CommandExecutorProcess(
-      const Option<char**>& override,
+      const Option<char**>& _override,
       const string& _healthCheckDir,
       const Option<string>& _sandboxDirectory,
       const Option<string>& _workingDirectory,
@@ -97,7 +97,7 @@ public:
       frameworkInfo(None()),
       taskId(None()),
       healthCheckDir(_healthCheckDir),
-      override(override),
+      override(_override),
       sandboxDirectory(_sandboxDirectory),
       workingDirectory(_workingDirectory),
       user(_user),
