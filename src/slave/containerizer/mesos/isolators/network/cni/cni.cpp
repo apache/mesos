@@ -558,6 +558,17 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
 
     ContainerLaunchInfo launchInfo;
+
+    // Reset the `LIBPROCESS_IP` in the environment variable, so that
+    // the container binds to the IP address allocated by the CNI
+    // plugin. See MESOS-3553 to understand why we need to reset the
+    // `LIBPROCESS_IP`.
+    Environment_Variable* env =
+      launchInfo.mutable_environment()->add_variables();
+
+    env->set_name("LIBPROCESS_IP");
+    env->set_value("0.0.0.0");
+
     launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
 
     return launchInfo;
