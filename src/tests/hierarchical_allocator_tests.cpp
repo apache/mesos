@@ -3325,6 +3325,51 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   Clock::resume();
 }
 
+
+// Measures the processing time required for the allocator metrics.
+//
+// TODO(bmahler): Add allocations to this benchmark.
+TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
+{
+  size_t slaveCount = std::tr1::get<0>(GetParam());
+  size_t frameworkCount = std::tr1::get<1>(GetParam());
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  initialize();
+
+  for (size_t i = 0; i < frameworkCount; i++) {
+    string role = stringify(i);
+    allocator->setQuota(role, createQuota(role, "cpus:1;mem:512;disk:256"));
+  }
+
+  for (size_t i = 0; i < frameworkCount; i++) {
+    FrameworkInfo framework = createFrameworkInfo(stringify(i));
+    allocator->addFramework(framework.id(), framework, {});
+  }
+
+  for (size_t i = 0; i < slaveCount; i++) {
+    SlaveInfo slave = createSlaveInfo("cpus:16;mem:2048;disk:1024");
+    allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
+  }
+
+  // Wait for all the `addSlave` operations to complete.
+  Clock::settle();
+
+  Stopwatch watch;
+
+  // TODO(bmahler): Avoid timing the JSON parsing here.
+  // Ideally we also avoid timing the HTTP layer.
+  watch.start();
+  JSON::Object metrics = Metrics();
+  watch.stop();
+
+  cout << "/metrics/snapshot took " << watch.elapsed()
+       << " for " << slaveCount << " slaves"
+       << " and " << frameworkCount << " frameworks" << endl;
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
