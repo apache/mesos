@@ -14,35 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <set>
 #include <string>
 
 #include <mesos/master/detector.hpp>
 
 #include <mesos/module/detector.hpp>
 
-#include <process/defer.hpp>
-#include <process/dispatch.hpp>
-#include <process/future.hpp>
-#include <process/id.hpp>
-#include <process/logging.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
-#include <stout/duration.hpp>
-#include <stout/foreach.hpp>
-#include <stout/lambda.hpp>
-#include <stout/protobuf.hpp>
-
 #include "common/protobuf_utils.hpp"
-
-#include "master/constants.hpp"
-#include "master/master.hpp"
 
 #include "master/detector/standalone.hpp"
 #include "master/detector/zookeeper.hpp"
-
-#include "messages/messages.hpp"
 
 #include "module/manager.hpp"
 
@@ -51,7 +35,6 @@
 using namespace process;
 using namespace zookeeper;
 
-using std::set;
 using std::string;
 
 namespace mesos {
@@ -59,8 +42,8 @@ namespace master {
 namespace detector {
 
 Try<MasterDetector*> MasterDetector::create(
-      const Option<std::string>& zk_,
-      const Option<std::string>& masterDetectorModule_)
+    const Option<string>& zk_,
+    const Option<string>& masterDetectorModule_)
 {
   if (masterDetectorModule_.isSome()) {
     return modules::ModuleManager::create<MasterDetector>(

@@ -24,11 +24,8 @@
 #include <mesos/master/detector.hpp>
 
 #include <process/future.hpp>
-#include <process/owned.hpp>
 
 #include <stout/option.hpp>
-#include <stout/stringify.hpp>
-#include <stout/try.hpp>
 
 namespace mesos {
 namespace master {

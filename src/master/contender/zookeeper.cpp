@@ -14,28 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "master/contender/zookeeper.hpp"
+
 #include <mesos/master/contender.hpp>
 
-#include <mesos/module/contender.hpp>
-
-#include <process/defer.hpp>
+#include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 
-#include <stout/check.hpp>
-#include <stout/lambda.hpp>
+#include <stout/protobuf.hpp>
 
 #include "master/constants.hpp"
-#include "master/master.hpp"
-
-#include "module/manager.hpp"
 
 #include "zookeeper/contender.hpp"
-#include "zookeeper/detector.hpp"
 #include "zookeeper/group.hpp"
 #include "zookeeper/url.hpp"
-
-#include "master/contender/zookeeper.hpp"
 
 using std::string;
 

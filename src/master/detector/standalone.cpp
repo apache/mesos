@@ -14,8 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "master/detector/standalone.hpp"
+
 #include <set>
-#include <string>
 
 #include <mesos/master/detector.hpp>
 
@@ -23,28 +24,13 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
-#include <process/logging.hpp>
-#include <process/pid.hpp>
 #include <process/process.hpp>
 
-#include <stout/duration.hpp>
-#include <stout/foreach.hpp>
-#include <stout/lambda.hpp>
-#include <stout/protobuf.hpp>
-
 #include "common/protobuf_utils.hpp"
-
-#include "master/constants.hpp"
-#include "master/master.hpp"
-
-#include "master/detector/standalone.hpp"
-
-#include "messages/messages.hpp"
 
 using namespace process;
 
 using std::set;
-using std::string;
 
 namespace mesos {
 namespace master {

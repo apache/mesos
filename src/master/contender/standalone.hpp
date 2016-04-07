@@ -21,12 +21,8 @@
 
 #include <mesos/master/contender.hpp>
 
-#include <process/defer.hpp>
 #include <process/future.hpp>
-#include <process/owned.hpp>
-#include <process/pid.hpp>
 
-#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 
 namespace mesos {
@@ -60,6 +56,5 @@ private:
 } // namespace contender {
 } // namespace master {
 } // namespace mesos {
-
 
 #endif // __MASTER_CONTENDER_STANDALONE_HPP__

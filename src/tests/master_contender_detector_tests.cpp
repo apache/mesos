@@ -55,6 +55,8 @@
 #include "tests/zookeeper.hpp"
 #endif
 
+#include "zookeeper/contender.hpp"
+
 using namespace zookeeper;
 
 using mesos::internal::master::Master;

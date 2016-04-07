@@ -14,28 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/master/contender.hpp>
-
-#include <process/id.hpp>
-#include <process/process.hpp>
-
-#include <stout/check.hpp>
-#include <stout/protobuf.hpp>
-
-#include "master/constants.hpp"
-#include "master/master.hpp"
-
 #include "master/contender/standalone.hpp"
 
-using std::string;
+#include <mesos/master/contender.hpp>
+
+#include <process/future.hpp>
 
 using namespace process;
 
 namespace mesos {
 namespace master {
 namespace contender {
-
-using namespace internal;
 
 StandaloneMasterContender::~StandaloneMasterContender()
 {

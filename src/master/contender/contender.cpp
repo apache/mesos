@@ -18,16 +18,7 @@
 
 #include <mesos/module/contender.hpp>
 
-#include <process/defer.hpp>
-#include <process/id.hpp>
-#include <process/process.hpp>
-
 #include <stout/check.hpp>
-#include <stout/lambda.hpp>
-#include <stout/protobuf.hpp>
-
-#include "master/constants.hpp"
-#include "master/master.hpp"
 
 #include "master/contender/standalone.hpp"
 #include "master/contender/zookeeper.hpp"
@@ -38,15 +29,13 @@
 
 using std::string;
 
-using namespace process;
-
 namespace mesos {
 namespace master {
 namespace contender {
 
 Try<MasterContender*> MasterContender::create(
-      const Option<std::string>& zk_,
-      const Option<std::string>& masterContenderModule_)
+    const Option<string>& zk_,
+    const Option<string>& masterContenderModule_)
 {
   if (masterContenderModule_.isSome()) {
     return modules::ModuleManager::create<MasterContender>(
