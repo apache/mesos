@@ -47,7 +47,10 @@ Additional API Changes:
     from required to optional for the purpose of backwards compatibility.
 
 3rd Party Upgrades:
-  * [MESOS-4805] - Upgraded ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
+  * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
+  * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
+  * [MESOS-4803] - Upgraded vendored libev 4.15 to 4.22.
+  * [MESOS-4612] - Upgraded vendored ZooKeeper 3.4.5 to 3.4.8.
 
 Binary API Changes:
   * [MESOS-5055] - Replace Master/Slave Terminology Phase I - Update strings in
