@@ -1,24 +1,65 @@
 ---
-title: Apache Mesos - Versioning
+title: Apache Mesos - Release and Support policy
 layout: documentation
 ---
 
-# Mesos Versioning
+# Mesos Release and Support policy
 
-The Mesos API and release versioning policy gives operators and developers clear guidelines on:
+The Mesos versioning and release policy gives operators and developers clear guidelines on:
 
 * Making modifications to the existing APIs without affecting backward compatibility.
 * How long a Mesos API will be supported.
 * Upgrading the Mesos installation across release versions.
 
-API versioning was introduced in Mesos 0.24.0 and this scheme only applies to Mesos 1.0.0 and higher.
+This document describes the release strategy for Mesos post 1.0.0 release. This might not be applicable for pre 1.0 releases, though parts of the strategy (e.g., release cadence) might be tested for in pre 1.0 releases.
 
-## Terminology
 
-* **Release Versioning**: This refers to the version of Mesos that is being released. It is of the form **Mesos X.Y.Z** (X is the major version, Y is the minor version, and Z is the patch version).
-* **API Versioning**: This refers to the version of the Mesos API. It is of the form **vX** (X is the major version).
+## Release Schedule
 
-## How does it work?
+Mesos releases are time based and not feature based. This gives users and developers a predictable cadence to consume and produce features.
+
+If a feature is not ready by the time a release is cut, that feature should be disabled. This means that features should be developed in such a way that they are opt-in by default and can be easily disabled (e.g., flag). A feature completion should not typically block a release.
+
+A new Mesos release is cut every **2 months**. The versioning scheme is [SemVer](http://semver.org). Typically, the minor release version is incremented by 1 (e.g., 1.1, 1.2, 1.3 etc) for every release, unless it is a major release.
+
+Every (minor) release is a stable release and recommended for production use. This means a release candidate will go through rigorous testing (unit tests, integration tests, benchmark tests, cluster tests, scalability etc) before being officially released. In the rare case that a regular release is not deemed stable, a patch release will be released that will stabilize it.
+
+Every (minor) release is supported for a period of **6 months**. Support means fixing of *critical issues* that affect the release. Once a release reaches End Of Life (i.e., support period has ended) no more patch releases will be made for that release. Note that this is not related to backwards compatibility guarantees and deprecation periods (discussed later).
+
+Which issues are considered critical?
+
+* Security fixes
+* Compatibility regressions
+* Functional regressions
+* Performance regressions
+* Fixes for 3rd party integration (e.g., Docker remote API)
+
+Whether an issue is considered critical or not is sometimes subjective. In some cases it is obvious and sometimes it is fuzzy. Users should work with committers to figure out the criticality of an issue and get agreement and commitment for support.
+
+Once an issue is deemed critical, it will be fixed in only those **affected** releases that are still **supported**. This is called a patch release and increments the patch version by 1 (e.g., 1.2.1).
+
+Patch releases are normally done once **a month**.
+
+If a particular issue is affecting a user and the user cannot wait until the next scheduled patch release, he/she can request an off-schedule patch release for a specific supported version. This should be done by sending an email to the dev list.
+
+## Upgrades
+
+All stable releases will be loosely compatible. Loose compatibility means:
+
+* Master or agent can be upgraded to a new release version as long as they or the ecosystem components (scheduler, executor, zookeeper, service discovery layer, monitoring etc) do not depend on deprecated features (e.g., deprecated flags, deprecated metrics).
+* There should be no unexpected effect on externally visible behavior that is not deprecated. See API compatibility section for what should be expected for Mesos APIs.
+
+> NOTE: The compatibility guarantees do not apply to modules yet. See Modules section below for details.
+
+
+Note that this means users should be able to upgrade (as long as they are not depending on deprecated / removed features) Mesos master or agent from a stable release version N directly to another stable release version M without having to go through intermediate release versions. For the purposes of upgrades, a stable release means the release with the latest patch version. For example, among 1.2.0, 1.2.1, 1.3.0, 1.4.0, 1.4.1 releases 1.2.1, 1.3.0 and 1.4.1 are considered stable and so a user should be able to upgrade from 1.2.1 directly to 1.4.1. Look at the API compatability section below for how frameworks can do seamless upgrades.
+
+The deprecation period for any given feature will be **6 months**. Having a set period allows Mesos developers to not indefinitely accrue technical debt and allows users time to plan for upgrades.
+
+The detailed information about upgrading to a particular Mesos version would be posted [here](upgrades.md).
+
+
+## API versioning
 
 The Mesos APIs (constituting Scheduler, Executor, Internal, Operator/Admin APIs) will have a version in the URL. The versioned URL will have a prefix of **`/api/vN`** where "N" is the version of the API. The "/api" prefix is chosen to distinguish API resources from Web UI paths.
 
@@ -37,9 +78,7 @@ A given Mesos installation might host multiple versions of the same API i.e., Sc
  *  For example, v2 of the API might be introduced in Mesos 1.12.0 release but it is only considered stable in Mesos 1.21.0 release if it is the last release of “1” series. Note that all Mesos 1.x.y versions will still support v1 of the API.
 *  The API version is only bumped if we need to make a backwards [incompatible](#api-compatibility) API change. We will strive to support a given API version for at least a year.
 *  The deprecation clock for vN-1 API will start as soon as we release “N.0.0” version of Mesos. We will strive to give enough time (e.g., 6 months) for frameworks/operators to upgrade to vN API before we stop supporting vN-1 API.
-*  Minor release version is bumped roughly on a monthly cycle to give a cadence of new features to users.
 
-NOTE: Presently, for "0.X.Y" releases i.e. till we reach "1.0.0", we wait for at least 6 monthly releases before deprecating functionality. So, functionality that has been deprecated in 0.26.0 can be safely removed in 0.32.0.
 
 ### API Compatibility
 
@@ -61,16 +100,22 @@ The following are considered backwards incompatible changes for Scheduler API:
 * Renaming/removing fields from chunks streamed on "/scheduler".
 * Renaming/removing existing Calls.
 
-## Upgrades
 
-* The master and agent are typically compatible as long as they are running the same major version.
- * For example, 1.3.0 master is compatible with 1.13.0 agent.
-* In rare cases, we might require the master and agent to go through a specific minor version for upgrades.
- * For example, we might require that a 1.1.0 master (and/or agent) be upgraded to 1.8.0 before it can be upgraded to 1.9.0 or later versions.
+## Implementation Details
 
-The detailed information about upgrading to a particular Mesos version would be posted [here](upgrades.md).
+### Release branches
 
-### Implementation Details
+For regular releases, the work is done on the master branch. There are no feature branches but there will be release branches.
+
+When it is time to cut a minor release, a new branch (e.g., 1.2.x) is created off the master branch. We chose ‘x’ instead of patch release number to disambiguate branch names from tag names. Then the first RC (-rc1) is tagged on the release branch. Subsequent RCs, in case the previous RCs fail testing, should be tagged on the release branch.
+
+Patch releases are also based off the release branches. Typically the fix for an issue that is affecting supported releases lands on the master branch and is then backported to the release branch(es). In rare cases, the fix might directly go into a release branch without landing on master (e.g.,  fix / issue is not applicable to master).
+
+Having a branch for each minor release reduces the amount of work a release manager needs to do when it is time to do a release. It is the responsibility of the committer of a fix to commit it to all the affecting release branches. This is important because the committer has more context about the issue / fix at the time of the commit than a release manager at the time of release. The release manager of a minor release will be responsible for all its patch releases as well. Just like the master branch, history rewrites are not allowed in the release branch (i.e., no git push --force).
+
+
+### API protobufs
+
 
 Most APIs in Mesos accept protobuf messages with a corresponding JSON field mapping. To support multiple versions of the API, we decoupled the versioned protobufs backing the API from the “internal” protobufs used by the Mesos code.
 
