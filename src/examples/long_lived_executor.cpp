@@ -36,25 +36,7 @@ using std::string;
 class LongLivedExecutor : public Executor
 {
 public:
-  virtual ~LongLivedExecutor() {}
-
-  virtual void registered(ExecutorDriver* driver,
-                          const ExecutorInfo& executorInfo,
-                          const FrameworkInfo& frameworkInfo,
-                          const SlaveInfo& slaveInfo)
-  {
-    cout << "Registered executor on " << slaveInfo.hostname() << endl;
-  }
-
-  virtual void reregistered(ExecutorDriver* driver,
-                            const SlaveInfo& slaveInfo)
-  {
-    cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
-  }
-
-  virtual void disconnected(ExecutorDriver* driver) {}
-
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
+  virtual void launch(ExecutorDriver* driver, const TaskInfo& task)
   {
     cout << "Starting task " << task.task_id().value() << endl;
 
@@ -76,11 +58,6 @@ public:
 
     driver->sendStatusUpdate(status);
   }
-
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
-  virtual void shutdown(ExecutorDriver* driver) {}
-  virtual void error(ExecutorDriver* driver, const string& message) {}
 };
 
 
