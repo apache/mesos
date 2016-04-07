@@ -1813,6 +1813,8 @@ MESOS_TEST_MODULES =		\
   libtesthook.la		\
   libtesthttpauthenticator.la	\
   libtestisolator.la		\
+  libtestmastercontender.la	\
+  libtestmasterdetector.la	\
   libtestqos_controller.la	\
   libtestresource_estimator.la
 
@@ -1855,13 +1857,11 @@ libtestcontainer_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestcontainer_logger_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test contender module.
-noinst_LTLIBRARIES += libtestmastercontender.la
 libtestmastercontender_la_SOURCES = examples/test_master_contender_module.cpp
 libtestmastercontender_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestmastercontender_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test detector module.
-noinst_LTLIBRARIES += libtestmasterdetector.la
 libtestmasterdetector_la_SOURCES = examples/test_master_detector_module.cpp
 libtestmasterdetector_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestmasterdetector_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
