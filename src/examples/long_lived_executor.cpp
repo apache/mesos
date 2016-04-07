@@ -70,11 +70,11 @@ public:
   {
     cout << "Starting task " << task.task_id().value() << endl;
 
-    std::thread* thread = new std::thread([=]() {
+    std::thread thread([=]() {
       run(driver, task);
     });
 
-    thread->detach();
+    thread.detach();
 
     TaskStatus status;
     status.mutable_task_id()->MergeFrom(task.task_id());
