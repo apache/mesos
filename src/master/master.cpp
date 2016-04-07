@@ -2033,8 +2033,6 @@ void Master::registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo)
 {
-  ++metrics->messages_register_framework;
-
   if (frameworkInfo.has_id() && !frameworkInfo.id().value().empty()) {
     const string error = "Registering with 'id' already set";
 
@@ -2060,8 +2058,6 @@ void Master::reregisterFramework(
     const FrameworkInfo& frameworkInfo,
     bool failover)
 {
-  ++metrics->messages_reregister_framework;
-
   if (!frameworkInfo.has_id() || frameworkInfo.id().value().empty()) {
     const string error = "Re-registering without an 'id'";
 
@@ -2090,6 +2086,13 @@ void Master::subscribe(
   // TODO(anand): Authenticate the framework.
 
   const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+
+  // Update messages_{re}register_framework accordingly.
+  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
+    ++metrics->messages_register_framework;
+  } else {
+    ++metrics->messages_reregister_framework;
+  }
 
   LOG(INFO) << "Received subscription request for"
             << " HTTP framework '" << frameworkInfo.name() << "'";
@@ -2284,6 +2287,13 @@ void Master::subscribe(
     const scheduler::Call::Subscribe& subscribe)
 {
   const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+
+  // Update messages_{re}register_framework accordingly.
+  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
+    ++metrics->messages_register_framework;
+  } else {
+    ++metrics->messages_reregister_framework;
+  }
 
   if (authenticating.contains(from)) {
     // TODO(vinod): Consider dropping this request and fix the tests
