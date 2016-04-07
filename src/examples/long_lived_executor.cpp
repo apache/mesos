@@ -33,18 +33,6 @@ using std::endl;
 using std::string;
 
 
-void run(ExecutorDriver* driver, const TaskInfo& task)
-{
-  os::sleep(Seconds(random() % 10));
-
-  TaskStatus status;
-  status.mutable_task_id()->MergeFrom(task.task_id());
-  status.set_state(TASK_FINISHED);
-
-  driver->sendStatusUpdate(status);
-}
-
-
 class LongLivedExecutor : public Executor
 {
 public:
@@ -71,7 +59,13 @@ public:
     cout << "Starting task " << task.task_id().value() << endl;
 
     std::thread thread([=]() {
-      run(driver, task);
+      os::sleep(Seconds(random() % 10));
+
+      TaskStatus status;
+      status.mutable_task_id()->MergeFrom(task.task_id());
+      status.set_state(TASK_FINISHED);
+
+      driver->sendStatusUpdate(status);
     });
 
     thread.detach();
