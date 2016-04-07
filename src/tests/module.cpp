@@ -226,15 +226,9 @@ static void addMasterContenderModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testmastercontender"));
-
   // Now add our test anonymous module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testmastercontender"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -249,15 +243,9 @@ static void addMasterDetectorModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testmasterdetector"));
-
   // Now add our test anonymous module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testmasterdetector"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
