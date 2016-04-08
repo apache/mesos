@@ -1616,6 +1616,10 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/cpus_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("master/mem_total"));
   EXPECT_EQ(1u, snapshot.values.count("master/mem_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/mem_percent"));

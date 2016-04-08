@@ -1189,6 +1189,10 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_percent"));
