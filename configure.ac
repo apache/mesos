@@ -258,11 +258,18 @@ AC_ARG_ENABLE([tests-install],
                              [build and install tests and their helper tools
                               default: no]),
               [], [enable_tests_install=no])
-
+# TODO(MESOS-4991): Since network-isolator is an optional feature, it should
+# be enabled with --enable-network-isolator.
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
             [], [with_network_isolator=no])
+
+AC_ARG_ENABLE([xfs-disk-isolator],
+              AS_HELP_STRING([--enable-xfs-disk-isolator],
+                             [builds the XFS disk isolator
+                             default: no]),
+              [], [enable_xfs_disk_isolator=no])
 
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
@@ -936,6 +943,52 @@ fi
 
 AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
                [test "x$with_network_isolator" = "xyes"])
+
+
+AC_MSG_CHECKING([whether to enable the XFS disk isolator])
+AS_IF([test "x$enable_xfs_disk_isolator" = "xyes"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no])])
+
+AS_IF([test "x$enable_xfs_disk_isolator" = "xyes"], [
+  # We only support XFS on Linux.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([no XFS support on $OS_NAME
+-------------------------------------------------------------------
+The XFS disk isolator is only supported on Linux.
+-------------------------------------------------------------------
+  ])])
+
+  # Check for build dependencies for the XFS disk isolator. We only
+  # enable this if all the needed headers and libraries are present.
+  AC_CHECK_HEADERS([xfs/xfs.h xfs/xqm.h linux/quota.h sys/quota.h],
+                   [], [AC_MSG_ERROR([missing XFS quota headers
+-------------------------------------------------------------------
+Please install the Linux kernel headers and xfsprogs development
+packages for XFS disk isolator support.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([blkid/blkid.h], [], [AC_MSG_ERROR([missing libblkid headers
+-------------------------------------------------------------------
+Please install the libblkid development package for XFS disk
+isolator support.
+-------------------------------------------------------------------
+  ])])
+
+  # Note that AC_SEARCH_LIBS causes libblkid to be added to each binary. In
+  # this case, that is what we want, since the dependency will be in libmesos.
+  AC_SEARCH_LIBS(blkid_devno_to_devname, blkid, [], [AC_MSG_ERROR([missing libblkid
+-------------------------------------------------------------------
+Please install the libblkid package for XFS disk isolator support.
+-------------------------------------------------------------------
+  ])])
+
+  AC_DEFINE([ENABLE_XFS_DISK_ISOLATOR])
+])
+
+AM_CONDITIONAL([ENABLE_XFS_DISK_ISOLATOR], [test "x$enable_xfs_disk_isolator" = "xyes"])
 
 
 # Check if Nvidia GPU support is enabled, and if so, verify we can
