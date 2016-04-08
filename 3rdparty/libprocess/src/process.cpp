@@ -738,7 +738,6 @@ void on_accept(const Future<Socket>& socket)
 
     const size_t size = 80 * 1024;
     char* data = new char[size];
-    memset(data, 0, size);
 
     DataDecoder* decoder = new DataDecoder(socket.get());
 
