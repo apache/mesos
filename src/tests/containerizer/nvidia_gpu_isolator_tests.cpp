@@ -21,6 +21,8 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
@@ -42,6 +44,8 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
+
+using mesos::master::detector::MasterDetector;
 
 using process::Future;
 using process::Owned;
