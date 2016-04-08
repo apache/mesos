@@ -104,7 +104,13 @@ inline Try<hashmap<std::string, std::string>> parse(const std::string& value)
   foreachpair (const std::string& key,
                const JSON::Value& value,
                json.get().values) {
-    map[key] = stringify(value);
+    if (!value.is<JSON::String>()) {
+      return Error(
+          "The value of key '" + key + "' in '" + stringify(json.get()) + "'"
+          " is not a string");
+    }
+
+    map[key] = value.as<JSON::String>().value;
   }
   return map;
 }
