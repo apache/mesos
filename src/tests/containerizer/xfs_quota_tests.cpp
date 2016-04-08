@@ -36,8 +36,8 @@
 
 #include "master/master.hpp"
 
-#include "slave/constants.hpp"
 #include "slave/flags.hpp"
+#include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
@@ -62,7 +62,10 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
+
+using mesos::master::detector::MasterDetector;
 
 namespace mesos {
 namespace internal {
@@ -159,6 +162,7 @@ public:
     // We only need an XFS-specific directory for the work directory. We
     // don't mind that other flags refer to a different temp directory.
     flags.work_dir = mountPoint.get();
+    flags.isolation = "xfs/disk";
     return flags;
   }
 
@@ -275,6 +279,10 @@ TEST_F(ROOT_XFS_QuotaTest, ProjectIdErrors)
 }
 
 
+// Verify that directories are isolated with respect to XFS quotas. We
+// create two trees which have symlinks into each other. If we followed
+// the symlinks when applying the project IDs to the directories, then the
+// quotas would end up being incorrect.
 TEST_F(ROOT_XFS_QuotaTest, DirectoryTree)
 {
   Bytes limit = Megabytes(100);
@@ -330,6 +338,421 @@ TEST_F(ROOT_XFS_QuotaTest, DirectoryTree)
   EXPECT_SOME_EQ(
       makeQuotaInfo(limit, Megabytes(0)),
       getProjectQuota(rootB, projectB));
+}
+
+
+// Verify that a task that tries to consume more space than it has requested
+// is only allowed to consume exactly the assigned resources. We tell dd
+// to write 2MB but only give it 1MB of resources and (roughly) verify that
+// it exits with a failure (that should be a write error).
+TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), CreateSlaveFlags());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a task which requests 1MB disk, but actually uses more
+  // than 2MB disk.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=2");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_FAILED, status2.get().state());
+
+  // Unlike the posix/disk isolator, the reason for task failure
+  // should be that dd got an IO error.
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status2.get().source());
+  EXPECT_EQ("Command exited with status 1", status2.get().message());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Verify that we can get accurate resource statistics from the XFS
+// disk isolator.
+TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Fetcher fetcher;
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Create a task that uses 4 of 3MB disk but doesn't fail. We will verify
+  // that the allocated disk is filled.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:3").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=4 || sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+  Timeout timeout = Timeout::in(Seconds(5));
+
+  while (true) {
+    Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+    AWAIT_READY(usage);
+
+    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_limit_bytes()));
+
+    if (usage.get().has_disk_used_bytes()) {
+      // Usage must always be <= the limit.
+      EXPECT_LE(usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
+
+      // Usage might not be equal to the limit, but it must hit
+      // and not exceed the limit.
+      if (usage.get().disk_used_bytes() >= usage.get().disk_limit_bytes()) {
+        EXPECT_EQ(
+            usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
+        EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_used_bytes()));
+        break;
+      }
+    }
+
+    ASSERT_FALSE(timeout.expired());
+    os::sleep(Milliseconds(1));
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// In this test, the framework is not checkpointed. This ensures that when we
+// stop the slave, the executor is killed and we will need to recover the
+// working directories without getting any checkpointed recovery state.
+TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=1; sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(Return());
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<ResourceUsage> usage1 =
+    process::dispatch(slave.get()->pid, &Slave::usage);
+  AWAIT_READY(usage1);
+
+  // We should have 1 executor using resources.
+  ASSERT_EQ(1, usage1.get().executors().size());
+  EXPECT_EQ(Megabytes(1), usage1->executors(0).statistics().disk_limit_bytes());
+  EXPECT_EQ(Megabytes(1), usage1->executors(0).statistics().disk_used_bytes());
+
+  // Restart the slave.
+  slave.get()->terminate();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Following the example of the filesystem isolator tests, wait
+  // until the containerizer cleans up the orphans. Only after that
+  // should we expect to find the project IDs removed.
+  Future<Nothing> _recover =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+  AWAIT_READY(_recover);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Future<ResourceUsage> usage2 =
+    process::dispatch(slave.get()->pid, &Slave::usage);
+  AWAIT_READY(usage2);
+
+  // We should have no executors left because we didn't checkpoint.
+  ASSERT_EQ(0, usage2.get().executors().size());
+
+  Try<std::list<std::string>> sandboxes = os::glob(path::join(
+      slave::paths::getSandboxRootDir(mountPoint.get()),
+      "*",
+      "frameworks",
+      "*",
+      "executors",
+      "*",
+      "runs",
+      "*"));
+
+  ASSERT_SOME(sandboxes);
+
+  // One sandbox and one symlink.
+  ASSERT_EQ(2u, sandboxes->size());
+
+  // Scan the remaining sandboxes and make sure that no projects are assigned.
+  foreach (const string& sandbox, sandboxes.get()) {
+    // Skip the "latest" symlink.
+    if (os::stat::islink(sandbox)) {
+      continue;
+    }
+
+    EXPECT_NONE(xfs::getProjectId(sandbox));
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// In this test, the framework is checkpointed so we expect the executor to
+// persist across the slave restart and to have the same resource usage before
+// and after.
+TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), CreateSlaveFlags());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=1; sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  Future<ResourceUsage> usage1 =
+    process::dispatch(slave.get()->pid, &Slave::usage);
+  AWAIT_READY(usage1);
+
+  // We should have 1 executor using resources.
+  ASSERT_EQ(1, usage1.get().executors().size());
+
+  // Restart the slave.
+  slave.get()->terminate();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Future<ResourceUsage> usage2 =
+    process::dispatch(slave.get()->pid, &Slave::usage);
+  AWAIT_READY(usage2);
+
+  // We should have still have 1 executor using resources.
+  ASSERT_EQ(1, usage1.get().executors().size());
+
+  Try<std::list<std::string>> sandboxes = os::glob(path::join(
+      slave::paths::getSandboxRootDir(mountPoint.get()),
+      "*",
+      "frameworks",
+      "*",
+      "executors",
+      "*",
+      "runs",
+      "*"));
+
+  ASSERT_SOME(sandboxes);
+
+  // One sandbox and one symlink.
+  ASSERT_EQ(2u, sandboxes->size());
+
+  // Scan the remaining sandboxes. We ought to still have project IDs
+  // assigned to them all.
+  foreach (const string& sandbox, sandboxes.get()) {
+    // Skip the "latest" symlink.
+    if (os::stat::islink(sandbox)) {
+      continue;
+    }
+
+    EXPECT_SOME(xfs::getProjectId(sandbox));
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_F(ROOT_XFS_QuotaTest, IsolatorFlags)
+{
+  slave::Flags flags;
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // work_dir must be an XFS filesystem.
+  flags = CreateSlaveFlags();
+  flags.work_dir = "/proc";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
+
+  // 0 is an invalid project ID.
+  flags = CreateSlaveFlags();
+  flags.xfs_project_range = "[0-10]";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
+
+  // Project IDs are 32 bit.
+  flags = CreateSlaveFlags();
+  flags.xfs_project_range = "[100-1099511627776]";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
+
+  // Project IDs must be a range.
+  flags = CreateSlaveFlags();
+  flags.xfs_project_range = "foo";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
+
+  // Project IDs must be a range.
+  flags = CreateSlaveFlags();
+  flags.xfs_project_range = "100";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
 }
 
 } // namespace tests {

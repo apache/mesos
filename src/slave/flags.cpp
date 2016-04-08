@@ -776,4 +776,11 @@ mesos::internal::slave::Flags::Flags()
       "The symbol name of the master detector to use. This symbol\n"
       "should exist in a module specified through the --modules flag.\n"
       "Cannot be used in conjunction with --master.");
+
+#if ENABLE_XFS_DISK_ISOLATOR
+  add(&Flags::xfs_project_range,
+      "xfs_project_range",
+      "The ranges of XFS project IDs to use for tracking directory quotas",
+      "[5000-10000]");
+#endif
 }

@@ -46,6 +46,9 @@ inline bool operator==(const QuotaInfo& left, const QuotaInfo& right)
 Option<Error> validateProjectIds(const IntervalSet<prid_t>& projectRange);
 
 
+bool pathIsXfs(const std::string& path);
+
+
 Result<QuotaInfo> getProjectQuota(
     const std::string& path,
     prid_t projectId);

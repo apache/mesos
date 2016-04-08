@@ -144,6 +144,9 @@ public:
   Duration qos_correction_interval_min;
   Duration oversubscribed_resources_interval;
   Option<std::string> master_detector;
+#if ENABLE_XFS_DISK_ISOLATOR
+  std::string xfs_project_range;
+#endif
 };
 
 } // namespace slave {

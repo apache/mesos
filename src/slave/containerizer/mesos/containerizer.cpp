@@ -55,6 +55,10 @@
 
 #include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 
+#if ENABLE_XFS_DISK_ISOLATOR
+#include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
+#endif
+
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
@@ -215,6 +219,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
     {"posix/disk", &PosixDiskIsolatorProcess::create},
+#if ENABLE_XFS_DISK_ISOLATOR
+    {"xfs/disk", &XfsDiskIsolatorProcess::create},
+#endif
 #ifdef __linux__
     {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},

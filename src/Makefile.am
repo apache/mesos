@@ -899,7 +899,9 @@ MESOS_LINUX_FILES +=							\
 if ENABLE_XFS_DISK_ISOLATOR
 MESOS_LINUX_FILES +=                                                    \
   slave/containerizer/mesos/isolators/xfs/utils.cpp                     \
-  slave/containerizer/mesos/isolators/xfs/utils.hpp
+  slave/containerizer/mesos/isolators/xfs/utils.hpp                     \
+  slave/containerizer/mesos/isolators/xfs/disk.cpp                      \
+  slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
 MESOS_NETWORK_ISOLATOR_FILES =						\

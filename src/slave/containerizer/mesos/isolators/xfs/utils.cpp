@@ -379,6 +379,12 @@ Option<Error> validateProjectIds(const IntervalSet<prid_t>& projectRange)
   return None();
 }
 
+
+bool pathIsXfs(const std::string& path)
+{
+  return ::platform_test_xfs_path(path.c_str()) == 1;
+}
+
 } // namespace xfs {
 } // namespace internal {
 } // namespace mesos {
