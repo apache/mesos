@@ -47,7 +47,7 @@ case $OS in
     # Add an unprivileged user.
     append_dockerfile "RUN adduser mesos"
    ;;
-  ubuntu*)
+  *ubuntu*)
     # NOTE: Currently we only support Ubuntu13.10+ due to the
     # compiler versions needed to compile Mesos.
 
@@ -58,8 +58,10 @@ case $OS in
     append_dockerfile "RUN rm -rf /var/lib/apt/lists/*"
 
     # Install dependencies.
+    # IBM Power only supports Ubuntu 14.04 and gcc compiler.
+    [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
-    append_dockerfile "RUN apt-get -y install build-essential clang git maven autoconf libtool"
+    append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool"
     append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
 
     # Add an unpriviliged user.
