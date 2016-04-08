@@ -475,7 +475,9 @@ class HierarchicalAllocatorProcess
 public:
   HierarchicalAllocatorProcess()
     : internal::HierarchicalAllocatorProcess(
-          []() -> Sorter* { return new RoleSorter(); },
+          [this]() -> Sorter* {
+            return new RoleSorter(this->self(), "allocator/mesos/roles/");
+          },
           []() -> Sorter* { return new FrameworkSorter(); },
           []() -> Sorter* { return new QuotaRoleSorter(); }) {}
 };

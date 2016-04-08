@@ -643,6 +643,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/allocator.cpp					\
   master/allocator/mesos/hierarchical.cpp				\
   master/allocator/mesos/metrics.cpp					\
+  master/allocator/sorter/drf/metrics.cpp				\
   master/allocator/sorter/drf/sorter.cpp				\
   master/contender/contender.cpp					\
   master/contender/standalone.cpp					\
@@ -762,6 +763,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/hierarchical.hpp				\
   master/allocator/mesos/metrics.hpp					\
   master/allocator/sorter/sorter.hpp					\
+  master/allocator/sorter/drf/metrics.hpp				\
   master/allocator/sorter/drf/sorter.hpp				\
   master/contender/standalone.hpp					\
   master/contender/zookeeper.hpp					\

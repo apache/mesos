@@ -24,6 +24,8 @@
 
 #include <stout/hashmap.hpp>
 
+#include "master/allocator/sorter/drf/metrics.hpp"
+
 #include "master/allocator/sorter/sorter.hpp"
 
 
@@ -61,6 +63,12 @@ struct DRFComparator
 class DRFSorter : public Sorter
 {
 public:
+  DRFSorter() = default;
+
+  explicit DRFSorter(
+      const process::UPID& allocator,
+      const std::string& metricsPrefix);
+
   virtual ~DRFSorter() {}
 
   virtual void add(const std::string& name, double weight = 1);
@@ -160,6 +168,10 @@ private:
 
   // Maps client names to the resources they have been allocated.
   hashmap<std::string, Allocation> allocations;
+
+  // Metrics are optionally exposed by the sorter.
+  friend Metrics;
+  Option<Metrics> metrics;
 };
 
 } // namespace allocator {

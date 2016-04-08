@@ -945,6 +945,13 @@ and resource allocations in the allocator.
 </tr>
 <tr>
   <td>
+  <code>allocator/mesos/roles/&lt;role&gt;/shares/dominant</code>
+  </td>
+  <td>Dominant resource share for the role, exposed as a percentage (0.0-1.0)</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>allocator/mesos/event_queue_dispatches</code>
   </td>
   <td>Number of dispatch events in the event queue</td>

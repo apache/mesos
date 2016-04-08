@@ -39,6 +39,12 @@ bool DRFComparator::operator()(const Client& client1, const Client& client2)
 }
 
 
+DRFSorter::DRFSorter(
+    const process::UPID& allocator,
+    const std::string& metricsPrefix)
+  : metrics(Metrics(allocator, *this, metricsPrefix)) {}
+
+
 void DRFSorter::add(const string& name, double weight)
 {
   Client client(name, 0, 0);
@@ -46,6 +52,10 @@ void DRFSorter::add(const string& name, double weight)
 
   allocations[name] = Allocation();
   weights[name] = weight;
+
+  if (metrics.isSome()) {
+    metrics->add(name);
+  }
 }
 
 
@@ -66,6 +76,10 @@ void DRFSorter::remove(const string& name)
 
   allocations.erase(name);
   weights.erase(name);
+
+  if (metrics.isSome()) {
+    metrics->remove(name);
+  }
 }
 
 
