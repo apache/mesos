@@ -1967,6 +1967,11 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_backend_tests.cpp		\
   tests/containerizer/provisioner_docker_tests.cpp
 
+if ENABLE_XFS_DISK_ISOLATOR
+mesos_tests_SOURCES +=						\
+  tests/containerizer/xfs_quota_tests.cpp
+endif
+
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"

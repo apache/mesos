@@ -484,38 +484,60 @@ private:
 };
 
 
-class OverlayFSTestFilter : public TestFilter
+class SupportedFilesystemTestFilter : public TestFilter
 {
 public:
-  OverlayFSTestFilter()
+  explicit SupportedFilesystemTestFilter(const string fsname)
   {
 #ifdef __linux__
-    Try<bool> check = fs::overlay::supported();
+    Try<bool> check = (fsname == "overlayfs")
+      ? fs::overlay::supported()
+      : fs::supported(fsname);
+
     if (check.isError()) {
-      overlayfsError = check.error();
+      fsSupportError = check.error();
     } else if (!check.get()) {
-      overlayfsError = Error("Overlayfs is not supported on your systems");
+      fsSupportError = Error(fsname + " is not supported on your systems");
     }
 #else
-    overlayfsError =
-      Error("Overlayfs tests not supported on non-Linux systems");
-#endif // __linux__
-    if (overlayfsError.isSome()) {
+    fsSupportError =
+      Error(fsname + " tests not supported on non-Linux systems");
+#endif
+
+    if (fsSupportError.isSome()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "We cannot run any overlayfs tests because:\n"
-        << overlayfsError.get().message << "\n"
+        << "We cannot run any " << fsname << " tests because:\n"
+        << fsSupportError.get().message << "\n"
         << "-------------------------------------------------------------\n";
     }
   }
 
+  Option<Error> fsSupportError;
+};
+
+
+class OverlayFSFilter : public SupportedFilesystemTestFilter
+{
+public:
+  OverlayFSFilter() : SupportedFilesystemTestFilter("overlayfs") {}
+
   bool disable(const ::testing::TestInfo* test) const
   {
-    return overlayfsError.isSome() && matches(test, "OVERLAYFS_");
+    return fsSupportError.isSome() && matches(test, "OVERLAYFS_");
   }
+};
 
-private:
-  Option<Error> overlayfsError;
+
+class XfsFilter : public SupportedFilesystemTestFilter
+{
+public:
+  XfsFilter() : SupportedFilesystemTestFilter("xfs") {}
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return fsSupportError.isSome() && matches(test, "XFS_");
+  }
 };
 
 
@@ -727,11 +749,12 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new NetClsCgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new NvidiaGpuFilter()));
-  filters.push_back(Owned<TestFilter>(new OverlayFSTestFilter()));
+  filters.push_back(Owned<TestFilter>(new OverlayFSFilter()));
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
   filters.push_back(Owned<TestFilter>(new RootFilter()));
   filters.push_back(Owned<TestFilter>(new UnzipFilter()));
+  filters.push_back(Owned<TestFilter>(new XfsFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
@@ -862,8 +885,14 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
     testName = strings::remove(testName, "DISABLED_", strings::PREFIX);
   }
 
+  Option<string> tmpdir = os::getenv("TMPDIR");
+
+  if (tmpdir.isNone()) {
+    tmpdir = "/tmp";
+  }
+
   const string& path =
-    path::join("/tmp", strings::join("_", testCase, testName, "XXXXXX"));
+    path::join(tmpdir.get(), strings::join("_", testCase, testName, "XXXXXX"));
 
   Try<string> mkdtemp = os::mkdtemp(path);
   if (mkdtemp.isSome()) {
