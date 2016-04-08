@@ -48,21 +48,27 @@
 
 #include "tests/containerizer/rootfs.hpp"
 
+namespace http = process::http;
+namespace paths = mesos::internal::slave::appc::paths;
+namespace slave = mesos::internal::slave;
+namespace spec = ::appc::spec;
+
 using std::list;
 using std::string;
 using std::vector;
 
+using process::Future;
+using process::Owned;
+using process::Process;
+
 using testing::_;
 using testing::Return;
 
-using namespace process;
-
-using namespace mesos::internal::slave::appc;
-
-namespace spec = appc::spec;
-
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Provisioner;
+using mesos::internal::slave::appc::Store;
+
+using mesos::master::detector::MasterDetector;
 
 namespace mesos {
 namespace internal {
