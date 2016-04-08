@@ -15,6 +15,7 @@
       <th data-key="framework_name">Framework</th>
       <th data-key="hostname">Host</th>
       <th data-key="resources.cpus">CPUs</th>
+      <th data-key="resources.gpus">GPUs</th>
       <th data-key="resources.mem">Mem</th>
       <th data-key="resources.disk">Disk</th>
     </tr>
@@ -35,6 +36,7 @@
         </a>
       </td>
       <td>{{offer.resources.cpus | number}}</td>
+      <td>{{offer.resources.gpus | number}}</td>
       <td>{{offer.resources.mem * (1024 * 1024) | dataSize}}</td>
       <td>{{offer.resources.disk * (1024 * 1024) | dataSize}}</td>
     </tr>

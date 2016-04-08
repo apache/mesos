@@ -6,7 +6,7 @@
 </ol>
 
 <div class="row">
-  <div class="col-sm-4 col-md-3 col-lg-2">
+  <div class="col-sm-5 col-md-4 col-lg-3">
     <div class="well">
       <dl class="inline inline-toggle clearfix">
         <dt>Cluster:</dt>
@@ -100,6 +100,7 @@
           <tr>
             <td></td>
             <td class="text-right">CPUs</td>
+            <td class="text-right">GPUs</td>
             <td class="text-right">Mem</td>
             <td class="text-right">Disk</td>
           </tr>
@@ -108,24 +109,28 @@
           <tr>
             <td>Total</td>
             <td class="text-right">{{total_cpus | decimalFloat}}</td>
+            <td class="text-right">{{total_gpus | decimalFloat}}</td>
             <td class="text-right">{{total_mem * (1024 * 1024) | dataSize}}</td>
             <td class="text-right">{{total_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Used</td>
             <td class="text-right">{{used_cpus | decimalFloat}}</td>
+            <td class="text-right">{{used_gpus | decimalFloat}}</td>
             <td class="text-right">{{used_mem * (1024 * 1024) | dataSize}}</td>
             <td class="text-right">{{used_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Offered</td>
             <td class="text-right">{{offered_cpus | decimalFloat}}</td>
+            <td class="text-right">{{offered_gpus | decimalFloat}}</td>
             <td class="text-right">{{offered_mem * (1024 * 1024) | dataSize}}</td>
             <td class="text-right">{{offered_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Idle</td>
             <td class="text-right">{{idle_cpus | decimalFloat}}</td>
+            <td class="text-right">{{idle_gpus | decimalFloat}}</td>
             <td class="text-right">{{idle_mem * (1024 * 1024) | dataSize}}</td>
             <td class="text-right">{{idle_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
@@ -134,7 +139,7 @@
     </div>
   </div>
 
-  <div class="col-sm-8 col-md-9 col-lg-10">
+  <div class="col-sm-7 col-md-8 col-lg-9">
     <table m-table table-content="active_tasks" title="Active Tasks"
       class="table table-striped table-bordered table-condensed">
       <thead>

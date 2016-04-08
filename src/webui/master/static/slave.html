@@ -98,6 +98,11 @@
             <td class="text-right">{{state.resources.cpus | number}}</td>
           </tr>
           <tr>
+            <td>GPUs</td>
+            <td class="text-right">N/A</td>
+            <td class="text-right">{{state.resources.gpus | number}}</td>
+          </tr>
+          <tr>
             <td>Memory</td>
             <td class="text-right">{{monitor.statistics.mem_rss_bytes | dataSize}}</td>
             <td class="text-right">
@@ -126,6 +131,7 @@
           <th data-key="name">Name</th>
           <th data-key="num_tasks">Active Tasks</th>
           <th data-key="cpus">CPUs (Used / Allocated)</th>
+          <th data-key="gpus">GPUs (Used / Allocated)</th>
           <th data-key="Mem">Mem (Used / Allocated)</th>
           <th data-key="Disk">Disk (Used / Allocated)</th>
         </tr>
@@ -162,6 +168,7 @@
           <th data-key="name">Name</th>
           <th data-key="tasks.length">Active Tasks</th>
           <th data-key="resources.cpus">CPUs</th>
+          <th data-key="resources.gpus">GPUs</th>
           <th data-key="resources.mem">Mem</th>
           <th data-key="resources.disk">Disk</th>
         </tr>
@@ -183,6 +190,7 @@
           <td>{{completed_framework.name}}</td>
           <td>{{completed_framework.num_tasks | number}}</td>
           <td>{{completed_framework.cpus | number}}</td>
+          <td>{{completed_framework.gpus | number}}</td>
           <td>{{completed_framework.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{completed_framework.disk * (1024 * 1024) | dataSize}}</td>
         </tr>

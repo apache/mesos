@@ -69,6 +69,13 @@
             <td class="text-right">{{executor.resources.cpus | number}}</td>
           </tr>
           <tr>
+            <td>GPUs</td>
+            <td class="text-right">
+              N/A
+            </td>
+            <td class="text-right">{{executor.resources.gpus | number}}</td>
+          </tr>
+          <tr>
             <td>Mem</td>
             <td class="text-right">
               {{monitor.frameworks[framework.id].executors[executor.id].statistics.mem_rss_bytes | dataSize}}
@@ -98,6 +105,7 @@
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
           <th data-key="resources.cpus">CPUs</th>
+          <th data-key="resources.gpus">GPUs</th>
           <th data-key="resources.mem">Mem</th>
           <th data-key="resources.disk">Disk</th>
         </tr>
@@ -107,6 +115,7 @@
           <td>{{queued_task.id}}</td>
           <td>{{queued_task.name}}</td>
           <td>{{queued_task.resources.cpus | number}}</td>
+          <td>{{queued_task.resources.gpus | number}}</td>
           <td>{{queued_task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{queued_task.resources.disk * (1024 * 1024) | dataSize}}</td>
         </tr>
@@ -121,6 +130,7 @@
           <th data-key="name">Name</th>
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
+          <th data-key="resources.gpus">GPUs (allocated)</th>
           <th data-key="resources.mem">Mem (allocated)</th>
           <th data-key="resources.disk">Disk (allocated)</th>
           <th></th>
@@ -132,6 +142,7 @@
           <td>{{task.name}}</td>
           <td>{{task.state}}</td>
           <td>{{task.resources.cpus | number}}</td>
+          <td>{{task.resources.gpus | number}}</td>
           <td>{{task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
@@ -152,6 +163,7 @@
           <th data-key="name">Name</th>
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
+          <th data-key="resources.gpus">GPUs (allocated)</th>
           <th data-key="resources.mem">Mem (allocated)</th>
           <th data-key="resources.disk">Disk (allocated)</th>
           <th></th>
@@ -163,6 +175,7 @@
           <td>{{completed_task.name}}</td>
           <td>{{completed_task.state}}</td>
           <td>{{completed_task.resources.cpus | number}}</td>
+          <td>{{completed_task.resources.gpus | number}}</td>
           <td>{{completed_task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{completed_task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>

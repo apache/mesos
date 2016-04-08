@@ -117,12 +117,15 @@
     // Update the stats.
     $scope.cluster = $scope.state.cluster;
     $scope.total_cpus = 0;
+    $scope.total_gpus = 0;
     $scope.total_mem = 0;
     $scope.total_disk = 0;
     $scope.used_cpus = 0;
+    $scope.used_gpus = 0;
     $scope.used_mem = 0;
     $scope.used_disk = 0;
     $scope.offered_cpus = 0;
+    $scope.offered_gpus = 0;
     $scope.offered_mem = 0;
     $scope.offered_disk = 0;
 
@@ -132,6 +135,7 @@
     _.each($scope.state.slaves, function(slave) {
       $scope.slaves[slave.id] = slave;
       $scope.total_cpus += slave.resources.cpus;
+      $scope.total_gpus += slave.resources.gpus;
       $scope.total_mem += slave.resources.mem;
       $scope.total_disk += slave.resources.disk;
     });
@@ -153,6 +157,7 @@
       _.each(framework.offers, function(offer) {
         $scope.offers[offer.id] = offer;
         $scope.offered_cpus += offer.resources.cpus;
+        $scope.offered_gpus += offer.resources.gpus;
         $scope.offered_mem += offer.resources.mem;
         $scope.offered_disk += offer.resources.disk;
         offer.framework_name = $scope.frameworks[offer.framework_id].name;
@@ -160,12 +165,18 @@
       });
 
       $scope.used_cpus += framework.resources.cpus;
+      $scope.used_gpus += framework.resources.gpus;
       $scope.used_mem += framework.resources.mem;
       $scope.used_disk += framework.resources.disk;
 
       framework.cpus_share = 0;
       if ($scope.total_cpus > 0) {
         framework.cpus_share = framework.resources.cpus / $scope.total_cpus;
+      }
+
+      framework.gpus_share = 0;
+      if ($scope.total_gpus > 0) {
+        framework.gpus_share = framework.resources.gpus / $scope.total_gpus;
       }
 
       framework.mem_share = 0;
@@ -178,7 +189,11 @@
         framework.disk_share = framework.resources.disk / $scope.total_disk;
       }
 
-      framework.max_share = Math.max(framework.cpus_share, framework.mem_share, framework.disk_share);
+      framework.max_share = Math.max(
+          framework.cpus_share,
+          framework.gpus_share,
+          framework.mem_share,
+          framework.disk_share);
 
       // If the executor ID is empty, this is a command executor with an
       // internal executor ID generated from the task ID.
@@ -199,10 +214,12 @@
     });
 
     $scope.used_cpus -= $scope.offered_cpus;
+    $scope.used_gpus -= $scope.offered_gpus;
     $scope.used_mem -= $scope.offered_mem;
     $scope.used_disk -= $scope.offered_disk;
 
     $scope.idle_cpus = $scope.total_cpus - ($scope.offered_cpus + $scope.used_cpus);
+    $scope.idle_gpus = $scope.total_gpus - ($scope.offered_gpus + $scope.used_gpus);
     $scope.idle_mem = $scope.total_mem - ($scope.offered_mem + $scope.used_mem);
     $scope.idle_disk = $scope.total_disk - ($scope.offered_disk + $scope.used_disk);
 
@@ -491,12 +508,14 @@
           function computeFrameworkStats(framework) {
             framework.num_tasks = 0;
             framework.cpus = 0;
+            framework.gpus = 0;
             framework.mem = 0;
             framework.disk = 0;
 
             _.each(framework.executors, function(executor) {
               framework.num_tasks += _.size(executor.tasks);
               framework.cpus += executor.resources.cpus;
+              framework.gpus += executor.resources.gpus;
               framework.mem += executor.resources.mem;
               framework.disk += executor.resources.disk;
             });
@@ -598,12 +617,14 @@
           // Compute the framework stats.
           $scope.framework.num_tasks = 0;
           $scope.framework.cpus = 0;
+          $scope.framework.gpus = 0;
           $scope.framework.mem = 0;
           $scope.framework.disk = 0;
 
           _.each($scope.framework.executors, function(executor) {
             $scope.framework.num_tasks += _.size(executor.tasks);
             $scope.framework.cpus += executor.resources.cpus;
+            $scope.framework.gpus += executor.resources.gpus;
             $scope.framework.mem += executor.resources.mem;
             $scope.framework.disk += executor.resources.disk;
           });

@@ -48,6 +48,13 @@
             <td class="text-right">{{framework.cpus | number}}</td>
           </tr>
           <tr>
+            <td>GPUs</td>
+            <td class="text-right">
+              N/A
+            </td>
+            <td class="text-right">{{framework.gpus | number}}</td>
+          </tr>
+          <tr>
             <td>Memory</td>
             <td class="text-right">
               {{monitor.frameworks[framework.id].statistics.mem_rss_bytes | dataSize}}
@@ -79,6 +86,7 @@
           <th data-key="tasks.length">Active Tasks</th>
           <th data-key="queued_tasks.length">Queued Tasks</th>
           <th data-key="resources.cpus">CPUs (Used / Allocated)</th>
+          <th data-key="resources.gpus">GPUs (Used / Allocated)</th>
           <th data-key="resources.mem">Mem (Used / Allocated)</th>
           <th data-key="resources.disk">Disk (Used / Allocated)</th>
           <th></th>
