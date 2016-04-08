@@ -896,6 +896,12 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/provisioner/backends/bind.hpp		\
   slave/containerizer/mesos/provisioner/backends/overlay.hpp
 
+if ENABLE_XFS_DISK_ISOLATOR
+MESOS_LINUX_FILES +=                                                    \
+  slave/containerizer/mesos/isolators/xfs/utils.cpp                     \
+  slave/containerizer/mesos/isolators/xfs/utils.hpp
+endif
+
 MESOS_NETWORK_ISOLATOR_FILES =						\
   linux/routing/handle.cpp						\
   linux/routing/route.cpp						\
