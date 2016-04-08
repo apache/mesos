@@ -216,6 +216,10 @@ private:
       bool killed,
       const process::Future<Option<int>>& status);
 
+  process::Future<Nothing> destroyTimeout(
+      const ContainerID& containerId,
+      process::Future<Nothing> future);
+
   process::Future<Nothing> _update(
       const ContainerID& containerId,
       const Resources& resources,

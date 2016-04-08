@@ -106,6 +106,11 @@ constexpr size_t DOCKER_PS_MAX_INSPECT_CALLS = 100;
 // TODO(tnachen): Make this a flag.
 constexpr Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 
+// Additional duration that docker containerizer will wait beyond the
+// configured `docker_stop_timeout` for docker stop to succeed, before
+// trying to kill the process by itself.
+constexpr Duration DOCKER_FORCE_KILL_TIMEOUT = Seconds(1);
+
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
