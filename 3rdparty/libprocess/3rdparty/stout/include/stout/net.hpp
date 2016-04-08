@@ -156,6 +156,8 @@ inline Try<int> download(const std::string& url, const std::string& path)
 
   FILE* file = fdopen(fd.get(), "w");
   if (file == NULL) {
+    curl_easy_cleanup(curl);
+    os::close(fd.get());
     return ErrnoError("Failed to open file handle of '" + path + "'");
   }
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
