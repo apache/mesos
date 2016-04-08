@@ -103,6 +103,7 @@ TEST(HTTPTest, ModelTask)
       "  {"
       "    \"cpus\":0,"
       "    \"disk\":0,"
+      "    \"gpus\":0,"
       "    \"mem\":0"
       "  },"
       "  \"slave_id\":\"s\","
@@ -153,17 +154,20 @@ TEST(HTTPTest, ModelResources)
   // Resources of mixed types, roles, duplicate names; standard (
   // e.g., 'cpus') and custom (i.e., 'bar').
   Resources nonRevocable = Resources::parse(
-      "cpus:1;cpus(foo):1;mem:512;disk:1024;ports(foo):[1-10];bar:1").get();
+      "cpus:1;cpus(foo):1;gpus:1;mem:512;"
+      "disk:1024;ports(foo):[1-10];bar:1").get();
 
   Resource revocableCpus = Resources::parse("cpus", "1.1", "*").get();
   revocableCpus.mutable_revocable();
+  Resource revocableGpus = Resources::parse("gpus", "2", "*").get();
+  revocableGpus.mutable_revocable();
   Resource revocableMem = Resources::parse("mem", "513", "*").get();
   revocableMem.mutable_revocable();
   Resource revocableDisk = Resources::parse("disk", "1025", "*").get();
   revocableDisk.mutable_revocable();
 
   Resources total =
-    nonRevocable + revocableCpus + revocableMem + revocableDisk;
+    nonRevocable + revocableCpus + revocableGpus + revocableMem + revocableDisk;
 
   JSON::Value object = model(total);
 
@@ -174,6 +178,8 @@ TEST(HTTPTest, ModelResources)
       "  \"cpus_revocable\":1.1,"
       "  \"disk\":1024,"
       "  \"disk_revocable\":1025,"
+      "  \"gpus\":1,"
+      "  \"gpus_revocable\":2,"
       "  \"mem\":512,"
       "  \"mem_revocable\":513,"
       "  \"ports\":\"[1-10]\""
@@ -204,14 +210,16 @@ TEST(HTTP, ModelRoleResources)
       "  {"
       "    \"cpus\":1,"
       "    \"disk\":0,"
+      "    \"gpus\":0,"
       "    \"mem\":0,"
       "    \"ports\":\"[1-10]\""
       "  },"
       "  \"bar\":"
       "  {"
       "    \"cpus\":0,"
-      "    \"mem\":512,"
-      "    \"disk\":1024"
+      "    \"disk\":1024,"
+      "    \"gpus\":0,"
+      "    \"mem\":512"
       "  }"
       "}");
 

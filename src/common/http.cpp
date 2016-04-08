@@ -105,6 +105,7 @@ JSON::Object model(const Resources& resources)
 {
   JSON::Object object;
   object.values["cpus"] = 0;
+  object.values["gpus"] = 0;
   object.values["mem"] = 0;
   object.values["disk"] = 0;
 
@@ -493,7 +494,8 @@ static void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 
 void json(JSON::ObjectWriter* writer, const Resources& resources)
 {
-  hashmap<string, double> scalars = {{"cpus", 0}, {"mem", 0}, {"disk", 0}};
+  hashmap<string, double> scalars =
+    {{"cpus", 0}, {"gpus", 0}, {"mem", 0}, {"disk", 0}};
   hashmap<string, Value::Ranges> ranges;
   hashmap<string, Value::Set> sets;
 
