@@ -1725,6 +1725,31 @@ isolator. (default: false)
 </tr>
 </table>
 
+*XFS disk isolator flags available when configured with
+`--enable-xfs-disk-isolator`*
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Flag
+      </th>
+      <th>
+        Explanation
+      </th>
+    </tr>
+  </thead>
+<tr>
+  <td>
+    --xfs_project_range=VALUE
+  </td>
+<td>
+The ranges of XFS project IDs that the isolator can use to track disk
+quotas for container sandbox directories. Valid project IDs range from
+1 to max(uint32). (default `[5000-10000]`)
+</td>
+</tr>
+</table>
 
 ## Libprocess Options
 

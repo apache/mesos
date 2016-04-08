@@ -27,6 +27,10 @@ This release contains the following new features:
     `mesos.scheduler`. `mesos.native` still exists, combining both modules for
     backwards compatibility with existing code.
 
+  * [MESOS-4828] - **Experimental** support for a new `xfs/disk' isolator
+    has been added to isolate disk resources more efficiently. Please refer to
+    docs/mesos-containerizer.md for more details.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
