@@ -185,13 +185,13 @@ private:
   bool cleanUpContainersInDestructor = true;
 
   // Master detector that is not managed by this object.
-  mesos::master::detector::MasterDetector* detector;
+  mesos::master::detector::MasterDetector* detector = nullptr;
 
   // Containerizer that is either owned outside of this `Slave` object
   // or by `ownedContainerizer`.  We keep a copy of this pointer
   // because the cleanup logic acts upon the containerizer (regardless
   // of who created it).
-  slave::Containerizer* containerizer;
+  slave::Containerizer* containerizer = nullptr;
 
   // Dependencies that are created by the factory method.
   process::Owned<slave::Containerizer> ownedContainerizer;

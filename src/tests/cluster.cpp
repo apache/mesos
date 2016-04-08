@@ -442,6 +442,11 @@ Slave::~Slave()
     return;
   }
 
+  // Startup didn't complete so don't try to do the full shutdown.
+  if (!containerizer) {
+    return;
+  }
+
   // This extra closure is necessary in order to use `AWAIT` and `ASSERT_*`,
   // as these macros require a void return type.
   [this]() {
