@@ -31,15 +31,24 @@ inline bool exists(const std::string& path)
     return false;
   }
 
-  // NOTE: GetFileAttributes does not support unicode natively. See also
-  // "documentation"[1] for why this is a check-if-file-exists idiom.
+  // NOTE: `GetFileAttributes` redirects to either `GetFileAttributesA`
+  // (ASCII) or `GetFileAttributesW` (for `wchar`s). It returns
+  // `INVALID_FILE_ATTRIBUTES` if the file could not be opened for any reason.
+  // Checking for one of two 'not found' error codes (`ERROR_FILE_NOT_FOUND` or
+  // `ERROR_PATH_NOT_FOUND`) is a reliable test for whether the file or
+  // directory exists. See also [1] for more information on this technique.
   //
   // [1] http://blogs.msdn.com/b/oldnewthing/archive/2007/10/23/5612082.aspx
   DWORD attributes = GetFileAttributes(absolutePath.get().c_str());
 
-  bool fileNotFound = GetLastError() == ERROR_FILE_NOT_FOUND;
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    DWORD error = GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+      return false;
+    }
+  }
 
-  return !((attributes == INVALID_FILE_ATTRIBUTES) && fileNotFound);
+  return true;
 }
 
 

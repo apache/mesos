@@ -135,6 +135,38 @@ TEST_F(FsTest, Mkdir)
 }
 
 
+TEST_F(FsTest, Exists)
+{
+  const hashset<string> EMPTY;
+  const string tmpdir = os::getcwd();
+
+  hashset<string> expectedListing = EMPTY;
+  ASSERT_EQ(expectedListing, listfiles(tmpdir));
+
+  // Create simple directory structure.
+  ASSERT_SOME(os::mkdir(path::join(tmpdir, "a", "b", "c")));
+
+  // Expect all the directories exist.
+  EXPECT_TRUE(os::exists(tmpdir));
+  EXPECT_TRUE(os::exists(path::join(tmpdir, "a")));
+  EXPECT_TRUE(os::exists(path::join(tmpdir, "a", "b")));
+  EXPECT_TRUE(os::exists(path::join(tmpdir, "a", "b", "c")));
+
+  // Return false if a component of the path does not exist.
+  EXPECT_FALSE(os::exists(path::join(tmpdir, "a", "fakeDir")));
+  EXPECT_FALSE(os::exists(path::join(tmpdir, "a", "fakeDir", "c")));
+
+  // Add file to directory tree.
+  ASSERT_SOME(os::touch(path::join(tmpdir, "a", "b", "c", "yourFile")));
+
+  // Assert it exists.
+  EXPECT_TRUE(os::exists(path::join(tmpdir, "a", "b", "c", "yourFile")));
+
+  // Return false if file is wrong.
+  EXPECT_FALSE(os::exists(path::join(tmpdir, "a", "b", "c", "yourFakeFile")));
+}
+
+
 TEST_F(FsTest, Touch)
 {
   const string testfile  = path::join(os::getcwd(), UUID::random().toString());
