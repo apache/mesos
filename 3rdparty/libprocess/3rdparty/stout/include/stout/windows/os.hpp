@@ -45,17 +45,32 @@ inline int pagesize()
   return si.dwPageSize;
 }
 
-/*
+
 // Sets the value associated with the specified key in the set of
 // environment variables.
-inline void setenv(const std::string& key,
-                   const std::string& value,
-                   bool overwrite = true)
+inline void setenv(
+    const std::string& key,
+    const std::string& value,
+    bool overwrite = true)
 {
-  UNIMPLEMENTED;
+  // Do not set the variable if already set and `overwrite` was not specified.
+  //
+  // Per MSDN[1], `GetEnvironmentVariable` returns 0 on error and sets the
+  // error code to `ERROR_ENVVAR_NOT_FOUND` if the variable was not found.
+  //
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms683188(v=vs.85).aspx
+  if (!overwrite &&
+      ::GetEnvironmentVariable(key.c_str(), NULL, 0) != 0 &&
+      ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+    return;
+  }
+
+  // `SetEnvironmentVariable` returns an error code, but we can't act on it.
+  ::SetEnvironmentVariable(key.c_str(), value.c_str());
 }
 
 
+/*
 // Unsets the value associated with the specified key in the set of
 // environment variables.
 inline void unsetenv(const std::string& key)
