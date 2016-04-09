@@ -31,6 +31,7 @@
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -51,6 +52,7 @@
 #include <stout/os/mkdtemp.hpp>
 #include <stout/os/mktemp.hpp>
 #include <stout/os/process.hpp>
+#include <stout/os/rename.hpp>
 #include <stout/os/rm.hpp>
 #include <stout/os/rmdir.hpp>
 #include <stout/os/shell.hpp>

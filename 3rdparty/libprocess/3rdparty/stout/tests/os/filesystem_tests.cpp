@@ -27,6 +27,7 @@
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/rename.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/write.hpp>
 
@@ -194,4 +195,63 @@ TEST_F(FsTest, List)
   Try<list<string>> noFiles = fs::list("this_path_does_not_exist");
   ASSERT_SOME(noFiles);
   EXPECT_EQ(0u, noFiles.get().size());
+}
+
+
+TEST_F(FsTest, Rename)
+{
+  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
+
+  // Now write some files.
+  const string file1 = testdir + "/file1.txt";
+  const string file2 = testdir + "/file2.txt";
+  const string file3 = testdir + "/file3.jpg";
+
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+
+  // Write something to `file1`.
+  const string message = "hello world!";
+  ASSERT_SOME(os::write(file1, message));
+
+  // Search all files in folder
+  Try<list<string>> allFiles = fs::list(path::join(testdir, "*"));
+  ASSERT_SOME(allFiles);
+  EXPECT_EQ(2u, allFiles.get().size());
+
+  // Rename a `file1` to `file3`, which does not exist yet. Verify `file3`
+  // contains the text that was in `file1`, and make sure the count of files in
+  // the directory has stayed the same.
+  EXPECT_SOME(os::rename(file1, file3));
+
+  Try<string> file3Contents = os::read(file3);
+  ASSERT_SOME(file3Contents);
+  EXPECT_EQ(message, file3Contents.get());
+
+  allFiles = fs::list(path::join(testdir, "*"));
+  ASSERT_SOME(allFiles);
+  EXPECT_EQ(2u, allFiles.get().size());
+
+  // Rename `file3` -> `file2`. `file2` exists, so this will replace it. Verify
+  // text in the file, and that the count of files in the directory have gone
+  // down.
+  EXPECT_SOME(os::rename(file3, file2));
+  Try<string> file2Contents = os::read(file2);
+  ASSERT_SOME(file2Contents);
+  EXPECT_EQ(message, file2Contents.get());
+
+  allFiles = fs::list(path::join(testdir, "*"));
+  ASSERT_SOME(allFiles);
+  EXPECT_EQ(1u, allFiles.get().size());
+
+  // Rename a fake file, verify failure.
+  const string fakeFile = testdir + "does_not_exist";
+  EXPECT_ERROR(os::rename(fakeFile, file1));
+
+  EXPECT_FALSE(os::exists(file1));
+
+  allFiles = fs::list(path::join(testdir, "*"));
+  ASSERT_SOME(allFiles);
+  EXPECT_EQ(1u, allFiles.get().size());
 }
