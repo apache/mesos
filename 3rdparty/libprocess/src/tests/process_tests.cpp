@@ -357,14 +357,17 @@ TEST(ProcessTest, Handlers)
 
   HandlersProcess process;
 
+  Future<Nothing> func;
   EXPECT_CALL(process, func(_, _))
-    .Times(1);
+    .WillOnce(FutureSatisfy(&func));
 
   PID<HandlersProcess> pid = spawn(&process);
 
   ASSERT_FALSE(!pid);
 
   post(pid, "func");
+
+  AWAIT_READY(func);
 
   terminate(pid, false);
   wait(pid);
@@ -534,13 +537,16 @@ TEST(ProcessTest, Delegate)
   DelegateeProcess delegatee;
   DelegatorProcess delegator(delegatee.self());
 
+  Future<Nothing> func;
   EXPECT_CALL(delegatee, func(_, _))
-    .Times(1);
+    .WillOnce(FutureSatisfy(&func));
 
   spawn(&delegator);
   spawn(&delegatee);
 
   post(delegator.self(), "func");
+
+  AWAIT_READY(func);
 
   terminate(delegator, false);
   wait(delegator);
