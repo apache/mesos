@@ -199,8 +199,8 @@ set(LOGGING_SRC
   )
 
 set(MASTER_SRC
-  master/contender.cpp
-  master/detector.cpp
+  master/contender/contender.cpp
+  master/detector/detector.cpp
   master/flags.cpp
   master/http.cpp
   master/maintenance.cpp
