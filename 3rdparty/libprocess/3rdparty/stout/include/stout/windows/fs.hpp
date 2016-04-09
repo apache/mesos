@@ -88,15 +88,22 @@ inline Try<Nothing> symlink(
 // `/root/dir/subdir/*.txt` or `/root/dir/subdir/file?.txt`.
 inline Try<std::list<std::string>> list(const std::string& pattern)
 {
+  std::list<std::string> found_files;
   WIN32_FIND_DATA find_data;
   const HANDLE search_handle = ::FindFirstFile(pattern.c_str(), &find_data);
+
   if (search_handle == INVALID_HANDLE_VALUE) {
+    // For compliance with the POSIX implementation (which uses `::glob`),
+    // return an empty list instead of an error when the path does not exist.
+    int error = ::GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+      return found_files;
+    }
+
     return WindowsError(
         "'fs::list' failed when searching for files with pattern '" +
         pattern + "'");
   }
-
-  std::list<std::string> found_files;
 
   do {
     const std::string current_file(find_data.cFileName);
