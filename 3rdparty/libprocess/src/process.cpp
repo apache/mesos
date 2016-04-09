@@ -1526,7 +1526,7 @@ void send(Encoder* encoder, Socket* socket)
   switch (encoder->kind()) {
     case Encoder::DATA: {
       size_t size;
-      const char* data = reinterpret_cast<DataEncoder*>(encoder)->next(&size);
+      const char* data = static_cast<DataEncoder*>(encoder)->next(&size);
       socket->send(data, size)
         .onAny(lambda::bind(
             &internal::_send,
@@ -1539,7 +1539,7 @@ void send(Encoder* encoder, Socket* socket)
     case Encoder::FILE: {
       off_t offset;
       size_t size;
-      int fd = reinterpret_cast<FileEncoder*>(encoder)->next(&offset, &size);
+      int fd = static_cast<FileEncoder*>(encoder)->next(&offset, &size);
       socket->sendfile(fd, offset, size)
         .onAny(lambda::bind(
             &internal::_send,
