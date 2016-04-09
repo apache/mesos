@@ -28,8 +28,7 @@
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
-#include <stout/os/os.hpp>
-#include <stout/posix/os.hpp>
+#include <stout/os.hpp>
 #include <stout/result.hpp>
 
 #include "slave/qos_controllers/load.hpp"
