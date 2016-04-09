@@ -142,7 +142,7 @@ Future<Nothing> PollSocketImpl::connect(const Address& address)
 {
   Try<int, SocketError> connect = network::connect(get(), address);
   if (connect.isError()) {
-    if (connect.error().code == EINPROGRESS) {
+    if (net::is_inprogress_error(connect.error().code)) {
       return io::poll(get(), io::WRITE)
         .then(lambda::bind(&internal::connect, socket()));
     }
