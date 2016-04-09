@@ -28,6 +28,7 @@
 #include <stout/os/mkdir.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/rename.hpp>
+#include <stout/os/rm.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/write.hpp>
 
@@ -191,6 +192,66 @@ TEST_F(FsTest, Symlink)
 
   // Test symlink
   EXPECT_TRUE(os::stat::islink(link));
+}
+
+
+TEST_F(FsTest, Rm)
+{
+  const string tmpdir = os::getcwd();
+
+  hashset<string> expectedListing;
+  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+
+  const string file1 = path::join(tmpdir, "file1.txt");
+  const string directory1 = path::join(tmpdir, "directory1");
+
+  const string fileSymlink1 = path::join(tmpdir, "fileSymlink1");
+  const string fileToSymlink = path::join(tmpdir, "fileToSymlink.txt");
+  const string directorySymlink1 = path::join(tmpdir, "directorySymlink1");
+  const string directoryToSymlink = path::join(tmpdir, "directoryToSymlink");
+
+  // Create a file, a directory, and a symlink to a file and a directory.
+  ASSERT_SOME(os::touch(file1));
+  expectedListing.insert("file1.txt");
+
+  ASSERT_SOME(os::mkdir(directory1));
+  expectedListing.insert("directory1");
+
+  ASSERT_SOME(os::touch(fileToSymlink));
+  ASSERT_SOME(fs::symlink(fileToSymlink, fileSymlink1));
+  expectedListing.insert("fileToSymlink.txt");
+  expectedListing.insert("fileSymlink1");
+
+  ASSERT_SOME(os::mkdir(directoryToSymlink));
+  ASSERT_SOME(fs::symlink(directoryToSymlink, directorySymlink1));
+  expectedListing.insert("directoryToSymlink");
+  expectedListing.insert("directorySymlink1");
+
+  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+
+  // Verify `rm` of non-empty directory fails.
+  EXPECT_ERROR(os::rm(tmpdir));
+  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+
+  // Remove all, and verify.
+  EXPECT_SOME(os::rm(file1));
+  expectedListing.erase("file1.txt");
+
+  EXPECT_SOME(os::rm(directory1));
+  expectedListing.erase("directory1");
+
+  EXPECT_SOME(os::rm(fileSymlink1));
+  expectedListing.erase("fileSymlink1");
+
+  EXPECT_SOME(os::rm(directorySymlink1));
+  expectedListing.erase("directorySymlink1");
+
+  // `os::rm` doesn't act on the target, therefore we must verify they each
+  // still exist.
+  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+
+  // Verify that we error out for paths that don't exist.
+  EXPECT_ERROR(os::rm("fakeFile"));
 }
 
 
