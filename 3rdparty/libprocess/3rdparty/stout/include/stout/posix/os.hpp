@@ -470,66 +470,6 @@ inline int pagesize()
   return sysconf(_SC_PAGESIZE);
 }
 
-namespace libraries {
-
-// Returns the full library name by adding prefix and extension to
-// library name.
-inline std::string expandName(const std::string& libraryName)
-{
-  const char* prefix = "lib";
-  const char* extension =
-#ifdef __APPLE__
-    ".dylib";
-#else
-    ".so";
-#endif
-
-  return prefix + libraryName + extension;
-}
-
-
-// Returns the current value of LD_LIBRARY_PATH environment variable.
-inline std::string paths()
-{
-  const char* environmentVariable =
-#ifdef __APPLE__
-    "DYLD_LIBRARY_PATH";
-#else
-    "LD_LIBRARY_PATH";
-#endif
-  const Option<std::string> path = getenv(environmentVariable);
-  return path.isSome() ? path.get() : std::string();
-}
-
-
-// Updates the value of LD_LIBRARY_PATH environment variable.
-// Note that setPaths has an effect only for child processes
-// launched after calling it.
-inline void setPaths(const std::string& newPaths)
-{
-  const char* environmentVariable =
-#ifdef __APPLE__
-    "DYLD_LIBRARY_PATH";
-#else
-    "LD_LIBRARY_PATH";
-#endif
-  setenv(environmentVariable, newPaths);
-}
-
-
-// Append newPath to the current value of LD_LIBRARY_PATH environment
-// variable.
-inline void appendPaths(const std::string& newPaths)
-{
-  if (paths().empty()) {
-    setPaths(newPaths);
-  } else {
-    setPaths(paths() + ":" + newPaths);
-  }
-}
-
-} // namespace libraries {
-
 /* /TODO */
 
 } // namespace os {

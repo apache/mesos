@@ -67,4 +67,83 @@
 #include <stout/posix/os.hpp>
 #endif // __WINDOWS__
 
+
+namespace os {
+namespace libraries {
+namespace Library {
+
+// Library prefix; e.g., the `lib` in `libprocess`. NOTE: there is no prefix
+// on Windows; `libprocess.a` would be `process.lib`.
+constexpr const char* prefix =
+#ifdef __WINDOWS__
+    "";
+#else
+    "lib";
+#endif // __WINDOWS__
+
+
+// The suffix for a shared library; e.g., `.so` on Linux.
+constexpr const char* extension =
+#ifdef __APPLE__
+    ".dylib";
+#elif defined(__WINDOWS__)
+    ".dll";
+#else
+    ".so";
+#endif // __APPLE__
+
+
+// The name of the environment variable that contains paths on which the
+// linker should search for libraries. NOTE: Windows does not have an
+// environment variable that controls the paths the linker searches through.
+constexpr const char* ldPathEnvironmentVariable =
+#ifdef __APPLE__
+    "DYLD_LIBRARY_PATH";
+#elif defined(__WINDOWS__)
+    "";
+#else
+    "LD_LIBRARY_PATH";
+#endif
+
+} // namespace Library {
+
+// Returns the full library name by adding prefix and extension to
+// library name.
+inline std::string expandName(const std::string& libraryName)
+{
+  return Library::prefix + libraryName + Library::extension;
+}
+
+
+// Returns the current value of LD_LIBRARY_PATH environment variable.
+inline std::string paths()
+{
+  const Option<std::string> path = getenv(Library::ldPathEnvironmentVariable);
+  return path.isSome() ? path.get() : std::string();
+}
+
+
+// Updates the value of LD_LIBRARY_PATH environment variable.
+// Note that setPaths has an effect only for child processes
+// launched after calling it.
+inline void setPaths(const std::string& newPaths)
+{
+  os::setenv(Library::ldPathEnvironmentVariable, newPaths);
+}
+
+
+// Append newPath to the current value of LD_LIBRARY_PATH environment
+// variable.
+inline void appendPaths(const std::string& newPaths)
+{
+  if (paths().empty()) {
+    setPaths(newPaths);
+  } else {
+    setPaths(paths() + ":" + newPaths);
+  }
+}
+
+} // namespace libraries {
+} // namespace os {
+
 #endif // __STOUT_OS_HPP__
