@@ -57,13 +57,13 @@ class FsTest : public TemporaryDirectoryTest {};
 TEST_F(FsTest, Find)
 {
   const string testdir = path::join(os::getcwd(), UUID::random().toString());
-  const string subdir = testdir + "/test1";
+  const string subdir = path::join(testdir, "test1");
   ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 
   // Now write some files.
-  const string file1 = testdir + "/file1.txt";
-  const string file2 = subdir + "/file2.txt";
-  const string file3 = subdir + "/file3.jpg";
+  const string file1 = path::join(testdir, "file1.txt");
+  const string file2 = path::join(subdir, "file2.txt");
+  const string file3 = path::join(subdir, "file3.jpg");
 
   ASSERT_SOME(os::touch(file1));
   ASSERT_SOME(os::touch(file2));
@@ -105,9 +105,9 @@ TEST_F(FsTest, Mkdir)
   hashset<string> expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
 
-  os::mkdir(tmpdir + "/a/b/c");
-  os::mkdir(tmpdir + "/a/b/d");
-  os::mkdir(tmpdir + "/e/f");
+  ASSERT_SOME(os::mkdir(path::join(tmpdir, "a", "b", "c")));
+  ASSERT_SOME(os::mkdir(path::join(tmpdir, "a", "b", "d")));
+  ASSERT_SOME(os::mkdir(path::join(tmpdir, "e", "f")));
 
   expectedListing = EMPTY;
   expectedListing.insert("a");
@@ -116,22 +116,22 @@ TEST_F(FsTest, Mkdir)
 
   expectedListing = EMPTY;
   expectedListing.insert("b");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a"));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "a")));
 
   expectedListing = EMPTY;
   expectedListing.insert("c");
   expectedListing.insert("d");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b"));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "a", "b")));
 
   expectedListing = EMPTY;
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/c"));
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/d"));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "a", "b", "c")));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "a", "b", "d")));
 
   expectedListing.insert("f");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e"));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "e")));
 
   expectedListing = EMPTY;
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e/f"));
+  EXPECT_EQ(expectedListing, listfiles(path::join(tmpdir, "e", "f")));
 }
 
 
@@ -146,7 +146,7 @@ TEST_F(FsTest, Touch)
 TEST_F(FsTest, Symlink)
 {
   const string temp_path = os::getcwd();
-  const string link = path::join(temp_path, "/sym.link");
+  const string link = path::join(temp_path, "sym.link");
   const string file = path::join(temp_path, UUID::random().toString());
 
   // Create file
@@ -155,7 +155,7 @@ TEST_F(FsTest, Symlink)
   ASSERT_TRUE(os::exists(file));
 
   // Create symlink
-  fs::symlink(file, link);
+  ASSERT_SOME(fs::symlink(file, link));
 
   // Test symlink
   EXPECT_TRUE(os::stat::islink(link));
@@ -168,9 +168,9 @@ TEST_F(FsTest, List)
   ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
 
   // Now write some files.
-  const string file1 = testdir + "/file1.txt";
-  const string file2 = testdir + "/file2.txt";
-  const string file3 = testdir + "/file3.jpg";
+  const string file1 = path::join(testdir, "file1.txt");
+  const string file2 = path::join(testdir, "file2.txt");
+  const string file3 = path::join(testdir, "file3.jpg");
 
   ASSERT_SOME(os::touch(file1));
   ASSERT_SOME(os::touch(file2));
@@ -204,9 +204,9 @@ TEST_F(FsTest, Rename)
   ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
 
   // Now write some files.
-  const string file1 = testdir + "/file1.txt";
-  const string file2 = testdir + "/file2.txt";
-  const string file3 = testdir + "/file3.jpg";
+  const string file1 = path::join(testdir, "file1.txt");
+  const string file2 = path::join(testdir, "file2.txt");
+  const string file3 = path::join(testdir, "file3.jpg");
 
   ASSERT_SOME(os::touch(file1));
   ASSERT_SOME(os::touch(file2));
