@@ -153,6 +153,11 @@ public:
         "containerizer",
         "Containerizer to be used (ie: docker, mesos)",
         "mesos");
+
+    add(&role,
+        "role",
+        "Role to use when registering",
+        "*");
   }
 
   Option<string> master;
@@ -169,6 +174,7 @@ public:
   Option<string> appc_image;
   Option<string> docker_image;
   string containerizer;
+  string role;
 };
 
 
@@ -264,13 +270,21 @@ protected:
     }
 
     foreach (const Offer& offer, offers) {
-      if (!launched &&
-          Resources(offer.resources()).contains(TASK_RESOURCES.get())) {
+      Resources offered = offer.resources();
+
+      if (!launched && offered.flatten().contains(TASK_RESOURCES.get())) {
         TaskInfo task;
         task.set_name(name);
         task.mutable_task_id()->set_value(name);
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
-        task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
+
+        // Takes resources first from the specified role, then from '*'.
+        Option<Resources> resources =
+          offered.find(TASK_RESOURCES.get().flatten(frameworkInfo.role()));
+
+        CHECK_SOME(resources);
+
+        task.mutable_resources()->CopyFrom(resources.get());
 
         CommandInfo* commandInfo = task.mutable_command();
 
@@ -642,6 +656,7 @@ int main(int argc, char** argv)
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_user(user.get());
   frameworkInfo.set_name("");
+  frameworkInfo.set_role(flags.role);
   frameworkInfo.set_checkpoint(flags.checkpoint);
 
   Owned<CommandScheduler> scheduler(
