@@ -118,11 +118,11 @@ the `Credential.principal` into `FrameworkInfo.principal` when registering.
           ]
         }
 
-2. Start the master using the credentials file (assuming the file is `~/credentials`):
+2. Start the master using the credentials file (assuming the file is `/home/user/credentials`):
 
-        ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos --authenticate --authenticate_slaves --credentials=~/credentials
+        ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos --authenticate --authenticate_slaves --credentials=/home/user/credentials
 
-3. Create another file with a single credential in it (`~/slave_credential`):
+3. Create another file with a single credential in it (`/home/user/slave_credential`):
 
         {
           "principal": "principal1",
@@ -131,7 +131,7 @@ the `Credential.principal` into `FrameworkInfo.principal` when registering.
 
 4. Start the slave:
 
-        ./bin/mesos-slave.sh --master=127.0.0.1:5050 --credential=~/slave_credential
+        ./bin/mesos-slave.sh --master=127.0.0.1:5050 --credential=/home/user/slave_credential
 
 5. Your new slave should have now successfully authenticated with the master.
 
