@@ -540,6 +540,33 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
 }
 
 
+// Checks that a weight query request is rejected for unauthenticated
+// principals.
+TEST_F(DynamicWeightsTest, UnauthenticatedQueryWeightRequest)
+{
+  // The master is configured so that only requests from `DEFAULT_CREDENTIAL`
+  // are authenticated.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Credential credential;
+  credential.set_principal("unknown-principal");
+  credential.set_secret("test-secret");
+
+  // Send a weight query request.
+  Future<Response> response = process::http::request(
+      process::http::createRequest(
+          master.get()->pid,
+          "GET",
+          false,
+          "weights",
+          createBasicAuthHeaders(credential)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
+    << response.get().body;
+}
+
+
 // Checks that an authorized principal can update weight with implicit roles.
 TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
 {
