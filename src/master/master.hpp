@@ -1032,6 +1032,9 @@ private:
       CHECK_NOTNULL(master);
     }
 
+    process::Future<process::http::Response> get(
+        const process::http::Request& request) const;
+
     process::Future<process::http::Response> update(
         const process::http::Request& request,
         const Option<std::string>& principal) const;

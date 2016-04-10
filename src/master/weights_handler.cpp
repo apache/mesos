@@ -51,6 +51,28 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+Future<http::Response> Master::WeightsHandler::get(
+    const http::Request& request) const
+{
+  VLOG(1) << "Handling get weights request.";
+
+  // Check that the request type is GET which is guaranteed by the master.
+  CHECK_EQ("GET", request.method);
+
+  RepeatedPtrField<WeightInfo> weightInfos;
+
+  // Create an entry for each weight.
+  foreachpair (const std::string& role, double weight, master->weights) {
+    WeightInfo weightInfo;
+    weightInfo.set_role(role);
+    weightInfo.set_weight(weight);
+    weightInfos.Add()->CopyFrom(weightInfo);
+  }
+
+  return OK(JSON::protobuf(weightInfos), request.url.query.get("jsonp"));
+}
+
+
 Future<http::Response> Master::WeightsHandler::update(
     const http::Request& request,
     const Option<std::string>& principal) const

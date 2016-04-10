@@ -1208,18 +1208,20 @@ Future<Response> Master::Http::weights(
     const Request& request,
     const Option<string>& principal) const
 {
+  // TODO(Yongqiao Wang): `/roles` endpoint also shows the weights information,
+  // consider erasing the duplicated information later.
+  if (request.method == "GET") {
+    return weightsHandler.get(request);
+  }
+
   // Dispatch based on HTTP method to separate `WeightsHandler`.
   if (request.method == "PUT") {
     return weightsHandler.update(request, principal);
   }
 
-  // TODO(Yongqiao Wang): Like /quota, we should also add query logic
-  // for /weights to keep consistent. Then /roles no longer needs to
-  // show weight information.
-
   return MethodNotAllowed(
-      {"PUT"},
-      "Expecting 'PUT', received '" + request.method + "'");
+      {"GET", "PUT"},
+      "Expecting 'GET' or 'PUT', received '" + request.method + "'");
 }
 
 

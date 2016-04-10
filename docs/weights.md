@@ -19,12 +19,20 @@ is deprecated.
 
 # Operator HTTP Endpoint
 
-The master `/weights` HTTP endpoint enables operators to update weights. The
-endpoint currently offers a REST-like interface and only supports update
-requests using PUT.
+The master `/weights` HTTP endpoint enables operators to configure weights. The
+endpoint currently offers a REST-like interface and supports the following operations:
+
+* [Updating](#putRequest) weights with PUT.
+* [Querying](#getRequest) the currently set weights with GET.
 
 The endpoint can optionally use authentication and authorization. See the
 [authentication guide](authentication.md) for details.
+
+<a name="putRequest"></a>
+## Update
+
+The operator can update the weights by sending an HTTP PUT request to the `/weights`
+endpoint.
 
 An example request to the `/weights` endpoint could look like this (using the
 JSON definitions below):
@@ -59,3 +67,30 @@ The operator will receive one of the following HTTP response codes:
 * `400 BadRequest`: Invalid arguments (e.g., invalid JSON, non-positive weights).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
+
+<a name="getRequest"></a>
+## Query
+
+The operator can query the configured weights by sending an HTTP GET request
+to the `/weights` endpoint.
+
+    $ curl -X GET http://<master-ip>:<port>/weights
+
+The response message body includes a JSON representation of the current
+configured weights, for example:
+
+        [
+          {
+            "role": "role2",
+            "weight": 3.5
+          },
+          {
+            "role": "role1",
+            "weight": 2.0
+          }
+        ]
+
+The operator will receive one of the following HTTP response codes:
+
+* `200 OK`: Success.
+* `401 Unauthorized`: Unauthenticated request.
