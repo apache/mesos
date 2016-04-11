@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -31,15 +30,12 @@
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 using namespace mesos;
 
-using std::cerr;
-using std::endl;
 using std::string;
 using std::vector;
 
@@ -49,7 +45,7 @@ const int32_t MEM_PER_TASK = 128;
 // The framework reserves resources to run at most one task at a time
 // on each agent; the resources are reserved when they are offered to
 // the framework for the first time, and are unreserved when all tasks
-// are done. The framework terminates if any task failed.
+// are done. The framework terminates if any task fails.
 class DynamicReservationScheduler : public Scheduler
 {
 public:
@@ -99,7 +95,7 @@ public:
         }
 
         states[offer.slave_id()] = State::INIT;
-      };
+      }
 
       const State state = states[offer.slave_id()];
 
@@ -127,8 +123,7 @@ public:
           }
           states[offer.slave_id()] = State::RESERVED;
 
-          // We fallthorugh here to save an offer cycle.
-          // [[fallthrough]]
+          // We fallthrough here to save an offer cycle.
         }
         case State::RESERVED: {
           Resources resources = offer.resources();
@@ -279,12 +274,12 @@ private:
   //              |               | the driver.
 
   enum State {
-    INIT,         // The framework receive the offer for the first time.
+    INIT,         // The framework received the offer for the first time.
     RESERVING,    // The framework sent the RESERVE request to master.
     RESERVED,     // The framework got reserved resources from master.
     TASK_RUNNING, // The task was dispatched to master.
     UNRESERVING,  // The framework sent the UNRESERVE request to master.
-    UNRESERVED,   // The resources was unreserved.
+    UNRESERVED,   // The resources were unreserved.
   };
 
   hashmap<SlaveID, State> states;
