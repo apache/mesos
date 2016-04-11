@@ -1409,12 +1409,12 @@ TEST(ProcessTest, FirewallDisablePaths)
 {
   const string id = "testprocess";
 
-  // TODO(arojas): Add initilization list construction when available.
-  hashset<string> endpoints;
-  endpoints.insert(path::join("", id, "handler1"));
-  endpoints.insert(path::join("", id, "handler2/nested"));
-  // Patterns are not supported, so this should do nothing.
-  endpoints.insert(path::join("", id, "handler3/*"));
+  hashset<string> endpoints = {
+    path::join("", id, "handler1"),
+    path::join("", id, "handler2/nested"),
+    // Patterns are not supported, so this should do nothing.
+    path::join("", id, "handler3/*")
+  };
 
   process::firewall::install(
       {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});
@@ -1494,10 +1494,10 @@ TEST(ProcessTest, FirewallUninstall)
 {
   const string id = "testprocess";
 
-  // TODO(arojas): Add initilization list construction when available.
-  hashset<string> endpoints;
-  endpoints.insert(path::join("", id, "handler1"));
-  endpoints.insert(path::join("", id, "handler2"));
+  hashset<string> endpoints = {
+    path::join("", id, "handler1"),
+    path::join("", id, "handler2")
+  };
 
   process::firewall::install(
       {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});

@@ -466,11 +466,12 @@ TEST(FutureTest, Select)
   Promise<int> promise3;
   Promise<int> promise4;
 
-  std::set<Future<int>> futures;
-  futures.insert(promise1.future());
-  futures.insert(promise2.future());
-  futures.insert(promise3.future());
-  futures.insert(promise4.future());
+  std::set<Future<int>> futures = {
+    promise1.future(),
+    promise2.future(),
+    promise3.future(),
+    promise4.future()
+  };
 
   promise1.set(42);
 
