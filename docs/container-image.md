@@ -285,7 +285,7 @@ agent flag `--sandbox_directory` properly).
 
 ### Overlay
 
-The reson overlay backend was introduced is because the copy backend
+The reason overlay backend was introduced is because the copy backend
 will waste IO and space while the bind backend can only deal with one
 layer. The overlay backend allows containizer to utilize the
 filesystem to merge multiple filesystems into one efficiently.
