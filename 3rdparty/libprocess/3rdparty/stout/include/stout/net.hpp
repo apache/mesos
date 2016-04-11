@@ -273,6 +273,17 @@ inline Try<std::string> getHostname(const IP& ip)
 }
 
 
+// Returns a `Try` of the result of attempting to set the `hostname`.
+inline Try<Nothing> setHostname(const std::string& hostname)
+{
+  if (sethostname(hostname.c_str(), hostname.size()) != 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
 // Returns the names of all the link devices in the system.
 inline Try<std::set<std::string>> links()
 {
