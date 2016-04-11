@@ -15,7 +15,7 @@ FIRST_LINE=$(head -n 1 "$1")
 LAST_CHAR=$(echo -n "$FIRST_LINE" | tail -c 1)
 FIRST_CHAR=$(echo -n "$FIRST_LINE" | head -c 1)
 
-while read LINE
+while read -r LINE
 do
     # In verbose mode, the diff of the commit is included in the commit message.
     # Since git looks for the following line and skips everything after it,
