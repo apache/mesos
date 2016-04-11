@@ -254,16 +254,16 @@ Future<http::Response> Master::QuotaHandler::set(
   // Check that the role is on the role whitelist, if it exists.
   if (!master->isWhitelistedRole(quotaInfo.role())) {
     return BadRequest(
-        "Failed to validate set quota request JSON '" + request.body +
-        "': Unknown role '" + quotaInfo.role() + "'");
+        "Failed to validate set quota request JSON: Unknown role '" +
+        quotaInfo.role() + "'");
   }
 
   // Check that we are not updating an existing quota.
   // TODO(joerg84): Update error message once quota update is in place.
   if (master->quotas.contains(quotaInfo.role())) {
     return BadRequest(
-        "Failed to validate set quota request JSON '" + request.body +
-        "': Can not set quota for a role that already has quota");
+        "Failed to validate set quota request JSON: Can not set quota"
+        " for role '" + quotaInfo.role() + "' which already has quota");
   }
 
   // The force flag is used to overwrite the `capacityHeuristic` check.
