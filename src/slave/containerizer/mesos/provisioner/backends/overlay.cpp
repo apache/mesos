@@ -45,7 +45,10 @@ namespace slave {
 class OverlayBackendProcess : public Process<OverlayBackendProcess>
 {
 public:
-  Future<Nothing> provision(const vector<string>& layers, const string& rootfs);
+  Future<Nothing> provision(
+      const vector<string>& layers,
+      const string& rootfs,
+      const string& backendDir);
 
   Future<bool> destroy(const string& rootfs);
 };
@@ -55,15 +58,15 @@ Try<Owned<Backend>> OverlayBackend::create(const Flags&)
 {
   Result<string> user = os::user();
   if (!user.isSome()) {
-    return Error("Failed to determine user: " +
-                 (user.isError() ? user.error() : "username not found"));
+    return Error(
+        "Failed to determine user: " +
+        (user.isError() ? user.error() : "username not found"));
   }
 
   if (user.get() != "root") {
     return Error(
       "OverlayBackend requires root privileges, "
-      "but is running as user " +
-      user.get());
+      "but is running as user " + user.get());
   }
 
   Try<bool> supported = fs::overlay::supported();
@@ -96,12 +99,16 @@ OverlayBackend::OverlayBackend(Owned<OverlayBackendProcess> _process)
 
 Future<Nothing> OverlayBackend::provision(
     const vector<string>& layers,
-    const string& rootfs)
+    const string& rootfs,
+    const string& backendDir)
 {
   return dispatch(
-      process.get(), &OverlayBackendProcess::provision, layers, rootfs);
+      process.get(),
+      &OverlayBackendProcess::provision,
+      layers,
+      rootfs,
+      backendDir);
 }
-
 
 Future<bool> OverlayBackend::destroy(const string& rootfs)
 {
@@ -111,34 +118,54 @@ Future<bool> OverlayBackend::destroy(const string& rootfs)
 
 Future<Nothing> OverlayBackendProcess::provision(
     const vector<string>& layers,
-    const string& rootfs)
+    const string& rootfs,
+    const string& backendDir)
 {
   if (layers.size() == 0) {
     return Failure("No filesystem layer provided");
   }
 
-  if (layers.size() == 1) {
-    return Failure("Need more than one layer for overlay");
-  }
-
   Try<Nothing> mkdir = os::mkdir(rootfs);
   if (mkdir.isError()) {
-    return Failure("Failed to create container rootfs at '" + rootfs + "': " +
-                   mkdir.error());
+    return Failure(
+        "Failed to create container rootfs at '" +
+        rootfs + "': " + mkdir.error());
   }
 
-  // For overlayfs, the specified lower directories will be stacked beginning
-  // from the rightmost one and going left. But we need the first layer in the
-  // vector to be the the bottom most layer.
-  std::string lowerDir = "lowerdir=";
-  lowerDir += strings::join(":", adaptor::reverse(layers));
+  const string scratchDirId = Path(rootfs).basename();
+  const string scratchDir = path::join(backendDir, "scratch", scratchDirId);
+  const string upperdir = path::join(scratchDir,  "upperdir");
+  const string workdir = path::join(scratchDir, "workdir");
+
+  mkdir = os::mkdir(upperdir);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create overlay upperdir at '" +
+        upperdir + "': " + mkdir.error());
+  }
+
+  mkdir = os::mkdir(workdir);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create overlay workdir at '" +
+        workdir + "': " + mkdir.error());
+  }
+
+  // For overlayfs, the specified lower directories will be stacked
+  // beginning from the rightmost one and going left. But we need the
+  // first layer in the vector to be the the bottom most layer.
+  string options = "lowerdir=" + strings::join(":", adaptor::reverse(layers));
+  options += ",upperdir=" + upperdir;
+  options += ",workdir=" + workdir;
+
+  VLOG(1) << "Provisioning image rootfs with overlayfs: '" << options << "'";
 
   Try<Nothing> mount = fs::mount(
       "overlay",
       rootfs,
       "overlay",
-      MS_RDONLY,
-      lowerDir);
+      0,
+      options);
 
   if (mount.isError()) {
     return Failure(

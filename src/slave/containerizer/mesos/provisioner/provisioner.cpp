@@ -293,7 +293,15 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
   infos[containerId]->rootfses[backend].insert(rootfsId);
 
-  return backends.get(backend).get()->provision(ImageInfo.layers, rootfs)
+  string backendDir = provisioner::paths::getBackendDir(
+      rootDir,
+      containerId,
+      backend);
+
+  return backends.get(backend).get()->provision(
+      ImageInfo.layers,
+      rootfs,
+      backendDir)
     .then([rootfs, ImageInfo]() -> Future<ProvisionInfo> {
       return ProvisionInfo{rootfs, ImageInfo.dockerManifest};
     });

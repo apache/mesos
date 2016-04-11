@@ -47,7 +47,8 @@ public:
   // path.
   virtual process::Future<Nothing> provision(
       const std::vector<std::string>& layers,
-      const std::string& rootfs);
+      const std::string& rootfs,
+      const std::string& backendDir);
 
   virtual process::Future<bool> destroy(const std::string& rootfs);
 

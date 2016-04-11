@@ -77,7 +77,8 @@ CopyBackend::CopyBackend(Owned<CopyBackendProcess> _process)
 
 Future<Nothing> CopyBackend::provision(
     const vector<string>& layers,
-    const string& rootfs)
+    const string& rootfs,
+    const string& backendDir)
 {
   return dispatch(
       process.get(), &CopyBackendProcess::provision, layers, rootfs);

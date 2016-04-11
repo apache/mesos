@@ -45,6 +45,7 @@ namespace paths {
 // Under each backend a rootfs is identified by the 'rootfs_id' which
 // is a UUID.
 
+
 std::string getContainerDir(
     const std::string& provisionerDir,
     const ContainerID& containerId);
@@ -68,6 +69,12 @@ listContainerRootfses(
 // Return a set of container IDs.
 Try<hashset<ContainerID>> listContainers(
     const std::string& provisionerDir);
+
+
+std::string getBackendDir(
+    const std::string& provisionerDir,
+    const ContainerID& containerId,
+    const std::string& backend);
 
 } // namespace paths {
 } // namespace provisioner {

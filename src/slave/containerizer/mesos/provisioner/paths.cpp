@@ -183,6 +183,19 @@ Try<hashmap<string, hashset<string>>> listContainerRootfses(
   return results;
 }
 
+
+string getBackendDir(
+    const string& provisionerDir,
+    const ContainerID& containerId,
+    const string& backend)
+{
+  return getBackendDir(
+             getBackendsDir(
+                 getContainerDir(
+                     provisionerDir, containerId)),
+             backend);
+}
+
 } // namespace paths {
 } // namespace provisioner {
 } // namespace slave {

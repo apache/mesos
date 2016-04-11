@@ -27,10 +27,20 @@ namespace slave {
 class OverlayBackendProcess;
 
 
-// This is a specialized backend that is useful for deploying multi-layer
-// images using the overlayfs-based backend.
-// 1) OverlayBackend does not support images with a single layer.
-// 2) The filesystem is read-only.
+// This backend mounts the images layers to the rootfs using the overlay file
+// system. The directory layout is as follows:
+// <work_dir> ('--work_dir' flag)
+// |-- provisioner
+//     |-- containers
+//         |-- <container-id>
+//             |-- backends
+//                 |-- overlay
+//                    |-- rootfses
+//                        |-- <rootfs_id> (the rootfs)
+//                    |-- scratch
+//                        |-- <rootfs_id> (the scratch space)
+//                            |-- upperdir
+//                            |-- workdir
 class OverlayBackend : public Backend
 {
 public:
@@ -40,7 +50,8 @@ public:
 
   virtual process::Future<Nothing> provision(
       const std::vector<std::string>& layers,
-      const std::string& rootfs);
+      const std::string& rootfs,
+      const std::string& backendDir);
 
   virtual process::Future<bool> destroy(const std::string& rootfs);
 

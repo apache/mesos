@@ -50,7 +50,8 @@ public:
   // another layer earlier in the list.
   virtual process::Future<Nothing> provision(
       const std::vector<std::string>& layers,
-      const std::string& rootfs) = 0;
+      const std::string& rootfs,
+      const std::string& backendDir) = 0;
 
   // Destroy the root filesystem provisioned at the specified 'rootfs'
   // directory. Return false if there is no provisioned root filesystem

@@ -90,7 +90,8 @@ BindBackend::BindBackend(Owned<BindBackendProcess> _process)
 
 Future<Nothing> BindBackend::provision(
     const vector<string>& layers,
-    const string& rootfs)
+    const string& rootfs,
+    const string& backendDir)
 {
   return dispatch(
       process.get(), &BindBackendProcess::provision, layers, rootfs);
