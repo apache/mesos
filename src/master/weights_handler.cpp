@@ -18,6 +18,8 @@
 
 #include <list>
 
+#include <mesos/roles.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <process/collect.hpp>
@@ -85,8 +87,8 @@ Future<http::Response> Master::WeightsHandler::update(
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(request.body);
   if (parse.isError()) {
     return BadRequest(
-        "Failed to parse update request JSON ('" + request.body + "': " +
-        parse.error());
+        "Failed to parse update weights request JSON ('" +
+        request.body + "'): " + parse.error());
   }
 
   // Create Protobuf representation of weights.
@@ -104,24 +106,27 @@ Future<http::Response> Master::WeightsHandler::update(
   for (WeightInfo& weightInfo : weightInfos.get()) {
     string role = strings::trim(weightInfo.role());
 
-    if (role.empty()) {
+    Option<Error> roleError = roles::validate(role);
+    if (roleError.isSome()) {
       return BadRequest(
-          "Role cannot be empty for weight '" +
-          stringify(weightInfo.weight()) + "'");
+          "Failed to validate update weights request JSON: Invalid role '" +
+          role + "': " + roleError.get().message);
+    }
+
+    // Check that the role is on the role whitelist, if it exists.
+    if (!master->isWhitelistedRole(role)) {
+      return BadRequest(
+          "Failed to validate update weights request JSON: Unknown role '" +
+          role + "'");
     }
 
     if (weightInfo.weight() <= 0) {
       return BadRequest(
-          "Invalid weight '" + stringify(weightInfo.weight()) +
-          "' for role '" + role + "'. Weights must be positive.");
+          "Failed to validate update weights request JSON for role '" +
+          role + "': Invalid weight '" + stringify(weightInfo.weight()) +
+          "': Weights must be positive");
     }
 
-    if (!master->isWhitelistedRole(role)) {
-      return BadRequest(
-          "Invalid role: '" + role + "', which must exist in the static " +
-          "list of roles, specified when the master is started" +
-          " (via the --roles flag).");
-    }
     weightInfo.set_role(role);
     validatedWeightInfos.push_back(weightInfo);
     roles.push_back(role);
