@@ -1638,6 +1638,7 @@ install-exec-local:
 	  PYTHONUSERBASE=$(DESTDIR)$(prefix)				\
 	  $(PYTHON) -c "import pip; pip.main()" install			\
 	  --user $(pipinstallargs)					\
+	  --ignore-installed						\
 	  --find-links=file://$(abs_top_builddir)/src/python/dist	\
 	  $(abs_top_builddir)/src/$$whl;				\
 	done
