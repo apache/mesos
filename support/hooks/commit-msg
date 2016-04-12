@@ -22,8 +22,8 @@ do
     # we also skip everything once this line is observed.
     if [ "$LINE" = "# ------------------------ >8 ------------------------" ]; then break; fi
     if [ "$(echo -n "$LINE" | head -c 1)" = "#" ]; then continue; fi
-    LENGTH=$(echo "$LINE" | wc -c)
-    if [ "$LENGTH" -gt "73" ]; then
+    LENGTH=$(echo -n "$LINE" | wc -c)
+    if [ "$LENGTH" -gt "72" ]; then
         echo >&2 "Error: No line in the commit message summary may exceed 72 characters."
         exit 1
     fi
