@@ -33,6 +33,8 @@
 #include <mesos/module/anonymous.hpp>
 #include <mesos/module/authorizer.hpp>
 
+#include <mesos/zookeeper/detector.hpp>
+
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -73,8 +75,6 @@
 #include "state/storage.hpp"
 
 #include "version/version.hpp"
-
-#include "zookeeper/detector.hpp"
 
 using namespace mesos::internal;
 using namespace mesos::internal::log;

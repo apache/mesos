@@ -21,13 +21,13 @@
 
 #include <mesos/master/contender.hpp>
 
+#include <mesos/zookeeper/group.hpp>
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
 #include <stout/nothing.hpp>
-
-#include "zookeeper/group.hpp"
-#include "zookeeper/url.hpp"
 
 namespace mesos {
 namespace master {

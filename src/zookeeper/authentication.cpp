@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include "zookeeper/authentication.hpp"
+#include <mesos/zookeeper/authentication.hpp>
 
 namespace zookeeper {
 

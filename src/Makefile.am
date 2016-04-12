@@ -579,6 +579,17 @@ v1scheduler_HEADERS =							\
 nodist_v1scheduler_HEADERS =						\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
+zookeeperdir = $(pkgincludedir)/zookeeper
+
+zookeeper_HEADERS =							\
+  $(top_srcdir)/include/mesos/zookeeper/authentication.hpp		\
+  $(top_srcdir)/include/mesos/zookeeper/contender.hpp			\
+  $(top_srcdir)/include/mesos/zookeeper/detector.hpp			\
+  $(top_srcdir)/include/mesos/zookeeper/group.hpp			\
+  $(top_srcdir)/include/mesos/zookeeper/url.hpp				\
+  $(top_srcdir)/include/mesos/zookeeper/watcher.hpp			\
+  $(top_srcdir)/include/mesos/zookeeper/zookeeper.hpp
+
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -848,14 +859,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/schemes/http.hpp							\
   usage/usage.hpp							\
   version/version.hpp							\
-  watcher/whitelist_watcher.hpp						\
-  zookeeper/authentication.hpp						\
-  zookeeper/contender.hpp						\
-  zookeeper/detector.hpp						\
-  zookeeper/group.hpp							\
-  zookeeper/url.hpp							\
-  zookeeper/watcher.hpp							\
-  zookeeper/zookeeper.hpp
+  watcher/whitelist_watcher.hpp
 
 MESOS_LINUX_FILES =							\
   linux/cgroups.cpp							\

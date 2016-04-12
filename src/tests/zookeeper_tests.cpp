@@ -18,6 +18,11 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/zookeeper/authentication.hpp>
+#include <mesos/zookeeper/contender.hpp>
+#include <mesos/zookeeper/detector.hpp>
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
@@ -26,11 +31,6 @@
 #include <stout/strings.hpp>
 
 #include "master/constants.hpp"
-
-#include "zookeeper/authentication.hpp"
-#include "zookeeper/contender.hpp"
-#include "zookeeper/detector.hpp"
-#include "zookeeper/group.hpp"
 
 #include "tests/zookeeper.hpp"
 

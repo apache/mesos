@@ -24,6 +24,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/zookeeper/contender.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -54,8 +56,6 @@
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
 #endif
-
-#include "zookeeper/contender.hpp"
 
 using namespace zookeeper;
 

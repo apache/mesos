@@ -21,9 +21,9 @@
 
 #include <glog/logging.h>
 
-#include <process/dispatch.hpp>
+#include <mesos/zookeeper/zookeeper.hpp>
 
-#include "zookeeper/zookeeper.hpp"
+#include <process/dispatch.hpp>
 
 
 // A watcher which dispatches events to a process. Note that it is

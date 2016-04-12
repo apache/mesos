@@ -26,6 +26,8 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -82,8 +84,6 @@
 #include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
-
-#include "zookeeper/url.hpp"
 
 #include "tests/cluster.hpp"
 

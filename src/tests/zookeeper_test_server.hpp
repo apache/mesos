@@ -23,7 +23,7 @@
 
 #include <jvm/org/apache/zookeeper.hpp>
 
-#include "zookeeper/zookeeper.hpp"
+#include <mesos/zookeeper/zookeeper.hpp>
 
 namespace mesos {
 namespace internal {

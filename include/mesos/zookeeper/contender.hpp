@@ -19,12 +19,12 @@
 
 #include <string>
 
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-
-#include "zookeeper/group.hpp"
 
 namespace zookeeper {
 

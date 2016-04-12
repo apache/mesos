@@ -20,8 +20,12 @@
 
 #include <mesos/module/detector.hpp>
 
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/pid.hpp>
 #include <process/process.hpp>
+
+#include <stout/os.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -29,8 +33,6 @@
 #include "master/detector/zookeeper.hpp"
 
 #include "module/manager.hpp"
-
-#include "zookeeper/url.hpp"
 
 using namespace process;
 using namespace zookeeper;

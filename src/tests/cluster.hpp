@@ -30,6 +30,8 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
@@ -62,8 +64,6 @@
 #include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
-
-#include "zookeeper/url.hpp"
 
 
 namespace mesos {

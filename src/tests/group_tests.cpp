@@ -18,6 +18,9 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/zookeeper/authentication.hpp>
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -26,9 +29,6 @@
 #include <stout/option.hpp>
 
 #include "tests/zookeeper.hpp"
-
-#include "zookeeper/authentication.hpp"
-#include "zookeeper/group.hpp"
 
 using zookeeper::Group;
 using zookeeper::GroupProcess;

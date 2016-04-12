@@ -19,11 +19,11 @@
 
 #include <string>
 
+#include <mesos/zookeeper/group.hpp>
+
 #include <stout/result.hpp>
 
 #include <process/future.hpp>
-
-#include "zookeeper/group.hpp"
 
 namespace zookeeper {
 

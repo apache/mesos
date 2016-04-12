@@ -20,6 +20,8 @@
 #include <set>
 #include <string>
 
+#include <mesos/zookeeper/authentication.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
@@ -29,8 +31,6 @@
 #include "messages/state.hpp"
 
 #include "state/storage.hpp"
-
-#include "zookeeper/authentication.hpp"
 
 namespace mesos {
 namespace internal {

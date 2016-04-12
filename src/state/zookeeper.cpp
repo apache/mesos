@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+#include <mesos/zookeeper/authentication.hpp>
+#include <mesos/zookeeper/watcher.hpp>
+#include <mesos/zookeeper/zookeeper.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -43,10 +47,6 @@
 
 #include "state/storage.hpp"
 #include "state/zookeeper.hpp"
-
-#include "zookeeper/authentication.hpp"
-#include "zookeeper/watcher.hpp"
-#include "zookeeper/zookeeper.hpp"
 
 using namespace process;
 

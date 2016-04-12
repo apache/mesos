@@ -19,6 +19,10 @@
 #include <utility>
 #include <vector>
 
+#include <mesos/zookeeper/group.hpp>
+#include <mesos/zookeeper/watcher.hpp>
+#include <mesos/zookeeper/zookeeper.hpp>
+
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
@@ -36,10 +40,6 @@
 #include <stout/utils.hpp>
 
 #include "logging/logging.hpp"
-
-#include "zookeeper/group.hpp"
-#include "zookeeper/watcher.hpp"
-#include "zookeeper/zookeeper.hpp"
 
 using namespace process;
 

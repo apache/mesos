@@ -18,6 +18,10 @@
 
 #include <mesos/master/contender.hpp>
 
+#include <mesos/zookeeper/contender.hpp>
+#include <mesos/zookeeper/group.hpp>
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -25,10 +29,6 @@
 #include <stout/protobuf.hpp>
 
 #include "master/constants.hpp"
-
-#include "zookeeper/contender.hpp"
-#include "zookeeper/group.hpp"
-#include "zookeeper/url.hpp"
 
 using std::string;
 

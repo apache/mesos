@@ -21,6 +21,10 @@
 
 #include <mesos/master/detector.hpp>
 
+#include <mesos/zookeeper/detector.hpp>
+#include <mesos/zookeeper/group.hpp>
+#include <mesos/zookeeper/url.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -35,10 +39,6 @@
 #include "common/protobuf_utils.hpp"
 
 #include "master/constants.hpp"
-
-#include "zookeeper/detector.hpp"
-#include "zookeeper/group.hpp"
-#include "zookeeper/url.hpp"
 
 using namespace process;
 using namespace zookeeper;

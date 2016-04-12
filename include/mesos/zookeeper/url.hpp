@@ -19,12 +19,12 @@
 
 #include <string>
 
+#include <mesos/zookeeper/authentication.hpp>
+
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
-
-#include "zookeeper/authentication.hpp"
 
 namespace zookeeper {
 

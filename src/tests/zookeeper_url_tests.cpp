@@ -16,10 +16,10 @@
 
 #include <gtest/gtest.h>
 
+#include <mesos/zookeeper/url.hpp>
+
 #include <stout/gtest.hpp>
 #include <stout/try.hpp>
-
-#include "zookeeper/url.hpp"
 
 TEST(ZooKeeperURLTest, URL)
 {

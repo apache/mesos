@@ -21,7 +21,7 @@
 
 #include <string>
 
-#include "logging/logging.hpp"
+#include <glog/logging.h>
 
 namespace zookeeper {
 
@@ -59,7 +59,6 @@ inline std::ostream& operator<<(
   CHECK_EQ(authentication.scheme, "digest");
   return stream << authentication.credentials;
 }
-
 
 } // namespace zookeeper {
 

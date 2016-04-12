@@ -22,6 +22,8 @@
 
 #include <glog/logging.h>
 
+#include <mesos/zookeeper/zookeeper.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
@@ -34,8 +36,6 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
-
-#include "zookeeper/zookeeper.hpp"
 
 using namespace process;
 

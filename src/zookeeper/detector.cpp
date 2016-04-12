@@ -16,6 +16,9 @@
 
 #include <set>
 
+#include <mesos/zookeeper/detector.hpp>
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -25,9 +28,6 @@
 
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
-
-#include "zookeeper/detector.hpp"
-#include "zookeeper/group.hpp"
 
 using namespace process;
 

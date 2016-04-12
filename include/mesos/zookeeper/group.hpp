@@ -21,18 +21,18 @@
 #include <set>
 #include <string>
 
-#include "process/future.hpp"
-#include "process/timer.hpp"
-#include "process/process.hpp"
+#include <mesos/zookeeper/authentication.hpp>
+#include <mesos/zookeeper/url.hpp>
+
+#include <process/future.hpp>
+#include <process/process.hpp>
+#include <process/timer.hpp>
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
-
-#include "zookeeper/authentication.hpp"
-#include "zookeeper/url.hpp"
 
 // Forward declarations.
 class Watcher;

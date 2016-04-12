@@ -24,6 +24,8 @@
 #include <set>
 #include <string>
 
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/collect.hpp>
 #include <process/executor.hpp>
 #include <process/protobuf.hpp>
@@ -36,8 +38,6 @@
 #include <stout/unreachable.hpp>
 
 #include "logging/logging.hpp"
-
-#include "zookeeper/group.hpp"
 
 // Forward declaration.
 class NetworkProcess;

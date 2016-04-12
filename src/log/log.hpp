@@ -23,6 +23,8 @@
 #include <set>
 #include <string>
 
+#include <mesos/zookeeper/group.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -32,8 +34,6 @@
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
-
-#include "zookeeper/group.hpp"
 
 namespace mesos {
 namespace internal {

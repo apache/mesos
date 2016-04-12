@@ -18,14 +18,15 @@
 
 #include <mesos/module/contender.hpp>
 
+#include <mesos/zookeeper/url.hpp>
+
 #include <stout/check.hpp>
+#include <stout/os.hpp>
 
 #include "master/contender/standalone.hpp"
 #include "master/contender/zookeeper.hpp"
 
 #include "module/manager.hpp"
-
-#include "zookeeper/url.hpp"
 
 using std::string;
 
