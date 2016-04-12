@@ -1006,7 +1006,8 @@ TEST_F(MasterTest, MasterInfo)
 
 TEST_F(MasterTest, MasterInfoOnReElection)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get()->pid);
@@ -1058,6 +1059,11 @@ TEST_F(MasterTest, MasterInfoOnReElection)
       net::IP(ntohl(masterInfo.get().ip())));
 
   EXPECT_EQ(MESOS_VERSION, masterInfo.get().version());
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
 
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);
