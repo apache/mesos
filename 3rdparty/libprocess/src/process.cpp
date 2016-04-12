@@ -2092,11 +2092,11 @@ void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
   const int from_fd = from.get();
   const int to_fd = to->get();
 
-  // Make sure the 'from' and 'to' are valid to swap.
-  CHECK(sockets.count(from_fd) > 0);
-  CHECK(sockets.count(to_fd) == 0);
-
   synchronized (mutex) {
+    // Make sure 'from' and 'to' are valid to swap.
+    CHECK(sockets.count(from_fd) > 0);
+    CHECK(sockets.count(to_fd) == 0);
+
     sockets.erase(from_fd);
     sockets[to_fd] = to;
 
