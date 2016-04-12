@@ -662,7 +662,8 @@ TEST_F(MasterTest, StatusUpdateAck)
 
 TEST_F(MasterTest, RecoverResources)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -763,6 +764,14 @@ TEST_F(MasterTest, RecoverResources)
 
   // Now kill the executor, scheduler should get an offer it's resources.
   containerizer.destroy(offer.framework_id(), executorInfo.executor_id());
+
+  // Ensure the container is destroyed, `ExitedExecutorMessage` message
+  // is received by the master and hence its resources will be recovered
+  // before a batch allocation is triggered.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
 
   // TODO(benh): We can't do driver.reviveOffers() because we need to
   // wait for the killed executors resources to get aggregated! We
