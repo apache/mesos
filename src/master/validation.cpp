@@ -149,6 +149,19 @@ Option<Error> validate(const mesos::scheduler::Call& call)
 
 namespace resource {
 
+// Validates that the `gpus` resource is not fractional.
+// We rely on scalar resources only having 3 digits of precision.
+Option<Error> validateGpus(const RepeatedPtrField<Resource>& resources)
+{
+  double gpus = Resources(resources).gpus().getOrElse(0.0);
+  if (static_cast<long long>(gpus * 1000.0) % 1000 != 0) {
+    return Error("The 'gpus' resource must be an unsigned integer");
+  }
+
+  return None();
+}
+
+
 // Validates the ReservationInfos specified in the given resources (if
 // exist). Returns error if any ReservationInfo is found invalid or
 // unsupported.
@@ -263,6 +276,11 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
   Option<Error> error = Resources::validate(resources);
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
+  }
+
+  error = validateGpus(resources);
+  if (error.isSome()) {
+    return Error("Invalid 'gpus' resource: " + error.get().message);
   }
 
   error = validateDiskInfo(resources);
