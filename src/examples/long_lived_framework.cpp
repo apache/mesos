@@ -14,14 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <glog/logging.h>
+
 #include <iostream>
 #include <string>
 
-#include <boost/lexical_cast.hpp>
-
+#include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <stout/numify.hpp>
+#include <stout/flags.hpp>
+#include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -29,23 +31,32 @@
 
 using namespace mesos;
 
-using boost::lexical_cast;
-
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::flush;
 using std::string;
 using std::vector;
 
-const int32_t CPUS_PER_TASK = 1;
-const int32_t MEM_PER_TASK = 32;
 
+// NOTE: Per-task resources are nominal because all of the resources for the
+// container are provisioned when the executor is created. The executor can
+// run multiple tasks at once, but uses a constant amount of resources
+// regardless of the number of tasks.
+const double CPUS_PER_TASK = 0.001;
+const int32_t MEM_PER_TASK = 1;
+
+const double CPUS_PER_EXECUTOR = 0.1;
+const int32_t MEM_PER_EXECUTOR = 32;
+
+
+// This scheduler picks one slave and repeatedly launches sleep tasks on it,
+// using a single multi-task executor. If the slave or executor fails, the
+// scheduler will pick another slave and continue launching sleep tasks.
 class LongLivedScheduler : public Scheduler
 {
 public:
   explicit LongLivedScheduler(const ExecutorInfo& _executor)
     : executor(_executor),
+      taskResources(Resources::parse(
+          "cpus:" + stringify(CPUS_PER_TASK) +
+          ";mem:" + stringify(MEM_PER_TASK)).get()),
       tasksLaunched(0) {}
 
   virtual ~LongLivedScheduler() {}
@@ -54,70 +65,58 @@ public:
                           const FrameworkID&,
                           const MasterInfo&)
   {
-    cout << "Registered!" << endl;
+    LOG(INFO) << "Registered!";
   }
 
-  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) {}
+  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
+  {
+    LOG(INFO) << "Re-registered!";
+  }
 
-  virtual void disconnected(SchedulerDriver* driver) {}
+  virtual void disconnected(SchedulerDriver* driver)
+  {
+    LOG(INFO) << "Disconnected!";
+  }
 
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
-    cout << "." << flush;
-    for (size_t i = 0; i < offers.size(); i++) {
-      const Offer& offer = offers[i];
+    static const Resources EXECUTOR_RESOURCES = Resources(executor.resources());
 
-      // Lookup resources we care about.
-      // TODO(benh): It would be nice to ultimately have some helper
-      // functions for looking up resources.
-      double cpus = 0;
-      double mem = 0;
+    foreach (const Offer& offer, offers) {
+      if (slaveId.isNone()) {
+        // No active executor running in the cluster.
+        // Launch a new task with executor.
 
-      for (int i = 0; i < offer.resources_size(); i++) {
-        const Resource& resource = offer.resources(i);
-        if (resource.name() == "cpus" &&
-            resource.type() == Value::SCALAR) {
-          cpus = resource.scalar().value();
-        } else if (resource.name() == "mem" &&
-                   resource.type() == Value::SCALAR) {
-          mem = resource.scalar().value();
+        if (Resources(offer.resources()).flatten()
+            .contains(EXECUTOR_RESOURCES + taskResources)) {
+          LOG(INFO)
+            << "Starting executor and task " << tasksLaunched
+            << " on " << offer.hostname();
+
+          launchTask(driver, offer);
+
+          slaveId = offer.slave_id();
+        } else {
+          declineOffer(driver, offer);
         }
+      } else if (slaveId == offer.slave_id()) {
+        // Offer from the same slave that has an active executor.
+        // Launch more tasks on that executor.
+
+        if (Resources(offer.resources()).flatten().contains(taskResources)) {
+          LOG(INFO)
+            << "Starting task " << tasksLaunched << " on " << offer.hostname();
+
+          launchTask(driver, offer);
+        } else {
+          declineOffer(driver, offer);
+        }
+      } else {
+        // We have an active executor but this offer comes from a
+        // different slave; decline the offer.
+        declineOffer(driver, offer);
       }
-
-      // Launch tasks (only one per offer).
-      vector<TaskInfo> tasks;
-      if (cpus >= CPUS_PER_TASK && mem >= MEM_PER_TASK) {
-        int taskId = tasksLaunched++;
-
-        cout << "Starting task " << taskId << " on "
-             << offer.hostname() << endl;
-
-        TaskInfo task;
-        task.set_name("Task " + lexical_cast<string>(taskId));
-        task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
-        task.mutable_slave_id()->MergeFrom(offer.slave_id());
-        task.mutable_executor()->MergeFrom(executor);
-
-        Resource* resource;
-
-        resource = task.add_resources();
-        resource->set_name("cpus");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(CPUS_PER_TASK);
-
-        resource = task.add_resources();
-        resource->set_name("mem");
-        resource->set_type(Value::SCALAR);
-        resource->mutable_scalar()->set_value(MEM_PER_TASK);
-
-        tasks.push_back(task);
-
-        cpus -= CPUS_PER_TASK;
-        mem -= MEM_PER_TASK;
-      }
-
-      driver->launchTasks(offer.id(), tasks);
     }
   }
 
@@ -126,9 +125,10 @@ public:
 
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
-    int taskId = lexical_cast<int>(status.task_id().value());
-    cout << "Task " << taskId << " is in state "
-         << TaskState_Name(status.state()) << endl;
+    LOG(INFO)
+      << "Task " << status.task_id().value()
+      << " is in state " << TaskState_Name(status.state())
+      << (status.has_message() ? " with message: " + status.message() : "");
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,
@@ -136,63 +136,176 @@ public:
                                 const SlaveID& slaveId,
                                 const string& data) {}
 
-  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& _slaveId)
+  {
+    LOG(INFO) << "Slave lost: " << _slaveId;
+
+    if (slaveId == _slaveId) {
+      slaveId = None();
+    }
+  }
 
   virtual void executorLost(SchedulerDriver* driver,
                             const ExecutorID& executorId,
-                            const SlaveID& slaveId,
-                            int status) {}
+                            const SlaveID& _slaveId,
+                            int status)
+  {
+    LOG(INFO)
+      << "Executor '" << executorId << "' lost on slave "
+      << _slaveId << " with status: " << status;
+
+    slaveId = None();
+  }
 
   virtual void error(SchedulerDriver* driver, const string& message) {}
 
 private:
+  // Helper to decline an offer.
+  void declineOffer(SchedulerDriver* driver, const Offer& offer)
+  {
+    Filters filters;
+    filters.set_refuse_seconds(600);
+
+    driver->declineOffer(offer.id(), filters);
+  }
+
+  // Helper to launch a task using an offer.
+  void launchTask(SchedulerDriver* driver, const Offer& offer)
+  {
+    int taskId = tasksLaunched++;
+
+    TaskInfo task;
+    task.set_name("Task " + stringify(taskId));
+    task.mutable_task_id()->set_value(stringify(taskId));
+    task.mutable_slave_id()->MergeFrom(offer.slave_id());
+    task.mutable_resources()->CopyFrom(taskResources);
+    task.mutable_executor()->CopyFrom(executor);
+
+    driver->launchTasks(offer.id(), {task});
+  }
+
   const ExecutorInfo executor;
+  const Resources taskResources;
   string uri;
   int tasksLaunched;
+
+  // The slave that is running the long-lived-executor.
+  // Unless that slave/executor dies, this framework will not launch
+  // an executor on any other slave.
+  Option<SlaveID> slaveId;
+};
+
+
+class Flags : public flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&master,
+        "master",
+        "Master to connect to.",
+        [](const Option<string>& value) -> Option<Error> {
+          if (value.isNone()) {
+            return Error("Missing --master");
+          }
+
+          return None();
+        });
+
+    add(&build_dir,
+        "build_dir",
+        "The build directory of Mesos. If set, the framework will assume\n"
+        "that the executor, framework, and agent(s) all live on the same\n"
+        "machine.");
+
+    add(&executor_uri,
+        "executor_uri",
+        "URI the fetcher should use to get the executor.");
+
+    add(&executor_command,
+        "executor_command",
+        "The command that should be used to start the executor.\n"
+        "This will override the value set by `--build_dir`.");
+
+    add(&checkpoint,
+        "checkpoint",
+        "Whether this framework should be checkpointed.",
+        false);
+  }
+
+  Option<string> master;
+
+  // Flags for specifying the executor binary.
+  Option<string> build_dir;
+  Option<string> executor_uri;
+  Option<string> executor_command;
+
+  bool checkpoint;
 };
 
 
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <master>" << endl;
-    return -1;
+  Flags flags;
+  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+
+  if (load.isError()) {
+    EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
+  const Resources resources = Resources::parse(
+      "cpus:" + stringify(CPUS_PER_EXECUTOR) +
+      ";mem:" + stringify(MEM_PER_EXECUTOR)).get();
+
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.mutable_resources()->CopyFrom(resources);
+  executor.set_name("Long Lived Executor (C++)");
+  executor.set_source("cpp_long_lived_framework");
+
+  // Determine the command to run the executor based on three possibilities:
+  //   1) `--executor_command` was set, which overrides the below cases.
+  //   2) We are in the Mesos build directory, so the targeted executable
+  //      is actually a libtool wrapper script.
+  //   3) We have not detected the Mesos build directory, so assume the
+  //      executor is in the same directory as the framework.
+  string command;
+
   // Find this executable's directory to locate executor.
-  string uri;
-  Option<string> value = os::getenv("MESOS_BUILD_DIR");
-  if (value.isSome()) {
-    uri = path::join(value.get(), "src", "long-lived-executor");
+  if (flags.executor_command.isSome()) {
+    command = flags.executor_command.get();
+  } else if (flags.build_dir.isSome()) {
+    command = path::join(
+        flags.build_dir.get(), "src", "long-lived-executor");
   } else {
-    uri = path::join(
+    command = path::join(
         os::realpath(Path(argv[0]).dirname()).get(),
         "long-lived-executor");
   }
 
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value("default");
-  executor.mutable_command()->set_value(uri);
-  executor.set_name("Long Lived Executor (C++)");
-  executor.set_source("cpp_long_lived_framework");
+  executor.mutable_command()->set_value(command);
+
+  // Copy `--executor_uri` into the command.
+  if (flags.executor_uri.isSome()) {
+    mesos::CommandInfo::URI* uri = executor.mutable_command()->add_uris();
+    uri->set_value(flags.executor_uri.get());
+    uri->set_executable(true);
+  }
 
   LongLivedScheduler scheduler(executor);
 
   FrameworkInfo framework;
-  framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_user(os::user().get());
   framework.set_name("Long Lived Framework (C++)");
-
-  value = os::getenv("MESOS_CHECKPOINT");
-  if (value.isSome()) {
-    framework.set_checkpoint(
-        numify<bool>(value.get()).get());
-  }
+  framework.set_checkpoint(flags.checkpoint);
 
   MesosSchedulerDriver* driver;
-  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
-    cout << "Enabling authentication for the framework" << endl;
 
-    value = os::getenv("DEFAULT_PRINCIPAL");
+  // TODO(josephw): Refactor these into a common set of flags.
+  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
+    LOG(INFO) << "Enabling authentication for the framework";
+
+    Option<string> value = os::getenv("DEFAULT_PRINCIPAL");
     if (value.isNone()) {
       EXIT(EXIT_FAILURE)
         << "Expecting authentication principal in the environment";
@@ -212,12 +325,12 @@ int main(int argc, char** argv)
     credential.set_secret(value.get());
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1], credential);
+        &scheduler, framework, flags.master.get(), credential);
   } else {
     framework.set_principal("long-lived-framework-cpp");
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1]);
+        &scheduler, framework, flags.master.get());
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
