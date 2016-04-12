@@ -21,6 +21,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <mesos/log/log.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -33,7 +35,6 @@
 #include <stout/strings.hpp>
 #include <stout/os/read.hpp>
 
-#include "log/log.hpp"
 #include "log/tool/initialize.hpp"
 #include "log/tool/benchmark.hpp"
 

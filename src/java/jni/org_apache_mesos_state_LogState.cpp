@@ -18,9 +18,9 @@
 
 #include <string>
 
-#include <stout/duration.hpp>
+#include <mesos/log/log.hpp>
 
-#include "log/log.hpp"
+#include <stout/duration.hpp>
 
 #include "state/state.hpp"
 #include "state/log.hpp"

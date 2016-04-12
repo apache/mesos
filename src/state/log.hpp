@@ -20,12 +20,12 @@
 #include <set>
 #include <string>
 
+#include <mesos/log/log.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
-
-#include "log/log.hpp"
 
 #include "messages/state.hpp"
 

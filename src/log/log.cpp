@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include <mesos/log/log.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -32,7 +34,6 @@
 #include <stout/set.hpp>
 
 #include "log/coordinator.hpp"
-#include "log/log.hpp"
 #include "log/network.hpp"
 #include "log/recover.hpp"
 #include "log/replica.hpp"

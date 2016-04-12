@@ -22,6 +22,8 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#include <mesos/log/log.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
@@ -55,8 +57,6 @@
 #include "authorizer/local/authorizer.hpp"
 
 #include "files/files.hpp"
-
-#include "log/log.hpp"
 
 #include "master/constants.hpp"
 #include "master/flags.hpp"

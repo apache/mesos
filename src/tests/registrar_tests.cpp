@@ -24,6 +24,8 @@
 #include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/log/log.hpp>
+
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
 #include <process/clock.hpp>
@@ -40,7 +42,6 @@
 
 #include "common/protobuf_utils.hpp"
 
-#include "log/log.hpp"
 #include "log/replica.hpp"
 
 #include "log/tool/initialize.hpp"

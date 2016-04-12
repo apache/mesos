@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/log/log.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/protobuf.hpp>
@@ -36,7 +38,6 @@
 
 #include <stout/tests/utils.hpp>
 
-#include "log/log.hpp"
 #include "log/replica.hpp"
 
 #include "log/tool/initialize.hpp"

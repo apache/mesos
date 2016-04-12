@@ -23,6 +23,7 @@
 #include <set>
 #include <string>
 
+#include <mesos/zookeeper/authentication.hpp>
 #include <mesos/zookeeper/group.hpp>
 
 #include <process/future.hpp>

@@ -462,6 +462,11 @@ fetcher_HEADERS =							\
 nodist_fetcher_HEADERS =						\
   ../include/mesos/fetcher/fetcher.pb.h
 
+logdir = $(pkgincludedir)/log
+
+log_HEADERS =								\
+  $(top_srcdir)/include/mesos/log/log.hpp
+
 maintenancedir = $(pkgincludedir)/maintenance
 
 maintenance_HEADERS =							\
@@ -1035,7 +1040,6 @@ liblog_la_SOURCES +=							\
   log/consensus.hpp							\
   log/coordinator.hpp							\
   log/leveldb.hpp							\
-  log/log.hpp								\
   log/network.hpp							\
   log/recover.hpp							\
   log/replica.hpp							\

@@ -22,6 +22,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/log/log.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -45,7 +47,6 @@
 #include "log/catchup.hpp"
 #include "log/coordinator.hpp"
 #include "log/leveldb.hpp"
-#include "log/log.hpp"
 #include "log/network.hpp"
 #include "log/storage.hpp"
 #include "log/recover.hpp"

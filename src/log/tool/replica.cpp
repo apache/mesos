@@ -16,12 +16,13 @@
 
 #include <iostream>
 
+#include <mesos/log/log.hpp>
+
 #include <process/future.hpp>
 #include <process/process.hpp>
 
 #include <stout/error.hpp>
 
-#include "log/log.hpp"
 #include "log/tool/initialize.hpp"
 #include "log/tool/replica.hpp"
 

@@ -17,12 +17,12 @@
 #include <jni.h>
 #include <stdint.h>
 
+#include <mesos/log/log.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
-
-#include "log/log.hpp"
 
 #include "construct.hpp"
 #include "convert.hpp"
