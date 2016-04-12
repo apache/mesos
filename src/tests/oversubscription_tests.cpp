@@ -1034,7 +1034,8 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
 TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
 {
   // Start the master.
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = MesosTest::CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Start the slave with mock executor and test resource estimator.
@@ -1123,6 +1124,12 @@ TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
     .WillRepeatedly(Return());
 
   driver2.start();
+
+  // Ensure resources are be recovered before a batch allocation is triggered.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
 
   AWAIT_READY(offers3);
   EXPECT_NE(0u, offers3.get().size());
