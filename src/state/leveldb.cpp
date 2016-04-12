@@ -23,6 +23,9 @@
 #include <set>
 #include <string>
 
+#include <mesos/state/leveldb.hpp>
+#include <mesos/state/storage.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -35,11 +38,6 @@
 #include <stout/uuid.hpp>
 
 #include "logging/logging.hpp"
-
-#include "messages/state.hpp"
-
-#include "state/leveldb.hpp"
-#include "state/storage.hpp"
 
 using namespace process;
 

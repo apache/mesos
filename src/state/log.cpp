@@ -24,6 +24,8 @@
 
 #include <mesos/log/log.hpp>
 
+#include <mesos/state/log.hpp>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -42,8 +44,6 @@
 #include <stout/option.hpp>
 #include <stout/svn.hpp>
 #include <stout/uuid.hpp>
-
-#include "state/log.hpp"
 
 using namespace mesos::log;
 

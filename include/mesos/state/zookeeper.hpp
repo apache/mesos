@@ -14,23 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __STATE_ZOOKEEPER_HPP__
-#define __STATE_ZOOKEEPER_HPP__
+#ifndef __MESOS_STATE_ZOOKEEPER_HPP__
+#define __MESOS_STATE_ZOOKEEPER_HPP__
 
 #include <set>
 #include <string>
 
 #include <mesos/zookeeper/authentication.hpp>
 
+#include <mesos/state/storage.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/state.hpp"
-
-#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
@@ -66,4 +64,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_ZOOKEEPER_HPP__
+#endif // __MESOS_STATE_ZOOKEEPER_HPP__

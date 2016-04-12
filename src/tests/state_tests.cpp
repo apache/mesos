@@ -26,6 +26,13 @@
 
 #include <mesos/log/log.hpp>
 
+#include <mesos/state/in_memory.hpp>
+#include <mesos/state/leveldb.hpp>
+#include <mesos/state/log.hpp>
+#include <mesos/state/protobuf.hpp>
+#include <mesos/state/storage.hpp>
+#include <mesos/state/zookeeper.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/protobuf.hpp>
@@ -43,15 +50,6 @@
 #include "log/tool/initialize.hpp"
 
 #include "master/registry.hpp"
-
-#include "messages/state.hpp"
-
-#include "state/in_memory.hpp"
-#include "state/leveldb.hpp"
-#include "state/log.hpp"
-#include "state/protobuf.hpp"
-#include "state/storage.hpp"
-#include "state/zookeeper.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"

@@ -19,13 +19,13 @@
 #include <set>
 #include <string>
 
+#include <mesos/state/state.hpp>
+
 #include <process/check.hpp>
 #include <process/future.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
-
-#include "state/state.hpp"
 
 #include "construct.hpp"
 #include "convert.hpp"

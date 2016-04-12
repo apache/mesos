@@ -14,11 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STATE_STATE_HPP__
-#define __STATE_STATE_HPP__
+#ifndef __MESOS_STATE_STATE_HPP__
+#define __MESOS_STATE_STATE_HPP__
 
 #include <set>
 #include <string>
+
+#include <mesos/state/storage.hpp>
 
 #include <process/deferred.hpp> // TODO(benh): This is required by Clang.
 #include <process/future.hpp>
@@ -29,10 +31,6 @@
 #include <stout/some.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/state.hpp"
-
-#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
@@ -196,4 +194,4 @@ inline process::Future<std::set<std::string>> State::names()
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_STATE_HPP__
+#endif // __MESOS_STATE_STATE_HPP__

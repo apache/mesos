@@ -12,52 +12,47 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License
+// limitations under the License.
 
-#ifndef __STATE_LOG_HPP__
-#define __STATE_LOG_HPP__
+#ifndef __MESOS_STATE_STORAGE_HPP__
+#define __MESOS_STATE_STORAGE_HPP__
 
 #include <set>
 #include <string>
 
-#include <mesos/log/log.hpp>
+#include <mesos/state/state.pb.h>
 
 #include <process/future.hpp>
 
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
 
-#include "messages/state.hpp"
-
-#include "state/storage.hpp"
-
 namespace mesos {
 namespace internal {
 namespace state {
 
-// Forward declarations.
-class LogStorageProcess;
-
-
-class LogStorage : public Storage
+class Storage
 {
 public:
-  LogStorage(mesos::log::Log* log, size_t diffsBetweenSnapshots = 0);
+  Storage() {}
+  virtual ~Storage() {}
 
-  virtual ~LogStorage();
+  // Get and set state entries, factored out to allow Storage
+  // implementations to be agnostic of Variable. Note that set acts
+  // like a "test-and-set" by requiring the existing entry to have the
+  // specified UUID.
+  virtual process::Future<Option<Entry>> get(const std::string& name) = 0;
+  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid) = 0;
 
-  // Storage implementation.
-  virtual process::Future<Option<Entry>> get(const std::string& name);
-  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid);
-  virtual process::Future<bool> expunge(const Entry& entry);
-  virtual process::Future<std::set<std::string>> names();
+  // Returns true if successfully expunged the variable from the state.
+  virtual process::Future<bool> expunge(const Entry& entry) = 0;
 
-private:
-  LogStorageProcess* process;
+  // Returns the collection of variable names in the state.
+  virtual process::Future<std::set<std::string>> names() = 0;
 };
 
 } // namespace state {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_LOG_HPP__
+#endif // __MESOS_STATE_STORAGE_HPP__

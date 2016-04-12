@@ -14,34 +14,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __STATE_IN_MEMORY_HPP__
-#define __STATE_IN_MEMORY_HPP__
+#ifndef __MESOS_STATE_LEVELDB_HPP__
+#define __MESOS_STATE_LEVELDB_HPP__
 
 #include <set>
 #include <string>
 
+#include <mesos/state/storage.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/state.hpp"
-
-#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
 namespace state {
 
-// Forward declaration.
-class InMemoryStorageProcess;
+// More forward declarations.
+class LevelDBStorageProcess;
 
 
-class InMemoryStorage : public Storage
+class LevelDBStorage : public Storage
 {
 public:
-  InMemoryStorage();
-  virtual ~InMemoryStorage();
+  explicit LevelDBStorage(const std::string& path);
+  virtual ~LevelDBStorage();
 
   // Storage implementation.
   virtual process::Future<Option<Entry>> get(const std::string& name);
@@ -50,11 +49,11 @@ public:
   virtual process::Future<std::set<std::string>> names();
 
 private:
-  InMemoryStorageProcess* process;
+  LevelDBStorageProcess* process;
 };
 
 } // namespace state {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_IN_MEMORY_HPP__
+#endif // __MESOS_STATE_LEVELDB_HPP__

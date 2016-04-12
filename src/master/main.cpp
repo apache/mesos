@@ -33,6 +33,11 @@
 #include <mesos/module/anonymous.hpp>
 #include <mesos/module/authorizer.hpp>
 
+#include <mesos/state/in_memory.hpp>
+#include <mesos/state/log.hpp>
+#include <mesos/state/protobuf.hpp>
+#include <mesos/state/storage.hpp>
+
 #include <mesos/zookeeper/detector.hpp>
 
 #include <process/limiter.hpp>
@@ -68,11 +73,6 @@
 #include "master/detector/standalone.hpp"
 
 #include "module/manager.hpp"
-
-#include "state/in_memory.hpp"
-#include "state/log.hpp"
-#include "state/protobuf.hpp"
-#include "state/storage.hpp"
 
 #include "version/version.hpp"
 

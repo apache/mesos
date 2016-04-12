@@ -24,9 +24,13 @@
 #include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <mesos/log/log.hpp>
 
-#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+#include <mesos/state/log.hpp>
+#include <mesos/state/protobuf.hpp>
+#include <mesos/state/storage.hpp>
 
 #include <process/clock.hpp>
 #include <process/gmock.hpp>
@@ -46,18 +50,12 @@
 
 #include "log/tool/initialize.hpp"
 
-#include "messages/state.hpp"
-
 #include "master/flags.hpp"
 #include "master/maintenance.hpp"
 #include "master/master.hpp"
 #include "master/quota.hpp"
 #include "master/registrar.hpp"
 #include "master/weights.hpp"
-
-#include "state/log.hpp"
-#include "state/protobuf.hpp"
-#include "state/storage.hpp"
 
 #include "tests/mesos.hpp"
 

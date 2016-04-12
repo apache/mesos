@@ -171,6 +171,7 @@ MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 MODULE_PROTO = $(top_srcdir)/include/mesos/module/module.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
+STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
 ISOLATOR_PROTO = $(top_srcdir)/include/mesos/slave/isolator.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
 URI_PROTO = $(top_srcdir)/include/mesos/uri/uri.proto
@@ -216,6 +217,8 @@ CXX_PROTOS =								\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.cc				\
   ../include/mesos/slave/oversubscription.pb.h				\
+  ../include/mesos/state/state.pb.cc					\
+  ../include/mesos/state/state.pb.h					\
   ../include/mesos/uri/uri.pb.cc					\
   ../include/mesos/uri/uri.pb.h						\
   ../include/mesos/v1/mesos.pb.cc					\
@@ -541,6 +544,21 @@ slave_HEADERS =								\
 nodist_slave_HEADERS =							\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.h
+
+statedir = $(pkgincludedir)/state
+
+state_HEADERS =								\
+  $(top_srcdir)/include/mesos/state/in_memory.hpp			\
+  $(top_srcdir)/include/mesos/state/leveldb.hpp				\
+  $(top_srcdir)/include/mesos/state/log.hpp				\
+  $(top_srcdir)/include/mesos/state/protobuf.hpp			\
+  $(top_srcdir)/include/mesos/state/state.hpp				\
+  $(top_srcdir)/include/mesos/state/state.proto				\
+  $(top_srcdir)/include/mesos/state/storage.hpp				\
+  $(top_srcdir)/include/mesos/state/zookeeper.hpp
+
+nodist_state_HEADERS =							\
+  ../include/mesos/state/state.pb.h
 
 uridir = $(pkgincludedir)/uri
 
@@ -1066,13 +1084,6 @@ libstate_la_SOURCES =							\
   state/log.cpp								\
   state/zookeeper.cpp
 libstate_la_SOURCES +=							\
-  state/in_memory.hpp							\
-  state/leveldb.hpp							\
-  state/log.hpp								\
-  state/protobuf.hpp							\
-  state/state.hpp							\
-  state/storage.hpp							\
-  state/zookeeper.hpp							\
   messages/state.hpp							\
   messages/state.proto
 nodist_libstate_la_SOURCES = $(CXX_STATE_PROTOS)
@@ -1097,13 +1108,14 @@ libmesos_la_SOURCES =							\
   $(DOCKER_V1_PROTO)							\
   $(DOCKER_V2_PROTO)							\
   $(FETCHER_PROTO)							\
+  $(ISOLATOR_PROTO)							\
   $(MAINTENANCE_PROTO)							\
   $(MESOS_PROTO)							\
   $(MODULE_PROTO)							\
+  $(OVERSUBSCRIPTION_PROTO)						\
   $(QUOTA_PROTO)							\
   $(SCHEDULER_PROTO)							\
-  $(ISOLATOR_PROTO)							\
-  $(OVERSUBSCRIPTION_PROTO)						\
+  $(STATE_PROTO)							\
   $(URI_PROTO)								\
   $(V1_EXECUTOR_PROTO)							\
   $(V1_MESOS_PROTO)							\

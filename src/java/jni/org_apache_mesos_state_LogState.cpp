@@ -20,10 +20,10 @@
 
 #include <mesos/log/log.hpp>
 
-#include <stout/duration.hpp>
+#include <mesos/state/log.hpp>
+#include <mesos/state/state.hpp>
 
-#include "state/state.hpp"
-#include "state/log.hpp"
+#include <stout/duration.hpp>
 
 #include "construct.hpp"
 #include "convert.hpp"

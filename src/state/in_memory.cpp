@@ -17,6 +17,9 @@
 #include <set>
 #include <string>
 
+#include <mesos/state/in_memory.hpp>
+#include <mesos/state/storage.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/process.hpp>
@@ -24,11 +27,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/state.hpp"
-
-#include "state/in_memory.hpp"
-#include "state/storage.hpp"
 
 using namespace process;
 

@@ -14,35 +14,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __STATE_LEVELDB_HPP__
-#define __STATE_LEVELDB_HPP__
+#ifndef __MESOS_STATE_LOG_HPP__
+#define __MESOS_STATE_LOG_HPP__
 
 #include <set>
 #include <string>
 
+#include <mesos/log/log.hpp>
+
+#include <mesos/state/storage.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/option.hpp>
-#include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/state.hpp"
-
-#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
 namespace state {
 
-// More forward declarations.
-class LevelDBStorageProcess;
+// Forward declarations.
+class LogStorageProcess;
 
 
-class LevelDBStorage : public Storage
+class LogStorage : public Storage
 {
 public:
-  explicit LevelDBStorage(const std::string& path);
-  virtual ~LevelDBStorage();
+  LogStorage(mesos::log::Log* log, size_t diffsBetweenSnapshots = 0);
+
+  virtual ~LogStorage();
 
   // Storage implementation.
   virtual process::Future<Option<Entry>> get(const std::string& name);
@@ -51,11 +51,11 @@ public:
   virtual process::Future<std::set<std::string>> names();
 
 private:
-  LevelDBStorageProcess* process;
+  LogStorageProcess* process;
 };
 
 } // namespace state {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_LEVELDB_HPP__
+#endif // __MESOS_STATE_LOG_HPP__

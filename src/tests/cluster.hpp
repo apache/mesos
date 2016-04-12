@@ -32,6 +32,11 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <mesos/state/in_memory.hpp>
+#include <mesos/state/log.hpp>
+#include <mesos/state/protobuf.hpp>
+#include <mesos/state/storage.hpp>
+
 #include <mesos/zookeeper/url.hpp>
 
 #include <process/owned.hpp>
@@ -59,11 +64,6 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
-
-#include "state/in_memory.hpp"
-#include "state/log.hpp"
-#include "state/protobuf.hpp"
-#include "state/storage.hpp"
 
 
 namespace mesos {

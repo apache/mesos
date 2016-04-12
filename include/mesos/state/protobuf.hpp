@@ -14,10 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STATE_PROTOBUF_HPP__
-#define __STATE_PROTOBUF_HPP__
+#ifndef __MESOS_STATE_PROTOBUF_HPP__
+#define __MESOS_STATE_PROTOBUF_HPP__
 
 #include <string>
+
+#include <mesos/state/state.hpp>
+#include <mesos/state/storage.hpp>
 
 #include <process/future.hpp>
 
@@ -28,10 +31,6 @@
 #include <stout/uuid.hpp>
 
 #include "messages/messages.hpp"
-#include "messages/state.hpp"
-
-#include "state/state.hpp"
-#include "state/storage.hpp"
 
 namespace mesos {
 namespace internal {
@@ -165,4 +164,4 @@ process::Future<bool> State::expunge(const Variable<T>& variable)
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATE_PROTOBUF_HPP__
+#endif // __MESOS_STATE_PROTOBUF_HPP__

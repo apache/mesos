@@ -18,8 +18,8 @@
 
 #include <string>
 
-#include "state/leveldb.hpp"
-#include "state/state.hpp"
+#include <mesos/state/leveldb.hpp>
+#include <mesos/state/state.hpp>
 
 #include "construct.hpp"
 #include "convert.hpp"
