@@ -912,7 +912,8 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
 //   5. Check if revocable offers are being sent to the framework.
 TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = MesosTest::CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -996,13 +997,18 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
 
   driver2.start();
 
-  AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
-  EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
-
   AWAIT_READY(sched2Registered);
 
   AWAIT_READY(sched1Error);
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
 
   // Check if framework receives revocable offers.
   Future<vector<Offer>> offers2;
