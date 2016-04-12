@@ -746,6 +746,8 @@ void Slave::initialize()
         [http](const process::http::Request& request) {
           return http.statistics(request);
         });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
   route("/monitor/statistics.json",
         Http::STATISTICS_HELP(),
         [http](const process::http::Request& request) {
