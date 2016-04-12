@@ -31,6 +31,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/check.hpp>
+#include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -55,6 +56,7 @@ using std::vector;
 
 using mesos::internal::devolve;
 
+using mesos::v1::AgentID;
 using mesos::v1::CommandInfo;
 using mesos::v1::ContainerInfo;
 using mesos::v1::Environment;
@@ -65,7 +67,9 @@ using mesos::v1::Label;
 using mesos::v1::Labels;
 using mesos::v1::Offer;
 using mesos::v1::Resources;
+using mesos::v1::TaskID;
 using mesos::v1::TaskInfo;
+using mesos::v1::TaskState;
 using mesos::v1::TaskStatus;
 
 using mesos::v1::scheduler::Call;
@@ -159,6 +163,11 @@ public:
         "role",
         "Role to use when registering.",
         "*");
+
+    add(&kill_after,
+        "kill_after",
+        "Specifies a delay after which the task is killed\n"
+        "(e.g., 10secs, 2mins, etc).");
   }
 
   Option<string> master;
@@ -176,6 +185,7 @@ public:
   Option<string> docker_image;
   string containerizer;
   string role;
+  Option<Duration> kill_after;
 };
 
 
@@ -193,7 +203,8 @@ public:
       const Option<string>& _uri,
       const Option<string>& _appcImage,
       const Option<string>& _dockerImage,
-      const string& _containerizer)
+      const string& _containerizer,
+      const Option<Duration>& _killAfter)
     : state(DISCONNECTED),
       frameworkInfo(_frameworkInfo),
       master(_master),
@@ -206,6 +217,7 @@ public:
       appcImage(_appcImage),
       dockerImage(_dockerImage),
       containerizer(_containerizer),
+      killAfter(_killAfter),
       launched(false) {}
 
   virtual ~CommandScheduler() {}
@@ -254,6 +266,24 @@ protected:
     mesos->send(call);
 
     process::delay(Seconds(1), self(), &Self::doReliableRegistration);
+  }
+
+  void killTask(const TaskID& taskId, const AgentID& agentId)
+  {
+    cout << "Asked to kill task '" << taskId
+         << "' on agent '" << agentId << "'" << endl;
+
+    Call call;
+    call.set_type(Call::KILL);
+
+    CHECK(frameworkInfo.has_id());
+    call.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+
+    Call::Kill* kill = call.mutable_kill();
+    kill->mutable_task_id()->CopyFrom(taskId);
+    kill->mutable_agent_id()->CopyFrom(agentId);
+
+    mesos->send(call);
   }
 
   void offers(const vector<Offer>& offers)
@@ -444,6 +474,15 @@ protected:
       mesos->send(call);
     }
 
+    // If a task kill delay has been specified, schedule task kill.
+    if (killAfter.isSome() && TaskState::TASK_RUNNING == status.state()) {
+      delay(killAfter.get(),
+            self(),
+            &Self::killTask,
+            status.task_id(),
+            status.agent_id());
+    }
+
     if (mesos::internal::protobuf::isTerminalState(devolve(status).state())) {
       terminate(self());
     }
@@ -531,6 +570,8 @@ private:
   const Option<string> appcImage;
   const Option<string> dockerImage;
   const string containerizer;
+  const Option<Duration> killAfter;
+
   bool launched;
   Owned<Mesos> mesos;
 };
@@ -671,6 +712,8 @@ int main(int argc, char** argv)
   frameworkInfo.set_name("mesos-execute instance");
   frameworkInfo.set_role(flags.role);
   frameworkInfo.set_checkpoint(flags.checkpoint);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::TASK_KILLING_STATE);
 
   Owned<CommandScheduler> scheduler(
       new CommandScheduler(
@@ -684,7 +727,8 @@ int main(int argc, char** argv)
         uri,
         appcImage,
         dockerImage,
-        flags.containerizer));
+        flags.containerizer,
+        flags.kill_after));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
