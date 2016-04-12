@@ -35,6 +35,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/pagesize.hpp>
+
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
@@ -84,7 +86,7 @@ static Try<void*> allocateRSS(const Bytes& size)
 #endif
 
   void* rss = NULL;
-  if (posix_memalign(&rss, getpagesize(), size.bytes()) != 0) {
+  if (posix_memalign(&rss, os::pagesize(), size.bytes()) != 0) {
     return ErrnoError("Failed to increase RSS memory, posix_memalign");
   }
 

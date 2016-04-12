@@ -48,6 +48,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/pagesize.hpp>
+
 #include "linux/cgroups.hpp"
 #include "linux/perf.hpp"
 
@@ -1129,12 +1131,12 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseRSS)
 
   // Use a guard to error out if it's been too long.
   // TODO(chzhcn): Use a better way to set testing time limit.
-  uint64_t iterationLimit = (limit.bytes() / getpagesize()) * 10;
+  uint64_t iterationLimit = (limit.bytes() / os::pagesize()) * 10;
   uint64_t i = 0;
   bool stable = true;
   while (i < iterationLimit) {
     if (stable) {
-      EXPECT_SOME(helper.increaseRSS(getpagesize()));
+      EXPECT_SOME(helper.increaseRSS(os::pagesize()));
     }
 
     Future<uint64_t> _low = counters[Level::LOW]->value();

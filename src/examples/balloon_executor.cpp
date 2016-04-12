@@ -31,6 +31,8 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/pagesize.hpp>
+
 using namespace mesos;
 
 
@@ -50,7 +52,7 @@ static void balloon(size_t limit)
 
     // Allocate page-aligned virtual memory.
     void* buffer = NULL;
-    if (posix_memalign(&buffer, getpagesize(), chunk) != 0) {
+    if (posix_memalign(&buffer, os::pagesize(), chunk) != 0) {
       perror("Failed to allocate page-aligned memory, posix_memalign");
       abort();
     }
