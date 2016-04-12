@@ -1212,7 +1212,8 @@ TEST_F(MasterTest, MasterLost)
 // all slave resources and a single task should be able to run on these.
 TEST_F(MasterTest, LaunchCombinedOfferTest)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1280,6 +1281,11 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1.get().state());
 
+  // Advance the clock and trigger a batch allocation.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
+
   // Await 2nd offer.
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
@@ -1306,6 +1312,11 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_KILLED, status2.get().state());
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
 
   // Await 3rd offer - 2nd and 3rd offer to same slave are now ready.
   AWAIT_READY(offers3);
