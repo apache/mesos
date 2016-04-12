@@ -365,7 +365,9 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 
   // Executor shutdown would force the Slave to execute the
   // remove-executor hook.
-  EXPECT_CALL(exec, shutdown(_));
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));;
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -383,6 +385,10 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 
   driver.stop();
   driver.join();
+
+  // Explicitly destroy the container.
+  AWAIT_READY(shutdown);
+  containerizer.destroy(offers.get()[0].framework_id(), DEFAULT_EXECUTOR_ID);
 
   // The scheduler shutdown from above forces the executor to
   // shutdown. This in turn should force the Slave to execute
