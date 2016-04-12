@@ -666,6 +666,10 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   TestContainerizer containerizer(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
+
+  // Set the `executor_shutdown_grace_period` to a small value so that
+  // the agent does not wait for executors to clean up for too long.
+  flags1.executor_shutdown_grace_period = Milliseconds(50);
   flags1.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
