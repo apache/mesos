@@ -93,29 +93,6 @@ public:
     process::wait(metrics);
   }
 
-  virtual void registered(SchedulerDriver*,
-                          const FrameworkID&,
-                          const MasterInfo&)
-  {
-    LOG(INFO) << "Registered!";
-
-    metrics.isRegistered = true;
-  }
-
-  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
-  {
-    LOG(INFO) << "Re-registered!";
-
-    metrics.isRegistered = true;
-  }
-
-  virtual void disconnected(SchedulerDriver* driver)
-  {
-    LOG(INFO) << "Disconnected!";
-
-    metrics.isRegistered = false;
-  }
-
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
@@ -160,9 +137,6 @@ public:
     }
   }
 
-  virtual void offerRescinded(SchedulerDriver* driver,
-                              const OfferID& offerId) {}
-
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
     LOG(INFO)
@@ -177,11 +151,6 @@ public:
       ++metrics.abnormal_terminations;
     }
   }
-
-  virtual void frameworkMessage(SchedulerDriver* driver,
-                                const ExecutorID& executorId,
-                                const SlaveID& slaveId,
-                                const string& data) {}
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& _slaveId)
   {
@@ -203,8 +172,6 @@ public:
 
     slaveId = None();
   }
-
-  virtual void error(SchedulerDriver* driver, const string& message) {}
 
 private:
   // Helper to decline an offer.
