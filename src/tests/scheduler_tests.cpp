@@ -1041,6 +1041,9 @@ TEST_P(SchedulerTest, Decline)
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers2));
 
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -1056,6 +1059,13 @@ TEST_P(SchedulerTest, Decline)
 
     mesos.send(call);
   }
+
+  // Make sure the dispatch event for `recoverResources` has been enqueued.
+  AWAIT_READY(recoverResources);
+
+  Clock::pause();
+  Clock::advance(flags.allocation_interval);
+  Clock::resume();
 
   // If the resources were properly declined, the scheduler should
   // get another offer with same amount of resources.
