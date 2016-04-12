@@ -110,14 +110,10 @@ public:
       tasksLaunched(0),
       metrics(*this)
   {
-    process::spawn(metrics);
+    start_time = Clock::now();
   }
 
-  virtual ~LongLivedScheduler()
-  {
-    process::terminate(metrics);
-    process::wait(metrics);
-  }
+  virtual ~LongLivedScheduler() {}
 
 protected:
   virtual void initialize()
@@ -144,8 +140,6 @@ protected:
     LOG(INFO) << "Disconnected!";
 
     state = DISCONNECTED;
-
-    metrics.isRegistered = false;
   }
 
   void doReliableRegistration()
@@ -185,8 +179,6 @@ protected:
             CopyFrom(event.subscribed().framework_id());
 
           state = SUBSCRIBED;
-
-          metrics.isRegistered = true;
           break;
         }
 
@@ -360,6 +352,7 @@ private:
   void launch(const Offer& offer)
   {
     int taskId = tasksLaunched++;
+    ++metrics.tasks_launched;
 
     TaskInfo task;
     task.set_name("Task " + stringify(taskId));
@@ -406,85 +399,51 @@ private:
 
   Owned<Mesos> mesos;
 
-  struct Metrics : process::Process<Metrics>
+  process::Time start_time;
+  double _uptime_secs()
   {
-    Metrics(const LongLivedScheduler& _scheduler)
-      : ProcessBase("framework"),
-        scheduler(_scheduler),
-        isRegistered(false),
-        uptime_secs(
+    return (Clock::now() - start_time).secs();
+  }
+
+  double _subscribed()
+  {
+    return state == SUBSCRIBED ? 1 : 0;
+  }
+
+  struct Metrics
+  {
+    Metrics(const LongLivedScheduler& scheduler)
+      : uptime_secs(
             "long_lived_framework/uptime_secs",
-            defer(this, &Self::_uptime_secs)),
-        registered(
-            "long_lived_framework/registered",
-            defer(this, &Self::_registered)),
+            defer(scheduler, &LongLivedScheduler::_uptime_secs)),
+        subscribed(
+            "long_lived_framework/subscribed",
+            defer(scheduler, &LongLivedScheduler::_subscribed)),
         offers_received("long_lived_framework/offers_received"),
-        tasks_launched(
-            "long_lived_framework/tasks_launched",
-            defer(this, &Self::_tasksLaunched)),
+        tasks_launched("long_lived_framework/tasks_launched"),
         abnormal_terminations("long_lived_framework/abnormal_terminations")
     {
-      start_time = Clock::now();
-
       process::metrics::add(uptime_secs);
-      process::metrics::add(registered);
+      process::metrics::add(subscribed);
       process::metrics::add(offers_received);
       process::metrics::add(tasks_launched);
       process::metrics::add(abnormal_terminations);
     }
 
-    virtual void initialize()
-    {
-      // Special route for metric metadata.
-      route(
-          "/counters",
-          HELP(
-              TLDR("List of counter-type metrics."),
-              DESCRIPTION("Returns 200 OK iff the request is accepted."),
-              AUTHENTICATION(false)),
-          [this](const process::http::Request& request) {
-            JSON::Array array;
-            array.values.push_back("long_lived_framework/offers_received");
-            array.values.push_back(
-                "long_lived_framework/abnormal_terminations");
-
-            return OK(array, request.url.query.get("jsonp"));
-          });
-    }
-
     ~Metrics()
     {
       process::metrics::remove(uptime_secs);
-      process::metrics::remove(registered);
+      process::metrics::remove(subscribed);
       process::metrics::remove(offers_received);
       process::metrics::remove(tasks_launched);
       process::metrics::remove(abnormal_terminations);
     }
 
-    const LongLivedScheduler& scheduler;
-
-    process::Time start_time;
-    double _uptime_secs()
-    {
-      return (Clock::now() - start_time).secs();
-    }
-
-    bool isRegistered;
-    double _registered()
-    {
-      return isRegistered ? 1 : 0;
-    }
-
-    double _tasksLaunched()
-    {
-      return scheduler.tasksLaunched;
-    }
-
     process::metrics::Gauge uptime_secs;
-    process::metrics::Gauge registered;
+    process::metrics::Gauge subscribed;
 
     process::metrics::Counter offers_received;
-    process::metrics::Gauge tasks_launched;
+    process::metrics::Counter tasks_launched;
 
     // The only expected terminal state is TASK_FINISHED.
     // Other terminal states are considered incorrect.
