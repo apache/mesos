@@ -32,6 +32,7 @@
 #include <stout/none.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/pagesize.hpp>
 #include <stout/os/process.hpp>
 #include <stout/os/sysctl.hpp>
 
@@ -202,7 +203,7 @@ inline Try<Memory> memory()
 
   // Size of free memory is available in terms of number of
   // free pages on Mac OS X.
-  const long pageSize = sysconf(_SC_PAGESIZE);
+  const int pageSize = os::pagesize();
   if (pageSize < 0) {
     return ErrnoError();
   }

@@ -33,6 +33,7 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/pagesize.hpp>
 #include <stout/os/process.hpp>
 
 namespace os {
@@ -83,10 +84,9 @@ inline pid_t clone(const lambda::function<int()>& func, int flags)
 inline Result<Process> process(pid_t pid)
 {
   // Page size, used for memory accounting.
-  // NOTE: This is more portable than using getpagesize().
-  static const long pageSize = sysconf(_SC_PAGESIZE);
+  static const int pageSize = os::pagesize();
   if (pageSize <= 0) {
-    return Error("Failed to get sysconf(_SC_PAGESIZE)");
+    return Error("Failed to get `os::pagesize`");
   }
 
   // Number of clock ticks per second, used for cpu accounting.

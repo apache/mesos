@@ -462,14 +462,6 @@ inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
   return children(pid, processes.get(), recursive);
 }
 
-
-// The alternative `getpagesize()` does not exist when enforcing
-// strict POSIX compliance.
-inline int pagesize()
-{
-  return sysconf(_SC_PAGESIZE);
-}
-
 /* /TODO */
 
 } // namespace os {
