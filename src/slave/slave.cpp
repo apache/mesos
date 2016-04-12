@@ -5174,6 +5174,18 @@ Future<ResourceUsage> Slave::usage()
       entry->mutable_allocated()->CopyFrom(executor->resources);
       entry->mutable_container_id()->CopyFrom(executor->containerId);
 
+      // We include non-terminal tasks in ResourceUsage.
+      foreach (const Task* task, executor->launchedTasks.values()) {
+        ResourceUsage::Executor::Task* t = entry->add_tasks();
+        t->set_name(task->name());
+        t->mutable_id()->CopyFrom(task->task_id());
+        t->mutable_resources()->CopyFrom(task->resources());
+
+        if (task->has_labels()) {
+          t->mutable_labels()->CopyFrom(task->labels());
+        }
+      }
+
       futures.push_back(containerizer->usage(executor->containerId));
     }
   }

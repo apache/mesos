@@ -1020,6 +1020,16 @@ message ResourceUsage {
 
     // The container id for the executor specified in the executor_info field.
     required ContainerID container_id = 4;
+
+    message Task {
+      required string name = 1;
+      required TaskID id = 2;
+      repeated Resource resources = 3;
+      optional Labels labels = 4;
+    }
+
+    // Non-terminal tasks.
+    repeated Task tasks = 5;
   }
 
   repeated Executor executors = 1;

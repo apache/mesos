@@ -58,6 +58,9 @@ Additional API Changes:
 
   * [MESOS-5029] - Added 'labels' to ExecutorInfo.
 
+  * [MESOS-5030] - Added non-terminal task metadata to the container resource
+    usage information.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
