@@ -1865,6 +1865,16 @@ TEST_F(RecoverTest, AutoInitialization)
 
   Future<Owned<Replica> > recovering3 = recover(2, replica3, network, true);
 
+  Clock::pause();
+  Clock::settle();
+
+  // At this moment `replica1` and `replica2` are in EMPTY status, and
+  // are retrying with a random interval between [0.5 sec, 1 sec]. Since
+  // the retry interval is hard coded and is not configurable, we need
+  // to advance the clock here to avoid waiting for the backoff time.
+  Clock::advance(Seconds(1));
+  Clock::resume();
+
   AWAIT_READY(recovering1);
   AWAIT_READY(recovering2);
   AWAIT_READY(recovering3);
