@@ -284,7 +284,7 @@ disk resource, we can send an HTTP POST request to the master's
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Request accepted (see below).
+* `202 Accepted`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
@@ -293,14 +293,13 @@ The user receives one of the following HTTP responses:
 A single `/create-volumes` request can create multiple persistent volumes, but
 all of the volumes must be on the same slave.
 
-Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
-the persistent volumes have been created successfully. Instead, this return code
-indicates that the create operation has been validated successfully by the
-master. The request is then forwarded asynchronously to the Mesos slave where
-the reserved resources are located. That asynchronous message may not be
-delivered or creating the volumes at the slave might fail, in which case no
-volumes will be created. To determine if a create operation has succeeded, the
-user can examine the state of the appropriate Mesos slave (e.g., via the slave's
+This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
+the create operation has been validated successfully by the master. The request
+is then forwarded asynchronously to the Mesos slave where the reserved
+resources are located. That asynchronous message may not be delivered or
+creating the volumes at the slave might fail, in which case no volumes will be
+created. To determine if a create operation has succeeded, the user can examine
+the state of the appropriate Mesos slave (e.g., via the slave's
 [/state](endpoints/slave/state.md) HTTP endpoint).
 
 ### `/destroy-volumes`
@@ -335,7 +334,7 @@ To destroy the volume created above, we can send an HTTP POST to the master's
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Request accepted (see below).
+* `202 Accepted`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
@@ -344,15 +343,14 @@ The user receives one of the following HTTP responses:
 A single `/destroy-volumes` request can destroy multiple persistent volumes, but
 all of the volumes must be on the same slave.
 
-Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
-the persistent volumes have been destroyed successfully. Instead, this return
-code indicates that the destroy operation has been validated successfully by the
-master. The request is then forwarded asynchronously to the Mesos slave where
-the persistent volumes are located. That asynchronous message may not be
-delivered or destroying the volumes at the slave might fail, in which case no
-volumes will be destroyed. To determine if a destroy operation has succeeded,
-the user can examine the state of the appropriate Mesos slave (e.g., via the
-slave's [/state](endpoints/slave/state.md) HTTP endpoint).
+This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
+the destroy operation has been validated successfully by the master. The
+request is then forwarded asynchronously to the Mesos slave where the reserved
+resources are located. That asynchronous message may not be delivered or
+destroying the volumes at the slave might fail, in which case no volumes will
+be destroyed. To determine if a destroy operation has succeeded, the user can
+examine the state of the appropriate Mesos slave (e.g., via the slave's
+[/state](endpoints/slave/state.md) HTTP endpoint).
 
 ## Listing Persistent Volumes
 
@@ -377,7 +375,7 @@ volumes:
 
 * When using HTTP endpoints to reserve resources or create persistent volumes,
   _some_ failures can be detected by examining the HTTP response code returned
-  to the client. However, it is still possible for a `200` response code to be
+  to the client. However, it is still possible for a `202` response code to be
   returned to the client but for the associated operation to fail---see
   discussion above.
 

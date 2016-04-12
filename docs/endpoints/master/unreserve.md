@@ -12,7 +12,7 @@ layout: documentation
 Unreserve resources dynamically on a specific slave.
 
 ### DESCRIPTION ###
-Returns 200 OK if the request was accepted. This does not
+Returns 202 Accepted if the request was accepted. This does not
 imply that the requested resources have been unreserved successfully:
 resource unreservation is done asynchronously and may fail.
 

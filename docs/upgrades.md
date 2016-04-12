@@ -164,6 +164,12 @@ We categorize the changes as follows:
 
 * When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
 
+* Mesos 0.29 changes the HTTP status code of the following endpoints from `200 OK` to `202 Accepted`:
+  * `/reserve`
+  * `/unreserve`
+  * `/create-volumes`
+  * `/destroy-volumes`
+
 ## Upgrading from 0.27.x to 0.28.x ##
 
 <a name="0-28-x-resource-precision"></a>

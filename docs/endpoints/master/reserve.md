@@ -12,7 +12,7 @@ layout: documentation
 Reserve resources dynamically on a specific slave.
 
 ### DESCRIPTION ###
-Returns 200 OK if the request was accepted. This does not
+Returns 202 Accepted if the request was accepted. This does not
 imply that the requested resources have been reserved successfully:
 resource reservation is done asynchronously and may fail.
 

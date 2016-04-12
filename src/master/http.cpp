@@ -538,9 +538,12 @@ string Master::Http::CREATE_VOLUMES_HELP()
     TLDR(
         "Create persistent volumes on reserved resources."),
     DESCRIPTION(
-        "Returns 200 OK if the request was accepted. This does not",
-        "imply that the volume was created successfully: volume",
-        "creation is done asynchronously and may fail.",
+        "Returns 202 ACCEPTED which indicates that the create",
+        "operation has been validated successfully by the master.",
+        "The request is then forwarded asynchronously to the Mesos",
+        "slave where the reserved resources are located.",
+        "That asynchronous message may not be delivered or",
+        "creating the volumes at the slave might fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be created."),
@@ -650,9 +653,12 @@ string Master::Http::DESTROY_VOLUMES_HELP()
     TLDR(
         "Destroy persistent volumes."),
     DESCRIPTION(
-        "Returns 200 OK if the request was accepted. This does not",
-        "imply that the volume was destroyed successfully: volume",
-        "destruction is done asynchronously and may fail.",
+        "Returns 202 ACCEPTED which indicates that the destroy",
+        "operation has been validated successfully by the master.",
+        "The request is then forwarded asynchronously to the Mesos",
+        "slave where the reserved resources are located.",
+        "That asynchronous message may not be delivered or",
+        "destroying the volumes at the slave might fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."),
@@ -986,9 +992,12 @@ string Master::Http::RESERVE_HELP()
     TLDR(
         "Reserve resources dynamically on a specific slave."),
     DESCRIPTION(
-        "Returns 200 OK if the request was accepted. This does not",
-        "imply that the requested resources have been reserved successfully:",
-        "resource reservation is done asynchronously and may fail.",
+        "Returns 202 ACCEPTED which indicates that the reserve",
+        "operation has been validated successfully by the master.",
+        "The request is then forwarded asynchronously to the Mesos",
+        "slave where the reserved resources are located.",
+        "That asynchronous message may not be delivered or",
+        "reserving resources at the slave might fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be reserved."),
@@ -2449,9 +2458,12 @@ string Master::Http::UNRESERVE_HELP()
     TLDR(
         "Unreserve resources dynamically on a specific slave."),
     DESCRIPTION(
-        "Returns 200 OK if the request was accepted. This does not",
-        "imply that the requested resources have been unreserved successfully:",
-        "resource unreservation is done asynchronously and may fail.",
+        "Returns 202 ACCEPTED which indicates that the unreserve",
+        "operation has been validated successfully by the master.",
+        "The request is then forwarded asynchronously to the Mesos",
+        "slave where the reserved resources are located.",
+        "That asynchronous message may not be delivered or",
+        "unreserving resources at the slave might fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be unreserved."),
@@ -2587,9 +2599,9 @@ Future<Response> Master::Http::_operation(
   }
 
   // Propagate the 'Future<Nothing>' as 'Future<Response>' where
-  // 'Nothing' -> 'OK' and Failed -> 'Conflict'.
+  // 'Nothing' -> 'Accepted' and Failed -> 'Conflict'.
   return master->apply(slave, operation)
-    .then([]() -> Response { return OK(); })
+    .then([]() -> Response { return Accepted(); })
     .repair([](const Future<Response>& result) {
        return Conflict(result.failure());
     });

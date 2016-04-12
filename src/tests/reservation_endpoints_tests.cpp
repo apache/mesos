@@ -54,10 +54,10 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::Forbidden;
-using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
@@ -133,7 +133,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -178,7 +178,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -256,7 +256,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -303,7 +303,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -337,7 +337,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -476,7 +476,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -546,7 +546,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), total));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -639,7 +639,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), total));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -712,7 +712,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources1));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   response = process::http::post(
       master.get()->pid,
@@ -720,7 +720,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources2));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -757,7 +757,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources1));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -793,7 +793,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources2));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -1013,7 +1013,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Unreserve the resources.
   response = process::http::post(
@@ -1022,7 +1022,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 }
 
 
@@ -1078,7 +1078,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveACLMultipleRoles)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReservedMultipleRoles));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 }
 
 
@@ -1195,7 +1195,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Attempt to unreserve the resources.
   response = process::http::post(
@@ -1425,7 +1425,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Try to unreserve with no principal in `ReservationInfo` and no
   // authentication headers.
@@ -1435,7 +1435,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 }
 
 
@@ -1480,7 +1480,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved1));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   response = process::http::post(
       master.get()->pid,
@@ -1488,7 +1488,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
       createRequestBody(slaveId.get(), dynamicallyReserved2));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(

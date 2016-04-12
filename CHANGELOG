@@ -41,6 +41,8 @@ Deprecations:
     deprecated in favor 'of allocator/mesos/event_queue_dispatches'.
 
 Additional API Changes:
+  * [MESOS-4580] - Returning `202` (Accepted) for /reserve and related endpoints.
+
   * [MESOS-4735] - Add 'filename' field to CommandInfo.URI in Scheduler API
     and v1 Scheduler HTTP API.
 

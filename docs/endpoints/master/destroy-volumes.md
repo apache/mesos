@@ -12,7 +12,7 @@ layout: documentation
 Destroy persistent volumes.
 
 ### DESCRIPTION ###
-Returns 200 OK if the request was accepted. This does not
+Returns 202 Accepted if the request was accepted. This does not
 imply that the volume was destroyed successfully: volume
 destruction is done asynchronously and may fail.
 

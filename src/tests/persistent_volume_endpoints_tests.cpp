@@ -55,6 +55,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::Forbidden;
@@ -142,7 +143,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
@@ -180,7 +181,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, destroyResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, destroyResponse);
 
   AWAIT_READY(rescindedOfferId);
 
@@ -234,7 +235,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "resources", dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Offer the dynamically reserved resources to a framework. The
   // offer should be rescinded when a persistent volume is created
@@ -280,7 +281,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(rescindedOfferId);
 
@@ -304,7 +305,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   AWAIT_READY(rescindedOfferId);
 
@@ -352,7 +353,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "resources", dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -431,7 +432,7 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "resources", dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
@@ -446,7 +447,7 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   response = process::http::post(
       master.get()->pid,
@@ -532,7 +533,7 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
 
   // Non-existent volume ID.
   Resources badVolumeId = createPersistentVolume(
@@ -594,7 +595,7 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", differentPath));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, destroyResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, destroyResponse);
 }
 
 
@@ -762,7 +763,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
@@ -803,7 +804,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, destroyResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, destroyResponse);
 
   Clock::settle();
   Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
@@ -885,7 +886,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateACLMultipleRoles)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volumesMultipleRoles));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 }
 
 
@@ -965,7 +966,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
@@ -1160,7 +1161,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
@@ -1252,7 +1253,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoAuthentication)
         None(),
         createRequestBody(slaveId.get(), "volumes", volume));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
   }
 
   // Make a request to destroy a volume with no authentication header.
@@ -1263,7 +1264,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoAuthentication)
         None(),
         createRequestBody(slaveId.get(), "volumes", volume));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
   }
 }
 
@@ -1315,7 +1316,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoSlaveId)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   response =
     process::http::post(master.get()->pid, "destroy-volumes", headers, body);
@@ -1368,7 +1369,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoVolumes)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   response =
     process::http::post(master.get()->pid, "destroy-volumes", headers, body);
@@ -1413,7 +1414,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "resources", dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
@@ -1428,7 +1429,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   // Start a framework and launch a task on some (but not all) of the
   // reserved resources at the slave.

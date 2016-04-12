@@ -293,20 +293,20 @@ endpoint like so:
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Request accepted (see below).
+* `202 Accepted`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the reserve operation.
 
-Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
-the requested resources have been reserved. Instead, this return code indicates
-that the reservation request has been validated successfully by the master. The
-reservation request is then forwarded asynchronously to the Mesos slave where
-the resources are located. That asynchronous message may not be delivered, in
-which case no resources will be reserved. To determine if a reserve operation
-has succeeded, the user can examine the state of the appropriate Mesos slave
-(e.g., via the slave's [/state](endpoints/slave/state.md) HTTP endpoint).
+This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
+the reserve operation has been validated successfully by the master. The
+request is then forwarded asynchronously to the Mesos slave where the reserved
+resources are located. That asynchronous message may not be delivered or
+reserving resources at the slave might fail, in which case no resources will be
+reserved. To determine if a reserve operation has succeeded, the user can
+examine the state of the appropriate Mesos slave (e.g., via the slave's
+[/state](endpoints/slave/state.md) HTTP endpoint).
 
 #### `/unreserve` (since 0.25.0)
 
@@ -347,20 +347,20 @@ unreserve reservations made by `reserver_principal`.
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Request accepted (see below).
+* `202 Accepted`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the unreserve operation.
 
-Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
-the requested resources have been unreserved. Instead, this return code
-indicates that the unreserve request has been validated successfully by the
-master. The request is then forwarded asynchronously to the Mesos slave where
-the resources are located. That asynchronous message may not be delivered, in
-which case no resources will be unreserved. To determine if an unreserve
-operation has succeeded, the user can examine the state of the appropriate Mesos
-slave (e.g., via the slave's [/state](endpoints/slave/state.md) HTTP endpoint).
+This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
+the unreserve operation has been validated successfully by the master. The
+request is then forwarded asynchronously to the Mesos slave where the reserved
+resources are located. That asynchronous message may not be delivered or
+unreserving resources at the slave might fail, in which case no resources will
+be unreserved. To determine if an unreserve operation has succeeded, the user
+can examine the state of the appropriate Mesos slave (e.g., via the slave's
+[/state](endpoints/slave/state.md) HTTP endpoint).
 
 ### Listing Reservations
 
