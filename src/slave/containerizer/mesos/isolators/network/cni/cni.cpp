@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include <list>
 #include <set>
 
@@ -22,6 +23,7 @@
 #include <process/subprocess.hpp>
 
 #include <stout/os.hpp>
+#include <stout/net.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -32,19 +34,21 @@ namespace io = process::io;
 namespace paths = mesos::internal::slave::cni::paths;
 namespace spec = mesos::internal::slave::cni::spec;
 
+using std::cerr;
+using std::endl;
 using std::list;
+using std::map;
 using std::set;
 using std::string;
-using std::vector;
-using std::map;
 using std::tuple;
+using std::vector;
 
-using process::Future;
-using process::Owned;
 using process::Failure;
-using process::Subprocess;
+using process::Future;
 using process::NO_SETSID;
+using process::Owned;
 using process::PID;
+using process::Subprocess;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -1072,6 +1076,187 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
   return Failure(
       "The CNI plugin '" + plugin + "' failed to detach container "
       "from network '" + networkName + "': " + output.get());
+}
+
+
+// Implementation of subcommand to setup relevant network files and
+// hostname in the container UTS and mount namespace.
+const char* NetworkCniIsolatorSetup::NAME = "network-cni-setup";
+
+
+NetworkCniIsolatorSetup::Flags::Flags()
+{
+  add(&pid, "pid", "PID of the container");
+
+  add(&hostname, "hostname", "Hostname of the container");
+
+  add(&rootfs,
+      "rootfs",
+      "Path to rootfs for the container on the host-file system");
+
+  add(&etc_hosts_path,
+      "etc_hosts_path",
+      "Path in the host file system for 'hosts' file");
+
+  add(&etc_hostname_path,
+      "etc_hostname_path",
+      "Path in the host file system for 'hostname' file");
+
+  add(&etc_resolv_conf,
+      "etc_resolv_conf",
+      "Path in the host file system for 'resolv.conf'");
+}
+
+
+int NetworkCniIsolatorSetup::execute()
+{
+  // NOTE: This method has to be run in a new mount namespace.
+
+  if (flags.help) {
+    cerr << "Usage: " << name() << " [OPTIONS]" << endl
+         << "Supported options:" << endl
+         << flags.usage();
+    return EXIT_SUCCESS;
+  }
+
+  if (flags.hostname.isNone()) {
+    cerr << "Hostname not specified" << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.pid.isNone()) {
+    cerr << "Container PID not specified" << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.etc_hosts_path.isNone()) {
+    cerr << "Path to 'hosts' not specified" <<endl;
+    return EXIT_FAILURE;
+  } else if (!os::exists(flags.etc_hosts_path.get())) {
+    cerr << "Unable to find '" << flags.etc_hosts_path.get() << "'" << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.etc_hostname_path.isNone()) {
+    cerr << "Path to 'hostname' not specified" << endl;
+    return EXIT_FAILURE;
+  } else if (!os::exists(flags.etc_hostname_path.get())) {
+    cerr << "Unable to find '" << flags.etc_hostname_path.get() << "'" << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.etc_resolv_conf.isNone()) {
+    cerr << "Path to 'resolv.conf' not specified." << endl;
+    return EXIT_FAILURE;
+  } else if (!os::exists(flags.etc_resolv_conf.get())) {
+    cerr << "Unable to find '" << flags.etc_resolv_conf.get() << "'" << endl;
+    return EXIT_FAILURE;
+  }
+
+  // Enter the mount namespace.
+  Try<Nothing> setns = ns::setns(flags.pid.get(), "mnt");
+  if (setns.isError()) {
+    cerr << "Failed to enter the mount namespace of pid "
+         << flags.pid.get() << ": " << setns.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  // Enter the UTS namespace.
+  setns = ns::setns(flags.pid.get(), "uts");
+  if (setns.isError()) {
+    cerr << "Failed to enter the UTS namespace of pid "
+         << flags.pid.get() << ": " << setns.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  // Setup hostname in container's UTS namespace.
+  Try<Nothing> setHostname = net::setHostname(flags.hostname.get());
+  if (setHostname.isError()) {
+    cerr << "Failed to set the hostname of the container to '"
+         << flags.hostname.get() << "': " << setHostname.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  LOG(INFO) << "Set hostname to '" << flags.hostname.get() << "'" << endl;
+
+  // TODO(jieyu): Currently there seems to be a race between the
+  // filesystem isolator and other isolators to execute the `isolate`
+  // method. This results in the rootfs of the container not being
+  // marked as slave + recursive which can result in the mounts in the
+  // container mnt namespace propagating back into the host mnt
+  // namespace. This is dangerous, since these mounts won't be cleared
+  // in the host mnt namespace once the container mnt namespace is
+  // destroyed (when the process dies). To avoid any leakage we mark
+  // the root as a SLAVE recursively to avoid any propagation of
+  // mounts in the container mnt namespace back into the host mnt
+  // namespace.
+  Try<Nothing> mount = fs::mount(
+      None(),
+      "/",
+      None(),
+      MS_SLAVE | MS_REC,
+      NULL);
+
+  if (mount.isError()) {
+    cerr << "Failed to mark `/` as a SLAVE mount: " << mount.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  // Initialize the host path and container path for the set of files
+  // that need to be setup in the container file system.
+  //
+  // NOTE: An empty rootfs implies that the container is using the
+  // host file system.
+  string rootfs = "";
+  if (flags.rootfs.isSome()) {
+    rootfs = flags.rootfs.get();
+  }
+
+  hashmap<string, string> files;
+  files["/etc/hosts"] = flags.etc_hosts_path.get();
+  files["/etc/hostname"] = flags.etc_hostname_path.get();
+  files["/etc/resolv.conf"] = flags.etc_resolv_conf.get();
+
+  foreachpair (const string& file, const string& source, files) {
+    string target = file;
+
+    if (flags.rootfs.isSome()) {
+      target = path::join(flags.rootfs.get(), file);
+    }
+
+    if (!os::exists(target)) {
+      // NOTE: We only create the mount point if container has its own
+      // image. Otherwise, we'll just fail because we don't want to
+      // pollute the host filesystem.
+      if (flags.rootfs.isNone()) {
+        cerr << "Mount point '" << target << "' does not exist "
+             << "on the host filesystem"<< endl;
+        return EXIT_FAILURE;
+      }
+
+      Try<Nothing> touch = os::touch(target);
+      if (touch.isError()) {
+        cerr << "Failed to create the mount point '" << target
+             << "' in the container rootfs" << endl;
+        return EXIT_FAILURE;
+      }
+    }
+
+    mount = fs::mount(
+        source,
+        target,
+        None(),
+        MS_BIND,
+        NULL);
+
+    if (mount.isError()) {
+      cerr << "Failed to bind mount from '" << source << "' to '"
+           << target << "': " << mount.error() << endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
 }
 
 } // namespace slave {

@@ -19,6 +19,8 @@
 
 #include <process/subprocess.hpp>
 
+#include <stout/subcommand.hpp>
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
@@ -159,6 +161,38 @@ private:
 
   // Information of CNI networks that each container joins.
   hashmap<ContainerID, process::Owned<Info>> infos;
+};
+
+
+// A subcommand to setup container hostname and mount the hosts,
+// resolv.conf and hostname from the host file system into the
+// container's file system.  The hostname needs to be setup in the
+// container's UTS namespace, and the files need to be bind mounted in
+// the container's mnt namespace.
+class NetworkCniIsolatorSetup : public Subcommand
+{
+public:
+  static const char* NAME;
+
+  struct Flags : public flags::FlagsBase
+  {
+    Flags();
+
+    Option<pid_t> pid;
+    Option<std::string> hostname;
+    Option<std::string> rootfs;
+    Option<std::string> etc_hosts_path;
+    Option<std::string> etc_hostname_path;
+    Option<std::string> etc_resolv_conf;
+  };
+
+  NetworkCniIsolatorSetup() : Subcommand(NAME) {}
+
+  Flags flags;
+
+protected:
+  virtual int execute();
+  virtual flags::FlagsBase* getFlags() { return &flags; }
 };
 
 } // namespace slave {
