@@ -111,9 +111,9 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
   EXPECT_EQ(1u, offers1->size());
 
   TaskInfo task1 = createTask(
-    offers1.get()[0].slave_id(),
-    Resources::parse("cpus:0.1;mem:128;").get(),
-    "nvidia-smi");
+      offers1.get()[0].slave_id(),
+      Resources::parse("cpus:0.1;mem:128;").get(),
+      "nvidia-smi");
 
   Future<TaskStatus> statusRunning1, statusFailed1;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -134,12 +134,12 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
   EXPECT_EQ(1u, offers2->size());
 
   TaskInfo task2 = createTask(
-    offers1.get()[0].slave_id(),
-    Resources::parse("cpus:0.1;mem:128;gpus:1").get(),
-    "NUM_GPUS=`nvidia-smi --list-gpus | wc -l`;\n"
-    "if [ \"$NUM_GPUS\" != \"1\" ]; then\n"
-    "  exit 1;\n"
-    "fi");
+      offers1.get()[0].slave_id(),
+      Resources::parse("cpus:0.1;mem:128;gpus:1").get(),
+      "NUM_GPUS=`nvidia-smi --list-gpus | wc -l`;\n"
+      "if [ \"$NUM_GPUS\" != \"1\" ]; then\n"
+      "  exit 1;\n"
+      "fi");
 
   Future<TaskStatus> statusRunning2, statusFinished2;
   EXPECT_CALL(sched, statusUpdate(_, _))
