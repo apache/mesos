@@ -1,6 +1,7 @@
 Release Notes - Mesos - Version 0.29.0 (WIP)
 --------------------------------------------
 This release contains the following new features:
+
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
     because machine failures or forcible terminations may occur. Currently, the
     only available kill policy is how long to wait between graceful and forcible
@@ -40,6 +41,9 @@ Deprecations:
   * [MESOS-5001] - The 'allocator/event_queue_dispatches' metric is now
     deprecated in favor 'of allocator/mesos/event_queue_dispatches'.
 
+  * [MESOS-5029] - Deprecated the ExecutorInfo.source field in favor of
+    ExecutorInfo.labels.
+
 Additional API Changes:
   * [MESOS-4580] - Returning `202` (Accepted) for /reserve and related endpoints.
 
@@ -51,6 +55,8 @@ Additional API Changes:
 
   * [MESOS-5015] - Changes Call and Event Type enums in executor.proto
     from required to optional for the purpose of backwards compatibility.
+
+  * [MESOS-5029] - Added 'labels' to ExecutorInfo.
 
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.

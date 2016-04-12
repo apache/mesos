@@ -3168,6 +3168,100 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 }
 
 
+// This test verifies that executor labels are
+// exposed in the master's state endpoint.
+TEST_F(MasterTest, ExecutorLabels)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  // Add three labels to the executor, two of which shares the same key.
+  Labels* labels = task.mutable_executor()->mutable_labels();
+
+  labels->add_labels()->CopyFrom(createLabel("key1", "value1"));
+  labels->add_labels()->CopyFrom(createLabel("key2", "value2"));
+  labels->add_labels()->CopyFrom(createLabel("key1", "value3"));
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Verify label key and value in the master's state endpoint.
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> labels_ = parse->find<JSON::Array>(
+      "frameworks[0].executors[0].labels");
+  EXPECT_SOME(labels_);
+
+  // Verify the contents of labels.
+  EXPECT_EQ(3u, labels_->values.size());
+  EXPECT_EQ(JSON::Value(JSON::protobuf(createLabel("key1", "value1"))),
+            labels_->values[0]);
+  EXPECT_EQ(JSON::Value(JSON::protobuf(createLabel("key2", "value2"))),
+            labels_->values[1]);
+  EXPECT_EQ(JSON::Value(JSON::protobuf(createLabel("key1", "value3"))),
+            labels_->values[2]);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that label values are exposed over the master's
 // state endpoint.
 TEST_F(MasterTest, TaskLabels)

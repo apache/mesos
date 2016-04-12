@@ -472,7 +472,10 @@ message ExecutorInfo {
   // NOTE: 'source' is exposed alongside the resource usage of the
   // executor via JSON on the agent. This allows users to import usage
   // information into a time series database for monitoring.
-  optional string source = 10;
+  //
+  // This field is deprecated since 0.29.0. Please use labels for
+  // free-form metadata instead.
+  optional string source = 10 [deprecated = true]; // Since 0.29.0.
 
   optional bytes data = 4;
 
@@ -489,6 +492,14 @@ message ExecutorInfo {
   // grace period, as the agent may decide to allot a shorter
   // period and failures / forcible terminations may occur.
   optional DurationInfo shutdown_grace_period = 13;
+
+  // Labels are free-form key value pairs which are exposed through
+  // master and agent endpoints. Labels will not be interpreted or
+  // acted upon by Mesos itself. As opposed to the data field, labels
+  // will be kept in memory on master and agent processes. Therefore,
+  // labels should be used to tag executors with lightweight metadata.
+  // Labels should not contain duplicate key-value pairs.
+  optional Labels labels = 14;
 }
 
 

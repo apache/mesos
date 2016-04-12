@@ -354,6 +354,11 @@ JSON::Object model(const ExecutorInfo& executorInfo)
   object.values["framework_id"] = executorInfo.framework_id().value();
   object.values["command"] = model(executorInfo.command());
   object.values["resources"] = model(executorInfo.resources());
+
+  if (executorInfo.has_labels()) {
+    object.values["labels"] = model(executorInfo.labels());
+  }
+
   return object;
 }
 
@@ -453,6 +458,10 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
   writer->field("framework_id", executorInfo.framework_id().value());
   writer->field("command", executorInfo.command());
   writer->field("resources", Resources(executorInfo.resources()));
+
+  if (executorInfo.has_labels()) {
+    writer->field("labels", executorInfo.labels());
+  }
 }
 
 

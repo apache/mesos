@@ -114,6 +114,10 @@ static void json(JSON::ObjectWriter* writer, const Executor& executor)
   writer->field("directory", executor.directory);
   writer->field("resources", executor.resources);
 
+  if (executor.info.has_labels()) {
+    writer->field("labels", executor.info.labels());
+  }
+
   writer->field("tasks", [&executor](JSON::ArrayWriter* writer) {
     foreach (Task* task, executor.launchedTasks.values()) {
       writer->element(*task);
