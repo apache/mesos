@@ -3037,6 +3037,63 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
 }
 
 
+// This test checks that if a framework recovered resources with a
+// long filter, it will start receiving resource offers again after
+// reviving offer.
+TEST_F(HierarchicalAllocatorTest, ReviveOffers)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  // Total cluster resources will become cpus=2, mem=1024.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+
+  // Framework will be offered all of agent's resources since it is
+  // the only framework running so far.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+
+  Filters filter1000s;
+  filter1000s.set_refuse_seconds(1000.);
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      agent.resources(),
+      filter1000s);
+
+  // Advance the clock to trigger a background allocation cycle.
+  Clock::advance(flags.allocation_interval);
+
+  Clock::settle();
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  allocator->reviveOffers(framework.id());
+
+  // Wait for the `reviveOffers` operation to be processed.
+  Clock::settle();
+
+  // Framework will be offered all of agent's resources again
+  // after revive offer.
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+}
+
+
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
