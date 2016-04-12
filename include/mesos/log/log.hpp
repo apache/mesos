@@ -45,6 +45,13 @@ class LogProcess;
 class LogReaderProcess;
 class LogWriterProcess;
 
+} // namespace log {
+} // namespace internal {
+} // namespace mesos {
+
+
+namespace mesos {
+namespace log {
 
 class Log
 {
@@ -101,8 +108,8 @@ public:
   private:
     friend class Log;
     friend class Writer;
-    friend class LogReaderProcess;
-    friend class LogWriterProcess;
+    friend class internal::log::LogReaderProcess;
+    friend class internal::log::LogWriterProcess;
 
     /*implicit*/ Position(uint64_t _value) : value(_value) {}
 
@@ -116,7 +123,7 @@ public:
     std::string data;
 
   private:
-    friend class LogReaderProcess;
+    friend class internal::log::LogReaderProcess;
 
     Entry(const Position& _position, const std::string& _data)
       : position(_position), data(_data) {}
@@ -146,7 +153,7 @@ public:
     process::Future<Position> ending();
 
   private:
-    LogReaderProcess* process;
+    internal::log::LogReaderProcess* process;
   };
 
   class Writer
@@ -180,7 +187,7 @@ public:
     process::Future<Option<Position> > truncate(const Position& to);
 
   private:
-    LogWriterProcess* process;
+    internal::log::LogWriterProcess* process;
   };
 
   // Creates a new replicated log that assumes the specified quorum
@@ -224,14 +231,13 @@ public:
   }
 
 private:
-  friend class LogReaderProcess;
-  friend class LogWriterProcess;
+  friend class internal::log::LogReaderProcess;
+  friend class internal::log::LogWriterProcess;
 
-  LogProcess* process;
+  internal::log::LogProcess* process;
 };
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __LOG_HPP__

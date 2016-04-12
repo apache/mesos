@@ -79,6 +79,7 @@
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 using namespace mesos::internal::master;
+using namespace mesos::log;
 using namespace zookeeper;
 
 using mesos::Authorizer;

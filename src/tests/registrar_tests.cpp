@@ -65,7 +65,8 @@ using namespace mesos::internal::master;
 
 using namespace process;
 
-using mesos::internal::log::Log;
+using mesos::log::Log;
+
 using mesos::internal::log::Replica;
 
 using std::cout;

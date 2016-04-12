@@ -45,7 +45,10 @@
 
 #include "state/log.hpp"
 
+using namespace mesos::log;
+
 using namespace mesos::internal::log;
+
 using namespace process;
 
 // Note that we don't add 'using std::set' here because we need

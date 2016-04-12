@@ -44,6 +44,8 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::log::Log;
+
 namespace mesos {
 namespace internal {
 namespace log {
@@ -732,6 +734,13 @@ void LogWriterProcess::failed(const string& message, const string& reason)
   error = message + ": " + reason;
 }
 
+} // namespace log {
+} // namespace internal {
+
+namespace log {
+
+using namespace mesos::internal::log;
+
 
 /////////////////////////////////////////////////
 // Public interfaces for Log.
@@ -867,5 +876,4 @@ Future<Option<Log::Position> > Log::Writer::truncate(const Log::Position& to)
 }
 
 } // namespace log {
-} // namespace internal {
 } // namespace mesos {

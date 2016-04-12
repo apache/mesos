@@ -31,9 +31,10 @@
 #include "org_apache_mesos_Log_Writer.h"
 
 using namespace mesos;
-using namespace mesos::internal::log;
 
 using namespace process;
+
+using mesos::log::Log;
 
 
 std::string identity(JNIEnv* env, jobject jposition)

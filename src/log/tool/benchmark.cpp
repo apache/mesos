@@ -40,6 +40,8 @@
 
 #include "logging/logging.hpp"
 
+using namespace mesos::log;
+
 using namespace process;
 
 using std::cout;

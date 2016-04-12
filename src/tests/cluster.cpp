@@ -194,7 +194,7 @@ Try<process::Owned<Master>> Master::start(
   if (flags.registry == "replicated_log") {
     if (zookeeperUrl.isSome()) {
       // Use ZooKeeper-based replicated log.
-      master->log.reset(new log::Log(
+      master->log.reset(new mesos::log::Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
           zookeeperUrl.get().servers,
@@ -203,7 +203,7 @@ Try<process::Owned<Master>> Master::start(
           zookeeperUrl.get().authentication,
           flags.log_auto_initialize));
     } else {
-      master->log.reset(new log::Log(
+      master->log.reset(new mesos::log::Log(
           1,
           path::join(flags.work_dir.get(), "replicated_log"),
           std::set<process::UPID>(),

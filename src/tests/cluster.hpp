@@ -114,7 +114,7 @@ private:
   process::Owned<Authorizer> authorizer;
   process::Owned<mesos::master::contender::MasterContender> contender;
   process::Owned<mesos::master::detector::MasterDetector> detector;
-  process::Owned<log::Log> log;
+  process::Owned<mesos::log::Log> log;
   process::Owned<state::Storage> storage;
   process::Owned<state::protobuf::State> state;
   process::Owned<master::Registrar> registrar;

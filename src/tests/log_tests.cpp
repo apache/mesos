@@ -60,6 +60,8 @@
 #include "tests/zookeeper.hpp"
 #endif
 
+using namespace mesos::log;
+
 using namespace mesos::internal::log;
 
 using namespace process;
