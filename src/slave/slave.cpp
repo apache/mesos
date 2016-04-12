@@ -4972,6 +4972,12 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
     VLOG(1) << "Received oversubscribable resources "
             << oversubscribable.get() << " from the resource estimator";
 
+    // Oversubscribable resources must be tagged as revocable.
+    //
+    // TODO(bmahler): Consider tagging input as revocable
+    // rather than rejecting and crashing here.
+    CHECK_EQ(oversubscribable.get(), oversubscribable->revocable());
+
     // Calculate the latest allocation of oversubscribed resources.
     // Note that this allocation value might be different from the
     // master's view because new task/executor might be in flight from
