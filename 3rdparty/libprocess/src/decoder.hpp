@@ -30,9 +30,6 @@
 #include <stout/try.hpp>
 
 
-// TODO(bmahler): Switch to joyent/http-parser now that it is no
-// longer being hosted under ry/http-parser.
-
 namespace process {
 
 // TODO(benh): Make DataDecoder abstract and make RequestDecoder a

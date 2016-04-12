@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Builds Ryan Dahl's http-parser project.
+# Builds nodejs/http-parser project.
 #########################################
 # NOTE: at build time, this file will be copied into the directory of the
 # http-parser project. This will allow any CMake-based build system consuming
@@ -31,4 +31,5 @@ set(HTTP_PARSER_SRC
   http_parser.h
   )
 
+add_definitions(-D HTTP_PARSER_STRICT=0)
 add_library(http_parser STATIC ${HTTP_PARSER_SRC})

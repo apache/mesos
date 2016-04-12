@@ -654,7 +654,7 @@ TEST_F(SSLTest, HTTPSGet)
   // Construct response and send(server side).
   const string buffer =
     string("HTTP/1.1 200 OK\r\n") +
-    "Content-Length: " +
+    "Content-Length : " +
     stringify(data.length()) + "\r\n" +
     "\r\n" +
     data;
@@ -695,7 +695,7 @@ TEST_F(SSLTest, HTTPSPost)
   // Construct response and send(server side).
   const string buffer =
     string("HTTP/1.1 200 OK\r\n") +
-    "Content-Length: " +
+    "Content-Length : " +
     stringify(data.length()) + "\r\n" +
     "\r\n" +
     data;

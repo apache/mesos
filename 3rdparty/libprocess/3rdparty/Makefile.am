@@ -83,10 +83,10 @@ ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 	touch $@
 
 if WITH_BUNDLED_HTTP_PARSER
-  # Convenience library for Ryan Dahl's HTTP parser.
+  # Convenience library for nodejs/http-parser.
   noinst_LTLIBRARIES = libry_http_parser.la
   nodist_libry_http_parser_la_SOURCES = $(HTTP_PARSER)/http_parser.c
-  libry_http_parser_la_CPPFLAGS = -I$(HTTP_PARSER)
+  libry_http_parser_la_CPPFLAGS = -I$(HTTP_PARSER) -DHTTP_PARSER_STRICT=0
 
   BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 

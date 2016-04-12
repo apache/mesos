@@ -114,7 +114,7 @@ elseif (WIN32)
     )
 endif (NOT WIN32)
 
-set(RY_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${PROCESS_3RD_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
+set(HTTP_PARSER_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${PROCESS_3RD_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 
 if (NOT WIN32)
   set(HTTP_PARSER_PATCH_CMD  ${CMAKE_NOOP})
@@ -171,7 +171,7 @@ ExternalProject_Add(
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
-  UPDATE_COMMAND    ${RY_UPDATE_CMD}
+  UPDATE_COMMAND    ${HTTP_PARSER_UPDATE_CMD}
   PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
