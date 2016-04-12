@@ -341,8 +341,8 @@ protected:
 
         mesos->send(call);
 
-        cout << "task " << name << " submitted to agent "
-             << offer.agent_id() << endl;
+        cout << "Submitted task '" << name << "' to agent '"
+             << offer.agent_id() << "'" << endl;
 
         launched = true;
       } else {
@@ -373,7 +373,7 @@ protected:
 
           state = SUBSCRIBED;
 
-          cout << "Subscribed with ID '" << frameworkInfo.id() << endl;
+          cout << "Subscribed with ID '" << frameworkInfo.id() << "'" << endl;
           break;
         }
 
@@ -414,7 +414,19 @@ protected:
     CHECK_EQ(name, status.task_id().value());
 
     cout << "Received status update " << status.state()
-         << " for task " << status.task_id() << endl;
+         << " for task '" << status.task_id() << "'" << endl;
+    if (status.has_message()) {
+      cout << "  message: '" << status.message() << "'" << endl;
+    }
+    if (status.has_source()) {
+      cout << "  source: " << TaskStatus::Source_Name(status.source()) << endl;
+    }
+    if (status.has_source()) {
+      cout << "  reason: " << TaskStatus::Reason_Name(status.reason()) << endl;
+    }
+    if (status.has_healthy()) {
+      cout << "  healthy?: " << status.healthy() << endl;
+    }
 
     if (status.has_uuid()) {
       Call call;
@@ -655,7 +667,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_user(user.get());
-  frameworkInfo.set_name("");
+  frameworkInfo.set_name("mesos-execute instance");
   frameworkInfo.set_role(flags.role);
   frameworkInfo.set_checkpoint(flags.checkpoint);
 
