@@ -47,6 +47,8 @@ using process::PID;
 
 using std::vector;
 
+using ::testing::WithParamInterface;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -54,18 +56,32 @@ namespace tests {
 // Tests that exercise the command executor implementation
 // should be located in this file.
 
-class CommandExecutorTest : public MesosTest {};
+class CommandExecutorTest
+  : public MesosTest,
+    public WithParamInterface<bool> {};
+
+
+// The Command Executor tests are parameterized by the underlying library
+// used by the executor (e.g., driver or the HTTP based executor library).
+INSTANTIATE_TEST_CASE_P(
+    HTTPCommandExecutor,
+    CommandExecutorTest,
+    ::testing::Bool());
 
 
 // This test ensures that the command executor does not send
 // TASK_KILLING to frameworks that do not support the capability.
-TEST_F(CommandExecutorTest, NoTaskKillingCapability)
+TEST_P(CommandExecutorTest, NoTaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   // Start the framework without the task killing capability.
@@ -117,13 +133,17 @@ TEST_F(CommandExecutorTest, NoTaskKillingCapability)
 
 // This test ensures that the command executor sends TASK_KILLING
 // to frameworks that support the capability.
-TEST_F(CommandExecutorTest, TaskKillingCapability)
+TEST_P(CommandExecutorTest, TaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   // Start the framework with the task killing capability.
