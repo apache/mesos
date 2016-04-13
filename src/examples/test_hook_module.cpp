@@ -194,7 +194,7 @@ public:
       const Option<map<string, string>>& env)
   {
     LOG(INFO) << "Executing 'slavePreLaunchDockerHook'";
-    return os::touch(sandboxDirectory + "/foo");
+    return os::touch(path::join(sandboxDirectory, "foo"));
   }
 
 
