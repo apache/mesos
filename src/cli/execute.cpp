@@ -452,7 +452,7 @@ protected:
     if (status.has_source()) {
       cout << "  source: " << TaskStatus::Source_Name(status.source()) << endl;
     }
-    if (status.has_source()) {
+    if (status.has_reason()) {
       cout << "  reason: " << TaskStatus::Reason_Name(status.reason()) << endl;
     }
     if (status.has_healthy()) {
