@@ -168,6 +168,11 @@ public:
         "kill_after",
         "Specifies a delay after which the task is killed\n"
         "(e.g., 10secs, 2mins, etc).");
+
+    add(&networks,
+        "networks",
+        "Comma-separated list of networks that the container will join,\n"
+        "e.g., `net1,net2`.");
   }
 
   Option<string> master;
@@ -186,6 +191,7 @@ public:
   string containerizer;
   string role;
   Option<Duration> kill_after;
+  Option<string> networks;
 };
 
 
@@ -204,7 +210,8 @@ public:
       const Option<string>& _appcImage,
       const Option<string>& _dockerImage,
       const string& _containerizer,
-      const Option<Duration>& _killAfter)
+      const Option<Duration>& _killAfter,
+      const Option<string>& _networks)
     : state(DISCONNECTED),
       frameworkInfo(_frameworkInfo),
       master(_master),
@@ -218,6 +225,7 @@ public:
       dockerImage(_dockerImage),
       containerizer(_containerizer),
       killAfter(_killAfter),
+      networks(_networks),
       launched(false) {}
 
   virtual ~CommandScheduler() {}
@@ -296,8 +304,6 @@ protected:
       EXIT(EXIT_FAILURE)
         << "Failed to parse resources '" << resources << "': "
         << TASK_RESOURCES.error();
-
-      return;
     }
 
     foreach (const Offer& offer, offers) {
@@ -543,6 +549,13 @@ private:
         image->mutable_appc()->CopyFrom(appc);
       }
 
+      if (networks.isSome() && !networks->empty()) {
+        foreach (const string& network,
+                 strings::tokenize(networks.get(), ",")) {
+          containerInfo.add_network_infos()->set_name(network);
+        }
+      }
+
       return containerInfo;
     } else if (containerizer == "docker") {
       // 'docker' containerizer only supports 'docker' images.
@@ -552,6 +565,18 @@ private:
 
       containerInfo.set_type(ContainerInfo::DOCKER);
       containerInfo.mutable_docker()->set_image(dockerImage.get());
+
+      if (networks.isSome() && !networks->empty()) {
+        vector<string> tokens = strings::tokenize(networks.get(), ",");
+        if (tokens.size() > 1) {
+          EXIT(EXIT_FAILURE)
+            << "'Docker' containerizer can only support a single network";
+        } else {
+          containerInfo.mutable_docker()->set_network(
+              ContainerInfo::DockerInfo::USER);
+          containerInfo.add_network_infos()->set_name(tokens.front());
+        }
+      }
 
       return containerInfo;
     }
@@ -571,7 +596,7 @@ private:
   const Option<string> dockerImage;
   const string containerizer;
   const Option<Duration> killAfter;
-
+  const Option<string> networks;
   bool launched;
   Owned<Mesos> mesos;
 };
@@ -728,7 +753,8 @@ int main(int argc, char** argv)
         appcImage,
         dockerImage,
         flags.containerizer,
-        flags.kill_after));
+        flags.kill_after,
+        flags.networks));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
