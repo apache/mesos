@@ -1290,6 +1290,19 @@ Example:
 </tr>
 <tr>
   <td>
+    --[no-]http_command_executor
+  </td>
+  <td>
+The underlying executor library to be used for the command executor.
+If set to <code>true</code>, the command executor would use the HTTP based
+executor library to interact with the Mesos agent. If set to <code>false</code>,
+the driver based implementation would be used.
+<b>NOTE</b>: This flag is *experimental* and should not be used in
+production yet. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --image_providers=VALUE
   </td>
   <td>

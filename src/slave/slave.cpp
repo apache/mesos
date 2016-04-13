@@ -3898,8 +3898,14 @@ ExecutorInfo Slave::getExecutorInfo(
       executor.mutable_command()->set_user(task.command().user());
     }
 
-    Result<string> path =
-      os::realpath(path::join(flags.launcher_dir, "mesos-executor"));
+    Result<string> path = None();
+    if (flags.http_command_executor) {
+      path =
+        os::realpath(path::join(flags.launcher_dir, "mesos-http-executor"));
+    } else {
+      path =
+        os::realpath(path::join(flags.launcher_dir, "mesos-executor"));
+    }
 
     // Explicitly set 'shell' to true since we want to use the shell
     // for running the mesos-executor (and even though this is the
@@ -3909,7 +3915,11 @@ ExecutorInfo Slave::getExecutorInfo(
     if (path.isSome()) {
       if (hasRootfs) {
         executor.mutable_command()->set_shell(false);
-        executor.mutable_command()->add_arguments("mesos-executor");
+        if (flags.http_command_executor) {
+          executor.mutable_command()->add_arguments("mesos-http-executor");
+        } else {
+          executor.mutable_command()->add_arguments("mesos-executor");
+        }
         executor.mutable_command()->add_arguments(
             "--sandbox_directory=" + flags.sandbox_directory);
 
@@ -5864,12 +5874,22 @@ Executor::Executor(
 {
   CHECK_NOTNULL(slave);
 
+  // See if this is driver based command executor.
   Result<string> executorPath =
     os::realpath(path::join(slave->flags.launcher_dir, "mesos-executor"));
 
   if (executorPath.isSome()) {
     commandExecutor =
-      strings::contains(info.command().value(), executorPath.get());
+        strings::contains(info.command().value(), executorPath.get());
+  }
+
+  // See if this is HTTP based command executor.
+  if (!commandExecutor) {
+    executorPath = os::realpath(
+        path::join(slave->flags.launcher_dir, "mesos-http-executor"));
+
+    commandExecutor =
+        strings::contains(info.command().value(), executorPath.get());
   }
 }
 

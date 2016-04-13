@@ -147,6 +147,7 @@ public:
 #if ENABLE_XFS_DISK_ISOLATOR
   std::string xfs_project_range;
 #endif
+  bool http_command_executor;
 };
 
 } // namespace slave {

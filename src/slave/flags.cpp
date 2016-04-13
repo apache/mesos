@@ -783,4 +783,14 @@ mesos::internal::slave::Flags::Flags()
       "The ranges of XFS project IDs to use for tracking directory quotas",
       "[5000-10000]");
 #endif
+
+  add(&Flags::http_command_executor,
+      "http_command_executor",
+      "The underlying executor library to be used for the command executor.\n"
+      "If set to `true`, the command executor would use the HTTP based\n"
+      "executor library to interact with the Mesos agent. If set to `false`,\n"
+      "the driver based implementation would be used.\n"
+      "NOTE: This flag is *experimental* and should not be used in\n"
+      "production yet.",
+      false);
 }
