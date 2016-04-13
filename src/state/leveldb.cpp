@@ -45,8 +45,9 @@ using namespace process;
 // 'std::' to disambiguate the 'set' member.
 using std::string;
 
+using mesos::internal::state::Entry;
+
 namespace mesos {
-namespace internal {
 namespace state {
 
 
@@ -308,5 +309,4 @@ Future<std::set<string>> LevelDBStorage::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {

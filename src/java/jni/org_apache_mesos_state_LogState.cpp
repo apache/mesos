@@ -30,7 +30,7 @@
 
 using namespace mesos;
 
-using namespace mesos::internal::state;
+using namespace mesos::state;
 
 using std::string;
 

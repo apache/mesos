@@ -28,7 +28,6 @@
 #include <stout/uuid.hpp>
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 class Storage
@@ -41,18 +40,21 @@ public:
   // implementations to be agnostic of Variable. Note that set acts
   // like a "test-and-set" by requiring the existing entry to have the
   // specified UUID.
-  virtual process::Future<Option<Entry>> get(const std::string& name) = 0;
-  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid) = 0;
+  virtual process::Future<Option<internal::state::Entry>> get(
+      const std::string& name) = 0;
+  virtual process::Future<bool> set(
+      const internal::state::Entry& entry,
+      const UUID& uuid) = 0;
 
   // Returns true if successfully expunged the variable from the state.
-  virtual process::Future<bool> expunge(const Entry& entry) = 0;
+  virtual process::Future<bool> expunge(
+      const internal::state::Entry& entry) = 0;
 
   // Returns the collection of variable names in the state.
   virtual process::Future<std::set<std::string>> names() = 0;
 };
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_STATE_STORAGE_HPP__

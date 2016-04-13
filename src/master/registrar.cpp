@@ -44,8 +44,8 @@
 #include "master/registrar.hpp"
 #include "master/registry.hpp"
 
-using mesos::internal::state::protobuf::State;
-using mesos::internal::state::protobuf::Variable;
+using mesos::state::protobuf::State;
+using mesos::state::protobuf::Variable;
 
 using process::dispatch;
 using process::spawn;

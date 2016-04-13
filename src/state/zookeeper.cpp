@@ -54,10 +54,11 @@ using std::queue;
 using std::string;
 using std::vector;
 
+using mesos::internal::state::Entry;
+
 using zookeeper::Authentication;
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 
@@ -666,5 +667,4 @@ Future<std::set<string>> ZooKeeperStorage::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {

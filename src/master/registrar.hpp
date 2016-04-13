@@ -104,7 +104,7 @@ public:
   // If flags.registry_strict is true, all operations will be
   // permitted.
   Registrar(const Flags& flags,
-            state::protobuf::State* state,
+            mesos::state::protobuf::State* state,
             const Option<std::string>& authenticationRealm = None());
   ~Registrar();
 

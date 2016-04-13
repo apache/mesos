@@ -30,14 +30,13 @@
 #include <stout/uuid.hpp>
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 // Forward declarations.
 class LogStorageProcess;
 
 
-class LogStorage : public Storage
+class LogStorage : public mesos::state::Storage
 {
 public:
   LogStorage(mesos::log::Log* log, size_t diffsBetweenSnapshots = 0);
@@ -45,9 +44,12 @@ public:
   virtual ~LogStorage();
 
   // Storage implementation.
-  virtual process::Future<Option<Entry>> get(const std::string& name);
-  virtual process::Future<bool> set(const Entry& entry, const UUID& uuid);
-  virtual process::Future<bool> expunge(const Entry& entry);
+  virtual process::Future<Option<internal::state::Entry>> get(
+      const std::string& name);
+  virtual process::Future<bool> set(
+      const internal::state::Entry& entry,
+      const UUID& uuid);
+  virtual process::Future<bool> expunge(const internal::state::Entry& entry);
   virtual process::Future<std::set<std::string>> names();
 
 private:
@@ -55,7 +57,6 @@ private:
 };
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_STATE_LOG_HPP__

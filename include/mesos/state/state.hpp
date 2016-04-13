@@ -33,7 +33,6 @@
 #include <stout/uuid.hpp>
 
 namespace mesos {
-namespace internal {
 namespace state {
 
 // An abstraction of "state" (possibly between multiple distributed
@@ -80,11 +79,11 @@ public:
 private:
   friend class State; // Creates and manages variables.
 
-  explicit Variable(const Entry& _entry)
+  explicit Variable(const internal::state::Entry& _entry)
     : entry(_entry)
   {}
 
-  Entry entry; // Not const to keep Variable assignable.
+  internal::state::Entry entry; // Not const to keep Variable assignable.
 };
 
 
@@ -115,10 +114,10 @@ private:
   // constructor.
   static process::Future<Variable> _fetch(
       const std::string& name,
-      const Option<Entry>& option);
+      const Option<internal::state::Entry>& option);
 
   static process::Future<Option<Variable>> _store(
-      const Entry& entry,
+      const internal::state::Entry& entry,
       const bool& b); // TODO(benh): Remove 'const &' after fixing libprocess.
 
   Storage* storage;
@@ -134,7 +133,7 @@ inline process::Future<Variable> State::fetch(const std::string& name)
 
 inline process::Future<Variable> State::_fetch(
     const std::string& name,
-    const Option<Entry>& option)
+    const Option<internal::state::Entry>& option)
 {
   if (option.isSome()) {
     return Variable(option.get());
@@ -142,7 +141,7 @@ inline process::Future<Variable> State::_fetch(
 
   // Otherwise, construct a Variable with a new Entry (with a random
   // UUID and no value to start).
-  Entry entry;
+  internal::state::Entry entry;
   entry.set_name(name);
   entry.set_uuid(UUID::random().toBytes());
 
@@ -157,7 +156,7 @@ inline process::Future<Option<Variable>> State::store(const Variable& variable)
 
   // Create a new entry to replace the existing entry provided the
   // UUID matches.
-  Entry entry;
+  internal::state::Entry entry;
   entry.set_name(variable.entry.name());
   entry.set_uuid(UUID::random().toBytes());
   entry.set_value(variable.entry.value());
@@ -168,7 +167,7 @@ inline process::Future<Option<Variable>> State::store(const Variable& variable)
 
 
 inline process::Future<Option<Variable>> State::_store(
-    const Entry& entry,
+    const internal::state::Entry& entry,
     const bool& b) // TODO(benh): Remove 'const &' after fixing libprocess.
 {
   if (b) {
@@ -191,7 +190,6 @@ inline process::Future<std::set<std::string>> State::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_STATE_STATE_HPP__

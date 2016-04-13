@@ -33,7 +33,6 @@
 #include "messages/messages.hpp"
 
 namespace mesos {
-namespace internal {
 namespace state {
 namespace protobuf {
 
@@ -59,19 +58,20 @@ public:
 private:
   friend class State; // Creates and manages variables.
 
-  Variable(const state::Variable& _variable, const T& _t)
+  Variable(const mesos::state::Variable& _variable, const T& _t)
     : variable(_variable), t(_t)
   {}
 
-  state::Variable variable; // Not const to keep Variable assignable.
+  mesos::state::Variable variable; // Not const to keep Variable assignable.
   T t;
 };
 
 
-class State : public state::State
+class State : public mesos::state::State
 {
 public:
-  explicit State(Storage* storage) : state::State(storage) {}
+  explicit State(mesos::state::Storage* storage)
+    : mesos::state::State(storage) {}
   virtual ~State() {}
 
   // Returns a variable from the state, creating a new one if one
@@ -95,26 +95,26 @@ private:
   // constructor.
   template <typename T>
   static process::Future<Variable<T>> _fetch(
-      const state::Variable& option);
+      const mesos::state::Variable& option);
 
   template <typename T>
   static process::Future<Option<Variable<T>>> _store(
       const T& t,
-      const Option<state::Variable>& variable);
+      const Option<mesos::state::Variable>& variable);
 };
 
 
 template <typename T>
 process::Future<Variable<T>> State::fetch(const std::string& name)
 {
-  return state::State::fetch(name)
+  return mesos::state::State::fetch(name)
     .then(lambda::bind(&State::template _fetch<T>, lambda::_1));
 }
 
 
 template <typename T>
 process::Future<Variable<T>> State::_fetch(
-    const state::Variable& variable)
+    const mesos::state::Variable& variable)
 {
   Try<T> t = messages::deserialize<T>(variable.value());
   if (t.isError()) {
@@ -135,7 +135,7 @@ process::Future<Option<Variable<T>>> State::store(
     return process::Failure(value.error());
   }
 
-  return state::State::store(variable.variable.mutate(value.get()))
+  return mesos::state::State::store(variable.variable.mutate(value.get()))
     .then(lambda::bind(&State::template _store<T>, variable.t, lambda::_1));
 }
 
@@ -143,7 +143,7 @@ process::Future<Option<Variable<T>>> State::store(
 template <typename T>
 process::Future<Option<Variable<T>>> State::_store(
     const T& t,
-    const Option<state::Variable>& variable)
+    const Option<mesos::state::Variable>& variable)
 {
   if (variable.isSome()) {
     return Some(Variable<T>(variable.get(), t));
@@ -156,12 +156,11 @@ process::Future<Option<Variable<T>>> State::_store(
 template <typename T>
 process::Future<bool> State::expunge(const Variable<T>& variable)
 {
-  return state::State::expunge(variable.variable);
+  return mesos::state::State::expunge(variable.variable);
 }
 
 } // namespace protobuf {
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __MESOS_STATE_PROTOBUF_HPP__

@@ -45,6 +45,8 @@
 #include <stout/svn.hpp>
 #include <stout/uuid.hpp>
 
+#include "messages/state.hpp"
+
 using namespace mesos::log;
 
 using namespace mesos::internal::log;
@@ -56,8 +58,10 @@ using namespace process;
 using std::list;
 using std::string;
 
+using mesos::internal::state::Entry;
+using mesos::internal::state::Operation;
+
 namespace mesos {
-namespace internal {
 namespace state {
 
 // A storage implementation for State that uses the replicated
@@ -84,9 +88,9 @@ public:
   virtual ~LogStorageProcess();
 
   // Storage implementation.
-  Future<Option<state::Entry>> get(const string& name);
-  Future<bool> set(const state::Entry& entry, const UUID& uuid);
-  Future<bool> expunge(const state::Entry& entry);
+  Future<Option<Entry>> get(const string& name);
+  Future<bool> set(const Entry& entry, const UUID& uuid);
+  Future<bool> expunge(const Entry& entry);
   Future<std::set<string>> names();
 
 protected:
@@ -110,19 +114,19 @@ private:
       const Option<Log::Position>& position);
 
   // Continuations.
-  Future<Option<state::Entry>> _get(const string& name);
+  Future<Option<Entry>> _get(const string& name);
 
-  Future<bool> _set(const state::Entry& entry, const UUID& uuid);
-  Future<bool> __set(const state::Entry& entry, const UUID& uuid);
+  Future<bool> _set(const Entry& entry, const UUID& uuid);
+  Future<bool> __set(const Entry& entry, const UUID& uuid);
   Future<bool> ___set(
-      const state::Entry& entry,
+      const Entry& entry,
       size_t diff,
       Option<Log::Position> position);
 
-  Future<bool> _expunge(const state::Entry& entry);
-  Future<bool> __expunge(const state::Entry& entry);
+  Future<bool> _expunge(const Entry& entry);
+  Future<bool> __expunge(const Entry& entry);
   Future<bool> ___expunge(
-      const state::Entry& entry,
+      const Entry& entry,
       const Option<Log::Position>& position);
 
   Future<std::set<string>> _names();
@@ -151,7 +155,7 @@ private:
   struct Snapshot
   {
     Snapshot(const Log::Position& position,
-             const state::Entry& entry,
+             const Entry& entry,
              size_t diffs = 0)
       : position(position),
         entry(entry),
@@ -183,10 +187,10 @@ private:
     // the snapshot, not the last DIFF record in the log.
     const Log::Position position;
 
-    // TODO(benh): Rather than storing the entire state::Entry we
+    // TODO(benh): Rather than storing the entire Entry we
     // should just store the position, name, and UUID and cache the
     // data so we don't use too much memory.
-    const state::Entry entry;
+    const Entry entry;
 
     // This value represents the number of Operation::DIFFs in the
     // underlying log that make up this "snapshot". If this snapshot
@@ -434,14 +438,14 @@ Future<Nothing> LogStorageProcess::__truncate(
 }
 
 
-Future<Option<state::Entry>> LogStorageProcess::get(const string& name)
+Future<Option<Entry>> LogStorageProcess::get(const string& name)
 {
   return start()
     .then(defer(self(), &Self::_get, name));
 }
 
 
-Future<Option<state::Entry>> LogStorageProcess::_get(const string& name)
+Future<Option<Entry>> LogStorageProcess::_get(const string& name)
 {
   Option<Snapshot> snapshot = snapshots.get(name);
 
@@ -454,7 +458,7 @@ Future<Option<state::Entry>> LogStorageProcess::_get(const string& name)
 
 
 Future<bool> LogStorageProcess::set(
-    const state::Entry& entry,
+    const Entry& entry,
     const UUID& uuid)
 {
   return mutex.lock()
@@ -464,7 +468,7 @@ Future<bool> LogStorageProcess::set(
 
 
 Future<bool> LogStorageProcess::_set(
-    const state::Entry& entry,
+    const Entry& entry,
     const UUID& uuid)
 {
   return start()
@@ -473,7 +477,7 @@ Future<bool> LogStorageProcess::_set(
 
 
 Future<bool> LogStorageProcess::__set(
-    const state::Entry& entry,
+    const Entry& entry,
     const UUID& uuid)
 {
   Option<Snapshot> snapshot = snapshots.get(entry.name());
@@ -544,7 +548,7 @@ Future<bool> LogStorageProcess::__set(
 
 
 Future<bool> LogStorageProcess::___set(
-    const state::Entry& entry,
+    const Entry& entry,
     size_t diffs,
     Option<Log::Position> position)
 {
@@ -576,7 +580,7 @@ Future<bool> LogStorageProcess::___set(
 }
 
 
-Future<bool> LogStorageProcess::expunge(const state::Entry& entry)
+Future<bool> LogStorageProcess::expunge(const Entry& entry)
 {
   return mutex.lock()
     .then(defer(self(), &Self::_expunge, entry))
@@ -584,14 +588,14 @@ Future<bool> LogStorageProcess::expunge(const state::Entry& entry)
 }
 
 
-Future<bool> LogStorageProcess::_expunge(const state::Entry& entry)
+Future<bool> LogStorageProcess::_expunge(const Entry& entry)
 {
   return start()
     .then(defer(self(), &Self::__expunge, entry));
 }
 
 
-Future<bool> LogStorageProcess::__expunge(const state::Entry& entry)
+Future<bool> LogStorageProcess::__expunge(const Entry& entry)
 {
   Option<Snapshot> snapshot = snapshots.get(entry.name());
 
@@ -621,7 +625,7 @@ Future<bool> LogStorageProcess::__expunge(const state::Entry& entry)
 
 
 Future<bool> LogStorageProcess::___expunge(
-    const state::Entry& entry,
+    const Entry& entry,
     const Option<Log::Position>& position)
 {
   if (position.isNone()) {
@@ -667,19 +671,19 @@ LogStorage::~LogStorage()
 }
 
 
-Future<Option<state::Entry>> LogStorage::get(const string& name)
+Future<Option<Entry>> LogStorage::get(const string& name)
 {
   return dispatch(process, &LogStorageProcess::get, name);
 }
 
 
-Future<bool> LogStorage::set(const state::Entry& entry, const UUID& uuid)
+Future<bool> LogStorage::set(const Entry& entry, const UUID& uuid)
 {
   return dispatch(process, &LogStorageProcess::set, entry, uuid);
 }
 
 
-Future<bool> LogStorage::expunge(const state::Entry& entry)
+Future<bool> LogStorage::expunge(const Entry& entry)
 {
   return dispatch(process, &LogStorageProcess::expunge, entry);
 }
@@ -691,5 +695,4 @@ Future<std::set<string>> LogStorage::names()
 }
 
 } // namespace state {
-} // namespace internal {
 } // namespace mesos {

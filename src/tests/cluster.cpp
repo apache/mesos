@@ -213,16 +213,16 @@ Try<process::Owned<Master>> Master::start(
 
   // Create the registry's storage backend.
   if (flags.registry == "in_memory") {
-    master->storage.reset(new state::InMemoryStorage());
+    master->storage.reset(new mesos::state::InMemoryStorage());
   } else if (flags.registry == "replicated_log") {
-    master->storage.reset(new state::LogStorage(master->log.get()));
+    master->storage.reset(new mesos::state::LogStorage(master->log.get()));
   } else {
     return Error(
         "Unsupported option for registry persistence: " + flags.registry);
   }
 
   // Instantiate some other master dependencies.
-  master->state.reset(new state::protobuf::State(master->storage.get()));
+  master->state.reset(new mesos::state::protobuf::State(master->storage.get()));
   master->registrar.reset(new master::Registrar(
       flags, master->state.get(), master::DEFAULT_HTTP_AUTHENTICATION_REALM));
   master->repairer.reset(new master::Repairer());

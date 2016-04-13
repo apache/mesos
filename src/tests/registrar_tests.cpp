@@ -113,11 +113,11 @@ using namespace mesos::internal::master::weights;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
 
-using state::Entry;
-using state::LogStorage;
-using state::Storage;
+using mesos::state::LogStorage;
+using mesos::state::Storage;
+using mesos::state::protobuf::State;
 
-using state::protobuf::State;
+using state::Entry;
 
 
 static vector<WeightInfo> getWeightInfos(

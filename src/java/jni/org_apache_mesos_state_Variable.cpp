@@ -20,7 +20,7 @@
 
 #include <mesos/state/state.hpp>
 
-using namespace mesos::internal::state;
+using mesos::state::Variable;
 
 extern "C" {
 
