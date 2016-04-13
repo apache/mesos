@@ -489,29 +489,29 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
 
   initialize();
 
-  FrameworkInfo framework1 = createFrameworkInfo(ROLE);
-  allocator->addFramework(framework1.id(), framework1, {});
+  FrameworkInfo framework = createFrameworkInfo(ROLE);
+  allocator->addFramework(framework.id(), framework, {});
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
 
-  // `framework1` will be offered all of `agent1` resources
+  // `framework` will be offered all of `agent` resources
   // because it is the only framework in the cluster.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
-  // Now `framework1` declines the offer and sets a filter
+  // Now `framework` declines the offer and sets a filter
   // with the duration greater than the allocation interval.
   Duration filterTimeout = flags.allocation_interval * 2;
   Filters offerFilter;
   offerFilter.set_refuse_seconds(filterTimeout.secs());
 
   allocator->recoverResources(
-      framework1.id(),
-      agent1.id(),
-      allocation.get().resources.get(agent1.id()).get(),
+      framework.id(),
+      agent.id(),
+      allocation.get().resources.get(agent.id()).get(),
       offerFilter);
 
   // Ensure the offer filter timeout is set before advancing the clock.
@@ -538,8 +538,8 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
 
   // The next batch allocation should offer resources to `framework1`.
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
   metrics = Metrics();
 
@@ -706,13 +706,13 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
   allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
 
   // This framework will be offered all of the resources.
-  FrameworkInfo framework1 = createFrameworkInfo("*");
-  allocator->addFramework(framework1.id(), framework1, {});
+  FrameworkInfo framework = createFrameworkInfo("*");
+  allocator->addFramework(framework.id(), framework, {});
 
   // Check that the resources go to the framework.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
   const process::Time start = Clock::now() + Seconds(60);
@@ -726,7 +726,7 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
   // Check the resources get inverse offered.
   Future<Deallocation> deallocation = deallocations.get();
   AWAIT_READY(deallocation);
-  EXPECT_EQ(framework1.id(), deallocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), deallocation.get().frameworkId);
   EXPECT_TRUE(deallocation.get().resources.contains(agent.id()));
 
   foreachvalue (
@@ -920,12 +920,12 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
   allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
 
   // Initially, all the resources are allocated.
-  FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(framework1.id(), framework1, {});
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(framework.id(), framework, {});
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
@@ -943,7 +943,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(reserved, Resources::sum(allocation.get().resources));
@@ -961,7 +961,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(unreserved, Resources::sum(allocation.get().resources));
@@ -1397,8 +1397,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1505,8 +1505,8 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 
   initialize();
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
@@ -1607,8 +1607,8 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
   FrameworkInfo framework1a = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1a.id(), framework1a, {});
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:4;mem:2048");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:4;mem:2048");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1724,8 +1724,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   allocator->addFramework(framework1.id(), framework1, {});
 
   // Set quota to be less than the agent resources.
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.5;mem:200");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:0.5;mem:200");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1736,17 +1736,17 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
 
-  // `framework1` will be offered all of `agent1`'s resources because
+  // `framework1` will be offered all of `agent`'s resources because
   // it is the only framework in the only role with unsatisfied quota
   // and the allocator performs coarse-grained allocation.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
-  EXPECT_TRUE(Resources(agent1.resources()).contains(quota1.info.guarantee()));
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_TRUE(Resources(agent.resources()).contains(quota.info.guarantee()));
 
   // Total cluster resources: cpus=1, mem=512.
   // QUOTA_ROLE share = 1 (cpus=1, mem=512) [quota: cpus=0.5, mem=200]
@@ -1771,8 +1771,8 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   initialize();
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
@@ -1808,7 +1808,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
       agent1,
       None(),
       agent1.resources(),
-      {std::make_pair(framework1.id(), Resources(quota1.info.guarantee()))});
+      {std::make_pair(framework1.id(), Resources(quota.info.guarantee()))});
 
   // Total cluster resources (1 agent): cpus=1, mem=512.
   // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
@@ -1825,7 +1825,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources() - Resources(quota1.info.guarantee()),
+  EXPECT_EQ(agent1.resources() - Resources(quota.info.guarantee()),
             Resources::sum(allocation.get().resources));
 
   metrics = Metrics();
@@ -1968,8 +1968,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       filter0s);
 
   // We set quota for the "starving" `QUOTA_ROLE` role.
-  Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Since `QUOTA_ROLE` is under quota, `agent2`'s resources will
   // be allocated to `framework1`.
@@ -2005,8 +2005,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
   // Set quota for the quota'ed role. This role isn't registered with
   // the allocator yet.
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Add `framework` in the non-quota'ed role.
   FrameworkInfo framework = createFrameworkInfo(NO_QUOTA_ROLE);
