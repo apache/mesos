@@ -38,6 +38,8 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "hook/manager.hpp"
+
 #include "module/manager.hpp"
 
 #include "slave/paths.hpp"
@@ -948,7 +950,13 @@ Future<Nothing> MesosContainerizerProcess::fetch(
       directory,
       user,
       slaveId,
-      flags);
+      flags)
+    .then([=]() -> Future<Nothing> {
+      if (HookManager::hooksAvailable()) {
+        HookManager::slavePostFetchHook(containerId, directory);
+      }
+      return Nothing();
+    });
 }
 
 

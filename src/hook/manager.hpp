@@ -65,6 +65,10 @@ public:
       const Option<Resources>& resources,
       const Option<std::map<std::string, std::string>>& env);
 
+  static void slavePostFetchHook(
+      const ContainerID& containerId,
+      const std::string& directory);
+
   static void slaveRemoveExecutorHook(
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo);

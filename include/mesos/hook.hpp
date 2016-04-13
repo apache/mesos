@@ -101,6 +101,17 @@ public:
     return Nothing();
   }
 
+  // This hook is called from within slave after URIs and container
+  // image are fetched. A typical module implementing this hook will
+  // perform some operations on the fetched artifacts.
+  virtual Try<Nothing> slavePostFetchHook(
+      const ContainerID& containerId,
+      const std::string& directory)
+  {
+    return Nothing();
+  }
+
+
   // This hook is called from within slave when an executor is being
   // removed. A typical module implementing the hook will perform some
   // cleanup as required.

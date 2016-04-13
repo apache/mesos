@@ -232,6 +232,21 @@ void HookManager::slavePreLaunchDockerHook(
 }
 
 
+void HookManager::slavePostFetchHook(
+    const ContainerID& containerId,
+    const string& directory)
+{
+  foreach (const string& name, availableHooks.keys()) {
+    Hook* hook = availableHooks[name];
+    Try<Nothing> result = hook->slavePostFetchHook(containerId, directory);
+    if (result.isError()) {
+      LOG(WARNING) << "Slave post fetch hook failed for module "
+                   << "'" << name << "': " << result.error();
+    }
+  }
+}
+
+
 void HookManager::slaveRemoveExecutorHook(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo)

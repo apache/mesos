@@ -1039,11 +1039,19 @@ Future<bool> DockerContainerizerProcess::launch(
     // creates the Docker container for the task. See more details in
     // the comments of r33174.
     return container.get()->launch = fetch(containerId, slaveId)
-      .then(defer(self(), [=]() { return pull(containerId); }))
       .then(defer(self(), [=]() {
+        return pull(containerId);
+      }))
+      .then(defer(self(), [=]() {
+        if (HookManager::hooksAvailable()) {
+          HookManager::slavePostFetchHook(containerId, directory);
+        }
+
         return mountPersistentVolumes(containerId);
       }))
-      .then(defer(self(), [=]() { return launchExecutorProcess(containerId); }))
+      .then(defer(self(), [=]() {
+        return launchExecutorProcess(containerId);
+      }))
       .then(defer(self(), [=](pid_t pid) {
         return reapExecutor(containerId, pid);
       }));
@@ -1063,8 +1071,14 @@ Future<bool> DockerContainerizerProcess::launch(
   // running in a container (via docker_mesos_image flag) we want the
   // executor to keep running when the slave container dies.
   return container.get()->launch = fetch(containerId, slaveId)
-    .then(defer(self(), [=]() { return pull(containerId); }))
     .then(defer(self(), [=]() {
+      return pull(containerId);
+    }))
+    .then(defer(self(), [=]() {
+      if (HookManager::hooksAvailable()) {
+        HookManager::slavePostFetchHook(containerId, directory);
+      }
+
       return mountPersistentVolumes(containerId);
     }))
     .then(defer(self(), [=]() {
@@ -2010,7 +2024,6 @@ void DockerContainerizerProcess::remove(
     docker->rm(executor.get(), true);
   }
 }
-
 
 } // namespace slave {
 } // namespace internal {
