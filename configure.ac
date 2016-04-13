@@ -143,15 +143,32 @@ AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
 AC_CONFIG_FILES([mpi/mpiexec-mesos], [chmod +x mpi/mpiexec-mesos])
 
 
-AC_ARG_ENABLE([java],
-              AS_HELP_STRING([--disable-java],
-                             [don't build Java bindings]),
-              [], [enable_java=yes])
+AC_ARG_ENABLE([bundled],
+              AS_HELP_STRING([--disable-bundled],
+                             [build against preinstalled dependencies instead
+                              of bundled libraries]),
+              [enable_bundled=no], [enable_bundled=yes])
 
-AC_ARG_ENABLE([python],
-              AS_HELP_STRING([--disable-python],
-                             [don't build Python bindings]),
-              [], [enable_python=yes])
+AC_ARG_ENABLE([bundled-pip],
+              AS_HELP_STRING([--disable-bundled-pip],
+                             [excludes building and using the bundled pip
+                              package in lieu of an installed version in
+                              PYTHONPATH]),
+              [without_bundled_pip=yes], [])
+
+AC_ARG_ENABLE([bundled-setuptools],
+              AS_HELP_STRING([--disable-bundled-setuptools],
+                             [excludes building and using the bundled setuptools
+                              package in lieu of an installed version in
+                              PYTHONPATH]),
+              [without_bundled_setuptools=yes], [])
+
+AC_ARG_ENABLE([bundled-wheel],
+              AS_HELP_STRING([--disable-bundled-wheel],
+                             [excludes building and using the bundled wheel
+                              package in lieu of an installed version in
+                              PYTHONPATH]),
+              [without_bundled_wheel=yes], [])
 
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
@@ -159,31 +176,75 @@ AC_ARG_ENABLE([debug],
                               option won't change them default: no]),
               [enable_debug=yes], [])
 
+AC_ARG_ENABLE([java],
+              AS_HELP_STRING([--disable-java],
+                             [don't build Java bindings]),
+              [], [enable_java=yes])
+
+AC_ARG_ENABLE([libevent],
+              AS_HELP_STRING([--enable-libevent],
+                             [use libevent instead of libev default: no]),
+              [enable_libevent=yes], [])
+
+AC_ARG_ENABLE([nvidia-gpu-support],
+              AS_HELP_STRING([--enable-nvidia-gpu-support],
+                             [build with Nvidia GPU support default: no]),
+              [enable_nvidia_gpu_support=yes], [])
+
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
                               this option won't change them default: no]),
               [enable_optimize=yes], [])
 
-AC_ARG_ENABLE([bundled],
-              AS_HELP_STRING([--disable-bundled],
-                             [build against preinstalled dependencies instead
-                              of bundled libraries]),
-              [enable_bundled=no], [enable_bundled=yes])
+AC_ARG_ENABLE([python],
+              AS_HELP_STRING([--disable-python],
+                             [don't build Python bindings]),
+              [], [enable_python=yes])
 
-AC_ARG_WITH([zookeeper],
-            AS_HELP_STRING([--with-zookeeper@<:@=DIR@:>@],
-                           [excludes building and using the bundled ZooKeeper
-                            package in lieu of an installed version at a
-                            location prefixed by the given path]),
-            [without_bundled_zookeeper=yes], [])
+# This is used to make distcheck and python install work together. For more
+# information, see the comment above AM_DISTCHECK_CONFIGURE_FLAGS in
+# Makefile.am.
+AC_ARG_ENABLE([python-dependency-install],
+              AS_HELP_STRING([--disable-python-dependency-install],
+                             [when the python packages are installed during
+                              make install, no external dependencies are
+                              downloaded or installed]),
+              [without_python_deps=yes], [])
 
-AC_ARG_WITH([leveldb],
-            AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
-                           [excludes building and using the bundled LevelDB
-                            package in lieu of an installed version at a
-                            location prefixed by the given path]),
-            [without_bundled_leveldb=yes], [])
+AC_ARG_ENABLE([ssl],
+              AS_HELP_STRING([--enable-ssl],
+                             [use ssl for libprocess communication
+                             default: no]),
+              [enable_ssl=yes], [])
+
+AC_ARG_ENABLE([static-unimplemented],
+              AS_HELP_STRING([--enable-static-unimplemented],
+                             [generate static assertion errors for unimplemented
+                             functions default: no]),
+              [enable_static_unimplemented=yes], [])
+
+AC_ARG_ENABLE([tests-install],
+              AS_HELP_STRING([--enable-tests-install],
+                             [build and install tests and their helper tools
+                              default: no]),
+              [], [enable_tests_install=no])
+
+AC_ARG_ENABLE([xfs-disk-isolator],
+              AS_HELP_STRING([--enable-xfs-disk-isolator],
+                             [builds the XFS disk isolator
+                             default: no]),
+              [], [enable_xfs_disk_isolator=no])
+
+AC_ARG_WITH([apr],
+            AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
+                           [specify where to locate the apr-1 library]),
+            [], [])
+
+AC_ARG_WITH([curl],
+            AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
+                           [specify where to locate the curl library]),
+            [], [])
 
 AC_ARG_WITH([glog],
             AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
@@ -192,13 +253,6 @@ AC_ARG_WITH([glog],
                             location prefixed by the given path]),
             [without_bundled_glog=yes], [])
 
-AC_ARG_WITH([protobuf],
-            AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
-                           [excludes building and using the bundled protobuf
-                            package in lieu of an installed version at a
-                            location prefixed by the given path]),
-            [without_bundled_protobuf=yes], [])
-
 AC_ARG_WITH([gmock],
             AS_HELP_STRING([--with-gmock@<:@=DIR@:>@],
                            [excludes building and using the bundled gmock
@@ -206,30 +260,24 @@ AC_ARG_WITH([gmock],
                             location prefixed by the given path]),
             [without_bundled_gmock=yes], [])
 
-AC_ARG_WITH([curl],
-            AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
-                           [specify where to locate the curl library]),
+AC_ARG_WITH([leveldb],
+            AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
+                           [excludes building and using the bundled LevelDB
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_leveldb=yes], [])
+
+AC_ARG_WITH([libevent],
+            AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
+                           [specify where to locate the libevent library]),
             [], [])
 
-AC_ARG_WITH([sasl],
-            AS_HELP_STRING([--with-sasl=@<:@=DIR@:>@],
-                           [specify where to locate the sasl2 library]),
-            [], [])
-
-AC_ARG_WITH([zlib],
-            AS_HELP_STRING([--with-zlib=@<:@=DIR@:>@],
-                           [specify where to locate the zlib library]),
-            [], [])
-
-AC_ARG_WITH([apr],
-            AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
-                           [specify where to locate the apr-1 library]),
-            [], [])
-
-AC_ARG_WITH([svn],
-            AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
-                           [specify where to locate the svn-1 library]),
-            [], [])
+# TODO(MESOS-4991): Since network-isolator is an optional feature, it should
+# be enabled with --enable-network-isolator.
+AC_ARG_WITH([network-isolator],
+            AS_HELP_STRING([--with-network-isolator],
+                           [builds the network isolator]),
+            [], [with_network_isolator=no])
 
 AC_ARG_WITH([nl],
             AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
@@ -249,86 +297,39 @@ AC_ARG_WITH([nvml-lib],
                             (required for Nvidia GPU support)]),
             [], [])
 
-AC_ARG_ENABLE([bundled-setuptools],
-              AS_HELP_STRING([--disable-bundled-setuptools],
-                             [excludes building and using the bundled setuptools
-                              package in lieu of an installed version in
-                              PYTHONPATH]),
-              [without_bundled_setuptools=yes], [])
+AC_ARG_WITH([protobuf],
+            AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
+                           [excludes building and using the bundled protobuf
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_protobuf=yes], [])
 
-AC_ARG_ENABLE([bundled-pip],
-              AS_HELP_STRING([--disable-bundled-pip],
-                             [excludes building and using the bundled pip
-                              package in lieu of an installed version in
-                              PYTHONPATH]),
-              [without_bundled_pip=yes], [])
-
-AC_ARG_ENABLE([bundled-wheel],
-              AS_HELP_STRING([--disable-bundled-wheel],
-                             [excludes building and using the bundled wheel
-                              package in lieu of an installed version in
-                              PYTHONPATH]),
-              [without_bundled_wheel=yes], [])
-
-# This is used to make distcheck and python install work together. For more
-# information, see the comment above AM_DISTCHECK_CONFIGURE_FLAGS in
-# Makefile.am.
-AC_ARG_ENABLE([python-dependency-install],
-              AS_HELP_STRING([--disable-python-dependency-install],
-                             [when the python packages are installed during
-                              make install, no external dependencies are
-                              downloaded or installed]),
-              [without_python_deps=yes], [])
-
-AC_ARG_ENABLE([tests-install],
-              AS_HELP_STRING([--enable-tests-install],
-                             [build and install tests and their helper tools
-                              default: no]),
-              [], [enable_tests_install=no])
-# TODO(MESOS-4991): Since network-isolator is an optional feature, it should
-# be enabled with --enable-network-isolator.
-AC_ARG_WITH([network-isolator],
-            AS_HELP_STRING([--with-network-isolator],
-                           [builds the network isolator]),
-            [], [with_network_isolator=no])
-
-AC_ARG_ENABLE([xfs-disk-isolator],
-              AS_HELP_STRING([--enable-xfs-disk-isolator],
-                             [builds the XFS disk isolator
-                             default: no]),
-              [], [enable_xfs_disk_isolator=no])
-
-AC_ARG_ENABLE([libevent],
-              AS_HELP_STRING([--enable-libevent],
-                             [use libevent instead of libev default: no]),
-              [enable_libevent=yes], [])
-
-AC_ARG_ENABLE([nvidia-gpu-support],
-              AS_HELP_STRING([--enable-nvidia-gpu-support],
-                             [build with Nvidia GPU support default: no]),
-              [enable_nvidia_gpu_support=yes], [])
-
-AC_ARG_ENABLE([ssl],
-              AS_HELP_STRING([--enable-ssl],
-                             [use ssl for libprocess communication
-                             default: no]),
-              [enable_ssl=yes], [])
-
-AC_ARG_ENABLE([static-unimplemented],
-              AS_HELP_STRING([--enable-static-unimplemented],
-                             [generate static assertion errors for unimplemented
-                             functions default: no]),
-              [enable_static_unimplemented=yes], [])
-
-AC_ARG_WITH([libevent],
-            AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
-                           [specify where to locate the libevent library]),
+AC_ARG_WITH([sasl],
+            AS_HELP_STRING([--with-sasl=@<:@=DIR@:>@],
+                           [specify where to locate the sasl2 library]),
             [], [])
 
 AC_ARG_WITH([ssl],
             AS_HELP_STRING([--with-ssl=@<:@=DIR@:>@],
                            [specify where to locate the ssl library]),
             [], [])
+
+AC_ARG_WITH([svn],
+            AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
+                           [specify where to locate the svn-1 library]),
+            [], [])
+
+AC_ARG_WITH([zlib],
+            AS_HELP_STRING([--with-zlib=@<:@=DIR@:>@],
+                           [specify where to locate the zlib library]),
+            [], [])
+
+AC_ARG_WITH([zookeeper],
+            AS_HELP_STRING([--with-zookeeper@<:@=DIR@:>@],
+                           [excludes building and using the bundled ZooKeeper
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_zookeeper=yes], [])
 
 # TODO(hartem): consolidate all of the ENABLE and _WITH statements
 # above in separate sections for better readability.
