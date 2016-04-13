@@ -556,6 +556,12 @@ static void transport(Message* message, ProcessBase* sender = NULL)
 }
 
 
+// Returns true if `request` contains an inbound libprocess message.
+// A libprocess message can either be sent by another instance of
+// libprocess (i.e. both of the "User-Agent" and "Libprocess-From"
+// headers will be set), or a client that speaks the libprocess
+// protocol (i.e. only the "Libprocess-From" header will be set).
+// This function returns true for either case.
 static bool libprocess(Request* request)
 {
   return
