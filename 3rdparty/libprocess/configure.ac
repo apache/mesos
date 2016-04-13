@@ -56,16 +56,27 @@ AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 
-AC_ARG_ENABLE([install],
-              AS_HELP_STRING([--enable-install],
-                             [install libprocess]),
-              [AC_MSG_ERROR([libprocess can not currently be installed])])
+AC_ARG_ENABLE([bundled],
+              AS_HELP_STRING([--disable-bundled],
+                             [build against preinstalled dependencies instead
+                             of bundled libraries]),
+              [enable_bundled=no], [enable_bundled=yes])
 
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
                              [enable debugging. If CFLAGS/CXXFLAGS are set, this
                               option won't change them default: no]),
               [enable_debug=yes], [])
+
+AC_ARG_ENABLE([install],
+              AS_HELP_STRING([--enable-install],
+                             [install libprocess]),
+              [AC_MSG_ERROR([libprocess can not currently be installed])])
+
+AC_ARG_ENABLE([libevent],
+              AS_HELP_STRING([--enable-libevent],
+                             [use libevent instead of libev default: no]),
+              [enable_libevent=yes], [])
 
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
@@ -77,17 +88,6 @@ AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
                              [enable google perftools]),
               [gperftools=yes], [])
-
-AC_ARG_ENABLE([bundled],
-              AS_HELP_STRING([--disable-bundled],
-                             [build against preinstalled dependencies instead
-                             of bundled libraries]),
-              [enable_bundled=no], [enable_bundled=yes])
-
-AC_ARG_ENABLE([libevent],
-              AS_HELP_STRING([--enable-libevent],
-                             [use libevent instead of libev default: no]),
-              [enable_libevent=yes], [])
 
 AC_ARG_ENABLE([ssl],
               AS_HELP_STRING([--enable-ssl],
@@ -101,26 +101,17 @@ AC_ARG_ENABLE([static-unimplemented],
                              functions default: no]),
               [enable_static_unimplemented=yes], [])
 
+AC_ARG_WITH([apr],
+            AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
+                           [specify where to locate the apr-1 library]),
+            [], [])
+
 AC_ARG_WITH([boost],
             AS_HELP_STRING([--with-boost@<:@=DIR@:>@],
                            [excludes building and using the bundled Boost
                            package in lieu of an installed version at a
                            location prefixed by the given path]),
             [without_bundled_boost=yes], [])
-
-AC_ARG_WITH([picojson],
-            AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
-                           [excludes building and using the bundled picojson
-                           package in lieu of an installed version at a
-                           location prefixed by the given path]),
-            [without_bundled_picojson=yes], [])
-
-AC_ARG_WITH([libev],
-            AS_HELP_STRING([--with-libev@<:@=DIR@:>@],
-                           [excludes building and using the bundled libev
-                           package in lieu of an installed version at a
-                           location prefixed by the given path]),
-            [without_bundled_libev=yes], [])
 
 AC_ARG_WITH([curl],
             AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
@@ -148,6 +139,25 @@ AC_ARG_WITH([http-parser],
                            location prefixed by the given path]),
             [without_bundled_http_parser=yes], [])
 
+AC_ARG_WITH([libev],
+            AS_HELP_STRING([--with-libev@<:@=DIR@:>@],
+                           [excludes building and using the bundled libev
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_libev=yes], [])
+
+AC_ARG_WITH([libevent],
+            AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
+                           [specify where to locate the libevent library]),
+            [], [])
+
+AC_ARG_WITH([picojson],
+            AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
+                           [excludes building and using the bundled picojson
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_picojson=yes], [])
+
 AC_ARG_WITH([protobuf],
             AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
                            [excludes building and using the bundled protobuf
@@ -155,15 +165,9 @@ AC_ARG_WITH([protobuf],
                             location prefixed by the given path]),
             [without_bundled_protobuf=yes], [])
 
-AC_ARG_WITH([zlib],
-            AS_HELP_STRING([--without-zlib],
-                           [disables zlib compression, which means the webui
-                           will be far less responsive; not recommended]),
-            [], [with_zlib=yes])
-
-AC_ARG_WITH([apr],
-            AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
-                           [specify where to locate the apr-1 library]),
+AC_ARG_WITH([ssl],
+            AS_HELP_STRING([--with-ssl=@<:@=DIR@:>@],
+                           [specify where to locate the ssl library]),
             [], [])
 
 AC_ARG_WITH([svn],
@@ -171,15 +175,11 @@ AC_ARG_WITH([svn],
                            [specify where to locate the svn-1 library]),
             [], [])
 
-AC_ARG_WITH([libevent],
-            AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
-                           [specify where to locate the libevent library]),
-            [], [])
-
-AC_ARG_WITH([ssl],
-            AS_HELP_STRING([--with-ssl=@<:@=DIR@:>@],
-                           [specify where to locate the ssl library]),
-            [], [])
+AC_ARG_WITH([zlib],
+            AS_HELP_STRING([--without-zlib],
+                           [disables zlib compression, which means the webui
+                           will be far less responsive; not recommended]),
+            [], [with_zlib=yes])
 
 # Do some OS specific setup.
 case "${target_os}" in
