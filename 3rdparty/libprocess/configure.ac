@@ -23,6 +23,14 @@ AC_CANONICAL_TARGET
 
 AC_LANG([C++])
 
+# Default to gcc toolchain (we rely on some atomic builtins for now,
+# that are also present with clang).
+AC_PROG_CXX([g++])
+AC_PROG_CC([gcc])
+
+AX_COMPILER_VERSION
+AX_COMPILER_VENDOR
+
 AC_CONFIG_MACRO_DIR([m4])
 
 # Initialize automake.
@@ -55,6 +63,10 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
+
+###############################################################################
+# Optional features.
+###############################################################################
 
 AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
@@ -106,6 +118,11 @@ AC_ARG_ENABLE([zlib],
                            [disables zlib compression, which means the webui
                            will be far less responsive; not recommended]),
             [enable_zlib=no], [enable_zlib=yes])
+
+
+###############################################################################
+# Optional packages.
+###############################################################################
 
 AC_ARG_WITH([apr],
             AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
@@ -181,554 +198,10 @@ AC_ARG_WITH([svn],
                            [specify where to locate the svn-1 library]),
             [], [])
 
-# Do some OS specific setup.
-case "${target_os}" in
-  linux*)
-    LIBS="$LIBS -lrt" # For clock_gettime() in stout/stopwatch.hpp.
-    OS_NAME=linux # Used below for OS_LINUX.
-    ;;
-  darwin*)
-    OS_NAME=darwin
-    ;;
-  freebsd*)
-    OS_NAME=freebsd
-    ;;
-  *)
-    ;;
-esac
 
-# Include directories used by package managers (e.g., MacPorts).
-if test "x$enable_bundled" != "xyes" && \
-   test "x$OS_NAME" = "xdarwin"; then
-  CPPFLAGS="$CPPFLAGS -I/opt/local/include"
-fi
-
-# Used for conditionally building source files (e.g., only want to
-# build stout/tests/proc_tests.cpp on Linux).
-AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
-
-AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
-
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
-if test -n "`echo $with_boost`"; then
-  CPPFLAGS="$CPPFLAGS -isystem ${with_boost}/include"
-fi
-
-if test -n "`echo $with_picojson`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_picojson}/include"
-fi
-
-if test -n "`echo $with_libev`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_libev}/include"
-  LDFLAGS="$LDFLAGS -L${with_libev}/lib"
-fi
-
-if test -n "`echo $with_curl`" ; then
-  CPPFLAGS="$CPPFLAGS -I${with_curl}/include"
-  LDFLAGS="$LDFLAGS -L${with_curl}/lib"
-fi
-
-if test -n "`echo $with_glog`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_glog}/include"
-  LDFLAGS="$LDFLAGS -L${with_glog}/lib"
-fi
-
-
-# Check if libapr-1 prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include/apr-1 and /lib path
-# suffixes. We include /include/apr-1 because we include <apr*>
-# headers directly.
-if test -n "`echo $with_apr`" ; then
-  CPPFLAGS="-I${with_apr}/include/apr-1 -I${with_apr}/include/apr-1.0 $CPPFLAGS"
-  LDFLAGS="-L${with_apr}/lib $LDFLAGS"
-else
-  CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
-fi
-
-AC_CHECK_HEADERS([apr_pools.h],
-                 [AC_CHECK_LIB([apr-1], [apr_initialize], [],
-                               [AC_MSG_ERROR([cannot find libapr-1
--------------------------------------------------------------------
-libapr-1 is required for libprocess to build.
--------------------------------------------------------------------
-                        ])])], [AC_MSG_ERROR([cannot find libapr-1 headers
--------------------------------------------------------------------
-libapr-1 is required for libprocess to build.
--------------------------------------------------------------------
-])])
-
-
-# Check if libsvn-1 prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes. We include /include/subversion-1 because we include
-# <svn_*> directly.
-if test -z "`echo $with_svn`" &&
-   test "$OS_NAME" = "darwin" &&
-   test -n "`command -v brew`" &&
-   test -n "`brew list --versions subversion`"; then
-  with_svn=`brew --prefix subversion`
-fi
-
-if test -n "`echo $with_svn`"; then
-  CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
-  LDFLAGS="-L${with_svn}/lib $LDFLAGS"
-else
-  CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
-fi
-
-AC_CHECK_HEADERS([svn_version.h],
-                 [AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
-                               [AC_MSG_ERROR([cannot find libsvn_subr-1
--------------------------------------------------------------------
-libsubversion-1 is required for libprocess to build.
--------------------------------------------------------------------
-                        ])])], [AC_MSG_ERROR([cannot find libsvn_subr-1 headers
--------------------------------------------------------------------
-libsubversion-1 is required for libprocess to build.
--------------------------------------------------------------------
-])])
-
-AC_CHECK_HEADERS([svn_delta.h],
-                 [AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
-                               [AC_MSG_ERROR([cannot find libsvn_delta-1
--------------------------------------------------------------------
-libsubversion-1 is required for libprocess to build.
--------------------------------------------------------------------
-                        ])])], [AC_MSG_ERROR([cannot find libsvn_delta-1 headers
--------------------------------------------------------------------
-libsubversion-1 is required for libprocess to build.
--------------------------------------------------------------------
-])])
-
-
-GMOCKSRC="gmock-all.cc"
-GTESTSRC="gtest-all.cc"
-
-if test -n "`echo $with_gmock`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_gmock} -I${with_gmock}/include \
-    -I${with_gmock}/src -I${with_gmock}/gtest -I${with_gmock}/gtest/include \
-    -I${with_gmock}/gtest/src"
-
-elif test "x$enable_bundled" != "xyes"; then
-  CPPFLAGS="$CPPFLAGS -I/usr/src/gmock"
-  # On system installations the deps are handled separately.
-  # So insert a placeholder for substitution.
-  GTESTSRC="stdio.h"
-  check_gtest=yes
-fi
-
-if test -n "`echo $with_http_parser`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_http_parser}/include"
-  LDFLAGS="$LDFLAGS -L${with_http_parser}/lib"
-fi
-
-if test -n "`echo $with_protobuf`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
-  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
-fi
-
-# Check if user has asked us to use a preinstalled gmock, or if they
-# asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_gmock" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADER($GMOCKSRC,
-                  [found_gmock=yes],
-                  [])
-
-  if test "x$found_gmock" = "xyes"; then
-    if test "x$check_gtest" = "xyes"; then
-      # TODO(jieyu): Symbol _init is not availble for libs on OS X.
-      AC_CHECK_LIB([gtest],
-                   [_init],
-                   [],
-                   [AC_MSG_ERROR([gtest missing])])
-    fi
-    with_bundled_gmock=no
-  else
-    AC_MSG_ERROR([cannot find gmock
--------------------------------------------------------------------
-You have requested the use of a non-bundled gmock but no suitable
-gmock could be found.
-
-You may want specify the location of gmock by providing a prefix
-path via --with-gmock=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_gmock=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_GMOCK], [test "x$with_bundled_gmock" = "xyes"])
-AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
-AC_SUBST([GMOCKSRC])
-AC_SUBST([GTESTSRC])
-
-# Check if user has asked us to use a preinstalled libev, or if they
-# asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_libev" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADERS([ev.h], [found_libev=yes])
-
-  if test "x$found_libev" = "xyes"; then
-    with_bundled_libev=no
-    AC_MSG_WARN([libev found must have been built with -DEV_CHILD_ENABLE=0])
-  else
-    AC_MSG_ERROR([cannot find libev
--------------------------------------------------------------------
-You have requested the use of a non-bundled libev but no suitable
-libev could be found.
-
-You may want specify the location of libev by providing a prefix
-path via --with-libev=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_libev=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_LIBEV], [test "x$with_bundled_libev" = "xyes"])
-
-# Check if user has asked us to use a preinstalled Boost, or if they
-# asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_boost" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADERS([boost/version.hpp], [found_boost=yes])
-
-  if test "x$found_boost" = "xyes"; then
-    with_bundled_boost=no
-  else
-    AC_MSG_ERROR([cannot find Boost
--------------------------------------------------------------------
-You have requested the use of a non-bundled Boost but no suitable
-Boost could be found.
-
-You may want specify the location of Boost by providing a prefix
-path via --with-boost=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_boost=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
-
-# Check if user has asked us to use a preinstalled picojson, or if
-# they asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_picojson" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADERS([picojson.h], [found_picojson=yes])
-
-  if test "x$found_picojson" = "xyes"; then
-    with_bundled_picojson=no
-  else
-    AC_MSG_ERROR([cannot find picojson
--------------------------------------------------------------------
-You have requested the use of a non-bundled picojson but no suitable
-picojson could be found.
-
-You may want specify the location of picojson by providing a prefix
-path via --with-picojson=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_picojson=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
-
-
-AC_CHECK_LIB([curl], [curl_global_init], [],
-             [AC_MSG_ERROR([cannot find libcurl
--------------------------------------------------------------------
-libcurl is required for libprocess to build.
--------------------------------------------------------------------
-])])
-
-
-# Check if user has asked us to use a preinstalled glog, or if they
-# asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_glog" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADERS([glog/logging.h],
-                   [AC_LINK_IFELSE(
-                        [AC_LANG_PROGRAM([#include <glog/logging.h>],[])],
-                        [TEST_LIBS="$TEST_LIBS -lglog"] [found_glog=yes],
-                        [AC_MSG_WARN([glog is not installed.])])])
-
-  if test "x$found_glog" = "xyes"; then
-    with_bundled_glog=no
-  else
-    AC_MSG_ERROR([cannot find glog
--------------------------------------------------------------------
-You have requested the use of a non-bundled glog but no suitable
-glog could be found.
-
-You may want specify the location of glog by providing a prefix
-path via --with-glog=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_glog=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_GLOG], [test "x$with_bundled_glog" = "xyes"])
-
-# Check if user has asked us to use a preinstalled http-parser, or if
-# they asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_http_parser" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Check if headers and library were located.
-  AC_CHECK_HEADERS([http_parser.h],
-                   [AC_CHECK_LIB([http_parser],
-                                 [http_parser_init],
-                                 [found_http_parser=yes])])
-
-  if test "x$found_http_parser" = "xyes"; then
-    with_bundled_http_parser=no
-  else
-    AC_MSG_ERROR([cannot find http-parser
--------------------------------------------------------------------
-You have requested the use of a non-bundled http-parser but no suitable
-http-parser could be found.
-
-You may want specify the location of http-parser by providing a prefix
-path via --with-http-parser=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_http_parser=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
-               [test "x$with_bundled_http_parser" = "xyes"])
-
-# Check if user has asked us to use a preinstalled protobuf, or if
-# they asked us to ignore all bundled libraries while compiling and
-# linking.
-if test "x$without_bundled_protobuf" = "xyes" || \
-   test "x$enable_bundled" != "xyes"; then
-  # Use the system default prefix if not specified.
-  if test -n "`echo $with_protobuf`"; then
-    PROTOBUFPREFIX="${with_protobuf}"
-  elif test "x$enable_bundled" != "xyes"; then
-    PROTOBUFPREFIX="/usr"
-  fi
-
-  AC_CHECK_HEADERS([google/protobuf/message.h], [found_protobuf=yes],
-                   [found_protobuf=no])
-
-  if test "x$found_protobuf" = "xyes"; then
-    saved_LIBS="$LIBS"
-    LIBS="-lprotobuf $LIBS"
-    AC_LANG_PUSH([C++])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <google/protobuf/stubs/common.h>],
-                    [ google::protobuf::ShutdownProtobufLibrary(); ])],
-            [ found_protobuf=yes ],
-            [ found_protobuf=no ])
-    AC_LANG_POP()
-    LIBS="$saved_LIBS"
-  fi
-
-  if test "x$found_protobuf" = "xyes"; then
-    with_bundled_protobuf=no
-
-    AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
-
-    if test -z "`echo $PROTOCOMPILER_TEST`"; then
-      AC_MSG_ERROR([protoc not found in PATH])
-    fi
-
-  else
-    AC_MSG_ERROR([cannot find protobuf
--------------------------------------------------------------------
-You have requested the use of a non-bundled protobuf but no suitable
-protobuf could be found.
-
-You may want specify the location of protobuf by providing a prefix
-path via --with-protobuf=DIR, or check that the path you provided is
-correct if you're already doing this.
--------------------------------------------------------------------
-])
-  fi
-else
-  with_bundled_protobuf=yes
-fi
-
-AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
-               [test "x$with_bundled_protobuf" = "xyes"])
-
-# Default to gcc toolchain (we rely on some atomic builtins for now,
-# that are also present with clang).
-AC_PROG_CXX([g++])
-AC_PROG_CC([gcc])
-
-AX_COMPILER_VERSION
-AX_COMPILER_VENDOR
-
-# Check if we should enable debugging, optimization. Note we only
-# update CFLAGS and CXXFLAGS if none are provided.
-AM_CONDITIONAL([DEBUG], [test x"$enable_debug" = "xyes"])
-AM_CONDITIONAL([OPTIMIZE], [test x"$enable_optimize" = "xyes"])
-
-
-debug_flags="-g1"
-if test "x$enable_debug" = "xyes"; then
-  debug_flags="-g"
-elif test "x$enable_optimize" = "xyes"; then
-  debug_flags=""
-fi
-
-if test "x$enable_optimize" = "xyes"; then
-  optimize_flags="-O2"
-else
-  optimize_flags="-O0"
-fi
-
-
-# Check if libevent prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes.
-if test -z "`echo $with_libevent`" &&
-   test "$OS_NAME" = "darwin" &&
-   test -n "`command -v brew`" &&
-   test -n "`brew list --versions libevent`"; then
-  with_libevent=`brew --prefix libevent`
-fi
-
-if test -n "`echo $with_libevent`"; then
-  CPPFLAGS="-I${with_libevent}/include $CPPFLAGS"
-  LDFLAGS="-L${with_libevent}/lib $LDFLAGS"
-fi
-
-if test "x$enable_libevent" = "xyes"; then
-  AC_CHECK_HEADERS([event2/event.h],
-                   [AC_CHECK_LIB([event],
-                                 [event_base_new],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libevent
--------------------------------------------------------------------
-libevent version 2+ is required for libprocess to build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libevent headers
--------------------------------------------------------------------
-libevent version 2+ headers are required for libprocess to build.
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_HEADERS([event2/thread.h],
-                   [AC_CHECK_LIB([event_pthreads],
-                                 [evthread_use_pthreads],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libevent_pthreads
--------------------------------------------------------------------
-libevent_pthreads version 2+ is required for libprocess to build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libevent_pthreads headers
--------------------------------------------------------------------
-libevent_pthreads version 2+ headers are required for libprocess to build.
--------------------------------------------------------------------
-  ])])
-fi
-
-AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
-
-
-# Check if libssl prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes.
-if test -z "`echo $with_ssl`" &&
-   test "$OS_NAME" = "darwin" &&
-   test -n "`command -v brew`" &&
-   test -n "`brew list --versions openssl`"; then
-  with_ssl=`brew --prefix openssl`
-fi
-
-if test -n "`echo $with_ssl`"; then
-  CPPFLAGS="-I${with_ssl}/include $CPPFLAGS"
-  LDFLAGS="-L${with_ssl}/lib $LDFLAGS"
-fi
-
-if test "x$enable_ssl" = "xyes"; then
-  AC_CHECK_HEADERS([openssl/ssl.h],
-                   [AC_CHECK_LIB([ssl],
-                                 [SSL_CTX_new],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libssl
--------------------------------------------------------------------
-libssl is required for an SSL-enabled build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libssl headers
--------------------------------------------------------------------
-libssl is required for an SSL-enabled build.
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([crypto], [RAND_poll], [], [AC_MSG_ERROR([cannot find libcrypto
--------------------------------------------------------------------
-libcrypto is required for an SSL-enabled build.
--------------------------------------------------------------------
-  ])])
-
-  if test "x$enable_libevent" = "xyes"; then
-    AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
-                     [AC_CHECK_LIB([event_openssl],
-                                   [bufferevent_openssl_get_ssl],
-                                   [],
-                                   [AC_MSG_ERROR([cannot find libevent_openssl
--------------------------------------------------------------------
-libevent_openssl version 2+ is required for an SSL-enabled build.
--------------------------------------------------------------------
-                                   ])])],
-                     [AC_MSG_ERROR([cannot find libevent_openssl headers
--------------------------------------------------------------------
-libevent_openssl version 2+ headers are required for an SSL-enabled build.
--------------------------------------------------------------------
-    ])])
-  else
-    AC_MSG_ERROR([SSL is currently only supported with libevent])
-  fi
-  AC_DEFINE([USE_SSL_SOCKET], [1])
-fi
-
-AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
-
-if test "x$enable_static_unimplemented" = "xyes"; then
-  AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
-fi
-
-
-AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
-      [CFLAGS="$debug_flags $optimize_flags"])
-AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"],
-      [CXXFLAGS="$debug_flags $optimize_flags"])
+###############################################################################
+# Compiler checks.
+###############################################################################
 
 AS_CASE($ax_cv_cxx_compiler_vendor,
   [clang], [
@@ -841,16 +314,571 @@ case "$host_os" in
 esac
 
 
-# Also pass the flags to 3rdparty libraries.
-CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
-
+###############################################################################
+# Miscellaneous flags/library/tool checks
+###############################################################################
 
 # Check for pthreads (uses m4/ax_pthread.m4).
 AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
+if test "x$enable_static_unimplemented" = "xyes"; then
+  AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
+fi
 
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test x"$gperftools" = "xyes"])
 AM_COND_IF([HAS_GPERFTOOLS], AC_DEFINE([ENABLE_GPERFTOOLS], [1]))
+
+# Do some OS specific setup.
+case "${target_os}" in
+  linux*)
+    LIBS="$LIBS -lrt" # For clock_gettime() in stout/stopwatch.hpp.
+    OS_NAME=linux # Used below for OS_LINUX.
+    ;;
+  darwin*)
+    OS_NAME=darwin
+    ;;
+  freebsd*)
+    OS_NAME=freebsd
+    ;;
+  *)
+    ;;
+esac
+
+# Used for conditionally building source files (e.g., only want to
+# build stout/tests/proc_tests.cpp on Linux).
+AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
+AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
+
+if test "x$OS_NAME" != "xfreebsd"; then
+    AC_CHECK_LIB([dl], [dlopen], [],
+             [AC_MSG_ERROR([cannot find libdl
+-------------------------------------------------------------------
+libdl was not found, and is required for compilation.
+-------------------------------------------------------------------
+    ])])
+fi
+
+# Check if we should enable debugging, optimization. Note we only
+# update CFLAGS and CXXFLAGS if none are provided.
+AM_CONDITIONAL([DEBUG], [test x"$enable_debug" = "xyes"])
+AM_CONDITIONAL([OPTIMIZE], [test x"$enable_optimize" = "xyes"])
+
+debug_flags="-g1"
+if test "x$enable_debug" = "xyes"; then
+  debug_flags="-g"
+elif test "x$enable_optimize" = "xyes"; then
+  debug_flags=""
+fi
+
+if test "x$enable_optimize" = "xyes"; then
+  optimize_flags="-O2"
+else
+  optimize_flags="-O0"
+fi
+
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
+      [CFLAGS="$CFLAGS $debug_flags $optimize_flags"])
+AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"],
+      [CXXFLAGS="$CXXFLAGS $debug_flags $optimize_flags"])
+
+
+###############################################################################
+# Miscellaneous checks related to (un)bundled software.
+###############################################################################
+
+# Check if libapr-1 prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include/apr-1 and /lib path
+# suffixes. We include /include/apr-1 because we include <apr*>
+# headers directly.
+if test -n "`echo $with_apr`" ; then
+  CPPFLAGS="-I${with_apr}/include/apr-1 -I${with_apr}/include/apr-1.0 $CPPFLAGS"
+  LDFLAGS="-L${with_apr}/lib $LDFLAGS"
+else
+  CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
+fi
+
+AC_CHECK_HEADERS([apr_pools.h],
+                 [AC_CHECK_LIB([apr-1], [apr_initialize], [],
+                               [AC_MSG_ERROR([cannot find libapr-1
+-------------------------------------------------------------------
+libapr-1 is required for libprocess to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libapr-1 headers
+-------------------------------------------------------------------
+libapr-1 is required for libprocess to build.
+-------------------------------------------------------------------
+])])
+
+
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
+if test -n "`echo $with_boost`"; then
+  CPPFLAGS="$CPPFLAGS -isystem ${with_boost}/include"
+fi
+
+# Check if user has asked us to use a preinstalled Boost, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_boost" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([boost/version.hpp], [found_boost=yes])
+
+  if test "x$found_boost" = "xyes"; then
+    with_bundled_boost=no
+  else
+    AC_MSG_ERROR([cannot find Boost
+-------------------------------------------------------------------
+You have requested the use of a non-bundled Boost but no suitable
+Boost could be found.
+
+You may want specify the location of Boost by providing a prefix
+path via --with-boost=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_boost=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
+
+
+# Include directories used by package managers (e.g., MacPorts).
+if test "x$enable_bundled" != "xyes" && \
+   test "x$OS_NAME" = "xdarwin"; then
+  CPPFLAGS="$CPPFLAGS -I/opt/local/include"
+fi
+
+
+if test -n "`echo $with_curl`" ; then
+  CPPFLAGS="$CPPFLAGS -I${with_curl}/include"
+  LDFLAGS="$LDFLAGS -L${with_curl}/lib"
+fi
+
+AC_CHECK_LIB([curl], [curl_global_init], [],
+             [AC_MSG_ERROR([cannot find libcurl
+-------------------------------------------------------------------
+libcurl is required for libprocess to build.
+-------------------------------------------------------------------
+])])
+
+
+if test -n "`echo $with_glog`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_glog}/include"
+  LDFLAGS="$LDFLAGS -L${with_glog}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled glog, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_glog" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([glog/logging.h],
+                   [AC_LINK_IFELSE(
+                        [AC_LANG_PROGRAM([#include <glog/logging.h>],[])],
+                        [TEST_LIBS="$TEST_LIBS -lglog"] [found_glog=yes],
+                        [AC_MSG_WARN([glog is not installed.])])])
+
+  if test "x$found_glog" = "xyes"; then
+    with_bundled_glog=no
+  else
+    AC_MSG_ERROR([cannot find glog
+-------------------------------------------------------------------
+You have requested the use of a non-bundled glog but no suitable
+glog could be found.
+
+You may want specify the location of glog by providing a prefix
+path via --with-glog=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_glog=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_GLOG], [test "x$with_bundled_glog" = "xyes"])
+
+
+GMOCKSRC="gmock-all.cc"
+GTESTSRC="gtest-all.cc"
+
+if test -n "`echo $with_gmock`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_gmock} -I${with_gmock}/include \
+    -I${with_gmock}/src -I${with_gmock}/gtest -I${with_gmock}/gtest/include \
+    -I${with_gmock}/gtest/src"
+
+elif test "x$enable_bundled" != "xyes"; then
+  CPPFLAGS="$CPPFLAGS -I/usr/src/gmock"
+  # On system installations the deps are handled separately.
+  # So insert a placeholder for substitution.
+  GTESTSRC="stdio.h"
+  check_gtest=yes
+fi
+
+# Check if user has asked us to use a preinstalled gmock, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_gmock" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADER($GMOCKSRC,
+                  [found_gmock=yes],
+                  [])
+
+  if test "x$found_gmock" = "xyes"; then
+    if test "x$check_gtest" = "xyes"; then
+      # TODO(jieyu): Symbol _init is not availble for libs on OS X.
+      AC_CHECK_LIB([gtest],
+                   [_init],
+                   [],
+                   [AC_MSG_ERROR([gtest missing])])
+    fi
+    with_bundled_gmock=no
+  else
+    AC_MSG_ERROR([cannot find gmock
+-------------------------------------------------------------------
+You have requested the use of a non-bundled gmock but no suitable
+gmock could be found.
+
+You may want specify the location of gmock by providing a prefix
+path via --with-gmock=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_gmock=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_GMOCK], [test "x$with_bundled_gmock" = "xyes"])
+AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
+AC_SUBST([GMOCKSRC])
+AC_SUBST([GTESTSRC])
+
+
+if test -n "`echo $with_http_parser`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_http_parser}/include"
+  LDFLAGS="$LDFLAGS -L${with_http_parser}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled http-parser, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_http_parser" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([http_parser.h],
+                   [AC_CHECK_LIB([http_parser],
+                                 [http_parser_init],
+                                 [found_http_parser=yes])])
+
+  if test "x$found_http_parser" = "xyes"; then
+    with_bundled_http_parser=no
+  else
+    AC_MSG_ERROR([cannot find http-parser
+-------------------------------------------------------------------
+You have requested the use of a non-bundled http-parser but no suitable
+http-parser could be found.
+
+You may want specify the location of http-parser by providing a prefix
+path via --with-http-parser=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_http_parser=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
+               [test "x$with_bundled_http_parser" = "xyes"])
+
+
+if test -n "`echo $with_libev`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_libev}/include"
+  LDFLAGS="$LDFLAGS -L${with_libev}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled libev, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_libev" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([ev.h], [found_libev=yes])
+
+  if test "x$found_libev" = "xyes"; then
+    with_bundled_libev=no
+    AC_MSG_WARN([libev found must have been built with -DEV_CHILD_ENABLE=0])
+  else
+    AC_MSG_ERROR([cannot find libev
+-------------------------------------------------------------------
+You have requested the use of a non-bundled libev but no suitable
+libev could be found.
+
+You may want specify the location of libev by providing a prefix
+path via --with-libev=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_libev=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_LIBEV], [test "x$with_bundled_libev" = "xyes"])
+
+
+# Check if libevent prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_libevent`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions libevent`"; then
+  with_libevent=`brew --prefix libevent`
+fi
+
+if test -n "`echo $with_libevent`"; then
+  CPPFLAGS="-I${with_libevent}/include $CPPFLAGS"
+  LDFLAGS="-L${with_libevent}/lib $LDFLAGS"
+fi
+
+if test "x$enable_libevent" = "xyes"; then
+  AC_CHECK_HEADERS([event2/event.h],
+                   [AC_CHECK_LIB([event],
+                                 [event_base_new],
+                                 [],
+                                 [AC_MSG_ERROR([cannot find libevent
+-------------------------------------------------------------------
+libevent version 2+ is required for libprocess to build.
+-------------------------------------------------------------------
+                                 ])])],
+                   [AC_MSG_ERROR([cannot find libevent headers
+-------------------------------------------------------------------
+libevent version 2+ headers are required for libprocess to build.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([event2/thread.h],
+                   [AC_CHECK_LIB([event_pthreads],
+                                 [evthread_use_pthreads],
+                                 [],
+                                 [AC_MSG_ERROR([cannot find libevent_pthreads
+-------------------------------------------------------------------
+libevent_pthreads version 2+ is required for libprocess to build.
+-------------------------------------------------------------------
+                                 ])])],
+                   [AC_MSG_ERROR([cannot find libevent_pthreads headers
+-------------------------------------------------------------------
+libevent_pthreads version 2+ headers are required for libprocess to build.
+-------------------------------------------------------------------
+  ])])
+fi
+
+AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
+
+
+if test -n "`echo $with_picojson`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_picojson}/include"
+fi
+
+# Check if user has asked us to use a preinstalled picojson, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_picojson" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([picojson.h], [found_picojson=yes])
+
+  if test "x$found_picojson" = "xyes"; then
+    with_bundled_picojson=no
+  else
+    AC_MSG_ERROR([cannot find picojson
+-------------------------------------------------------------------
+You have requested the use of a non-bundled picojson but no suitable
+picojson could be found.
+
+You may want specify the location of picojson by providing a prefix
+path via --with-picojson=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_picojson=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
+
+
+if test -n "`echo $with_protobuf`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
+  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled protobuf, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_protobuf" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Use the system default prefix if not specified.
+  if test -n "`echo $with_protobuf`"; then
+    PROTOBUFPREFIX="${with_protobuf}"
+  elif test "x$enable_bundled" != "xyes"; then
+    PROTOBUFPREFIX="/usr"
+  fi
+
+  AC_CHECK_HEADERS([google/protobuf/message.h], [found_protobuf=yes],
+                   [found_protobuf=no])
+
+  if test "x$found_protobuf" = "xyes"; then
+    saved_LIBS="$LIBS"
+    LIBS="-lprotobuf $LIBS"
+    AC_LANG_PUSH([C++])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <google/protobuf/stubs/common.h>],
+                    [ google::protobuf::ShutdownProtobufLibrary(); ])],
+            [ found_protobuf=yes ],
+            [ found_protobuf=no ])
+    AC_LANG_POP()
+    LIBS="$saved_LIBS"
+  fi
+
+  if test "x$found_protobuf" = "xyes"; then
+    with_bundled_protobuf=no
+
+    AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
+
+    if test -z "`echo $PROTOCOMPILER_TEST`"; then
+      AC_MSG_ERROR([protoc not found in PATH])
+    fi
+
+  else
+    AC_MSG_ERROR([cannot find protobuf
+-------------------------------------------------------------------
+You have requested the use of a non-bundled protobuf but no suitable
+protobuf could be found.
+
+You may want specify the location of protobuf by providing a prefix
+path via --with-protobuf=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_protobuf=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
+               [test "x$with_bundled_protobuf" = "xyes"])
+
+
+# Check if libssl prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_ssl`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions openssl`"; then
+  with_ssl=`brew --prefix openssl`
+fi
+
+if test -n "`echo $with_ssl`"; then
+  CPPFLAGS="-I${with_ssl}/include $CPPFLAGS"
+  LDFLAGS="-L${with_ssl}/lib $LDFLAGS"
+fi
+
+if test "x$enable_ssl" = "xyes"; then
+  AC_CHECK_HEADERS([openssl/ssl.h],
+                   [AC_CHECK_LIB([ssl],
+                                 [SSL_CTX_new],
+                                 [],
+                                 [AC_MSG_ERROR([cannot find libssl
+-------------------------------------------------------------------
+libssl is required for an SSL-enabled build.
+-------------------------------------------------------------------
+                                 ])])],
+                   [AC_MSG_ERROR([cannot find libssl headers
+-------------------------------------------------------------------
+libssl is required for an SSL-enabled build.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_LIB([crypto], [RAND_poll], [], [AC_MSG_ERROR([cannot find libcrypto
+-------------------------------------------------------------------
+libcrypto is required for an SSL-enabled build.
+-------------------------------------------------------------------
+  ])])
+
+  if test "x$enable_libevent" = "xyes"; then
+    AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
+                     [AC_CHECK_LIB([event_openssl],
+                                   [bufferevent_openssl_get_ssl],
+                                   [],
+                                   [AC_MSG_ERROR([cannot find libevent_openssl
+-------------------------------------------------------------------
+libevent_openssl version 2+ is required for an SSL-enabled build.
+-------------------------------------------------------------------
+                                   ])])],
+                     [AC_MSG_ERROR([cannot find libevent_openssl headers
+-------------------------------------------------------------------
+libevent_openssl version 2+ headers are required for an SSL-enabled build.
+-------------------------------------------------------------------
+    ])])
+  else
+    AC_MSG_ERROR([SSL is currently only supported with libevent])
+  fi
+  AC_DEFINE([USE_SSL_SOCKET], [1])
+fi
+
+AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+# Check if libsvn-1 prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes. We include /include/subversion-1 because we include
+# <svn_*> directly.
+if test -z "`echo $with_svn`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions subversion`"; then
+  with_svn=`brew --prefix subversion`
+fi
+
+if test -n "`echo $with_svn`"; then
+  CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
+  LDFLAGS="-L${with_svn}/lib $LDFLAGS"
+else
+  CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
+fi
+
+AC_CHECK_HEADERS([svn_delta.h],
+                 [AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
+                               [AC_MSG_ERROR([cannot find libsvn_delta-1
+-------------------------------------------------------------------
+libsubversion-1 is required for libprocess to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libsvn_delta-1 headers
+-------------------------------------------------------------------
+libsubversion-1 is required for libprocess to build.
+-------------------------------------------------------------------
+])])
+
+AC_CHECK_HEADERS([svn_version.h],
+                 [AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
+                               [AC_MSG_ERROR([cannot find libsvn_subr-1
+-------------------------------------------------------------------
+libsubversion-1 is required for libprocess to build.
+-------------------------------------------------------------------
+                        ])])], [AC_MSG_ERROR([cannot find libsvn_subr-1 headers
+-------------------------------------------------------------------
+libsubversion-1 is required for libprocess to build.
+-------------------------------------------------------------------
+])])
 
 
 # Check if we should/can build with libz.
@@ -866,14 +894,8 @@ you can get away without it by doing --disable-zlib.
 fi
 
 
-if test "x$OS_NAME" != "xfreebsd"; then
-    AC_CHECK_LIB([dl], [dlopen], [],
-             [AC_MSG_ERROR([cannot find libdl
--------------------------------------------------------------------
-libdl was not found, and is required for compilation.
--------------------------------------------------------------------
-    ])])
-fi
+# Also pass the flags to 3rdparty libraries.
+CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
 
 AC_OUTPUT
