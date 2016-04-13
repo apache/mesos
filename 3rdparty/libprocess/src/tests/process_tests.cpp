@@ -1040,36 +1040,37 @@ TEST(ProcessTest, Http2)
 }
 
 
-int foo()
+static int foo()
 {
   return 1;
 }
 
-int foo1(int a)
+
+static int foo1(int a)
 {
   return a;
 }
 
 
-int foo2(int a, int b)
+static int foo2(int a, int b)
 {
   return a + b;
 }
 
 
-int foo3(int a, int b, int c)
+static int foo3(int a, int b, int c)
 {
   return a + b + c;
 }
 
 
-int foo4(int a, int b, int c, int d)
+static int foo4(int a, int b, int c, int d)
 {
   return a + b + c + d;
 }
 
 
-void bar(int a)
+static void bar(int a)
 {
   return;
 }
@@ -1159,9 +1160,10 @@ TEST(ProcessTest, Provide)
 }
 
 
-int baz(string s) { return 42; }
+static int baz(string s) { return 42; }
 
-Future<int> bam(string s) { return 42; }
+
+static Future<int> bam(string s) { return 42; }
 
 
 TEST(ProcessTest, Defers)

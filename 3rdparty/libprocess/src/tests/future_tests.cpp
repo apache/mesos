@@ -256,31 +256,31 @@ TEST(FutureTest, After2)
 }
 
 
-Future<bool> readyFuture()
+static Future<bool> readyFuture()
 {
   return true;
 }
 
 
-Future<bool> failedFuture()
+static Future<bool> failedFuture()
 {
   return Failure("The value is not positive (or zero)");
 }
 
 
-Future<bool> pendingFuture(const Future<bool>& future)
+static Future<bool> pendingFuture(const Future<bool>& future)
 {
   return future; // Keep it pending.
 }
 
 
-Future<string> second(const bool& b)
+static Future<string> second(const bool& b)
 {
   return b ? string("true") : string("false");
 }
 
 
-Future<string> third(const string& s)
+static Future<string> third(const string& s)
 {
   return s;
 }
@@ -319,13 +319,14 @@ TEST(FutureTest, Chain)
 }
 
 
-Future<bool> inner1(const Future<bool>& future)
+static Future<bool> inner1(const Future<bool>& future)
 {
   return future;
 }
 
 
-Future<int> inner2(std::atomic_bool* executed, const Future<int>& future)
+static Future<int> inner2(
+    std::atomic_bool* executed, const Future<int>& future)
 {
   executed->store(true);
   return future;
