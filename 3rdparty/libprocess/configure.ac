@@ -101,6 +101,12 @@ AC_ARG_ENABLE([static-unimplemented],
                              functions default: no]),
               [enable_static_unimplemented=yes], [])
 
+AC_ARG_ENABLE([zlib],
+            AS_HELP_STRING([--disable-zlib],
+                           [disables zlib compression, which means the webui
+                           will be far less responsive; not recommended]),
+            [enable_zlib=no], [enable_zlib=yes])
+
 AC_ARG_WITH([apr],
             AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
                            [specify where to locate the apr-1 library]),
@@ -174,12 +180,6 @@ AC_ARG_WITH([svn],
             AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
                            [specify where to locate the svn-1 library]),
             [], [])
-
-AC_ARG_WITH([zlib],
-            AS_HELP_STRING([--without-zlib],
-                           [disables zlib compression, which means the webui
-                           will be far less responsive; not recommended]),
-            [], [with_zlib=yes])
 
 # Do some OS specific setup.
 case "${target_os}" in
@@ -854,13 +854,13 @@ AM_COND_IF([HAS_GPERFTOOLS], AC_DEFINE([ENABLE_GPERFTOOLS], [1]))
 
 
 # Check if we should/can build with libz.
-if test "x$with_zlib" = "xyes"; then
+if test "x$enable_zlib" = "xyes"; then
   AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
                [AC_MSG_ERROR([cannot find libz
 -------------------------------------------------------------------
 This means HTTP responses will be slower because we cannot use
 compression; you probably want to download and install zlib, but
-you can get away without it by doing --without-zlib.
+you can get away without it by doing --disable-zlib.
 -------------------------------------------------------------------
   ])])
 fi
