@@ -3037,13 +3037,13 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
 }
 
 
-// This test checks that if a framework recovered resources with a
-// long filter, it will start receiving resource offers again after
-// reviving offer.
+// This test checks that if a framework declines resources with a
+// long filter, it will be offered filtered resources again after
+// reviving offers.
 TEST_F(HierarchicalAllocatorTest, ReviveOffers)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -3074,10 +3074,10 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
       agent.resources(),
       filter1000s);
 
-  // Advance the clock to trigger a background allocation cycle.
+  // Advance the clock to trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
-
   Clock::settle();
+
   allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
@@ -3087,7 +3087,7 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
   Clock::settle();
 
   // Framework will be offered all of agent's resources again
-  // after revive offer.
+  // after reviving offers.
   AWAIT_READY(allocation);
   EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
