@@ -725,6 +725,8 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 // executor even if it contains a ContainerInfo in the TaskInfo.
 // Prior to 0.26.0, this was only used to launch Docker containers, so
 // MesosContainerizer would fail the launch.
+//
+// TODO(jieyu): Move this test to the mesos containerizer tests.
 TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
