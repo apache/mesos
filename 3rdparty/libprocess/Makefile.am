@@ -35,6 +35,57 @@ LIBEV = 3rdparty/libev-$(LIBEV_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 
 
+if WITH_BUNDLED_BOOST
+BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+endif
+
+if WITH_BUNDLED_GLOG
+GLOG_INCLUDE_FLAGS = -I$(GLOG)/src
+LIB_GLOG = $(GLOG)/libglog.la
+else
+LIB_GLOG = -lglog
+endif
+
+# TODO(kapil): Handle unbundled GMOCK.
+if WITH_BUNDLED_GMOCK
+GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
+GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
+LIB_GMOCK = 3rdparty/libgmock.la
+endif
+
+if HAS_GPERFTOOLS
+GPERFTOOLS_INCLUDE_FLAGS = -I$(GPERFTOOLS)/src
+LIB_GPERFTOOLS = $(GPERFTOOLS)/libprofiler.la
+endif
+
+if WITH_BUNDLED_HTTP_PARSER
+HTTP_PARSER = 3rdparty/http-parser-$(HTTP_PARSER_VERSION)
+HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
+LIB_HTTP_PARSER = 3rdparty/libry_http_parser.la
+else
+LIB_HTTP_PARSER = -lhttp_parser
+endif
+
+if !ENABLE_LIBEVENT
+if WITH_BUNDLED_LIBEV
+LIB_EV_INCLUDE_FLAGS = -I$(LIBEV)
+LIB_EV = $(LIBEV)/libev.la
+else
+LIB_EV = -lev
+endif
+endif
+
+PICOJSON_INCLUDE_FLAGS =	\
+  -DPICOJSON_USE_INT64		\
+  -D__STDC_FORMAT_MACROS
+if WITH_BUNDLED_PICOJSON
+PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
+endif
+
+if WITH_BUNDLED_STOUT
+STOUT_INCLUDE_FLAGS = -I$(srcdir)/$(STOUT)/include
+endif
+
 # Library. It is not installable presently because most people link
 # the libprocess statically into their resulting library or binary and
 # don't want any parts of libprocess to get installed (which happens
@@ -71,15 +122,6 @@ libprocess_la_SOURCES =		\
   src/time.cpp			\
   src/timeseries.cpp
 
-if ENABLE_LIBEVENT
-else
-if WITH_BUNDLED_LIBEV
-  EVENT_LIB = $(LIBEV)/libev.la
-else
-  EVENT_LIB = -lev
-endif
-endif
-
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
     src/libevent_ssl_socket.cpp	\
@@ -96,11 +138,13 @@ endif
 libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\
-  -isystem $(BOOST)				\
-  -I$(LIBEV)					\
-  -I$(PICOJSON)					\
-  -DPICOJSON_USE_INT64				\
-  -D__STDC_FORMAT_MACROS			\
+  $(BOOST_INCLUDE_FLAGS)			\
+  $(GLOG_INCLUDE_FLAGS)				\
+  $(GPERFTOOLS_INCLUDE_FLAGS)			\
+  $(HTTP_PARSER_INCLUDE_FLAGS)			\
+  $(LIB_EV_INCLUDE_FLAGS)			\
+  $(PICOJSON_INCLUDE_FLAGS)			\
+  $(STOUT_INCLUDE_FLAGS)			\
   $(AM_CPPFLAGS)
 
 if ENABLE_LIBEVENT
@@ -115,35 +159,11 @@ else
     src/libev_poll.cpp
 endif
 
-if WITH_BUNDLED_GLOG
-  libprocess_la_CPPFLAGS += -I$(GLOG)/src
-  LIBGLOG = $(GLOG)/libglog.la
-else
-  LIBGLOG = -lglog
-endif
-
-if WITH_BUNDLED_HTTP_PARSER
-  HTTP_PARSER = 3rdparty/http-parser-$(HTTP_PARSER_VERSION)
-  libprocess_la_CPPFLAGS += -I$(HTTP_PARSER)
-
-  HTTP_PARSER_LIB = 3rdparty/libry_http_parser.la
-else
-  HTTP_PARSER_LIB = -lhttp_parser
-endif
-
-libprocess_la_LIBADD =			\
-  $(LIBGLOG)				\
-  $(HTTP_PARSER_LIB)			\
-  $(EVENT_LIB)
-
-if HAS_GPERFTOOLS
-libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
-libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
-endif
-
-if WITH_BUNDLED_STOUT
-  libprocess_la_CPPFLAGS += -I$(srcdir)/$(STOUT)/include
-endif
+libprocess_la_LIBADD =		\
+  $(LIB_GLOG)			\
+  $(LIB_GPERFTOOLS)		\
+  $(LIB_HTTP_PARSER)		\
+  $(LIB_EV)
 
 # Tests.
 check_PROGRAMS = libprocess-tests benchmarks
@@ -174,16 +194,16 @@ libprocess_tests_SOURCES =					\
 
 libprocess_tests_CPPFLAGS =		\
   -I$(top_srcdir)/src			\
-  -I$(GTEST)/include			\
-  -I$(GMOCK)/include			\
+  $(GMOCK_INCLUDE_FLAGS)		\
+  $(GTEST_INCLUDE_FLAGS)		\
   $(libprocess_la_CPPFLAGS)
 
 libprocess_tests_LDADD =		\
-  3rdparty/libgmock.la			\
+  $(LIB_GMOCK)				\
   libprocess.la				\
-  $(LIBGLOG)				\
-  $(HTTP_PARSER_LIB)			\
-  $(EVENT_LIB)
+  $(LIB_GLOG)				\
+  $(LIB_HTTP_PARSER)			\
+  $(LIB_EV)
 
 if ENABLE_SSL
 check_PROGRAMS += ssl-client
@@ -200,16 +220,16 @@ benchmarks_SOURCES =			\
 
 benchmarks_CPPFLAGS =			\
   -I$(top_srcdir)/src			\
-  -I$(GTEST)/include			\
-  -I$(GMOCK)/include			\
+  $(GMOCK_INCLUDE_FLAGS)		\
+  $(GTEST_INCLUDE_FLAGS)		\
   $(libprocess_la_CPPFLAGS)
 
 benchmarks_LDADD =			\
-  3rdparty/libgmock.la			\
+  $(LIB_GMOCK)				\
   libprocess.la				\
-  $(LIBGLOG)				\
-  $(HTTP_PARSER_LIB)			\
-  $(EVENT_LIB)
+  $(LIB_GLOG)				\
+  $(LIB_HTTP_PARSER)			\
+  $(LIB_EV)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
@@ -219,7 +239,7 @@ check-local: tests
 	./libprocess-tests
 
 # Both libprocess-tests and benchmarks have a dependency on libgmock.la.
-3rdparty/libgmock.la:
+$(LIB_GMOCK):
 	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
 
 tests: all libprocess-tests benchmarks
