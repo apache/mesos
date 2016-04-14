@@ -20,15 +20,29 @@
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/mount.hpp"
 
+#ifdef __linux__
+#include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
+#endif
+
 using namespace mesos::internal::slave;
 
 
 int main(int argc, char** argv)
 {
+#ifdef __linux__
+  return Subcommand::dispatch(
+      None(),
+      argc,
+      argv,
+      new MesosContainerizerLaunch(),
+      new MesosContainerizerMount(),
+      new NetworkCniIsolatorSetup());
+#else
   return Subcommand::dispatch(
       None(),
       argc,
       argv,
       new MesosContainerizerLaunch(),
       new MesosContainerizerMount());
+#endif
 }
