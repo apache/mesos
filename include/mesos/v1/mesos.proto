@@ -1580,6 +1580,7 @@ message Volume {
     RO = 2; // read-only.
   }
 
+  // TODO(gyliu513): Make this as `optional` after deprecation cycle of 0.29.
   required Mode mode = 3;
 
   // Path pointing to a directory or file in the container. If the
@@ -1598,6 +1599,42 @@ message Volume {
   // The source of the volume is an Image which describes a root
   // filesystem which will be provisioned by Mesos.
   optional Image image = 4;
+
+  // Describes where a volume originates from.
+  message Source {
+    enum Type {
+      // This must be the first enum value in this list, to
+      // ensure that if 'type' is not set, the default value
+      // is UNKNOWN. This enables enum values to be added
+      // in a backwards-compatible way. See: MESOS-4997.
+      UNKNOWN = 0;
+
+      // TODO(gyliu513): Add HOST_PATH and IMAGE as volume source type.
+      DOCKER_VOLUME = 1;
+    }
+
+    message DockerVolume {
+      // Driver of the volume, it can be flocker, convoy, raxrey etc.
+      required string driver = 1;
+
+      // Name of the volume.
+      required string name = 2;
+
+      // Volume driver specific options.
+      optional Parameters driver_options = 3;
+    }
+
+    // Enum fields should be optional, see: MESOS-4997.
+    optional Type type = 1;
+
+    // The following specifies the source of this volume. At most one of
+    // the following should be set.
+
+    // The source of the volume created by docker volume driver.
+    optional DockerVolume docker_volume = 2;
+  }
+
+  optional Source source = 5;
 }
 
 
