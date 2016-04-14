@@ -131,5 +131,5 @@ include(ProcessConfigure)
 # Define target for AGENT.
 ##########################
 set(
-  AGENT_TARGET mesos-slave
-  CACHE STRING "Target we use to refer to slave executable")
+  AGENT_TARGET mesos-agent
+  CACHE STRING "Target we use to refer to agent executable")
