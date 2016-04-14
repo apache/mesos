@@ -104,8 +104,6 @@ MESOS_CPPFLAGS += -DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -DPKGDATADIR=\"$(pkgdatadir)\"
 MESOS_CPPFLAGS += -DPKGMODULEDIR=\"$(pkgmoduledir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
-MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
-MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
 MESOS_CPPFLAGS += -I../include
 
 # Protobuf headers that depend on mesos.pb.h need this.
@@ -138,13 +136,21 @@ if WITH_BUNDLED_LEVELDB
 MESOS_CPPFLAGS += -I../$(LEVELDB)/include
 endif
 
-if WITH_BUNDLED_ZOOKEEPER
-MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
-MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/generated
+if WITH_BUNDLED_LIBPROCESS
+MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 endif
 
 if WITH_BUNDLED_PROTOBUF
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
+endif
+
+if WITH_BUNDLED_STOUT
+MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
+endif
+
+if WITH_BUNDLED_ZOOKEEPER
+MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
+MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/generated
 endif
 
 # README: we build the Mesos library out of a collection of
@@ -1144,8 +1150,6 @@ libmesos_la_LIBADD =							\
   -lsvn_delta-1								\
   -lapr-1
 
-libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
-
 # For non-convenience libraries we need to link them in to make the shared
 # library each time. (Currently, we don't support platforms where this is not
 # possible.)
@@ -1167,11 +1171,10 @@ libmesos_la_LIBADD += -lleveldb
 LDADD += -lleveldb
 endif
 
-if WITH_BUNDLED_ZOOKEEPER
-libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
+if WITH_BUNDLED_LIBPROCESS
+libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
 else
-libmesos_la_LIBADD += -lzookeeper_mt
-LDADD += -lzookeeper_mt
+libmesos_la_LIBADD += -lprocess
 endif
 
 if WITH_BUNDLED_PROTOBUF
@@ -1179,6 +1182,13 @@ libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
 else
 libmesos_la_LIBADD += -lprotobuf
 LDADD += -lprotobuf
+endif
+
+if WITH_BUNDLED_ZOOKEEPER
+libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
+else
+libmesos_la_LIBADD += -lzookeeper_mt
+LDADD += -lzookeeper_mt
 endif
 
 if ENABLE_NVIDIA_GPU_SUPPORT

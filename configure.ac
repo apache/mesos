@@ -323,6 +323,11 @@ AC_ARG_WITH([libevent],
                            [specify where to locate the libevent library]),
             [], [])
 
+AC_ARG_WITH([libprocess],
+            AS_HELP_STRING([--with-libprocess=@<:@=DIR@:>@],
+                           [specify where to locate the libprocess library]),
+            [], [])
+
 # TODO(MESOS-4991): Since network-isolator is an optional feature, it should
 # be enabled with --enable-network-isolator.
 AC_ARG_WITH([network-isolator],
@@ -370,6 +375,11 @@ AC_ARG_WITH([sasl],
 AC_ARG_WITH([ssl],
             AS_HELP_STRING([--with-ssl=@<:@=DIR@:>@],
                            [specify where to locate the ssl library]),
+            [], [])
+
+AC_ARG_WITH([stout],
+            AS_HELP_STRING([--with-stout=@<:@=DIR@:>@],
+                           [specify where to locate stout library]),
             [], [])
 
 AC_ARG_WITH([svn],
@@ -1138,6 +1148,37 @@ fi
 AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
 
 
+# Check if user has asked us to use a preinstalled libprocess, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_libprocess" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([process/process.hpp], [found_libprocess=yes])
+
+  if test "x$found_libprocess" = "xyes"; then
+    with_bundled_libprocess=no
+  else
+    AC_MSG_ERROR([cannot find libprocess
+-------------------------------------------------------------------
+You have requested the use of a non-bundled libprocess but no suitable
+libprocess could be found.
+
+You may want specify the location of libprocess by providing a prefix
+path via --with-libprocess=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+
+  # TODO(kapil): Check for linkability of libprocess.so.
+else
+  with_bundled_libprocess=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_LIBPROCESS], [test "x$with_bundled_libprocess" = "xyes"])
+
+
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
   if test -n "`echo $with_nl`"; then
@@ -1899,6 +1940,35 @@ libevent_openssl version 2+ headers are required for an SSL-enabled build.
 fi
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+
+# Check if user has asked us to use a preinstalled stout, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_stout" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([stout/try.hpp], [found_stout=yes])
+
+  if test "x$found_stout" = "xyes"; then
+    with_bundled_stout=no
+  else
+    AC_MSG_ERROR([cannot find stout
+-------------------------------------------------------------------
+You have requested the use of a non-bundled stout but no suitable
+stout could be found.
+
+You may want specify the location of stout by providing a prefix
+path via --with-stout=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_stout=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_STOUT], [test "x$with_bundled_stout" = "xyes"])
 
 
 # Check if libsvn-1 prefix path was provided, and if so, add it to
