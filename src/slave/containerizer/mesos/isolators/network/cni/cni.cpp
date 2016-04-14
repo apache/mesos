@@ -40,6 +40,7 @@ using std::list;
 using std::map;
 using std::set;
 using std::string;
+using std::stringstream;
 using std::tuple;
 using std::vector;
 
@@ -74,7 +75,9 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
   if (flags.network_cni_plugins_dir.isNone() &&
       flags.network_cni_config_dir.isNone()) {
     return new MesosIsolator(Owned<MesosIsolatorProcess>(
-        new NetworkCniIsolatorProcess(hashmap<string, NetworkConfigInfo>())));
+        new NetworkCniIsolatorProcess(
+            flags,
+            hashmap<string, NetworkConfigInfo>())));
   }
 
   // Check for root permission.
@@ -310,6 +313,7 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
 
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new NetworkCniIsolatorProcess(
+          flags,
           networkConfigs,
           rootDir.get(),
           pluginDir.get())));
@@ -559,7 +563,12 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
   }
 
   if (!containerNetworks.empty()) {
-    infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
+    if (containerConfig.has_rootfs()) {
+      Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
+      infos.put(containerId, info);
+    } else {
+      infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
+    }
 
     ContainerLaunchInfo launchInfo;
 
@@ -645,20 +654,184 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   // to make sure DEL on plugin is not called (via 'cleanup()') if some
   // ADD on plugin is still pending.
   return await(futures)
-    .then([](const list<Future<Nothing>>& attaches) -> Future<Nothing> {
-      vector<string> messages;
-      foreach (const Future<Nothing>& attach, attaches) {
-        if (!attach.isReady()) {
-          messages.push_back(
-            attach.isFailed() ? attach.failure() : "discarded");
-        }
+    .then(defer(
+        PID<NetworkCniIsolatorProcess>(this),
+        &NetworkCniIsolatorProcess::_isolate,
+        containerId,
+        pid,
+        lambda::_1));
+}
+
+
+Future<Nothing> NetworkCniIsolatorProcess::_isolate(
+    const ContainerID& containerId,
+    pid_t pid,
+    const list<Future<Nothing>>& attaches)
+{
+  vector<string> messages;
+  foreach (const Future<Nothing>& attach, attaches) {
+    if (!attach.isReady()) {
+      messages.push_back(
+          attach.isFailed() ? attach.failure() : "discarded");
+    }
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  CHECK(infos.contains(containerId));
+
+  const string containerDir =
+    paths::getContainerDir(rootDir.get(), containerId.value());
+
+  CHECK(os::exists(containerDir));
+
+  // Create the network file.
+  string hostsPath = path::join(containerDir, "hosts");
+  string hostnamePath = path::join(containerDir, "hostname");
+  string resolvPath = path::join(containerDir, "resolv.conf");
+
+  // Update the `hostname` file.
+  Try<Nothing> write = os::write(hostnamePath, stringify(containerId));
+  if (write.isError()) {
+    return Failure(
+        "Failed to write the hostname to '" + hostnamePath +
+        "': " + write.error());
+  }
+
+  // Update the `hosts` file.
+  // TODO(jieyu): Currently we support only IPv4.
+  stringstream hosts;
+
+  hosts << "127.0.0.1 localhost" << endl;
+  foreachvalue (const ContainerNetwork& network,
+                infos[containerId]->containerNetworks) {
+    // NOTE: Update /etc/hosts with hostname and IP address. In case
+    // there are multiple IP addreses associated with the container we
+    // pick the first one.
+    if (network.cniNetworkInfo.isSome() && network.cniNetworkInfo->has_ip4()) {
+      // IP are always stored in CIDR notation so need to retrieve the
+      // address without the subnet mask.
+      Try<net::IPNetwork> ip = net::IPNetwork::parse(
+          network.cniNetworkInfo->ip4().ip(),
+          AF_INET);
+
+      if (ip.isError()) {
+        return Failure(
+            "Unable to parse the IP address " +
+            network.cniNetworkInfo->ip4().ip() +
+            " for the container: " + ip.error());
       }
 
-      if (messages.empty()) {
-        return Nothing();
-      } else {
-        return Failure(strings::join("\n", messages));
+      hosts << ip->address() << " " << containerId << endl;
+      break;
+    }
+  }
+
+  write = os::write(hostsPath, hosts.str());
+  if (write.isError()) {
+    return Failure(
+        "Failed to write the 'hosts' file at '" +
+        hostsPath + "': " + write.error());
+  }
+
+  // Update 'resolv.conf' with nameservers learned from IPAM. In case
+  // IPAM has not specified a DNS then we set the container
+  // 'resolv.conf' to be the same as the host 'resolv.conf'
+  // ('/etc/resolv.conf').
+  stringstream resolv;
+  foreachvalue (const ContainerNetwork& network,
+                infos[containerId]->containerNetworks) {
+    if (network.cniNetworkInfo.isNone() || !network.cniNetworkInfo->has_dns()) {
+      continue;
+    }
+
+    foreach (const string& nameserver,
+             network.cniNetworkInfo->dns().nameservers()) {
+      resolv << "nameserver " << nameserver << endl;
+    }
+  }
+
+  // If `resolv` does not have any nameserver set `resolvPath` to
+  // '/etc/resolv.conf'.
+  if (resolv.str().size() == 0) {
+    if (!os::exists("/etc/resolv.conf")){
+      return Failure("Cannot find host /etc/resolv.conf");
+    }
+
+    resolvPath = "/etc/resolv.conf";
+
+    LOG(INFO) << "Unable to find DNS nameservers for container "
+              << containerId << ". Using host '/etc/resolv.conf'";
+  } else {
+    LOG(INFO) << "DNS nameservers for container " << containerId
+              << " are:\n" << resolv.str();
+
+    write = os::write(resolvPath, resolv.str());
+    if (write.isError()) {
+      return Failure(
+          "Failed to write 'resolv.conf' file at '" +
+          resolvPath + "': " + write.error());
+    }
+  }
+
+  // Setup the required network files and the hostname in the
+  // container's filesystem and UTS namespace.
+  NetworkCniIsolatorSetup setup;
+  setup.flags.pid = pid;
+  setup.flags.hostname = stringify(containerId);
+  setup.flags.rootfs = infos[containerId]->rootfs;
+  setup.flags.etc_hosts_path = hostsPath;
+  setup.flags.etc_hostname_path = hostnamePath;
+  setup.flags.etc_resolv_conf = resolvPath;
+
+  vector<string> argv(2);
+  argv[0] = "mesos-containerizer";
+  argv[1] = NetworkCniIsolatorSetup::NAME;
+
+  Try<Subprocess> s = subprocess(
+      path::join(flags.launcher_dir, "mesos-containerizer"),
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      NO_SETSID,
+      setup.flags);
+
+  if (s.isError()) {
+    return Failure(
+        "Failed to execute the setup helper subprocess: " + s.error());
+  }
+
+  return await(s->status(), io::read(s->err().get()))
+    .then([](const tuple<
+        Future<Option<int>>,
+        Future<string>>& t) -> Future<Nothing> {
+      Future<Option<int>> status = std::get<0>(t);
+      if (!status.isReady()) {
+        return Failure(
+            "Failed to get the exit status of the setup helper subprocess: " +
+            (status.isFailed() ? status.failure() : "discarded"));
       }
+
+      if (status->isNone()) {
+        return Failure("Failed to reap the setup helper subprocess");
+      }
+
+      Future<string> err = std::get<1>(t);
+      if (!err.isReady()) {
+        return Failure(
+            "Failed to read stderr from the helper subprocess: " +
+            (err.isFailed() ? err.failure() : "discarded"));
+      }
+
+      if (status.get() != 0) {
+        return Failure(
+            "Failed to setup hostname and network files: " + err.get());
+      }
+
+      return Nothing();
     });
 }
 

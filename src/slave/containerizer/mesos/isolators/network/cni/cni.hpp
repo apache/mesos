@@ -102,20 +102,33 @@ private:
 
   struct Info
   {
-    Info (const hashmap<std::string, ContainerNetwork>& _containerNetworks)
-      : containerNetworks (_containerNetworks) {}
+    Info (const hashmap<std::string, ContainerNetwork>& _containerNetworks,
+          const Option<std::string> _rootfs = None())
+      : containerNetworks (_containerNetworks),
+        rootfs(_rootfs) {}
 
     // CNI network information keyed by network name.
     hashmap<std::string, ContainerNetwork> containerNetworks;
+
+    // Rootfs of the container file system. In case the container uses
+    // the host file system, this will be `None`.
+    Option<std::string> rootfs;
   };
 
   NetworkCniIsolatorProcess(
+      const Flags _flags,
       const hashmap<std::string, NetworkConfigInfo>& _networkConfigs,
       const Option<std::string>& _rootDir = None(),
       const Option<std::string>& _pluginDir = None())
-    : networkConfigs(_networkConfigs),
+    : flags(_flags),
+      networkConfigs(_networkConfigs),
       rootDir(_rootDir),
       pluginDir(_pluginDir) {}
+
+  process::Future<Nothing> _isolate(
+      const ContainerID& containerId,
+      pid_t pid,
+      const list<process::Future<Nothing>>& attaches);
 
   Try<Nothing> _recover(
       const ContainerID& containerId,
@@ -149,6 +162,8 @@ private:
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
       const std::list<process::Future<Nothing>>& detaches);
+
+  const Flags flags;
 
   // CNI network configurations keyed by network name.
   hashmap<std::string, NetworkConfigInfo> networkConfigs;
