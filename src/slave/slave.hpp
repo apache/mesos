@@ -448,7 +448,8 @@ private:
     // /slave/monitor/statistics
     // /slave/monitor/statistics.json
     process::Future<process::http::Response> statistics(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& /* principal */) const;
 
     static std::string EXECUTOR_HELP();
     static std::string FLAGS_HELP();

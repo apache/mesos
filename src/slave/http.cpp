@@ -591,7 +591,9 @@ string Slave::Http::STATISTICS_HELP()
 }
 
 
-Future<Response> Slave::Http::statistics(const Request& request) const
+Future<Response> Slave::Http::statistics(
+    const Request& request,
+    const Option<string>& /* principal */) const
 {
   return statisticsLimiter->acquire()
     .then(defer(slave->self(), &Slave::usage))

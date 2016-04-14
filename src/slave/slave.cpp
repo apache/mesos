@@ -742,16 +742,20 @@ void Slave::initialize()
           return http.health(request);
         });
   route("/monitor/statistics",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [http](const process::http::Request& request) {
-          return http.statistics(request);
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
+          return http.statistics(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/monitor/statistics.json",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [http](const process::http::Request& request) {
-          return http.statistics(request);
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
+          return http.statistics(request, principal);
         });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
