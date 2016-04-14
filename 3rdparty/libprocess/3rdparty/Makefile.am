@@ -87,6 +87,48 @@ ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 	test ! -e $(srcdir)/$*.patch || patch -d $* -p1 <$(srcdir)/$*.patch
 	touch $@
 
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
+if WITH_BUNDLED_BOOST
+BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+endif
+
+if WITH_BUNDLED_GLOG
+GLOG_INCLUDE_FLAGS = -I$(GLOG)/src
+LIB_GLOG = $(GLOG)/libglog.la
+
+# NOTE: We explicitly set GTEST_CONFIG=no so that we don't attempt to
+# build glog against a system installed gtest (there's no reason to
+# "test" glog and it's highly likely it will cause a compilation bug
+# when building with clang).
+$(LIB_GLOG): $(GLOG)-stamp
+	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
+	  $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS)
+else
+LIB_GLOG = -lglog
+endif
+
+# TODO(kapil): Handle unbundled GMOCK.
+if WITH_BUNDLED_GMOCK
+GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
+GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
+LIB_GMOCK = libgmock.la
+endif
+
+if HAS_GPERFTOOLS
+GPERFTOOLS_INCLUDE_FLAGS = -I$(GPERFTOOLS)/src
+LIB_GPERFTOOLS = $(GPERFTOOLS)/libprofiler.la
+
+$(LIB_GPERFTOOLS): $(GPERFTOOLS)-build-stamp
+
+$(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
+	cd $(GPERFTOOLS) && ./configure  $(CONFIGURE_ARGS) && \
+	  $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+endif
+
+
 if WITH_BUNDLED_HTTP_PARSER
   # Convenience library for nodejs/http-parser.
   noinst_LTLIBRARIES = libry_http_parser.la
@@ -98,12 +140,34 @@ if WITH_BUNDLED_HTTP_PARSER
   $(HTTP_PARSER)/http_parser.c: $(HTTP_PARSER)-stamp
 endif
 
+if WITH_BUNDLED_LIBEV
+$(LIBEV)/libev.la: $(LIBEV)-stamp
+	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
+	  $(MAKE) $(AM_MAKEFLAGS)
+endif
+
+# Enable the INT64 support for PicoJSON.
+PICOJSON_INCLUDE_FLAGS =	\
+  -DPICOJSON_USE_INT64		\
+  -D__STDC_FORMAT_MACROS
+
+if WITH_BUNDLED_PICOJSON
+PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
+
+# Stout depends on <picojson.h>. Install picojson.h into $PREFIX/include
+# but don't add it to the source tarball.
+nodist_include_HEADERS = $(PICOJSON)/picojson.h
+$(PICOJSON)/picojson.h: $(PICOJSON)-stamp
+endif
+
 if WITH_BUNDLED_PROTOBUF
+  PROTOBUF_INCLUDE_FLAGS = -I$(PROTOBUF)/src
+
   $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
 
   $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
 	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
+	  $(MAKE) $(AM_MAKEFLAGS)
 	touch $@
 
   LIBPROTOBUF = $(PROTOBUF)/src/libprotobuf.la
@@ -113,7 +177,7 @@ else
 endif
 
 # Convenience library for gmock/gtest.
-check_LTLIBRARIES = libgmock.la
+check_LTLIBRARIES = $(LIB_GMOCK)
 nodist_libgmock_la_SOURCES = gmock_sources.cc
 
 if WITH_BUNDLED_GMOCK
@@ -138,30 +202,7 @@ if OS_FREEBSD
   GLOG_LDFLAGS += "LDFLAGS='-L/usr/local/lib -lexecinfo'"
 endif
 
-if WITH_BUNDLED_GLOG
-# NOTE: We explicitly set GTEST_CONFIG=no so that we don't attempt to
-# build glog against a system installed gtest (there's no reason to
-# "test" glog and it's highly likely it will cause a compilation bug
-# when building with clang).
-$(GLOG)/libglog.la: $(GLOG)-stamp
-	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS)
-endif
-
-if HAS_GPERFTOOLS
-$(GPERFTOOLS)/libprofiler.la: $(GPERFTOOLS)-build-stamp
-
-$(GPERFTOOLS)-build-stamp: $(GPERFTOOLS)-stamp
-	cd $(GPERFTOOLS) && ./configure  $(CONFIGURE_ARGS) && \
-	  $(MAKE) $(AM_MAKEFLAGS)
-	touch $@
-endif
-
-if WITH_BUNDLED_LIBEV
-$(LIBEV)/libev.la: $(LIBEV)-stamp
-	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-endif
+if WITH_BUNDLED_STOUT
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
@@ -180,11 +221,11 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/hashmap_tests.cpp		\
   $(STOUT)/tests/hashset_tests.cpp		\
   $(STOUT)/tests/interval_tests.cpp		\
-  $(STOUT)/tests/ip_tests.cpp                   \
+  $(STOUT)/tests/ip_tests.cpp			\
   $(STOUT)/tests/json_tests.cpp			\
   $(STOUT)/tests/jsonify_tests.cpp		\
   $(STOUT)/tests/linkedhashmap_tests.cpp	\
-  $(STOUT)/tests/mac_tests.cpp                  \
+  $(STOUT)/tests/mac_tests.cpp			\
   $(STOUT)/tests/main.cpp			\
   $(STOUT)/tests/multimap_tests.cpp		\
   $(STOUT)/tests/none_tests.cpp			\
@@ -220,47 +261,26 @@ if OS_LINUX
   stout_tests_SOURCES += $(STOUT)/tests/proc_tests.cpp
 endif
 
+# The order of include flags shouldn't matter because we are allowed to disable
+# some bundled dependencies in favor of system-installed ones. This would be a
+# concern if some headers were to have the same paths.
 stout_tests_CPPFLAGS =				\
   -I$(srcdir)/$(STOUT)/include			\
-  -I$(PROTOBUF)/src				\
+  $(BOOST_INCLUDE_FLAGS)			\
+  $(GLOG_INCLUDE_FLAGS)				\
+  $(GMOCK_INCLUDE_FLAGS)			\
+  $(GTEST_INCLUDE_FLAGS)			\
+  $(PICOJSON_INCLUDE_FLAGS)			\
+  $(PROTOBUF_INCLUDE_FLAGS)			\
   $(AM_CPPFLAGS)
 
-if WITH_BUNDLED_GMOCK
-  stout_tests_CPPFLAGS += -I$(GTEST)/include
-  stout_tests_CPPFLAGS += -I$(GMOCK)/include
-endif
-
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
-if WITH_BUNDLED_BOOST
-  stout_tests_CPPFLAGS += -isystem $(BOOST)
-endif
-
-if WITH_BUNDLED_PICOJSON
-  stout_tests_CPPFLAGS += -I$(PICOJSON)
-
-  # Enable the INT64 support for PicoJSON.
-  stout_tests_CPPFLAGS += -DPICOJSON_USE_INT64
-  stout_tests_CPPFLAGS += -D__STDC_FORMAT_MACROS
-
-  # Stout depends on <picojson.h>. Install picojson.h into $PREFIX/include
-  # but don't add it to the source tarball.
-  nodist_include_HEADERS = $(PICOJSON)/picojson.h
-  $(PICOJSON)/picojson.h: $(PICOJSON)-stamp
-endif
-
-if WITH_BUNDLED_GLOG
-  stout_tests_CPPFLAGS += -I$(GLOG)/src
-  LIBGLOG = $(GLOG)/libglog.la
-else
-  LIBGLOG = -lglog
-endif
-
+# The order of LDADD flags would matter if the same symbol is provided by
+# multiple of these libraries. This is highly unlikely, especially, since we are
+# allowed to disable some bundled libraries in lieu of system-installed ones.
 stout_tests_LDADD =			\
-  libgmock.la				\
-  $(LIBGLOG)				\
-  $(LIBPROTOBUF)			\
+  $(LIB_GMOCK)				\
+  $(LIB_GLOG)				\
+  $(LIB_PROTOBUF)			\
   -lsvn_subr-1				\
   -lsvn_delta-1				\
   -lapr-1
@@ -270,17 +290,26 @@ if !OS_FREEBSD
   stout_tests_LDADD += -ldl
 endif
 
+endif # if WITH_BUNDLED_STOUT
+
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
+if WITH_BUNDLED_STOUT
 	./stout-tests
+endif
 
-tests: all stout-tests
+tests: all
+if WITH_BUNDLED_STOUT
+	$(MAKE) $(AM_MAKEFLAGS) stout-tests
+endif
 
+if WITH_BUNDLED_STOUT
 # Dependencies for all-local.
 ALL_LOCAL += $(STOUT)/Makefile
+endif
 
 if WITH_BUNDLED_PROTOBUF
   ALL_LOCAL += $(PROTOBUF)/src/libprotobuf.la
@@ -300,11 +329,11 @@ if WITH_BUNDLED_PICOJSON
 endif
 
 if WITH_BUNDLED_GLOG
-  ALL_LOCAL += $(LIBGLOG)
+  ALL_LOCAL += $(LIB_GLOG)
 endif
 
 if HAS_GPERFTOOLS
- ALL_LOCAL += $(GPERFTOOLS)/libprofiler.la
+ ALL_LOCAL += $(LIB_GPERFTOOLS)
 endif
 
 all-local: $(ALL_LOCAL)
