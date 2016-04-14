@@ -7,14 +7,14 @@ DEPLOY_DIR=@sysconfdir@/@PACKAGE@
 test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \
   . ${DEPLOY_DIR}/mesos-deploy-env.sh
 
-# Find the list of slaves.
-SLAVES_FILE="${DEPLOY_DIR}/slaves"
-if test ! -e ${SLAVES_FILE}; then
-  echo "Failed to find ${SLAVES_FILE}"
+# Find the list of agents.
+AGENTS_FILE="${DEPLOY_DIR}/slaves"
+if test ! -e ${AGENTS_FILE}; then
+  echo "Failed to find ${AGENTS_FILE}"
   exit 1
 fi
 
-# The expected format of the SLAVES_FILE is one IP/host per line.
+# The expected format of the AGENTS_FILE is one IP/host per line.
 # Additionally, you can temporarily comment out a host or IP by placing a hash
 # character '#' as the first character of the line.  As an example, changing
 # this MASTERS_FILE:
@@ -33,7 +33,7 @@ fi
 # 10.1.1.1  # my first IP
 # 10.1.1.2  # my second IP
 #
-SLAVES=`cat ${SLAVES_FILE} | grep -v '^#'`
+AGENTS=`cat ${AGENTS_FILE} | grep -v '^#'`
 
 killall="killall"
 
@@ -42,9 +42,9 @@ if test "x${DEPLOY_WITH_SUDO}" = "x1"; then
   killall="sudo ${killall}"
 fi
 
-for slave in ${SLAVES}; do
-  echo "Stopping mesos-slave on ${slave}"
-  ssh ${SSH_OPTS} ${slave} "${killall} mesos-slave" &
+for agent in ${AGENTS}; do
+  echo "Stopping mesos-agent on ${agent}"
+  ssh ${SSH_OPTS} ${agent} "${killall} mesos-agent" &
   sleep 0.1
 done
 

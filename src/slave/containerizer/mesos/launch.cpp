@@ -149,7 +149,7 @@ int MesosContainerizerLaunch::execute()
           errno == EINTR);
 
   if (length != sizeof(dummy)) {
-     // There's a reasonable probability this will occur during slave
+     // There's a reasonable probability this will occur during agent
      // restarts across a large/busy cluster.
      cerr << "Failed to synchronize with agent (it's probably exited)" << endl;
      return 1;
@@ -162,7 +162,7 @@ int MesosContainerizerLaunch::execute()
   }
 
   // Run additional preparation commands. These are run as the same
-  // user and with the environment as the slave.
+  // user and with the environment as the agent.
   if (flags.commands.isSome()) {
     // TODO(jieyu): Use JSON::Array if we have generic parse support.
     JSON::Object object = flags.commands.get();
@@ -252,7 +252,7 @@ int MesosContainerizerLaunch::execute()
 
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
-  // same privilege as the mesos-slave.
+  // same privilege as the mesos-agent.
   // NOTE: The requisite user/group information must be present if
   // a container root filesystem is used.
 #ifndef __WINDOWS__

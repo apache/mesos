@@ -12,7 +12,7 @@ test -e ${DEPLOY_DIR}/mesos-deploy-env.sh && \
 usage() {
   echo "Usage: mesos-start-cluster.sh [-h] [-s]"
   echo " -h          display this message"
-  echo " -s          use sudo to start mesos-master and mesos-slave"
+  echo " -s          use sudo to start mesos-master and mesos-agent"
   if test ${#} -gt 0; then
     echo
     echo "${@}"
@@ -29,9 +29,9 @@ do
   esac
 done
 
-@sbindir@/mesos-start-masters.sh && sleep 1 && @sbindir@/mesos-start-slaves.sh && {
+@sbindir@/mesos-start-masters.sh && sleep 1 && @sbindir@/mesos-start-agents.sh && {
 
-  # TODO(benh): Check the health of the masters (and possibly slaves)
+  # TODO(benh): Check the health of the masters (and possibly agents)
   # and print the master's webui address (or just the leading master).
 
   echo "Everything's started!"

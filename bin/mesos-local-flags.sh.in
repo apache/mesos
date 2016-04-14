@@ -19,4 +19,4 @@
 export MESOS_WORK_DIR=/tmp/mesos
 
 . @abs_top_builddir@/bin/mesos-master-flags.sh
-. @abs_top_builddir@/bin/mesos-slave-flags.sh
+. @abs_top_builddir@/bin/mesos-agent-flags.sh

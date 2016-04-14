@@ -2,7 +2,7 @@
 
 '''
 Autogenerate documentation for all process endpoints spawned by a
-Mesos master and slave.
+Mesos master and agent.
 '''
 
 import argparse
@@ -38,7 +38,7 @@ MASTER_COMMAND = [
 ]
 
 AGENT_COMMAND = [
-  'mesos-slave.sh',
+  'mesos-agent.sh',
   '--master=%s:%s' % (HOST_IP, MASTER_PORT)
 ]
 
@@ -157,7 +157,7 @@ def get_endpoint_path(id, name):
   # Following the notion of a 'delegate' in Mesos, we want our
   # preferred endpoint paths for the delegate process to be
   # '/endpoint' instead of '/process/endpoint'. Since this script only
-  # starts 1 master and 1 slave, our only delegate processes are
+  # starts 1 master and 1 agent, our only delegate processes are
   # "master" and "slave(id)". If the id matches one of these, we don't
   # prepend it, otherwise we do.
   id = generalize_endpoint_id(id)

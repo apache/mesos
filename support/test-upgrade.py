@@ -47,7 +47,7 @@ class Process:
 class Agent(Process):
 
     def __init__(self, path, work_dir, credfile):
-        Process.__init__(self, [os.path.join(path, 'bin', 'mesos-slave.sh'),
+        Process.__init__(self, [os.path.join(path, 'bin', 'mesos-agent.sh'),
                                 '--master=127.0.0.1:5050',
                                 '--credential=' + credfile,
                                 '--work_dir=' + work_dir,

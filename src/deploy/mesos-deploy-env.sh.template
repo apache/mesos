@@ -9,5 +9,5 @@
 export SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=2"
 
 
-# Use sudo for launching masters and slaves.
+# Use sudo for launching masters and agents.
 #export DEPLOY_WITH_SUDO=1

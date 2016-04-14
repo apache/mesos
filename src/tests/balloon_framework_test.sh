@@ -25,14 +25,14 @@ if [[ ! -d ${TEST_CGROUP_HIERARCHY} ]]; then
 fi
 
 MASTER_PID=
-SLAVE_PID=
+AGENT_PID=
 MESOS_WORK_DIR=
 
-# This function ensures that we first kill the slave (if present) and
-# then cleanup the cgroups. This is necessary because a running slave
+# This function ensures that we first kill the agent (if present) and
+# then cleanup the cgroups. This is necessary because a running agent
 # holds an advisory lock that disallows cleaning up cgroups.
 # This function is not pure, but depends on state from the environment
-# (e.g. ${SLAVE_PID}) because we do not all possible values about when we
+# (e.g. ${AGENT_PID}) because we do not all possible values about when we
 # register with 'atexit'.
 function cleanup() {
   # Make sure we kill the master on exit.
@@ -40,9 +40,9 @@ function cleanup() {
     kill ${MASTER_PID}
   fi
 
-  # Make sure we kill the slave on exit.
-  if [[ ! -z ${SLAVE_PID} ]]; then
-    kill ${SLAVE_PID}
+  # Make sure we kill the agent on exit.
+  if [[ ! -z ${AGENT_PID} ]]; then
+    kill ${AGENT_PID}
   fi
 
   # Make sure we cleanup any cgroups we created on exiting.
@@ -63,7 +63,7 @@ atexit cleanup
 
 export LD_LIBRARY_PATH=${MESOS_BUILD_DIR}/src/.libs
 MASTER=${MESOS_SBIN_DIR}/mesos-master
-SLAVE=${MESOS_SBIN_DIR}/mesos-slave
+AGENT=${MESOS_SBIN_DIR}/mesos-agent
 BALLOON_FRAMEWORK=${MESOS_HELPER_DIR}/balloon-framework
 
 # The mesos binaries expect MESOS_ prefixed environment variables
@@ -94,20 +94,20 @@ if [[ ${STATUS} -ne 0 ]]; then
 fi
 
 
-# Launch slave.
-${SLAVE} \
+# Launch agent.
+${AGENT} \
     --work_dir=${MESOS_WORK_DIR} \
     --master=127.0.0.1:5432 \
     --isolation=cgroups/mem \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
     --cgroups_root=${TEST_CGROUP_ROOT} \
     --resources="cpus:1;mem:96" &
-SLAVE_PID=${!}
-echo "${GREEN}Launched slave at ${SLAVE_PID}${NORMAL}"
+AGENT_PID=${!}
+echo "${GREEN}Launched agent at ${AGENT_PID}${NORMAL}"
 sleep 2
 
-# Check the slave is still running after 2 seconds.
-kill -0 ${SLAVE_PID} >/dev/null 2>&1
+# Check the agent is still running after 2 seconds.
+kill -0 ${AGENT_PID} >/dev/null 2>&1
 STATUS=${?}
 if [[ ${STATUS} -ne 0 ]]; then
   echo "${RED}Slave crashed; failing test${NORMAL}"
@@ -124,8 +124,8 @@ if [[ ! ${STATUS} -eq 1 ]]; then
   exit 1
 fi
 
-# And make sure the slave is still running!
-kill -0 ${SLAVE_PID} >/dev/null 2>&1
+# And make sure the agent is still running!
+kill -0 ${AGENT_PID} >/dev/null 2>&1
 STATUS=${?}
 if [[ ${STATUS} -ne 0 ]]; then
   echo "${RED}Slave crashed; failing test${NORMAL}"

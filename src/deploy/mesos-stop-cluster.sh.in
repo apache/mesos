@@ -6,7 +6,7 @@ exec_prefix=@exec_prefix@
 usage() {
   echo "Usage: mesos-stop-cluster.sh [-h] [-s]"
   echo " -h          display this message"
-  echo " -s          use sudo to stop mesos-master and mesos-slave"
+  echo " -s          use sudo to stop mesos-master and mesos-agent"
   if test ${#} -gt 0; then
     echo
     echo "${@}"
@@ -23,7 +23,7 @@ do
   esac
 done
 
-@sbindir@/mesos-stop-slaves.sh && sleep 1 && @sbindir@/mesos-stop-masters.sh && {
+@sbindir@/mesos-stop-agents.sh && sleep 1 && @sbindir@/mesos-stop-masters.sh && {
   # TODO(chengwei): see mesos-start-cluster.sh
   echo "Everything's stopped!"
 }

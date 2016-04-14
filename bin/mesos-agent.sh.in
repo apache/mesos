@@ -16,26 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for running gdb on mesos-slave before it is
-# installed that first sets up some flags via environment variables.
+# This is a wrapper for running mesos-agent before it is installed
+# that sets up some flags environment variables.
 
-# Use colors for errors.
-. @abs_top_srcdir@/support/colors.sh
+. @abs_top_builddir@/bin/mesos-agent-flags.sh
 
-LIBTOOL=@abs_top_builddir@/libtool
-
-test ! -e ${LIBTOOL} && \
-  echo "${RED}Failed to find ${LIBTOOL}, have you run configure?${NORMAL}" && \
-  exit 1
-
-# Confirm libtool has "gdb" support.
-${LIBTOOL} --mode=execute gdb -batch >/dev/null 2>&1
-
-test $? != 0 && \
-  echo "${RED}Generated libtool doesn't appear to support gdb. Please also make sure gdb is installed.${NORMAL}" && \
-  exit 1
-
-. @abs_top_builddir@/bin/mesos-slave-flags.sh
-
-exec ${LIBTOOL} --mode=execute gdb --args \
-  @abs_top_builddir@/src/mesos-slave "${@}"
+exec @abs_top_builddir@/src/mesos-agent "${@}"

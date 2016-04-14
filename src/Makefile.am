@@ -1158,11 +1158,18 @@ endif
 
 
 # Binaries.
+sbin_PROGRAMS += mesos-agent
+mesos_agent_SOURCES = slave/main.cpp
+mesos_agent_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_agent_LDADD = libmesos.la $(LDADD)
+
 sbin_PROGRAMS += mesos-master
 mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_master_LDADD = libmesos.la $(LDADD)
 
+# TODO(tomxing): Remove this binary once the
+# slave->agent rename is complete(MESOS-3782).
 sbin_PROGRAMS += mesos-slave
 mesos_slave_SOURCES = slave/main.cpp
 mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1315,24 +1322,26 @@ nobase_dist_pkgdata_DATA +=						\
 # And the deploy related stuff.
 nodist_sbin_SCRIPTS +=							\
   deploy/mesos-daemon.sh						\
+  deploy/mesos-start-agents.sh						\
   deploy/mesos-start-cluster.sh						\
   deploy/mesos-start-masters.sh						\
   deploy/mesos-start-slaves.sh						\
+  deploy/mesos-stop-agents.sh						\
   deploy/mesos-stop-cluster.sh						\
   deploy/mesos-stop-masters.sh						\
   deploy/mesos-stop-slaves.sh
 
 pkgsysconf_DATA +=							\
+  deploy/mesos-agent-env.sh.template					\
   deploy/mesos-deploy-env.sh.template					\
-  deploy/mesos-master-env.sh.template					\
-  deploy/mesos-slave-env.sh.template
+  deploy/mesos-master-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
 # included in distributions.
 EXTRA_DIST +=								\
+  deploy/mesos-agent-env.sh.template					\
   deploy/mesos-deploy-env.sh.template					\
-  deploy/mesos-master-env.sh.template					\
-  deploy/mesos-slave-env.sh.template
+  deploy/mesos-master-env.sh.template
 
 # Java related files are listed outside if HAS_JAVA so we can add them
 # to EXTRA_DIST unconditionally.
@@ -2102,11 +2111,19 @@ dist_testlibexec_SCRIPTS =			\
 
 endif
 
+# Copy mesos-agent-env.sh.template to mesos-slave-env.sh.template.
+#
+# TODO(tomxing): Remove this target once the
+# slave->agent rename is complete(MESOS-3782).
+copy-agent-env-template:
+	cp $(DESTDIR)/$(pkgsysconfdir)/mesos-agent-env.sh.template \
+	  $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template
+
 # Install compatibility symlinks for modules that used to be in $(LIBDIR)
 # but are now in $(PKGMODULEDIR). We use install-data-hook because it
 # runs late in the install process after the target directories have
 # been created.
-install-data-hook:
+install-data-hook: copy-agent-env-template
 	cd $(DESTDIR)/$(libdir) && 				\
 	for name in libfixed_resource_estimator 		\
 	    libload_qos_controller 				\
@@ -2116,6 +2133,11 @@ install-data-hook:
 		  $(LN_S) $(relative_pkgmoduledir)/$$lib $$lib; \
 		done;						\
 	done
+
+# TODO(tomxing): Remove this hook once the
+# slave->agent rename is complete(MESOS-3782).
+uninstall-hook:
+	rm -f $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

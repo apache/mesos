@@ -1,5 +1,5 @@
-# This file contains environment variables that are passed to mesos-slave.
-# To get a description of all options run mesos-slave --help; any option
+# This file contains environment variables that are passed to mesos-agent.
+# To get a description of all options run mesos-agent --help; any option
 # supported as a command-line option is also supported as an environment
 # variable.
 

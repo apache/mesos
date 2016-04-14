@@ -76,38 +76,65 @@ AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
+AC_CONFIG_FILES([bin/mesos-agent.sh], [chmod +x bin/mesos-agent.sh])
 AC_CONFIG_FILES([bin/mesos-local.sh], [chmod +x bin/mesos-local.sh])
 AC_CONFIG_FILES([bin/mesos-master.sh], [chmod +x bin/mesos-master.sh])
-AC_CONFIG_FILES([bin/mesos-slave.sh], [chmod +x bin/mesos-slave.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES([bin/mesos-slave.sh:bin/mesos-agent.sh.in],
+  [chmod +x bin/mesos-slave.sh])
 AC_CONFIG_FILES([bin/mesos-tests.sh], [chmod +x bin/mesos-tests.sh])
+AC_CONFIG_FILES([bin/mesos-agent-flags.sh])
 AC_CONFIG_FILES([bin/mesos-local-flags.sh])
 AC_CONFIG_FILES([bin/mesos-master-flags.sh])
-AC_CONFIG_FILES([bin/mesos-slave-flags.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES([bin/mesos-slave-flags.sh:bin/mesos-agent-flags.sh.in])
 AC_CONFIG_FILES([bin/mesos-tests-flags.sh])
+AC_CONFIG_FILES([bin/gdb-mesos-agent.sh], [chmod +x bin/gdb-mesos-agent.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-local.sh], [chmod +x bin/gdb-mesos-local.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-master.sh], [chmod +x bin/gdb-mesos-master.sh])
-AC_CONFIG_FILES([bin/gdb-mesos-slave.sh], [chmod +x bin/gdb-mesos-slave.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES([bin/gdb-mesos-slave.sh:bin/gdb-mesos-agent.sh.in],
+  [chmod +x bin/gdb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/gdb-mesos-tests.sh], [chmod +x bin/gdb-mesos-tests.sh])
+AC_CONFIG_FILES([bin/lldb-mesos-agent.sh], [chmod +x bin/lldb-mesos-agent.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-local.sh], [chmod +x bin/lldb-mesos-local.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-master.sh],
-		[chmod +x bin/lldb-mesos-master.sh])
-AC_CONFIG_FILES([bin/lldb-mesos-slave.sh], [chmod +x bin/lldb-mesos-slave.sh])
+  [chmod +x bin/lldb-mesos-master.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES([bin/lldb-mesos-slave.sh:bin/lldb-mesos-agent.sh.in],
+  [chmod +x bin/lldb-mesos-slave.sh])
 AC_CONFIG_FILES([bin/lldb-mesos-tests.sh], [chmod +x bin/lldb-mesos-tests.sh])
+AC_CONFIG_FILES([bin/valgrind-mesos-agent.sh],
+  [chmod +x bin/valgrind-mesos-agent.sh])
 AC_CONFIG_FILES([bin/valgrind-mesos-local.sh],
-		[chmod +x bin/valgrind-mesos-local.sh])
-AC_CONFIG_FILES([bin/valgrind-mesos-slave.sh],
-		[chmod +x bin/valgrind-mesos-slave.sh])
+  [chmod +x bin/valgrind-mesos-local.sh])
 AC_CONFIG_FILES([bin/valgrind-mesos-master.sh],
-		[chmod +x bin/valgrind-mesos-master.sh])
+  [chmod +x bin/valgrind-mesos-master.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES([bin/valgrind-mesos-slave.sh:bin/valgrind-mesos-agent.sh.in],
+  [chmod +x bin/valgrind-mesos-slave.sh])
 AC_CONFIG_FILES([bin/valgrind-mesos-tests.sh],
-		[chmod +x bin/valgrind-mesos-tests.sh])
+  [chmod +x bin/valgrind-mesos-tests.sh])
 AC_CONFIG_FILES([src/deploy/mesos-daemon.sh])
+AC_CONFIG_FILES([src/deploy/mesos-start-agents.sh])
 AC_CONFIG_FILES([src/deploy/mesos-start-cluster.sh])
 AC_CONFIG_FILES([src/deploy/mesos-start-masters.sh])
-AC_CONFIG_FILES([src/deploy/mesos-start-slaves.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES(
+  [src/deploy/mesos-start-slaves.sh:src/deploy/mesos-start-agents.sh.in])
+AC_CONFIG_FILES([src/deploy/mesos-stop-agents.sh])
 AC_CONFIG_FILES([src/deploy/mesos-stop-cluster.sh])
 AC_CONFIG_FILES([src/deploy/mesos-stop-masters.sh])
-AC_CONFIG_FILES([src/deploy/mesos-stop-slaves.sh])
+# TODO(tomxing): Remove this script once the
+# slave->agent rename is complete(MESOS-3782).
+AC_CONFIG_FILES(
+  [src/deploy/mesos-stop-slaves.sh:src/deploy/mesos-stop-agents.sh.in])
 
 AC_CONFIG_FILES([include/mesos/version.hpp])
 
