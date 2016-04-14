@@ -193,6 +193,11 @@ AC_ARG_WITH([ssl],
                            [specify where to locate the ssl library]),
             [], [])
 
+AC_ARG_WITH([stout],
+            AS_HELP_STRING([--with-stout=@<:@=DIR@:>@],
+                           [specify where to locate stout library]),
+            [], [])
+
 AC_ARG_WITH([svn],
             AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
                            [specify where to locate the svn-1 library]),
@@ -837,6 +842,40 @@ libevent_openssl version 2+ headers are required for an SSL-enabled build.
 fi
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+
+if test -n "`echo $with_stout`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_stout}/include"
+fi
+
+# Check if user has asked us to use a preinstalled stout, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_stout" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([stout/try.hpp], [found_stout=yes])
+
+  if test "x$found_stout" = "xyes"; then
+    with_bundled_stout=no
+  else
+    AC_MSG_ERROR([cannot find stout
+-------------------------------------------------------------------
+You have requested the use of a non-bundled stout but no suitable
+stout could be found.
+
+You may want specify the location of stout by providing a prefix
+path via --with-stout=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_stout=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_STOUT], [test "x$with_bundled_stout" = "xyes"])
+
 
 # Check if libsvn-1 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path

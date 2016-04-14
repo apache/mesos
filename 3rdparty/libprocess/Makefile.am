@@ -96,7 +96,6 @@ endif
 libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\
-  -I$(srcdir)/$(STOUT)/include			\
   -isystem $(BOOST)				\
   -I$(LIBEV)					\
   -I$(PICOJSON)					\
@@ -140,6 +139,10 @@ libprocess_la_LIBADD =			\
 if HAS_GPERFTOOLS
 libprocess_la_CPPFLAGS += -I$(GPERFTOOLS)/src
 libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
+endif
+
+if WITH_BUNDLED_STOUT
+  libprocess_la_CPPFLAGS += -I$(srcdir)/$(STOUT)/include
 endif
 
 # Tests.
