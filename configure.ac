@@ -211,6 +211,11 @@ AC_ARG_ENABLE([optimize],
                               this option won't change them default: no]),
               [enable_optimize=yes], [])
 
+AC_ARG_ENABLE([perftools],
+              AS_HELP_STRING([--enable-perftools],
+                             [enable google perftools]),
+              [gperftools=yes])
+
 AC_ARG_ENABLE([python],
               AS_HELP_STRING([--disable-python],
                              [don't build Python bindings]),
@@ -250,6 +255,12 @@ AC_ARG_ENABLE([xfs-disk-isolator],
                              default: no]),
               [], [enable_xfs_disk_isolator=no])
 
+AC_ARG_ENABLE([zlib],
+            AS_HELP_STRING([--disable-zlib],
+                           [disables zlib compression, which means the webui
+                           will be far less responsive; not recommended]),
+            [enable_zlib=no], [enable_zlib=yes])
+
 
 ###############################################################################
 # Optional packages.
@@ -259,6 +270,13 @@ AC_ARG_WITH([apr],
             AS_HELP_STRING([--with-apr=@<:@=DIR@:>@],
                            [specify where to locate the apr-1 library]),
             [], [])
+
+AC_ARG_WITH([boost],
+            AS_HELP_STRING([--with-boost@<:@=DIR@:>@],
+                           [excludes building and using the bundled Boost
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_boost=yes], [])
 
 AC_ARG_WITH([curl],
             AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
@@ -279,12 +297,26 @@ AC_ARG_WITH([gmock],
                             location prefixed by the given path]),
             [without_bundled_gmock=yes], [])
 
+AC_ARG_WITH([http-parser],
+            AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
+                           [excludes building and using the bundled http-parser
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_http_parser=yes], [])
+
 AC_ARG_WITH([leveldb],
             AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
                            [excludes building and using the bundled LevelDB
                             package in lieu of an installed version at a
                             location prefixed by the given path]),
             [without_bundled_leveldb=yes], [])
+
+AC_ARG_WITH([libev],
+            AS_HELP_STRING([--with-libev@<:@=DIR@:>@],
+                           [excludes building and using the bundled libev
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_libev=yes], [])
 
 AC_ARG_WITH([libevent],
             AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
@@ -315,6 +347,13 @@ AC_ARG_WITH([nvml-lib],
                            [specify where to locate the Nvidia NVML libraries
                             (required for Nvidia GPU support)]),
             [], [])
+
+AC_ARG_WITH([picojson],
+            AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
+                           [excludes building and using the bundled picojson
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_picojson=yes], [])
 
 AC_ARG_WITH([protobuf],
             AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
@@ -545,6 +584,7 @@ AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
+AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
 AM_CONDITIONAL([INSTALL_TESTS], [test x"$enable_tests_install" = "xyes"])
 AS_IF([test x"$enable_tests_install" = "xyes"],
@@ -615,6 +655,42 @@ libapr-1 is required for mesos to build.
 ])])
 
 
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
+if test -n "`echo $with_boost`"; then
+  CPPFLAGS="$CPPFLAGS -isystem ${with_boost}/include"
+fi
+
+# Check if user has asked us to use a preinstalled Boost, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_boost" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([boost/version.hpp], [found_boost=yes])
+
+  if test "x$found_boost" = "xyes"; then
+    with_bundled_boost=no
+  else
+    AC_MSG_ERROR([cannot find Boost
+-------------------------------------------------------------------
+You have requested the use of a non-bundled Boost but no suitable
+Boost could be found.
+
+You may want specify the location of Boost by providing a prefix
+path via --with-boost=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_boost=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
+
+
 # Check if Libcurl prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
@@ -671,6 +747,101 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_GLOG],
                [test "x$with_bundled_glog" = "xyes"])
+
+
+GMOCKSRC="gmock-all.cc"
+GTESTSRC="gtest-all.cc"
+
+if test -n "`echo $with_gmock`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_gmock} -I${with_gmock}/include \
+    -I${with_gmock}/src -I${with_gmock}/gtest -I${with_gmock}/gtest/include \
+    -I${with_gmock}/gtest/src"
+
+elif test "x$enable_bundled" != "xyes"; then
+  CPPFLAGS="$CPPFLAGS -I/usr/src/gmock"
+  # On system installations the deps are handled separately.
+  # So insert a placeholder for substitution.
+  GTESTSRC="stdio.h"
+  check_gtest=yes
+fi
+
+# Check if user has asked us to use a preinstalled gmock, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_gmock" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADER($GMOCKSRC,
+                  [found_gmock=yes],
+                  [])
+
+  if test "x$found_gmock" = "xyes"; then
+    if test "x$check_gtest" = "xyes"; then
+      # TODO(jieyu): Symbol _init is not availble for libs on OS X.
+      AC_CHECK_LIB([gtest],
+                   [_init],
+                   [],
+                   [AC_MSG_ERROR([gtest missing])])
+    fi
+    with_bundled_gmock=no
+  else
+    AC_MSG_ERROR([cannot find gmock
+-------------------------------------------------------------------
+You have requested the use of a non-bundled gmock but no suitable
+gmock could be found.
+
+You may want specify the location of gmock by providing a prefix
+path via --with-gmock=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_gmock=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_GMOCK], [test "x$with_bundled_gmock" = "xyes"])
+AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
+AC_SUBST([GMOCKSRC])
+AC_SUBST([GTESTSRC])
+
+
+if test -n "`echo $with_http_parser`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_http_parser}/include"
+  LDFLAGS="$LDFLAGS -L${with_http_parser}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled http-parser, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_http_parser" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([http_parser.h],
+                   [AC_CHECK_LIB([http_parser],
+                                 [http_parser_init],
+                                 [found_http_parser=yes])])
+
+  if test "x$found_http_parser" = "xyes"; then
+    with_bundled_http_parser=no
+  else
+    AC_MSG_ERROR([cannot find http-parser
+-------------------------------------------------------------------
+You have requested the use of a non-bundled http-parser but no suitable
+http-parser could be found.
+
+You may want specify the location of http-parser by providing a prefix
+path via --with-http-parser=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_http_parser=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
+               [test "x$with_bundled_http_parser" = "xyes"])
 
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
@@ -1177,6 +1348,50 @@ AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
 AC_SUBST([PROTOBUF_JAR])
 AC_SUBST([PROTOCOMPILER])
 
+if test -n "`echo $with_libev`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_libev}/include"
+  LDFLAGS="$LDFLAGS -L${with_libev}/lib"
+fi
+
+# Check if user has asked us to use a preinstalled libev, or if they
+# asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_libev" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([ev.h], [found_libev=yes])
+
+  if test "x$found_libev" = "xyes"; then
+    with_bundled_libev=no
+    AC_MSG_WARN([libev found must have been built with -DEV_CHILD_ENABLE=0])
+  else
+    AC_MSG_ERROR([cannot find libev
+-------------------------------------------------------------------
+You have requested the use of a non-bundled libev but no suitable
+libev could be found.
+
+You may want specify the location of libev by providing a prefix
+path via --with-libev=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_libev=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_LIBEV], [test "x$with_bundled_libev" = "xyes"])
+
+
+# Check if libevent prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_libevent`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions libevent`"; then
+  with_libevent=`brew --prefix libevent`
+fi
 
 # Perform necessary configuration for building with Python.
 if test "x$enable_python" = "xyes"; then
@@ -1498,6 +1713,46 @@ AM_CONDITIONAL([WITHOUT_PYTHON_DEPS],
     [test "x$without_python_deps" = "xyes"])
 
 
+if test -n "`echo $with_picojson`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_picojson}/include"
+fi
+
+# Check if user has asked us to use a preinstalled picojson, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_picojson" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([picojson.h], [found_picojson=yes])
+
+  if test "x$found_picojson" = "xyes"; then
+    with_bundled_picojson=no
+  else
+    AC_MSG_ERROR([cannot find picojson
+-------------------------------------------------------------------
+You have requested the use of a non-bundled picojson but no suitable
+picojson could be found.
+
+You may want specify the location of picojson by providing a prefix
+path via --with-picojson=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_picojson=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
+
+
+# Check if protobuf prefix path was supplied and if so, add it to
+# CPPFLAGS while extending it by /include and to LDFLAGS while
+# extending it by /lib.
+if test -n "`echo $with_protobuf`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_protobuf}/include"
+  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
+fi
 # Check if Sasl2 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
@@ -1741,6 +1996,18 @@ AM_CONDITIONAL([ENABLE_XFS_DISK_ISOLATOR], [test "x$enable_xfs_disk_isolator" = 
 if test -n "`echo $with_zlib`" ; then
     CPPFLAGS="-I${with_zlib}/include $CPPFLAGS"
     LDFLAGS="-L${with_zlib}/lib $LDFLAGS"
+fi
+
+# Check if we should/can build with libz.
+if test "x$enable_zlib" = "xyes"; then
+  AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
+               [AC_MSG_ERROR([cannot find libz
+-------------------------------------------------------------------
+This means HTTP responses will be slower because we cannot use
+compression; you probably want to download and install zlib, but
+you can get away without it by doing --disable-zlib.
+-------------------------------------------------------------------
+  ])])
 fi
 
 
