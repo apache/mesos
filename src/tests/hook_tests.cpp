@@ -57,6 +57,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::protobuf::createLabel;
 
+using mesos::internal::slave::DockerContainerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
@@ -735,6 +736,119 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
     AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
   }
 }
+
+
+// Test that the slave post fetch hook is executed after fetching the
+// URIs but before the container is launched. We launch a command task
+// with a file URI (file name is "post_fetch_hook"). The test hook
+// will try to delete that file in the sandbox directory. We validate
+// the hook by verifying that "post_fetch_hook" file does not exist in
+// the sandbox when container is running.
+TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<Owned<Docker>> _docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket);
+  ASSERT_SOME(_docker);
+
+  Shared<Docker> docker = _docker->share();
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
+  DockerContainerizer containerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      &containerizer,
+      flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      "test ! -f " + path::join(flags.sandbox_directory, "post_fetch_hook"));
+
+  // Add a URI for a file on the host filesystem. This file will be
+  // fetched to the sandbox and will later be deleted by the hook.
+  const string file = path::join(sandbox.get(), "post_fetch_hook");
+  ASSERT_SOME(os::touch(file));
+
+  CommandInfo::URI* uri = task.mutable_command()->add_uris();
+  uri->set_value(file);
+
+  ContainerInfo* containerInfo = task.mutable_container();
+  containerInfo->set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo* dockerInfo = containerInfo->mutable_docker();
+  dockerInfo->set_image("alpine");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY_FOR(statusFinished, Seconds(60));
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Future<list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  // Cleanup all mesos launched containers.
+  foreach (const Docker::Container& container, containers.get()) {
+    AWAIT_READY_FOR(docker->rm(container.id, true), Seconds(30));
+  }
+}
+
+
+// TODO(jieyu): Add a test for slavePostFetchHook using Mesos
+// containerizer.
+
 
 // Test that the changes made by the resources decorator hook are correctly
 // propagated to the resource offer.

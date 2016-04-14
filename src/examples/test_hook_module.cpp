@@ -198,6 +198,22 @@ public:
   }
 
 
+  virtual Try<Nothing> slavePostFetchHook(
+      const ContainerID& containerId,
+      const string& directory)
+  {
+    LOG(INFO) << "Executing 'slavePostFetchHook'";
+
+    const string path = path::join(directory, "post_fetch_hook");
+
+    if (os::exists(path)) {
+      return os::rm(path);
+    } else {
+      return Nothing();
+    }
+  }
+
+
   // This hook locates the file created by environment decorator hook
   // and deletes it.
   virtual Try<Nothing> slaveRemoveExecutorHook(
