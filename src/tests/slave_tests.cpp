@@ -81,6 +81,7 @@ using process::PID;
 using process::Promise;
 using process::UPID;
 
+using process::http::InternalServerError;
 using process::http::OK;
 using process::http::Response;
 using process::http::ServiceUnavailable;
@@ -1742,7 +1743,7 @@ TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      http::InternalServerError().status, response);
+      InternalServerError().status, response);
 
   terminate(slave);
   wait(slave);
