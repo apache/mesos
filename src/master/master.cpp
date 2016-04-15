@@ -945,10 +945,12 @@ void Master::initialize()
 
   // Setup HTTP routes.
   route("/api/v1/scheduler",
+        DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
         Http::SCHEDULER_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.scheduler(request);
+          return http.scheduler(request, principal);
         });
   route("/create-volumes",
         DEFAULT_HTTP_AUTHENTICATION_REALM,

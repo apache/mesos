@@ -1071,7 +1071,8 @@ private:
 
     // /api/v1/scheduler
     process::Future<process::http::Response> scheduler(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/create-volumes
     process::Future<process::http::Response> createVolumes(

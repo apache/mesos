@@ -42,7 +42,9 @@ namespace call {
 
 // Validates that a scheduler call is well-formed.
 // TODO(bmahler): Add unit tests.
-Option<Error> validate(const mesos::scheduler::Call& call);
+Option<Error> validate(
+    const mesos::scheduler::Call& call,
+    const Option<std::string>& principal = None());
 
 } // namespace call {
 } // namespace scheduler {

@@ -334,7 +334,9 @@ string Master::Http::SCHEDULER_HELP()
 }
 
 
-Future<Response> Master::Http::scheduler(const Request& request) const
+Future<Response> Master::Http::scheduler(
+    const Request& request,
+    const Option<string>& principal) const
 {
   // TODO(vinod): Add metrics for rejected requests.
 
@@ -354,11 +356,6 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   if (!master->recovered.get().isReady()) {
     return ServiceUnavailable("Master has not finished recovery");
-  }
-
-  if (master->flags.authenticate_frameworks) {
-    return Forbidden(
-        "HTTP schedulers are not supported when authentication is required");
   }
 
   if (request.method != "POST") {
@@ -403,7 +400,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   scheduler::Call call = devolve(v1Call);
 
-  Option<Error> error = validation::scheduler::call::validate(call);
+  Option<Error> error = validation::scheduler::call::validate(call, principal);
 
   if (error.isSome()) {
     return BadRequest("Failed to validate Scheduler::Call: " +
@@ -431,6 +428,24 @@ Future<Response> Master::Http::scheduler(const Request& request) const
           "Subscribe calls should not include the 'Mesos-Stream-Id' header");
     }
 
+    const FrameworkInfo& frameworkInfo = call.subscribe().framework_info();
+
+    if (principal.isSome() && !frameworkInfo.has_principal()) {
+      // We allow an authenticated framework to not specify a principal
+      // in `FrameworkInfo` but we'd prefer to log a WARNING here. We also
+      // set `FrameworkInfo.principal` to the value of authenticated principal
+      // and use it for authorization later when it happens.
+      if (!frameworkInfo.has_principal()) {
+        LOG(WARNING)
+          << "Setting 'principal' in FrameworkInfo to '" << principal.get()
+          << "' because the framework authenticated with that principal but "
+          << "did not set it in FrameworkInfo";
+
+        call.mutable_subscribe()->mutable_framework_info()->set_principal(
+            principal.get());
+      }
+    }
+
     Pipe pipe;
     OK ok;
     ok.headers["Content-Type"] = stringify(responseContentType);
@@ -454,6 +469,13 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   if (framework == NULL) {
     return BadRequest("Framework cannot be found");
+  }
+
+  if (principal.isSome() && principal != framework->info.principal()) {
+    return BadRequest(
+        "Authenticated principal '" + principal.get() + "' does not "
+        "match principal '" + framework->info.principal() + "' set in "
+        "`FrameworkInfo`");
   }
 
   if (!framework->connected) {

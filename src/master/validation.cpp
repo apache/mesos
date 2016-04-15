@@ -53,7 +53,9 @@ static bool invalidCharacter(char c)
 namespace scheduler {
 namespace call {
 
-Option<Error> validate(const mesos::scheduler::Call& call)
+Option<Error> validate(
+    const mesos::scheduler::Call& call,
+    const Option<string>& principal)
 {
   if (!call.IsInitialized()) {
     return Error("Not initialized: " + call.InitializationErrorString());
@@ -68,8 +70,19 @@ Option<Error> validate(const mesos::scheduler::Call& call)
       return Error("Expecting 'subscribe' to be present");
     }
 
-    if (call.subscribe().framework_info().id() != call.framework_id()) {
+    const FrameworkInfo& frameworkInfo = call.subscribe().framework_info();
+
+    if (frameworkInfo.id() != call.framework_id()) {
       return Error("'framework_id' differs from 'subscribe.framework_info.id'");
+    }
+
+    if (principal.isSome() &&
+        frameworkInfo.has_principal() &&
+        principal != frameworkInfo.principal()) {
+      return Error(
+          "Authenticated principal '" + principal.get() + "' does not "
+          "match principal '" + frameworkInfo.principal() + "' set in "
+          "`FrameworkInfo`");
     }
 
     return None();
