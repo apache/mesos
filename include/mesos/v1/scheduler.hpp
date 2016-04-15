@@ -54,11 +54,14 @@ class MesosProcess; // Forward declaration.
 class Mesos
 {
 public:
+  // The credential will be used for authenticating with the master. Currently,
+  // only HTTP basic authentication is supported.
   Mesos(const std::string& master,
         ContentType contentType,
         const std::function<void()>& connected,
         const std::function<void()>& disconnected,
-        const std::function<void(const std::queue<Event>&)>& received);
+        const std::function<void(const std::queue<Event>&)>& received,
+        const Option<Credential>& credential);
 
   // Delete copy constructor.
   Mesos(const Mesos& other) = delete;
@@ -101,6 +104,7 @@ protected:
       const std::function<void()>& connected,
       const std::function<void()>& disconnected,
       const std::function<void(const std::queue<Event>&)>& received,
+      const Option<Credential>& credential,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
         detector);
 

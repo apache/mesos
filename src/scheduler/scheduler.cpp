@@ -130,11 +130,13 @@ public:
       const lambda::function<void()>& connected,
       const lambda::function<void()>& disconnected,
       const lambda::function<void(const queue<Event>&)>& received,
+      const Option<Credential>& _credential,
       const Option<shared_ptr<MasterDetector>>& _detector)
     : ProcessBase(ID::generate("scheduler")),
       state(DISCONNECTED),
       contentType(_contentType),
       callbacks {connected, disconnected, received},
+      credential(_credential),
       local(false)
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -244,6 +246,14 @@ public:
     request.keepAlive = true;
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
+
+    // TODO(anand): Add support for other authentication schemes.
+
+    if (credential.isSome()) {
+      request.headers["Authorization"] =
+        "Basic " +
+        base64::encode(credential->principal() + ":" + credential->secret());
+    }
 
     CHECK_SOME(connections);
 
@@ -719,6 +729,7 @@ private:
   Option<SubscribedResponse> subscribed;
   ContentType contentType;
   Callbacks callbacks;
+  const Option<Credential> credential;
   Mutex mutex; // Used to serialize the callback invocations.
   bool local; // Whether or not we launched a local cluster.
   shared_ptr<MasterDetector> detector;
@@ -737,6 +748,7 @@ Mesos::Mesos(
     const lambda::function<void()>& connected,
     const lambda::function<void()>& disconnected,
     const lambda::function<void(const queue<Event>&)>& received,
+    const Option<Credential>& credential,
     const Option<shared_ptr<MasterDetector>>& detector)
 {
   process = new MesosProcess(
@@ -745,6 +757,7 @@ Mesos::Mesos(
       connected,
       disconnected,
       received,
+      credential,
       detector);
 
   spawn(process);
@@ -756,8 +769,15 @@ Mesos::Mesos(
     ContentType contentType,
     const lambda::function<void()>& connected,
     const lambda::function<void()>& disconnected,
-    const lambda::function<void(const queue<Event>&)>& received)
-  : Mesos(master, contentType, connected, disconnected, received, None()) {}
+    const lambda::function<void(const queue<Event>&)>& received,
+    const Option<Credential>& credential)
+  : Mesos(master,
+          contentType,
+          connected,
+          disconnected,
+          received,
+          credential,
+          None()) {}
 
 
 Mesos::~Mesos()
