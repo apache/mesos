@@ -5940,30 +5940,25 @@ void Master::addFramework(Framework* framework)
       framework->info,
       framework->usedResources);
 
-  // Export framework metrics.
+  // Export framework metrics if a principal is specified in `FrameworkInfo`.
 
-  // If the framework is authenticated, its principal should be in
-  // 'authenticated'. Otherwise look if it's supplied in
-  // FrameworkInfo.
+  Option<string> principal = framework->info.has_principal()
+      ? Option<string>(framework->info.principal())
+      : None();
+
   if (framework->pid.isSome()) {
-    Option<string> principal = authenticated.get(framework->pid.get());
-    if (principal.isNone() && framework->info.has_principal()) {
-      principal = framework->info.principal();
-    }
-
     CHECK(!frameworks.principals.contains(framework->pid.get()));
     frameworks.principals.put(framework->pid.get(), principal);
+  }
 
-    // Export framework metrics if a principal is specified.
-    if (principal.isSome()) {
-      // Create new framework metrics if this framework is the first
-      // one of this principal. Otherwise existing metrics are reused.
-      if (!metrics->frameworks.contains(principal.get())) {
-        metrics->frameworks.put(
-            principal.get(),
-            Owned<Metrics::Frameworks>(
-              new Metrics::Frameworks(principal.get())));
-      }
+  if (principal.isSome()) {
+    // Create new framework metrics if this framework is the first
+    // one of this principal. Otherwise existing metrics are reused.
+    if (!metrics->frameworks.contains(principal.get())) {
+      metrics->frameworks.put(
+          principal.get(),
+          Owned<Metrics::Frameworks>(
+            new Metrics::Frameworks(principal.get())));
     }
   }
 }
