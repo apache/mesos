@@ -125,7 +125,8 @@ protected:
       mesos::ContentType::PROTOBUF,
       process::defer(self(), &Self::connected),
       process::defer(self(), &Self::disconnected),
-      process::defer(self(), &Self::received, lambda::_1)));
+      process::defer(self(), &Self::received, lambda::_1),
+      None()));
   }
 
   void connected()
