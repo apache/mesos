@@ -1050,6 +1050,7 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = ACLs();
   masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_frameworks = false;
   masterFlags.credentials = None();
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
@@ -1288,6 +1289,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
   masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_frameworks = false;
   masterFlags.credentials = None();
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);

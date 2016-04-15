@@ -99,10 +99,7 @@ INSTANTIATE_TEST_CASE_P(
 // This test verifies that a scheduler can subscribe with the master.
 TEST_P(SchedulerTest, Subscribe)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -145,10 +142,7 @@ TEST_P(SchedulerTest, Subscribe)
 // failing over to another instance.
 TEST_P(SchedulerTest, SchedulerFailover)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -241,10 +235,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
 // This test verifies that the scheduler can subscribe after a master failover.
 TEST_P(SchedulerTest, MasterFailover)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -290,7 +281,7 @@ TEST_P(SchedulerTest, MasterFailover)
 
   // Failover the master.
   master->reset();
-  master = StartMaster(flags);
+  master = StartMaster();
   ASSERT_SOME(master);
 
   AWAIT_READY(disconnected);
@@ -326,10 +317,7 @@ TEST_P(SchedulerTest, MasterFailover)
 
 TEST_P(SchedulerTest, TaskRunning)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -453,10 +441,7 @@ TEST_P(SchedulerTest, TaskRunning)
 
 TEST_P(SchedulerTest, ReconcileTask)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -585,10 +570,7 @@ TEST_P(SchedulerTest, ReconcileTask)
 
 TEST_P(SchedulerTest, KillTask)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -734,10 +716,7 @@ TEST_P(SchedulerTest, KillTask)
 
 TEST_P(SchedulerTest, ShutdownExecutor)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -866,10 +845,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
 
 TEST_P(SchedulerTest, Teardown)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -985,7 +961,6 @@ TEST_P(SchedulerTest, Teardown)
 TEST_P(SchedulerTest, Decline)
 {
   master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -1080,10 +1055,7 @@ TEST_P(SchedulerTest, Decline)
 
 TEST_P(SchedulerTest, Revive)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1182,10 +1154,7 @@ TEST_P(SchedulerTest, Revive)
 
 TEST_P(SchedulerTest, Suppress)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1301,10 +1270,7 @@ TEST_P(SchedulerTest, Suppress)
 
 TEST_P(SchedulerTest, Message)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1431,10 +1397,7 @@ TEST_P(SchedulerTest, Message)
 
 TEST_P(SchedulerTest, Request)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -1497,10 +1460,7 @@ TEST_P(SchedulerTest, Request)
 // the master.
 TEST_P(SchedulerTest, SchedulerReconnect)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();

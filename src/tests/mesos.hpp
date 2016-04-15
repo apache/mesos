@@ -986,6 +986,7 @@ public:
           lambda::bind(&TestMesos<Mesos, Event>::events,
                        this,
                        lambda::_1),
+          DEFAULT_V1_CREDENTIAL,
           detector),
       scheduler(_scheduler) {}
 

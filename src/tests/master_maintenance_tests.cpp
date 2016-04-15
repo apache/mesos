@@ -127,13 +127,6 @@ public:
     unavailability = createUnavailability(Clock::now());
   }
 
-  virtual master::Flags CreateMasterFlags()
-  {
-    master::Flags masterFlags = MesosTest::CreateMasterFlags();
-    masterFlags.authenticate_frameworks = false;
-    return masterFlags;
-  }
-
   virtual slave::Flags CreateSlaveFlags()
   {
     slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
@@ -380,8 +373,6 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
 // slave is scheduled to go down for maintenance.
 TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 {
-  // Set up a master.
-  // NOTE: We don't use `StartMaster()` because we need to access these flags.
   master::Flags flags = CreateMasterFlags();
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
@@ -1085,8 +1076,8 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   Callbacks callbacks;
   Queue<Event> events;
 
-  // Set up a master.
   master::Flags masterFlags = CreateMasterFlags();
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1094,6 +1085,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   TestContainerizer containerizer(&exec);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
+
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
@@ -1151,7 +1143,8 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
       ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
-      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1),
+      DEFAULT_V1_CREDENTIAL);
 
   AWAIT_READY(connected);
 
@@ -1394,8 +1387,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   Callbacks callbacks;
   Queue<Event> events;
 
-  // Set up a master.
-  // NOTE: We don't use `StartMaster()` because we need to access these flags.
   master::Flags flags = CreateMasterFlags();
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
@@ -1495,7 +1486,8 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
       ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
-      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1),
+      DEFAULT_V1_CREDENTIAL);
 
   AWAIT_READY(connected);
 

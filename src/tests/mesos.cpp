@@ -95,6 +95,9 @@ master::Flags MesosTest::CreateMasterFlags()
   flags.authenticate_frameworks = true;
   flags.authenticate_slaves = true;
 
+  flags.authenticate_http_frameworks = true;
+  flags.http_framework_authenticators = "basic";
+
   // Create a default credentials file.
   const string& path = path::join(os::getcwd(), "credentials");
 
