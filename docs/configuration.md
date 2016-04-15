@@ -79,6 +79,17 @@ HTTP endpoints are also allowed. (default: false)
 </tr>
 <tr>
   <td>
+    --[no-]authenticate_http_frameworks
+  </td>
+  <td>
+If <code>true</code>, only authenticated HTTP based frameworks are allowed to
+register. If <code>false</code>, HTTP frameworks are not authenticated. For more
+about HTTP frameworks see the Scheduler HTTP API
+<a href="/documentation/latest/scheduler-http-api">documentation</a>. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --firewall_rules=VALUE
   </td>
   <td>
@@ -121,6 +132,20 @@ HTTP authenticator module using <code>--modules</code>.
 Currently there is no support for multiple HTTP authenticators. (default: basic)
   </td>
 </tr>
+<tr>
+  <td>
+    --http_framework_authenticators=VALUE
+  </td>
+  <td>
+HTTP authenticator implementation to use when authenticating HTTP frameworks.
+Use the <code>basic</code> authenticator or load an alternate HTTP authenticator
+module using <code>--modules</code>. This must be used in conjunction with
+<code>--authenticate_http_frameworks</code>.
+<p/>
+Currently there is no support for multiple HTTP authenticators.
+  </td>
+</tr>
+
 <tr>
   <td>
     --ip=VALUE
@@ -463,7 +488,8 @@ load an alternate allocator module using <code>--modules</code>.
   </td>
   <td>
 If <code>true</code>, only authenticated frameworks are allowed to register. If
-<code>false</code>, unauthenticated frameworks are also allowed to register. (default: false)
+<code>false</code>, unauthenticated frameworks are also allowed to register. For
+HTTP based frameworks use the <code>--authenticate_http_frameworks</code> flag. (default: false)
   </td>
 </tr>
 <tr>
