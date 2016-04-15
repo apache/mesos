@@ -67,6 +67,7 @@ public:
   bool authenticate_frameworks;
   bool authenticate_slaves;
   bool authenticate_http;
+  bool authenticate_http_frameworks;
   Option<Path> credentials;
   Option<ACLs> acls;
   Option<Firewall> firewall_rules;
@@ -80,6 +81,7 @@ public:
   size_t max_slave_ping_timeouts;
   std::string authorizers;
   std::string http_authenticators;
+  Option<std::string> http_framework_authenticators;
   size_t max_completed_frameworks;
   size_t max_completed_tasks_per_framework;
   Option<std::string> master_contender;

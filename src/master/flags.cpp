@@ -203,7 +203,8 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::authenticate_frameworks,
       "authenticate",
       "If `true`, only authenticated frameworks are allowed to register. If\n"
-      "`false`, unauthenticated frameworks are also allowed to register.",
+      "`false`, unauthenticated frameworks are also allowed to register. For\n"
+      "HTTP based frameworks use the `--authenticate_http_frameworks` flag.",
       false);
 
   add(&Flags::authenticate_slaves,
@@ -217,6 +218,12 @@ mesos::internal::master::Flags::Flags()
       "If `true`, only authenticated requests for HTTP endpoints supporting\n"
       "authentication are allowed. If `false`, unauthenticated requests to\n"
       "HTTP endpoints are also allowed.\n",
+      false);
+
+  add(&Flags::authenticate_http_frameworks,
+      "authenticate_http_frameworks",
+      "If `true`, only authenticated HTTP frameworks are allowed to register.\n"
+      "If `false`, HTTP frameworks are not authenticated.",
       false);
 
   add(&Flags::credentials,
@@ -462,6 +469,17 @@ mesos::internal::master::Flags::Flags()
       "\n"
       "Currently there is no support for multiple HTTP authenticators.",
       DEFAULT_HTTP_AUTHENTICATOR);
+
+  add(&Flags::http_framework_authenticators,
+      "http_framework_authenticators",
+      "HTTP authenticator implementation to use when authenticating HTTP\n"
+      "frameworks. Use the \n"
+      "`" + string(DEFAULT_HTTP_AUTHENTICATOR) + "` authenticator or load an\n"
+      "alternate authenticator module using `--modules`.\n"
+      "Must be used in conjunction with `--http_authenticate_frameworks`.\n"
+      "\n"
+      "Currently there is no support for multiple HTTP framework\n"
+      "authenticators.");
 
   add(&Flags::max_completed_frameworks,
       "max_completed_frameworks",

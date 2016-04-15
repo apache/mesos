@@ -434,10 +434,19 @@ void Master::initialize()
   } else {
     LOG(INFO) << "Master allowing unauthenticated frameworks to register";
   }
+
   if (flags.authenticate_slaves) {
     LOG(INFO) << "Master only allowing authenticated agents to register";
   } else {
     LOG(INFO) << "Master allowing unauthenticated agents to register";
+  }
+
+  if (flags.authenticate_http_frameworks) {
+    LOG(INFO) << "Master only allowing authenticated HTTP frameworks to "
+              << "register";
+  } else {
+    LOG(INFO) << "Master allowing HTTP frameworks to register without "
+              << "authentication";
   }
 
   // Load credentials.
@@ -583,6 +592,95 @@ void Master::initialize()
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Owned<authentication::Authenticator>(httpAuthenticator.get()));
     httpAuthenticator = None();
+  }
+
+  if (flags.authenticate_http_frameworks) {
+    // The `--http_framework_authenticators` flag should always be set when HTTP
+    // framework authentication is enabled.
+    if (flags.http_framework_authenticators.isNone()) {
+      EXIT(EXIT_FAILURE)
+        << "Missing `--http_framework_authenticators` flag. This must be used "
+        << "in conjunction with `--authenticate_http_frameworks`";
+    }
+
+    vector<string> httpFrameworkAuthenticatorNames =
+      strings::split(flags.http_framework_authenticators.get(), ",");
+
+    // Passing an empty string into the `http_framework_authenticators`
+    // flag is considered an error.
+    if (httpFrameworkAuthenticatorNames.empty()) {
+      EXIT(EXIT_FAILURE) << "No HTTP framework authenticator specified";
+    }
+
+    if (httpFrameworkAuthenticatorNames.size() > 1) {
+      EXIT(EXIT_FAILURE) << "Multiple HTTP framework authenticators not "
+                         << "supported";
+    }
+
+    if (httpFrameworkAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
+        !modules::ModuleManager::contains<authentication::Authenticator>(
+            httpFrameworkAuthenticatorNames[0])) {
+      EXIT(EXIT_FAILURE)
+        << "HTTP framework authenticator '"
+        << httpFrameworkAuthenticatorNames[0]
+        << "' not found. Check the spelling (compare to '"
+        << DEFAULT_HTTP_AUTHENTICATOR << "') or verify that the"
+        << " authenticator was loaded successfully (see --modules)";
+    }
+
+    Option<authentication::Authenticator*> httpFrameworkAuthenticator;
+
+    if (httpFrameworkAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR) {
+      if (credentials.isNone()) {
+        EXIT(EXIT_FAILURE)
+          << "No credentials provided for the default '"
+          << DEFAULT_HTTP_AUTHENTICATOR << "' HTTP framework authenticator";
+      }
+
+      LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
+                << "' HTTP framework authenticator";
+
+      Try<authentication::Authenticator*> authenticator =
+        BasicAuthenticatorFactory::create(
+            DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
+            credentials.get());
+
+      if (authenticator.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Could not create HTTP framework authenticator module '"
+          << httpFrameworkAuthenticatorNames[0] << "': "
+          << authenticator.error();
+      }
+
+      httpFrameworkAuthenticator = authenticator.get();
+    } else {
+      Try<authentication::Authenticator*> module =
+        modules::ModuleManager::create<authentication::Authenticator>(
+            httpFrameworkAuthenticatorNames[0]);
+
+      if (module.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Could not create HTTP framework authenticator module '"
+          << httpFrameworkAuthenticatorNames[0] << "': " << module.error();
+      }
+
+      LOG(INFO) << "Using '" << httpFrameworkAuthenticatorNames[0]
+                << "' HTTP framework authenticator";
+
+      httpFrameworkAuthenticator = module.get();
+    }
+
+    CHECK_SOME(httpFrameworkAuthenticator);
+
+    if (httpFrameworkAuthenticator.get() != NULL) {
+      // Ownership of the `httpFrameworkAuthenticator` is passed to libprocess.
+      process::http::authentication::setAuthenticator(
+          DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
+          Owned<authentication::Authenticator>(
+              httpFrameworkAuthenticator.get()));
+    }
+
+    httpFrameworkAuthenticator = None();
   }
 
   if (authorizer.isSome()) {

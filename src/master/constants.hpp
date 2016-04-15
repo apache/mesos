@@ -127,6 +127,10 @@ constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 // Name of the default master HTTP authentication realm.
 constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos-master";
 
+// Name of the default authentication realm for HTTP frameworks.
+constexpr char DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM[] =
+  "mesos-master-scheduler";
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
