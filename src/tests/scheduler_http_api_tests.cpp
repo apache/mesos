@@ -331,6 +331,59 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
 }
 
 
+// This test verifies if the role is invalid in scheduler's framework message,
+// the event is error on the stream in response to a Subscribe call request.
+TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  v1::FrameworkInfo framework = DEFAULT_V1_FRAMEWORK_INFO;
+  // Set invalid role.
+  framework.set_role("/test/test1");
+  subscribe->mutable_framework_info()->CopyFrom(framework);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+  process::http::Headers headers;
+  headers["Accept"] = contentType;
+
+  Future<Response> response = process::http::streaming::post(
+      master.get()->pid,
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(Response::PIPE, response.get().type);
+
+  Option<Pipe::Reader> reader = response.get().reader;
+  ASSERT_SOME(reader);
+
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+  Future<Result<Event>> event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  // Check event type is error.
+  ASSERT_EQ(Event::ERROR, event.get().get().type());
+}
+
+
 // This test verifies that the client will receive a `BadRequest` response if it
 // includes a stream ID header with a subscribe call.
 TEST_P(SchedulerHttpApiTest, SubscribeWithStreamId)

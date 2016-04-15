@@ -4062,6 +4062,32 @@ TEST_F(MasterTest, FrameworkInfoLabels)
 }
 
 
+// This test ensures that if a framework scheduler provides invalid
+// role in its FrameworkInfo message, the master will reject it.
+TEST_F(MasterTest, RejectFrameworkWithInvalidRole)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+
+  // Add invalid role to the FrameworkInfo.
+  framework.set_role("/test/test1");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(error);
+}
+
+
 TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
 {
   master::Flags flags = CreateMasterFlags();
