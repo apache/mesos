@@ -68,7 +68,7 @@ Option<Error> validate(const mesos::scheduler::Call& call)
       return Error("Expecting 'subscribe' to be present");
     }
 
-    if (!(call.subscribe().framework_info().id() == call.framework_id())) {
+    if (call.subscribe().framework_info().id() != call.framework_id()) {
       return Error("'framework_id' differs from 'subscribe.framework_info.id'");
     }
 
