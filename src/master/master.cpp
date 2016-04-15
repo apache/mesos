@@ -2142,25 +2142,26 @@ void Master::subscribe(
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       HttpConnection,
-      const scheduler::Call::Subscribe&,
+      const FrameworkInfo&,
+      bool,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
     .onAny(defer(self(),
                  _subscribe,
                  http,
-                 subscribe,
+                 frameworkInfo,
+                 subscribe.force(),
                  lambda::_1));
 }
 
 
 void Master::_subscribe(
     HttpConnection http,
-    const scheduler::Call::Subscribe& subscribe,
+    const FrameworkInfo& frameworkInfo,
+    bool force,
     const Future<bool>& authorized)
 {
-  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
-
   CHECK(!authorized.isDiscarded());
 
   Option<Error> authorizationError = None();
@@ -2286,7 +2287,7 @@ void Master::subscribe(
     const UPID& from,
     const scheduler::Call::Subscribe& subscribe)
 {
-  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+  FrameworkInfo frameworkInfo = subscribe.framework_info();
 
   // Update messages_{re}register_framework accordingly.
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
@@ -2363,36 +2364,41 @@ void Master::subscribe(
             << " framework '" << frameworkInfo.name() << "' at " << from;
 
   // We allow an authenticated framework to not specify a principal
-  // in FrameworkInfo but we'd prefer if it did so we log a WARNING
-  // here when it happens.
+  // in `FrameworkInfo` but we'd prefer to log a WARNING here. We also
+  // set `FrameworkInfo.principal` to the value of authenticated principal
+  // and use it for authorization later when it happens.
   if (!frameworkInfo.has_principal() && authenticated.contains(from)) {
-    LOG(WARNING) << "Framework at " << from
-                 << " (authenticated as '" << authenticated[from] << "')"
-                 << " does not set 'principal' in FrameworkInfo";
+    LOG(WARNING)
+      << "Setting 'principal' in FrameworkInfo to '" << authenticated[from]
+      << "' because the framework authenticated with that principal but did "
+      << "not set it in FrameworkInfo";
+
+    frameworkInfo.set_principal(authenticated[from]);
   }
 
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       const UPID&,
-      const scheduler::Call::Subscribe&,
+      const FrameworkInfo&,
+      bool,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
     .onAny(defer(self(),
                  _subscribe,
                  from,
-                 subscribe,
+                 frameworkInfo,
+                 subscribe.force(),
                  lambda::_1));
 }
 
 
 void Master::_subscribe(
     const UPID& from,
-    const scheduler::Call::Subscribe& subscribe,
+    const FrameworkInfo& frameworkInfo,
+    bool force,
     const Future<bool>& authorized)
 {
-  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
-
   CHECK(!authorized.isDiscarded());
 
   Option<Error> authorizationError = None();
@@ -2480,7 +2486,7 @@ void Master::_subscribe(
       CHECK_NOTNULL(frameworks.registered[frameworkInfo.id()]);
 
     // Test for the error case first.
-    if ((framework->pid != from) && !subscribe.force()) {
+    if ((framework->pid != from) && !force) {
       LOG(ERROR) << "Disallowing subscription attempt of"
                  << " framework " << *framework
                  << " because it is not expected from " << from;
@@ -2501,7 +2507,7 @@ void Master::_subscribe(
 
     framework->reregisteredTime = Clock::now();
 
-    if (subscribe.force()) {
+    if (force) {
       // TODO(vinod): Now that the scheduler pid is unique we don't
       // need to call 'failoverFramework()' if the pid hasn't changed
       // (i.e., duplicate message). Instead we can just send the

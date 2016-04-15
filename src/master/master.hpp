@@ -853,7 +853,8 @@ private:
 
   void _subscribe(
       HttpConnection http,
-      const scheduler::Call::Subscribe& subscribe,
+      const FrameworkInfo& frameworkInfo,
+      bool force,
       const process::Future<bool>& authorized);
 
   void subscribe(
@@ -862,7 +863,8 @@ private:
 
   void _subscribe(
       const process::UPID& from,
-      const scheduler::Call::Subscribe& subscribe,
+      const FrameworkInfo& frameworkInfo,
+      bool force,
       const process::Future<bool>& authorized);
 
   void teardown(Framework* framework);
