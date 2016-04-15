@@ -315,11 +315,7 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
 // the event is error on the stream in response to a Subscribe call request.
 TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
 {
-  // HTTP schedulers cannot yet authenticate.
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Call call;
@@ -333,7 +329,8 @@ TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
-  process::http::Headers headers;
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = contentType;
 
   Future<Response> response = process::http::streaming::post(
