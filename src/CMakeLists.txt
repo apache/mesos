@@ -40,14 +40,15 @@ PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(ISOLATOR         mesos/slave/isolator)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
+PROTOC_TO_INCLUDE_DIR(STATE            mesos/state/state)
 PROTOC_TO_INCLUDE_DIR(URI              mesos/uri/uri)
 
 PROTOC_TO_SRC_DIR(REGISTRY master/registry)
 
-PROTOC_TO_SRC_DIR(MESSAGES messages/messages)
-PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
-PROTOC_TO_SRC_DIR(LOG      messages/log)
-PROTOC_TO_SRC_DIR(STATE    messages/state)
+PROTOC_TO_SRC_DIR(MESSAGES          messages/messages)
+PROTOC_TO_SRC_DIR(FLAGS             messages/flags)
+PROTOC_TO_SRC_DIR(LOG               messages/log)
+PROTOC_TO_SRC_DIR(INTERNAL_STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_TO_SRC_DIR(CNI_SPEC slave/containerizer/mesos/isolators/network/cni/spec)
@@ -74,10 +75,11 @@ set(MESOS_PROTOBUF_SRC
   ${SCHEDULER_PROTO_CC}
   ${V1_SCHEDULER_PROTO_CC}
   ${OVERSUBSCRIPTION_PROTO_CC}
+  ${STATE_PROTO_CC}
   ${MESSAGES_PROTO_CC}
   ${FLAGS_PROTO_CC}
   ${LOG_PROTO_CC}
-  ${STATE_PROTO_CC}
+  ${INERNAL_STATE_PROTO_CC}
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
   ${MESSAGE_PROTO_CC}
