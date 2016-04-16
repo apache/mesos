@@ -30,12 +30,14 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
-using namespace mesos::state;
-
 using process::Future;
 
 using std::set;
 using std::string;
+
+using mesos::state::State;
+using mesos::state::Storage;
+using mesos::state::Variable;
 
 extern "C" {
 

@@ -26,9 +26,11 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
-using namespace mesos::state;
-
 using std::string;
+
+using mesos::state::State;
+using mesos::state::Storage;
+using mesos::state::ZooKeeperStorage;
 
 extern "C" {
 

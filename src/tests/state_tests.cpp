@@ -57,8 +57,6 @@
 #include "tests/zookeeper.hpp"
 #endif
 
-using namespace mesos::log;
-
 using namespace mesos::internal::log;
 
 using namespace process;
@@ -68,9 +66,7 @@ using std::set;
 using std::string;
 using std::vector;
 
-namespace mesos {
-namespace internal {
-namespace tests {
+using mesos::log::Log;
 
 using mesos::state::Storage;
 using mesos::state::LevelDBStorage;
@@ -81,7 +77,11 @@ using mesos::state::ZooKeeperStorage;
 using mesos::state::protobuf::State;
 using mesos::state::protobuf::Variable;
 
-using state::Operation;
+using mesos::internal::state::Operation;
+
+namespace mesos {
+namespace internal {
+namespace tests {
 
 typedef mesos::internal::Registry::Slaves Slaves;
 typedef mesos::internal::Registry::Slave Slave;

@@ -739,7 +739,9 @@ void LogWriterProcess::failed(const string& message, const string& reason)
 
 namespace log {
 
-using namespace mesos::internal::log;
+using mesos::internal::log::LogProcess;
+using mesos::internal::log::LogReaderProcess;
+using mesos::internal::log::LogWriterProcess;
 
 
 /////////////////////////////////////////////////

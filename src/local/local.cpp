@@ -79,7 +79,7 @@
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 
-using namespace mesos::log;
+using mesos::log::Log;
 
 using mesos::master::allocator::Allocator;
 

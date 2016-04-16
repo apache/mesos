@@ -40,8 +40,6 @@
 
 #include "logging/logging.hpp"
 
-using namespace mesos::log;
-
 using namespace process;
 
 using std::cout;
@@ -50,6 +48,8 @@ using std::ifstream;
 using std::ofstream;
 using std::string;
 using std::vector;
+
+using mesos::log::Log;
 
 namespace mesos {
 namespace internal {

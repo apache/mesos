@@ -28,13 +28,13 @@
 #include "construct.hpp"
 #include "convert.hpp"
 
-using namespace mesos;
-
-using namespace mesos::state;
-
 using std::string;
 
 using mesos::log::Log;
+
+using mesos::state::LogStorage;
+using mesos::state::State;
+using mesos::state::Storage;
 
 extern "C" {
 

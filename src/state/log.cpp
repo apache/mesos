@@ -47,8 +47,6 @@
 
 #include "messages/state.hpp"
 
-using namespace mesos::log;
-
 using namespace mesos::internal::log;
 
 using namespace process;
@@ -57,6 +55,8 @@ using namespace process;
 // 'std::' to disambiguate the 'set' member.
 using std::list;
 using std::string;
+
+using mesos::log::Log;
 
 using mesos::internal::state::Entry;
 using mesos::internal::state::Operation;

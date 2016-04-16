@@ -79,13 +79,14 @@
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 using namespace mesos::internal::master;
-using namespace mesos::log;
 using namespace zookeeper;
 
 using mesos::Authorizer;
 using mesos::MasterInfo;
 using mesos::Parameter;
 using mesos::Parameters;
+
+using mesos::log::Log;
 
 using mesos::master::allocator::Allocator;
 
