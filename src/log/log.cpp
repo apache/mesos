@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "log/log.hpp"
+
 #include <stdint.h>
 
 #include <mesos/log/log.hpp>
@@ -27,7 +29,6 @@
 #include <process/shared.hpp>
 
 #include <stout/check.hpp>
-#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
@@ -46,152 +47,13 @@ using std::string;
 
 using mesos::log::Log;
 
+using mesos::internal::log::LogProcess;
+using mesos::internal::log::LogReaderProcess;
+using mesos::internal::log::LogWriterProcess;
+
 namespace mesos {
 namespace internal {
 namespace log {
-
-class LogProcess : public Process<LogProcess>
-{
-public:
-  LogProcess(
-      size_t _quorum,
-      const string& path,
-      const set<UPID>& pids,
-      bool _autoInitialize);
-
-  LogProcess(
-      size_t _quorum,
-      const string& path,
-      const string& servers,
-      const Duration& timeout,
-      const string& znode,
-      const Option<zookeeper::Authentication>& auth,
-      bool _autoInitialize);
-
-  // Recovers the log by catching up if needed. Returns a shared
-  // pointer to the local replica if the recovery succeeds.
-  Future<Shared<Replica> > recover();
-
-protected:
-  virtual void initialize();
-  virtual void finalize();
-
-private:
-  friend class LogReaderProcess;
-  friend class LogWriterProcess;
-
-  // Continuations.
-  void _recover();
-
-  // TODO(benh): Factor this out into "membership renewer".
-  void watch(
-      const UPID& pid,
-      const set<zookeeper::Group::Membership>& memberships);
-
-  void failed(const string& message);
-  void discarded();
-
-  const size_t quorum;
-  Shared<Replica> replica;
-  Shared<Network> network;
-  const bool autoInitialize;
-
-  // For replica recovery.
-  Option<Future<Owned<Replica> > > recovering;
-  process::Promise<Nothing> recovered;
-  list<process::Promise<Shared<Replica> >*> promises;
-
-  // For renewing membership. We store a Group instance in order to
-  // continually renew the replicas membership (when using ZooKeeper).
-  zookeeper::Group* group;
-  Future<zookeeper::Group::Membership> membership;
-};
-
-
-class LogReaderProcess : public Process<LogReaderProcess>
-{
-public:
-  explicit LogReaderProcess(Log* log);
-
-  Future<Log::Position> beginning();
-  Future<Log::Position> ending();
-
-  Future<list<Log::Entry> > read(
-      const Log::Position& from,
-      const Log::Position& to);
-
-protected:
-  virtual void initialize();
-  virtual void finalize();
-
-private:
-  // Returns a position from a raw value.
-  static Log::Position position(uint64_t value);
-
-  // Returns a future which gets set when the log recovery has
-  // finished (either succeeded or failed).
-  Future<Nothing> recover();
-
-  // Continuations.
-  void _recover();
-
-  Future<Log::Position> _beginning();
-  Future<Log::Position> _ending();
-
-  Future<list<Log::Entry> > _read(
-      const Log::Position& from,
-      const Log::Position& to);
-
-  Future<list<Log::Entry> > __read(
-      const Log::Position& from,
-      const Log::Position& to,
-      const list<Action>& actions);
-
-  Future<Shared<Replica> > recovering;
-  list<process::Promise<Nothing>*> promises;
-};
-
-
-class LogWriterProcess : public Process<LogWriterProcess>
-{
-public:
-  explicit LogWriterProcess(Log* log);
-
-  Future<Option<Log::Position> > start();
-  Future<Option<Log::Position> > append(const string& bytes);
-  Future<Option<Log::Position> > truncate(const Log::Position& to);
-
-protected:
-  virtual void initialize();
-  virtual void finalize();
-
-private:
-  // Helper for converting an optional position returned from the
-  // coordinator into a Log::Position.
-  static Option<Log::Position> position(const Option<uint64_t>& position);
-
-  // Returns a future which gets set when the log recovery has
-  // finished (either succeeded or failed).
-  Future<Nothing> recover();
-
-  // Continuations.
-  void _recover();
-
-  Future<Option<Log::Position> > _start();
-  Option<Log::Position> __start(const Option<uint64_t>& position);
-
-  void failed(const string& message, const string& reason);
-
-  const size_t quorum;
-  const Shared<Network> network;
-
-  Future<Shared<Replica> > recovering;
-  list<process::Promise<Nothing>*> promises;
-
-  Coordinator* coordinator;
-  Option<string> error;
-};
-
 
 /////////////////////////////////////////////////
 // Implementation of LogProcess.
@@ -738,11 +600,6 @@ void LogWriterProcess::failed(const string& message, const string& reason)
 } // namespace internal {
 
 namespace log {
-
-using mesos::internal::log::LogProcess;
-using mesos::internal::log::LogReaderProcess;
-using mesos::internal::log::LogWriterProcess;
-
 
 /////////////////////////////////////////////////
 // Public interfaces for Log.

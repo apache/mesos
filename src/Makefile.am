@@ -1058,6 +1058,7 @@ liblog_la_SOURCES +=							\
   log/consensus.hpp							\
   log/coordinator.hpp							\
   log/leveldb.hpp							\
+  log/log.hpp								\
   log/network.hpp							\
   log/recover.hpp							\
   log/replica.hpp							\

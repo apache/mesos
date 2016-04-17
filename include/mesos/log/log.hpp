@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __LOG_HPP__
-#define __LOG_HPP__
+#ifndef __MESOS_LOG_LOG_HPP__
+#define __MESOS_LOG_LOG_HPP__
 
 #include <stdint.h>
 
@@ -24,13 +24,9 @@
 #include <string>
 
 #include <mesos/zookeeper/authentication.hpp>
-#include <mesos/zookeeper/group.hpp>
 
 #include <process/future.hpp>
-#include <process/owned.hpp>
 #include <process/process.hpp>
-#include <process/shared.hpp>
-#include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
@@ -240,4 +236,4 @@ private:
 } // namespace log {
 } // namespace mesos {
 
-#endif // __LOG_HPP__
+#endif // __MESOS_LOG_LOG_HPP__
