@@ -186,6 +186,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/numify_tests.cpp		\
   $(STOUT)/tests/option_tests.cpp		\
   $(STOUT)/tests/os_tests.cpp			\
+  $(STOUT)/tests/os/env_tests.cpp		\
   $(STOUT)/tests/os/filesystem_tests.cpp	\
   $(STOUT)/tests/os/rmdir_tests.cpp		\
   $(STOUT)/tests/os/sendfile_tests.cpp		\
