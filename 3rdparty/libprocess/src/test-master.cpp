@@ -37,7 +37,7 @@ protected:
         string name;
         unpack<REGISTER>(name);
 
-        Out::println("Registered slave: %s", name.c_str());
+        Out::println("Registered agent: %s", name.c_str());
 
         send(from(), pack<OKAY>(id++));
         break;
@@ -48,7 +48,7 @@ protected:
         int slave_id;
         unpack<UNREGISTER>(slave_id);
 
-        Out::println("Unregistered slave id: %d", slave_id);
+        Out::println("Unregistered agent id: %d", slave_id);
 
         send(from(), pack<OKAY>(0));
         break;

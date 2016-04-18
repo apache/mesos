@@ -27,13 +27,13 @@ protected:
 
     switch (receive()) {
     case OKAY: {
-      std::cout << "slave registered" << std::endl;
+      std::cout << "agent registered" << std::endl;
       unpack<OKAY>(id);
-      std::cout << "slave id: " << id << std::endl;
+      std::cout << "agent id: " << id << std::endl;
       break;
     }
     default:
-      std::cout << "slave failed to register" << std::endl;
+      std::cout << "agent failed to register" << std::endl;
       break;
     }
 
@@ -41,10 +41,10 @@ protected:
 
     switch (receive()) {
     case OKAY:
-      std::cout << "slave unregistered" << std::endl;
+      std::cout << "agent unregistered" << std::endl;
       break;
     default:
-      std::cout << "slave failed to unregister" << std::endl;
+      std::cout << "agent failed to unregister" << std::endl;
       break;
     }
 
@@ -68,6 +68,6 @@ int main(int argc, char **argv)
 {
   PID master = make_pid(argv[1]);
   PID slave = Process::spawn(new Slave(master));
-  std::cout << "slave is at " << slave << std::endl;
+  std::cout << "agent is at " << slave << std::endl;
   Process::wait(slave);
 }
