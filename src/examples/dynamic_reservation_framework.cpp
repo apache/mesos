@@ -201,7 +201,7 @@ public:
       // Mark state of slave as RESERVED, so other tasks can reuse it.
       CHECK(states[status.slave_id()] == State::TASK_RUNNING);
       states[status.slave_id()] = State::RESERVED;
-      LOG(INFO) << "Task " << taskId << " is finished at slave "
+      LOG(INFO) << "Task " << taskId << " is finished at agent "
                 << status.slave_id();
     } else {
       LOG(INFO) << "Task " << taskId << " is in state " << status.state();

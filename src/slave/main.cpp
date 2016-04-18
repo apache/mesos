@@ -116,17 +116,17 @@ int main(int argc, char** argv)
   Option<string> advertise_ip;
   flags.add(&advertise_ip,
             "advertise_ip",
-            "IP address advertised to reach this Mesos slave.\n"
-            "The slave does not bind to this IP address.\n"
-            "However, this IP address may be used to access this slave.");
+            "IP address advertised to reach this Mesos agent.\n"
+            "The agent does not bind to this IP address.\n"
+            "However, this IP address may be used to access this agent.");
 
   Option<string> advertise_port;
   flags.add(&advertise_port,
             "advertise_port",
-            "Port advertised to reach this Mesos slave (along with\n"
-            "`advertise_ip`). The slave does not bind to this port.\n"
+            "Port advertised to reach this Mesos agent (along with\n"
+            "`advertise_ip`). The agent does not bind to this port.\n"
             "However, this port (along with `advertise_ip`) may be used to\n"
-            "access this slave.");
+            "access this agent.");
 
   Option<string> master;
   flags.add(&master,
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
   flags.add(&ip_discovery_command,
             "ip_discovery_command",
             "Optional IP discovery binary: if set, it is expected to emit\n"
-            "the IP address which the slave will try to bind to.\n"
+            "the IP address which the agent will try to bind to.\n"
             "Cannot be used in conjunction with `--ip`.");
 
   Try<Nothing> load = flags.load("MESOS_", argc, argv);

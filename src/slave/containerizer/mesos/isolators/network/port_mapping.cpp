@@ -2483,7 +2483,7 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
         return Failure(
             "Some non-ephemeral ports specified in " +
             stringify(nonEphemeralPorts) +
-            " are not managed by the slave");
+            " are not managed by the agent");
     }
   }
 
@@ -2967,7 +2967,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
         return Failure(
             "Some non-ephemeral ports specified in " +
             stringify(nonEphemeralPorts) +
-            " are not managed by the slave");
+            " are not managed by the agent");
     }
   }
 

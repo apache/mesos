@@ -113,7 +113,7 @@ TEST_F(SlaveStateTest, CheckpointProtobufMessage)
 {
   // Checkpoint slave id.
   SlaveID expected;
-  expected.set_value("slave1");
+  expected.set_value("agent1");
 
   const string& file = "slave.id";
   slave::state::checkpoint(file, expected);
@@ -439,7 +439,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("slave");
+  const std::string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1065,7 +1065,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("slave");
+  const std::string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 

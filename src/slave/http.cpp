@@ -368,9 +368,9 @@ string Slave::Http::HEALTH_HELP()
 {
   return HELP(
     TLDR(
-        "Health check of the Slave."),
+        "Health check of the Agent."),
     DESCRIPTION(
-        "Returns 200 OK iff the Slave is healthy.",
+        "Returns 200 OK iff the Agent is healthy.",
         "Delayed responses are also indicative of poor health."),
     AUTHENTICATION(false));
 }
@@ -385,10 +385,10 @@ Future<Response> Slave::Http::health(const Request& request) const
 string Slave::Http::STATE_HELP() {
   return HELP(
     TLDR(
-        "Information about state of the Slave."),
+        "Information about state of the Agent."),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, executors",
-        "and the slave's master as a JSON object.",
+        "and the agent's master as a JSON object.",
         "",
         "Example (**Note**: this is not exhaustive):",
         "",
@@ -561,7 +561,7 @@ string Slave::Http::STATISTICS_HELP()
           "Retrieve resource monitoring information."),
       DESCRIPTION(
           "Returns the current resource consumption data for containers",
-          "running under this slave.",
+          "running under this agent.",
           "",
           "Example:",
           "",

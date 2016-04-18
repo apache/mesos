@@ -1275,7 +1275,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   slaveId.set_value("s1");
 
   SlaveID oldSlaveId;
-  oldSlaveId.set_value("old-slave-id");
+  oldSlaveId.set_value("old-agent-id");
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());

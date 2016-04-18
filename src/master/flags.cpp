@@ -35,7 +35,7 @@ mesos::internal::master::Flags::Flags()
       "hostname",
       "The hostname the master should advertise in ZooKeeper.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the slave binds to; unless the user explicitly prevents\n"
+      "that the agent binds to; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
@@ -85,7 +85,7 @@ mesos::internal::master::Flags::Flags()
       "Whether the master will take actions based on the persistent\n"
       "information stored in the Registry. Setting this to false means\n"
       "that the Registrar will never reject the admission, readmission,\n"
-      "or removal of a slave. Consequently, `false` can be used to\n"
+      "or removal of an agent. Consequently, `false` can be used to\n"
       "bootstrap the persistent state on a running cluster.\n"
       "NOTE: This flag is *experimental* and should not be used in\n"
       "production yet.",
@@ -112,8 +112,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::slave_reregister_timeout,
       "slave_reregister_timeout",
-      "The timeout within which all slaves are expected to re-register\n"
-      "when a new master is elected as the leader. Slaves that do not\n"
+      "The timeout within which all agents are expected to re-register\n"
+      "when a new master is elected as the leader. Agents that do not\n"
       "re-register within the timeout will be removed from the registry\n"
       "and will be shutdown if they attempt to communicate with master.\n"
       "NOTE: This value has to be at least " +
@@ -124,16 +124,16 @@ mesos::internal::master::Flags::Flags()
   // TODO(bmahler): Add a `--production` flag for production defaults.
   add(&Flags::recovery_slave_removal_limit,
       "recovery_slave_removal_limit",
-      "For failovers, limit on the percentage of slaves that can be removed\n"
+      "For failovers, limit on the percentage of agents that can be removed\n"
       "from the registry *and* shutdown after the re-registration timeout\n"
       "elapses. If the limit is exceeded, the master will fail over rather\n"
-      "than remove the slaves.\n"
+      "than remove the agents.\n"
       "This can be used to provide safety guarantees for production\n"
       "environments. Production environments may expect that across master\n"
-      "failovers, at most a certain percentage of slaves will fail\n"
+      "failovers, at most a certain percentage of agents will fail\n"
       "permanently (e.g. due to rack-level failures).\n"
       "Setting this limit would ensure that a human needs to get\n"
-      "involved should an unexpected widespread failure of slaves occur\n"
+      "involved should an unexpected widespread failure of agents occur\n"
       "in the cluster.\n"
       "Values: [0%-100%]",
       stringify(RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT * 100.0) + "%");
@@ -142,10 +142,10 @@ mesos::internal::master::Flags::Flags()
   // corresponding parser for flags.
   add(&Flags::slave_removal_rate_limit,
       "slave_removal_rate_limit",
-      "The maximum rate (e.g., `1/10mins`, `2/3hrs`, etc) at which slaves\n"
+      "The maximum rate (e.g., `1/10mins`, `2/3hrs`, etc) at which agents\n"
       "will be removed from the master when they fail health checks.\n"
-      "By default, slaves will be removed as soon as they fail the health\n"
-      "checks. The value is of the form `(Number of slaves)/(Duration)`.");
+      "By default, agents will be removed as soon as they fail the health\n"
+      "checks. The value is of the form `(Number of agents)/(Duration)`.");
 
   add(&Flags::webui_dir,
       "webui_dir",
@@ -154,9 +154,9 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::whitelist,
       "whitelist",
-      "Path to a file which contains a list of slaves (one per line) to\n"
+      "Path to a file which contains a list of agents (one per line) to\n"
       "advertise offers for. The file is watched, and periodically re-read to\n"
-      "refresh the slave whitelist. By default there is no whitelist / all\n"
+      "refresh the agent whitelist. By default there is no whitelist / all\n"
       "machines are accepted. Path could be of the form\n"
       "`file:///path/to/file` or `/path/to/file`.\n");
 
@@ -209,8 +209,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::authenticate_slaves,
       "authenticate_slaves",
-      "If `true`, only authenticated slaves are allowed to register.\n"
-      "If `false`, unauthenticated slaves are also allowed to register.",
+      "If `true`, only authenticated agents are allowed to register.\n"
+      "If `false`, unauthenticated agents are also allowed to register.",
       false);
 
   add(&Flags::authenticate_http,
@@ -334,10 +334,10 @@ mesos::internal::master::Flags::Flags()
 #ifdef WITH_NETWORK_ISOLATOR
   add(&Flags::max_executors_per_slave,
       "max_executors_per_slave",
-      "Maximum number of executors allowed per slave. The network\n"
+      "Maximum number of executors allowed per agent. The network\n"
       "monitoring/isolation technique imposes an implicit resource\n"
       "acquisition on each executor (# ephemeral ports), as a result\n"
-      "one can only run a certain number of executors on each slave.");
+      "one can only run a certain number of executors on each agent.");
 #endif // WITH_NETWORK_ISOLATOR
 
   // TODO(karya): When we have optimistic offers, this will only
@@ -399,7 +399,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::authenticators,
       "authenticators",
       "Authenticator implementation to use when authenticating frameworks\n"
-      "and/or slaves. Use the default `" + string(DEFAULT_AUTHENTICATOR) + "`\n"
+      "and/or agents. Use the default `" + string(DEFAULT_AUTHENTICATOR) + "`\n"
       "or load an alternate authenticator module using `--modules`.",
       DEFAULT_AUTHENTICATOR);
 
@@ -417,8 +417,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::slave_ping_timeout,
       "slave_ping_timeout",
-      "The timeout within which each slave is expected to respond to a\n"
-      "ping from the master. Slaves that do not respond within\n"
+      "The timeout within which each agent is expected to respond to a\n"
+      "ping from the master. Agents that do not respond within\n"
       "max_slave_ping_timeouts ping retries will be asked to shutdown.\n"
       "NOTE: The total ping timeout (`slave_ping_timeout` multiplied by\n"
       "`max_slave_ping_timeouts`) should be greater than the ZooKeeper\n"
@@ -435,8 +435,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::max_slave_ping_timeouts,
       "max_slave_ping_timeouts",
-      "The number of times a slave can fail to respond to a\n"
-      "ping from the master. Slaves that do not respond within\n"
+      "The number of times an agent can fail to respond to a\n"
+      "ping from the master. Agents that do not respond within\n"
       "`max_slave_ping_timeouts` ping retries will be asked to shutdown.\n",
       DEFAULT_MAX_SLAVE_PING_TIMEOUTS,
       [](size_t value) -> Option<Error> {

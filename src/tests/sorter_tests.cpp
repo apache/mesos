@@ -45,7 +45,7 @@ TEST(SorterTest, DRFSorter)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   Resources totalResources = Resources::parse("cpus:100;mem:100").get();
   sorter.add(slaveId, totalResources);
@@ -129,7 +129,7 @@ TEST(SorterTest, WDRFSorter)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
@@ -184,7 +184,7 @@ TEST(SorterTest, SplitResourceShares)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   sorter.add("a");
   sorter.add("b");
@@ -217,7 +217,7 @@ TEST(SorterTest, UpdateAllocation)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   sorter.add("a");
   sorter.add("b");
@@ -257,10 +257,10 @@ TEST(SorterTest, MultipleSlaves)
   DRFSorter sorter;
 
   SlaveID slaveA;
-  slaveA.set_value("slaveA");
+  slaveA.set_value("agentA");
 
   SlaveID slaveB;
-  slaveB.set_value("slaveB");
+  slaveB.set_value("agentB");
 
   sorter.add("framework");
 
@@ -289,10 +289,10 @@ TEST(SorterTest, MultipleSlavesUpdateAllocation)
   DRFSorter sorter;
 
   SlaveID slaveA;
-  slaveA.set_value("slaveA");
+  slaveA.set_value("agentA");
 
   SlaveID slaveB;
-  slaveB.set_value("slaveB");
+  slaveB.set_value("agentB");
 
   sorter.add("framework");
 
@@ -331,7 +331,7 @@ TEST(SorterTest, UpdateTotal)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   sorter.add("a");
   sorter.add("b");
@@ -370,10 +370,10 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
   DRFSorter sorter;
 
   SlaveID slaveA;
-  slaveA.set_value("slaveA");
+  slaveA.set_value("agentA");
 
   SlaveID slaveB;
-  slaveB.set_value("slaveB");
+  slaveB.set_value("agentB");
 
   sorter.add("a");
   sorter.add("b");
@@ -413,7 +413,7 @@ TEST(SorterTest, RevocableResources)
   DRFSorter sorter;
 
   SlaveID slaveId;
-  slaveId.set_value("slaveId");
+  slaveId.set_value("agentId");
 
   sorter.add("a");
   sorter.add("b");

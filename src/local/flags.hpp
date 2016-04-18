@@ -32,7 +32,7 @@ public:
   {
     add(&Flags::num_slaves,
         "num_slaves",
-        "Number of slaves to launch for local cluster",
+        "Number of agents to launch for local cluster",
         1);
   }
 

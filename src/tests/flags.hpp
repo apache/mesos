@@ -80,7 +80,7 @@ public:
         "The UNIX socket path to be mounted into the\n"
         "docker executor container to provide docker\n"
         "CLI access to the docker daemon. This must be the\n"
-        "path used by the slave's docker image.\n",
+        "path used by the agent's docker image.\n",
         "/var/run/docker.sock");
 
     // This help message for --modules flag is the same for
@@ -145,7 +145,7 @@ public:
     add(&Flags::authenticators,
         "authenticators",
         "Authenticator implementation to use when authenticating frameworks\n"
-        "and/or slaves. Use the default '" +
+        "and/or agents. Use the default '" +
         std::string(master::DEFAULT_AUTHENTICATOR) + "', or\n"
         "load an alternate authenticator module using --modules.",
         master::DEFAULT_AUTHENTICATOR);

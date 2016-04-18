@@ -154,7 +154,7 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
   { "sendFrameworkMessage",
     (PyCFunction) MesosSchedulerDriverImpl_sendFrameworkMessage,
     METH_VARARGS,
-    "Send a FrameworkMessage to a slave"
+    "Send a FrameworkMessage to an agent"
   },
   { "reconcileTasks",
     (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,

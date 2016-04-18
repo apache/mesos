@@ -238,7 +238,7 @@ Try<process::Owned<Master>> Master::start(
       return Error(
           "Invalid slave_removal_rate_limit: " +
           flags.slave_removal_rate_limit.get() +
-          ". Format is <Number of slaves>/<Duration>");
+          ". Format is <Number of agents>/<Duration>");
     }
 
     Try<int> permits = numify<int>(tokens[0]);
@@ -246,7 +246,7 @@ Try<process::Owned<Master>> Master::start(
       return Error(
           "Invalid slave_removal_rate_limit: " +
           flags.slave_removal_rate_limit.get() +
-          ". Format is <Number of slaves>/<Duration>: " + permits.error());
+          ". Format is <Number of agents>/<Duration>: " + permits.error());
     }
 
     Try<Duration> duration = Duration::parse(tokens[1]);
@@ -254,7 +254,7 @@ Try<process::Owned<Master>> Master::start(
       return Error(
           "Invalid slave_removal_rate_limit: " +
           flags.slave_removal_rate_limit.get() +
-          ". Format is <Number of slaves>/<Duration>: " + duration.error());
+          ". Format is <Number of agents>/<Duration>: " + duration.error());
     }
 
     master->slaveRemovalLimiter =
@@ -525,7 +525,7 @@ void Slave::wait()
       Try<Nothing> assign = cgroups::assign(hierarchy, "", getpid());
       if (assign.isError()) {
         EXIT(EXIT_FAILURE)
-          << "Failed to move slave threads into cgroup " << cgroup
+          << "Failed to move agent threads into cgroup " << cgroup
           << " for subsystem " << subsystem
           << " under hierarchy " << hierarchy
           << " for agent: " + assign.error();

@@ -70,7 +70,7 @@ Try<Resources> applyCheckpointedResources(
 
     if (!totalResources.contains(stripped)) {
       return Error(
-          "Incompatible slave resources: " + stringify(totalResources) +
+          "Incompatible agent resources: " + stringify(totalResources) +
           " does not contain " + stringify(stripped));
     }
 

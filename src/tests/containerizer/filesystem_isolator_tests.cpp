@@ -1240,7 +1240,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   ASSERT_SOME(containerizer);
 
   SlaveID slaveId;
-  slaveId.set_value("test_slave");
+  slaveId.set_value("test_agent");
 
   // First launch container 1 which has a long running task which
   // guarantees that its work directory mount is in the host mount

@@ -1308,7 +1308,7 @@ void Slave::reregistered(
             TASK_LOST,
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
-            "Reconciliation: task unknown to the slave",
+            "Reconciliation: task unknown to the agent",
             TaskStatus::REASON_RECONCILIATION);
 
         // NOTE: We can't use statusUpdate() here because it drops
@@ -1737,7 +1737,7 @@ void Slave::_runTask(
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
           "The checkpointed resources being used by the task are unknown to "
-          "the slave",
+          "the agent",
           TaskStatus::REASON_RESOURCES_UNKNOWN);
 
       statusUpdate(update, UPID());
@@ -1770,7 +1770,7 @@ void Slave::_runTask(
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
             "The checkpointed resources being used by the executor are unknown "
-            "to the slave",
+            "to the agent",
             TaskStatus::REASON_RESOURCES_UNKNOWN,
             task.executor().executor_id());
 
@@ -2816,7 +2816,7 @@ void Slave::subscribe(
               TASK_LOST,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Task launched during slave restart",
+              "Task launched during agent restart",
               TaskStatus::REASON_SLAVE_RESTARTED,
               executor->id);
 
@@ -3085,7 +3085,7 @@ void Slave::reregisterExecutor(
               TASK_LOST,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Task launched during slave restart",
+              "Task launched during agent restart",
               TaskStatus::REASON_SLAVE_RESTARTED,
               executorId);
 
@@ -4655,7 +4655,7 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
       return Failure(
           "Checkpointed resources " +
           stringify(resourcesState.get().resources) +
-          " are incompatible with slave resources " +
+          " are incompatible with agent resources " +
           stringify(info.resources()) + ": " +
           totalResources.error());
     }
@@ -4674,11 +4674,11 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
         !(info == slaveState.get().info.get())) {
       return Failure(strings::join(
           "\n",
-          "Incompatible slave info detected.",
+          "Incompatible agent info detected.",
           "------------------------------------------------------------",
-          "Old slave info:\n" + stringify(slaveState.get().info.get()),
+          "Old agent info:\n" + stringify(slaveState.get().info.get()),
           "------------------------------------------------------------",
-          "New slave info:\n" + stringify(info),
+          "New agent info:\n" + stringify(info),
           "------------------------------------------------------------"));
     }
 

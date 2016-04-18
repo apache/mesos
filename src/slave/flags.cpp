@@ -33,9 +33,9 @@ mesos::internal::slave::Flags::Flags()
 {
   add(&Flags::hostname,
       "hostname",
-      "The hostname the slave should report.\n"
+      "The hostname the agent should report.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the slave binds to; unless the user explicitly prevents\n"
+      "that the agent binds to; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
@@ -55,7 +55,7 @@ mesos::internal::slave::Flags::Flags()
   // TODO(benh): Is there a way to specify units for the resources?
   add(&Flags::resources,
       "resources",
-      "Total consumable resources per slave. Can be provided in JSON format\n"
+      "Total consumable resources per agent. Can be provided in JSON format\n"
       "or as a semicolon-delimited list of key:value pairs, with the role\n"
       "optionally specified.\n"
       "\n"
@@ -102,7 +102,7 @@ mesos::internal::slave::Flags::Flags()
       "The launcher to be used for Mesos containerizer. It could either be\n"
       "`linux` or `posix`. The Linux launcher is required for cgroups\n"
       "isolation and for any isolators that require Linux namespaces such as\n"
-      "network, pid, etc. If unspecified, the slave will choose the Linux\n"
+      "network, pid, etc. If unspecified, the agent will choose the Linux\n"
       "launcher if it's running as root on Linux.");
 
   add(&Flags::image_providers,
@@ -151,7 +151,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::attributes,
       "attributes",
-      "Attributes of the slave machine, in the form:\n"
+      "Attributes of the agent machine, in the form:\n"
       "`rack:2` or `rack:2;u:1`");
 
   add(&Flags::fetcher_cache_size,
@@ -170,7 +170,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::fetcher_cache_dir,
       "fetcher_cache_dir",
       "Parent directory for fetcher cache directories\n"
-      "(one subdirectory per slave).",
+      "(one subdirectory per agent).",
       "/tmp/mesos/fetch");
 
   add(&Flags::work_dir,
@@ -195,14 +195,14 @@ mesos::internal::slave::Flags::Flags()
 #ifndef __WINDOWS__
   add(&Flags::switch_user,
       "switch_user",
-      "If set to `true`, the slave will attempt to run tasks as\n"
+      "If set to `true`, the agent will attempt to run tasks as\n"
       "the `user` who submitted them (as defined in `FrameworkInfo`)\n"
       "(this requires `setuid` permission and that the given `user`\n"
-      "exists on the slave).\n"
+      "exists on the agent).\n"
       "If the user does not exist, an error occurs and the task will fail.\n"
       "If set to `false`, tasks will be run as the same user as the Mesos\n"
-      "slave process.\n"
-      "NOTE: This feature is not yet supported on Windows slave, and\n"
+      "agent process.\n"
+      "NOTE: This feature is not yet supported on Windows agent, and\n"
       "therefore the flag currently does not exist on that platform.",
       true);
 #endif // __WINDOWS__
@@ -213,7 +213,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::registration_backoff_factor,
       "registration_backoff_factor",
-      "Slave initially picks a random amount of time between `[0, b]`, where\n"
+      "Agent initially picks a random amount of time between `[0, b]`, where\n"
       "`b = registration_backoff_factor`, to (re-)register with a new master.\n"
       "Subsequent retries are exponentially backed off based on this\n"
       "interval (e.g., 1st retry uses a random value between `[0, b * 2^1]`,\n"
@@ -226,7 +226,7 @@ mesos::internal::slave::Flags::Flags()
       "executor_environment_variables",
       "JSON object representing the environment variables that should be\n"
       "passed to the executor, and thus subsequently task(s). By default the\n"
-      "executor will inherit the slave's environment variables.\n"
+      "executor will inherit the agent's environment variables.\n"
       "Example:\n"
       "{\n"
       "  \"PATH\": \"/bin:/usr/bin\",\n"
@@ -247,7 +247,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::executor_registration_timeout,
       "executor_registration_timeout",
       "Amount of time to wait for an executor\n"
-      "to register with the slave before considering it hung and\n"
+      "to register with the agent before considering it hung and\n"
       "shutting it down (e.g., 60secs, 3mins, etc)",
       EXECUTOR_REGISTRATION_TIMEOUT);
 
@@ -281,7 +281,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::disk_watch_interval,
       "disk_watch_interval",
       "Periodic time interval (e.g., 10secs, 2mins, etc)\n"
-      "to check the overall disk usage managed by the slave.\n"
+      "to check the overall disk usage managed by the agent.\n"
       "This drives the garbage collection of archived\n"
       "information and sandboxes.",
       DISK_WATCH_INTERVAL);
@@ -299,22 +299,22 @@ mesos::internal::slave::Flags::Flags()
       "Valid values for `recover` are\n"
       "reconnect: Reconnect with any old live executors.\n"
       "cleanup  : Kill any old live executors and exit.\n"
-      "           Use this option when doing an incompatible slave\n"
+      "           Use this option when doing an incompatible agent\n"
       "           or executor upgrade!).",
       "reconnect");
 
   add(&Flags::recovery_timeout,
       "recovery_timeout",
-      "Amount of time allotted for the slave to recover. If the slave takes\n"
+      "Amount of time allotted for the agent to recover. If the agent takes\n"
       "longer than recovery_timeout to recover, any executors that are\n"
-      "waiting to reconnect to the slave will self-terminate.\n",
+      "waiting to reconnect to the agent will self-terminate.\n",
       RECOVERY_TIMEOUT);
 
   add(&Flags::strict,
       "strict",
       "If `strict=true`, any and all recovery errors are considered fatal.\n"
-      "If `strict=false`, any expected errors (e.g., slave cannot recover\n"
-      "information about an executor, because the slave died right before\n"
+      "If `strict=false`, any expected errors (e.g., agent cannot recover\n"
+      "information about an executor, because the agent died right before\n"
       "the executor registered.) during recovery are ignored and as much\n"
       "state as possible is recovered.\n",
       true);
@@ -361,7 +361,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::slave_subsystems,
       "slave_subsystems",
-      "List of comma-separated cgroup subsystems to run the slave binary\n"
+      "List of comma-separated cgroup subsystems to run the agent binary\n"
       "in, e.g., `memory,cpuacct`. The default is none.\n"
       "Present functionality is intended for resource monitoring and\n"
       "no cgroup limits are set, they are inherited from the root mesos\n"
@@ -479,29 +479,29 @@ mesos::internal::slave::Flags::Flags()
       "docker_kill_orphans",
       "Enable docker containerizer to kill orphaned containers.\n"
       "You should consider setting this to false when you launch multiple\n"
-      "slaves in the same OS, to avoid one of the DockerContainerizer \n"
-      "removing docker tasks launched by other slaves.\n",
+      "agents in the same OS, to avoid one of the DockerContainerizer \n"
+      "removing docker tasks launched by other agents.\n",
       true);
 
   add(&Flags::docker_mesos_image,
       "docker_mesos_image",
-      "The Docker image used to launch this Mesos slave instance.\n"
-      "If an image is specified, the docker containerizer assumes the slave\n"
+      "The Docker image used to launch this Mesos agent instance.\n"
+      "If an image is specified, the docker containerizer assumes the agent\n"
       "is running in a docker container, and launches executors with\n"
-      "docker containers in order to recover them when the slave restarts and\n"
+      "docker containers in order to recover them when the agent restarts and\n"
       "recovers.\n");
 
   add(&Flags::docker_socket,
       "docker_socket",
       "The UNIX socket path to be mounted into the docker executor container\n"
       "to provide docker CLI access to the docker daemon. This must be the\n"
-      "path used by the slave's docker image.\n",
+      "path used by the agent's docker image.\n",
       "/var/run/docker.sock");
 
   add(&Flags::docker_config,
       "docker_config",
-      "The default docker config file for slave. Can be provided either as a\n"
-      "path pointing to the slave local docker config file, or as a\n"
+      "The default docker config file for agent. Can be provided either as a\n"
+      "path pointing to the agent local docker config file, or as a\n"
       "JSON-formatted string. The format of the docker config file should be\n"
       "identical to docker's default one (e.g., either\n"
       "`~/.docker/config.json` or `~/.dockercfg`).\n"
@@ -730,7 +730,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::http_credentials,
       "http_credentials",
       "Path to a JSON-formatted file containing credentials used to\n"
-      "authenticate HTTP endpoints on the slave.\n"
+      "authenticate HTTP endpoints on the agent.\n"
       "Path can be of the form `file:///path/to/file` or `/path/to/file`.\n"
       "Example:\n"
       "{\n"
@@ -745,7 +745,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::hooks,
       "hooks",
       "A comma-separated list of hook modules to be\n"
-      "installed inside the slave.");
+      "installed inside the agent.");
 
   add(&Flags::resource_estimator,
       "resource_estimator",
@@ -757,7 +757,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::qos_correction_interval_min,
       "qos_correction_interval_min",
-      "The slave polls and carries out QoS corrections from the QoS\n"
+      "The agent polls and carries out QoS corrections from the QoS\n"
       "Controller based on its observed performance of running tasks.\n"
       "The smallest interval between these corrections is controlled by\n"
       "this flag.",
@@ -765,7 +765,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::oversubscribed_resources_interval,
       "oversubscribed_resources_interval",
-      "The slave periodically updates the master with the current estimation\n"
+      "The agent periodically updates the master with the current estimation\n"
       "about the total amount of oversubscribed resources that are allocated\n"
       "and available. The interval between updates is controlled by this\n"
       "flag.",

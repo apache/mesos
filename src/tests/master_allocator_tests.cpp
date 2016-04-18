@@ -1143,7 +1143,7 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 
   // Create a dummy whitelist, so that no resources will get allocated.
   hashset<string> hosts;
-  hosts.insert("dummy-slave1");
+  hosts.insert("dummy-agent1");
 
   const string path = "whitelist.txt";
   ASSERT_SOME(os::write(path, strings::join("\n", hosts)));
@@ -1169,7 +1169,7 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 
   // Update the whitelist to ensure that the change is sent
   // to the allocator.
-  hosts.insert("dummy-slave2");
+  hosts.insert("dummy-agent2");
 
   Future<Nothing> updateWhitelist2;
   EXPECT_CALL(allocator, updateWhitelist(Option<hashset<string>>(hosts)))

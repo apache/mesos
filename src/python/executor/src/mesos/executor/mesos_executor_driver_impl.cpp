@@ -119,7 +119,7 @@ PyMethodDef MesosExecutorDriverImpl_methods[] = {
   { "sendFrameworkMessage",
     (PyCFunction) MesosExecutorDriverImpl_sendFrameworkMessage,
     METH_VARARGS,
-    "Send a FrameworkMessage to a slave"
+    "Send a FrameworkMessage to an agent"
   },
   { NULL }  /* Sentinel */
 };

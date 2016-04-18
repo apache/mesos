@@ -71,6 +71,8 @@ Binary API Changes:
   * [MESOS-5055] - Replace Master/Slave Terminology Phase I - Update strings in
     the log message and standard output
   * [MESOS-3782] - Replace Master/Slave Terminology Phase I - Duplicate/Rename binaries.
+  * [MESOS-5057] - Replace Master/Slave Terminology Phase I - Update strings in
+    error messages and other strings
 
 
 Release Notes - Mesos - Version 0.28.1

@@ -350,8 +350,8 @@ Option<Error> validateSlaveID(const TaskInfo& task, Slave* slave)
 {
   if (task.slave_id() != slave->id) {
     return Error(
-        "Task uses invalid slave " + task.slave_id().value() +
-        " while slave " + slave->id.value() + " is expected");
+        "Task uses invalid agent " + task.slave_id().value() +
+        " while agent " + slave->id.value() + " is expected");
   }
 
   return None();
@@ -668,9 +668,9 @@ Option<Error> validateSlave(
 
     if (slave->id != slaveId.get()) {
       return Error(
-          "Aggregated offers must belong to one single slave. Offer " +
-          stringify(offerId) + " uses slave " +
-          stringify(slave->id) + " and slave " +
+          "Aggregated offers must belong to one single agent. Offer " +
+          stringify(offerId) + " uses agent " +
+          stringify(slave->id) + " and agent " +
           stringify(slaveId.get()));
     }
   }

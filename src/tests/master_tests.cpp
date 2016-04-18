@@ -1094,7 +1094,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   Try<string> hostname = net::hostname();
   ASSERT_SOME(hostname);
 
-  string hosts = hostname.get() + "\n" + "dummy-slave";
+  string hosts = hostname.get() + "\n" + "dummy-agent";
   ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
 
   master::Flags flags = CreateMasterFlags();

@@ -48,10 +48,10 @@ mesos::internal::logging::Flags::Flags()
 
   add(&Flags::initialize_driver_logging,
       "initialize_driver_logging",
-      "Whether the master/slave should initialize Google logging for the\n"
+      "Whether the master/agent should initialize Google logging for the\n"
       "Mesos scheduler and executor drivers, in same way as described here.\n"
       "The scheduler/executor drivers have separate logs and do not get\n"
-      "written to the master/slave logs.\n\n"
+      "written to the master/agent logs.\n\n"
       "This option has no effect when using the HTTP scheduler/executor APIs.\n"
       "By default, this option is true.",
       true);

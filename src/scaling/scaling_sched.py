@@ -62,7 +62,7 @@ class ScalingScheduler(mesos.Scheduler):
   def resourceOffer(self, driver, oid, offers):
     # Make sure the nested schedulers can actually run their tasks.
     # if len(offers) <= len(config) and len(config) != self.tid:
-    #   print "Need at least one spare slave to do this work ... exiting!"
+    #   print "Need at least one spare agent to do this work ... exiting!"
     #   driver.stop()
     #   return
 
@@ -78,7 +78,7 @@ class ScalingScheduler(mesos.Scheduler):
         tasks.append(task)
         self.running[self.tid] = (todo, duration)
         self.tid += 1
-        print "Launching (%d, %d) on slave %s" % (todo, duration, offer.slaveId)
+        print "Launching (%d, %d) on agent %s" % (todo, duration, offer.slaveId)
     driver.launchTasks(oid, tasks)
 
   def statusUpdate(self, driver, status):

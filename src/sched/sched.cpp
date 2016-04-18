@@ -1443,7 +1443,7 @@ protected:
               << (status.has_uuid() ? " " + status.uuid() : "")
               << " of task " << status.task_id()
               << (status.has_slave_id()
-                  ? " on slave " + stringify(status.slave_id()) : "");
+                  ? " on agent " + stringify(status.slave_id()) : "");
     }
   }
 

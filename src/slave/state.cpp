@@ -104,7 +104,7 @@ Result<State> recover(const string& rootDir, bool strict)
   // Get the latest slave id.
   Result<string> directory = os::realpath(latest);
   if (!directory.isSome()) {
-    return Error("Failed to find latest slave: " +
+    return Error("Failed to find latest agent: " +
                  (directory.isError()
                   ? directory.error()
                   : "No such file or directory"));
@@ -144,7 +144,7 @@ Try<SlaveState> SlaveState::recover(
   const Result<SlaveInfo>& slaveInfo = ::protobuf::read<SlaveInfo>(path);
 
   if (slaveInfo.isError()) {
-    const string& message = "Failed to read slave info from '" + path + "': " +
+    const string& message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
     if (strict) {
       return Error(message);
@@ -168,7 +168,7 @@ Try<SlaveState> SlaveState::recover(
   Try<list<string> > frameworks = paths::getFrameworkPaths(rootDir, slaveId);
 
   if (frameworks.isError()) {
-    return Error("Failed to find frameworks for slave " + slaveId.value() +
+    return Error("Failed to find frameworks for agent " + slaveId.value() +
                  ": " + frameworks.error());
   }
 

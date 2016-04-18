@@ -1569,7 +1569,7 @@ protected:
     // Check and see if this slave already exists.
     if (slaveIDs->contains(info.id())) {
       if (strict) {
-        return Error("Slave already admitted");
+        return Error("Agent already admitted");
       } else {
         return false; // No mutation.
       }
@@ -1606,7 +1606,7 @@ protected:
     }
 
     if (strict) {
-      return Error("Slave not yet admitted");
+      return Error("Agent not yet admitted");
     } else {
       Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
       slave->mutable_info()->CopyFrom(info);
@@ -1645,7 +1645,7 @@ protected:
     }
 
     if (strict) {
-      return Error("Slave not yet admitted");
+      return Error("Agent not yet admitted");
     } else {
       return false; // No mutation.
     }

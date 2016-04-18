@@ -563,9 +563,9 @@ string Master::Http::CREATE_VOLUMES_HELP()
         "Returns 202 ACCEPTED which indicates that the create",
         "operation has been validated successfully by the master.",
         "The request is then forwarded asynchronously to the Mesos",
-        "slave where the reserved resources are located.",
+        "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
-        "creating the volumes at the slave might fail.",
+        "creating the volumes at the agent might fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be created."),
@@ -617,7 +617,7 @@ Future<Response> Master::Http::createVolumes(
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
-    return BadRequest("No slave found with specified ID");
+    return BadRequest("No agent found with specified ID");
   }
 
   value = values.get("volumes");
@@ -678,9 +678,9 @@ string Master::Http::DESTROY_VOLUMES_HELP()
         "Returns 202 ACCEPTED which indicates that the destroy",
         "operation has been validated successfully by the master.",
         "The request is then forwarded asynchronously to the Mesos",
-        "slave where the reserved resources are located.",
+        "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
-        "destroying the volumes at the slave might fail.",
+        "destroying the volumes at the agent might fail.",
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."),
@@ -719,7 +719,7 @@ Future<Response> Master::Http::destroyVolumes(
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
-    return BadRequest("No slave found with specified ID");
+    return BadRequest("No agent found with specified ID");
   }
 
   value = values.get("volumes");
@@ -1012,14 +1012,14 @@ string Master::Http::RESERVE_HELP()
 {
   return HELP(
     TLDR(
-        "Reserve resources dynamically on a specific slave."),
+        "Reserve resources dynamically on a specific agent."),
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the reserve",
         "operation has been validated successfully by the master.",
         "The request is then forwarded asynchronously to the Mesos",
-        "slave where the reserved resources are located.",
+        "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
-        "reserving resources at the slave might fail.",
+        "reserving resources at the agent might fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be reserved."),
@@ -1058,7 +1058,7 @@ Future<Response> Master::Http::reserve(
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
-    return BadRequest("No slave found with specified ID");
+    return BadRequest("No agent found with specified ID");
   }
 
   value = values.get("resources");
@@ -1115,9 +1115,9 @@ string Master::Http::SLAVES_HELP()
 {
   return HELP(
     TLDR(
-        "Information about registered slaves."),
+        "Information about registered agents."),
     DESCRIPTION(
-        "This endpoint shows information about the slaves registered in",
+        "This endpoint shows information about the agents registered in",
         "this master formatted as a JSON object."),
     AUTHENTICATION(true));
 }
@@ -1263,7 +1263,7 @@ string Master::Http::STATE_HELP()
         "Information about state of master."),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, tasks,",
-        "executors and slaves running in the cluster as a JSON object.",
+        "executors and agents running in the cluster as a JSON object.",
         "",
         "Example (**Note**: this is not exhaustive):",
         "",
@@ -2478,14 +2478,14 @@ string Master::Http::UNRESERVE_HELP()
 {
   return HELP(
     TLDR(
-        "Unreserve resources dynamically on a specific slave."),
+        "Unreserve resources dynamically on a specific agent."),
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the unreserve",
         "operation has been validated successfully by the master.",
         "The request is then forwarded asynchronously to the Mesos",
-        "slave where the reserved resources are located.",
+        "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
-        "unreserving resources at the slave might fail.",
+        "unreserving resources at the agent might fail.",
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be unreserved."),
@@ -2524,7 +2524,7 @@ Future<Response> Master::Http::unreserve(
 
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
-    return BadRequest("No slave found with specified ID");
+    return BadRequest("No agent found with specified ID");
   }
 
   value = values.get("resources");
@@ -2580,7 +2580,7 @@ Future<Response> Master::Http::_operation(
 {
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == NULL) {
-    return BadRequest("No slave found with specified ID");
+    return BadRequest("No agent found with specified ID");
   }
 
   // The resources recovered by rescinding outstanding offers.
