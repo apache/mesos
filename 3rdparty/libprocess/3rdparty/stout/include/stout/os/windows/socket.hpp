@@ -15,9 +15,81 @@
 
 #include <winsock.h>
 
+#include <glog/logging.h>
+
 #include <stout/abort.hpp>
 
 namespace net {
+
+// Initialize Windows socket stack.
+inline bool wsa_initialize()
+{
+  // Initialize WinSock (request version 2.2).
+  WORD requestedVersion = MAKEWORD(2, 2);
+  WSADATA data;
+
+  const int result = ::WSAStartup(requestedVersion, &data);
+  if (result != 0) {
+    const int error = ::WSAGetLastError();
+    LOG(ERROR) << "Could not initialize WinSock, error code : " << error;
+    return false;
+  }
+
+  // Check that the WinSock version we got back is 2.2 or higher.
+  // The high-order byte specifies the minor version number.
+  if (LOBYTE(data.wVersion) < 2 ||
+      (LOBYTE(data.wVersion) == 2 &&
+      HIBYTE(data.wVersion) != 2)) {
+    LOG(ERROR) << "Incorrect WinSock version found : " << LOBYTE(data.wVersion)
+      << "." << HIBYTE(data.wVersion);
+
+    // WinSock was initialized, we just didn't like the version, so we need to
+    // clean up.
+    if (::WSACleanup() != 0) {
+      const int error = ::WSAGetLastError();
+      LOG(ERROR) << "Could not cleanup WinSock, error code : " << error;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+
+inline bool wsa_cleanup()
+{
+  // Cleanup WinSock. Wait for any outstanding socket operations to complete
+  // before exiting. Retry for a maximum of 10 times at 1 second intervals.
+  int retriesLeft = 10;
+
+  while (retriesLeft > 0) {
+    const int result = ::WSACleanup();
+    if (result != 0) {
+      const int error = ::WSAGetLastError();
+      // Make it idempotent.
+      if (error == WSANOTINITIALISED) {
+        return false;
+      }
+
+      // Wait for any blocking calls to complete and retry after 1 second.
+      if (error == WSAEINPROGRESS) {
+        LOG(ERROR) << "Waiting for outstanding WinSock calls to complete.";
+        ::Sleep(1000);
+        retriesLeft--;
+      } else {
+        LOG(ERROR) << "Could not cleanup WinSock, error code : " << error;
+        return false;
+      }
+    }
+  }
+  if (retriesLeft == 0) {
+    return false;
+  }
+
+  return true;
+}
+
 
 // The error indicates the last socket operation has been
 // interupted, the operation can be restarted imediately.
