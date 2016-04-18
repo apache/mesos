@@ -22,6 +22,7 @@
 #include <stout/os/getcwd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
+#include <stout/os/stat.hpp>
 #include <stout/os/touch.hpp>
 
 #include <stout/tests/utils.hpp>
@@ -29,9 +30,6 @@
 using std::list;
 using std::set;
 using std::string;
-
-
-const hashset<string>& EMPTY = hashset<string>::EMPTY;
 
 
 static hashset<string> listfiles(const string& directory)
@@ -56,7 +54,7 @@ class RmdirTest : public TemporaryDirectoryTest {};
 TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryAbsolutePath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedListing = EMPTY;
+  hashset<string> expectedListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
@@ -67,18 +65,18 @@ TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryAbsolutePath)
   expectedListing.insert(newDirectoryName);
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
 
   // Successfully remove.
   EXPECT_SOME(os::rmdir(newDirectoryAbsolutePath));
-  EXPECT_EQ(EMPTY, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 }
 
 
 TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryRelativePath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedListing = EMPTY;
+  hashset<string> expectedListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
@@ -88,19 +86,19 @@ TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryRelativePath)
   expectedListing.insert(newDirectoryName);
   EXPECT_SOME(os::mkdir(newDirectoryName));
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryName));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryName));
 
   // Successfully remove.
   EXPECT_SOME(os::rmdir(newDirectoryName));
-  EXPECT_EQ(EMPTY, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 }
 
 
 TEST_F(RmdirTest, RemoveRecursiveByDefault)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedRootListing = EMPTY;
-  hashset<string> expectedSubListing = EMPTY;
+  hashset<string> expectedRootListing = hashset<string>::EMPTY;
+  hashset<string> expectedSubListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
@@ -124,29 +122,29 @@ TEST_F(RmdirTest, RemoveRecursiveByDefault)
 
   // Successfully remove.
   EXPECT_SOME(os::rmdir(newDirectoryAbsolutePath));
-  EXPECT_EQ(EMPTY, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
 }
 
 
 TEST_F(RmdirTest, TrivialFailToRemoveInvalidPath)
 {
   // Directory is initially empty.
-  EXPECT_EQ(EMPTY, listfiles(os::getcwd()));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(os::getcwd()));
 
   // Removing fake relative paths should error out.
   EXPECT_ERROR(os::rmdir("fakeRelativePath", false));
   EXPECT_ERROR(os::rmdir("fakeRelativePath", true));
 
   // Directory still empty.
-  EXPECT_EQ(EMPTY, listfiles(os::getcwd()));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(os::getcwd()));
 }
 
 
 TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedRootListing = EMPTY;
+  hashset<string> expectedRootListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
@@ -159,24 +157,30 @@ TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
 
   // Fail to remove a path to an invalid folder inside the
   // `newDirectoryAbsolutePath`.
   const string fakeAbsolutePath = path::join(newDirectoryAbsolutePath, "fake");
   EXPECT_ERROR(os::rmdir(fakeAbsolutePath, false));
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
 
   // Test the same thing, but using the `recursive` flag.
   EXPECT_ERROR(os::rmdir(fakeAbsolutePath, true));
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
-  EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
 }
 
 
+#ifndef __WINDOWS__
 // This test verifies that `rmdir` can remove a directory with a
 // device file.
+// TODO(hausdorff): Port this test to Windows. It is not clear that `rdev` and
+// `mknod` will implement the functionality expressed in this test, and as the
+// need for these capabilities arise elsewhere in the codebase, we should
+// rethink abstractions we need here, and subsequently, what this test should
+// look like.
 TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 {
   // mknod requires root permission.
@@ -211,6 +215,7 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 
   EXPECT_SOME(os::rmdir(deviceDirectory));
 }
+#endif // __WINDOWS__
 
 
 // This test verifies that `rmdir` can remove a directory with a
@@ -294,5 +299,5 @@ TEST_F(RmdirTest, RemoveDirectoryButPreserveRoot)
 
   EXPECT_SOME(os::rmdir(newDirectory, true, false));
   EXPECT_TRUE(os::exists(newDirectory));
-  EXPECT_EQ(EMPTY, listfiles(newDirectory));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectory));
 }
