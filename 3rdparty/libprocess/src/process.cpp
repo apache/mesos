@@ -927,7 +927,7 @@ void initialize(const Option<string>& delegate)
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
       LOG(FATAL) << "Failed to initialize, gethostname: "
-                 << hstrerror(h_errno);
+                 << os::hstrerror(h_errno);
     }
 
     // Lookup IP address of local hostname.
@@ -2194,8 +2194,9 @@ long ProcessManager::init_threads()
   // TODO(xujyan): Use a smarter algorithm to allocate threads.
   // Allocating a static number of threads can cause starvation if
   // there are more waiting Processes than the number of worker
-  // threads.
-  long num_worker_threads = std::max(8L, sysconf(_SC_NPROCESSORS_ONLN));
+  // threads. On error assumes one core.
+  long num_worker_threads =
+    std::max(8L, os::cpus().isSome() ? os::cpus().get() : 1);
 
   // We allow the operator to set the number of libprocess worker
   // threads, using an environment variable. The motivation is that
