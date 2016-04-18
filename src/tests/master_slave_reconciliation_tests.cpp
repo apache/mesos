@@ -295,6 +295,14 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 
   driver.start();
 
+  // Since the agent may have retried registration, we want to
+  // ensure that any duplicate registrations are flushed before
+  // we appoint the master again. Otherwise, the agent may
+  // receive a stale registration message.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   // Trigger a re-registration of the slave and capture the message
   // so that we can spoof a race with a launch task message.
   DROP_PROTOBUFS(ReregisterSlaveMessage(), slave.get()->pid, master.get()->pid);
