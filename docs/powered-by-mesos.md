@@ -26,6 +26,7 @@ layout: documentation
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
 * [Coursera](https://www.coursera.org)
+* [Criteo](http://www.criteo.com)
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Daemon](http://www.daemon.com.au)
 * [DataMan](http://www.dataman-inc.com)
