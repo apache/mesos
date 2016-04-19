@@ -514,15 +514,15 @@ private:
 
     // Mesos containerizer supports 'appc' and 'docker' images.
     if (containerizer == "mesos") {
-      if (dockerImage.isNone() && appcImage.isNone()) {
+      if (dockerImage.isNone() && appcImage.isNone() &&
+          (networks.isNone() || networks->empty())) {
         return None();
       }
 
       containerInfo.set_type(ContainerInfo::MESOS);
 
-      Image* image = containerInfo.mutable_mesos()->mutable_image();
-
       if (dockerImage.isSome()) {
+        Image* image = containerInfo.mutable_mesos()->mutable_image();
         image->set_type(Image::DOCKER);
         image->mutable_docker()->set_name(dockerImage.get());
       } else if (appcImage.isSome()) {
@@ -546,6 +546,7 @@ private:
 
         appc.mutable_labels()->CopyFrom(labels);
 
+        Image* image = containerInfo.mutable_mesos()->mutable_image();
         image->set_type(Image::APPC);
         image->mutable_appc()->CopyFrom(appc);
       }
