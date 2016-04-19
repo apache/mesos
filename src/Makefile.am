@@ -111,11 +111,9 @@ MESOS_CPPFLAGS += -I../include/mesos
 
 # Header only dependencies will be ignored for --disable-bundled.
 #
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
-MESOS_CPPFLAGS += -isystem ../$(BOOST)
-MESOS_CPPFLAGS += -I../$(PICOJSON)
+# For non-convenience libraries we need to link them in to make the shared
+# library each time. (Currently, we don't support platforms where this is not
+# possible.)
 
 # Enable the INT64 support for PicoJson.
 # NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
@@ -125,23 +123,51 @@ MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -DPICOJSON_USE_INT64
 MESOS_CPPFLAGS += -D__STDC_FORMAT_MACROS
 
-MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
-MESOS_CPPFLAGS += -I../$(GLOG)/src
+if WITH_BUNDLED_BOOST
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
+MESOS_CPPFLAGS += -isystem ../$(BOOST)
+endif
 
 if WITH_BUNDLED_GLOG
 MESOS_CPPFLAGS += -I../$(GLOG)/src
+LIB_GLOG = ../$(GLOG)/libglog.la
+else
+LIB_GLOG = -lglog
+LDADD += -lglog
 endif
 
 if WITH_BUNDLED_LEVELDB
 MESOS_CPPFLAGS += -I../$(LEVELDB)/include
+
+# We need to directly include the leveldb library in order to avoid
+# the installed libmesos.la file to include leveldb in
+# 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
+
+LIB_LEVELDB = ../$(LEVELDB)/libleveldb.a
+else
+LIB_LEVELDB = -lleveldb
+LDADD += -lleveldb
 endif
 
 if WITH_BUNDLED_LIBPROCESS
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
+LIB_PROCESS = ../$(LIBPROCESS)/libprocess.la
+else
+LIB_PROCESS = -lprocess
+endif
+
+if WITH_BUNDLED_PICOJSON
+MESOS_CPPFLAGS += -I../$(PICOJSON)
 endif
 
 if WITH_BUNDLED_PROTOBUF
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
+LIB_PROTOBUF = ../$(PROTOBUF)/src/libprotobuf.la
+else
+LIB_PROTOBUF = -lprotobuf
+LDADD += -lprotobuf
 endif
 
 if WITH_BUNDLED_STOUT
@@ -151,7 +177,17 @@ endif
 if WITH_BUNDLED_ZOOKEEPER
 MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
 MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/generated
+LIB_ZOOKEEPER = ../$(ZOOKEEPER)/libzookeeper_mt.la
+else
+LIB_ZOOKEEPER = -lzookeeper_mt
+LDADD += -lzookeeper_mt
 endif
+
+if ENABLE_NVIDIA_GPU_SUPPORT
+LIB_NVIDIA = -lnvidia-ml
+LDADD += -lnvidia-ml
+endif
+
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -1146,55 +1182,15 @@ libmesos_la_LIBTOOLFLAGS = --tag=CXX
 # Add the convenience library.
 libmesos_la_LIBADD =							\
   libmesos_no_3rdparty.la						\
+  $(LIB_GLOG)								\
+  $(LIB_LEVELDB)							\
+  $(LIB_NVIDIA)								\
+  $(LIB_PROCESS)							\
+  $(LIB_PROTOBUF)							\
+  $(LIB_ZOOKEEPER)							\
   -lsvn_subr-1								\
   -lsvn_delta-1								\
   -lapr-1
-
-# For non-convenience libraries we need to link them in to make the shared
-# library each time. (Currently, we don't support platforms where this is not
-# possible.)
-if WITH_BUNDLED_GLOG
-libmesos_la_LIBADD += ../$(GLOG)/libglog.la
-else
-libmesos_la_LIBADD += -lglog
-LDADD += -lglog
-endif
-
-if WITH_BUNDLED_LEVELDB
-# We need to directly include the leveldb library in order to avoid
-# the installed libmesos.la file to include leveldb in
-# 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
-
-libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
-else
-libmesos_la_LIBADD += -lleveldb
-LDADD += -lleveldb
-endif
-
-if WITH_BUNDLED_LIBPROCESS
-libmesos_la_LIBADD += ../$(LIBPROCESS)/libprocess.la
-else
-libmesos_la_LIBADD += -lprocess
-endif
-
-if WITH_BUNDLED_PROTOBUF
-libmesos_la_LIBADD += ../$(PROTOBUF)/src/libprotobuf.la
-else
-libmesos_la_LIBADD += -lprotobuf
-LDADD += -lprotobuf
-endif
-
-if WITH_BUNDLED_ZOOKEEPER
-libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la
-else
-libmesos_la_LIBADD += -lzookeeper_mt
-LDADD += -lzookeeper_mt
-endif
-
-if ENABLE_NVIDIA_GPU_SUPPORT
-libmesos_la_LIBADD += -lnvidia-ml
-LDADD += -lnvidia-ml
-endif
 
 
 # Binaries.
@@ -2046,9 +2042,9 @@ if !OS_FREEBSD
   mesos_tests_LDADD += -ldl # FreeBSD includes dynamic lib utils in libc.
 endif
 
-mesos_tests_DEPENDENCIES = 					\
-  ../$(LIBPROCESS)/3rdparty/libgmock.la 			\
-  libmesos.la 							\
+mesos_tests_DEPENDENCIES =					\
+  ../$(LIBPROCESS)/3rdparty/libgmock.la				\
+  libmesos.la							\
   $(MESOS_TEST_MODULES)
 
 if OS_LINUX
