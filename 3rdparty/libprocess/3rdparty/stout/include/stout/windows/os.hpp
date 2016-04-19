@@ -50,7 +50,7 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
   size_t size_in_bytes;
 
   // Attempt to populate `processes` with PIDs. We repeatedly call
-  // `EnumProcesses` with increasingly large arrays until it "suceeds" at
+  // `EnumProcesses` with increasingly large arrays until it "succeeds" at
   // populating the array with PIDs. The criteria for determining when
   // `EnumProcesses` has succeeded are:
   //   (1) the return value is nonzero.
