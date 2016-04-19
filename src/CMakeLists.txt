@@ -50,8 +50,8 @@ PROTOC_TO_SRC_DIR(FLAGS             messages/flags)
 PROTOC_TO_SRC_DIR(LOG               messages/log)
 PROTOC_TO_SRC_DIR(INTERNAL_STATE    messages/state)
 
-PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
-PROTOC_TO_SRC_DIR(CNI_SPEC slave/containerizer/mesos/isolators/network/cni/spec)
+PROTOC_TO_SRC_DIR(PROVISIONER_DOCKER slave/containerizer/mesos/provisioner/docker/message)
+PROTOC_TO_SRC_DIR(ISOLATOR_CNI_SPEC slave/containerizer/mesos/isolators/network/cni/spec)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -60,7 +60,7 @@ set(MESOS_PROTOBUF_SRC
   ${APPC_SPEC_PROTO_CC}
   ${AUTHENTICATION_PROTO_CC}
   ${AUTHORIZATION_PROTO_CC}
-  ${CNI_SPEC_PROTO_CC}
+  ${ISOLATOR_CNI_SPEC_PROTO_CC}
   ${CONTAINERIZER_PROTO_CC}
   ${DOCKER_SPEC_PROTO_CC}
   ${DOCKER_V1_PROTO_CC}
@@ -82,7 +82,7 @@ set(MESOS_PROTOBUF_SRC
   ${INERNAL_STATE_PROTO_CC}
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
-  ${MESSAGE_PROTO_CC}
+  ${PROVISIONER_DOCKER_PROTO_CC}
   ${URI_PROTO_CC}
   )
 
