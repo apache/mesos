@@ -452,7 +452,7 @@ inline std::set<pid_t> children(
 }
 
 
-inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
+inline Try<std::set<pid_t>> children(pid_t pid, bool recursive = true)
 {
   const Try<std::list<Process>> processes = os::processes();
 
