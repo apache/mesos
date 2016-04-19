@@ -13,6 +13,7 @@
 #ifndef __STOUT_FLAGS_FLAG_HPP__
 #define __STOUT_FLAGS_FLAG_HPP__
 
+#include <ostream>
 #include <string>
 
 #include <stout/error.hpp>
@@ -25,9 +26,24 @@ namespace flags {
 // Forward declaration.
 class FlagsBase;
 
+
+struct Name
+{
+  Name() = default;
+
+  Name(const std::string& _value)
+    : value(_value) {}
+
+  Name(const char* _value)
+    : value(_value) {}
+
+  std::string value;
+};
+
+
 struct Flag
 {
-  std::string name;
+  Name name;
   std::string help;
   bool boolean;
   lambda::function<Try<Nothing>(FlagsBase*, const std::string&)> load;

@@ -143,7 +143,7 @@ public:
   template <typename T1, typename T2, typename F>
   void add(
       T1* t1,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       const T2& t2,
       F validate);
@@ -151,7 +151,7 @@ public:
   template <typename T1, typename T2>
   void add(
       T1* t1,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       const T2& t2)
   {
@@ -161,14 +161,14 @@ public:
   template <typename T, typename F>
   void add(
       Option<T>* option,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       F validate);
 
   template <typename T>
   void add(
       Option<T>* option,
-      const std::string& name,
+      const Name& name,
       const std::string& help)
   {
     add(option, name, help, [](const Option<T>&) { return None(); });
@@ -178,7 +178,7 @@ protected:
   template <typename Flags, typename T1, typename T2, typename F>
   void add(
       T1 Flags::*t1,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       const T2& t2,
       F validate);
@@ -186,7 +186,7 @@ protected:
   template <typename Flags, typename T1, typename T2>
   void add(
       T1 Flags::*t1,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       const T2& t2)
   {
@@ -196,14 +196,14 @@ protected:
   template <typename Flags, typename T, typename F>
   void add(
       Option<T> Flags::*option,
-      const std::string& name,
+      const Name& name,
       const std::string& help,
       F validate);
 
   template <typename Flags, typename T>
   void add(
       Option<T> Flags::*option,
-      const std::string& name,
+      const Name& name,
       const std::string& help)
   {
     add(option, name, help, [](const Option<T>&) { return None(); });
@@ -260,7 +260,7 @@ class Flags<> : public virtual FlagsBase {};
 template <typename T1, typename T2, typename F>
 void FlagsBase::add(
     T1* t1,
-    const std::string& name,
+    const Name& name,
     const std::string& help,
     const T2& t2,
     F validate)
@@ -317,7 +317,7 @@ void FlagsBase::add(
 template <typename T, typename F>
 void FlagsBase::add(
     Option<T>* option,
-    const std::string& name,
+    const Name& name,
     const std::string& help,
     F validate)
 {
@@ -364,7 +364,7 @@ void FlagsBase::add(
 template <typename Flags, typename T1, typename T2, typename F>
 void FlagsBase::add(
     T1 Flags::*t1,
-    const std::string& name,
+    const Name& name,
     const std::string& help,
     const T2& t2,
     F validate)
@@ -376,7 +376,8 @@ void FlagsBase::add(
 
   Flags* flags = dynamic_cast<Flags*>(this);
   if (flags == NULL) {
-    ABORT("Attempted to add flag '" + name + "' with incompatible type");
+    ABORT("Attempted to add flag '" + name.value +
+          "' with incompatible type");
   } else {
     flags->*t1 = t2; // Set the default.
   }
@@ -438,7 +439,7 @@ void FlagsBase::add(
 template <typename Flags, typename T, typename F>
 void FlagsBase::add(
     Option<T> Flags::*option,
-    const std::string& name,
+    const Name& name,
     const std::string& help,
     F validate)
 {
@@ -449,7 +450,8 @@ void FlagsBase::add(
 
   Flags* flags = dynamic_cast<Flags*>(this);
   if (flags == NULL) {
-    ABORT("Attempted to add flag '" + name + "' with incompatible type");
+    ABORT("Attempted to add flag '" + name.value +
+          "' with incompatible type");
   }
 
   Flag flag;
@@ -501,16 +503,16 @@ void FlagsBase::add(
 
 inline void FlagsBase::add(const Flag& flag)
 {
-  if (flags_.count(flag.name) > 0) {
+  if (flags_.count(flag.name.value) > 0) {
     EXIT(EXIT_FAILURE)
-      << "Attempted to add duplicate flag '" << flag.name << "'";
-  } else if (flag.name.find("no-") == 0) {
+      << "Attempted to add duplicate flag '" << flag.name.value << "'";
+  } else if (flag.name.value.find("no-") == 0) {
     EXIT(EXIT_FAILURE)
-      << "Attempted to add flag '" << flag.name
+      << "Attempted to add flag '" << flag.name.value
       << "' that starts with the reserved 'no-' prefix";
   }
 
-  flags_[flag.name] = flag;
+  flags_[flag.name.value] = flag;
 }
 
 
@@ -803,15 +805,15 @@ inline std::string FlagsBase::usage( const Option<std::string>& message) const
 
   foreachvalue (const flags::Flag& flag, *this) {
     if (flag.boolean) {
-      col1[flag.name] = "  --[no-]" + flag.name;
+      col1[flag.name.value] = "  --[no-]" + flag.name.value;
     } else {
-      col1[flag.name] = "  --" + flag.name + "=VALUE";
+      col1[flag.name.value] = "  --" + flag.name.value + "=VALUE";
     }
-    width = std::max(width, col1[flag.name].size());
+    width = std::max(width, col1[flag.name.value].size());
   }
 
   foreachvalue (const flags::Flag& flag, *this) {
-    std::string line = col1[flag.name];
+    std::string line = col1[flag.name.value];
 
     std::string pad(PAD + width - line.size(), ' ');
     line += pad;
@@ -843,7 +845,7 @@ inline std::ostream& operator<<(std::ostream& stream, const FlagsBase& flags)
   foreachvalue (const flags::Flag& flag, flags) {
     const Option<std::string> value = flag.stringify(flags);
     if (value.isSome()) {
-      _flags.push_back("--" + flag.name + "=\"" + value.get() + '"');
+      _flags.push_back("--" + flag.name.value + "=\"" + value.get() + '"');
     }
   }
 
