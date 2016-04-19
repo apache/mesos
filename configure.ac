@@ -84,6 +84,7 @@ AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
+AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
 AC_CONFIG_FILES([bin/mesos-agent.sh], [chmod +x bin/mesos-agent.sh])

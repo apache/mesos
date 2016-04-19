@@ -21,7 +21,6 @@ AUTOMAKE_OPTIONS = subdir-objects
 MESOS_BUILD_DIR=@abs_top_builddir@
 
 include ../3rdparty/versions.am
-include ../3rdparty/libprocess/3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
@@ -33,12 +32,12 @@ ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
 LIBPROCESS = 3rdparty/libprocess
 STOUT = $(LIBPROCESS)/3rdparty/stout
-BOOST = $(LIBPROCESS)/3rdparty/boost-$(BOOST_VERSION)
-GLOG = $(LIBPROCESS)/3rdparty/glog-$(GLOG_VERSION)
-GMOCK = $(LIBPROCESS)/3rdparty/gmock-$(GMOCK_VERSION)
+BOOST = 3rdparty/boost-$(BOOST_VERSION)
+GLOG = 3rdparty/glog-$(GLOG_VERSION)
+GMOCK = 3rdparty/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
-PROTOBUF = $(LIBPROCESS)/3rdparty/protobuf-$(PROTOBUF_VERSION)
-PICOJSON = $(LIBPROCESS)/3rdparty/picojson-$(PICOJSON_VERSION)
+PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
+PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkgsysconfdir' are not set
@@ -2036,14 +2035,14 @@ mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
-mesos_tests_LDADD = ../$(LIBPROCESS)/3rdparty/libgmock.la libmesos.la $(LDADD)
+mesos_tests_LDADD = ../3rdparty/libgmock.la libmesos.la $(LDADD)
 
 if !OS_FREEBSD
   mesos_tests_LDADD += -ldl # FreeBSD includes dynamic lib utils in libc.
 endif
 
 mesos_tests_DEPENDENCIES =					\
-  ../$(LIBPROCESS)/3rdparty/libgmock.la				\
+  ../3rdparty/libgmock.la					\
   libmesos.la							\
   $(MESOS_TEST_MODULES)
 
@@ -2131,8 +2130,8 @@ dist_check_SCRIPTS +=						\
   tests/python_framework_test.sh				\
   tests/test_framework_test.sh
 
-../$(LIBPROCESS)/3rdparty/libgmock.la:
-	@cd ../$(LIBPROCESS)/3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
+../3rdparty/libgmock.la:
+	@cd ../3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
 
 if INSTALL_TESTS
 testlibexec_PROGRAMS = $(check_PROGRAMS)

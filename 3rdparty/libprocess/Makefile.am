@@ -23,16 +23,16 @@ LIBPROCESS_BUILD_DIR=@abs_top_builddir@
 # the header files during installation.
 SUBDIRS = 3rdparty . include
 
-include 3rdparty/versions.am
+include ../versions.am
 
 STOUT = 3rdparty/stout
-BOOST = 3rdparty/boost-$(BOOST_VERSION)
-GLOG = 3rdparty/glog-$(GLOG_VERSION)
-GMOCK = 3rdparty/gmock-$(GMOCK_VERSION)
-GPERFTOOLS = 3rdparty/gperftools-$(GPERFTOOLS_VERSION)
+BOOST = ../boost-$(BOOST_VERSION)
+GLOG = ../glog-$(GLOG_VERSION)
+GMOCK = ../gmock-$(GMOCK_VERSION)
+GPERFTOOLS = ../gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
-LIBEV = 3rdparty/libev-$(LIBEV_VERSION)
-PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
+LIBEV = ../libev-$(LIBEV_VERSION)
+PICOJSON = ../picojson-$(PICOJSON_VERSION)
 
 
 if WITH_BUNDLED_BOOST
@@ -46,11 +46,10 @@ else
 LIB_GLOG = -lglog
 endif
 
-# TODO(kapil): Handle unbundled GMOCK.
 if WITH_BUNDLED_GMOCK
 GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
 GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
-LIB_GMOCK = 3rdparty/libgmock.la
+LIB_GMOCK = ../libgmock.la
 endif
 
 if HAS_GPERFTOOLS
@@ -59,9 +58,9 @@ LIB_GPERFTOOLS = $(GPERFTOOLS)/libprofiler.la
 endif
 
 if WITH_BUNDLED_HTTP_PARSER
-HTTP_PARSER = 3rdparty/http-parser-$(HTTP_PARSER_VERSION)
+HTTP_PARSER = ../http-parser-$(HTTP_PARSER_VERSION)
 HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
-LIB_HTTP_PARSER = 3rdparty/libry_http_parser.la
+LIB_HTTP_PARSER = ../libry_http_parser.la
 else
 LIB_HTTP_PARSER = -lhttp_parser
 endif
@@ -240,9 +239,10 @@ check-local: tests
 
 # Both libprocess-tests and benchmarks have a dependency on libgmock.la.
 $(LIB_GMOCK):
-	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
+	@cd .. && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
 
 tests: all libprocess-tests benchmarks
+	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
