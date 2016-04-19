@@ -90,6 +90,9 @@ namespace os {
 // Import `::gmtime_r` into `os::` namespace
 using ::gmtime_r;
 
+// Import `::hstrerror` into `os::` namespace
+using ::hstrerror;
+
 // Forward declarations.
 inline Try<Nothing> utime(const std::string&);
 
@@ -323,8 +326,6 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
 }
 
 
-/* TODO: MOVE BACK TO stout/os.hpp*/
-
 // Looks in the environment variables for the specified key and
 // returns a string representation of its value. If no environment
 // variable matching key is found, None() is returned.
@@ -461,8 +462,6 @@ inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
 
   return children(pid, processes.get(), recursive);
 }
-
-/* /TODO */
 
 } // namespace os {
 
