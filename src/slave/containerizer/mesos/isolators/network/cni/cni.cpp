@@ -1377,55 +1377,65 @@ int NetworkCniIsolatorSetup::execute()
 
   // Initialize the host path and container path for the set of files
   // that need to be setup in the container file system.
-  //
-  // NOTE: An empty rootfs implies that the container is using the
-  // host file system.
-  string rootfs = "";
-  if (flags.rootfs.isSome()) {
-    rootfs = flags.rootfs.get();
-  }
-
   hashmap<string, string> files;
   files["/etc/hosts"] = flags.etc_hosts_path.get();
   files["/etc/hostname"] = flags.etc_hostname_path.get();
   files["/etc/resolv.conf"] = flags.etc_resolv_conf.get();
 
   foreachpair (const string& file, const string& source, files) {
-    string target = file;
-
-    if (flags.rootfs.isSome()) {
-      target = path::join(flags.rootfs.get(), file);
-    }
-
-    if (!os::exists(target)) {
-      // NOTE: We only create the mount point if container has its own
-      // image. Otherwise, we'll just fail because we don't want to
-      // pollute the host filesystem.
-      if (flags.rootfs.isNone()) {
-        cerr << "Mount point '" << target << "' does not exist "
-             << "on the host filesystem"<< endl;
-        return EXIT_FAILURE;
-      }
-
-      Try<Nothing> touch = os::touch(target);
-      if (touch.isError()) {
-        cerr << "Failed to create the mount point '" << target
-             << "' in the container rootfs" << endl;
-        return EXIT_FAILURE;
-      }
+    // Do the bind mount in the host filesystem since no process in
+    // the new network namespace should be seeing the original network
+    // files from the host filesystem. This is also required by the
+    // command executor since command executor will be launched with
+    // rootfs of host filesystem and will later pivot to the rootfs of
+    // the container filesystem, when launching the task.
+    if (!os::exists(file)) {
+      // NOTE: We just fail if the mount point does not exist on the
+      // host filesystem because we don't want to pollute the host
+      // filesystem.
+      cerr << "Mount point '" << file << "' does not exist "
+           << "on the host filesystem"<< endl;
+      return EXIT_FAILURE;
     }
 
     mount = fs::mount(
         source,
-        target,
+        file,
         None(),
         MS_BIND,
         NULL);
 
     if (mount.isError()) {
       cerr << "Failed to bind mount from '" << source << "' to '"
-           << target << "': " << mount.error() << endl;
+           << file << "': " << mount.error() << endl;
       return EXIT_FAILURE;
+    }
+
+    // Do the bind mount in the container filesystem.
+    if (flags.rootfs.isSome()) {
+      const string target = path::join(flags.rootfs.get(), file);
+      if (!os::exists(target)) {
+        // Create the mount point in the container filesystem.
+        Try<Nothing> touch = os::touch(target);
+        if (touch.isError()) {
+          cerr << "Failed to create the mount point '" << target
+               << "' in the container filesystem" << endl;
+          return EXIT_FAILURE;
+        }
+      }
+
+      mount = fs::mount(
+          source,
+          target,
+          None(),
+          MS_BIND,
+          NULL);
+
+      if (mount.isError()) {
+        cerr << "Failed to bind mount from '" << source << "' to '"
+             << target << "': " << mount.error() << endl;
+        return EXIT_FAILURE;
+      }
     }
   }
 
