@@ -466,6 +466,14 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   }
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
+    // NOTE: Volumes with source will be handled by the corresponding
+    // isolators (e.g., docker/volume).
+    if (volume.has_source()) {
+      VLOG(1) << "Ignored a volume with source for container '"
+              << containerId << "'";
+      continue;
+    }
+
     if (!volume.has_host_path()) {
       return Error("A volume misses 'host_path'");
     }
