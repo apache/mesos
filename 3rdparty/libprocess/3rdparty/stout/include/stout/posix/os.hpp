@@ -473,7 +473,7 @@ inline Option<std::string> which(const std::string& command)
 
   std::vector<std::string> tokens = strings::tokenize(path.get(), ":");
   foreach (const std::string& token, tokens) {
-    const std::string& commandPath = path::join(token, command);
+    const std::string commandPath = path::join(token, command);
     if (!os::exists(commandPath)) {
       continue;
     }
