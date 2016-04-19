@@ -38,6 +38,47 @@
 
 namespace os {
 
+// Overload of os::pids for filtering by groups and sessions. A group / session
+// id of 0 will fitler on the group / session ID of the calling process.
+// NOTE: Windows does not have the concept of a process group, so we need to
+// enumerate all processes.
+inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
+{
+  DWORD max_items = 4096;
+  DWORD bytes_returned;
+  std::vector<pid_t> processes;
+  size_t size_in_bytes;
+
+  // Attempt to populate `processes` with PIDs. We repeatedly call
+  // `EnumProcesses` with increasingly large arrays until it "suceeds" at
+  // populating the array with PIDs. The criteria for determining when
+  // `EnumProcesses` has succeeded are:
+  //   (1) the return value is nonzero.
+  //   (2) the `bytes_returned` is less than the number of bytes in the array.
+  do {
+    // TODO(alexnaparu): Set a limit to the memory that can be used.
+    processes.resize(max_items);
+    size_in_bytes = processes.size() * sizeof(pid_t);
+    BOOL result = ::EnumProcesses(processes.data(), size_in_bytes,
+                                  &bytes_returned);
+
+    if (!result) {
+      return WindowsError("`os::pids()`: Failed to call `EnumProcesses`");
+    }
+
+    max_items *= 2;
+  } while (bytes_returned >= size_in_bytes);
+
+  return std::set<pid_t>(processes.begin(), processes.end());
+}
+
+
+inline Try<std::set<pid_t>> pids()
+{
+  return pids(None(), None());
+}
+
+
 // Sets the value associated with the specified key in the set of
 // environment variables.
 inline void setenv(
@@ -190,14 +231,6 @@ inline Try<Memory> memory()
 
   return memory;
 }
-
-
-// Overload of os::pids for filtering by groups and sessions.
-// A group / session id of 0 will fitler on the group / session ID
-// of the calling process.
-inline Try<std::set<pid_t>> pids(
-    Option<pid_t> group,
-    Option<pid_t> session) = delete;
 
 
 // Return the system information.
