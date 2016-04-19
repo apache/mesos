@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __ZOOKEEPER_GROUP_HPP__
-#define __ZOOKEEPER_GROUP_HPP__
+#ifndef __MESOS_ZOOKEEPER_GROUP_HPP__
+#define __MESOS_ZOOKEEPER_GROUP_HPP__
 
 #include <map>
 #include <set>
@@ -348,4 +348,4 @@ private:
 
 } // namespace zookeeper {
 
-#endif // __ZOOKEEPER_GROUP_HPP__
+#endif // __MESOS_ZOOKEEPER_GROUP_HPP__

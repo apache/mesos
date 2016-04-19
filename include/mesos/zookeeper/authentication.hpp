@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __ZOOKEEPER_AUTHENTICATION_HPP__
-#define __ZOOKEEPER_AUTHENTICATION_HPP__
+#ifndef __MESOS_ZOOKEEPER_AUTHENTICATION_HPP__
+#define __MESOS_ZOOKEEPER_AUTHENTICATION_HPP__
 
 #include <zookeeper.h>
 
@@ -62,4 +62,4 @@ inline std::ostream& operator<<(
 
 } // namespace zookeeper {
 
-#endif // __ZOOKEEPER_AUTHENTICATION_HPP__
+#endif // __MESOS_ZOOKEEPER_AUTHENTICATION_HPP__

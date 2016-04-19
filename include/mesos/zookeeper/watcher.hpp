@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __ZOOKEEPER_WATCHER_HPP__
-#define __ZOOKEEPER_WATCHER_HPP__
+#ifndef __MESOS_ZOOKEEPER_WATCHER_HPP__
+#define __MESOS_ZOOKEEPER_WATCHER_HPP__
 
 #include <stdint.h>
 
@@ -90,4 +90,4 @@ private:
   bool reconnect;
 };
 
-#endif // __ZOOKEEPER_WATCHER_HPP__
+#endif // __MESOS_ZOOKEEPER_WATCHER_HPP__

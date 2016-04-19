@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __ZOOKEEPER_URL_HPP__
-#define __ZOOKEEPER_URL_HPP__
+#ifndef __MESOS_ZOOKEEPER_URL_HPP__
+#define __MESOS_ZOOKEEPER_URL_HPP__
 
 #include <string>
 
@@ -119,4 +119,4 @@ inline std::ostream& operator<<(std::ostream& stream, const URL& url)
 
 } // namespace zookeeper {
 
-#endif // __ZOOKEEPER_URL_HPP__
+#endif // __MESOS_ZOOKEEPER_URL_HPP__

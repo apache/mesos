@@ -21,8 +21,8 @@
  * (also known as the compiler-firewall, bridge pattern, etc) was used
  * for the ZooKeeper class.
 */
-#ifndef ZOOKEEPER_HPP
-#define ZOOKEEPER_HPP
+#ifndef __MESOS_ZOOKEEPER_HPP__
+#define __MESOS_ZOOKEEPER_HPP__
 
 #include <stdint.h>
 
@@ -332,4 +332,4 @@ private:
 };
 
 
-#endif /* ZOOKEEPER_HPP */
+#endif /* __MESOS_ZOOKEEPER_HPP__ */

@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __ZOOKEEPER_CONTENDER_HPP
-#define __ZOOKEEPER_CONTENDER_HPP
+#ifndef __MESOS_ZOOKEEPER_CONTENDER_HPP__
+#define __MESOS_ZOOKEEPER_CONTENDER_HPP__
 
 #include <string>
 
@@ -78,4 +78,4 @@ private:
 
 } // namespace zookeeper {
 
-#endif // __ZOOKEEPER_CONTENDER_HPP
+#endif // __MESOS_ZOOKEEPER_CONTENDER_HPP__

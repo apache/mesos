@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __ZOOKEEPER_DETECTOR_HPP__
-#define __ZOOKEEPER_DETECTOR_HPP__
+#ifndef __MESOS_ZOOKEEPER_DETECTOR_HPP__
+#define __MESOS_ZOOKEEPER_DETECTOR_HPP__
 
 #include <string>
 
@@ -64,4 +64,4 @@ private:
 
 } // namespace zookeeper {
 
-#endif // __ZOOKEEPER_DETECTOR_HPP__
+#endif // __MESOS_ZOOKEEPER_DETECTOR_HPP__
