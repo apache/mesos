@@ -968,3 +968,14 @@ TEST_F(OsTest, Realpath)
   os::rm(testFile);
   os::rm(testLink);
 }
+
+
+TEST_F(OsTest, Which)
+{
+  // TODO(jieyu): Test PATH search ordering and file execution bit.
+  Option<string> which = os::which("ls");
+  ASSERT_SOME(which);
+
+  which = os::which("bar");
+  EXPECT_NONE(which);
+}

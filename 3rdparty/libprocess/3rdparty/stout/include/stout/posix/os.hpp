@@ -463,6 +463,38 @@ inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
   return children(pid, processes.get(), recursive);
 }
 
+
+inline Option<std::string> which(const std::string& command)
+{
+  Option<std::string> path = getenv("PATH");
+  if (path.isNone()) {
+    return None();
+  }
+
+  std::vector<std::string> tokens = strings::tokenize(path.get(), ":");
+  foreach (const std::string& token, tokens) {
+    const std::string& commandPath = path::join(token, command);
+    if (!os::exists(commandPath)) {
+      continue;
+    }
+
+    Try<os::Permissions> permissions = os::permissions(commandPath);
+    if (permissions.isError()) {
+      continue;
+    }
+
+    if (!permissions.get().owner.x &&
+        !permissions.get().group.x &&
+        !permissions.get().others.x) {
+      continue;
+    }
+
+    return commandPath;
+  }
+
+  return None();
+}
+
 } // namespace os {
 
 #endif // __STOUT_POSIX_OS_HPP__
