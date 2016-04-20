@@ -64,27 +64,13 @@ LT_OUTPUT
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
-# Force configured third-party libraries (currently only libprocess)
-# to only build a static library with position independent code so
-# that we can produce a final shared library which includes everything
-# necessary (and only install that).
-ac_configure_args_pre="$ac_configure_args"
-ac_configure_args_post="$ac_configure_args --enable-shared=no --with-pic"
-ac_configure_args="$ac_configure_args_post"
-
-# Make sure config.status doesn't get the changed configure arguments,
-# so it can rerun configure in the root directory correctly. This is
-# necessary for Makefile rules which would regenerate files (e.g.,
-# 'Makefile') after configure.ac was updated.
-AC_CONFIG_COMMANDS_PRE([ac_configure_args="$ac_configure_args_pre"])
-AC_CONFIG_COMMANDS_POST([ac_configure_args="$ac_configure_args_post"])
-
-AC_CONFIG_SUBDIRS([3rdparty/libprocess])
-AC_CONFIG_SUBDIRS([3rdparty/stout])
-
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
+AC_CONFIG_FILES([3rdparty/libprocess/Makefile])
+AC_CONFIG_FILES([3rdparty/libprocess/include/Makefile])
+AC_CONFIG_FILES([3rdparty/stout/Makefile])
+AC_CONFIG_FILES([3rdparty/stout/include/Makefile])
 AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
@@ -573,6 +559,11 @@ AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 if test "x$enable_static_unimplemented" = "xyes"; then
   AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
 fi
+
+# Build libprocess as a static library with position independent code so
+# that we can produce a final shared library which includes everything
+# necessary (and only install that).
+AM_CONDITIONAL([ENABLE_STATIC_LIBPROCESS], [true])
 
 AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).

@@ -61,6 +61,8 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
+AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
+
 ###############################################################################
 # Optional features.
 ###############################################################################
