@@ -252,7 +252,7 @@ mesos::internal::master::Flags::Flags()
       "different than `" + string(DEFAULT_AUTHORIZER) + "`, the ACLs contents\n"
       "will be ignored.\n"
       "\n"
-      "See the ACLs protobuf in authorizer.proto for the expected format.\n"
+      "See the ACLs protobuf in acls.proto for the expected format.\n"
       "\n"
       "Example:\n"
       "{\n"

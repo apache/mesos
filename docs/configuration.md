@@ -425,7 +425,7 @@ Note that if the flag <code>--authorizers</code> is provided with a value
 different than <code>local</code>, the ACLs contents will be
 ignored.
 <p/>
-See the ACLs protobuf in authorizer.proto for the expected format.
+See the ACLs protobuf in acls.proto for the expected format.
 <p/>
 Example:
 <pre><code>{
