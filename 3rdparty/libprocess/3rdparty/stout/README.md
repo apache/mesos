@@ -40,7 +40,7 @@ Note that the library is designed to completely avoid exceptions. See [exception
 
 ## `Option`, `Some`, and `None`
 
-The `Option` type provides a safe alternative to using `NULL`. An `Option` can be constructed explicitely or implicitely:
+The `Option` type provides a safe alternative to using `NULL`. An `Option` can be constructed explicitly or implicitly:
 
 ~~~{.cpp}
     Option<bool> o(true);
@@ -93,7 +93,7 @@ Similar to `None`, the `Some` type can be used to construct an `Option` as well.
 
 ## `Try`, `Result`, and `Error`
 
-A `Try` provides a mechanism to return a value or an error without throwing exceptions. Like `Option`, you can explicitely or implicitely construct a `Try`:
+A `Try` provides a mechanism to return a value or an error without throwing exceptions. Like `Option`, you can explicitly or implicitly construct a `Try`:
 
 ~~~{.cpp}
     Try<bool> t(true);
@@ -110,7 +110,7 @@ You can check if a value is present using `Try::isSome()` and `Try::isError()` a
     }
 ~~~
 
-A `Result` is a combination of a `Try` and an `Option`; you can think of a `Result` as semantically being equivalant to `Try<Option<T>>`. In addition to `isSome()` and `isError()` a `Result` includes `isNone()`.
+A `Result` is a combination of a `Try` and an `Option`; you can think of a `Result` as semantically being equivalent to `Try<Option<T>>`. In addition to `isSome()` and `isError()` a `Result` includes `isNone()`.
 
 The `Error` type acts as "syntactic sugar" for implicitly constructing a `Try` or `Result`. For example:
 
@@ -261,7 +261,7 @@ std::cout << jsonify(customer);
 // prints: {"first name":"michael","last name":"park","age":25}
 ~~~
 
-`jsonify(const F&)` overload takes a function object `F` that takes a pointer to writer. This is useful in cases where we don't want to define a public `json` function out-ouf-line.
+`jsonify(const F&)` overload takes a function object `F` that takes a pointer to writer. This is useful in cases where we don't want to define a public `json` function out-of-line.
 
 ~~~{.cpp}
 namespace store {
@@ -314,7 +314,7 @@ Most of the ways to get or set information about files requires complicated call
 
 #### Processes
 
-There are some fairly extensive abstractions around getting process information from the operating system. There is an `os::Process` type that gets provided by utiltiies like `os::processes`. You can construct an arbitrary fork/exec process tree by constructing an `os::Fork`, get all the processes in a process tree using `os::pstree`, and kill all the processes in a process tree using `os::killtree` (the latter is similar to the shell command `kill` but strictly more powerful in that it can walk a process tree, following groups and sessions if requested).
+There are some fairly extensive abstractions around getting process information from the operating system. There is an `os::Process` type that gets provided by utilities like `os::processes`. You can construct an arbitrary fork/exec process tree by constructing an `os::Fork`, get all the processes in a process tree using `os::pstree`, and kill all the processes in a process tree using `os::killtree` (the latter is similar to the shell command `kill` but strictly more powerful in that it can walk a process tree, following groups and sessions if requested).
 
 #### `sysctl`
 
@@ -338,7 +338,7 @@ There are a handful of wrappers that make working with signals easier, including
 
 ## `path::`
 
-The `path` namespace provides the `path::join` function for joining toghether filesystem paths. Additionally to the `path` namespace there also exists the class `Path`. `Path` provides `basename()` and `dirname()` as thread safe replacements for standard `::basename()` and `::dirname()`.
+The `path` namespace provides the `path::join` function for joining together filesystem paths. Additionally to the `path` namespace there also exists the class `Path`. `Path` provides `basename()` and `dirname()` as thread safe replacements for standard `::basename()` and `::dirname()`.
 
 
 <a href="proc"></a>
@@ -425,7 +425,7 @@ You can load flags from the environment in addition to `argc` and `argv` by spec
     Try<Nothing> load = flags.load("PREFIX_", argc, argv);
 ~~~
 
-Then both PREFIX_foo and PREFIX_bar will be loaded from the environemnt as well as possibly from on the command line.
+Then both PREFIX_foo and PREFIX_bar will be loaded from the environment as well as possibly from on the command line.
 
 There are various ways to deal with unknown flags (i.e., `--baz` in our example above) and duplicates (i.e., `--foo` on the command line twice or once in the environment and once on the command line). See the header files for the various `load` overloads.
 
@@ -451,7 +451,7 @@ Finally, there is a `cache` implementation (also requires Boost) that provides a
 
 ## Miscellaneous
 
-There are a handful of types and utilties that fall into the miscellaneous category. Note that like the collections _these are not namespaced_.
+There are a handful of types and utilities that fall into the miscellaneous category. Note that like the collections _these are not namespaced_.
 
 
 #### `Bytes`
@@ -606,7 +606,7 @@ You'll notice that the library is designed in a way that can lead to a
 lot of copying. This decision was deliberate. Capturing the semantics
 of pointer ownership is hard to enforce programmatically unless you
 copy, and in many instances these copies can be elided by an
-optimizing compiler. We've choosen safety rather than premature
+optimizing compiler. We've chosen safety rather than premature
 optimizations.
 
 Note, however, that we plan to liberally augment the library as we add

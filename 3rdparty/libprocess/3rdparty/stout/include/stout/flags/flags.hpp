@@ -391,8 +391,7 @@ void FlagsBase::add(
   // use the correct instance of FlagsBase. In other words, we can't
   // capture 'this' here because it's possible that the FlagsBase
   // object that we're working with when we invoke FlagsBase::add is
-  // not the same instance as 'this' when the these lambdas get
-  // invoked.
+  // not the same instance as 'this' when these lambdas get invoked.
 
   flag.load = [t1](FlagsBase* base, const std::string& value) -> Try<Nothing> {
     Flags* flags = dynamic_cast<Flags*>(base);
