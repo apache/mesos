@@ -51,7 +51,7 @@ private:
 };
 
 
-// We need an intermeidate "deferred" type because when constructing a
+// We need an intermediate "deferred" type because when constructing a
 // Deferred we won't always know the underlying function type (for
 // example, if we're being passed a std::bind or a lambda). A lambda
 // won't always implicitly convert to a std::function so instead we
@@ -139,7 +139,7 @@ struct _Deferred
   // with variadic templates and lambdas, we still need to do
   // preprocessor expansions. In addition, due to a bug with clang (or
   // libc++) we can't use std::bind with a std::function so we have to
-  // explicitely use the std::function<R(P...)>::operator() (see
+  // explicitly use the std::function<R(P...)>::operator() (see
   // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
 #define TEMPLATE(Z, N, DATA)                                            \
   template <ENUM_PARAMS(N, typename P)>                                 \

@@ -67,7 +67,7 @@ public:
    * Describes how the I/O is redirected for stdin/stdout/stderr.
    * One of the following three modes are supported:
    *   1. PIPE: Redirect to a pipe.  The pipe will be created when
-   *      launching a subprocess and the the user can read/write the
+   *      launching a subprocess and the user can read/write the
    *      parent side of the pipe using `Subprocess::in/out/err`.
    *   2. PATH: Redirect to a file.  For stdout/stderr, the file will
    *      be created if it does not exist.  If the file exists, it

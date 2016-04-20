@@ -134,7 +134,7 @@ if OS_FREEBSD
 endif
 
 if WITH_BUNDLED_GLOG
-# NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
+# NOTE: We explicitly set GTEST_CONFIG=no so that we don't attempt to
 # build glog against a system installed gtest (there's no reason to
 # "test" glog and it's highly likely it will cause a compilation bug
 # when building with clang).

@@ -56,7 +56,7 @@ Deferred<void()> defer(const Process<T>* process, void (T::*method)())
 // with variadic templates and lambdas, we still need to do
 // preprocessor expansions. In addition, due to a bug with clang (or
 // libc++) we can't use std::bind with a std::function so we have to
-// explicitely use the std::function<R(P...)>::operator() (see
+// explicitly use the std::function<R(P...)>::operator() (see
 // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T,                                                 \
@@ -165,7 +165,7 @@ Deferred<Future<R>()> defer(const Process<T>* process, Future<R> (T::*method)())
 #undef TEMPLATE
 
 
-// Finaly, definitions of defer for methods returning a value:
+// Finally, definitions of defer for methods returning a value:
 
 template <typename R, typename T>
 Deferred<Future<R>()> defer(const PID<T>& pid, R (T::*method)())
