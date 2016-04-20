@@ -188,6 +188,12 @@ AC_ARG_ENABLE([libevent],
                              [use libevent instead of libev default: no]),
               [enable_libevent=yes], [])
 
+AC_ARG_ENABLE([install-module-dependencies],
+              AS_HELP_STRING([--enable-install-module-dependencies],
+                             [Install third-party bundled dependencies required
+                              for module development default: no]),
+              [enable_install_module_dependencies=yes], [])
+
 AC_ARG_ENABLE([nvidia-gpu-support],
               AS_HELP_STRING([--enable-nvidia-gpu-support],
                              [build with Nvidia GPU support default: no]),
@@ -588,6 +594,9 @@ AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
+
+AM_CONDITIONAL([INSTALL_MODULE_DEPENDENCIES],
+               [test x"$enable_install_module_dependencies" = "xyes"])
 
 AM_CONDITIONAL([INSTALL_TESTS], [test x"$enable_tests_install" = "xyes"])
 AS_IF([test x"$enable_tests_install" = "xyes"],

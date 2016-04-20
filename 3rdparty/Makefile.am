@@ -30,6 +30,18 @@ SUBDIRS = . stout libprocess
 #  '--srcdir=...' when configuring.
 CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
+if INSTALL_MODULE_DEPENDENCIES
+# The reason we use '/' prefix is to allow ourselves to install these packages
+# in build/3rdparty directory as well. To do that, we can simply call
+#   `make install DESTDIR=/path/to/builddir/ install`
+# Similarly, when doing system-wide installation, we can do:
+#   `make install DESTDIR=${MESOS-PREFIX}/lib/mesos/3rdparty install`
+CONFIGURE_ARGS += --prefix=/
+endif
+
+# Directory where bundled 3rdparty module dependencies are installed.
+pkg3rdpartydir = $(pkglibdir)/3rdparty
+
 include versions.am
 
 BOOST = boost-$(BOOST_VERSION)
@@ -255,3 +267,31 @@ clean-local:
 tests: all $(check_LTLIBRARIES)
 	@cd stout && $(MAKE) $(AM_MAKEFLAGS) tests
 	@cd libprocess && $(MAKE) $(AM_MAKEFLAGS) tests
+
+# Install 3rdparty module dependencies.
+if INSTALL_MODULE_DEPENDENCIES
+install-exec-local:
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  INSTALLDIR=$(DESTDIR)$(pkg3rdpartydir) install-module-dependencies
+endif
+
+install-module-dependencies:
+	$(install_sh) -d $(INSTALLDIR)/include
+if WITH_BUNDLED_BOOST
+	@test -d $(INSTALLDIR)/include/boost || \
+	  rm -rf $(INSTALLDIR)/include/boost
+	cp -fpR $(BOOST)/boost $(INSTALLDIR)/include/
+endif
+if WITH_BUNDLED_GLOG
+	cd $(GLOG) && \
+	  $(MAKE) $(AM_MAKEFLAGS) DESTDIR=$(INSTALLDIR) install
+endif
+if WITH_BUNDLED_PICOJSON
+	cd $(PICOJSON) && \
+	  $(MAKE) $(AM_MAKEFLAGS) \
+	    DESTDIR= includedir=$(INSTALLDIR)/include install
+endif
+if WITH_BUNDLED_PROTOBUF
+	cd $(PROTOBUF) && \
+	  $(MAKE) $(AM_MAKEFLAGS) DESTDIR=$(INSTALLDIR) install
+endif
