@@ -330,6 +330,9 @@ fi
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test x"$gperftools" = "xyes"])
 AM_COND_IF([HAS_GPERFTOOLS], AC_DEFINE([ENABLE_GPERFTOOLS], [1]))
 
+# Disable static libprocess by default.
+AM_CONDITIONAL([ENABLE_STATIC_LIBPROCESS], [false])
+
 # Do some OS specific setup.
 case "${target_os}" in
   linux*)

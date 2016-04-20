@@ -158,6 +158,13 @@ else
     src/libev_poll.cpp
 endif
 
+if ENABLE_STATIC_LIBPROCESS
+# A static libprocess with position independent code can be used to produce a
+# final shared library (e.g., libmesos.so) which includes everything necessary
+# (and only install that).
+libprocess_la_LDFLAGS = -static -fpic
+endif
+
 libprocess_la_LIBADD =		\
   $(LIB_GLOG)			\
   $(LIB_GPERFTOOLS)		\
