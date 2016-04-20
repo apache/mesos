@@ -59,7 +59,7 @@ There is a set of tooling listed below that is required to be installed for the 
 
 ## Core Libraries
 
-There are two core libraries in Mesos: *stout* and *libprocess*. *stout* is the low level operating system abstraction tooling that should be used in place of writing your own low level tools. *libprocess* is a library used to support building compatible concurrent components (see [video](https://www.youtube.com/watch?v=5EIiU6R_6KE) for an introduction to the *libprocess* library). New contributors to Mesos should become familiar with these libraries and utilize them where appropriate.  Additional documentation can be found in the following two README files: 3rdparty/libprocess/README.md and 3rdparty/libprocess/3rdparty/stout/README.md.
+There are two core libraries in Mesos: *stout* and *libprocess*. *stout* is the low level operating system abstraction tooling that should be used in place of writing your own low level tools. *libprocess* is a library used to support building compatible concurrent components (see [video](https://www.youtube.com/watch?v=5EIiU6R_6KE) for an introduction to the *libprocess* library). New contributors to Mesos should become familiar with these libraries and utilize them where appropriate.  Additional documentation can be found in the following two README files: 3rdparty/libprocess/README.md and 3rdparty/stout/README.md.
 
 ## Download and Build Mesos
 
