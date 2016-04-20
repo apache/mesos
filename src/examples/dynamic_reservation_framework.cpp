@@ -99,6 +99,9 @@ public:
 
       const State state = states[offer.slave_id()];
 
+      Filters filters;
+      filters.set_refuse_seconds(0);
+
       switch (state) {
         case State::INIT: {
           // Framework reserves resources from this offer for only one task;
@@ -111,7 +114,7 @@ public:
                       << stringify(offer.id());
             break;
           }
-          driver->acceptOffers({offer.id()}, {RESERVE(taskResources)});
+          driver->acceptOffers({offer.id()}, {RESERVE(taskResources)}, filters);
           states[offer.slave_id()] = State::RESERVING;
           break;
         }
@@ -133,7 +136,8 @@ public:
 
           // If all tasks were launched, unreserve those resources.
           if (tasksLaunched == totalTasks) {
-            driver->acceptOffers({offer.id()}, {UNRESERVE(taskResources)});
+            driver->acceptOffers(
+                {offer.id()}, {UNRESERVE(taskResources)}, filters);
             states[offer.slave_id()] = State::UNRESERVING;
             break;
           }
@@ -152,7 +156,7 @@ public:
           task.mutable_command()->set_shell(true);
           task.mutable_command()->set_value(command);
           task.mutable_resources()->MergeFrom(taskResources);
-          driver->launchTasks(offer.id(), {task});
+          driver->launchTasks(offer.id(), {task}, filters);
           states[offer.slave_id()] = State::TASK_RUNNING;
           break;
         }
