@@ -30,7 +30,7 @@ if len(sys.argv) < 2:
 base_project = "mesos"
 subprojects = {
   "libprocess": "3rdparty/libprocess",
-  "stout": "3rdparty/libprocess/3rdparty/stout"
+  "stout": "3rdparty/stout"
 }
 ERROR = """ERROR: Commit spanning multiple projects.
 
