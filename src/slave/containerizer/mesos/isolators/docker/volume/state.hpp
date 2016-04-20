@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __ISOLATOR_VOLUME_STATE_HPP__
-#define __ISOLATOR_VOLUME_STATE_HPP__
+#ifndef __ISOLATOR_DOCKER_VOLUME_STATE_HPP__
+#define __ISOLATOR_DOCKER_VOLUME_STATE_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include "slave/containerizer/mesos/isolators/docker/volume/state.pb.h"
 
-#endif // __ISOLATOR_VOLUME_STATE_HPP__
+#endif // __ISOLATOR_DOCKER_VOLUME_STATE_HPP__
