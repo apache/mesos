@@ -656,7 +656,7 @@ public:
     if (unzipError) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "No 'uznip' command found so no 'unzip' tests will be run\n"
+        << "No 'unzip' command found so no 'unzip' tests will be run\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
