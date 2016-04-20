@@ -97,7 +97,7 @@ void DRFSorter::deactivate(const string& name)
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
-    // TODO(benh): Removing the client is an unfortuante strategy
+    // TODO(benh): Removing the client is an unfortunate strategy
     // because we lose information such as the number of allocations
     // for this client which means the fairness can be gamed by a
     // framework disconnecting and reconnecting.
