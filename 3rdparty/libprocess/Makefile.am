@@ -16,7 +16,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
-LIBPROCESS_BUILD_DIR=@abs_top_builddir@
+LIBPROCESS_BUILD_DIR=@abs_builddir@
 
 # NOTE: The libprocess headers were moved to the Makefile in "include"
 # subdirectory to make it easy to preserve the directory structure of
@@ -192,7 +192,7 @@ libprocess_tests_SOURCES =					\
   src/tests/time_tests.cpp
 
 libprocess_tests_CPPFLAGS =		\
-  -I$(top_srcdir)/src			\
+  -I$(srcdir)/src			\
   $(GMOCK_INCLUDE_FLAGS)		\
   $(GTEST_INCLUDE_FLAGS)		\
   $(libprocess_la_CPPFLAGS)
@@ -218,7 +218,7 @@ benchmarks_SOURCES =			\
   src/tests/benchmarks.cpp
 
 benchmarks_CPPFLAGS =			\
-  -I$(top_srcdir)/src			\
+  -I$(srcdir)/src			\
   $(GMOCK_INCLUDE_FLAGS)		\
   $(GTEST_INCLUDE_FLAGS)		\
   $(libprocess_la_CPPFLAGS)
