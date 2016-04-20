@@ -153,7 +153,7 @@ Future<Nothing> OverlayBackendProcess::provision(
 
   // For overlayfs, the specified lower directories will be stacked
   // beginning from the rightmost one and going left. But we need the
-  // first layer in the vector to be the the bottom most layer.
+  // first layer in the vector to be the bottom most layer.
   string options = "lowerdir=" + strings::join(":", adaptor::reverse(layers));
   options += ",upperdir=" + upperdir;
   options += ",workdir=" + workdir;

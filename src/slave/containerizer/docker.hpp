@@ -38,14 +38,14 @@ namespace slave {
 // created by Mesos from those created manually.
 extern const std::string DOCKER_NAME_PREFIX;
 
-// Seperator used to compose docker container name, which is made up
+// Separator used to compose docker container name, which is made up
 // of slave ID and container ID.
 extern const std::string DOCKER_NAME_SEPERATOR;
 
 // Directory that stores all the symlinked sandboxes that is mapped
 // into Docker containers. This is a relative directory that will
 // joined with the slave path. Only sandbox paths that contains a
-// colon will be symlinked due to the limiitation of the Docker CLI.
+// colon will be symlinked due to the limitation of the Docker CLI.
 extern const std::string DOCKER_SYMLINK_DIRECTORY;
 
 
@@ -397,7 +397,7 @@ private:
       return executor.container().docker().force_pull_image();
     }
 
-    // The DockerContainerier needs to be able to properly clean up
+    // The DockerContainerizer needs to be able to properly clean up
     // Docker containers, regardless of when they are destroyed. For
     // example, if a container gets destroyed while we are fetching,
     // we need to not keep running the fetch, nor should we try and
@@ -411,10 +411,10 @@ private:
     //     DESTROYING
     //
     // In particular, we made 'PULLING' be it's own state so that we
-    // could easily destroy and cleanup when a user initiated pulling
+    // can easily destroy and cleanup when a user initiated pulling
     // a really big image but we timeout due to the executor
-    // registration timeout. Since we curently have no way to discard
-    // a Docker::run, we needed to explicitely do the pull (which is
+    // registration timeout. Since we currently have no way to discard
+    // a Docker::run, we needed to explicitly do the pull (which is
     // the part that takes the longest) so that we can also explicitly
     // kill it when asked. Once the functions at Docker::* get support
     // for discarding, then we won't need to make pull be it's own

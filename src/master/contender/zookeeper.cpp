@@ -50,7 +50,7 @@ public:
   explicit ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterContenderProcess();
 
-  // Explicitely use 'initialize' since we're overloading below.
+  // Explicitly use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;
 
   void initialize(const MasterInfo& masterInfo);

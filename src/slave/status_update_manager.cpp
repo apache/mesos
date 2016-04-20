@@ -70,7 +70,7 @@ public:
   StatusUpdateManagerProcess(const Flags& flags);
   virtual ~StatusUpdateManagerProcess();
 
-  // Explicitely use 'initialize' since we're overloading below.
+  // Explicitly use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;
 
   // StatusUpdateManager implementation.
