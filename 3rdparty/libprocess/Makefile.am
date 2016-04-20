@@ -206,10 +206,7 @@ libprocess_tests_CPPFLAGS =		\
 
 libprocess_tests_LDADD =		\
   $(LIB_GMOCK)				\
-  libprocess.la				\
-  $(LIB_GLOG)				\
-  $(LIB_HTTP_PARSER)			\
-  $(LIB_EV)
+  libprocess.la
 
 if ENABLE_SSL
 check_PROGRAMS += ssl-client
@@ -232,10 +229,25 @@ benchmarks_CPPFLAGS =			\
 
 benchmarks_LDADD =			\
   $(LIB_GMOCK)				\
-  libprocess.la				\
+  libprocess.la
+
+if !ENABLE_STATIC_LIBPROCESS
+# If libprocess is not static, we need to directly link against libglog, etc.
+# When libprocess is configured by Mesos, it is forced to generate a static
+# libprocess.a library. The static libprocess.a encapsulates libglog, etc.
+# However, when building a standalone libprocess, we need to explicitly link
+# these tests against libglog, etc., because libprocess.so won't contain these
+# libraries.
+benchmarks_LDADD +=			\
   $(LIB_GLOG)				\
   $(LIB_HTTP_PARSER)			\
   $(LIB_EV)
+
+libprocess_tests_LDADD +=		\
+  $(LIB_GLOG)				\
+  $(LIB_HTTP_PARSER)			\
+  $(LIB_EV)
+endif
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
