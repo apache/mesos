@@ -19,14 +19,14 @@ AUTOMAKE_OPTIONS = foreign
 # the header files during installation.
 SUBDIRS = . include
 
-include ../../../versions.am
+include ../versions.am
 
-BOOST = ../../../boost-$(BOOST_VERSION)
-GLOG = ../../../glog-$(GLOG_VERSION)
-GMOCK = ../../../gmock-$(GMOCK_VERSION)
+BOOST = ../boost-$(BOOST_VERSION)
+GLOG = ../glog-$(GLOG_VERSION)
+GMOCK = ../gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
-PROTOBUF = ../../../protobuf-$(PROTOBUF_VERSION)
-PICOJSON = ../../../picojson-$(PICOJSON_VERSION)
+PROTOBUF = ../protobuf-$(PROTOBUF_VERSION)
+PICOJSON = ../picojson-$(PICOJSON_VERSION)
 
 # We use "-isystem" instead of "-I" to add Boost to the include search
 # path. This disables compiler warnings inside Boost headers since we
@@ -46,7 +46,7 @@ endif
 if WITH_BUNDLED_GMOCK
 GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
 GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
-LIB_GMOCK = ../../../libgmock.la
+LIB_GMOCK = ../libgmock.la
 endif
 
 # Enable the INT64 support for PicoJSON.

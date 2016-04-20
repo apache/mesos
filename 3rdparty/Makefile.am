@@ -24,7 +24,7 @@
 
 BUILT_SOURCES = # Initialized to enable using +=.
 
-SUBDIRS = . libprocess
+SUBDIRS = . stout libprocess
 
 # We need to add '--srcdir=.' needed because 'make distcheck' adds
 #  '--srcdir=...' when configuring.
@@ -253,4 +253,5 @@ clean-local:
 	rm -f *-stamp
 
 tests: all $(check_LTLIBRARIES)
+	@cd stout && $(MAKE) $(AM_MAKEFLAGS) tests
 	@cd libprocess && $(MAKE) $(AM_MAKEFLAGS) tests

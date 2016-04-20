@@ -57,8 +57,6 @@ LT_OUTPUT
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
-AC_CONFIG_SUBDIRS([3rdparty/stout])
-
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])

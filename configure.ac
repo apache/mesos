@@ -80,6 +80,7 @@ AC_CONFIG_COMMANDS_PRE([ac_configure_args="$ac_configure_args_pre"])
 AC_CONFIG_COMMANDS_POST([ac_configure_args="$ac_configure_args_post"])
 
 AC_CONFIG_SUBDIRS([3rdparty/libprocess])
+AC_CONFIG_SUBDIRS([3rdparty/stout])
 
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([src/Makefile])

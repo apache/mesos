@@ -21,11 +21,11 @@ LIBPROCESS_BUILD_DIR=@abs_top_builddir@
 # NOTE: The libprocess headers were moved to the Makefile in "include"
 # subdirectory to make it easy to preserve the directory structure of
 # the header files during installation.
-SUBDIRS = 3rdparty . include
+SUBDIRS = . include
 
 include ../versions.am
 
-STOUT = 3rdparty/stout
+STOUT = ../stout
 BOOST = ../boost-$(BOOST_VERSION)
 GLOG = ../glog-$(GLOG_VERSION)
 GMOCK = ../gmock-$(GMOCK_VERSION)
@@ -242,7 +242,6 @@ $(LIB_GMOCK):
 	@cd .. && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
 
 tests: all libprocess-tests benchmarks
-	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
