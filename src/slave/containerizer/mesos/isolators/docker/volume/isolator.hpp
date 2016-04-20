@@ -19,13 +19,15 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
+#include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
+#include "slave/containerizer/mesos/isolators/docker/volume/paths.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
-// The docker volume driver isolator is responsible for preparing
-// mesos container volumes by leveraging docker volume driver APIs, the
-// current volume isolator mainly support two APIs: mount and umount.
+// The isolator is responsible for preparing volumes using docker
+// volume driver APIs,
 class DockerVolumeIsolatorProcess : public MesosIsolatorProcess
 {
 public:
@@ -59,9 +61,14 @@ public:
       const ContainerID& containerId);
 
 private:
-  DockerVolumeIsolatorProcess(const Flags& flags);
+  DockerVolumeIsolatorProcess(
+      const Flags& flags,
+      const std::string& rootDir,
+      const process::Owned<docker::volume::DriverClient>& client);
 
   const Flags flags;
+  const std::string rootDir;
+  const process::Owned<docker::volume::DriverClient> client;
 };
 
 } // namespace slave {
