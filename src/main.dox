@@ -5,5 +5,5 @@
  *
  * @section developer-guide Developer Guides
  *   * [Libprocess developer guide](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/README.md/)
- *   * [Stout developer guide](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/3rdparty/stout/README.md/)
+ *   * [Stout developer guide](https://github.com/apache/mesos/blob/master/3rdparty/stout/README.md/)
  */
