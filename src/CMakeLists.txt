@@ -52,6 +52,7 @@ PROTOC_TO_SRC_DIR(INTERNAL_STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(PROVISIONER_DOCKER slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_TO_SRC_DIR(ISOLATOR_CNI_SPEC slave/containerizer/mesos/isolators/network/cni/spec)
+PROTOC_TO_SRC_DIR(ISOLATOR_DOCKER_VOLUME_STATE slave/containerizer/mesos/isolators/docker/volume/state)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -84,6 +85,7 @@ set(MESOS_PROTOBUF_SRC
   ${REGISTRY_PROTO_CC}
   ${PROVISIONER_DOCKER_PROTO_CC}
   ${URI_PROTO_CC}
+  ${ISOLATOR_DOCKER_VOLUME_STATE_CC}
   )
 
 # Configure Mesos files.
@@ -279,6 +281,7 @@ if (NOT WIN32)
     slave/containerizer/mesos/mount.cpp
     slave/containerizer/mesos/isolators/filesystem/posix.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
+    slave/containerizer/mesos/isolators/docker/volume/state.proto
     slave/containerizer/mesos/isolators/network/cni/paths.cpp
     slave/containerizer/mesos/isolators/network/cni/spec.proto
     slave/containerizer/mesos/isolators/network/cni/spec.cpp
