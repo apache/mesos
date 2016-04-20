@@ -142,6 +142,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/cgroups/net_cls.cpp
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
+  slave/containerizer/mesos/isolators/docker/volume/driver.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp
   slave/containerizer/mesos/isolators/filesystem/linux.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp
