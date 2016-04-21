@@ -39,6 +39,96 @@
 #include <stout/os/raw/environment.hpp>
 
 namespace os {
+namespace internal {
+
+inline Try<OSVERSIONINFOEX> os_version()
+{
+  OSVERSIONINFOEX os_version;
+  os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+  if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
+    return WindowsError(
+        "os::internal::os_version: Call to `GetVersionEx` failed");
+  }
+
+  return os_version;
+}
+
+
+inline Try<std::string> nodename()
+{
+  // Get DNS name of the local computer. First, find the size of the output
+  // buffer.
+  DWORD size = 0;
+  if (!::GetComputerNameEx(ComputerNameDnsHostname, NULL, &size) &&
+      ::GetLastError() != ERROR_MORE_DATA) {
+    return WindowsError(
+        "os::internal::nodename: Call to `GetComputerNameEx` failed");
+  }
+
+  std::unique_ptr<char[]> name(new char[size + 1]);
+
+  if (!::GetComputerNameEx(ComputerNameDnsHostname, name.get(), &size)) {
+    return WindowsError(
+        "os::internal::nodename: Call to `GetComputerNameEx` failed");
+  }
+
+  return std::string(name.get());
+}
+
+
+inline std::string machine()
+{
+  SYSTEM_INFO system_info;
+  ::GetNativeSystemInfo(&system_info);
+
+  switch (system_info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_AMD64:
+      return "AMD64";
+    case PROCESSOR_ARCHITECTURE_ARM:
+      return "ARM";
+    case PROCESSOR_ARCHITECTURE_IA64:
+      return "IA64";
+    case PROCESSOR_ARCHITECTURE_INTEL:
+      return "x86";
+    default:
+      return "Unknown";
+  }
+}
+
+
+inline std::string sysname(OSVERSIONINFOEX os_version)
+{
+  switch (os_version.wProductType) {
+    case VER_NT_DOMAIN_CONTROLLER:
+    case VER_NT_SERVER:
+      return "Windows Server";
+    default:
+      return "Windows";
+  }
+}
+
+
+inline std::string release(OSVERSIONINFOEX os_version)
+{
+  return stringify(
+      Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0));
+}
+
+
+inline std::string version(OSVERSIONINFOEX os_version)
+{
+  std::string version = std::to_string(os_version.dwBuildNumber);
+
+  if (os_version.szCSDVersion[0] != '\0') {
+    version.append(" ");
+    version.append(os_version.szCSDVersion);
+  }
+
+  return version;
+}
+
+} // namespace internal {
+
 
 // Overload of os::pids for filtering by groups and sessions. A group / session
 // id of 0 will fitler on the group / session ID of the calling process.
@@ -235,8 +325,43 @@ inline Try<Memory> memory()
 }
 
 
+inline Try<Version> release()
+{
+  OSVERSIONINFOEX os_version;
+  os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+  if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
+    return WindowsError("os::release: Call to `GetVersionEx` failed");
+  }
+
+  return Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0);
+}
+
+
 // Return the system information.
-inline Try<UTSInfo> uname() = delete;
+inline Try<UTSInfo> uname()
+{
+  Try<OSVERSIONINFOEX> os_version = internal::os_version();
+  if (os_version.isError()) {
+    return Error(os_version.error());
+  }
+
+  // Add nodename to `UTSInfo` object.
+  Try<std::string> nodename = internal::nodename();
+  if (nodename.isError()) {
+    return Error(nodename.error());
+  }
+
+  // Populate `UTSInfo`.
+  UTSInfo info;
+
+  info.sysname = internal::sysname(os_version.get());
+  info.release = internal::release(os_version.get());
+  info.version = internal::version(os_version.get());
+  info.nodename = nodename.get();
+  info.machine = internal::machine();
+
+  return info;
+}
 
 
 // Looks in the environment variables for the specified key and

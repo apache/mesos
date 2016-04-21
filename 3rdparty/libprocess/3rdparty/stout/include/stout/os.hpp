@@ -149,6 +149,18 @@ inline void appendPaths(const std::string& newPaths)
 } // namespace libraries {
 
 
+// Return the operating system name (e.g. Linux).
+inline Try<std::string> sysname()
+{
+  Try<UTSInfo> info = uname();
+  if (info.isError()) {
+    return Error(info.error());
+  }
+
+  return info.get().sysname;
+}
+
+
 inline Try<std::list<Process>> processes()
 {
   const Try<std::set<pid_t>> pids = os::pids();

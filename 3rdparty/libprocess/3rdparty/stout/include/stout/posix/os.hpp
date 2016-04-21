@@ -348,18 +348,6 @@ inline Try<Nothing> tar(const std::string& path, const std::string& archive)
 }
 
 
-// Return the operating system name (e.g. Linux).
-inline Try<std::string> sysname()
-{
-  Try<UTSInfo> info = uname();
-  if (info.isError()) {
-    return Error(info.error());
-  }
-
-  return info.get().sysname;
-}
-
-
 // Return the OS release numbers.
 inline Try<Version> release()
 {
