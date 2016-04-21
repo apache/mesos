@@ -20,7 +20,7 @@ SETUPTOOLS=`echo ${MESOS_BUILD_DIR}/3rdparty/setuptools-*/`
 test ! -e ${SETUPTOOLS} && \
   echo "${RED}Failed to find ${SETUPTOOLS}${NORMAL}"
 
-PROTOBUF=`echo ${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*/python/`
+PROTOBUF=`echo ${MESOS_BUILD_DIR}/3rdparty/protobuf-*/python/`
 
 test ! -e ${PROTOBUF} && \
   echo "${RED}Failed to find ${PROTOBUF}${NORMAL}"

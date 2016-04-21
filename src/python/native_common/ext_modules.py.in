@@ -41,9 +41,9 @@ def _create_module(module_name):
     # libraries when building the final result, we need to explicitly
     # include them here (or more precisely, down where we actually include
     # libev.a and libprofiler.a).
-    glog = os.path.join(libprocess, '3rdparty', 'glog-0.3.3')
-    gperftools = os.path.join(libprocess, '3rdparty', 'gperftools-2.5')
-    protobuf = os.path.join(libprocess, '3rdparty', 'protobuf-2.6.1')
+    glog = os.path.join('3rdparty', 'glog-0.3.3')
+    gperftools = os.path.join('3rdparty', 'gperftools-2.5')
+    protobuf = os.path.join('3rdparty', 'protobuf-2.6.1')
 
     # Build the list of source files. Note that each source must be
     # relative to our current directory (where this script lives).
@@ -107,7 +107,7 @@ def _create_module(module_name):
     # TODO(hartem): this entire block MUST be removed once libev is deprecated
     # in favor of libevent.
     if '@ENABLE_LIBEVENT_TRUE@' == '#':
-        libev = os.path.join(libprocess, '3rdparty', 'libev-4.22')
+        libev = os.path.join('3rdparty', 'libev-4.22')
         libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
 
         if os.path.exists(libev):
