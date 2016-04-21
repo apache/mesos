@@ -47,6 +47,7 @@ EXTRA_DIST =					\
   tests/os_tests.cpp				\
   tests/os/env_tests.cpp			\
   tests/os/filesystem_tests.cpp			\
+  tests/os/process_tests.cpp			\
   tests/os/rmdir_tests.cpp			\
   tests/os/sendfile_tests.cpp			\
   tests/os/signals_tests.cpp			\

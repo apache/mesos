@@ -316,38 +316,6 @@ TEST_F(OsTest, Sysctl)
 #endif // __APPLE__ || __FreeBSD__
 
 
-TEST_F(OsTest, Pids)
-{
-  Try<set<pid_t> > pids = os::pids();
-  ASSERT_SOME(pids);
-  EXPECT_NE(0u, pids.get().size());
-  EXPECT_EQ(1u, pids.get().count(getpid()));
-
-  // In a FreeBSD jail, pid 1 may not exist.
-#ifdef __FreeBSD__
-  if (!isJailed()) {
-#endif
-    EXPECT_EQ(1u, pids.get().count(1));
-#ifdef __FreeBSD__
-  }
-#endif
-
-  pids = os::pids(getpgid(0), None());
-  EXPECT_SOME(pids);
-  EXPECT_GE(pids.get().size(), 1u);
-  EXPECT_EQ(1u, pids.get().count(getpid()));
-
-  EXPECT_ERROR(os::pids(-1, None()));
-
-  pids = os::pids(None(), getsid(0));
-  EXPECT_SOME(pids);
-  EXPECT_GE(pids.get().size(), 1u);
-  EXPECT_EQ(1u, pids.get().count(getpid()));
-
-  EXPECT_ERROR(os::pids(None(), -1));
-}
-
-
 TEST_F(OsTest, Children)
 {
   Try<set<pid_t> > children = os::children(getpid());
@@ -395,67 +363,6 @@ TEST_F(OsTest, Children)
 
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, NULL, 0));
-}
-
-
-TEST_F(OsTest, Process)
-{
-  const Result<Process> process = os::process(getpid());
-
-  ASSERT_SOME(process);
-  EXPECT_EQ(getpid(), process.get().pid);
-  EXPECT_EQ(getppid(), process.get().parent);
-  ASSERT_SOME(process.get().session);
-  EXPECT_EQ(getsid(getpid()), process.get().session.get());
-
-  ASSERT_SOME(process.get().rss);
-  EXPECT_GT(process.get().rss.get(), 0);
-
-  // NOTE: On Linux /proc is a bit slow to update the CPU times,
-  // hence we allow 0 in this test.
-  ASSERT_SOME(process.get().utime);
-  EXPECT_GE(process.get().utime.get(), Nanoseconds(0));
-  ASSERT_SOME(process.get().stime);
-  EXPECT_GE(process.get().stime.get(), Nanoseconds(0));
-
-  EXPECT_FALSE(process.get().command.empty());
-}
-
-
-TEST_F(OsTest, Processes)
-{
-  const Try<list<Process>> processes = os::processes();
-
-  ASSERT_SOME(processes);
-  ASSERT_GT(processes.get().size(), 2);
-
-  // Look for ourselves in the table.
-  bool found = false;
-  foreach (const Process& process, processes.get()) {
-    if (process.pid == getpid()) {
-      found = true;
-      EXPECT_EQ(getpid(), process.pid);
-      EXPECT_EQ(getppid(), process.parent);
-      ASSERT_SOME(process.session);
-      EXPECT_EQ(getsid(getpid()), process.session.get());
-
-      ASSERT_SOME(process.rss);
-      EXPECT_GT(process.rss.get(), 0);
-
-      // NOTE: On linux /proc is a bit slow to update the cpu times,
-      // hence we allow 0 in this test.
-      ASSERT_SOME(process.utime);
-      EXPECT_GE(process.utime.get(), Nanoseconds(0));
-      ASSERT_SOME(process.stime);
-      EXPECT_GE(process.stime.get(), Nanoseconds(0));
-
-      EXPECT_FALSE(process.command.empty());
-
-      break;
-    }
-  }
-
-  EXPECT_TRUE(found);
 }
 
 

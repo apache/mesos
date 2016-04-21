@@ -40,6 +40,7 @@ set(STOUT_TESTS_SRC
   option_tests.cpp
   os/env_tests.cpp
   os/filesystem_tests.cpp
+  os/process_tests.cpp
   os/rmdir_tests.cpp
   os/strerror_tests.cpp
   protobuf_tests.pb.h
