@@ -1514,12 +1514,16 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 // according to the updated weights.
 TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
 {
+  Clock::pause();
+
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   // Start Mesos master.
-  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
+  master::Flags masterFlags = this->CreateMasterFlags();
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1602,6 +1606,16 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   // Expect offer rescinded.
   EXPECT_CALL(sched1, offerRescinded(&driver1, _)).Times(3);
 
+  Future<Resources> recoverResources1, recoverResources2, recoverResources3;
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<2>(&recoverResources1),
+                    InvokeRecoverResources(&allocator)))
+    .WillOnce(DoAll(FutureArg<2>(&recoverResources2),
+                    InvokeRecoverResources(&allocator)))
+    .WillOnce(DoAll(FutureArg<2>(&recoverResources3),
+                    InvokeRecoverResources(&allocator)))
+    .WillRepeatedly(DoDefault());
+
   // Update the weight of 'role2' to 2.0.
   RepeatedPtrField<WeightInfo> infos = createWeightInfos("role2=2.0");
   Future<Response> response = process::http::request(
@@ -1616,8 +1630,21 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  // 'updateWeights' will rescind all outstanding offers and trigger
-  // the allocation immediately.
+  // 'updateWeights' will rescind all outstanding offers and the rescinded
+  // offer resources will only be available to the updated weights once
+  // another allocation is invoked.
+  AWAIT_READY(recoverResources1);
+  EXPECT_EQ(recoverResources1.get(),
+            Resources::parse(agentResources).get());
+  AWAIT_READY(recoverResources2);
+  EXPECT_EQ(recoverResources2.get(),
+            Resources::parse(agentResources).get());
+  AWAIT_READY(recoverResources3);
+  EXPECT_EQ(recoverResources3.get(),
+            Resources::parse(agentResources).get());
+
+  // Trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
 
   // role1 share = 0.33 (cpus=2, mem=1024)
   //   framework1 share = 1
