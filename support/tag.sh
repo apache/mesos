@@ -51,7 +51,7 @@ pushd build
 
 # First build the protobuf compiler.
 # TODO(vinod): This is short term fix for MESOS-959.
-pushd 3rdparty/libprocess/3rdparty
+pushd 3rdparty
 make -j3
 popd
 

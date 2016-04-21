@@ -76,7 +76,7 @@ endif
 # (requires Automake >= 1.13) to define 'bench' as a recursive target
 # when we have benchmark tests in multiple subdirs.
 bench: all
-	@cd 3rdparty/libprocess/3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
+	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
 	@cd src && MESOS_BENCHMARK=1 $(MAKE) $(AM_MAKEFLAGS) check
 
 PHONY_TARGETS += bench
@@ -91,8 +91,9 @@ tests: all
 # http://lists.gnu.org/archive/html/automake-commit/2008-11/msg00015.html.
 distclean-local:
 	-rm -f config.lt
-	-rm -f ./3rdparty/libprocess/3rdparty/report.xml
+	-rm -f ./3rdparty/report.xml
 	-rm -f ./3rdparty/libprocess/report.xml
+	-rm -f ./3rdparty/stout/report.xml
 	-rm -f ./src/report.xml
 
 if INSTALL_TESTS

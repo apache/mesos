@@ -41,11 +41,11 @@ LCOV_FILTERS+=" mesos/build/*"
 LCOV_FILTERS+=" build/3rdparty/setuptools-*"
 LCOV_FILTERS+=" build/3rdparty/leveldb*"
 LCOV_FILTERS+=" build/3rdparty/zookeeper-*"
-LCOV_FILTERS+=" *libprocess/3rdparty/boost-*"
-LCOV_FILTERS+=" *libprocess/3rdparty/glog-*"
-LCOV_FILTERS+=" *libprocess/3rdparty/gmock-*"
-LCOV_FILTERS+=" *libprocess/3rdparty/picojson-*"
-LCOV_FILTERS+=" *libprocess/3rdparty/protobuf-*"
+LCOV_FILTERS+=" */boost-*"
+LCOV_FILTERS+=" */glog-*"
+LCOV_FILTERS+=" */gmock-*"
+LCOV_FILTERS+=" */picojson-*"
+LCOV_FILTERS+=" */protobuf-*"
 
 for f in $LCOV_FILTERS; do
 	lcov --remove mesos_test.info $f -o mesos_test.info

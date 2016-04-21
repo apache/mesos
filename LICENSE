@@ -212,7 +212,7 @@ licenses.
 
 ======================================================================
 For the Boost header files
-(3rdparty/libprocess/3rdparty/boost-1.53.0.tar.gz):
+(3rdparty/boost-1.53.0.tar.gz):
 ======================================================================
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -294,7 +294,7 @@ Agreement.
 
 
 ======================================================================
-For glog-0.3.3 (3rdparty/libprocess/3rdparty/glog-0.3.3.tar.gz):
+For glog-0.3.3 (3rdparty/glog-0.3.3.tar.gz):
 ======================================================================
 
 Copyright (c) 2008, Google Inc.
@@ -365,7 +365,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For gmock-1.7.0 (3rdparty/libprocess/3rdparty/gmock-1.7.0.tar.gz):
+For gmock-1.7.0 (3rdparty/gmock-1.7.0.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
@@ -433,7 +433,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ======================================================================
 For protobuf-2.6.1
-(3rdparty/libprocess/3rdparty/protobuf-2.6.1.tar.gz):
+(3rdparty/protobuf-2.6.1.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
@@ -472,7 +472,7 @@ support library is itself covered by the above license.
 
 
 ======================================================================
-For libev-4.22 (3rdparty/libprocess/3rdparty/libev-4.22.tar.gz):
+For libev-4.22 (3rdparty/libev-4.22.tar.gz):
 ======================================================================
 
 All files in libev are
@@ -516,7 +516,7 @@ file under either the BSD or the GPL.
 
 ======================================================================
 For http-parser
-(3rdparty/libprocess/3rdparty/http-parser-2.6.2.tar.gz):
+(3rdparty/http-parser-2.6.2.tar.gz):
 ======================================================================
 
 http_parser.c is based on src/http/ngx_http_parse.c from NGINX copyright
