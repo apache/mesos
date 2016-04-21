@@ -259,10 +259,17 @@ ALL_LOCAL += $(ZOOKEEPER)-stamp
 endif
 
 all-local: $(ALL_LOCAL)
+if INSTALL_MODULE_DEPENDENCIES
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  INSTALLDIR=$(abs_top_builddir)/3rdparty install-module-dependencies
+endif
 
 clean-local:
 	rm -r -f $(CLEAN_EXTRACTED)
 	rm -f *-stamp
+if INSTALL_MODULE_DEPENDENCIES
+	rm -rf bin include lib64 lib share
+endif
 
 tests: all $(check_LTLIBRARIES)
 	@cd stout && $(MAKE) $(AM_MAKEFLAGS) tests
