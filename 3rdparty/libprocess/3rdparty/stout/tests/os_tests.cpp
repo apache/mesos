@@ -216,42 +216,6 @@ TEST_F(OsTest, BootId)
 }
 
 
-TEST_F(OsTest, Uname)
-{
-  const Try<os::UTSInfo> info = os::uname();
-
-  ASSERT_SOME(info);
-#ifdef __linux__
-  EXPECT_EQ(info.get().sysname, "Linux");
-#endif
-#ifdef __APPLE__
-  EXPECT_EQ(info.get().sysname, "Darwin");
-#endif
-}
-
-
-TEST_F(OsTest, Sysname)
-{
-  const Try<string> name = os::sysname();
-
-  ASSERT_SOME(name);
-#ifdef __linux__
-  EXPECT_EQ(name.get(), "Linux");
-#endif
-#ifdef __APPLE__
-  EXPECT_EQ(name.get(), "Darwin");
-#endif
-}
-
-
-TEST_F(OsTest, Release)
-{
-  const Try<Version> info = os::release();
-
-  ASSERT_SOME(info);
-}
-
-
 TEST_F(OsTest, Sleep)
 {
   Duration duration = Milliseconds(10);
