@@ -147,6 +147,81 @@ inline void appendPaths(const std::string& newPaths)
 }
 
 } // namespace libraries {
+
+
+inline Try<std::list<Process>> processes()
+{
+  const Try<std::set<pid_t>> pids = os::pids();
+  if (pids.isError()) {
+    return Error(pids.error());
+  }
+
+  std::list<Process> result;
+  foreach (pid_t pid, pids.get()) {
+    const Result<Process> process = os::process(pid);
+
+    // Ignore any processes that disappear between enumeration and now.
+    if (process.isSome()) {
+      result.push_back(process.get());
+    }
+  }
+  return result;
+}
+
+
+inline Option<Process> process(
+    pid_t pid,
+    const std::list<Process>& processes)
+{
+  foreach (const Process& process, processes) {
+    if (process.pid == pid) {
+      return process;
+    }
+  }
+  return None();
+}
+
+
+inline std::set<pid_t> children(
+    pid_t pid,
+    const std::list<Process>& processes,
+    bool recursive = true)
+{
+  // Perform a breadth first search for descendants.
+  std::set<pid_t> descendants;
+  std::queue<pid_t> parents;
+  parents.push(pid);
+
+  do {
+    pid_t parent = parents.front();
+    parents.pop();
+
+    // Search for children of parent.
+    foreach (const Process& process, processes) {
+      if (process.parent == parent) {
+        // Have we seen this child yet?
+        if (descendants.insert(process.pid).second) {
+          parents.push(process.pid);
+        }
+      }
+    }
+  } while (recursive && !parents.empty());
+
+  return descendants;
+}
+
+
+inline Try<std::set<pid_t>> children(pid_t pid, bool recursive = true)
+{
+  const Try<std::list<Process>> processes = os::processes();
+
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  return children(pid, processes.get(), recursive);
+}
+
 } // namespace os {
 
 #endif // __STOUT_OS_HPP__
