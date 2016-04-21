@@ -107,6 +107,10 @@ public:
       process::Future<ResourceStatistics>(const ContainerID&));
 
   MOCK_METHOD1(
+      status,
+      process::Future<ContainerStatus>(const ContainerID&));
+
+  MOCK_METHOD1(
       wait,
       process::Future<containerizer::Termination>(const ContainerID&));
 

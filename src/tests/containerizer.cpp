@@ -297,6 +297,9 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, usage(_))
     .WillRepeatedly(Return(ResourceStatistics()));
 
+  EXPECT_CALL(*this, status(_))
+    .WillRepeatedly(Return(ContainerStatus()));
+
   EXPECT_CALL(*this, update(_, _))
     .WillRepeatedly(Return(Nothing()));
 

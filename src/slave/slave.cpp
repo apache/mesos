@@ -104,6 +104,7 @@ using std::list;
 using std::map;
 using std::set;
 using std::string;
+using std::tuple;
 using std::vector;
 
 using process::async;
@@ -756,6 +757,11 @@ void Slave::initialize()
         [http](const process::http::Request& request,
                const Option<string>& principal) {
           return http.statistics(request, principal);
+        });
+  route("/containers",
+        Http::CONTAINERS_HELP(),
+        [http](const process::http::Request& request) {
+          return http.containers(request);
         });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
