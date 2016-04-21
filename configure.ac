@@ -597,6 +597,9 @@ AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
 
 AM_CONDITIONAL([INSTALL_MODULE_DEPENDENCIES],
                [test x"$enable_install_module_dependencies" = "xyes"])
+AS_IF([test "x$enable_install_module_dependencies" = "xyes"],
+      [AC_SUBST(MODULE_CFLAGS, "-I${libdir}/mesos/3rdparty/include")
+       AC_SUBST(MODULE_LDFLAGS, "-L${libdir}/mesos/3rdparty/lib64 -L${libdir}/mesos/3rdparty/lib")])
 
 AM_CONDITIONAL([INSTALL_TESTS], [test x"$enable_tests_install" = "xyes"])
 AS_IF([test x"$enable_tests_install" = "xyes"],
