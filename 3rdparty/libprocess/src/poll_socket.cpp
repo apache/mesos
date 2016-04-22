@@ -209,33 +209,29 @@ Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
   CHECK(size > 0);
 
   while (true) {
-    ssize_t length = os::sendfile(s, fd, offset, size);
+    Try<ssize_t, SocketError> length = os::sendfile(s, fd, offset, size);
 
-    if (length < 0 && (errno == EINTR)) {
+    if (length.isSome()) {
+      CHECK(length.get() >= 0);
+      if (length.get() == 0) {
+        // Socket closed.
+        VLOG(1) << "Socket closed while sending";
+      }
+      return length.get();
+    }
+
+    if (net::is_restartable_error(length.error().code)) {
       // Interrupted, try again now.
       continue;
-    } else if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+    } else if (net::is_retryable_error(length.error().code)) {
       // Might block, try again later.
       return io::poll(s, io::WRITE)
         .then(lambda::bind(&internal::socket_send_file, s, fd, offset, size));
-    } else if (length <= 0) {
-      // Socket error or closed.
-      if (length < 0) {
-        const string error = os::strerror(errno);
-        VLOG(1) << "Socket error while sending: " << error;
-      } else {
-        VLOG(1) << "Socket closed while sending";
-      }
-      if (length == 0) {
-        return length;
-      } else {
-        return Failure(ErrnoError("Socket sendfile failed"));
-      }
     } else {
-      CHECK(length > 0);
-
-      return length;
-    }
+      // Socket error or closed.
+      VLOG(1) << length.error().message;
+      return Failure(length.error());
+    };
   }
 }
 
