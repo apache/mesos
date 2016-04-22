@@ -2076,6 +2076,10 @@ void Master::receive(
   }
 
   switch (call.type()) {
+    case scheduler::Call::SUBSCRIBE:
+      // SUBSCRIBE call should have been handled above.
+      LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
+
     case scheduler::Call::TEARDOWN:
       teardown(framework);
       break;
@@ -2120,10 +2124,8 @@ void Master::receive(
       suppress(framework);
       break;
 
-    default:
-      // Should be caught during call validation above.
-      LOG(FATAL) << "Unexpected " << call.type() << " call"
-                 << " from framework " << call.framework_id() << " at " << from;
+    case scheduler::Call::UNKNOWN:
+      LOG(WARNING) << "'UNKNOWN' call";
       break;
   }
 }

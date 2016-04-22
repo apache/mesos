@@ -330,12 +330,13 @@ Future<Response> Slave::Http::executor(const Request& request) const
       return Accepted();
     }
 
-    default:
-      // Should be caught during call validation above.
-      LOG(FATAL) << "Unexpected " << call.type() << " call";
+    case executor::Call::UNKNOWN: {
+      LOG(WARNING) << "Received 'UNKNOWN' call";
+      return NotImplemented();
+    }
   }
 
-  return NotImplemented();
+  UNREACHABLE();
 }
 
 

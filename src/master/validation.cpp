@@ -94,6 +94,10 @@ Option<Error> validate(
   }
 
   switch (call.type()) {
+    case mesos::scheduler::Call::SUBSCRIBE:
+      // SUBSCRIBE call should have been handled above.
+      LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
+
     case mesos::scheduler::Call::TEARDOWN:
       return None();
 
@@ -151,9 +155,11 @@ Option<Error> validate(
       }
       return None();
 
-    default:
-      return Error("Unknown call type");
+    case mesos::scheduler::Call::UNKNOWN:
+      return None();
   }
+
+  UNREACHABLE();
 }
 
 } // namespace call {

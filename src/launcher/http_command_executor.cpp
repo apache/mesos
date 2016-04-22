@@ -194,8 +194,9 @@ public:
           cerr << "Error: " << event.error().message() << endl;
         }
 
-        default: {
-          UNREACHABLE();
+        case Event::UNKNOWN: {
+          LOG(WARNING) << "Received an UNKNOWN event and ignored";
+          break;
         }
       }
     }

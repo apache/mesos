@@ -501,6 +501,10 @@ Future<Response> Master::Http::scheduler(
   }
 
   switch (call.type()) {
+    case scheduler::Call::SUBSCRIBE:
+      // SUBSCRIBE call should have been handled above.
+      LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
+
     case scheduler::Call::TEARDOWN:
       master->removeFramework(framework);
       return Accepted();
@@ -545,9 +549,9 @@ Future<Response> Master::Http::scheduler(
       master->request(framework, call.request());
       return Accepted();
 
-    default:
-      // Should be caught during call validation above.
-      LOG(FATAL) << "Unexpected " << call.type() << " call";
+    case scheduler::Call::UNKNOWN:
+      LOG(WARNING) << "Received 'UNKNOWN' call";
+      return NotImplemented();
   }
 
   return NotImplemented();

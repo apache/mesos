@@ -671,7 +671,11 @@ protected:
         break;
       }
 
-      default: {
+      case Event::HEARTBEAT: {
+        break;
+      }
+
+      case Event::UNKNOWN: {
         drop(event, "Unknown event");
         break;
       }

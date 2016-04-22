@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stout/unreachable.hpp>
+
 #include "slave/validation.hpp"
 
 namespace mesos {
@@ -100,10 +102,11 @@ Option<Error> validate(const mesos::executor::Call& call)
       return None();
     }
 
-    default: {
-      return Error("Unknown call type");
+    case mesos::executor::Call::UNKNOWN: {
+      return None();
     }
   }
+  UNREACHABLE();
 }
 
 } // namespace call {

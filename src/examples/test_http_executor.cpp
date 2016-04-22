@@ -189,8 +189,9 @@ public:
           break;
         }
 
-        default: {
-          UNREACHABLE();
+        case Event::UNKNOWN: {
+          LOG(WARNING) << "Received an UNKNOWN event and ignored";
+          break;
         }
       }
     }

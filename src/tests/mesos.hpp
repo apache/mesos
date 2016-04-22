@@ -953,8 +953,9 @@ public:
       case Event::HEARTBEAT:
         heartbeat(mesos);
         break;
-      default:
-        UNREACHABLE();
+      case Event::UNKNOWN:
+        LOG(FATAL) << "Received unexpected UNKNOWN event";
+        break;
     }
   }
 };
@@ -1080,8 +1081,9 @@ public:
       case Event::ERROR:
         error(mesos, event.error());
         break;
-      default:
-        UNREACHABLE();
+      case Event::UNKNOWN:
+        LOG(FATAL) << "Received unexpected UNKNOWN event";
+        break;
     }
   }
 };

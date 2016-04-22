@@ -182,8 +182,9 @@ public:
           break;
         }
 
-        default: {
-          EXIT(EXIT_FAILURE) << "Received an UNKNOWN event";
+        case Event::UNKNOWN: {
+          LOG(WARNING) << "Received an UNKNOWN event and ignored";
+          break;
         }
       }
     }
