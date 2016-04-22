@@ -329,7 +329,11 @@ string Master::Http::SCHEDULER_HELP()
     TLDR(
         "Endpoint for schedulers to make calls against the master."),
     DESCRIPTION(
-        "Returns 202 Accepted iff the request is accepted."),
+        "Returns 202 Accepted iff the request is accepted.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found."),
     AUTHENTICATION(false));
 }
 
@@ -563,6 +567,10 @@ string Master::Http::CREATE_VOLUMES_HELP()
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the create",
         "operation has been validated successfully by the master.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "The request is then forwarded asynchronously to the Mesos",
         "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
@@ -683,6 +691,10 @@ string Master::Http::DESTROY_VOLUMES_HELP()
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the destroy",
         "operation has been validated successfully by the master.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "The request is then forwarded asynchronously to the Mesos",
         "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
@@ -783,6 +795,12 @@ string Master::Http::FRAMEWORKS_HELP()
 {
   return HELP(
     TLDR("Exposes the frameworks info."),
+    DESCRIPTION(
+        "Returns 200 OK when the frameworks info was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found."),
     AUTHENTICATION(true));
 }
 
@@ -982,9 +1000,10 @@ string Master::Http::REDIRECT_HELP()
     TLDR(
         "Redirects to the leading Master."),
     DESCRIPTION(
-        "This returns a 307 Temporary Redirect to the leading Master.",
-        "If no Master is leading (according to this Master), then the",
-        "Master will redirect to itself.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "",
         "**NOTES:**",
         "1. This is the recommended way to bookmark the WebUI when",
@@ -1047,6 +1066,10 @@ string Master::Http::RESERVE_HELP()
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the reserve",
         "operation has been validated successfully by the master.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "The request is then forwarded asynchronously to the Mesos",
         "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
@@ -1153,6 +1176,11 @@ string Master::Http::SLAVES_HELP()
     TLDR(
         "Information about registered agents."),
     DESCRIPTION(
+        "Returns 200 OK when the request was processed successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "This endpoint shows information about the agents registered in",
         "this master formatted as a JSON object."),
     AUTHENTICATION(true));
@@ -1232,6 +1260,11 @@ string Master::Http::QUOTA_HELP()
     TLDR(
         "Sets quota for a role."),
     DESCRIPTION(
+        "Returns 200 OK when the quota has been changed successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "POST: Validates the request body as JSON",
         " and sets quota for a role."),
     AUTHENTICATION(true));
@@ -1275,6 +1308,11 @@ string Master::Http::WEIGHTS_HELP()
     TLDR(
         "Updates weights for the specified roles."),
     DESCRIPTION(
+        "Returns 200 OK when the weights update was successful.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "PUT: Validates the request body as JSON",
         "and updates the weights for the specified roles."),
     AUTHENTICATION(true));
@@ -1313,6 +1351,11 @@ string Master::Http::STATE_HELP()
     TLDR(
         "Information about state of master."),
     DESCRIPTION(
+        "Returns 200 OK when the state of the master was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "This endpoint shows information about the frameworks, tasks,",
         "executors and agents running in the cluster as a JSON object.",
         "",
@@ -1664,6 +1707,12 @@ string Master::Http::STATESUMMARY_HELP()
     TLDR(
         "Summary of state of all tasks and registered frameworks in cluster."),
     DESCRIPTION(
+        "Returns 200 OK when a summary of the master's state was queried",
+        "successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "This endpoint gives a summary of the state of all tasks and",
         "registered frameworks in the cluster as a JSON object."),
     AUTHENTICATION(true));
@@ -1789,6 +1838,11 @@ string Master::Http::ROLES_HELP()
     TLDR(
         "Information about roles."),
     DESCRIPTION(
+        "Returns 200 OK when information about roles was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "This endpoint provides information about roles as a JSON object.",
         "It returns information about every role that is on the role",
         "whitelist (if enabled), has one or more registered frameworks,",
@@ -1905,9 +1959,13 @@ string Master::Http::TEARDOWN_HELP()
         "Tears down a running framework by shutting down all tasks/executors "
         "and removing the framework."),
     DESCRIPTION(
+        "Returns 200 OK if the framework was torn down successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "Please provide a \"frameworkId\" value designating the running",
-        "framework to tear down.",
-        "Returns 200 OK if the framework was correctly teared down."),
+        "framework to tear down."),
     AUTHENTICATION(true));
 }
 
@@ -1996,18 +2054,23 @@ string Master::Http::TASKS_HELP()
 {
   return HELP(
     TLDR(
-      "Lists tasks from all active frameworks."),
+        "Lists tasks from all active frameworks."),
     DESCRIPTION(
-      "Lists known tasks.",
-      "",
-      "Query parameters:",
-      "",
-      ">        limit=VALUE          Maximum number of tasks returned "
-      "(default is " + stringify(TASK_LIMIT) + ").",
-      ">        offset=VALUE         Starts task list at offset.",
-      ">        order=(asc|desc)     Ascending or descending sort order "
-      "(default is descending)."
-      ""),
+        "Returns 200 OK when task information was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
+        "Lists known tasks.",
+        "",
+        "Query parameters:",
+        "",
+        ">        limit=VALUE          Maximum number of tasks returned "
+        "(default is " + stringify(TASK_LIMIT) + ").",
+        ">        offset=VALUE         Starts task list at offset.",
+        ">        order=(asc|desc)     Ascending or descending sort order "
+        "(default is descending)."
+        ""),
     AUTHENTICATION(true));
 }
 
@@ -2127,6 +2190,12 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
     TLDR(
         "Returns or updates the cluster's maintenance schedule."),
     DESCRIPTION(
+        "Returns 200 OK when the requested maintenance operation was performed",
+        "successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "GET: Returns the current maintenance schedule as JSON.",
         "",
         "POST: Validates the request body as JSON",
@@ -2271,6 +2340,11 @@ string Master::Http::MACHINE_DOWN_HELP()
     TLDR(
         "Brings a set of machines down."),
     DESCRIPTION(
+        "Returns 200 OK when the operation was successful.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into DOWN mode.  Currently, only",
         "  machines in DRAINING mode are allowed to be brought down."),
@@ -2382,6 +2456,11 @@ string Master::Http::MACHINE_UP_HELP()
     TLDR(
         "Brings a set of machines back up."),
     DESCRIPTION(
+        "Returns 200 OK when the operation was successful.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into UP mode.  This also removes",
         "  the list of machines from the maintenance schedule."),
@@ -2492,11 +2571,17 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
     TLDR(
         "Retrieves the maintenance status of the cluster."),
     DESCRIPTION(
+        "Returns 200 OK when the maintenance status was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "Returns an object with one list of machines per machine mode.",
         "For draining machines, this list includes the frameworks' responses",
-        "to inverse offers.  NOTE: Inverse offer responses are cleared if",
-        "the master fails over.  However, new inverse offers will be sent",
-        "once the master recovers."),
+        "to inverse offers.",
+        "**NOTE**:",
+        "Inverse offer responses are cleared if the master fails over.",
+        "However, new inverse offers will be sent once the master recovers."),
     AUTHENTICATION(true));
 }
 
@@ -2578,6 +2663,10 @@ string Master::Http::UNRESERVE_HELP()
     DESCRIPTION(
         "Returns 202 ACCEPTED which indicates that the unreserve",
         "operation has been validated successfully by the master.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
         "The request is then forwarded asynchronously to the Mesos",
         "agent where the reserved resources are located.",
         "That asynchronous message may not be delivered or",
