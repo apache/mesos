@@ -1,12 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /monitor/statistics
+title: Apache Mesos - HTTP Endpoints - /monitor/statistics.json
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
->        /monitor/statistics
->        /slave(1)/monitor/statistics
+>        /monitor/statistics.json
 
 ### TL;DR; ###
 Retrieve resource monitoring information.

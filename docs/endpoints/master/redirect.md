@@ -12,9 +12,10 @@ layout: documentation
 Redirects to the leading Master.
 
 ### DESCRIPTION ###
-This returns a 307 Temporary Redirect to the leading Master.
-If no Master is leading (according to this Master), then the
-Master will redirect to itself.
+Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
+current master is not the leader.
+Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
+found.
 
 **NOTES:**
 1. This is the recommended way to bookmark the WebUI when

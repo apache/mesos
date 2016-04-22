@@ -12,5 +12,13 @@ layout: documentation
 Exposes the frameworks info.
 
 ### DESCRIPTION ###
+Returns 200 OK when the frameworks info was queried successfully.
+Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
+current master is not the leader.
+Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
+found.
+
+
+### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.

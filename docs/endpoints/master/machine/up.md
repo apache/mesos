@@ -12,6 +12,11 @@ layout: documentation
 Brings a set of machines back up.
 
 ### DESCRIPTION ###
+Returns 200 OK when the operation was successful.
+Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
+current master is not the leader.
+Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
+found.
 POST: Validates the request body as JSON and transitions
   the list of machines into UP mode.  This also removes
   the list of machines from the maintenance schedule.

@@ -9,12 +9,19 @@ layout: documentation
 >        /master/reserve
 
 ### TL;DR; ###
-Reserve resources dynamically on a specific slave.
+Reserve resources dynamically on a specific agent.
 
 ### DESCRIPTION ###
-Returns 202 Accepted if the request was accepted. This does not
-imply that the requested resources have been reserved successfully:
-resource reservation is done asynchronously and may fail.
+Returns 202 ACCEPTED which indicates that the reserve
+operation has been validated successfully by the master.
+Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
+current master is not the leader.
+Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
+found.
+The request is then forwarded asynchronously to the Mesos
+agent where the reserved resources are located.
+That asynchronous message may not be delivered or
+reserving resources at the agent might fail.
 
 Please provide "slaveId" and "resources" values designating
 the resources to be reserved.

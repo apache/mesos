@@ -9,11 +9,11 @@ layout: documentation
 >        /slave(1)/state
 
 ### TL;DR; ###
-Information about state of the Slave.
+Information about state of the Agent.
 
 ### DESCRIPTION ###
 This endpoint shows information about the frameworks, executors
-and the slave's master as a JSON object.
+and the agent's master as a JSON object.
 
 Example (**Note**: this is not exhaustive):
 

@@ -12,6 +12,11 @@ layout: documentation
 Updates weights for the specified roles.
 
 ### DESCRIPTION ###
+Returns 200 OK when the weights update was successful.
+Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
+current master is not the leader.
+Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
+found.
 PUT: Validates the request body as JSON
 and updates the weights for the specified roles.
 

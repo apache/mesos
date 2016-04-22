@@ -9,10 +9,10 @@ layout: documentation
 >        /slave(1)/health
 
 ### TL;DR; ###
-Health check of the Slave.
+Health check of the Agent.
 
 ### DESCRIPTION ###
-Returns 200 OK iff the Slave is healthy.
+Returns 200 OK iff the Agent is healthy.
 Delayed responses are also indicative of poor health.
 
 
