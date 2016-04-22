@@ -205,6 +205,132 @@ inline void unsetenv(const std::string& key)
 }
 
 
+// Suspends execution of the calling process until a child specified by `pid`
+// has changed state. Unlike the POSIX standard function `::waitpid`, this
+// function does not use -1 and 0 to signify errors and nonblocking return.
+// Instead, we return `Result<pid_t>`:
+//   * In case of error, we return `Error` rather than -1. For example, we
+//     would return an `Error` in case of `EINVAL`.
+//   * In case of nonblocking return, we return `None` rather than 0. For
+//     example, if we pass `WNOHANG` in the `options`, we would expect 0 to be
+//     returned in the case that children specified by `pid` exist, but have
+//     not changed state yet. In this case we return `None` instead.
+//
+// NOTE: There are important differences between the POSIX and Windows
+// implementations of this function:
+//   * On POSIX, `pid_t` is a signed number, but on Windows, PIDs are `DWORD`,
+//     which is `unsigned long`. Thus, if we use `DWORD` to represent the `pid`
+//     argument, passing -1 as the `pid` would (on most modern servers)
+//     silently convert to a really large `pid`. This is undesirable.
+//   * Since it is important to be able to detect -1 has been passed to
+//     `os::waitpid`, as a matter of practicality, we choose to:
+//     (1) Use `long` to represent the `pid` argument.
+//     (2) Disable using any value <= 0 for `pid` on Windows.
+//   * This decision is pragmatic. The reasoning is:
+//     (1) The Windows code paths call `os::waitpid` in only a handful of
+//         places, and in none of these conditions do we need `-1` as a value.
+//     (2) Since PIDs virtually never take on values outside the range of
+//         vanilla signed `long` it is likely that an accidental conversion
+//         will never happen.
+//     (3) Even though it is not formalized in the C specification, the
+//         implementation of `long` on the vast majority of production servers
+//         is 2's complement, so we expect that when we accidentally do
+//         implicitly convert from `unsigned long` to `long`, we will "wrap
+//         around" to negative values. And since we've disabled the negative
+//         `pid` in the Windows implementation, we should error out.
+//   * Finally, on Windows, we currently do not check that the process we are
+//     attempting to await is a child process.
+inline Result<pid_t> waitpid(long pid, int* status, int options)
+{
+  const bool wait_for_child = (options & WNOHANG) == 0;
+
+  // NOTE: Windows does not implement pids <= 0.
+  if (pid <= 0) {
+    errno = ENOSYS;
+    return ErrnoError(
+        "os::waitpid: Value of pid is '" + stringify(pid) +
+        "'; the Windows implementation currently does not allow values <= 0");
+  } else if (options != 0 && options != WNOHANG) {
+    // NOTE: We only support `options == 0` or `options == WNOHANG`. On Windows
+    // no flags other than `WNOHANG` are supported.
+    errno = ENOSYS;
+    return ErrnoError(
+        "os::waitpid: Only flag `WNOHANG` is implemented on Windows");
+  }
+
+  // TODO(hausdorff): Check that `pid` is one of the child processes. If not,
+  // set `errno` to `ECHILD` and return -1.
+
+  // Open the child process as a safe `SharedHandle`.
+  const HANDLE process = ::OpenProcess(
+      PROCESS_QUERY_INFORMATION | SYNCHRONIZE,
+      FALSE,
+      static_cast<DWORD>(pid));
+
+  if (process == NULL) {
+    return WindowsError("os::waitpid: Failed to open process for pid '" +
+                        stringify(pid) + "'");
+  }
+
+  SharedHandle scoped_process(process, ::CloseHandle);
+
+  // If `WNOHANG` flag is set, don't wait. Otherwise, wait for child to
+  // terminate.
+  const DWORD wait_time = wait_for_child ? INFINITE : 0;
+  const DWORD wait_results = ::WaitForSingleObject(
+      scoped_process.get(),
+      wait_time);
+
+  // Verify our wait exited correctly.
+  const bool state_signaled = wait_results == WAIT_OBJECT_0;
+  if (options == 0 && !state_signaled) {
+    // If `WNOHANG` is not set, then we should have stopped waiting only for a
+    // state change in `scoped_process`.
+    errno = ECHILD;
+    return WindowsError(
+        "os::waitpid: Failed to wait for pid '" + stringify(pid) +
+        "'. `::WaitForSingleObject` should have waited for child process to " +
+        "exit, but returned code '" + stringify(wait_results) +
+        "' instead");
+  } else if (wait_for_child && !state_signaled &&
+             wait_results != WAIT_TIMEOUT) {
+    // If `WNOHANG` is set, then a successful wait should report either a
+    // timeout (since we set the time to wait to `0`), or a successful state
+    // change of `scoped_process`. Anything else is an error.
+    errno = ECHILD;
+    return WindowsError(
+        "os::waitpid: Failed to wait for pid '" + stringify(pid) +
+        "'. `ENOHANG` flag was passed in, so `::WaitForSingleObject` should " +
+        "have either returned `WAIT_OBJECT_0` or `WAIT_TIMEOUT` (the " +
+        "timeout was set to 0, because we are not waiting for the child), " +
+        "but instead returned code '" + stringify(wait_results) + "'");
+  }
+
+  if (!wait_for_child && wait_results == WAIT_TIMEOUT) {
+    // Success. `ENOHANG` was set and we got a timeout, so return `None` (POSIX
+    // `::waitpid` would return 0 here).
+    return None();
+  }
+
+  // Attempt to retrieve exit code from child process. Store that exit code in
+  // the `status` variable if it's `NULL`.
+  DWORD child_exit_code = 0;
+  if (!::GetExitCodeProcess(scoped_process.get(), &child_exit_code)) {
+    errno = ECHILD;
+    return WindowsError(
+        "os::waitpid: Successfully waited on child process with pid '" +
+        std::to_string(pid) + "', but could not retrieve exit code");
+  }
+
+  if (status != NULL) {
+    *status = child_exit_code;
+  }
+
+  // Success. Return pid of the child process for which the status is reported.
+  return pid;
+}
+
+
 inline std::string hstrerror(int err)
 {
   char buffer[1024];
