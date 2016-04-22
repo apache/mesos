@@ -1486,9 +1486,10 @@ void MesosContainerizerProcess::destroy(
     await(container->provisionInfos)
       .onAny(defer(
           self(),
-          &Self::___destroy,
+          &Self::____destroy,
           containerId,
           None(),
+          list<Future<Nothing>>(),
           "Container destroyed while provisioning images"));
 
     return;
