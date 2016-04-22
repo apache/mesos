@@ -198,23 +198,6 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
-  // Initialize modules. Note that since other subsystems may depend
-  // upon modules, we should initialize modules before anything else.
-  if (flags.modules.isSome()) {
-    Try<Nothing> result = ModuleManager::load(flags.modules.get());
-    if (result.isError()) {
-      EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
-    }
-  }
-
-  // Initialize hooks.
-  if (flags.hooks.isSome()) {
-    Try<Nothing> result = HookManager::initialize(flags.hooks.get());
-    if (result.isError()) {
-      EXIT(EXIT_FAILURE) << "Error installing hooks: " << result.error();
-    }
-  }
-
   if (ip_discovery_command.isSome() && ip.isSome()) {
     EXIT(EXIT_FAILURE) << flags.usage(
         "Only one of `--ip` or `--ip_discovery_command` should be specified");
@@ -261,6 +244,23 @@ int main(int argc, char** argv)
   process::initialize("master");
 
   logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Initialize modules. Note that since other subsystems may depend
+  // upon modules, we should initialize modules before anything else.
+  if (flags.modules.isSome()) {
+    Try<Nothing> result = ModuleManager::load(flags.modules.get());
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
+    }
+  }
+
+  // Initialize hooks.
+  if (flags.hooks.isSome()) {
+    Try<Nothing> result = HookManager::initialize(flags.hooks.get());
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << "Error installing hooks: " << result.error();
+    }
+  }
 
   spawn(new VersionProcess(), true);
 
