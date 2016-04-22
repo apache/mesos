@@ -26,6 +26,7 @@
 // re-definitions. This is a known pattern in the windows community.
 #include <WS2tcpip.h>
 #include <Winsock2.h>
+#include <mswsock.h>
 #include <Windows.h>
 
 #include <memory>
