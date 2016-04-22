@@ -27,14 +27,6 @@ namespace network {
 using net::socket;
 
 
-using SocketError =
-#ifndef __WINDOWS__
-  ErrnoError;
-#else
-  WindowsSocketError;
-#endif
-
-
 // TODO(benh): Remove and defer to Socket::accept.
 inline Try<int> accept(int s)
 {
