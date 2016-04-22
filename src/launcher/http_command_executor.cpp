@@ -740,7 +740,7 @@ private:
     terminate(self());
   }
 
-  void escalated(Duration timeout)
+  void escalated(const Duration& timeout)
   {
     cout << "Process " << pid << " did not terminate after " << timeout
          << ", sending SIGKILL to process tree at " << pid << endl;
