@@ -2054,7 +2054,7 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
         "GET: Returns the current maintenance schedule as JSON.",
         "",
         "POST: Validates the request body as JSON",
-        "  and updates the maintenance schedule."),
+        "and updates the maintenance schedule."),
     AUTHENTICATION(true));
 }
 
