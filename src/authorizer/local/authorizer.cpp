@@ -201,7 +201,7 @@ public:
 
         return authorized(request, acls_);
         break;
-      default:
+      case authorization::UNKNOWN:
         LOG(WARNING) << "Authorization request for action '" << request.action()
                      << "' is not defined and therefore not authorized";
         return false;
