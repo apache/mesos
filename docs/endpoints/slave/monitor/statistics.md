@@ -6,6 +6,7 @@ layout: documentation
 
 ### USAGE ###
 >        /monitor/statistics
+>        /slave(1)/monitor/statistics
 
 ### TL;DR; ###
 Retrieve resource monitoring information.

@@ -1,23 +1,30 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /monitor/statistics.json
+title: Apache Mesos - HTTP Endpoints - /containers
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
->        /monitor/statistics.json
+>        /containers
+>        /slave(1)/containers
 
 ### TL;DR; ###
-Retrieve resource monitoring information.
+Retrieve container status and usage information.
 
 ### DESCRIPTION ###
-Returns the current resource consumption data for containers
-running under this slave.
+Returns the current resource consumption data and status for
+containers running under this slave.
 
-Example:
+Example (**Note**: this is not exhaustive):
 
 ```
 [{
+    "container_id":"container",
+    "container_status":
+    {
+        "network_infos":
+        [{"ip_addresses":[{"ip_address":"192.168.1.1"}]}]
+    }
     "executor_id":"executor",
     "executor_name":"name",
     "framework_id":"framework",
