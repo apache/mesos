@@ -62,6 +62,11 @@ EXTRA_DIST +=			\
 EXTRA_DIST +=			\
   $(HTTP_PARSER).patch
 
+# We include an upstream patch for protobuf in order to avoid
+# signed/unsigned comparisons.
+EXTRA_DIST +=			\
+  $(PROTOBUF).patch
+
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
   $(GLOG)		\

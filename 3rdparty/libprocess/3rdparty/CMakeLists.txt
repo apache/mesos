@@ -259,7 +259,7 @@ elseif (WIN32)
 endif (NOT WIN32)
 
 if (NOT WIN32)
-  set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
+  PATCH_CMD(${PROCESS_3RD_SRC}/protobuf-2.6.1.patch PROTOBUF_PATCH_CMD)
   set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB_ROOT})
   set(PROTOBUF_BUILD_CMD   make)
   set(PROTOBUF_INSTALL_CMD make install)

@@ -1,0 +1,22 @@
+From 717f80749996ba97d050dd980a8e2ed97873d49e Mon Sep 17 00:00:00 2001
+From: abyss7 <abyss.7@gmail.com>
+Date: Mon, 3 Nov 2014 10:20:08 +0300
+Subject: [PATCH] Silence -Wsign-compare warning on Mac
+
+---
+ src/google/protobuf/wire_format_lite_inl.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/google/protobuf/wire_format_lite_inl.h b/src/google/protobuf/wire_format_lite_inl.h
+index 4e8ac9b..feb2254 100644
+--- a/src/google/protobuf/wire_format_lite_inl.h
++++ b/src/google/protobuf/wire_format_lite_inl.h
+@@ -380,7 +380,7 @@ inline bool WireFormatLite::ReadPackedFixedSizePrimitive(
+ #else
+     values->Reserve(old_entries + new_entries);
+     CType value;
+-    for (int i = 0; i < new_entries; ++i) {
++    for (uint32 i = 0; i < new_entries; ++i) {
+       if (!ReadPrimitive<CType, DeclaredType>(input, &value)) return false;
+       values->AddAlreadyReserved(value);
+     }
