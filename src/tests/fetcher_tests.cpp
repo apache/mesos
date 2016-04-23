@@ -100,6 +100,73 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
+TEST_F(FetcherTest, CustomOutputFileSubdirectory)
+{
+  string testFile = path::join(os::getcwd(), "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  string customOutputFile = "subdir/custom.txt";
+  string localFile = path::join(os::getcwd(), customOutputFile);
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+  uri->set_output_file(customOutputFile);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch);
+
+  EXPECT_TRUE(os::exists(localFile));
+}
+
+
+// Negative test: invalid custom URI output file. If the user specifies a
+// path for the file saved in the sandbox that has a directory component,
+// it must be a relative path.
+TEST_F(FetcherTest, AbsoluteCustomSubdirectoryFails)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  string customOutputFile = "/subdir/custom.txt";
+  string localFile = path::join(os::getcwd(), customOutputFile);
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+  uri->set_output_file(customOutputFile);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_FAILED(fetch);
+
+  EXPECT_FALSE(os::exists(localFile));
+}
+
+
 // Negative test: invalid user name. Copied from FileTest, so this
 // normally would succeed, but here a bogus user name is specified.
 // So we check for fetch failure.
@@ -807,7 +874,7 @@ TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
 }
 
 
-TEST_F(FetcherTest, UseCustomFilename)
+TEST_F(FetcherTest, UseCustomOutputFile)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir =
@@ -822,12 +889,12 @@ TEST_F(FetcherTest, UseCustomFilename)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  const string customFilename = "custom.txt";
+  const string customOutputFile = "custom.txt";
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path.get());
   uri->set_extract(true);
-  uri->set_filename(customFilename);
+  uri->set_output_file(customOutputFile);
 
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
@@ -840,14 +907,14 @@ TEST_F(FetcherTest, UseCustomFilename)
 
   AWAIT_READY(fetch);
 
-  ASSERT_TRUE(os::exists(path::join(".", customFilename)));
+  ASSERT_TRUE(os::exists(path::join(".", customOutputFile)));
 
   ASSERT_SOME_EQ(
-      "hello renamed file", os::read(path::join(".", customFilename)));
+      "hello renamed file", os::read(path::join(".", customOutputFile)));
 }
 
 
-TEST_F(FetcherTest, CustomGzipFilename)
+TEST_F(FetcherTest, CustomGzipOutputFile)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir =
@@ -863,12 +930,12 @@ TEST_F(FetcherTest, CustomGzipFilename)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  const string customFilename = "custom";
+  const string customOutputFile = "custom";
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path.get() + ".gz");
   uri->set_extract(true);
-  uri->set_filename(customFilename + ".gz");
+  uri->set_output_file(customOutputFile + ".gz");
 
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
@@ -881,7 +948,7 @@ TEST_F(FetcherTest, CustomGzipFilename)
 
   AWAIT_READY(fetch);
 
-  string extractFile = path::join(".", customFilename);
+  string extractFile = path::join(".", customOutputFile);
   ASSERT_TRUE(os::exists(extractFile));
 
   ASSERT_SOME_EQ("hello renamed gzip file", os::read(extractFile));

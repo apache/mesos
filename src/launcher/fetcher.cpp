@@ -249,16 +249,30 @@ static Try<string> fetchBypassingCache(
 {
   LOG(INFO) << "Fetching directly into the sandbox directory";
 
-  Try<string> basename = uri.has_filename()
-    ? uri.filename()
-    : Fetcher::basename(uri.value());
+  // TODO(mrbrowning): Factor out duplicated processing of "output_file" field
+  // here and in fetchFromCache into a separate helper function.
+  if (uri.has_output_file()) {
+    string dirname = Path(uri.output_file()).dirname();
+    if (dirname != ".") {
+      Try<Nothing> result =
+        os::mkdir(path::join(sandboxDirectory, dirname), true);
 
-  if (basename.isError()) {
-    return Error("Failed to determine the basename of the URI '" +
-                 uri.value() + "' with error: " + basename.error());
+      if (result.isError()) {
+        return Error(
+            "Unable to create subdirectory " + dirname + " in sandbox");
+      }
+    }
   }
 
-  string path = path::join(sandboxDirectory, basename.get());
+  Try<string> outputFile = uri.has_output_file()
+    ? uri.output_file()
+    : Fetcher::basename(uri.value());
+
+  if (outputFile.isError()) {
+    return Error(outputFile.error());
+  }
+
+  string path = path::join(sandboxDirectory, outputFile.get());
 
   Try<string> downloaded = download(uri.value(), path, frameworksHome);
   if (downloaded.isError()) {
@@ -291,15 +305,28 @@ static Try<string> fetchFromCache(
 {
   LOG(INFO) << "Fetching from cache";
 
-  Try<string> basename = item.uri().has_filename()
-    ? item.uri().filename()
-    : Fetcher::basename(item.uri().value());
+  if (item.uri().has_output_file()) {
+    string dirname = Path(item.uri().output_file()).dirname();
+    if (dirname != ".") {
+      Try<Nothing> result =
+        os::mkdir(path::join(sandboxDirectory, dirname), true);
 
-  if (basename.isError()) {
-    return Error(basename.error());
+      if (result.isError()) {
+        return Error(
+          "Unable to create subdirectory " + dirname + "in sandbox");
+      }
+    }
   }
 
-  string destinationPath = path::join(sandboxDirectory, basename.get());
+  Try<string> outputFile = item.uri().has_output_file()
+    ? item.uri().output_file()
+    : Fetcher::basename(item.uri().value());
+
+  if (outputFile.isError()) {
+    return Error(outputFile.error());
+  }
+
+  string destinationPath = path::join(sandboxDirectory, outputFile.get());
 
   // Non-empty cache filename is guaranteed by the callers of this function.
   CHECK(!item.cache_filename().empty());

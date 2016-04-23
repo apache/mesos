@@ -416,8 +416,10 @@ message CommandInfo {
 
     // The fetcher's default behavior is to use the URI string's basename to
     // name the local copy. If this field is provided, the local copy will be
-    // named with its value instead.
-    optional string filename = 5;
+    // named with its value instead. If there is a directory component (which
+    // must be a relative path), the local copy will be stored in that
+    // subdirectory inside the sandbox.
+    optional string output_file = 5;
   }
 
   repeated URI uris = 1;

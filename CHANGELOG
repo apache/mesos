@@ -47,7 +47,7 @@ Deprecations:
 Additional API Changes:
   * [MESOS-4580] - Returning `202` (Accepted) for /reserve and related endpoints.
 
-  * [MESOS-4735] - Add 'filename' field to CommandInfo.URI in Scheduler API
+  * [MESOS-4735] - Add 'output_file' field to CommandInfo.URI in Scheduler API
     and v1 Scheduler HTTP API.
 
   * [MESOS-5014] - Changes Call and Event Type enums in scheduler.proto

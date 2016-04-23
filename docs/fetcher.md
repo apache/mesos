@@ -86,8 +86,9 @@ has no effect.
 
 If the "cache" field is true, the fetcher cache is to be used for the URI.
 
-If the "filename" field is set, the fetcher will use that name for the copy
-stored in the sandbox directory.
+If the "output_file" field is set, the fetcher will use that name for the copy
+stored in the sandbox directory. "output_file" may contain a directory
+component, in which case the path described must be a relative path.
 
 ### Specifying a user name
 
@@ -131,7 +132,7 @@ In case the cache is bypassed, both the archive and the unpacked results will be
 found together in the sandbox. In case a cache file is unpacked, only the
 extraction result will be found in the sandbox.
 
-The "filename" field is useful here for cases where the URI ends with query
+The "output_file" field is useful here for cases where the URI ends with query
 parameters, since these will otherwise end up in the file copied to the sandbox
 and will subsequently fail to be recognized as archives.
 

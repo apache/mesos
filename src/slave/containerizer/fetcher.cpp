@@ -145,11 +145,21 @@ Try<Nothing> Fetcher::validateUri(const string& uri)
 }
 
 
-Try<Nothing> Fetcher::validateFilename(const string& filename)
+Try<Nothing> Fetcher::validateOutputFile(const string& path)
 {
-  Try<string> result = Path(filename).basename();
+  Try<string> result = Path(path).basename();
   if (result.isError()) {
     return Error(result.error());
+  }
+
+  if (path.size() == 0) {
+    return Error("URI output file path is empty");
+  }
+
+  // TODO(mrbrowning): Check that the filename's directory component is
+  // actually a subdirectory of the sandbox, not just relative to it.
+  if (path.at(0) == '/') {
+    return Error("URI output file must be within the sandbox directory");
   }
 
   return Nothing();
@@ -164,11 +174,11 @@ static Try<Nothing> validateUris(const CommandInfo& commandInfo)
       return Error(uriValidation.error());
     }
 
-    if (uri.has_filename()) {
-      Try<Nothing> filenameValidation =
-        Fetcher::validateFilename(uri.filename());
-      if (filenameValidation.isError()) {
-        return Error(filenameValidation.error());
+    if (uri.has_output_file()) {
+      Try<Nothing> outputFileValidation =
+        Fetcher::validateOutputFile(uri.output_file());
+      if (outputFileValidation.isError()) {
+        return Error(outputFileValidation.error());
       }
     }
   }
