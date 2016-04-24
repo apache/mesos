@@ -23,9 +23,7 @@
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
-#include <stout/none.hpp>
 #include <stout/nothing.hpp>
-#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -62,7 +60,7 @@ public:
   virtual process::Future<std::string> mount(
       const std::string& driver,
       const std::string& name,
-      const Option<hashmap<std::string, std::string>>& options = None());
+      const hashmap<std::string, std::string>& options);
 
   /**
    * Performs an 'unmount'.

@@ -51,7 +51,7 @@ Try<Owned<DriverClient>> DriverClient::create(
 Future<string> DriverClient::mount(
     const string& driver,
     const string& name,
-    const Option<hashmap<string, string>>& options)
+    const hashmap<string, string>& options)
 {
   // Refer to https://github.com/emccode/dvdcli for how dvdcli works.
   // TODO(gyliu513): Add `explicitcreate` if 'options' is None. Refer
@@ -63,10 +63,8 @@ Future<string> DriverClient::mount(
     "--volumename=" + name,
   };
 
-  if (options.isSome()) {
-    foreachpair (const string& key, const string& value, options.get()) {
-      argv.push_back("--volumeopts=" + key + "=" + value);
-    }
+  foreachpair (const string& key, const string& value, options) {
+    argv.push_back("--volumeopts=" + key + "=" + value);
   }
 
   string command = strings::join(
