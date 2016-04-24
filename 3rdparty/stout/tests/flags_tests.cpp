@@ -156,6 +156,51 @@ TEST(FlagsTest, Add)
 }
 
 
+TEST(FlagsTest, Alias)
+{
+  TestFlags flags;
+
+  Option<string> name6;
+
+  flags.add(&name6,
+            "name6",
+            Some("alias6"),
+            "Also set name6");
+
+  bool name7;
+
+  flags.add(&name7,
+            "name7",
+            Some("alias7"),
+            "Also set name7",
+            true);
+
+  string name8;
+
+  flags.add(&name8,
+            "name8",
+            Some("alias8"),
+            "Also set name8",
+            "value8");
+
+  // Load with alias names.
+  const map<string, Option<string> > values = {
+     {"alias6", Some("foo")},
+     {"no-alias7", None()},
+     {"alias8", Some("bar")}
+  };
+
+  flags.load(values);
+
+  ASSERT_SOME(name6);
+  EXPECT_EQ("foo", name6.get());
+
+  EXPECT_FALSE(name7);
+
+  EXPECT_EQ("bar", name8);
+}
+
+
 TEST(FlagsTest, Flags)
 {
   TestFlags flags;
@@ -399,6 +444,42 @@ TEST(FlagsTest, Stringification)
 }
 
 
+TEST(FlagsTest, EffectiveName)
+{
+  TestFlags flags;
+
+  Option<string> name6;
+
+  flags.add(&name6,
+            "name6",
+            Some("alias6"),
+            "Also set name6");
+
+  string name7;
+
+  flags.add(&name7,
+            "name7",
+            Some("alias7"),
+            "Also set name7",
+            "value7");
+
+  // Only load "name6" flag explicitly.
+  const map<string, Option<string> > values = {
+    {"alias6", Some("value6")}
+  };
+
+  flags.load(values);
+
+  foreachvalue (const Flag& flag, flags) {
+    if (flag.name == "name6") {
+      EXPECT_EQ("alias6", flag.effective_name().value);
+    } else if (flag.name == "name7") {
+      EXPECT_EQ("name7", flag.effective_name().value);
+    }
+  }
+}
+
+
 TEST(FlagsTest, DuplicatesFromEnvironment)
 {
   TestFlags flags;
@@ -432,6 +513,29 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
 
   // TODO(klaus1982): Simply checking for the error. Once typed errors are
   // introduced, capture it within the type system.
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  EXPECT_ERROR(load);
+}
+
+
+TEST(FlagsTest, AliasDuplicateFromCommandLine)
+{
+  TestFlags flags;
+
+  Option<string> name6;
+
+  flags.add(&name6,
+            "name6",
+            Some("alias6"),
+            "Also set name6");
+
+  const char* argv[] = {
+    "/path/to/program",
+    "--name6=billy joel",
+    "--alias6=ben folds"
+  };
+
+  // Loading the same flag with the name and alias should be an error.
   Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 }
@@ -554,6 +658,49 @@ TEST(FlagsTest, Validate)
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Expected --duration to be less than 1 hour", load.error());
+}
+
+
+TEST(FlagsTest, Usage)
+{
+  TestFlags flags;
+
+  Option<string> name6;
+
+  flags.add(&name6,
+            "z6",
+            Some("a6"),
+            "Also set name6");
+
+  bool name7;
+
+  flags.add(&name7,
+            "z7",
+            Some("a7"),
+            "Also set name7",
+            true);
+
+  string name8;
+
+  flags.add(&name8,
+            "z8",
+            Some("a8"),
+            "Also set name8",
+            "value8");
+
+  EXPECT_EQ(
+      "Usage:  [options]\n"
+      "\n"
+      "  --[no-]help                Prints this help message (default: false)\n"
+      "  --name1=VALUE              Set name1 (default: ben folds)\n"
+      "  --name2=VALUE              Set name2 (default: 42)\n"
+      "  --[no-]name3               Set name3 (default: false)\n"
+      "  --[no-]name4               Set name4\n"
+      "  --[no-]name5               Set name5\n"
+      "  --z6=VALUE, --a6=VALUE     Also set name6\n"
+      "  --[no-]z7, --[no-]a7       Also set name7 (default: true)\n"
+      "  --z8=VALUE, --a8=VALUE     Also set name8 (default: value8)\n",
+      flags.usage());
 }
 
 
