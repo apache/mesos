@@ -14,11 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
+#include <process/collect.hpp>
 
 #include <stout/os.hpp>
 
 #include "slave/flags.hpp"
+#include "slave/state.hpp"
 
 #include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
 
@@ -26,6 +27,7 @@ namespace paths = mesos::internal::slave::docker::volume::paths;
 
 using std::list;
 using std::string;
+using std::vector;
 
 using process::Failure;
 using process::Future;
@@ -121,7 +123,193 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  return None();
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
+
+  if (!executorInfo.has_container()) {
+    return None();
+  }
+
+  if (executorInfo.container().type() != ContainerInfo::MESOS) {
+    return Failure(
+        "Can only prepare docker volume driver for a MESOS container");
+  }
+
+  // The hashset is used to check if there are duplicated docker
+  // volume for the same container.
+  hashset<DockerVolume> volumes;
+
+  // Represents mounts that will be sent to the driver client.
+  struct Mount
+  {
+    DockerVolume volume;
+    hashmap<string, string> options;
+  };
+
+  vector<Mount> mounts;
+
+  // The mount points in the container.
+  vector<string> targets;
+
+  foreach (const Volume& _volume, executorInfo.container().volumes()) {
+    if (!_volume.has_source()) {
+      continue;
+    }
+
+    if (_volume.source().type() != Volume::Source::DOCKER_VOLUME) {
+      VLOG(1) << "Ignored volume type '" << _volume.source().type()
+              << "' for container " << containerId << " as only "
+              << "'DOCKER_VOLUME' was supported by the docker "
+              << "volume isolator";
+      continue;
+    }
+
+    const string driver = _volume.source().docker_volume().driver();
+    const string name = _volume.source().docker_volume().name();
+
+    DockerVolume volume;
+    volume.set_driver(driver);
+    volume.set_name(name);
+
+    if (volumes.contains(volume)) {
+      return Failure(
+          "Found duplicate docker volume with driver '" +
+          driver + "' and name '" + name + "'");
+    }
+
+    // Determine driver options.
+    hashmap<string, string> options;
+    if (_volume.source().docker_volume().has_driver_options()) {
+      foreach (const Parameter& parameter,
+               _volume.source().docker_volume().driver_options().parameter()) {
+        options[parameter.key()] = parameter.value();
+      }
+    }
+
+    // Determine the mount point.
+    string target;
+
+    if (containerConfig.has_rootfs()) {
+      target = path::join(
+          containerConfig.rootfs(),
+          _volume.container_path());
+    } else {
+      target = path::join(
+          containerConfig.directory(),
+          _volume.container_path());
+    }
+
+    Mount mount;
+    mount.volume = volume;
+    mount.options = options;
+
+    volumes.insert(volume);
+    mounts.push_back(mount);
+    targets.push_back(target);
+  }
+
+  // Create the container directory.
+  const string containerDir =
+    paths::getContainerDir(rootDir, containerId.value());
+
+  Try<Nothing> mkdir = os::mkdir(containerDir);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create the container directory at '" +
+        containerDir + "': " + mkdir.error());
+  }
+
+  // Create DockerVolumes protobuf message to checkpoint.
+  DockerVolumes state;
+  foreach (const DockerVolume& volume, volumes) {
+    state.add_volumes()->CopyFrom(volume);
+  }
+
+  const string volumesPath =
+    paths::getVolumesPath(rootDir, containerId.value());
+
+  Try<Nothing> checkpoint = state::checkpoint(
+      volumesPath,
+      stringify(JSON::protobuf(state)));
+
+  if (checkpoint.isError()) {
+    return Failure(
+        "Failed to checkpoint docker volumes at '" +
+        volumesPath + "': " + checkpoint.error());
+  }
+
+  VLOG(1) << "Successfully created checkpoint at '" << volumesPath << "'";
+
+  infos.put(containerId, Owned<Info>(new Info(volumes)));
+
+  // Invoke driver client to create the mount.
+  list<Future<string>> futures;
+  foreach (const Mount& mount, mounts) {
+    futures.push_back(client->mount(
+        mount.volume.driver(),
+        mount.volume.name(),
+        mount.options));
+  }
+
+  // NOTE: Wait for all `mount()` to finish before returning to make
+  // sure `unmount()` is not called (via 'cleanup()') if some mount on
+  // is still pending.
+  return await(futures)
+    .then(defer(
+        PID<DockerVolumeIsolatorProcess>(this),
+        &DockerVolumeIsolatorProcess::_prepare,
+        containerId,
+        targets,
+        lambda::_1));
+}
+
+
+Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
+    const ContainerID& containerId,
+    const vector<string>& targets,
+    const list<Future<string>>& futures)
+{
+  ContainerLaunchInfo launchInfo;
+  launchInfo.set_namespaces(CLONE_NEWNS);
+
+  vector<string> messages;
+  vector<string> sources;
+  foreach (const Future<string>& future, futures) {
+    if (!future.isReady()) {
+      messages.push_back(future.isFailed() ? future.failure() : "discarded");
+      continue;
+    }
+
+    sources.push_back(strings::trim(future.get()));
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  CHECK_EQ(sources.size(), targets.size());
+
+  for (size_t i = 0; i < sources.size(); i++) {
+    const string source = sources[i];
+    const string target = targets[i];
+
+    VLOG(1) << "Mounting docker volume mount point '" << source
+            << "' to '" << target  << "' for container '"
+            << containerId << "'";
+
+    // Create the mount point if it does not exist.
+    Try<Nothing> mkdir = os::mkdir(target);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create mount point at '" +
+          target + "': " + mkdir.error());
+    }
+
+    const string command = "mount -n --rbind " + source + " " + target;
+
+    launchInfo.add_commands()->set_value(command);
+  }
+
+  return launchInfo;
 }
 
 

@@ -17,7 +17,43 @@
 #ifndef __ISOLATOR_DOCKER_VOLUME_STATE_HPP__
 #define __ISOLATOR_DOCKER_VOLUME_STATE_HPP__
 
+#include <boost/functional/hash.hpp>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include "slave/containerizer/mesos/isolators/docker/volume/state.pb.h"
+
+namespace mesos {
+namespace internal {
+namespace slave {
+
+inline bool operator==(const DockerVolume& left, const DockerVolume& right)
+{
+  return (left.driver() == right.driver()) && (left.name() == right.name());
+}
+
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {
+
+
+namespace std {
+
+template <>
+struct hash<mesos::internal::slave::DockerVolume>
+{
+  typedef size_t result_type;
+
+  typedef mesos::internal::slave::DockerVolume argument_type;
+
+  result_type operator()(const argument_type& volume) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, std::hash<std::string>()(volume.driver()));
+    boost::hash_combine(seed, std::hash<std::string>()(volume.name()));
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __ISOLATOR_DOCKER_VOLUME_STATE_HPP__

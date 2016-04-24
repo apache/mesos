@@ -17,10 +17,19 @@
 #ifndef __DOCKER_VOLUME_ISOLATOR_HPP__
 #define __DOCKER_VOLUME_ISOLATOR_HPP__
 
+#include <list>
+#include <string>
+#include <vector>
+
+#include <process/owned.hpp>
+
+#include <stout/hashmap.hpp>
+
 #include "slave/containerizer/mesos/isolator.hpp"
 
 #include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
 #include "slave/containerizer/mesos/isolators/docker/volume/paths.hpp"
+#include "slave/containerizer/mesos/isolators/docker/volume/state.hpp"
 
 namespace mesos {
 namespace internal {
@@ -61,14 +70,29 @@ public:
       const ContainerID& containerId);
 
 private:
+  struct Info
+  {
+    Info (const hashset<DockerVolume>& _volumes)
+      : volumes(_volumes) {}
+
+    hashset<DockerVolume> volumes;
+  };
+
   DockerVolumeIsolatorProcess(
       const Flags& flags,
       const std::string& rootDir,
       const process::Owned<docker::volume::DriverClient>& client);
 
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const ContainerID& containerId,
+      const std::vector<std::string>& targets,
+      const std::list<process::Future<std::string>>& futures);
+
   const Flags flags;
   const std::string rootDir;
   const process::Owned<docker::volume::DriverClient> client;
+
+  hashmap<ContainerID, process::Owned<Info>> infos;
 };
 
 } // namespace slave {
