@@ -144,9 +144,21 @@ public:
   void add(
       T1* t1,
       const Name& name,
+      const Option<Name>& alias,
       const std::string& help,
       const T2& t2,
       F validate);
+
+  template <typename T1, typename T2, typename F>
+  void add(
+      T1* t1,
+      const Name& name,
+      const std::string& help,
+      const T2& t2,
+      F validate)
+  {
+    add(t1, name, None(), help, t2, validate);
+  }
 
   template <typename T1, typename T2>
   void add(
@@ -155,15 +167,37 @@ public:
       const std::string& help,
       const T2& t2)
   {
-    add(t1, name, help, t2, [](const T1&) { return None(); });
+    add(t1, name, None(), help, t2, [](const T1&) { return None(); });
+  }
+
+  template <typename T1, typename T2>
+  void add(
+      T1* t1,
+      const Name& name,
+      const Option<Name>& alias,
+      const std::string& help,
+      const T2& t2)
+  {
+    add(t1, name, alias, help, t2, [](const T1&) { return None(); });
   }
 
   template <typename T, typename F>
   void add(
       Option<T>* option,
       const Name& name,
+      const Option<Name>& alias,
       const std::string& help,
       F validate);
+
+  template <typename T, typename F>
+  void add(
+      Option<T>* option,
+      const Name& name,
+      const std::string& help,
+      F validate)
+  {
+    add(option, name, None(), help, validate);
+  }
 
   template <typename T>
   void add(
@@ -171,7 +205,17 @@ public:
       const Name& name,
       const std::string& help)
   {
-    add(option, name, help, [](const Option<T>&) { return None(); });
+    add(option, name, None(), help, [](const Option<T>&) { return None(); });
+  }
+
+  template <typename T>
+  void add(
+      Option<T>* option,
+      const Name& name,
+      const Option<Name>& alias,
+      const std::string& help)
+  {
+    add(option, name, alias, help, [](const Option<T>&) { return None(); });
   }
 
 protected:
@@ -179,9 +223,21 @@ protected:
   void add(
       T1 Flags::*t1,
       const Name& name,
+      const Option<Name>& alias,
       const std::string& help,
       const T2& t2,
       F validate);
+
+  template <typename Flags, typename T1, typename T2, typename F>
+  void add(
+      T1 Flags::*t1,
+      const Name& name,
+      const std::string& help,
+      const T2& t2,
+      F validate)
+  {
+    add(t1, name, None(), help, t2, validate);
+  }
 
   template <typename Flags, typename T1, typename T2>
   void add(
@@ -190,15 +246,37 @@ protected:
       const std::string& help,
       const T2& t2)
   {
-    add(t1, name, help, t2, [](const T1&) { return None(); });
+    add(t1, name, None(), help, t2, [](const T1&) { return None(); });
+  }
+
+  template <typename Flags, typename T1, typename T2>
+  void add(
+      T1 Flags::*t1,
+      const Name& name,
+      const Option<Name>& alias,
+      const std::string& help,
+      const T2& t2)
+  {
+    add(t1, name, alias, help, t2, [](const T1&) { return None(); });
   }
 
   template <typename Flags, typename T, typename F>
   void add(
       Option<T> Flags::*option,
       const Name& name,
+      const Option<Name>& alias,
       const std::string& help,
       F validate);
+
+  template <typename Flags, typename T, typename F>
+  void add(
+      Option<T> Flags::*option,
+      const Name& name,
+      const std::string& help,
+      F validate)
+  {
+    add(option, name, None(), help, validate);
+  }
 
   template <typename Flags, typename T>
   void add(
@@ -206,7 +284,17 @@ protected:
       const Name& name,
       const std::string& help)
   {
-    add(option, name, help, [](const Option<T>&) { return None(); });
+    add(option, name, None(), help, [](const Option<T>&) { return None(); });
+  }
+
+  template <typename Flags, typename T>
+  void add(
+      Option<T> Flags::*option,
+      const Name& name,
+      const Option<Name>& alias,
+      const std::string& help)
+  {
+    add(option, name, alias, help, [](const Option<T>&) { return None(); });
   }
 
   void add(const Flag& flag);
@@ -235,7 +323,11 @@ private:
   std::map<std::string, Option<std::string>> extract(
       const std::string& prefix);
 
+  // Maps flag's name to flag.
   std::map<std::string, Flag> flags_;
+
+  // Maps flag's alias to flag's name.
+  std::map<std::string, std::string> aliases;
 };
 
 
@@ -261,6 +353,7 @@ template <typename T1, typename T2, typename F>
 void FlagsBase::add(
     T1* t1,
     const Name& name,
+    const Option<Name>& alias,
     const std::string& help,
     const T2& t2,
     F validate)
@@ -274,6 +367,7 @@ void FlagsBase::add(
 
   Flag flag;
   flag.name = name;
+  flag.alias = alias;
   flag.help = help;
   flag.boolean = typeid(T1) == typeid(bool);
 
@@ -292,6 +386,7 @@ void FlagsBase::add(
     } else {
       return Error("Failed to load value '" + value + "': " + t.error());
     }
+
     return Nothing();
   };
 
@@ -318,6 +413,7 @@ template <typename T, typename F>
 void FlagsBase::add(
     Option<T>* option,
     const Name& name,
+    const Option<Name>& alias,
     const std::string& help,
     F validate)
 {
@@ -328,6 +424,7 @@ void FlagsBase::add(
 
   Flag flag;
   flag.name = name;
+  flag.alias = alias;
   flag.help = help;
   flag.boolean = typeid(T) == typeid(bool);
 
@@ -343,6 +440,7 @@ void FlagsBase::add(
     } else {
       return Error("Failed to load value '" + value + "': " + t.error());
     }
+
     return Nothing();
   };
 
@@ -365,6 +463,7 @@ template <typename Flags, typename T1, typename T2, typename F>
 void FlagsBase::add(
     T1 Flags::*t1,
     const Name& name,
+    const Option<Name>& alias,
     const std::string& help,
     const T2& t2,
     F validate)
@@ -384,6 +483,7 @@ void FlagsBase::add(
 
   Flag flag;
   flag.name = name;
+  flag.alias = alias;
   flag.help = help;
   flag.boolean = typeid(T1) == typeid(bool);
 
@@ -406,6 +506,7 @@ void FlagsBase::add(
         return Error("Failed to load value '" + value + "': " + t.error());
       }
     }
+
     return Nothing();
   };
 
@@ -440,6 +541,7 @@ template <typename Flags, typename T, typename F>
 void FlagsBase::add(
     Option<T> Flags::*option,
     const Name& name,
+    const Option<Name>& alias,
     const std::string& help,
     F validate)
 {
@@ -456,6 +558,7 @@ void FlagsBase::add(
 
   Flag flag;
   flag.name = name;
+  flag.alias = alias;
   flag.help = help;
   flag.boolean = typeid(T) == typeid(bool);
 
@@ -465,19 +568,20 @@ void FlagsBase::add(
 
   flag.load =
     [option](FlagsBase* base, const std::string& value) -> Try<Nothing> {
-      Flags* flags = dynamic_cast<Flags*>(base);
-      if (flags != NULL) {
-        // NOTE: 'fetch' "retrieves" the value if necessary and then
-        // invokes 'parse'. See 'fetch' for more details.
-        Try<T> t = fetch<T>(value);
-        if (t.isSome()) {
-          flags->*option = Some(t.get());
-        } else {
-          return Error("Failed to load value '" + value + "': " + t.error());
-        }
+    Flags* flags = dynamic_cast<Flags*>(base);
+    if (flags != NULL) {
+      // NOTE: 'fetch' "retrieves" the value if necessary and then
+      // invokes 'parse'. See 'fetch' for more details.
+      Try<T> t = fetch<T>(value);
+      if (t.isSome()) {
+        flags->*option = Some(t.get());
+      } else {
+        return Error("Failed to load value '" + value + "': " + t.error());
       }
-      return Nothing();
-    };
+    }
+
+    return Nothing();
+  };
 
   flag.stringify = [option](const FlagsBase& base) -> Option<std::string> {
     const Flags* flags = dynamic_cast<const Flags*>(&base);
@@ -503,16 +607,33 @@ void FlagsBase::add(
 
 inline void FlagsBase::add(const Flag& flag)
 {
-  if (flags_.count(flag.name.value) > 0) {
-    EXIT(EXIT_FAILURE)
-      << "Attempted to add duplicate flag '" << flag.name.value << "'";
-  } else if (flag.name.value.find("no-") == 0) {
-    EXIT(EXIT_FAILURE)
-      << "Attempted to add flag '" << flag.name.value
-      << "' that starts with the reserved 'no-' prefix";
+  // Check if the name and alias of the flag are valid.
+  std::vector<Name> names = {flag.name};
+  if (flag.alias.isSome()) {
+    if (flag.alias.get() == flag.name) {
+      EXIT(EXIT_FAILURE)
+        << "Attempted to add flag '" << flag.name.value << "' with an alias"
+        << " that is same as the flag name";
+    }
+
+    names.push_back(flag.alias.get());
+  }
+
+  foreach (const Name& name, names) {
+    if (flags_.count(name.value) > 0) {
+      EXIT(EXIT_FAILURE)
+        << "Attempted to add duplicate flag '" << name.value << "'";
+    } else if (name.value.find("no-") == 0) {
+      EXIT(EXIT_FAILURE)
+        << "Attempted to add flag '" << name.value
+        << "' that starts with the reserved 'no-' prefix";
+    }
   }
 
   flags_[flag.name.value] = flag;
+  if (flag.alias.isSome()) {
+    aliases[flag.alias.get().value] = flag.name.value;
+  }
 }
 
 
@@ -709,7 +830,11 @@ inline Try<Nothing> FlagsBase::load(
 
     bool is_negated = strings::startsWith(name, "no-");
     std::string flag_name = !is_negated ? name : name.substr(3);
-    auto iter = flags_.find(flag_name);
+
+    auto iter = aliases.count(flag_name)
+      ? flags_.find(aliases[flag_name])
+      : flags_.find(flag_name);
+
     if (iter == flags_.end()) {
       if (!unknowns) {
         return Error("Failed to load unknown flag '" + flag_name + "'" +
@@ -719,10 +844,16 @@ inline Try<Nothing> FlagsBase::load(
       }
     }
 
-    const Flag& flag = iter->second;
-    std::string value_;
+    Flag* flag = &(iter->second);
 
-    if (!flag.boolean) {  // Non-boolean flag.
+    if (flag->loaded_name.isSome()) {
+      return Error("Flag is already loaded via name '" +
+                   flag->loaded_name->value + "'");
+    }
+
+    // Validate the flag value.
+    std::string value_;
+    if (!flag->boolean) {  // Non-boolean flag.
       if (is_negated) { // Non-boolean flag cannot be loaded with "no-" prefix.
         return Error("Failed to load non-boolean flag '" + flag_name +
                      "' via '" + name + "'");
@@ -746,9 +877,18 @@ inline Try<Nothing> FlagsBase::load(
       }
     }
 
-    Try<Nothing> load = flag.load(this, value_);
+    Try<Nothing> load = flag->load(this, value_);
     if (load.isError()) {
       return Error("Failed to load flag '" + flag_name + "': " + load.error());
+    }
+
+    // TODO(vinod): Move this logic inside `Flag::load()`.
+    // Set `loaded_name` to the Name corresponding to `flag_name`.
+    if (aliases.count(flag_name)) {
+      CHECK_SOME(flag->alias);
+      flag->loaded_name = flag->alias.get();
+    } else {
+      flag->loaded_name = flag->name;
     }
   }
 
@@ -806,13 +946,22 @@ inline std::string FlagsBase::usage( const Option<std::string>& message) const
 
   foreachvalue (const flags::Flag& flag, *this) {
     if (flag.boolean) {
-      col1[flag.name.value] = "  --[no-]" + flag.name.value;
+      col1[flag.name.value] += "  --[no-]" + flag.name.value;
+      if (flag.alias.isSome()) {
+        col1[flag.name.value] += ", --[no-]" + flag.alias->value;
+      }
     } else {
-      col1[flag.name.value] = "  --" + flag.name.value + "=VALUE";
+      // TODO(vinod): Rename "=VALUE" to "=<VALUE>".
+      col1[flag.name.value] += "  --" + flag.name.value + "=VALUE";
+      if (flag.alias.isSome()) {
+        col1[flag.name.value] += ", --" + flag.alias->value + "=VALUE";
+      }
     }
     width = std::max(width, col1[flag.name.value].size());
   }
 
+  // TODO(vinod): Print the help on the next line instead of on the same line as
+  // the names.
   foreachvalue (const flags::Flag& flag, *this) {
     std::string line = col1[flag.name.value];
 
@@ -846,7 +995,8 @@ inline std::ostream& operator<<(std::ostream& stream, const FlagsBase& flags)
   foreachvalue (const flags::Flag& flag, flags) {
     const Option<std::string> value = flag.stringify(flags);
     if (value.isSome()) {
-      _flags.push_back("--" + flag.name.value + "=\"" + value.get() + '"');
+      _flags.push_back("--" + flag.effective_name().value + "=\"" +
+                       value.get() + '"');
     }
   }
 

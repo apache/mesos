@@ -37,6 +37,11 @@ struct Name
   Name(const char* _value)
     : value(_value) {}
 
+  bool operator==(const Name& other) const
+  {
+    return value == other.value;
+  }
+
   std::string value;
 };
 
@@ -44,11 +49,26 @@ struct Name
 struct Flag
 {
   Name name;
+  Option<Name> alias;
+
+  // This is the name that the user uses to specifically load the flag (e.g, via
+  // command line `--foo=val`). This is optional because a flag might not be
+  // explicitly loaded by the user (e.g., flag with a default value). Note that
+  // this name should be one of `name` or `alias`.
+  Option<Name> loaded_name;
+
   std::string help;
   bool boolean;
   lambda::function<Try<Nothing>(FlagsBase*, const std::string&)> load;
   lambda::function<Option<std::string>(const FlagsBase&)> stringify;
   lambda::function<Option<Error>(const FlagsBase&)> validate;
+
+  // This is the name of the flag that the user loads. If the loading is
+  // implicit this defaults to the `name`.
+  const Name& effective_name() const
+  {
+    return loaded_name.isSome() ? loaded_name.get() : name;
+  }
 };
 
 } // namespace flags {
