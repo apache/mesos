@@ -92,6 +92,8 @@ private:
       const ContainerID& containerId,
       const std::list<process::Future<Nothing>>& futures);
 
+  Try<Nothing> _recover(const ContainerID& containerId);
+
   const Flags flags;
   const std::string rootDir;
   const process::Owned<docker::volume::DriverClient> client;

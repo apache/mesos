@@ -115,6 +115,129 @@ Future<Nothing> DockerVolumeIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  if (!os::exists(rootDir)) {
+    VLOG(1) << "The checkpoint directory at '" << rootDir
+            << "' does not exist. Skipping recovery.";
+
+    return Nothing();
+  }
+
+  foreach (const ContainerState& state, states) {
+    const ContainerID& containerId = state.container_id();
+
+    Try<Nothing> recover = _recover(containerId);
+    if (recover.isError()) {
+      return Failure(
+          "Failed to recover docker volumes for container " +
+          stringify(containerId) + ": " + recover.error());
+    }
+  }
+
+  Try<list<string>> entries = os::ls(rootDir);
+  if (entries.isError()) {
+    return Failure(
+        "Unable to list docker volume checkpoint directory '" +
+        rootDir + "': " + entries.error());
+  }
+
+  foreach (const string& entry, entries.get()) {
+    ContainerID containerId;
+    containerId.set_value(Path(entry).basename());
+
+    if (infos.contains(containerId)) {
+      continue;
+    }
+
+    // Recover docker volume information for orphan container.
+    Try<Nothing> recover = _recover(containerId);
+    if (recover.isError()) {
+      return Failure(
+          "Failed to recover docker volumes for orphan container " +
+          stringify(containerId) + ": " + recover.error());
+    }
+
+    // Known orphan containers will be cleaned up by containerizer
+    // using the normal cleanup path. See MESOS-2367 for details.
+    if (orphans.contains(containerId)) {
+      continue;
+    }
+
+    LOG(INFO) << "Cleanup volumes for unknown orphaned "
+              << "docker container " << containerId;
+
+    cleanup(containerId);
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> DockerVolumeIsolatorProcess::_recover(
+    const ContainerID& containerId)
+{
+  // NOTE: This method will add an 'Info' to 'infos' only if the
+  // container was launched by the docker volume isolator.
+
+  const string containerDir =
+    paths::getContainerDir(rootDir, containerId.value());
+
+  if (!os::exists(containerDir)) {
+    // This may occur in the following cases:
+    //   1. Executor has exited and the isolator has removed the
+    //      container directory in '_cleanup()' but agent dies before
+    //      noticing this.
+    //   2. Agent dies before the isolator creates the container
+    //      directory in 'prepare()'.
+    // For the above cases, we do not need to do anything since there
+    // is nothing to clean up after agent restarts.
+    return Nothing();
+  }
+
+  const string volumesPath =
+    paths::getVolumesPath(rootDir, containerId.value());
+
+  if (!os::exists(volumesPath)) {
+    VLOG(1) << "The docker volumes checkpointed at '" << volumesPath
+            << "' for container '" << containerId << "' does not exist";
+
+    return Nothing();
+  }
+
+  Try<string> read = os::read(volumesPath);
+  if (read.isError()) {
+    return Error(
+        "Failed to read docker volumes checkpoint file '" +
+        volumesPath + "': " + read.error());
+  }
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
+  if (json.isError()) {
+    return Error("JSON parse failed: " + json.error());
+  }
+
+  Try<DockerVolumes> parse = ::protobuf::parse<DockerVolumes>(json.get());
+  if (parse.isError()) {
+    return Error("Protobuf parse failed: " + parse.error());
+  }
+
+  hashset<DockerVolume> volumes;
+
+  foreach (const DockerVolume& volume, parse->volumes()) {
+    VLOG(1) << "Recovering docker volume with driver '"
+            << volume.driver() << "' and name '" << volume.name()
+            << "' for container " << containerId;
+
+    if (volumes.contains(volume)) {
+      return Error(
+          "Duplicate docker volume with driver '" + volume.driver() +
+          "' and name '" + volume.name() + "'");
+    }
+
+    volumes.insert(volume);
+  }
+
+  infos.put(containerId, Owned<Info>(new Info(volumes)));
+
   return Nothing();
 }
 
