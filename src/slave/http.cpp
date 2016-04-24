@@ -384,10 +384,10 @@ Future<Response> Slave::Http::_flags(
 
   {
     JSON::Object flags;
-    foreachpair (const string& name, const flags::Flag& flag, slaveFlags) {
+    foreachvalue (const flags::Flag& flag, slaveFlags) {
       Option<string> value = flag.stringify(slaveFlags);
       if (value.isSome()) {
-        flags.values[name] = value.get();
+        flags.values[flag.effective_name().value] = value.get();
       }
     }
     object.values["flags"] = std::move(flags);
@@ -574,10 +574,10 @@ Future<Response> Slave::Http::state(
     });
 
     writer->field("flags", [this](JSON::ObjectWriter* writer) {
-      foreachpair (const string& name, const flags::Flag& flag, slave->flags) {
+      foreachvalue (const flags::Flag& flag, slave->flags) {
         Option<string> value = flag.stringify(slave->flags);
         if (value.isSome()) {
-          writer->field(name, value.get());
+          writer->field(flag.effective_name().value, value.get());
         }
       }
     });

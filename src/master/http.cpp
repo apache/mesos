@@ -904,10 +904,10 @@ Future<Response> Master::Http::_flags(const Request& request) const
 
   {
     JSON::Object flags;
-    foreachpair (const string& name, const flags::Flag& flag, master->flags) {
+    foreachvalue (const flags::Flag& flag, master->flags) {
       Option<string> value = flag.stringify(master->flags);
       if (value.isSome()) {
-        flags.values[name] = value.get();
+        flags.values[flag.effective_name().value] = value.get();
       }
     }
     object.values["flags"] = std::move(flags);
@@ -1528,10 +1528,10 @@ Future<Response> Master::Http::state(
     }
 
     writer->field("flags", [this](JSON::ObjectWriter* writer) {
-      foreachpair (const string& name, const flags::Flag& flag, master->flags) {
+      foreachvalue (const flags::Flag& flag, master->flags) {
         Option<string> value = flag.stringify(master->flags);
         if (value.isSome()) {
-          writer->field(name, value.get());
+          writer->field(flag.effective_name().value, value.get());
         }
       }
     });
