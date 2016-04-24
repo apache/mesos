@@ -88,6 +88,10 @@ private:
       const std::vector<std::string>& targets,
       const std::list<process::Future<std::string>>& futures);
 
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const std::list<process::Future<Nothing>>& futures);
+
   const Flags flags;
   const std::string rootDir;
   const process::Owned<docker::volume::DriverClient> client;

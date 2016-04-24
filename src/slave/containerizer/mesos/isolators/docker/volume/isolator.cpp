@@ -346,6 +346,85 @@ Future<ResourceStatistics> DockerVolumeIsolatorProcess::usage(
 Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  if (!infos.contains(containerId)) {
+    VLOG(1) << "Ignoring cleanup request for unknown container '"
+            << containerId << "'";
+
+    return Nothing();
+  }
+
+  hashmap<DockerVolume, int> references;
+  foreachvalue (const Owned<Info>& info, infos) {
+    foreach (const DockerVolume& volume, info->volumes) {
+      if (!references.contains(volume)) {
+        references[volume] = 1;
+      } else {
+        references[volume]++;
+      }
+    }
+  }
+
+  list<Future<Nothing>> futures;
+
+  foreach (const DockerVolume& volume, infos[containerId]->volumes) {
+    if (references.contains(volume) && references[volume] > 1) {
+      VLOG(1) << "Cannot unmount the volume with driver '"
+              << volume.driver() << "' and name '" << volume.name()
+              << "' for container " << containerId
+              << " since its reference count is " << references[volume];
+      continue;
+    }
+
+    VLOG(1) << "Unmounting the volume with driver '"
+            << volume.driver() << "' and name '" << volume.name()
+            << "' for container " << containerId;
+
+    // Invoke dvdcli client to unmount the docker volume.
+    futures.push_back(client->unmount(volume.driver(), volume.name()));
+  }
+
+  return await(futures)
+    .then(defer(
+        PID<DockerVolumeIsolatorProcess>(this),
+        &DockerVolumeIsolatorProcess::_cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> DockerVolumeIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const list<Future<Nothing>>& futures)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<string> messages;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      messages.push_back(future.isFailed() ? future.failure() : "discarded");
+    }
+  }
+
+  if (!messages.empty()) {
+    return Failure(strings::join("\n", messages));
+  }
+
+  const string containerDir =
+    paths::getContainerDir(rootDir, containerId.value());
+
+  Try<Nothing> rmdir = os::rmdir(containerDir);
+  if (rmdir.isError()) {
+    return Failure(
+        "Failed to remove the checkpoint directory at '" +
+        containerDir + "': " + rmdir.error());
+  }
+
+  LOG(INFO) << "Removed the checkpoint directory at '" << containerDir
+            << "' for container " << containerId;
+
+  // Remove all this container's docker volume information from infos.
+  infos.erase(containerId);
+
   return Nothing();
 }
 
