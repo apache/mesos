@@ -147,10 +147,10 @@ Try<Subprocess> subprocess(
   // Prepare the arguments. If the user specifies the 'flags', we will
   // stringify them and append them to the existing arguments.
   if (flags.isSome()) {
-    foreachpair (const string& name, const flags::Flag& flag, flags.get()) {
+    foreachvalue (const flags::Flag& flag, flags.get()) {
       Option<string> value = flag.stringify(flags.get());
       if (value.isSome()) {
-        argv.push_back("--" + name + "=" + value.get());
+        argv.push_back("--" + flag.effective_name().value + "=" + value.get());
       }
     }
   }
