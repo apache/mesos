@@ -367,7 +367,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
   // Invoke driver client to create the mount.
   list<Future<string>> futures;
   foreach (const Mount& mount, mounts) {
-    futures.push_back(client->mount(
+    futures.push_back(this->mount(
         mount.volume.driver(),
         mount.volume.name(),
         mount.options));
@@ -549,6 +549,31 @@ Future<Nothing> DockerVolumeIsolatorProcess::_cleanup(
   infos.erase(containerId);
 
   return Nothing();
+}
+
+
+Future<string> DockerVolumeIsolatorProcess::mount(
+    const string& driver,
+    const string& name,
+    const hashmap<string, string>& options)
+{
+  DockerVolume volume;
+  volume.set_driver(driver);
+  volume.set_name(name);
+
+  return sequences[volume].add<string>(
+      defer(PID<DockerVolumeIsolatorProcess>(this), [=]() -> Future<string> {
+        return _mount(driver, name, options);
+      }));
+}
+
+
+Future<string> DockerVolumeIsolatorProcess::_mount(
+    const string& driver,
+    const string& name,
+    const hashmap<string, string>& options)
+{
+  return client->mount(driver, name, options);
 }
 
 } // namespace slave {

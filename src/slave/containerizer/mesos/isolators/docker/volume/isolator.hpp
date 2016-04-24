@@ -22,8 +22,11 @@
 #include <vector>
 
 #include <process/owned.hpp>
+#include <process/sequence.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
@@ -94,11 +97,26 @@ private:
 
   Try<Nothing> _recover(const ContainerID& containerId);
 
+  process::Future<std::string> mount(
+      const std::string& driver,
+      const std::string& name,
+      const hashmap<std::string, std::string>& options);
+
+  process::Future<std::string> _mount(
+      const std::string& driver,
+      const std::string& name,
+      const hashmap<std::string, std::string>& options);
+
   const Flags flags;
   const std::string rootDir;
   const process::Owned<docker::volume::DriverClient> client;
 
   hashmap<ContainerID, process::Owned<Info>> infos;
+
+  // For a given volume, the docker volume isolator might be doing
+  // mounting and unmounting simultaneously. The sequence can make
+  // sure the order we issue them is the same order they are executed.
+  hashmap<DockerVolume, process::Sequence> sequences;
 };
 
 } // namespace slave {
