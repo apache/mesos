@@ -107,6 +107,14 @@ private:
       const std::string& name,
       const hashmap<std::string, std::string>& options);
 
+  process::Future<Nothing> unmount(
+      const std::string& driver,
+      const std::string& name);
+
+  process::Future<Nothing> _unmount(
+      const std::string& driver,
+      const std::string& name);
+
   const Flags flags;
   const std::string rootDir;
   const process::Owned<docker::volume::DriverClient> client;

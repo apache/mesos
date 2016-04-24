@@ -503,7 +503,7 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
             << "' for container " << containerId;
 
     // Invoke dvdcli client to unmount the docker volume.
-    futures.push_back(client->unmount(volume.driver(), volume.name()));
+    futures.push_back(this->unmount(volume.driver(), volume.name()));
   }
 
   return await(futures)
@@ -574,6 +574,29 @@ Future<string> DockerVolumeIsolatorProcess::_mount(
     const hashmap<string, string>& options)
 {
   return client->mount(driver, name, options);
+}
+
+
+Future<Nothing> DockerVolumeIsolatorProcess::unmount(
+    const string& driver,
+    const string& name)
+{
+  DockerVolume volume;
+  volume.set_driver(driver);
+  volume.set_name(name);
+
+  return sequences[volume].add<Nothing>(
+      defer(PID<DockerVolumeIsolatorProcess>(this), [=]() -> Future<Nothing> {
+        return _unmount(driver, name);
+      }));
+}
+
+
+Future<Nothing> DockerVolumeIsolatorProcess::_unmount(
+    const string& driver,
+    const string& name)
+{
+  return client->unmount(driver, name);
 }
 
 } // namespace slave {
