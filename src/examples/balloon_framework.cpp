@@ -233,7 +233,7 @@ int main(int argc, char** argv)
   }
 
   MesosSchedulerDriver* driver;
-  value = os::getenv("MESOS_AUTHENTICATE");
+  value = os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS");
   if (value.isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 

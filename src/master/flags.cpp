@@ -14,9 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stout/flags.hpp>
 
 #include <mesos/type_utils.hpp>
+
+#include <stout/flags.hpp>
 
 #include "common/parse.hpp"
 #include "master/constants.hpp"
@@ -201,7 +202,8 @@ mesos::internal::master::Flags::Flags()
   // TODO(adam-mesos): Deprecate --authenticate for --authenticate_frameworks.
   // See MESOS-4386 for details.
   add(&Flags::authenticate_frameworks,
-      "authenticate",
+      "authenticate_frameworks",
+      flags::DeprecatedName("authenticate"),
       "If `true`, only authenticated frameworks are allowed to register. If\n"
       "`false`, unauthenticated frameworks are also allowed to register. For\n"
       "HTTP based frameworks use the `--authenticate_http_frameworks` flag.",

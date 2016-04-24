@@ -173,7 +173,7 @@ if __name__ == "__main__":
         print "Enabling explicit status update acknowledgements"
         implicitAcknowledgements = 0
 
-    if os.getenv("MESOS_AUTHENTICATE"):
+    if os.getenv("MESOS_AUTHENTICATE_FRAMEWORKS"):
         print "Enabling authentication for the framework"
 
         if not os.getenv("DEFAULT_PRINCIPAL"):

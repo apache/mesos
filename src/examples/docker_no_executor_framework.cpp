@@ -182,7 +182,7 @@ int main(int argc, char** argv)
   framework.set_checkpoint(true);
 
   MesosSchedulerDriver* driver;
-  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
+  if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 
     Option<string> value = os::getenv("DEFAULT_PRINCIPAL");

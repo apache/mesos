@@ -85,7 +85,7 @@ public class TestExceptionFramework {
         .setName("Exception Framework (Java)");
 
     MesosSchedulerDriver driver = null;
-    if (System.getenv("MESOS_AUTHENTICATE") != null) {
+    if (System.getenv("MESOS_AUTHENTICATE_FRAMEWORKS") != null) {
       System.out.println("Enabling authentication for the framework");
 
       if (System.getenv("DEFAULT_PRINCIPAL") == null) {

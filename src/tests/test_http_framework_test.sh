@@ -37,7 +37,7 @@ export MESOS_ISOLATION="filesystem/posix,posix/cpu,posix/mem"
 export MESOS_LAUNCHER="posix"
 
 # Disable authentication as the scheduler library does not support it.
-export MESOS_AUTHENTICATE=false
+export MESOS_AUTHENTICATE_FRAMEWORKS=false
 
 # Check that the C++ HTTP scheduler executes without crashing (returns 0).
 exec ${MESOS_HELPER_DIR}/test-http-framework --master=local

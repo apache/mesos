@@ -117,7 +117,7 @@ void execute(const string& script)
     os::setenv("MESOS_REGISTRY", "replicated_log");
 
     // Enable authentication.
-    os::setenv("MESOS_AUTHENTICATE", "true");
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "true");
 
     // Create test credentials.
     const string& credentials =

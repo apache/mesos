@@ -228,7 +228,7 @@ public class TestFramework {
         : new TestScheduler(implicitAcknowledgements, executor, Integer.parseInt(args[1]));
 
     MesosSchedulerDriver driver = null;
-    if (System.getenv("MESOS_AUTHENTICATE") != null) {
+    if (System.getenv("MESOS_AUTHENTICATE_FRAMEWORKS") != null) {
       System.out.println("Enabling authentication for the framework");
 
       if (System.getenv("DEFAULT_PRINCIPAL") == null) {

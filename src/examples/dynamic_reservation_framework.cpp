@@ -383,7 +383,7 @@ int main(int argc, char** argv)
 
   if (flags.master.get() == "local") {
     // Configure master.
-    os::setenv("MESOS_AUTHENTICATE", "false");
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "false");
 
     ACLs acls;
     ACL::RegisterFramework* acl = acls.add_register_frameworks();

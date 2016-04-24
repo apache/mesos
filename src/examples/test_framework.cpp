@@ -262,7 +262,7 @@ int main(int argc, char** argv)
   MesosSchedulerDriver* driver;
   TestScheduler scheduler(implicitAcknowledgements, executor, role);
 
-  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
+  if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 
     value = os::getenv("DEFAULT_PRINCIPAL");
