@@ -79,6 +79,10 @@
 #endif
 
 #ifdef __linux__
+#include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
+#endif
+
+#ifdef __linux__
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #endif
 #include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
@@ -246,6 +250,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/devices/gpus/nvidia", &CgroupsNvidiaGpuIsolatorProcess::create},
 #endif
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
+    {"docker/volume", &DockerVolumeIsolatorProcess::create},
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif
