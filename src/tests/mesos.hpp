@@ -668,6 +668,20 @@ inline google::protobuf::RepeatedPtrField<WeightInfo> createWeightInfos(
 }
 
 
+// Convert WeightInfos protobuf to weights hashmap.
+inline hashmap<std::string, double> convertToHashmap(
+    const google::protobuf::RepeatedPtrField<WeightInfo> weightInfos)
+{
+  hashmap<std::string, double> weights;
+
+  for (const WeightInfo& weightInfo : weightInfos) {
+    weights[weightInfo.role()] = weightInfo.weight();
+  }
+
+  return weights;
+}
+
+
 // Helpers for creating reserve operations.
 inline Offer::Operation RESERVE(const Resources& resources)
 {

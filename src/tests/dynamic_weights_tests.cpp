@@ -82,16 +82,16 @@ class DynamicWeightsTest : public MesosTest
 protected:
   DynamicWeightsTest() {}
 
-  void checkWithRolesEndpoint(
+  void checkWithGetRequest(
       const PID<Master>& master,
-      const Option<string>& weights = None())
+      const Option<string>& _weights = None())
   {
     Future<Response> response = process::http::request(
         process::http::createRequest(
             master,
             "GET",
             false,
-            "roles",
+            "weights",
             createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
@@ -102,165 +102,34 @@ protected:
     Try<JSON::Value> parse = JSON::parse(response.get().body);
     ASSERT_SOME(parse);
 
-    Try<JSON::Value> expected = JSON::Null();
+    // Create Protobuf representation of weights.
+    Try<RepeatedPtrField<WeightInfo>> weightInfos =
+      ::protobuf::parse<RepeatedPtrField<WeightInfo>>(parse.get());
 
-    if (weights.isNone()) {
-      expected = JSON::parse(
-          "{"
-          "  \"roles\": ["
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"*\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    }"
-          "  ]"
-          "}");
-    } else if (weights == DEFAULT_WEIGHTS) {
-      expected = JSON::parse(
-          "{"
-          "  \"roles\": ["
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"*\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role1\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role2\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    }"
-          "  ]"
-          "}");
-    } else if (weights == UPDATED_WEIGHTS1) {
-      expected = JSON::parse(
-          "{"
-          "  \"roles\": ["
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"*\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role1\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 2.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role2\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 4.0"
-          "    }"
-          "  ]"
-          "}");
-    } else if (weights == UPDATED_WEIGHTS2) {
-      expected = JSON::parse(
-          "{"
-          "  \"roles\": ["
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"*\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role1\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 1.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role2\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 4.0"
-          "    },"
-          "    {"
-          "      \"frameworks\": [],"
-          "      \"name\": \"role3\","
-          "      \"resources\": {"
-          "        \"cpus\": 0,"
-          "        \"disk\": 0,"
-          "        \"gpus\": 0,"
-          "        \"mem\":  0"
-          "      },"
-          "      \"weight\": 2.5"
-          "    }"
-          "  ]"
-          "}");
+    ASSERT_SOME(weightInfos);
+
+    hashmap<std::string, double> weights =
+      convertToHashmap(weightInfos.get());
+
+    if (_weights.isNone()) {
+      EXPECT_EQ(0, weights.size());
+    } else if (_weights == UPDATED_WEIGHTS1) {
+      EXPECT_EQ(2, weights.size());
+      EXPECT_EQ(2.0, weights["role1"]);
+      EXPECT_EQ(4.0, weights["role2"]);
+    } else if (_weights == UPDATED_WEIGHTS2) {
+      EXPECT_EQ(3, weights.size());
+      EXPECT_EQ(1.0, weights["role1"]);
+      EXPECT_EQ(4.0, weights["role2"]);
+      EXPECT_EQ(2.5, weights["role3"]);
     } else {
-      expected = Error("Unexpected weights string.");
+      EXPECT_EQ(_weights.get(), "Unexpected weights string.");
     }
-
-    ASSERT_SOME(expected);
-    EXPECT_EQ(expected.get(), parse.get());
   }
 
 protected:
   const string ROLE1 = "role1";
   const string ROLE2 = "role2";
-  const string DEFAULT_WEIGHTS = "role1=1.0,role2=1.0";
   const string UPDATED_WEIGHTS1 = "role1=2.0,role2=4.0";
   const string UPDATED_WEIGHTS2 = "role1=1.0,role3=2.5";
 };
@@ -292,7 +161,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 
   // Tests whether an update weights request with an invalid field fails.
   // In this case, the correct field name should be 'role'.
@@ -314,7 +183,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -339,7 +208,7 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -364,7 +233,7 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -389,7 +258,7 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -413,7 +282,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1)
     << response1.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 
   // Send an empty role (only a space) update request.
   RepeatedPtrField<WeightInfo> infos = createWeightInfos(" =2.0");
@@ -429,7 +298,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2)
     << response2.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -458,7 +327,7 @@ TEST_F(DynamicWeightsTest, UnknownRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, DEFAULT_WEIGHTS);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -473,7 +342,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  checkWithRolesEndpoint(master.get()->pid, DEFAULT_WEIGHTS);
+  checkWithGetRequest(master.get()->pid);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS1.
   RepeatedPtrField<WeightInfo> infos = createWeightInfos(UPDATED_WEIGHTS1);
@@ -489,7 +358,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -520,7 +389,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
     << response1.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 
   // The absence of credentials leads to authentication failure as well.
   infos = createWeightInfos(UPDATED_WEIGHTS1);
@@ -536,7 +405,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
     << response2.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -599,7 +468,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -639,7 +508,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
 }
 
 
@@ -671,7 +540,7 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master.get()->pid);
+  checkWithGetRequest(master.get()->pid);
 }
 
 
@@ -687,7 +556,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
   // Tests whether the weights replicated log is initialized with the
   // `--weights` flag when bootstrapping the cluster.
   {
-    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
 
     // Stop the master
     master->reset();
@@ -697,7 +566,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS1);
+    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
   }
 
   // Tests whether the weights replicated log can be updated with
@@ -717,7 +586,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response.get().body;
 
-    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
 
     // Stop the master
     master->reset();
@@ -727,7 +596,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
   }
 
   // Tests whether the `--weights` flag is ignored and use the registry value
@@ -742,7 +611,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
   }
 }
 
