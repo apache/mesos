@@ -112,13 +112,13 @@ protected:
       convertToHashmap(weightInfos.get());
 
     if (_weights.isNone()) {
-      EXPECT_EQ(0, weights.size());
+      EXPECT_EQ(0u, weights.size());
     } else if (_weights == UPDATED_WEIGHTS1) {
-      EXPECT_EQ(2, weights.size());
+      EXPECT_EQ(2u, weights.size());
       EXPECT_EQ(2.0, weights["role1"]);
       EXPECT_EQ(4.0, weights["role2"]);
     } else if (_weights == UPDATED_WEIGHTS2) {
-      EXPECT_EQ(3, weights.size());
+      EXPECT_EQ(3u, weights.size());
       EXPECT_EQ(1.0, weights["role1"]);
       EXPECT_EQ(4.0, weights["role2"]);
       EXPECT_EQ(2.5, weights["role3"]);
