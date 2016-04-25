@@ -63,6 +63,7 @@ layout: documentation
 * [OpenCredo](http://www.opencredo.com/)
 * [OpenTable](http://www.opentable.com)
 * [Oscar Insurance](https://www.hioscar.com/)
+* [OVH](https://www.ovh.com/)
 * [PayPal](https://www.paypal.com)
 * [Pinkbike](http://www.pinkbike.com)
 * [ProfitStars](http://www.profitstars.com)
