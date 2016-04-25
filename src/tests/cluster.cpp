@@ -352,7 +352,8 @@ Try<process::Owned<Slave>> Slave::start(
     const Option<slave::GarbageCollector*>& gc,
     const Option<slave::StatusUpdateManager*>& statusUpdateManager,
     const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
-    const Option<mesos::slave::QoSController*>& qosController)
+    const Option<mesos::slave::QoSController*>& qosController,
+    const Option<Authorizer*>& providedAuthorizer)
 {
   process::Owned<Slave> slave(new Slave());
 
@@ -377,6 +378,36 @@ Try<process::Owned<Slave>> Slave::start(
 
     slave->ownedContainerizer.reset(_containerizer.get());
     slave->containerizer = _containerizer.get();
+  }
+
+  Option<Authorizer*> authorizer = providedAuthorizer;
+
+  // If the authorizer is not provided, create a default one.
+  if (providedAuthorizer.isNone()) {
+    std::string authorizerName = flags.authorizer;
+
+    Result<Authorizer*> createdAuthorizer((None()));
+    if (authorizerName != slave::DEFAULT_AUTHORIZER) {
+      LOG(INFO) << "Creating '" << authorizerName << "' authorizer";
+
+      // NOTE: The contents of --acls will be ignored.
+      createdAuthorizer = Authorizer::create(authorizerName);
+    } else {
+      // `authorizerName` is `DEFAULT_AUTHORIZER` at this point.
+      if (flags.acls.isSome()) {
+        LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
+
+        createdAuthorizer = Authorizer::create(flags.acls.get());
+      }
+    }
+
+    if (createdAuthorizer.isError()) {
+      EXIT(EXIT_FAILURE) << "Could not create '" << authorizerName
+                         << "' authorizer: " << createdAuthorizer.error();
+    } else if (createdAuthorizer.isSome()) {
+      slave->authorizer.reset(createdAuthorizer.get());
+      authorizer = createdAuthorizer.get();
+    }
   }
 
   // If the garbage collector is not provided, create a default one.
@@ -425,7 +456,8 @@ Try<process::Owned<Slave>> Slave::start(
       gc.getOrElse(slave->gc.get()),
       statusUpdateManager.getOrElse(slave->statusUpdateManager.get()),
       resourceEstimator.getOrElse(slave->resourceEstimator.get()),
-      qosController.getOrElse(slave->qosController.get())));
+      qosController.getOrElse(slave->qosController.get()),
+      authorizer));
 
   slave->pid = process::spawn(slave->slave.get());
 

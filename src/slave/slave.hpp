@@ -83,6 +83,10 @@
 #endif // __WINDOWS__
 
 namespace mesos {
+
+// Forward declarations.
+class Authorizer;
+
 namespace internal {
 
 namespace slave {
@@ -106,7 +110,8 @@ public:
         GarbageCollector* gc,
         StatusUpdateManager* statusUpdateManager,
         mesos::slave::ResourceEstimator* resourceEstimator,
-        mesos::slave::QoSController* qosController);
+        mesos::slave::QoSController* qosController,
+        const Option<Authorizer*>& authorizer);
 
   virtual ~Slave();
 
@@ -592,6 +597,8 @@ private:
   mesos::slave::ResourceEstimator* resourceEstimator;
 
   mesos::slave::QoSController* qosController;
+
+  const Option<Authorizer*> authorizer;
 
   // The most recent estimate of the total amount of oversubscribed
   // (allocated and oversubscribable) resources.

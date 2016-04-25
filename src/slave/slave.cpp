@@ -134,7 +134,8 @@ Slave::Slave(const std::string& id,
              GarbageCollector* _gc,
              StatusUpdateManager* _statusUpdateManager,
              ResourceEstimator* _resourceEstimator,
-             QoSController* _qosController)
+             QoSController* _qosController,
+             const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
     flags(_flags),
@@ -155,7 +156,8 @@ Slave::Slave(const std::string& id,
     reauthenticate(false),
     executorDirectoryMaxAllowedAge(age(0)),
     resourceEstimator(_resourceEstimator),
-    qosController(_qosController) {}
+    qosController(_qosController),
+    authorizer(_authorizer) {}
 
 
 Slave::~Slave()

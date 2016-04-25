@@ -401,7 +401,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         garbageCollectors->back(),
         statusUpdateManagers->back(),
         resourceEstimators->back(),
-        qosControllers->back());
+        qosControllers->back(),
+        authorizer_); // Same authorizer as master.
 
     slaves[containerizer.get()] = slave;
 

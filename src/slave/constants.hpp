@@ -114,6 +114,9 @@ constexpr Duration DOCKER_FORCE_KILL_TIMEOUT = Seconds(1);
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
+// Name of the default, local authorizer.
+constexpr char DEFAULT_AUTHORIZER[] = "local";
+
 // Name of the default HTTP authenticator.
 constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 

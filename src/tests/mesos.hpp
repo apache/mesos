@@ -1254,7 +1254,8 @@ public:
       const slave::Flags& flags,
       mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
-      const Option<mesos::slave::QoSController*>& qosController = None());
+      const Option<mesos::slave::QoSController*>& qosController = None(),
+      const Option<mesos::Authorizer*>& authorizer = None());
 
   virtual ~MockSlave();
 

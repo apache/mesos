@@ -147,7 +147,8 @@ public:
       const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
       const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
         None(),
-      const Option<mesos::slave::QoSController*>& qosController = None());
+      const Option<mesos::slave::QoSController*>& qosController = None(),
+      const Option<Authorizer*>& authorizer = None());
 
   ~Slave();
 
@@ -194,6 +195,7 @@ private:
   slave::Containerizer* containerizer = nullptr;
 
   // Dependencies that are created by the factory method.
+  process::Owned<Authorizer> authorizer;
   process::Owned<slave::Containerizer> ownedContainerizer;
   process::Owned<slave::Fetcher> fetcher;
   process::Owned<slave::GarbageCollector> gc;

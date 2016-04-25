@@ -878,6 +878,23 @@ May be one of:
   </thead>
 <tr>
   <td>
+    --acls=VALUE
+  </td>
+  <td>
+The value could be a JSON-formatted string of ACLs
+or a file path containing the JSON-formatted ACLs used
+for authorization. Path could be of the form <code>file:///path/to/file</code>
+or <code>/path/to/file</code>.
+<p/>
+Note that if the <code>--authorizer</code> flag is provided with a value
+other than <code>local</code>, the ACLs contents will be
+ignored.
+<p/>
+See the ACLs protobuf in acls.proto for the expected format.
+  </td>
+</tr>
+<tr>
+  <td>
     --appc_store_dir=VALUE
   </td>
   <td>
@@ -902,6 +919,21 @@ Attributes of the slave machine, in the form:
 Authenticatee implementation to use when authenticating against the
 master. Use the default <code>crammd5</code>, or
 load an alternate authenticatee module using <code>--modules</code>. (default: crammd5)
+  </td>
+</tr>
+<tr>
+  <td>
+    --authorizer=VALUE
+  </td>
+  <td>
+Authorizer implementation to use when authorizing actions that
+require it.
+Use the default <code>local</code>, or
+load an alternate authorizer module using <code>--modules</code>.
+<p/>
+Note that if the <code>--authorizer</code> flag is provided with a value
+other than the default <code>local</code>, the ACLs
+passed through the <code>--acls</code> flag will be ignored.
   </td>
 </tr>
 <tr>

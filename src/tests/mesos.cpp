@@ -175,6 +175,9 @@ slave::Flags MesosTest::CreateSlaveFlags()
     CHECK_SOME(os::close(fd.get()));
 
     flags.credential = path;
+
+    // Set default (permissive) ACLs.
+    flags.acls = ACLs();
   }
 
   flags.authenticate_http = true;
@@ -459,7 +462,8 @@ MockSlave::MockSlave(
     const slave::Flags& flags,
     MasterDetector* detector,
     slave::Containerizer* containerizer,
-    const Option<mesos::slave::QoSController*>& _qosController)
+    const Option<mesos::slave::QoSController*>& _qosController,
+    const Option<mesos::Authorizer*>& authorizer)
   : slave::Slave(
         process::ID::generate("slave"),
         flags,
@@ -469,7 +473,8 @@ MockSlave::MockSlave(
         &gc,
         statusUpdateManager = new slave::StatusUpdateManager(flags),
         &resourceEstimator,
-        _qosController.isSome() ? _qosController.get() : &qosController),
+        _qosController.isSome() ? _qosController.get() : &qosController,
+        authorizer),
     files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM)
 {
   // Set up default behaviors, calling the original methods.

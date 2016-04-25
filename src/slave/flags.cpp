@@ -443,6 +443,19 @@ mesos::internal::slave::Flags::Flags()
       "  \"secret\": \"secret\"\n"
       "}");
 
+  add(&Flags::acls,
+      "acls",
+      "The value could be a JSON-formatted string of ACLs\n"
+      "or a file path containing the JSON-formatted ACLs used\n"
+      "for authorization. Path could be of the form `file:///path/to/file`\n"
+      "or `/path/to/file`.\n"
+      "\n"
+      "Note that if the `--authorizer` flag is provided with a value\n"
+      "other than `" + string(DEFAULT_AUTHORIZER) + "`, the ACLs contents\n"
+      "will be ignored.\n"
+      "\n"
+      "See the ACLs protobuf in acls.proto for the expected format.");
+
   add(&Flags::containerizer_path,
       "containerizer_path",
       "The path to the external containerizer executable used when\n"
@@ -709,6 +722,18 @@ mesos::internal::slave::Flags::Flags()
       "master. Use the default `" + string(DEFAULT_AUTHENTICATEE) + "`, or\n"
       "load an alternate authenticatee module using `--modules`.",
       DEFAULT_AUTHENTICATEE);
+
+  add(&Flags::authorizer,
+      "authorizer",
+      "Authorizer implementation to use when authorizing actions that\n"
+      "require it.\n"
+      "Use the default `" + string(DEFAULT_AUTHORIZER) + "`, or\n"
+      "load an alternate authorizer module using `--modules`.\n"
+      "\n"
+      "Note that if the `--authorizer` flag is provided with a value\n"
+      "other than the default `" + string(DEFAULT_AUTHORIZER) + "`, the\n"
+      "ACLs passed through the `--acls` flag will be ignored.",
+      DEFAULT_AUTHORIZER);
 
   add(&Flags::http_authenticators,
       "http_authenticators",

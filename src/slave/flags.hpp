@@ -99,6 +99,7 @@ public:
 #endif
   Option<Firewall> firewall_rules;
   Option<Path> credential;
+  Option<ACLs> acls;
   Option<std::string> containerizer_path;
   std::string containerizers;
   Option<std::string> default_container_image;
@@ -135,6 +136,7 @@ public:
   bool enforce_container_disk_quota;
   Option<Modules> modules;
   std::string authenticatee;
+  std::string authorizer;
   std::string http_authenticators;
   bool authenticate_http;
   Option<Path> http_credentials;
