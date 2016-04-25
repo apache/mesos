@@ -207,6 +207,12 @@ protected:
       mesos::slave::QoSController* qosController,
       const Option<slave::Flags>& flags = None());
 
+  // Starts a slave with the specified detector, authorizer, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      mesos::master::detector::MasterDetector* detector,
+      mesos::Authorizer* authorizer,
+      const Option<slave::Flags>& flags = None());
+
   Option<zookeeper::URL> zookeeperUrl;
 
   const std::string defaultAgentResourcesString{
