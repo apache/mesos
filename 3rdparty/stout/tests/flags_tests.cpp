@@ -33,6 +33,7 @@
 using flags::Flag;
 using flags::Flags;
 using flags::FlagsBase;
+using flags::Warnings;
 
 using std::cout;
 using std::endl;
@@ -235,8 +236,9 @@ TEST(FlagsTest, LoadFromEnvironment)
   os::setenv("FLAGSTEST_no-name4", "");
   os::setenv("FLAGSTEST_name5", "");
 
-  Try<Nothing> load = flags.load("FLAGSTEST_");
+  Try<Warnings> load = flags.load("FLAGSTEST_");
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -267,8 +269,9 @@ TEST(FlagsTest, LoadFromCommandLine)
     "--name5"
   };
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -298,8 +301,9 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
     "end"
   };
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -329,8 +333,9 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
     "the"
   };
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -363,8 +368,9 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
   // 'argv' as 'char *(*)[argc]' since the size of the array is known.
   char** _argv = argv;
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", &argc, &_argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", &argc, &_argv);
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -480,6 +486,29 @@ TEST(FlagsTest, EffectiveName)
 }
 
 
+TEST(FlagsTest, DeprecationWarning)
+{
+  TestFlags flags;
+
+  Option<string> name6;
+
+  flags.add(&name6,
+            "name6",
+            flags::DeprecatedName("alias6"),
+            "Also set name6");
+
+  const map<string, Option<string> > values = {
+    {"alias6", Some("value6")}
+  };
+
+  Try<Warnings> load = flags.load(values);
+  ASSERT_SOME(load);
+
+  EXPECT_EQ(1u, load->warnings.size());
+  EXPECT_EQ("Loaded deprecated flag 'alias6'", load->warnings[0].message);
+}
+
+
 TEST(FlagsTest, DuplicatesFromEnvironment)
 {
   TestFlags flags;
@@ -491,8 +520,9 @@ TEST(FlagsTest, DuplicatesFromEnvironment)
     "--name1=billy joel"
   };
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
 
   // The environment variables are overwritten by command line flags.
   EXPECT_EQ(flags.name1, "billy joel");
@@ -513,7 +543,7 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
 
   // TODO(klaus1982): Simply checking for the error. Once typed errors are
   // introduced, capture it within the type system.
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 }
 
@@ -536,7 +566,7 @@ TEST(FlagsTest, AliasDuplicateFromCommandLine)
   };
 
   // Loading the same flag with the name and alias should be an error.
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 }
 
@@ -553,7 +583,7 @@ TEST(FlagsTest, Errors)
   // Test an unknown flag.
   argv[1] = (char*) "--foo";
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Failed to load unknown flag 'foo'", load.error());
@@ -654,7 +684,7 @@ TEST(FlagsTest, Validate)
     "--duration=2hrs"
   };
 
-  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Expected --duration to be less than 1 hour", load.error());

@@ -171,7 +171,7 @@ inline int Subcommand::dispatch(
     if (subcommand->name() == argv[1]) {
       flags::FlagsBase* flags = subcommand->getFlags();
 
-      Try<Nothing> load = flags->load(prefix, argc - 1, argv + 1);
+      Try<flags::Warnings> load = flags->load(prefix, argc - 1, argv + 1);
       if (load.isError()) {
         std::cerr << "Failed to parse the flags: " << load.error() << std::endl;
         return 1;

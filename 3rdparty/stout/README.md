@@ -410,7 +410,7 @@ You can then load the flags via `argc` and `argv` via:
 
 ~~~{.cpp}
     MyFlags flags;
-    Try<Nothing> load = flags.load(None(), argc, argv);
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
 
     if (load.isError()) { ... }
 
@@ -422,7 +422,7 @@ You can load flags from the environment in addition to `argc` and `argv` by spec
 
 ~~~{.cpp}
     MyFlags flags;
-    Try<Nothing> load = flags.load("PREFIX_", argc, argv);
+    Try<flags::Warnings> load = flags.load("PREFIX_", argc, argv);
 ~~~
 
 Then both PREFIX_foo and PREFIX_bar will be loaded from the environment as well as possibly from on the command line.

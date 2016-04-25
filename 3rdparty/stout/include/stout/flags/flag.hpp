@@ -15,6 +15,7 @@
 
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
@@ -29,13 +30,14 @@ class FlagsBase;
 
 struct Name
 {
-  Name() = default;
+  Name()
+    : deprecated(false) {}
 
   Name(const std::string& _value)
-    : value(_value) {}
+    : value(_value), deprecated(false) {}
 
   Name(const char* _value)
-    : value(_value) {}
+    : value(_value), deprecated(false) {}
 
   bool operator==(const Name& other) const
   {
@@ -43,6 +45,32 @@ struct Name
   }
 
   std::string value;
+  bool deprecated;
+};
+
+
+inline Name DeprecatedName(const std::string& name)
+{
+  Name name_(name);
+  name_.deprecated = true;
+  return name_;
+}
+
+
+// NOTE: Move this to `warning.hpp` if this can be used elsewhere.
+struct Warning
+{
+public:
+  explicit Warning(const std::string& _message) : message(_message) {}
+
+  const std::string message;
+};
+
+
+// Convenience wrapper.
+struct Warnings
+{
+  std::vector<Warning> warnings;
 };
 
 

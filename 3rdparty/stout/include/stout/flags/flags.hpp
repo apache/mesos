@@ -51,14 +51,14 @@ public:
   // Load any flags from the environment given the variable prefix,
   // i.e., given prefix 'STOUT_' will load a flag named 'foo' via
   // environment variables 'STOUT_foo' or 'STOUT_FOO'.
-  virtual Try<Nothing> load(const std::string& prefix);
+  virtual Try<Warnings> load(const std::string& prefix);
 
   // Load any flags from the environment given the variable prefix
   // (see above) followed by loading from the command line (via 'argc'
   // and 'argv'). If 'unknowns' is true then we'll ignore unknown
   // flags we see while loading. If 'duplicates' is true then we'll
   // ignore any duplicates we see while loading.
-  virtual Try<Nothing> load(
+  virtual Try<Warnings> load(
       const Option<std::string>& prefix,
       int argc,
       const char* const* argv,
@@ -73,18 +73,18 @@ public:
   // Becomes:
   //
   // argv = ["/path/program", "hi", "bye"]
-  virtual Try<Nothing> load(
+  virtual Try<Warnings> load(
       const Option<std::string>& prefix,
       int* argc,
       char*** argv,
       bool unknowns = false,
       bool duplicates = false);
 
-  virtual Try<Nothing> load(
+  virtual Try<Warnings> load(
       const std::map<std::string, Option<std::string>>& values,
       bool unknowns = false);
 
-  virtual Try<Nothing> load(
+  virtual Try<Warnings> load(
       const std::map<std::string, std::string>& values,
       bool unknowns = false);
 
@@ -662,13 +662,13 @@ inline std::map<std::string, Option<std::string>> FlagsBase::extract(
 }
 
 
-inline Try<Nothing> FlagsBase::load(const std::string& prefix)
+inline Try<Warnings> FlagsBase::load(const std::string& prefix)
 {
   return load(extract(prefix));
 }
 
 
-inline Try<Nothing> FlagsBase::load(
+inline Try<Warnings> FlagsBase::load(
     const Option<std::string>& prefix,
     int argc,
     const char* const *argv,
@@ -730,7 +730,7 @@ inline Try<Nothing> FlagsBase::load(
 }
 
 
-inline Try<Nothing> FlagsBase::load(
+inline Try<Warnings> FlagsBase::load(
     const Option<std::string>& prefix,
     int* argc,
     char*** argv,
@@ -796,7 +796,7 @@ inline Try<Nothing> FlagsBase::load(
 
   cmdValues.insert(envValues.begin(), envValues.end());
 
-  Try<Nothing> result = load(cmdValues, unknowns);
+  Try<Warnings> result = load(cmdValues, unknowns);
 
   // Update 'argc' and 'argv' if we successfully loaded the flags.
   if (!result.isError()) {
@@ -818,10 +818,12 @@ inline Try<Nothing> FlagsBase::load(
 }
 
 
-inline Try<Nothing> FlagsBase::load(
+inline Try<Warnings> FlagsBase::load(
     const std::map<std::string, Option<std::string>>& values,
     bool unknowns)
 {
+  Warnings warnings;
+
   std::map<std::string, Option<std::string>>::const_iterator iterator;
 
   for (iterator = values.begin(); iterator != values.end(); ++iterator) {
@@ -883,12 +885,18 @@ inline Try<Nothing> FlagsBase::load(
     }
 
     // TODO(vinod): Move this logic inside `Flag::load()`.
+
     // Set `loaded_name` to the Name corresponding to `flag_name`.
     if (aliases.count(flag_name)) {
       CHECK_SOME(flag->alias);
       flag->loaded_name = flag->alias.get();
     } else {
       flag->loaded_name = flag->name;
+    }
+
+    if (flag->loaded_name->deprecated) {
+      warnings.warnings.push_back(
+          Warning("Loaded deprecated flag '" + flag_name + "'"));
     }
   }
 
@@ -904,11 +912,11 @@ inline Try<Nothing> FlagsBase::load(
     }
   }
 
-  return Nothing();
+  return warnings;
 }
 
 
-inline Try<Nothing> FlagsBase::load(
+inline Try<Warnings> FlagsBase::load(
     const std::map<std::string, std::string>& _values,
     bool unknowns)
 {
