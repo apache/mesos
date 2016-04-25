@@ -343,28 +343,24 @@ struct Sample
     // because the unit field can be empty.
     vector<string> tokens = strings::split(line, PERF_DELIMITER);
 
-    if (version >= Version(4, 0, 0)) {
-      // Optional running time and ratio were introduced in Linux v4.0,
-      // which make the format either:
-      //   value,unit,event,cgroup
-      //   value,unit,event,cgroup,running,ratio
-      if ((tokens.size() == 4) || (tokens.size() == 6)) {
-        return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
-      }
-    } else if (version >= Version(3, 13, 0)) {
-      // Unit was added in Linux v3.13, making the format:
-      //   value,unit,event,cgroup
-      if (tokens.size() == 4) {
-        return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
-      }
-    } else {
-      // Expected format for Linux kernel <= 3.12 is:
-      //   value,event,cgroup
-      if (tokens.size() == 3) {
-        return Sample({tokens[0], internal::normalize(tokens[1]), tokens[2]});
-      }
+    // The following formats are possible:
+    //   (1) value,event,cgroup (since Linux v2.6.39)
+    //   (2) value,unit,event,cgroup (since Linux v3.14)
+    //   (3) value,unit,event,cgroup,running,ratio (since Linux v4.1)
+    //
+    // Note that we do not use the kernel version when parsing
+    // because OS vendors often backport perf tool functionality
+    // into older kernel versions.
+
+    if (tokens.size() == 3) {
+      return Sample({tokens[0], internal::normalize(tokens[1]), tokens[2]});
     }
 
+    if (tokens.size() == 4 || tokens.size() == 6) {
+      return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
+    }
+
+    // Bail out if the format is not recognized.
     return Error("Unexpected number of fields");
   }
 };
