@@ -1065,7 +1065,7 @@ Future<bool> DockerContainerizerProcess::launch(
     containerName = container.get()->executorName().get();
   }
 
-  // Launching task or executor by launching a seperate docker
+  // Launching task or executor by launching a separate docker
   // container to run the executor.
   // We need to do so for launching a task because as the slave is
   // running in a container (via docker_mesos_image flag) we want the
