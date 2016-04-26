@@ -16,6 +16,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
@@ -24,16 +26,61 @@
 
 #include "logging/logging.hpp"
 
+#include "tests/mesos.hpp"
+
+namespace authentication = process::http::authentication;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
+
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
+class LoggingTest : public mesos::internal::tests::MesosTest
+{
+protected:
+  void setBasicHttpAuthenticator(
+      const std::string& realm,
+      const Credentials& credentials)
+  {
+    Try<authentication::Authenticator*> authenticator =
+      BasicAuthenticatorFactory::create(realm, credentials);
 
-TEST(LoggingTest, Toggle)
+    ASSERT_SOME(authenticator);
+
+    // Add this realm to the set of realms which will be unset during teardown.
+    realms.insert(realm);
+
+    // Pass ownership of the authenticator to libprocess.
+    AWAIT_READY(authentication::setAuthenticator(
+        realm,
+        process::Owned<authentication::Authenticator>(authenticator.get())));
+  }
+
+  virtual void TearDown()
+  {
+    foreach (const std::string& realm, realms) {
+      // We need to wait in order to ensure that the operation completes before
+      // we leave `TearDown`. Otherwise, we may leak a mock object.
+      AWAIT_READY(authentication::unsetAuthenticator(realm));
+    }
+
+    realms.clear();
+
+    MesosTest::TearDown();
+  }
+
+private:
+  hashset<std::string> realms;
+};
+
+
+TEST_F(LoggingTest, Toggle)
 {
   process::PID<> pid;
   pid.id = "logging";
@@ -77,6 +124,27 @@ TEST(LoggingTest, Toggle)
   AWAIT_EXPECT_RESPONSE_BODY_EQ(
       "Invalid level '-1'.\n",
       response);
+}
+
+
+// Tests that the `/logging/toggle` endpoint rejects unauthenticated requests
+// when HTTP authentication is enabled.
+TEST_F(LoggingTest, ToggleAuthenticationEnabled)
+{
+  Credentials credentials;
+  credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
+
+  // Create a basic HTTP authenticator with the specified credentials and set it
+  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+
+  process::PID<> pid;
+  pid.id = "logging";
+  pid.address = process::address();
+
+  process::Future<Response> response = process::http::get(pid, "toggle");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 } // namespace tests {
