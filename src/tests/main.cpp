@@ -31,6 +31,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/mesos.hpp"
 #include "tests/module.hpp"
 
 using namespace mesos::internal;
@@ -74,8 +75,13 @@ int main(int argc, char** argv)
   // overwrite whatever the user set.
   os::setenv("LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT", "", false);
 
-  // Initialize libprocess.
-  process::initialize();
+  // If `process::initialize()` returns `false`, then it was called before this
+  // invocation, meaning the authentication realm for libprocess-level HTTP
+  // endpoints was set incorrectly. This should be the first invocation.
+  if (!process::initialize(None(), DEFAULT_HTTP_AUTHENTICATION_REALM)) {
+    EXIT(EXIT_FAILURE) << "The call to `process::initialize()` in the tests' "
+                       << "`main()` was not the function's first invocation";
+  }
 
   // Be quiet by default!
   if (!flags.verbose) {

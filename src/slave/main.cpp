@@ -211,7 +211,13 @@ int main(int argc, char** argv)
 
   const string id = process::ID::generate("slave"); // Process ID.
 
-  process::initialize(id);
+  // If `process::initialize()` returns `false`, then it was called before this
+  // invocation, meaning the authentication realm for libprocess-level HTTP
+  // endpoints was set incorrectly. This should be the first invocation.
+  if (!process::initialize(id, DEFAULT_HTTP_AUTHENTICATION_REALM)) {
+    EXIT(EXIT_FAILURE) << "The call to `process::initialize()` in the agent's "
+                       << "`main()` was not the function's first invocation";
+  }
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 

@@ -240,8 +240,14 @@ int main(int argc, char** argv)
     }
   }
 
-  // Initialize libprocess.
-  process::initialize("master");
+  // This should be the first invocation of `process::initialize`. If it returns
+  // `false`, then it has already been called, which means that the
+  // authentication realm for libprocess-level HTTP endpoints was not set to the
+  // correct value for the master.
+  if (!process::initialize("master", DEFAULT_HTTP_AUTHENTICATION_REALM)) {
+    EXIT(EXIT_FAILURE) << "The call to `process::initialize()` in the master's "
+                       << "`main()` was not the function's first invocation";
+  }
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
