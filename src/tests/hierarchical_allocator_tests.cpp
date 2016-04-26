@@ -2313,6 +2313,66 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
 }
 
 
+// This test verifies that offer suppression and revival work as intended.
+TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  // Total cluster resources will become cpus=2, mem=1024.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+
+  // Framework will be offered all of the agent's resources since it is
+  // the only framework running so far.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(framework.id(), framework, {});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+
+  // Here the revival is totally unnecessary but we should tolerate the
+  // framework's redundant REVIVE calls.
+  allocator->reviveOffers(framework.id());
+
+  // Nothing is allocated because of no additinal resources.
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      agent.resources(),
+      None());
+
+  allocator->suppressOffers(framework.id());
+
+  // Advance the clock and trigger a background allocation cycle.
+  Clock::advance(flags.allocation_interval);
+
+  Clock::settle();
+
+  // Still pending because the framework has suppressed offers.
+  EXPECT_TRUE(allocation.isPending());
+
+  // Revive again and this time it should work.
+  allocator->reviveOffers(framework.id());
+
+  // Framework will be offered all of agent's resources again after
+  // reviving offers.
+  Clock::settle();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+}
+
+
 // This test checks that total and allocator resources
 // are correctly reflected in the metrics endpoint.
 TEST_F(HierarchicalAllocatorTest, ResourceMetrics)
