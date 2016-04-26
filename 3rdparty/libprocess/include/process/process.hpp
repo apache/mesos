@@ -453,10 +453,17 @@ protected:
  * for it (e.g., a logging directory) via environment variables.
  *
  * @param delegate Process to receive root HTTP requests.
+ * @param authenticationRealm The authentication realm that libprocess-level
+ *     HTTP endpoints will be installed under, if any. If this realm is not
+ *     specified, endpoints will be installed without authentication.
+ * @return `true` if this was the first invocation of `process::initialize()`,
+ *     or `false` if it was not the first invocation.
  *
  * @see [glog](https://google-glog.googlecode.com/svn/trunk/doc/glog.html)
  */
-void initialize(const Option<std::string>& delegate = None());
+bool initialize(
+    const Option<std::string>& delegate = None(),
+    const Option<std::string>& authenticationRealm = None());
 
 
 /**

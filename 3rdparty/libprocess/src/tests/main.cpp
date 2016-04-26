@@ -42,7 +42,7 @@ int main(int argc, char** argv)
   testing::InitGoogleMock(&argc, argv);
 
   // Initialize libprocess.
-  process::initialize();
+  process::initialize(None(), process::DEFAULT_HTTP_AUTHENTICATION_REALM);
 
   // Install GLOG's signal handler.
   google::InstallFailureSignalHandler();
