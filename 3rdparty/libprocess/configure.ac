@@ -76,7 +76,7 @@ AC_ARG_ENABLE([optimize],
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
                              [enable google perftools]),
-              [gperftools=yes])
+              [gperftools=yes], [])
 
 AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
@@ -849,7 +849,8 @@ CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
-AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
+AM_CONDITIONAL([HAS_GPERFTOOLS], [test x"$gperftools" = "xyes"])
+AM_COND_IF([HAS_GPERFTOOLS], AC_DEFINE([ENABLE_GPERFTOOLS], [1]))
 
 
 # Check if we should/can build with libz.
