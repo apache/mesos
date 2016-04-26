@@ -979,7 +979,7 @@ bool initialize(
   spawn(new Logging(authenticationRealm), true);
 
   // Create the global profiler process.
-  spawn(new Profiler(), true);
+  spawn(new Profiler(authenticationRealm), true);
 
   // Create the global system statistics process.
   spawn(new System(), true);
