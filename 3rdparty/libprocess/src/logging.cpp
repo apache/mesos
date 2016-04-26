@@ -25,7 +25,9 @@
 
 namespace process {
 
-Future<http::Response> Logging::toggle(const http::Request& request)
+Future<http::Response> Logging::toggle(
+    const http::Request& request,
+    const Option<std::string>& /* principal */)
 {
   Option<std::string> level = request.url.query.get("level");
   Option<std::string> duration = request.url.query.get("duration");

@@ -970,7 +970,7 @@ bool initialize(
   help = spawn(new Help(delegate), true);
 
   // Create the global logging process.
-  spawn(new Logging(), true);
+  spawn(new Logging(authenticationRealm), true);
 
   // Create the global profiler process.
   spawn(new Profiler(), true);
