@@ -15,9 +15,11 @@
 #include <map>
 #include <string>
 
+#include <stout/base64.hpp>
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 
+#include <process/authenticator.hpp>
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -31,18 +33,24 @@
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/timer.hpp>
 
+namespace authentication = process::http::authentication;
 namespace http = process::http;
 namespace metrics = process::metrics;
+
+using authentication::Authenticator;
+using authentication::BasicAuthenticator;
 
 using http::BadRequest;
 using http::OK;
 using http::Response;
+using http::Unauthorized;
 
 using metrics::Counter;
 using metrics::Gauge;
 using metrics::Timer;
 
 using process::Clock;
+using process::DEFAULT_HTTP_AUTHENTICATION_REALM;
 using process::Failure;
 using process::Future;
 using process::PID;
@@ -73,7 +81,36 @@ public:
 };
 
 
-TEST(MetricsTest, Counter)
+// TODO(greggomann): Move this into a base class in 'mesos.hpp'.
+class MetricsTest : public ::testing::Test
+{
+protected:
+  Future<Nothing> setAuthenticator(
+      const string& realm,
+      process::Owned<Authenticator> authenticator)
+  {
+    realms.insert(realm);
+
+    return authentication::setAuthenticator(realm, authenticator);
+  }
+
+  virtual void TearDown()
+  {
+    foreach (const string& realm, realms) {
+      // We need to wait in order to ensure that the operation
+      // completes before we leave TearDown. Otherwise, we may
+      // leak a mock object.
+      AWAIT_READY(authentication::unsetAuthenticator(realm));
+    }
+    realms.clear();
+  }
+
+private:
+  hashset<string> realms;
+};
+
+
+TEST_F(MetricsTest, Counter)
 {
   Counter counter("test/counter");
 
@@ -99,7 +136,7 @@ TEST(MetricsTest, Counter)
 }
 
 
-TEST(MetricsTest, Gauge)
+TEST_F(MetricsTest, Gauge)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -130,7 +167,7 @@ TEST(MetricsTest, Gauge)
 }
 
 
-TEST(MetricsTest, Statistics)
+TEST_F(MetricsTest, Statistics)
 {
   Counter counter("test/counter", process::TIME_SERIES_WINDOW);
 
@@ -164,7 +201,7 @@ TEST(MetricsTest, Statistics)
 }
 
 
-TEST(MetricsTest, Snapshot)
+TEST_F(MetricsTest, Snapshot)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -236,7 +273,7 @@ TEST(MetricsTest, Snapshot)
 }
 
 
-TEST(MetricsTest, SnapshotTimeout)
+TEST_F(MetricsTest, SnapshotTimeout)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -339,7 +376,7 @@ TEST(MetricsTest, SnapshotTimeout)
 
 
 // Ensures that the aggregate statistics are correct in the snapshot.
-TEST(MetricsTest, SnapshotStatistics)
+TEST_F(MetricsTest, SnapshotStatistics)
 {
   UPID upid("metrics", process::address());
 
@@ -404,7 +441,7 @@ TEST(MetricsTest, SnapshotStatistics)
 }
 
 
-TEST(MetricsTest, Timer)
+TEST_F(MetricsTest, Timer)
 {
   metrics::Timer<Nanoseconds> timer("test/timer");
   EXPECT_EQ("test/timer_ns", timer.name());
@@ -438,7 +475,7 @@ static Future<int> advanceAndReturn()
 }
 
 
-TEST(MetricsTest, AsyncTimer)
+TEST_F(MetricsTest, AsyncTimer)
 {
   metrics::Timer<Microseconds> t("test/timer");
   EXPECT_EQ("test/timer_us", t.name());
@@ -461,4 +498,46 @@ TEST(MetricsTest, AsyncTimer)
   EXPECT_FLOAT_EQ(t.value().get(), 0.0);
 
   AWAIT_READY(metrics::remove(t));
+}
+
+
+// Tests that the `/metrics/snapshot` endpoint rejects unauthenticated requests
+// when HTTP authentication is enabled.
+TEST_F(MetricsTest, SnapshotAuthenticationEnabled)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  process::Owned<Authenticator> authenticator(
+    new BasicAuthenticator(
+        DEFAULT_HTTP_AUTHENTICATION_REALM, {{"foo", "bar"}}));
+
+  AWAIT_READY(
+      setAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, authenticator));
+
+  UPID upid("metrics", process::address());
+
+  Clock::pause();
+
+  // Add a gauge and a counter.
+  GaugeProcess process;
+  PID<GaugeProcess> pid = spawn(&process);
+  ASSERT_TRUE(pid);
+
+  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
+  Counter counter("test/counter");
+
+  AWAIT_READY(metrics::add(gauge));
+  AWAIT_READY(metrics::add(gaugeFail));
+  AWAIT_READY(metrics::add(counter));
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  // A request with no authentication header.
+  Future<Response> response = http::get(upid, "snapshot");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  terminate(process);
+  wait(process);
 }
