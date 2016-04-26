@@ -44,7 +44,7 @@ namespace metrics {
 static internal::MetricsProcess* metrics_process = NULL;
 
 
-void initialize()
+void initialize(const Option<string>& authenticationRealm)
 {
   // To prevent a deadlock, we must ensure libprocess is
   // initialized. Otherwise, libprocess will be implicitly
@@ -101,7 +101,8 @@ void initialize()
       }
     }
 
-    metrics_process = new internal::MetricsProcess(limiter);
+    metrics_process =
+      new internal::MetricsProcess(limiter, authenticationRealm);
     spawn(metrics_process);
 
     initialized->done();
@@ -122,7 +123,18 @@ MetricsProcess* MetricsProcess::instance()
 
 void MetricsProcess::initialize()
 {
-  route("/snapshot", help(), &MetricsProcess::snapshot);
+  if (authenticationRealm.isSome()) {
+    route("/snapshot",
+          authenticationRealm.get(),
+          help(),
+          &MetricsProcess::snapshot);
+  } else {
+    route("/snapshot",
+          help(),
+          [this](const http::Request& request) {
+            return snapshot(request, None());
+          });
+  }
 }
 
 
@@ -165,7 +177,9 @@ Future<Nothing> MetricsProcess::remove(const string& name)
 }
 
 
-Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
+Future<http::Response> MetricsProcess::snapshot(
+    const http::Request& request,
+    const Option<string>& /* principal */)
 {
   Future<Nothing> acquire = Nothing();
 

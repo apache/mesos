@@ -966,6 +966,12 @@ bool initialize(
   // Create global garbage collector process.
   gc = spawn(new GarbageCollector());
 
+  // Initialize the metrics process. We need to initialize this before the other
+  // global processes because `metrics::initialize` is also called when metrics
+  // are added in other initialization code, and we want this to be the first
+  // initialization in order to populate the authentication realm correctly.
+  metrics::initialize(authenticationRealm);
+
   // Create global help process.
   help = spawn(new Help(delegate), true);
 
@@ -980,9 +986,6 @@ bool initialize(
 
   // Create the global HTTP authentication router.
   authenticator_manager = new AuthenticatorManager();
-
-  // Initialize the metrics process.
-  metrics::initialize();
 
   // Initialize the mime types.
   mime::initialize();

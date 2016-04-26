@@ -31,7 +31,7 @@ namespace process {
 namespace metrics {
 
 // Initializes the metrics library.
-void initialize();
+void initialize(const Option<std::string>& authenticationRealm = None());
 
 namespace internal {
 
@@ -50,16 +50,21 @@ protected:
 private:
   static std::string help();
 
-  MetricsProcess(const Option<Owned<RateLimiter>>& _limiter)
+  MetricsProcess(
+      const Option<Owned<RateLimiter>>& _limiter,
+      const Option<std::string>& _authenticationRealm)
     : ProcessBase("metrics"),
-      limiter(_limiter)
+      limiter(_limiter),
+      authenticationRealm(_authenticationRealm)
   {}
 
   // Non-copyable, non-assignable.
   MetricsProcess(const MetricsProcess&);
   MetricsProcess& operator=(const MetricsProcess&);
 
-  Future<http::Response> snapshot(const http::Request& request);
+  Future<http::Response> snapshot(
+      const http::Request& request,
+      const Option<std::string>& /* principal */);
   Future<http::Response> _snapshot(const http::Request& request);
   static std::list<Future<double> > _snapshotTimeout(
       const std::list<Future<double> >& futures);
@@ -76,7 +81,11 @@ private:
   Option<Owned<RateLimiter>> limiter;
 
   // Needed for access to the private constructor.
-  friend void process::metrics::initialize();
+  friend void process::metrics::initialize(
+      const Option<std::string>& authenticationRealm);
+
+  // The authentication realm that metrics HTTP endpoints are installed into.
+  const Option<std::string> authenticationRealm;
 };
 
 }  // namespace internal {
