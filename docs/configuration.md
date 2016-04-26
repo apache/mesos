@@ -2004,6 +2004,14 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      --enable-perftools
+    </td>
+    <td>
+      Whether profiling with Google perftools is enabled. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-bundled
     </td>
     <td>
