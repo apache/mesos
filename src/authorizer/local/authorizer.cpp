@@ -201,6 +201,17 @@ public:
 
         return authorized(request, acls_);
         break;
+      case authorization::GET_ENDPOINT_WITH_PATH:
+        for (const ACL::GetEndpoint& acl : acls.get_endpoints()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.paths();
+
+          acls_.push_back(acl_);
+        }
+
+        return authorized(request, acls_);
+        break;
       case authorization::UNKNOWN:
         LOG(WARNING) << "Authorization request for action '" << request.action()
                      << "' is not defined and therefore not authorized";

@@ -454,7 +454,17 @@ mesos::internal::slave::Flags::Flags()
       "other than `" + string(DEFAULT_AUTHORIZER) + "`, the ACLs contents\n"
       "will be ignored.\n"
       "\n"
-      "See the ACLs protobuf in acls.proto for the expected format.");
+      "See the ACLs protobuf in acls.proto for the expected format.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "  \"get_endpoints\": [\n"
+      "    {\n"
+      "      \"principals\": { \"values\": [\"a\"] },\n"
+      "      \"paths\": { \"values\": [\"/flags\", \"/monitor/statistics\"] }\n"
+      "    }\n"
+      "  ]\n"
+      "}");
 
   add(&Flags::containerizer_path,
       "containerizer_path",

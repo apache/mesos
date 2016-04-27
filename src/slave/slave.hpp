@@ -439,7 +439,7 @@ private:
     // /slave/flags
     process::Future<process::http::Response> flags(
         const process::http::Request& request,
-        const Option<std::string>& /* principal */) const;
+        const Option<std::string>& principal) const;
 
     // /slave/health
     process::Future<process::http::Response> health(
@@ -468,6 +468,19 @@ private:
     static std::string CONTAINERS_HELP();
 
   private:
+    // Continuations.
+    static process::Future<process::http::Response> _flags(
+        const process::http::Request& request,
+        const Flags& flags);
+
+    // Authorizes access to an HTTP endpoint. It extracts the endpoint
+    // from the URL of the request by removing the "/slave(n)" part of
+    // the URL's path. The request's `method` determines which ACL action
+    // will be used in the authorization.
+    process::Future<bool> authorizeEndpoint(
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.

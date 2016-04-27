@@ -146,6 +146,15 @@ message ACL {
     // Objects: The list of roles whose weights can be updated.
     optional Entity roles = 2;
   }
+
+  // Which principals are authorized to GET HTTP endpoints at the given paths.
+  message GetEndpoint {
+    // Subjects: HTTP username.
+    required Entity principals = 1;
+
+    // Objects: The list of paths that can be retrieved.
+    optional Entity paths = 2;
+  }
 }
 
 
@@ -183,4 +192,5 @@ message ACLs {
   repeated ACL.RemoveQuota remove_quotas = 10;
   repeated ACL.TeardownFramework teardown_frameworks = 11;
   repeated ACL.UpdateWeights update_weights = 12;
+  repeated ACL.GetEndpoint get_endpoints = 13;
 }

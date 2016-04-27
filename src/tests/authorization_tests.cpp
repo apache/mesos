@@ -40,17 +40,6 @@ namespace tests {
 using std::string;
 
 
-static Parameters parameterize(const ACLs& acls)
-{
-  Parameters parameters;
-  Parameter *parameter = parameters.add_parameter();
-  parameter->set_key("acls");
-  parameter->set_value(string(jsonify(JSON::Protobuf(acls))));
-
-  return parameters;
-}
-
-
 template <typename T>
 class AuthorizationTest : public MesosTest {};
 

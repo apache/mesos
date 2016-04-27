@@ -736,6 +736,17 @@ inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
 }
 
 
+inline Parameters parameterize(const ACLs& acls)
+{
+  Parameters parameters;
+  Parameter* parameter = parameters.add_parameter();
+  parameter->set_key("acls");
+  parameter->set_value(std::string(jsonify(JSON::Protobuf(acls))));
+
+  return parameters;
+}
+
+
 // Definition of a mock Scheduler to be used in tests with gmock.
 class MockScheduler : public Scheduler
 {

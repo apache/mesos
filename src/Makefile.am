@@ -1989,6 +1989,7 @@ mesos_tests_SOURCES =						\
   tests/scheduler_http_api_tests.cpp				\
   tests/scheduler_tests.cpp					\
   tests/script.cpp						\
+  tests/slave_authorization_tests.cpp				\
   tests/slave_recovery_tests.cpp				\
   tests/slave_tests.cpp						\
   tests/sorter_tests.cpp					\
