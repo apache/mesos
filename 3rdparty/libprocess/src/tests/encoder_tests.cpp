@@ -54,12 +54,16 @@ TEST(EncoderTest, Response)
   EXPECT_EQ("200 OK", decoded->status);
   EXPECT_EQ("body", decoded->body);
 
-  // Encoding should have inserted the 'Date' and 'Content-Length' headers.
-  EXPECT_EQ(2, decoded->headers.size());
+  // Encoding should have inserted the 'Date', 'Content-Length' and
+  // 'Content-Type' headers.
+  EXPECT_EQ(3, decoded->headers.size());
   EXPECT_TRUE(decoded->headers.contains("Date"));
   EXPECT_SOME_EQ(
       stringify(response.body.size()),
       decoded->headers.get("Content-Length"));
+  EXPECT_SOME_EQ(
+      "text/plain; charset=utf-8",
+      decoded->headers.get("Content-Type"));
 }
 
 

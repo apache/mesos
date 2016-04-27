@@ -431,12 +431,14 @@ struct Response
 
   explicit Response(
       const std::string& _body,
-      uint16_t _code)
+      uint16_t _code,
+      const std::string& contentType = "text/plain; charset=utf-8")
     : type(BODY),
       body(_body),
       code(_code)
   {
     headers["Content-Length"] = stringify(body.size());
+    headers["Content-Type"] = contentType;
     status = Status::string(code);
   }
 
