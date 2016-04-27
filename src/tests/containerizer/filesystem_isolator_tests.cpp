@@ -702,7 +702,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
       {offer.id()},
       {CREATE(persistentVolume), LAUNCH({task})});
 
-  AWAIT_READY(status);
+  AWAIT_READY_FOR(status, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Wait for the ACK to be checkpointed.
