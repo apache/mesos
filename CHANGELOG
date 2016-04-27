@@ -68,11 +68,11 @@ Additional API Changes:
   * [MESOS-4612] - Upgraded vendored ZooKeeper 3.4.5 to 3.4.8.
 
 Binary API Changes:
-  * [MESOS-5055] - Replace Master/Slave Terminology Phase I - Update strings in
-    the log message and standard output
-  * [MESOS-3782] - Replace Master/Slave Terminology Phase I - Duplicate/Rename binaries.
-  * [MESOS-5057] - Replace Master/Slave Terminology Phase I - Update strings in
-    error messages and other strings
+  * [MESOS-5055] - Slave/Agent Rename Phase I - Update strings in the log message
+    and standard output.
+  * [MESOS-3782] - Slave/Agent Rename Phase I - Duplicate/Rename binaries.
+  * [MESOS-5057] - Slave/Agent Rename Phase I - Update strings in error messages and
+    other strings.
 
 
 Release Notes - Mesos - Version 0.28.1
