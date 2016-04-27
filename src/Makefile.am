@@ -532,9 +532,9 @@ scheduler_HEADERS =							\
 nodist_scheduler_HEADERS =						\
   ../include/mesos/scheduler/scheduler.pb.h
 
-slavedir = $(pkgincludedir)/slave
+agentdir = $(pkgincludedir)/agent
 
-slave_HEADERS =								\
+agent_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/container_logger.hpp		\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
   $(top_srcdir)/include/mesos/slave/isolator.proto			\
@@ -543,7 +543,7 @@ slave_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/qos_controller.hpp			\
   $(top_srcdir)/include/mesos/slave/resource_estimator.hpp
 
-nodist_slave_HEADERS =							\
+nodist_agent_HEADERS =							\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.h
 
@@ -2142,19 +2142,24 @@ dist_testlibexec_SCRIPTS =			\
 
 endif
 
-# Copy mesos-agent-env.sh.template to mesos-slave-env.sh.template.
+# This target will do the following two things:
+# 1. Copy mesos-agent-env.sh.template to mesos-slave-env.sh.template.
+# 2. Create "slave->agent" symlink in the agent headers installation
+#    path.
 #
 # TODO(tomxing): Remove this target once the
-# slave->agent rename is complete(MESOS-3782).
-copy-agent-env-template:
+# slave->agent rename is complete(MESOS-3782 & MESOS-5230).
+copy-template-and-create-symlink:
 	cp $(DESTDIR)/$(pkgsysconfdir)/mesos-agent-env.sh.template \
-	  $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template
+	  $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template &&\
+	ln -s $(DESTDIR)/$(includedir)/mesos/agent \
+	  $(DESTDIR)/$(includedir)/mesos/slave
 
 # Install compatibility symlinks for modules that used to be in $(LIBDIR)
 # but are now in $(PKGMODULEDIR). We use install-data-hook because it
 # runs late in the install process after the target directories have
 # been created.
-install-data-hook: copy-agent-env-template
+install-data-hook: copy-template-and-create-symlink
 	cd $(DESTDIR)/$(libdir) && 				\
 	for name in libfixed_resource_estimator 		\
 	    libload_qos_controller 				\
@@ -2166,9 +2171,10 @@ install-data-hook: copy-agent-env-template
 	done
 
 # TODO(tomxing): Remove this hook once the
-# slave->agent rename is complete(MESOS-3782).
+# slave->agent rename is complete(MESOS-3782 & MESOS 5230).
 uninstall-hook:
-	rm -f $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template
+	rm -f $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template &&\
+	rm -f $(DESTDIR)/$(includedir)/mesos/slave
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

@@ -73,6 +73,7 @@ Binary API Changes:
   * [MESOS-3782] - Slave/Agent Rename Phase I - Duplicate/Rename binaries.
   * [MESOS-5057] - Slave/Agent Rename Phase I - Update strings in error messages and
     other strings.
+  * [MESOS-5230] - Slave/Agent Rename Phase I: Rename '/include/mesos/slave' folder
 
 
 Release Notes - Mesos - Version 0.28.1
