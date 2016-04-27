@@ -32,8 +32,9 @@
 
 #include <process/collect.hpp>
 #include <process/help.hpp>
-#include <process/owned.hpp>
+#include <process/http.hpp>
 #include <process/limiter.hpp>
+#include <process/owned.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -621,37 +622,56 @@ string Slave::Http::STATISTICS_HELP()
 
 Future<Response> Slave::Http::statistics(
     const Request& request,
-    const Option<string>& /* principal */) const
+    const Option<string>& principal) const
 {
-  return statisticsLimiter->acquire()
-    .then(defer(slave->self(), &Slave::usage))
-    .then([=](const Future<ResourceUsage>& usage) -> Future<Response> {
-      JSON::Array result;
+  const PID<Slave> pid = slave->self();
+  Shared<RateLimiter> limiter = statisticsLimiter;
 
-      foreach (const ResourceUsage::Executor& executor,
-               usage.get().executors()) {
-        if (executor.has_statistics()) {
-          const ExecutorInfo info = executor.executor_info();
+  return authorizeEndpoint(request, principal)
+    .then(defer(
+        pid,
+        [pid, limiter, request](bool authorized) -> Future<Response> {
+          if (!authorized) {
+            return Forbidden();
+          }
 
-          JSON::Object entry;
-          entry.values["framework_id"] = info.framework_id().value();
-          entry.values["executor_id"] = info.executor_id().value();
-          entry.values["executor_name"] = info.name();
-          entry.values["source"] = info.source();
-          entry.values["statistics"] = JSON::protobuf(executor.statistics());
-
-          result.values.push_back(entry);
-        }
-      }
-
-      return process::http::OK(result, request.url.query.get("jsonp"));
-    })
+          return limiter->acquire()
+            .then(defer(pid, &Slave::usage))
+            .then(defer(pid, [request](const ResourceUsage& usage) {
+              return _statistics(usage, request);
+            }));
+        }))
     .repair([](const Future<Response>& future) {
-      LOG(WARNING) << "Could not collect resource usage: "
+      LOG(WARNING) << "Could not collect statistics: "
                    << (future.isFailed() ? future.failure() : "discarded");
 
-      return process::http::InternalServerError();
+      return InternalServerError();
     });
+}
+
+
+Response Slave::Http::_statistics(
+    const ResourceUsage& usage,
+    const Request& request)
+{
+  JSON::Array result;
+
+  foreach (const ResourceUsage::Executor& executor, usage.executors()) {
+    if (executor.has_statistics()) {
+      const ExecutorInfo info = executor.executor_info();
+
+      JSON::Object entry;
+      entry.values["framework_id"] = info.framework_id().value();
+      entry.values["executor_id"] = info.executor_id().value();
+      entry.values["executor_name"] = info.name();
+      entry.values["source"] = info.source();
+      entry.values["statistics"] = JSON::protobuf(executor.statistics());
+
+      result.values.push_back(entry);
+    }
+  }
+
+  return OK(result, request.url.query.get("jsonp"));
 }
 
 

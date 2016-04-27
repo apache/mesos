@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <gmock/gmock.h>
+
 #include <gtest/gtest.h>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -50,6 +52,8 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+
+using testing::DoAll;
 
 namespace mesos {
 namespace internal {
@@ -152,6 +156,114 @@ TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpointWithoutPrincipal)
   ASSERT_SOME(agent);
 
   Future<Response> response = http::get(agent.get()->pid, endpoint);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+}
+
+
+// Parameterized fixture for agent-specific authorization tests. The
+// path of the tested endpoint is passed as the only parameter.
+class SlaveEndpointTest:
+    public MesosTest,
+    public ::testing::WithParamInterface<string> {};
+
+
+// The tests are parameterized by the endpoint being queried.
+//
+// TODO(bbannier): Once agent endpoint handlers use more than just
+// `GET_ENDPOINT_WITH_PATH`, we should consider parameterizing
+// `SlaveEndpointTest` by the authorization action as well.
+INSTANTIATE_TEST_CASE_P(
+    Endpoint,
+    SlaveEndpointTest,
+    ::testing::Values(
+        "monitor/statistics", "monitor/statistics.json", "flags"));
+
+
+// Tests that an agent endpoint handler form
+// correct queries against the authorizer.
+TEST_P(SlaveEndpointTest, AuthorizedRequest)
+{
+  const string endpoint = GetParam();
+
+  StandaloneMasterDetector detector;
+
+  MockAuthorizer mockAuthorizer;
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
+  ASSERT_SOME(agent);
+
+  Future<authorization::Request> request;
+  EXPECT_CALL(mockAuthorizer, authorized(_))
+    .WillOnce(DoAll(FutureArg<0>(&request),
+                    Return(true)));
+
+  Future<Response> response = http::get(
+      agent.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_READY(request);
+
+  EXPECT_EQ(DEFAULT_CREDENTIAL.principal(), request.get().subject().value());
+
+  // TODO(bbannier): Once agent endpoint handlers use more than just
+  // `GET_ENDPOINT_WITH_PATH` we should factor out the request method
+  // and expected authorization action and parameterize
+  // `SlaveEndpointTest` on that as well in addition to the endpoint.
+  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
+
+  EXPECT_EQ("/" + endpoint, request.get().object().value());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+}
+
+
+// Tests that unauthorized requests for an agent endpoint are properly rejected.
+TEST_P(SlaveEndpointTest, UnauthorizedRequest)
+{
+  const string endpoint = GetParam();
+
+  StandaloneMasterDetector detector;
+
+  MockAuthorizer mockAuthorizer;
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
+  ASSERT_SOME(agent);
+
+  EXPECT_CALL(mockAuthorizer, authorized(_))
+    .WillOnce(Return(false));
+
+  Future<Response> response = http::get(
+      agent.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+    << response.get().body;
+}
+
+
+// Tests that requests for an agent endpoint
+// always succeed if the authorizer is absent.
+TEST_P(SlaveEndpointTest, NoAuthorizer)
+{
+  const string endpoint = GetParam();
+
+  StandaloneMasterDetector detector;
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(&detector, CreateSlaveFlags());
+  ASSERT_SOME(agent);
+
+  Future<Response> response = http::get(
+      agent.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
