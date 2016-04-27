@@ -707,47 +707,48 @@ inline Try<Nothing> FlagsBase::load(
     const std::string& name = iterator->first;
     const Option<std::string>& value = iterator->second;
 
-    if (flags_.count(name) > 0) {
-      if (value.isSome()) {                        // --name=value
-        if (flags_[name].boolean && value.get() == "") {
-          flags_[name].load(this, "true"); // Should never fail.
-        } else {
-          Try<Nothing> load = flags_[name].load(this, value.get());
-          if (load.isError()) {
-            return Error(
-                "Failed to load flag '" + name + "': " + load.error());
-          }
-        }
-      } else {                                     // --name
-        if (flags_[name].boolean) {
-          flags_[name].load(this, "true"); // Should never fail.
-        } else {
-          return Error(
-              "Failed to load non-boolean flag '" + name + "': Missing value");
-        }
-      }
-    } else if (name.find("no-") == 0) {
-      if (flags_.count(name.substr(3)) > 0) {       // --no-name
-        if (flags_[name.substr(3)].boolean) {
-          if (value.isNone() || value.get() == "") {
-            flags_[name.substr(3)].load(this, "false"); // Should never fail.
-          } else {
-            return Error(
-                "Failed to load boolean flag '" + name.substr(3) +
-                "' via '" + name + "' with value '" + value.get() + "'");
-          }
-        } else {
-          return Error(
-              "Failed to load non-boolean flag '" + name.substr(3) +
-              "' via '" + name + "'");
-        }
+    bool is_negated = strings::startsWith(name, "no-");
+    std::string flag_name = !is_negated ? name : name.substr(3);
+    auto iter = flags_.find(flag_name);
+    if (iter == flags_.end()) {
+      if (!unknowns) {
+        return Error("Failed to load unknown flag '" + flag_name + "'" +
+                     (!is_negated ? "" : " via '" + name + "'"));
       } else {
-        return Error(
-            "Failed to load unknown flag '" + name.substr(3) +
-            "' via '" + name + "'");
+        continue;
       }
-    } else if (!unknowns) {
-      return Error("Failed to load unknown flag '" + name + "'");
+    }
+
+    const Flag& flag = iter->second;
+    std::string value_;
+
+    if (!flag.boolean) {  // Non-boolean flag.
+      if (is_negated) { // Non-boolean flag cannot be loaded with "no-" prefix.
+        return Error("Failed to load non-boolean flag '" + flag_name +
+                     "' via '" + name + "'");
+      }
+
+      if (value.isNone()) {
+        return Error("Failed to load non-boolean flag '" + flag_name +
+                     "': Missing value");
+      }
+
+      value_ = value.get();
+    } else {  // Boolean flag.
+      if (value.isNone() || value.get() == "") {
+        value_ = !is_negated ? "true" : "false";
+      } else if (!is_negated) {
+        value_ = value.get();
+      } else { // Boolean flag with "no-" prefix cannot have non-empty value.
+        return Error(
+            "Failed to load boolean flag '" + flag_name + "' via '" + name +
+            "' with value '" + value.get() + "'");
+      }
+    }
+
+    Try<Nothing> load = flag.load(this, value_);
+    if (load.isError()) {
+      return Error("Failed to load flag '" + flag_name + "': " + load.error());
     }
   }
 
