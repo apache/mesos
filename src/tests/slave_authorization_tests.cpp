@@ -207,7 +207,8 @@ TEST_P(SlaveEndpointTest, AuthorizedRequest)
 
   AWAIT_READY(request);
 
-  EXPECT_EQ(DEFAULT_CREDENTIAL.principal(), request.get().subject().value());
+  const string principal = DEFAULT_CREDENTIAL.principal();
+  EXPECT_EQ(principal, request.get().subject().value());
 
   // TODO(bbannier): Once agent endpoint handlers use more than just
   // `GET_ENDPOINT_WITH_PATH` we should factor out the request method
