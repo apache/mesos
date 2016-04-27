@@ -59,6 +59,7 @@ using mesos::internal::devolve;
 using mesos::v1::AgentID;
 using mesos::v1::CommandInfo;
 using mesos::v1::ContainerInfo;
+using mesos::v1::Credential;
 using mesos::v1::Environment;
 using mesos::v1::FrameworkID;
 using mesos::v1::FrameworkInfo;
@@ -71,7 +72,6 @@ using mesos::v1::TaskID;
 using mesos::v1::TaskInfo;
 using mesos::v1::TaskState;
 using mesos::v1::TaskStatus;
-using mesos::v1::Credential;
 
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
