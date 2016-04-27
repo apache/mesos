@@ -50,6 +50,7 @@ using std::vector;
 
 using mesos::v1::AgentID;
 using mesos::v1::CommandInfo;
+using mesos::v1::Credential;
 using mesos::v1::ExecutorID;
 using mesos::v1::ExecutorInfo;
 using mesos::v1::Filters;
@@ -99,7 +100,8 @@ public:
   LongLivedScheduler(
       const string& _master,
       const FrameworkInfo& _framework,
-      const ExecutorInfo& _executor)
+      const ExecutorInfo& _executor,
+      const Option<Credential> _credential)
     : state(DISCONNECTED),
       master(_master),
       framework(_framework),
@@ -108,6 +110,7 @@ public:
           "cpus:" + stringify(CPUS_PER_TASK) +
           ";mem:" + stringify(MEM_PER_TASK)).get()),
       tasksLaunched(0),
+      credential(_credential),
       metrics(*this)
   {
     start_time = Clock::now();
@@ -126,7 +129,7 @@ protected:
       process::defer(self(), &Self::connected),
       process::defer(self(), &Self::disconnected),
       process::defer(self(), &Self::received, lambda::_1),
-      None()));
+      credential));
   }
 
   void connected()
@@ -393,6 +396,7 @@ private:
   const Resources taskResources;
   string uri;
   int tasksLaunched;
+  const Option<Credential> credential;
 
   // The agent that is running the long-lived-executor.
   // Unless that agent/executor dies, this framework will not launch
@@ -489,6 +493,14 @@ public:
         "checkpoint",
         "Whether this framework should be checkpointed.",
         false);
+
+    add(&principal,
+        "principal",
+        "The principal to use for framework authentication.");
+
+    add(&secret,
+        "secret",
+        "The secret to use for framework authentication.");
   }
 
   Option<string> master;
@@ -499,6 +511,8 @@ public:
   Option<string> executor_command;
 
   bool checkpoint;
+  Option<string> principal;
+  Option<string> secret;
 };
 
 
@@ -555,13 +569,25 @@ int main(int argc, char** argv)
   framework.set_name("Long Lived Framework (C++)");
   framework.set_checkpoint(flags.checkpoint);
 
-  // TODO(anand): Add support for AuthN once MESOS-3923 is resolved.
+  Option<Credential> credential = None();
+
+  if (flags.principal.isSome()) {
+    framework.set_principal(flags.principal.get());
+
+    if (flags.secret.isSome()) {
+      Credential credential_;
+      credential_.set_principal(flags.principal.get());
+      credential_.set_secret(flags.secret.get());
+      credential = credential_;
+    }
+  }
 
   Owned<LongLivedScheduler> scheduler(
       new LongLivedScheduler(
         flags.master.get(),
         framework,
-        executor));
+        executor,
+        credential));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
