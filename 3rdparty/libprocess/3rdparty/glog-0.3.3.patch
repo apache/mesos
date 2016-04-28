@@ -165,3 +165,38 @@ index 278f9e9..f048baa 100755
      alpha:Linux:*:*)
  	case `sed -n '/^cpu model/s/^.*: \(.*\)/\1/p' < /proc/cpuinfo` in
  	  EV5)   UNAME_MACHINE=alphaev5 ;;
+diff --git a/configure.ac b/configure.ac
+index 7b4d21e..88aa0af 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -127,27 +127,9 @@ if test x"$acx_pthread_ok" = x"yes"; then
+   AC_CHECK_LIB(pthread, pthread_self)
+ fi
+ 
+-# Check if there is google-gflags library installed.
+-SAVE_CFLAGS="$CFLAGS"
+-SAVE_LIBS="$LIBS"
+-AC_ARG_WITH(gflags, AS_HELP_STRING[--with-gflags=GFLAGS_DIR],
+-  GFLAGS_CFLAGS="-I${with_gflags}/include"
+-  GFLAGS_LIBS="-L${with_gflags}/lib -lgflags"
+-  CFLAGS="$CFLAGS $GFLAGS_CFLAGS"
+-  LIBS="$LIBS $GFLAGS_LIBS"
+-)
+-AC_CHECK_LIB(gflags, main, ac_cv_have_libgflags=1, ac_cv_have_libgflags=0)
+-if test x"$ac_cv_have_libgflags" = x"1"; then
+-  AC_DEFINE(HAVE_LIB_GFLAGS, 1, [define if you have google gflags library])
+-  if test x"$GFLAGS_LIBS" = x""; then
+-    GFLAGS_LIBS="-lgflags"
+-  fi
+-else
+-  GFLAGS_CFLAGS=
+-  GFLAGS_LIBS=
+-fi
+-CFLAGS="$SAVE_CFLAGS"
+-LIBS="$SAVE_LIBS"
++GFLAGS_CFLAGS=
++GFLAGS_LIBS=
++ac_cv_have_libgflags=0
+ 
+ # TODO(hamaji): Use official m4 macros provided by testing libraries
+ #               once the m4 macro of Google Mocking becomes ready.
