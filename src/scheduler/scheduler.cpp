@@ -447,11 +447,11 @@ protected:
 
     Option<mesos::MasterInfo> latest;
     if (future.isDiscarded()) {
-      VLOG(1) << "Re-detecting master";
+      LOG(INFO) << "Re-detecting master";
       master = None();
       latest = None();
     } else if (future->isNone()) {
-      VLOG(1) << "Lost leading master";
+      LOG(INFO) << "Lost leading master";
       master = None();
       latest = None();
     } else {
@@ -476,7 +476,7 @@ protected:
         upid.id +
         "/api/v1/scheduler");
 
-      VLOG(1) << "New master detected at " << upid;
+      LOG(INFO) << "New master detected at " << upid;
 
       connect();
     }
