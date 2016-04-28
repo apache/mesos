@@ -1324,6 +1324,12 @@ void Master::exited(const UPID& pid)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
     if (framework->pid == pid) {
+      // See comments in `receive()` on why we send an error message
+      // to the framework upon detecting a disconnection.
+      FrameworkErrorMessage message;
+      message.set_message("Framework disconnected");
+      framework->send(message);
+
       _exited(framework);
       return;
     }
@@ -2072,6 +2078,23 @@ void Master::receive(
 
   if (framework->pid != from) {
     drop(from, call, "Call is not from registered framework");
+    return;
+  }
+
+  // This is possible when master --> framework link is broken (i.e., one
+  // way network partition) and the framework is not aware of it. There
+  // is no way for driver based frameworks to detect this in the absence
+  // of periodic heartbeat events. We send an error message to the framework
+  // causing the scheduler driver to abort when this happens.
+  if (!framework->connected) {
+    const string error = "Framework disconnected";
+
+    LOG(INFO) << "Refusing " << call.type() << " call from framework "
+              << *framework << ": " << error;
+
+    FrameworkErrorMessage message;
+    message.set_message(error);
+    send(from, message);
     return;
   }
 
