@@ -360,6 +360,7 @@ All Issues:
 ** Bug
   * [MESOS-4705] - Linux 'perf' parsing logic may fail when OS distribution has perf backports.
   * [MESOS-4869] - /usr/libexec/mesos/mesos-health-check using/leaking a lot of memory.
+  * [MESOS-5018] - FrameworkInfo Capability enum does not support upgrades.
   * [MESOS-5021] - Memory leak in subprocess when 'environment' argument is provided.
 
 
