@@ -712,29 +712,49 @@ Future<bool> MesosContainerizerProcess::launch(
   // We need to set the `launchInfos` to be a ready future initially
   // before we starting calling isolator->prepare() because otherwise,
   // the destroy will wait forever trying to wait for this future to
-  // be ready , which it never will. See MESOS-4878.
+  // be ready, which it never will. See MESOS-4878.
   container->launchInfos = list<Option<ContainerLaunchInfo>>();
 
   containers_.put(containerId, Owned<Container>(container));
 
+  // If 'container' is not set in 'executorInfo', one of the following
+  // is true:
+  //  1) This is a custom executor without ContainerInfo.
+  //  2) This is a command task without ContainerInfo (since we copy
+  //     ContainerInfo for command tasks if exists).
+  // In either of the above cases, no provisioning is needed.
+  // Therefore, we can go straight to 'prepare'.
   if (!executorInfo.has_container()) {
     return prepare(containerId, taskInfo, executorInfo, directory, user, None())
       .then(defer(self(),
                   &Self::__launch,
                   containerId,
+                  taskInfo,
                   executorInfo,
                   directory,
                   user,
                   slaveId,
                   slavePid,
                   checkpoint,
+                  None(),
                   lambda::_1));
   }
 
-  // Provision the root filesystem if needed.
-  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
+  // We'll first provision the image for the container , and then
+  // provision the images specified in Volumes.
+  Option<Image> containerImage;
 
-  if (!executorInfo.container().mesos().has_image()) {
+  if (taskInfo.isSome() &&
+      taskInfo->has_container() &&
+      taskInfo->container().mesos().has_image()) {
+    // Command task.
+    containerImage = taskInfo->container().mesos().image();
+  } else if (executorInfo.container().mesos().has_image()) {
+    // Custom executor.
+    containerImage = executorInfo.container().mesos().image();
+  }
+
+  if (containerImage.isNone()) {
     return _launch(containerId,
                    taskInfo,
                    executorInfo,
@@ -746,14 +766,13 @@ Future<bool> MesosContainerizerProcess::launch(
                    None());
   }
 
-  const Image& image = executorInfo.container().mesos().image();
+  Future<ProvisionInfo> provisioning = provisioner->provision(
+      containerId,
+      containerImage.get());
 
-  Future<ProvisionInfo> future =
-    provisioner->provision(containerId, image);
+  container->provisionInfos.push_back(provisioning);
 
-  container->provisionInfos.push_back(future);
-
-  return future
+  return provisioning
     .then(defer(PID<MesosContainerizerProcess>(this),
                 &MesosContainerizerProcess::_launch,
                 containerId,
@@ -802,14 +821,10 @@ Future<bool> MesosContainerizerProcess::_launch(
   // as well. We will mutate ContainerInfo::volumes to include the
   // paths to the provisioned root filesystems (by setting the
   // 'host_path') if the volume specifies an image as the source.
+  //
+  // TODO(gilbert): We need to figure out a way to support passing
+  // runtime configurations specified in the image to the container.
   Owned<ExecutorInfo> _executorInfo(new ExecutorInfo(executorInfo));
-
-  // NOTE: For the command task (i.e., taskInfo.isSome()), the
-  // filesystem image for the task is specified in a volume
-  // (COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH). We need to pass the
-  // provisionInfo from that image to isolators through 'prepare'.
-  Owned<Option<ProvisionInfo>> _provisionInfo(
-      new Option<ProvisionInfo>(provisionInfo));
 
   list<Future<Nothing>> futures;
 
@@ -825,24 +840,11 @@ Future<bool> MesosContainerizerProcess::_launch(
     Future<ProvisionInfo> future = provisioner->provision(containerId, image);
     containers_[containerId]->provisionInfos.push_back(future);
 
-    futures.push_back(future
-      .then([=](const ProvisionInfo& info) -> Future<Nothing> {
+    futures.push_back(future.then([=](const ProvisionInfo& info) {
         volume->set_host_path(info.rootfs);
-
-        if (taskInfo.isSome() &&
-            volume->container_path() ==
-              COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH) {
-          *_provisionInfo = info;
-        }
-
         return Nothing();
       }));
   }
-
-  // TODO(gilbert): For command executors, we modify the executorInfo
-  // so that the user specified image will be mounted in as a volume.
-  // However, we also need to figure out a way to support passing and
-  // handling those runtime configurations in the image.
 
   // We put `prepare` inside of a lambda expression, in order to get
   // _executorInfo object after host path set in volume.
@@ -853,16 +855,18 @@ Future<bool> MesosContainerizerProcess::_launch(
                      *_executorInfo,
                      directory,
                      user,
-                     *_provisionInfo)
+                     provisionInfo)
         .then(defer(self(),
                     &Self::__launch,
                     containerId,
+                    taskInfo,
                     *_executorInfo,
                     directory,
                     user,
                     slaveId,
                     slavePid,
                     checkpoint,
+                    provisionInfo,
                     lambda::_1));
     }));
 }
@@ -996,12 +1000,14 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
 Future<bool> MesosContainerizerProcess::__launch(
     const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
+    const Option<ProvisionInfo>& provisionInfo,
     const list<Option<ContainerLaunchInfo>>& launchInfos)
 {
   if (!containers_.contains(containerId)) {
@@ -1021,25 +1027,19 @@ Future<bool> MesosContainerizerProcess::__launch(
       checkpoint,
       flags);
 
-  // Determine the root filesystem for the container. Only one
-  // isolator should return the container root filesystem.
-  Option<string> rootfs;
+  // Determine the root filesystem for the executor.
+  Option<string> executorRootfs;
+  if (taskInfo.isNone() && provisionInfo.isSome()) {
+    executorRootfs = provisionInfo->rootfs;
+  }
 
   // Determine the executor launch command for the container.
   // At most one command can be returned from docker runtime
-  // isolator if a docker image is specifed.
+  // isolator if a docker image is specified.
   Option<CommandInfo> executorLaunchCommand;
   Option<string> workingDirectory;
 
   foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
-    if (launchInfo.isSome() && launchInfo->has_rootfs()) {
-      if (rootfs.isSome()) {
-        return Failure("Only one isolator should return the container rootfs");
-      } else {
-        rootfs = launchInfo->rootfs();
-      }
-    }
-
     if (launchInfo.isSome() && launchInfo->has_environment()) {
       foreach (const Environment::Variable& variable,
                launchInfo->environment().variables()) {
@@ -1078,8 +1078,9 @@ Future<bool> MesosContainerizerProcess::__launch(
 
   // TODO(jieyu): Consider moving this to 'executorEnvironment' and
   // consolidating with docker containerizer.
-  environment["MESOS_SANDBOX"] =
-    rootfs.isSome() ? flags.sandbox_directory : directory;
+  environment["MESOS_SANDBOX"] = executorRootfs.isSome()
+    ? flags.sandbox_directory
+    : directory;
 
   // Include any enviroment variables from CommandInfo.
   foreach (const Environment::Variable& variable,
@@ -1117,6 +1118,16 @@ Future<bool> MesosContainerizerProcess::__launch(
   JSON::Object commands;
   commands.values["commands"] = commandArray;
 
+  if (executorLaunchCommand.isNone()) {
+    executorLaunchCommand = executorInfo.command();
+  }
+
+  // Inform the command executor about the rootfs of the task.
+  if (taskInfo.isSome() && provisionInfo.isSome()) {
+    CHECK_SOME(executorLaunchCommand);
+    executorLaunchCommand->add_arguments("--rootfs=" + provisionInfo->rootfs);
+  }
+
   return logger->prepare(executorInfo, directory)
     .then(defer(
         self(),
@@ -1132,18 +1143,16 @@ Future<bool> MesosContainerizerProcess::__launch(
     // Prepare the flags to pass to the launch process.
     MesosContainerizerLaunch::Flags launchFlags;
 
-    launchFlags.command = executorLaunchCommand.isSome()
-      ? JSON::protobuf(executorLaunchCommand.get())
-      : JSON::protobuf(executorInfo.command());
+    launchFlags.command = JSON::protobuf(executorLaunchCommand.get());
 
-    launchFlags.sandbox = rootfs.isSome()
+    launchFlags.sandbox = executorRootfs.isSome()
       ? flags.sandbox_directory
       : directory;
 
     // NOTE: If the executor shares the host filesystem, we should not
     // allow them to 'cd' into an arbitrary directory because that'll
     // create security issues.
-    if (rootfs.isNone() && workingDirectory.isSome()) {
+    if (executorRootfs.isNone() && workingDirectory.isSome()) {
       LOG(WARNING) << "Ignore working directory '" << workingDirectory.get()
                    << "' specified in container launch info for container "
                    << containerId << " since the executor is using the "
@@ -1153,19 +1162,19 @@ Future<bool> MesosContainerizerProcess::__launch(
     }
 
 #ifdef __WINDOWS__
-    if (!rootfs.isNone()) {
+    if (!executorRootfs.isNone()) {
       return Failure(
-          "`chroot` is not supported on Windows, but the `ContainerLaunchInfo` "
-          "provided a `rootfs` flag to the launcher");
+          "`chroot` is not supported on Windows, but the executor "
+          "specifies a root filesystem.");
     }
 
     if (!user.isNone()) {
       return Failure(
-          "`su` is not supported on Windows, but the `ContainerLauncherInfo` "
-          "provided a `user` to the launcher");
+          "`su` is not supported on Windows, but the executor "
+          "specifies a user.");
     }
 #else
-    launchFlags.rootfs = rootfs;
+    launchFlags.rootfs = executorRootfs;
     launchFlags.user = user;
 #endif // __WINDOWS__
     launchFlags.pipe_read = pipes[0];

@@ -313,8 +313,7 @@ Instead, it can specify a `volume` whose source is an `Image`. Mesos
 containerizer will provision the `image` specified in the `volume`,
 and mount it under the sandbox directory. The executor can perform
 `pivot_root` or `chroot` itself to enter the container root
-filesystem. This is how we solve the command executor issue, avoiding
-the requirement that it has to exist in all container images.
+filesystem.
 
 
 ## References

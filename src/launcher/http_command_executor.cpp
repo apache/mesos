@@ -104,6 +104,7 @@ public:
   HttpCommandExecutor(
       const Option<char**>& _override,
       const string& _healthCheckDir,
+      const Option<string>& _rootfs,
       const Option<string>& _sandboxDirectory,
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
@@ -122,6 +123,7 @@ public:
       taskId(None()),
       healthCheckDir(_healthCheckDir),
       override(_override),
+      rootfs(_rootfs),
       sandboxDirectory(_sandboxDirectory),
       workingDirectory(_workingDirectory),
       user(_user),
@@ -360,17 +362,10 @@ protected:
       abort();
     }
 
-    Option<string> rootfs;
-    if (sandboxDirectory.isSome()) {
-      // If 'sandbox_diretory' is specified, that means the user
-      // task specifies a root filesystem, and that root filesystem has
-      // already been prepared at COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH.
-      // The command executor is responsible for mounting the sandbox
-      // into the root filesystem, chrooting into it and changing the
-      // user before exec-ing the user process.
-      //
-      // TODO(gilbert): Consider a better way to detect if a root
-      // filesystem is specified for the command task.
+    if (rootfs.isSome()) {
+      // The command executor is responsible for chrooting into the
+      // root filesystem and changing the user before exec-ing the
+      // user process.
 #ifdef __linux__
       Result<string> user = os::user();
       if (user.isError()) {
@@ -381,49 +376,6 @@ protected:
         abort();
       } else if (user.get() != "root") {
         cerr << "The command executor requires root with rootfs" << endl;
-        abort();
-      }
-
-      rootfs = path::join(
-          os::getcwd(), COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH);
-
-      string sandbox = path::join(rootfs.get(), sandboxDirectory.get());
-      if (!os::exists(sandbox)) {
-        Try<Nothing> mkdir = os::mkdir(sandbox);
-        if (mkdir.isError()) {
-          cerr << "Failed to create sandbox mount point  at '"
-               << sandbox << "': " << mkdir.error() << endl;
-          abort();
-        }
-      }
-
-      // Mount the sandbox into the container rootfs.
-      // We need to perform a recursive mount because we want all the
-      // volume mounts in the sandbox to be also mounted in the container
-      // root filesystem. However, since the container root filesystem
-      // is also mounted in the sandbox, after the recursive mount we
-      // also need to unmount the root filesystem in the mounted sandbox.
-      Try<Nothing> mount = fs::mount(
-          os::getcwd(),
-          sandbox,
-          None(),
-          MS_BIND | MS_REC,
-          NULL);
-
-      if (mount.isError()) {
-        cerr << "Unable to mount the work directory into container "
-             << "rootfs: " << mount.error() << endl;;
-        abort();
-      }
-
-      // Umount the root filesystem path in the mounted sandbox after
-      // the recursive mount.
-      Try<Nothing> unmountAll = fs::unmountAll(path::join(
-          sandbox,
-          COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH));
-      if (unmountAll.isError()) {
-        cerr << "Unable to unmount rootfs under mounted sandbox: "
-             << unmountAll.error() << endl;
         abort();
       }
 #else
@@ -863,6 +815,7 @@ private:
   Option<TaskID> taskId;
   string healthCheckDir;
   Option<char**> override;
+  Option<string> rootfs;
   Option<string> sandboxDirectory;
   Option<string> workingDirectory;
   Option<string> user;
@@ -894,6 +847,10 @@ public:
         "subsequent 'argv' to be used with 'execvp'",
         false);
 
+    add(&rootfs,
+        "rootfs",
+        "The path to the root filesystem for the task");
+
     // The following flags are only applicable when a rootfs is
     // provisioned for this command.
     add(&sandbox_directory,
@@ -919,6 +876,7 @@ public:
   }
 
   bool override;
+  Option<string> rootfs;
   Option<string> sandbox_directory;
   Option<string> working_directory;
   Option<string> user;
@@ -1000,6 +958,7 @@ int main(int argc, char** argv)
       new mesos::v1::internal::HttpCommandExecutor(
           override,
           path,
+          flags.rootfs,
           flags.sandbox_directory,
           flags.working_directory,
           flags.user,

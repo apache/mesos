@@ -130,9 +130,6 @@ constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
-// Container path that the slave sets to mount the command executor rootfs to.
-constexpr char COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH[] = ".rootfs";
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

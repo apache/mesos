@@ -219,12 +219,14 @@ private:
 
   process::Future<bool> __launch(
       const ContainerID& containerId,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
       const process::PID<Slave>& slavePid,
       bool checkpoint,
+      const Option<ProvisionInfo>& provisionInfo,
       const std::list<Option<mesos::slave::ContainerLaunchInfo>>& launchInfos);
 
   process::Future<bool> isolate(
