@@ -604,6 +604,50 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   AWAIT_READY(slaveReregisteredMessage);
 }
 
+
+// This test verifies that if master --> framework socket closes and the
+// framework is not aware of it (i.e., one way network partition), all
+// subsequent calls from the framework after the master has marked it as
+// disconnected would result in an error message causing the framework to abort.
+TEST_F(PartitionTest, OneWayPartitionMasterToScheduler)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_failover_timeout(Weeks(2).secs());
+
+  MockScheduler sched;
+  StandaloneMasterDetector detector(master.get()->pid);
+  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
+
+  Future<process::Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+
+  AWAIT_READY(registered);
+
+  Future<Nothing> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureSatisfy(&error));
+
+  // Simulate framework disconnection. This should result in an error message.
+  ASSERT_TRUE(process::inject::exited(
+      frameworkRegisteredMessage.get().to, master.get()->pid));
+
+  AWAIT_READY(error);
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
