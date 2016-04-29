@@ -173,11 +173,16 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   {
     master::Flags flags;
-    Try<Nothing> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load("MESOS_");
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to start a local cluster while loading"
         << " master flags from the environment: " << load.error();
+    }
+
+    // Log any flag warnings.
+    foreach (const flags::Warning& warning, load->warnings) {
+      LOG(WARNING) << warning.message;
     }
 
     // Load modules. Note that this covers both, master and slave
@@ -342,12 +347,17 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   for (int i = 0; i < flags.num_slaves; i++) {
     slave::Flags flags;
-    Try<Nothing> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load("MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to start a local cluster while loading"
         << " agent flags from the environment: " << load.error();
+    }
+
+    // Log any flag warnings (after logging is initialized).
+    foreach (const flags::Warning& warning, load->warnings) {
+      LOG(WARNING) << warning.message;
     }
 
     // Use a different work directory for each slave.

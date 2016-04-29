@@ -1634,7 +1634,7 @@ void MesosSchedulerDriver::initialize() {
   // we'll probably want a way to load master::Flags and slave::Flags
   // as well.
   local::Flags flags;
-  Try<Nothing> load = flags.load("MESOS_");
+  Try<flags::Warnings> load = flags.load("MESOS_");
 
   if (load.isError()) {
     status = DRIVER_ABORTED;
@@ -1660,6 +1660,11 @@ void MesosSchedulerDriver::initialize() {
     logging::initialize(framework.name(), flags);
   } else {
     VLOG(1) << "Disabling initialization of GLOG logging";
+  }
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   spawn(new VersionProcess(), true);
@@ -1850,12 +1855,17 @@ Status MesosSchedulerDriver::start()
 
     // Load scheduler flags.
     internal::scheduler::Flags flags;
-    Try<Nothing> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load("MESOS_");
 
     if (load.isError()) {
       status = DRIVER_ABORTED;
       scheduler->error(this, load.error());
       return status;
+    }
+
+    // Log any flag warnings.
+    foreach (const flags::Warning& warning, load->warnings) {
+      LOG(WARNING) << warning.message;
     }
 
     // Initialize modules. Note that since other subsystems may depend

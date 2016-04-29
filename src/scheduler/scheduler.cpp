@@ -148,7 +148,7 @@ public:
     // master::Flags and slave::Flags as well.
     local::Flags flags;
 
-    Try<Nothing> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load("MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE) << "Failed to load flags: " << load.error();
@@ -172,6 +172,11 @@ public:
       logging::initialize("mesos", flags);
     } else {
       VLOG(1) << "Disabling initialization of GLOG logging";
+    }
+
+    // Log any flag warnings (after logging is initialized).
+    foreach (const flags::Warning& warning, load->warnings) {
+      LOG(WARNING) << warning.message;
     }
 
     LOG(INFO) << "Version: " << MESOS_VERSION;

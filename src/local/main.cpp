@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 
   // Load flags from environment and command line but allow unknown
   // flags since we might have some master/slave flags as well.
-  Try<Nothing> load = flags.load("MESOS_", argc, argv, true);
+  Try<flags::Warnings> load = flags.load("MESOS_", argc, argv, true);
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
@@ -92,6 +92,11 @@ int main(int argc, char **argv)
   process::initialize("master");
 
   logging::initialize(argv[0], flags);
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
 
   spawn(new VersionProcess(), true);
 

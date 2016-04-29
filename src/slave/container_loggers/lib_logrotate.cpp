@@ -277,11 +277,16 @@ org_apache_mesos_LogrotateContainerLogger(
 
       // Load and validate flags from the map.
       mesos::internal::logger::Flags flags;
-      Try<Nothing> load = flags.load(values);
+      Try<flags::Warnings> load = flags.load(values);
 
       if (load.isError()) {
         LOG(ERROR) << "Failed to parse parameters: " << load.error();
         return NULL;
+      }
+
+      // Log any flag warnings.
+      foreach (const flags::Warning& warning, load->warnings) {
+        LOG(WARNING) << warning.message;
       }
 
       return new mesos::internal::logger::LogrotateContainerLogger(flags);

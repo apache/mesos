@@ -112,7 +112,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
 
   // Configure the tool by parsing command line arguments.
   if (argc > 0 && argv != NULL) {
-    Try<Nothing> load = flags.load(None(), argc, argv);
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
     if (load.isError()) {
       return Error(flags.usage(load.error()));
     }
@@ -123,6 +123,11 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
 
     process::initialize();
     logging::initialize(argv[0], flags);
+
+    // Log any flag warnings (after logging is initialized).
+    foreach (const flags::Warning& warning, load->warnings) {
+      LOG(WARNING) << warning.message;
+    }
   }
 
   if (flags.quorum.isNone()) {

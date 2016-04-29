@@ -393,7 +393,7 @@ int main(int argc, char** argv)
             "master",
             "ip:port of master to connect");
 
-  Try<Nothing> load = flags.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags.load(None(), argc, argv);
 
   if (load.isError()) {
     cerr << load.error() << endl;
@@ -407,6 +407,11 @@ int main(int argc, char** argv)
 
   process::initialize();
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
 
   FrameworkInfo framework;
   framework.set_name("Event Call Scheduler using libprocess (C++)");

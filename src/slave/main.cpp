@@ -151,7 +151,7 @@ int main(int argc, char** argv)
             "the IP address which the agent will try to bind to.\n"
             "Cannot be used in conjunction with `--ip`.");
 
-  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
   // TODO(marco): this pattern too should be abstracted away
   // in FlagsBase; I have seen it at least 15 times.
@@ -221,6 +221,11 @@ int main(int argc, char** argv)
   }
 
   logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
 
   // Initialize modules. Note that since other subsystems may depend
   // upon modules, we should initialize modules before anything else.

@@ -353,7 +353,7 @@ int main(int argc, char** argv)
 {
   Flags flags;
 
-  Try<Nothing> load = flags.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags.load(None(), argc, argv);
   if (load.isError()) {
     EXIT(EXIT_FAILURE) << flags.usage(load.error());
   } else if (flags.master.isNone()) {
@@ -363,6 +363,11 @@ int main(int argc, char** argv)
   } else if (flags.role.get() == "*") {
     EXIT(EXIT_FAILURE)
       << flags.usage("Role is incorrect; the default '*' role cannot be used");
+  }
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   FrameworkInfo framework;

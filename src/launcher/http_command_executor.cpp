@@ -977,7 +977,7 @@ int main(int argc, char** argv)
   ExecutorID executorId;
 
   // Load flags from command line.
-  Try<Nothing> load = flags.load(None(), &argc, &argv);
+  Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
@@ -987,6 +987,11 @@ int main(int argc, char** argv)
   if (flags.help) {
     cout << flags.usage() << endl;
     return EXIT_SUCCESS;
+  }
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   // After flags.load(..., &argc, &argv) all flags will have been

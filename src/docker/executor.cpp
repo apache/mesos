@@ -607,7 +607,7 @@ int main(int argc, char** argv)
   mesos::internal::docker::Flags flags;
 
   // Load flags from environment and command line.
-  Try<Nothing> load = flags.load(None(), &argc, &argv);
+  Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
@@ -617,6 +617,11 @@ int main(int argc, char** argv)
   std::cout << stringify(flags) << std::endl;
 
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
 
   if (flags.help) {
     cout << flags.usage() << endl;

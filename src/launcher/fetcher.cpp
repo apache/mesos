@@ -444,11 +444,16 @@ int main(int argc, char* argv[])
 
   mesos::internal::logging::Flags flags;
 
-  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
   CHECK_SOME(load) << "Could not load flags: " << load.error();
 
   logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
 
   const Option<string> jsonFetcherInfo = os::getenv("MESOS_FETCHER_INFO");
   CHECK_SOME(jsonFetcherInfo)

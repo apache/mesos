@@ -219,10 +219,15 @@ int main(int argc, char** argv)
   Flags flags;
 
   // Load and validate flags from the environment and command line.
-  Try<Nothing> load = flags.load(None(), &argc, &argv);
+  Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
     EXIT(EXIT_FAILURE) << flags.usage(load.error());
+  }
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   // Make sure this process is running in its own session.

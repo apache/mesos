@@ -297,11 +297,16 @@ int main(int argc, char** argv)
 {
   Flags flags;
 
-  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
   if (load.isError()) {
     EXIT(EXIT_FAILURE)
       << flags.usage(load.error());
+  }
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   if (flags.help) {
