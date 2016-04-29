@@ -18,8 +18,6 @@
 
 #include <vector>
 
-#include <google/protobuf/repeated_field.h>
-
 #include <mesos/resources.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -43,8 +41,6 @@
 #include "master/registrar.hpp"
 
 namespace http = process::http;
-
-using google::protobuf::RepeatedPtrField;
 
 using http::Accepted;
 using http::BadRequest;
