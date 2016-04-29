@@ -26,6 +26,7 @@
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/multimap.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -57,7 +58,9 @@ public:
   // (see above) followed by loading from the command line (via 'argc'
   // and 'argv'). If 'unknowns' is true then we'll ignore unknown
   // flags we see while loading. If 'duplicates' is true then we'll
-  // ignore any duplicates we see while loading.
+  // ignore any duplicates we see while loading. Note that if a flag
+  // exists in the environment and the command line, the latter takes
+  // precedence.
   virtual Try<Warnings> load(
       const Option<std::string>& prefix,
       int argc,
@@ -320,8 +323,12 @@ protected:
 
 private:
   // Extract environment variable "flags" with the specified prefix.
-  std::map<std::string, Option<std::string>> extract(
-      const std::string& prefix);
+  std::map<std::string, Option<std::string>> extract(const std::string& prefix);
+
+  Try<Warnings> load(
+      const Multimap<std::string, Option<std::string>>& values,
+      bool unknowns = false,
+      bool duplicates = false);
 
   // Maps flag's name to flag.
   std::map<std::string, Flag> flags_;
@@ -651,8 +658,10 @@ inline std::map<std::string, Option<std::string>> FlagsBase::extract(
       name = strings::lower(name); // Allow PREFIX_NAME or PREFIX_name.
 
       // Only add if it's a known flag.
-      if (flags_.count(name) > 0 ||
-          (name.find("no-") == 0 && flags_.count(name.substr(3)) > 0)) {
+      // TODO(vinod): Reject flags with an unknown name if `unknowns` is false.
+      // This will break backwards compatibility however!
+      std::string flag_name = strings::remove(name, "no-", strings::PREFIX);
+      if (flags_.count(flag_name) > 0 || aliases.count(flag_name) > 0) {
         values[name] = Some(value);
       }
     }
@@ -675,15 +684,10 @@ inline Try<Warnings> FlagsBase::load(
     bool unknowns,
     bool duplicates)
 {
-  std::map<std::string, Option<std::string>> envValues;
-  std::map<std::string, Option<std::string>> cmdValues;
+  Multimap<std::string, Option<std::string>> values;
 
   // Grab the program name from argv[0].
   programName_ = argc > 0 ? Path(argv[0]).basename() : "";
-
-  if (prefix.isSome()) {
-    envValues = extract(prefix.get());
-  }
 
   // Read flags from the command line.
   for (int i = 1; i < argc; i++) {
@@ -714,19 +718,22 @@ inline Try<Warnings> FlagsBase::load(
 
     name = strings::lower(name);
 
-    if (!duplicates) {
-      if (cmdValues.count(name) > 0 ||
-          (name.find("no-") == 0 && cmdValues.count(name.substr(3)) > 0)) {
-        return Error("Duplicate flag '" + name + "' on command line");
-      }
-    }
-
-    cmdValues[name] = value;
+    values.put(name, value);
   }
 
-  cmdValues.insert(envValues.begin(), envValues.end());
+  if (prefix.isSome()) {
+    // Merge in flags from the environment. Command-line
+    // flags take precedence over environment flags.
+    foreachpair (const std::string& name,
+                 const Option<std::string>& value,
+                 extract(prefix.get())) {
+      if (!values.contains(name)) {
+        values.put(name, value);
+      }
+    }
+  }
 
-  return load(cmdValues, unknowns);
+  return load(values, unknowns, duplicates);
 }
 
 
@@ -737,12 +744,7 @@ inline Try<Warnings> FlagsBase::load(
     bool unknowns,
     bool duplicates)
 {
-  std::map<std::string, Option<std::string>> envValues;
-  std::map<std::string, Option<std::string>> cmdValues;
-
-  if (prefix.isSome()) {
-    envValues = extract(prefix.get());
-  }
+  Multimap<std::string, Option<std::string>> values;
 
   // Grab the program name from argv, without removing it.
   programName_ = *argc > 0 ? Path(*(argv[0])).basename() : "";
@@ -784,19 +786,22 @@ inline Try<Warnings> FlagsBase::load(
 
     name = strings::lower(name);
 
-    if (!duplicates) {
-      if (cmdValues.count(name) > 0 ||
-          (name.find("no-") == 0 && cmdValues.count(name.substr(3)) > 0)) {
-        return Error("Duplicate flag '" + name + "' on command line");
-      }
-    }
-
-    cmdValues[name] = value;
+    values.put(name, value);
   }
 
-  cmdValues.insert(envValues.begin(), envValues.end());
+  if (prefix.isSome()) {
+    // Merge in flags from the environment. Command-line
+    // flags take precedence over environment flags.
+    foreachpair (const std::string& name,
+                 const Option<std::string>& value,
+                 extract(prefix.get())) {
+      if (!values.contains(name)) {
+        values.put(name, value);
+      }
+    }
+  }
 
-  Try<Warnings> result = load(cmdValues, unknowns);
+  Try<Warnings> result = load(values, unknowns, duplicates);
 
   // Update 'argc' and 'argv' if we successfully loaded the flags.
   if (!result.isError()) {
@@ -822,14 +827,38 @@ inline Try<Warnings> FlagsBase::load(
     const std::map<std::string, Option<std::string>>& values,
     bool unknowns)
 {
+  Multimap<std::string, Option<std::string>> values_;
+  foreachpair (const std::string& name,
+               const Option<std::string>& value,
+               values) {
+    values_.put(name, value);
+  }
+  return load(values_, unknowns);
+}
+
+
+inline Try<Warnings> FlagsBase::load(
+    const std::map<std::string, std::string>& values,
+    bool unknowns)
+{
+  Multimap<std::string, Option<std::string>> values_;
+  foreachpair (const std::string& name, const std::string& value, values) {
+    values_.put(name, Some(value));
+  }
+  return load(values_, unknowns);
+}
+
+
+inline Try<Warnings> FlagsBase::load(
+    const Multimap<std::string, Option<std::string>>& values,
+    bool unknowns,
+    bool duplicates)
+{
   Warnings warnings;
 
-  std::map<std::string, Option<std::string>>::const_iterator iterator;
-
-  for (iterator = values.begin(); iterator != values.end(); ++iterator) {
-    const std::string& name = iterator->first;
-    const Option<std::string>& value = iterator->second;
-
+  foreachpair (const std::string& name,
+               const Option<std::string>& value,
+               values) {
     bool is_negated = strings::startsWith(name, "no-");
     std::string flag_name = !is_negated ? name : name.substr(3);
 
@@ -848,8 +877,8 @@ inline Try<Warnings> FlagsBase::load(
 
     Flag* flag = &(iter->second);
 
-    if (flag->loaded_name.isSome()) {
-      return Error("Flag is already loaded via name '" +
+    if (!duplicates && flag->loaded_name.isSome()) {
+      return Error("Flag '" + flag_name + "' is already loaded via name '" +
                    flag->loaded_name->value + "'");
     }
 
@@ -913,21 +942,6 @@ inline Try<Warnings> FlagsBase::load(
   }
 
   return warnings;
-}
-
-
-inline Try<Warnings> FlagsBase::load(
-    const std::map<std::string, std::string>& _values,
-    bool unknowns)
-{
-  std::map<std::string, Option<std::string>> values;
-  std::map<std::string, std::string>::const_iterator iterator;
-  for (iterator = _values.begin(); iterator != _values.end(); ++iterator) {
-    const std::string& name = iterator->first;
-    const std::string& value = iterator->second;
-    values[name] = Some(value);
-  }
-  return load(values, unknowns);
 }
 
 
