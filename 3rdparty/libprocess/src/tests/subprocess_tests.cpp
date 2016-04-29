@@ -609,8 +609,10 @@ TEST_F(SubprocessTest, Flags)
   }
 
   Flags flags2;
-  Try<Nothing> load = flags2.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags2.load(None(), argc, argv);
   ASSERT_SOME(load);
+  EXPECT_EQ(0, load->warnings.size());
+
   EXPECT_EQ(flags.b, flags2.b);
   EXPECT_EQ(flags.i, flags2.i);
   EXPECT_EQ(flags.s, flags2.s);
