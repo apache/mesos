@@ -96,15 +96,10 @@ protected:
   {
     // Try to remove any mounts under sandbox.
     if (::geteuid() == 0) {
-      Try<string> umount = os::shell(
-          "grep '%s' /proc/mounts | "
-          "cut -d' ' -f2 | "
-          "xargs --no-run-if-empty umount -l",
-          sandbox.get().c_str());
-
-      if (umount.isError()) {
+      Try<Nothing> unmount = fs::unmountAll(sandbox.get(), MNT_DETACH);
+      if (unmount.isError()) {
         LOG(ERROR) << "Failed to umount for sandbox '" << sandbox.get()
-                   << "': " << umount.error();
+                   << "': " << unmount.error();
       }
     }
 
@@ -1391,56 +1386,73 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
 }
 
 
-// This test verifies the slave's work directory mount preparation if
-// the mount does not exist initially.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMount)
+// This test verifies the case where we don't need a bind mount for
+// slave's working directory because the mount containing it is
+// already a shared mount in its own peer group.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNotNeeded)
 {
+  // Make 'sandbox' a shared mount in its own peer group.
+  ASSERT_SOME(os::shell(
+      "mount --bind %s %s && "
+      "mount --make-private %s &&"
+      "mount --make-shared %s",
+      sandbox->c_str(),
+      sandbox->c_str(),
+      sandbox->c_str(),
+      sandbox->c_str()));
+
+  // Slave's working directory is under 'sandbox'.
   slave::Flags flags = CreateSlaveFlags();
+  flags.work_dir = path::join(sandbox.get(), "slave");
+
+  ASSERT_SOME(os::mkdir(flags.work_dir));
 
   Try<Isolator*> isolator = LinuxFilesystemIsolatorProcess::create(flags);
-
   ASSERT_SOME(isolator);
 
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   ASSERT_SOME(table);
 
+  // Verifies that there's no mount for slave's working directory.
   bool mountFound = false;
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     if (entry.target == flags.work_dir) {
-      EXPECT_SOME(entry.shared());
       mountFound = true;
     }
   }
 
-  EXPECT_TRUE(mountFound);
+  EXPECT_FALSE(mountFound);
 
   delete isolator.get();
 }
 
 
-// This test verifies the slave's work directory mount preparation if
-// the mount already exists (e.g., to simulate the case when the slave
-// crashes while preparing the work directory mount).
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountPreExists)
+// This test verifies the case where we do need a bind mount for
+// slave's working directory because the mount containing it is not a
+// shared mount in its own peer group.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
 {
-  slave::Flags flags = CreateSlaveFlags();
-
-  // Simulate the situation in which the slave crashes while preparing
-  // the work directory mount.
+  // Make 'sandbox' a private mount.
   ASSERT_SOME(os::shell(
-      "mount --bind %s %s",
-      flags.work_dir.c_str(),
-      flags.work_dir.c_str()));
+      "mount --bind %s %s && "
+      "mount --make-private %s",
+      sandbox->c_str(),
+      sandbox->c_str(),
+      sandbox->c_str()));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.work_dir = path::join(sandbox.get(), "slave");
+
+  ASSERT_SOME(os::mkdir(flags.work_dir));
 
   Try<Isolator*> isolator = LinuxFilesystemIsolatorProcess::create(flags);
-
   ASSERT_SOME(isolator);
 
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   ASSERT_SOME(table);
 
   bool mountFound = false;
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     if (entry.target == flags.work_dir) {
       EXPECT_SOME(entry.shared());
       mountFound = true;

@@ -72,93 +72,120 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
     return Error("LinuxFilesystemIsolator requires root privileges");
   }
 
-  // Make slave's work_dir a shared mount so that when forking a child
-  // process (with a new mount namespace), the child process does not
-  // hold extra references to container's work directory mounts and
-  // provisioner mounts (e.g., when using the bind backend) because
-  // cleanup operations within work_dir can be propagted to all
-  // container namespaces. See MESOS-3483 for more details.
-  LOG(INFO) << "Making '" << flags.work_dir << "' a shared mount";
+  // Make sure that slave's working directory is in a shared mount so
+  // that when forking a child process (with a new mount namespace),
+  // the child process does not hold extra references to container's
+  // persistent volume mounts and provisioner mounts (e.g., when using
+  // the bind/overlayfs backend). This ensures that cleanup operations
+  // within slave's working directory can be propagated to all
+  // containers. See MESOS-3483 for more details.
+
+  // Mount table entries use realpaths. Therefore, we first get the
+  // realpath of the slave's working directory.
+  Result<string> workDir = os::realpath(flags.work_dir);
+  if (!workDir.isSome()) {
+    return Error(
+        "Failed to get the realpath of slave's working directory: " +
+        (workDir.isError() ? workDir.error() : "Not found"));
+  }
 
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Error("Failed to get mount table: " + table.error());
   }
 
+  // Trying to find the mount entry that contains the slave's working
+  // directory. We achieve that by doing a reverse traverse of the
+  // mount table to find the first entry whose target is a prefix of
+  // slave's working directory.
   Option<fs::MountInfoTable::Entry> workDirMount;
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    // TODO(jieyu): Make sure 'flags.work_dir' is a canonical path.
-    if (entry.target == flags.work_dir) {
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table->entries)) {
+    if (strings::startsWith(workDir.get(), entry.target)) {
       workDirMount = entry;
       break;
     }
   }
 
-  // Do a self bind mount if needed. If the mount already exists, make
-  // sure it is a shared mount of its own peer group.
+  // It's unlikely that we cannot find 'workDirMount' because '/' is
+  // always mounted and will be the 'workDirMount' if no other mounts
+  // found in between.
   if (workDirMount.isNone()) {
-    // NOTE: Instead of using fs::mount to perform the bind mount, we
-    // use the shell command here because the syscall 'mount' does not
-    // update the mount table (i.e., /etc/mtab). In other words, the
-    // mount will not be visible if the operator types command
-    // 'mount'. Since this mount will still be presented after all
-    // containers and the slave are stopped, it's better to make it
-    // visible. It's OK to use the blocking os::shell here because
-    // 'create' will only be invoked during initialization.
-    Try<string> mount = os::shell(
-        "mount --bind %s %s && "
-        "mount --make-slave %s && "
-        "mount --make-shared %s",
-        flags.work_dir.c_str(),
-        flags.work_dir.c_str(),
-        flags.work_dir.c_str(),
-        flags.work_dir.c_str());
+    return Error("Cannot find the mount containing slave's working directory");
+  }
 
-    if (mount.isError()) {
-      return Error(
-          "Failed to self bind mount '" + flags.work_dir +
-          "' and make it a shared mount: " + mount.error());
-    }
+  // If 'workDirMount' is a shared mount in its own peer group, then
+  // we don't need to do anything. Otherwise, we need to do a self
+  // bind mount of slave's working directory to make sure it's a
+  // shared mount in its own peer group.
+  bool bindMountNeeded = false;
+
+  if (workDirMount->shared().isNone()) {
+    bindMountNeeded = true;
   } else {
-    if (workDirMount.get().shared().isNone()) {
-      // This is the case where the work directory mount is not a
-      // shared mount yet (possibly due to slave crash while preparing
-      // the work directory mount). It's safe to re-do the following.
+    foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+      // Skip 'workDirMount' and any mount underneath it. Also, we
+      // skip those mounts whose targets are not the parent of the
+      // working directory because even if they are in the same peer
+      // group as the working directory mount, it won't affect it.
+      if (entry.id != workDirMount->id &&
+          !strings::startsWith(entry.target, workDir.get()) &&
+          entry.shared() == workDirMount->shared() &&
+          strings::startsWith(workDir.get(), entry.target)) {
+        bindMountNeeded = true;
+        break;
+      }
+    }
+  }
+
+  if (bindMountNeeded) {
+    if (workDirMount->target != workDir.get()) {
+      // This is the case where the working directory mount does not
+      // exist in the mount table (e.g., a new host running Mesos
+      // slave for the first time).
+      LOG(INFO) << "Bind mounting '" << workDir.get()
+                << "' and making it a shared mount";
+
+      // NOTE: Instead of using fs::mount to perform the bind mount,
+      // we use the shell command here because the syscall 'mount'
+      // does not update the mount table (i.e., /etc/mtab). In other
+      // words, the mount will not be visible if the operator types
+      // command 'mount'. Since this mount will still be presented
+      // after all containers and the slave are stopped, it's better
+      // to make it visible. It's OK to use the blocking os::shell
+      // here because 'create' will only be invoked during
+      // initialization.
       Try<string> mount = os::shell(
-          "mount --make-slave %s && "
+          "mount --bind %s %s && "
+          "mount --make-private %s && "
           "mount --make-shared %s",
-          flags.work_dir.c_str(),
-          flags.work_dir.c_str());
+          workDir->c_str(),
+          workDir->c_str(),
+          workDir->c_str(),
+          workDir->c_str());
 
       if (mount.isError()) {
         return Error(
-            "Failed to self bind mount '" + flags.work_dir +
+            "Failed to bind mount '" + workDir.get() +
             "' and make it a shared mount: " + mount.error());
       }
     } else {
-      // We need to make sure that the shared mount is in its own peer
-      // group. To check that, we need to get the parent mount.
-      foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-        if (entry.id == workDirMount.get().parent) {
-          // If the work directory mount and its parent mount are in
-          // the same peer group, we need to re-do the following
-          // commands so that they are in different peer groups.
-          if (entry.shared() == workDirMount.get().shared()) {
-            Try<string> mount = os::shell(
-                "mount --make-slave %s && "
-                "mount --make-shared %s",
-                flags.work_dir.c_str(),
-                flags.work_dir.c_str());
+      // This is the case where the working directory mount is in the
+      // mount table, but it's not a shared mount in its own peer
+      // group (possibly due to slave crash while preparing the
+      // working directory mount). It's safe to re-do the following.
+      LOG(INFO) << "Making '" << workDir.get() << "' a shared mount";
 
-            if (mount.isError()) {
-              return Error(
-                  "Failed to self bind mount '" + flags.work_dir +
-                  "' and make it a shared mount: " + mount.error());
-            }
-          }
+      Try<string> mount = os::shell(
+          "mount --make-private %s && "
+          "mount --make-shared %s",
+          workDir->c_str(),
+          workDir->c_str());
 
-          break;
-        }
+      if (mount.isError()) {
+        return Error(
+            "Failed to make '" + workDir.get() +
+            "' a shared mount: " + mount.error());
       }
     }
   }
