@@ -36,7 +36,7 @@ mesos::internal::logging::Flags::Flags()
       "log_dir",
       "Location to put log files.  By default, nothing is written to disk.\n"
       "Does not affect logging to stderr.\n"
-      "If specified, the log file will appear in the Mesos WebUI."
+      "If specified, the log file will appear in the Mesos WebUI.\n"
       "NOTE: 3rd party log messages (e.g. ZooKeeper) are\n"
       "only written to stderr!");
 
