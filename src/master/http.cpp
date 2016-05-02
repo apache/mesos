@@ -75,6 +75,7 @@
 using google::protobuf::RepeatedPtrField;
 
 using process::AUTHENTICATION;
+using process::AUTHORIZATION;
 using process::Clock;
 using process::DESCRIPTION;
 using process::Future;
@@ -1267,7 +1268,13 @@ string Master::Http::QUOTA_HELP()
         "found.",
         "POST: Validates the request body as JSON",
         " and sets quota for a role."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to set a quota for a certain role requires that",
+        "the current principal is authorized to set quota for the target role.",
+        "Similarly, removing quota requires that the principal is authorized",
+        "to remove quota created by the quota_principal.",
+        "See the authorization documentation for details."));
 }
 
 

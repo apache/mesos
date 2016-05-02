@@ -24,3 +24,10 @@ POST: Validates the request body as JSON
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+Using this endpoint to set a quota for a certain role requires that
+the current principal is authorized to set quota for the target role.
+Similarly, removing quota requires that the principal is authorized
+to remove quota created by the quota_principal.
+See the authorization documentation for details.
