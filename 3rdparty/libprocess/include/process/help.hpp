@@ -43,6 +43,9 @@ namespace process {
 //     ### AUTHENTICATION ###
 //     authentication requirements
 //
+//     ### AUTHORIZATION ###
+//     authorization requirements and granularity
+//
 //     references
 //
 // See the 'USAGE', 'TLDR', 'DESCRIPTION', 'AUTHENTICATION', and
@@ -51,6 +54,7 @@ std::string HELP(
     const std::string& tldr,
     const Option<std::string>& description = None(),
     const Option<std::string>& authentication = None(),
+    const Option<std::string>& authorization = None(),
     const Option<std::string>& references = None());
 
 // Helper for single-line usage that puts it in a blockquote as code
@@ -74,6 +78,7 @@ inline std::string DESCRIPTION(T&&... args)
   return strings::join("\n", std::forward<T>(args)..., "\n");
 }
 
+
 // Helper for description of Authentication requirements.
 inline std::string AUTHENTICATION(bool required)
 {
@@ -82,6 +87,14 @@ inline std::string AUTHENTICATION(bool required)
            "enabled.\n";
   }
   return "This endpoint does not require authentication.\n";
+}
+
+
+// Helper for description of Authorization requirements.
+template <typename... T>
+inline std::string AUTHORIZATION(T&&... args)
+{
+  return strings::join("\n", std::forward<T>(args)..., "\n");
 }
 
 

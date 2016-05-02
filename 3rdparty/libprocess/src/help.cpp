@@ -41,6 +41,7 @@ string HELP(
     const string& tldr,
     const Option<string>& description,
     const Option<string>& authentication,
+    const Option<string>& authorization,
     const Option<string>& references)
 {
   // Construct the help string.
@@ -64,6 +65,13 @@ string HELP(
       "\n"
       "### AUTHENTICATION ###\n" +
       authentication.get();
+  }
+
+  if (authorization.isSome()) {
+    help +=
+      "\n"
+      "### AUTHORIZATION ###\n" +
+      authorization.get();
   }
 
   if (!strings::endsWith(help, "\n")) {
