@@ -1,18 +1,19 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /monitor/statistics
+title: Apache Mesos - HTTP Endpoints - /monitor/statistics.json
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
->        /monitor/statistics
+>        /monitor/statistics.json
+>        /slave(1)/monitor/statistics.json
 
 ### TL;DR; ###
 Retrieve resource monitoring information.
 
 ### DESCRIPTION ###
 Returns the current resource consumption data for containers
-running under this slave.
+running under this agent.
 
 Example:
 

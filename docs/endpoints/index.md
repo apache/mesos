@@ -103,10 +103,6 @@ For example, http://agent.com:5051/files/browse
 ### metrics ###
 * [/metrics/snapshot](metrics/snapshot.md)
 
-### monitor ###
-* [/monitor/statistics](monitor/statistics.md)
-* [/monitor/statistics.json](monitor/statistics.json.md)
-
 ### profiler ###
 * [/profiler/start](profiler/start.md)
 * [/profiler/stop](profiler/stop.md)
@@ -116,6 +112,8 @@ For example, http://agent.com:5051/files/browse
 * [/containers](slave/containers.md)
 * [/flags](slave/flags.md)
 * [/health](slave/health.md)
+* [/monitor/statistics](slave/monitor/statistics.md)
+* [/monitor/statistics.json](slave/monitor/statistics.json.md)
 * [/state](slave/state.md)
 * [/state.json](slave/state.json.md)
 
