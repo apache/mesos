@@ -14,26 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <set>
 #include <string>
 
 #include <mesos/zookeeper/contender.hpp>
 #include <mesos/zookeeper/detector.hpp>
 #include <mesos/zookeeper/group.hpp>
 
+#include <process/check.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
 
-#include <stout/check.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
-#include <stout/some.hpp>
 
 using namespace process;
 
-using std::set;
 using std::string;
 
 namespace zookeeper {
@@ -208,7 +205,7 @@ void LeaderContenderProcess::cancel()
 
 void LeaderContenderProcess::cancelled(const Future<bool>& result)
 {
-  CHECK(candidacy.isReady());
+  CHECK_READY(candidacy);
   LOG(INFO) << "Membership cancelled: " << candidacy.get().id();
 
   // Can be called as a result of either withdraw() or server side
