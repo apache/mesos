@@ -330,6 +330,13 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     targets.push_back(target);
   }
 
+  // It is possible that there is no external volume specified for
+  // this container. We avoid checkpointing empty state and creating
+  // an empty `Info`.
+  if (volumes.empty()) {
+    return None();
+  }
+
   // Create the container directory.
   const string containerDir =
     paths::getContainerDir(rootDir, containerId.value());
