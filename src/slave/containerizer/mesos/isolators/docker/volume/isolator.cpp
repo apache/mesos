@@ -198,7 +198,7 @@ Try<Nothing> DockerVolumeIsolatorProcess::_recover(
 
   if (!os::exists(volumesPath)) {
     VLOG(1) << "The docker volumes checkpointed at '" << volumesPath
-            << "' for container '" << containerId << "' does not exist";
+            << "' for container " << containerId << " does not exist";
 
     return Nothing();
   }
@@ -286,8 +286,8 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
       continue;
     }
 
-    const string driver = _volume.source().docker_volume().driver();
-    const string name = _volume.source().docker_volume().name();
+    const string& driver = _volume.source().docker_volume().driver();
+    const string& name = _volume.source().docker_volume().name();
 
     DockerVolume volume;
     volume.set_driver(driver);
@@ -412,12 +412,11 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
   CHECK_EQ(sources.size(), targets.size());
 
   for (size_t i = 0; i < sources.size(); i++) {
-    const string source = sources[i];
-    const string target = targets[i];
+    const string& source = sources[i];
+    const string& target = targets[i];
 
     VLOG(1) << "Mounting docker volume mount point '" << source
-            << "' to '" << target  << "' for container '"
-            << containerId << "'";
+            << "' to '" << target  << "' for container " << containerId;
 
     // Create the mount point if it does not exist.
     Try<Nothing> mkdir = os::mkdir(target);
@@ -470,8 +469,7 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
-    VLOG(1) << "Ignoring cleanup request for unknown container '"
-            << containerId << "'";
+    VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
 
     return Nothing();
   }
