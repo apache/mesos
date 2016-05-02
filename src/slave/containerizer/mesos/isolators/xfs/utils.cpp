@@ -49,6 +49,12 @@
 
 using std::string;
 
+// Manually define this for old kernels. Compatible with the one in
+// <linux/quota.h>.
+#ifndef PRJQUOTA
+#define PRJQUOTA 2
+#endif
+
 namespace mesos {
 namespace internal {
 namespace xfs {
