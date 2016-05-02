@@ -34,7 +34,6 @@ title: Apache Mesos
       <ul>
       <li><em>April 12, 2016</em> - Mesos 0.26.1 and more are released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.26.1">CHANGELOG</a> and <a href="/blog/mesos-0-26-1-and-more-released/">blog post</a> for details.</li>
       <li><em>March 7, 2016</em> - Mesos 0.28.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.28.0">CHANGELOG</a> and <a href="/blog/mesos-0-28-0-released/">blog post</a> for details.</li>
-      <li><em>February 22, 2016</em> - Mesos 0.27.1 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.1">CHANGELOG</a> and <a href="/blog/mesos-0-27-1-released/">blog post</a> for details.</li>
       <li><em>March 7, 2016</em> - Mesos 0.27.2 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.2">CHANGELOG</a> and <a href="/blog/mesos-0-27-2-released/">blog post</a> for details.</li>
       <li><em>February 22, 2016</em> - Mesos 0.27.1 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.1">CHANGELOG</a> and <a href="/blog/mesos-0-27-1-released/">blog post</a> for details.</li>
       <li><em>February 12, 2016</em> - MesosCon 2016 CFP is now open!  See the <a href="/blog/mesoscon-2016-cfp-is-now-open/">blog post</a> for details.</li>
