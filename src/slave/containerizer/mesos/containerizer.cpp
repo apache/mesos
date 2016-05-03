@@ -1078,7 +1078,12 @@ Future<bool> MesosContainerizerProcess::__launch(
 
   // TODO(jieyu): Consider moving this to 'executorEnvironment' and
   // consolidating with docker containerizer.
-  environment["MESOS_SANDBOX"] = executorRootfs.isSome()
+  //
+  // NOTE: For the command executor case, although it uses the host
+  // filesystem for itself, we still set 'MESOS_SANDBOX' according to
+  // the root filesystem of the task (if specified). Command executor
+  // itself does not use this environment variable.
+  environment["MESOS_SANDBOX"] = provisionInfo.isSome()
     ? flags.sandbox_directory
     : directory;
 
