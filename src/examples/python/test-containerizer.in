@@ -14,11 +14,11 @@ test ! -z "${PYTHON}" && \
 
 PYTHON=@PYTHON@
 
-DISTRIBUTE=`echo ${MESOS_BUILD_DIR}/3rdparty/distribute-*/`
+SETUPTOOLS=`echo ${MESOS_BUILD_DIR}/3rdparty/setuptools-*/`
 
 # Just warn in the case when build with --disable-bundled.
-test ! -e ${DISTRIBUTE} && \
-  echo "${RED}Failed to find ${DISTRIBUTE}${NORMAL}"
+test ! -e ${SETUPTOOLS} && \
+  echo "${RED}Failed to find ${SETUPTOOLS}${NORMAL}"
 
 PROTOBUF=`echo ${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-*/python/`
 
@@ -33,5 +33,5 @@ test ! -e ${SCRIPT} && \
   echo "${RED}Failed to find ${SCRIPT}${NORMAL}" && \
   exit 1
 
-PYTHONPATH="${DISTRIBUTE}:${PROTOBUF}:${MESOS_EGGS}" \
+PYTHONPATH="${SETUPTOOLS}:${PROTOBUF}:${MESOS_EGGS}" \
   exec ${PYTHON} ${SCRIPT} "${@}"

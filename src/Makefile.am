@@ -25,10 +25,10 @@ include ../3rdparty/libprocess/3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
-DISTRIBUTE = 3rdparty/distribute-$(DISTRIBUTE_VERSION)
-PIP = 3rdparty/pip-$(PIP_VERSION)
-WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
+PIP = 3rdparty/pip-$(PIP_VERSION)
+SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
+WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
 LIBPROCESS = 3rdparty/libprocess
@@ -617,7 +617,7 @@ zookeeper_HEADERS =							\
 
 
 # We even use a convenience library for most of Mesos so that we can
-# exclude third party libraries so setuptools/distribute can build a
+# exclude third party libraries so setuptools can build a
 # self-contained Python library and statically link in the third party
 # libraries themselves.
 noinst_LTLIBRARIES += libmesos_no_3rdparty.la
@@ -1591,7 +1591,7 @@ $(PROTOBUF_EGG):
 	  CXX="$(CXX)"					\
 	  CFLAGS="$(CFLAGS)"				\
 	  CXXFLAGS="$(CXXFLAGS)"			\
-	  PYTHONPATH=$(abs_top_builddir)/$(DISTRIBUTE)	\
+	  PYTHONPATH=$(abs_top_builddir)/$(SETUPTOOLS)	\
 	  $(PYTHON) setup.py build bdist_egg
 
 CLEANFILES += $(PROTOBUF_EGG)
@@ -1651,13 +1651,13 @@ $(MESOS_EGGS) $(MESOS_WHLS):								\
 	LIBS="$(LIBS)" CC="$(CC)" CXX="$(CXX)"						\
 	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"				\
 	LDFLAGS="$(PYTHON_LDFLAGS)"							\
-	PYTHONPATH=$(abs_top_builddir)/$(DISTRIBUTE):$(abs_top_builddir)/$(WHEEL)	\
+	PYTHONPATH=$(abs_top_builddir)/$(SETUPTOOLS):$(abs_top_builddir)/$(WHEEL)	\
 	$(PYTHON) setup.py bdist_egg --dist-dir=$(abs_top_builddir)/src/python/dist	\
 	bdist_wheel --dist-dir=$(abs_top_builddir)/src/python/dist
 
 CLEANFILES += $(MESOS_EGGS) $(MESOS_WHLS) python/*/build python/*/dist $(PYTHON_SOURCE)
 
-pippythonpath = $(DESTDIR)$(pythondir):$(abs_top_builddir)/$(DISTRIBUTE):$(abs_top_builddir)/$(PIP):$(abs_top_builddir)/$(WHEEL)
+pippythonpath = $(DESTDIR)$(pythondir):$(abs_top_builddir)/$(SETUPTOOLS):$(abs_top_builddir)/$(PIP):$(abs_top_builddir)/$(WHEEL)
 
 # Some python installations create their own distutils.cfg (homebrew, redhat).
 # This includes `prefix=` which overrides anything set via. pip during install.

@@ -249,12 +249,12 @@ AC_ARG_WITH([nvml-lib],
                             (required for Nvidia GPU support)]),
             [], [])
 
-AC_ARG_ENABLE([bundled-distribute],
-              AS_HELP_STRING([--disable-bundled-distribute],
-                             [excludes building and using the bundled distribute
+AC_ARG_ENABLE([bundled-setuptools],
+              AS_HELP_STRING([--disable-bundled-setuptools],
+                             [excludes building and using the bundled setuptools
                               package in lieu of an installed version in
                               PYTHONPATH]),
-              [without_bundled_distribute=yes], [])
+              [without_bundled_setuptools=yes], [])
 
 AC_ARG_ENABLE([bundled-pip],
               AS_HELP_STRING([--disable-bundled-pip],
@@ -1492,9 +1492,9 @@ There are two possible workarounds for this issue:
 mesos-ec2 services will not function.
 -------------------------------------------------------------------]))
 
-  # Check if user has asked us to use a preinstalled distribute, or if
+  # Check if user has asked us to use a preinstalled setuptools, or if
   # they asked us to ignore all bundled libraries while compiling and linking.
-  if test "x$without_bundled_distribute" = "xyes" || \
+  if test "x$without_bundled_setuptools" = "xyes" || \
      test "x$enable_bundled" != "xyes"; then
 
     AC_PYTHON_MODULE([distutils], [no])
@@ -1502,29 +1502,29 @@ mesos-ec2 services will not function.
       AC_PYTHON_MODULE([setuptools], [no])
 
       if test "x$HAVE_PYMOD_setuptools" = "xyes"; then
-        found_distribute=yes
+        found_setuptools=yes
       fi
 
     else
-      found_distribute=yes
+      found_setuptools=yes
     fi
 
-    if test "x$found_distribute" = "xyes"; then
-      with_bundled_distribute=no
+    if test "x$found_setuptools" = "xyes"; then
+      with_bundled_setuptools=no
     else
-      AC_MSG_ERROR([cannot find distribute
+      AC_MSG_ERROR([cannot find setuptools
 -------------------------------------------------------------------
-You have requested the use of a non-bundled distribute but no suitable
-distribute could be found.
+You have requested the use of a non-bundled setuptools but no suitable
+setuptools could be found.
 
-You may want specify the location of distribute by providing a prefix
-path via --with-distribute=DIR, or check that the path you provided is
+You may want specify the location of setuptools by providing a prefix
+path via --with-setuptools=DIR, or check that the path you provided is
 correct if you're already doing this.
 -------------------------------------------------------------------
 ])
     fi
   else
-    with_bundled_distribute=yes
+    with_bundled_setuptools=yes
   fi
 
   # Check if user has asked us to use a preinstalled pip, or if
@@ -1580,8 +1580,8 @@ fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
-AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
-    [test "x$with_bundled_distribute" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_SETUPTOOLS],
+    [test "x$with_bundled_setuptools" = "xyes"])
 AM_CONDITIONAL([WITH_BUNDLED_PIP],
     [test "x$with_bundled_pip" = "xyes"])
 AM_CONDITIONAL([WITH_BUNDLED_WHEEL],

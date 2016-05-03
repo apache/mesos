@@ -32,17 +32,17 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
 include versions.am
 
-DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
 PIP = pip-$(PIP_VERSION)
+SETUPTOOLS = setuptools-$(SETUPTOOLS_VERSION)
 WHEEL = wheel-$(WHEEL_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 
 EXTRA_DIST =		\
-  $(DISTRIBUTE).tar.gz	\
   $(LEVELDB).tar.gz	\
   $(PIP).tar.gz		\
+  $(SETUPTOOLS).tar.gz	\
   $(WHEEL).tar.gz	\
   $(ZOOKEEPER).tar.gz
 
@@ -56,9 +56,9 @@ EXTRA_DIST +=		\
   $(ZOOKEEPER).patch
 
 CLEAN_EXTRACTED =	\
-  $(DISTRIBUTE)		\
   $(LEVELDB)		\
   $(PIP)		\
+  $(SETUPTOOLS)		\
   $(WHEEL)		\
   $(ZOOKEEPER)
 
@@ -74,8 +74,8 @@ CLEAN_EXTRACTED =	\
 ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 
 if HAS_PYTHON
-if WITH_BUNDLED_DISTRIBUTE
-  ALL_LOCAL += $(DISTRIBUTE)-stamp
+if WITH_BUNDLED_SETUPTOOLS
+  ALL_LOCAL += $(SETUPTOOLS)-stamp
 endif
 
 if WITH_BUNDLED_PIP
