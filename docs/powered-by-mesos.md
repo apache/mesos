@@ -11,6 +11,7 @@ layout: documentation
 * [Allegro](http://allegrotech.io)
 * [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
+* [Astronomer](http://www.astronomer.io)
 * [Artirix](http://www.artirix.com)
 * [Atigeo](http://www.atigeo.com)
 * [Atlassian](http://www.atlassian.com)
