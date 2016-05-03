@@ -323,17 +323,61 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
       }
     }
 
-    // Determine the mount point.
+    // Determine the target of the mount.
     string target;
 
-    if (containerConfig.has_rootfs()) {
-      target = path::join(
-          containerConfig.rootfs(),
-          _volume.container_path());
+    // The logic to determine a volume mount target is identical to
+    // linux filesystem isolator, because docker volume isolator has
+    // a dependency on that isolator, and it assumes that if the
+    // container specifies a rootfs the sandbox is already bind
+    // mounted into the container.
+    if (path::absolute(_volume.container_path())) {
+      // To specify a docker volume for a container, operators should
+      // be allowed to define the 'container_path' either as an absolute
+      // path or a relative path. Please see linux filesystem isolator
+      // for detail.
+      if (containerConfig.has_rootfs()) {
+        target = path::join(
+            containerConfig.rootfs(),
+            _volume.container_path());
+
+        Try<Nothing> mkdir = os::mkdir(target);
+        if (mkdir.isError()) {
+          return Failure(
+              "Failed to create the target of the mount at '" +
+              target + "': " + mkdir.error());
+        }
+      } else {
+        target = _volume.container_path();
+
+        if (!os::exists(target)) {
+          return Failure("Absolute container path does not exist");
+        }
+      }
     } else {
-      target = path::join(
+      if (containerConfig.has_rootfs()) {
+        target = path::join(containerConfig.rootfs(),
+                            flags.sandbox_directory,
+                            _volume.container_path());
+      } else {
+        target = path::join(containerConfig.directory(),
+                            _volume.container_path());
+      }
+
+      // NOTE: We cannot create the mount point at 'target' if
+      // container has rootfs defined. The bind mount of the sandbox
+      // will hide what's inside 'target'. So we should always create
+      // the mount point in 'directory'.
+      string mountPoint = path::join(
           containerConfig.directory(),
           _volume.container_path());
+
+      Try<Nothing> mkdir = os::mkdir(mountPoint);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create the target of the mount at '" +
+            mountPoint + "': " + mkdir.error());
+      }
     }
 
     Mount mount;
@@ -439,14 +483,6 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
 
     VLOG(1) << "Mounting docker volume mount point '" << source
             << "' to '" << target  << "' for container " << containerId;
-
-    // Create the mount point if it does not exist.
-    Try<Nothing> mkdir = os::mkdir(target);
-    if (mkdir.isError()) {
-      return Failure(
-          "Failed to create mount point at '" +
-          target + "': " + mkdir.error());
-    }
 
     const string command = "mount -n --rbind " + source + " " + target;
 
