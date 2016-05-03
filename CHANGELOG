@@ -83,6 +83,13 @@ Release Notes - Mesos - Version 0.28.2
 All Issues:
 ** Bug
   * [MESOS-4705] - Linux 'perf' parsing logic may fail when OS distribution has perf backports.
+  * [MESOS-5239] - Persistent volume DockerContainerizer support assumes proper mount propagation setup on the host.
+  * [MESOS-5253] - Isolator cleanup should not be invoked if they are not prepared yet.
+  * [MESOS-5282] - Destroy container while provisioning volume images may lead to a race.
+  * [MESOS-5312] - Env `MESOS_SANDBOX` is not set properly for command tasks that changes rootfs.
+
+** Improvement
+  * [MESOS-5307] - Sandbox mounts should not be in the host mount namespace.
 
 
 Release Notes - Mesos - Version 0.28.1
