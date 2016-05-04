@@ -13,49 +13,67 @@
 #ifndef __STOUT_FOREACH_HPP__
 #define __STOUT_FOREACH_HPP__
 
-#include <boost/foreach.hpp>
+#include <tuple>
+#include <utility>
 
-namespace __foreach__ {
+#include <stout/preprocessor.hpp>
 
-// NOTE: This is a copied from Boost
-// (boost/tuple/detail/tuple_basic_no_partial_spec.hpp) because the
-// new 'boost::tuples::ignore' does not work in our 'foreachkey' and
-// 'foreachvalue'.
-struct swallow_assign {
-  template <typename T>
-  swallow_assign const& operator=(const T&) const {
-    return *this;
-  }
-};
+#define STOUT_FOREACH_PREFIX CAT(__foreach_, __LINE__)
+#define STOUT_FOREACH_BODY CAT(STOUT_FOREACH_PREFIX, _body__)
+#define STOUT_FOREACH_BREAK CAT(STOUT_FOREACH_PREFIX, _break__)
+#define STOUT_FOREACH_CONTINUE CAT(STOUT_FOREACH_PREFIX, _continue__)
+#define STOUT_FOREACH_ELEM CAT(STOUT_FOREACH_PREFIX, _elem__)
+#define STOUT_FOREACH_ONCE CAT(STOUT_FOREACH_PREFIX, _once__)
 
-swallow_assign const ignore = swallow_assign();
 
-} // namespace __foreach__ {
+// `foreach` is a trivial expansion to the range-based `for`.
+#define foreach(ELEM, ELEMS) for (ELEM : ELEMS)
 
-#define BOOST_FOREACH_PAIR(VARFIRST, VARSECOND, COL)                    \
-  BOOST_FOREACH_PREAMBLE()                                              \
-  if (boost::foreach_detail_::auto_any_t BOOST_FOREACH_ID(_foreach_col) = BOOST_FOREACH_CONTAIN(COL)) {} else /* NOLINT(whitespace/line_length) */ \
-    if (boost::foreach_detail_::auto_any_t BOOST_FOREACH_ID(_foreach_cur) = BOOST_FOREACH_BEGIN(COL)) {} else /* NOLINT(whitespace/line_length) */ \
-      if (boost::foreach_detail_::auto_any_t BOOST_FOREACH_ID(_foreach_end) = BOOST_FOREACH_END(COL)) {} else /* NOLINT(whitespace/line_length) */ \
-        for (bool BOOST_FOREACH_ID(_foreach_continue) = true, BOOST_FOREACH_ID(_foreach_onetime) = true; /* NOLINT(whitespace/line_length) */ \
-             BOOST_FOREACH_ID(_foreach_continue) && !BOOST_FOREACH_DONE(COL); /* NOLINT(whitespace/line_length) */ \
-             BOOST_FOREACH_ID(_foreach_continue) ? BOOST_FOREACH_NEXT(COL) : (void)0) /* NOLINT(whitespace/line_length) */ \
-          if (boost::foreach_detail_::set_false(BOOST_FOREACH_ID(_foreach_onetime))) {} else /* NOLINT(whitespace/line_length) */ \
-            for (VARFIRST = BOOST_FOREACH_DEREF(COL).first;             \
-                 !BOOST_FOREACH_ID(_foreach_onetime);                   \
-                 BOOST_FOREACH_ID(_foreach_onetime) = true)             \
-              if (boost::foreach_detail_::set_false(BOOST_FOREACH_ID(_foreach_continue))) {} else /* NOLINT(whitespace/line_length) */ \
-                for (VARSECOND = BOOST_FOREACH_DEREF(COL).second;       \
-                     !BOOST_FOREACH_ID(_foreach_continue);              \
-                     BOOST_FOREACH_ID(_foreach_continue) = true)
 
-#define foreach BOOST_FOREACH
-#define foreachpair BOOST_FOREACH_PAIR
+// `foreachpair` is used to unpack the key and value of the pairs coming out of
+// a sequence. e.g., std::map.
+//
+// Control flow:
+//
+// Labels:
+//   * `STOUT_FOREACH_BREAK` is the label that when jumped to, breaks out of
+//     the loop.
+//   * `STOUT_FOREACH_BODY` is the label that helps to skip the loop exit checks
+//     (break or continue) until we finish the current iteration.
+//
+// Flags:
+//   * `STOUT_FOREACH_CONTINUE` determines whether the loop should continue or
+//     not. If we encounter a `break`, this will be `false`. If we encounter a
+//     `continue` or run the current iteration to completion,
+//     `STOUT_FOREACH_CONTINUE` will be set to `true`.
+//   * `STOUT_FOREACH_ONCE` is used to execute a `for` loop exactly once.
+//
+#define foreachpair(KEY, VALUE, ELEMS)                                       \
+  foreach (auto&& STOUT_FOREACH_ELEM, ELEMS)                                 \
+    if (false) STOUT_FOREACH_BREAK: break; /* set up the break path */       \
+    else if (bool STOUT_FOREACH_CONTINUE = false) {} /* var decl */          \
+    else if (true) goto STOUT_FOREACH_BODY; /* skip the loop exit checks */  \
+    else for (;;) /* determine whether we should break or continue. */       \
+      if (!STOUT_FOREACH_CONTINUE) goto STOUT_FOREACH_BREAK; /* break */     \
+      else if (true) break; /* continue */                                   \
+      else                                                                   \
+        STOUT_FOREACH_BODY:                                                  \
+        if (bool STOUT_FOREACH_ONCE = false) {} /* var decl */               \
+        else for (KEY = std::get<0>(                                         \
+                      std::forward<decltype(STOUT_FOREACH_ELEM)>(            \
+                          STOUT_FOREACH_ELEM));                              \
+                  !STOUT_FOREACH_ONCE;                                       \
+                  STOUT_FOREACH_ONCE = true)                                 \
+          for (VALUE = std::get<1>(                                          \
+                   std::forward<decltype(STOUT_FOREACH_ELEM)>(               \
+                       STOUT_FOREACH_ELEM));                                 \
+               !STOUT_FOREACH_CONTINUE;                                      \
+               STOUT_FOREACH_CONTINUE = true)
 
-#define foreachkey(VAR, COL)                    \
-  foreachpair (VAR, __foreach__::ignore, COL)
 
-#define foreachvalue(VAR, COL)                  \
-  foreachpair (__foreach__::ignore, VAR, COL)
+#define foreachkey(KEY, ELEMS) foreachpair (KEY, std::ignore, ELEMS)
+
+
+#define foreachvalue(VALUE, ELEMS) foreachpair (std::ignore, VALUE, ELEMS)
 
 #endif // __STOUT_FOREACH_HPP__
