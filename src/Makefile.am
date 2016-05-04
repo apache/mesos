@@ -2045,6 +2045,7 @@ if OS_LINUX
 mesos_tests_SOURCES +=						\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
+  tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/runtime_isolator_tests.cpp		\
   tests/containerizer/filesystem_isolator_tests.cpp		\
   tests/containerizer/fs_tests.cpp				\

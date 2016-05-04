@@ -69,6 +69,9 @@ public:
       const std::string& driver,
       const std::string& name);
 
+protected:
+  DriverClient() {} // For creating mock object.
+
 private:
   DriverClient(const std::string& _dvdcli)
     : dvdcli(_dvdcli) {}
