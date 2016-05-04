@@ -582,7 +582,17 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     env->set_name("LIBPROCESS_IP");
     env->set_value("0.0.0.0");
 
-    launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+    // This is only for test. For testing 'network/cni' isolator, we will
+    // use a mock CNI plugin and a mock CNI network configuration file
+    // which has "__MESOS_TEST__" as network name. The mock plugin will
+    // not create a new network namespace for the container. The container
+    // will be launched in the host's network namespace. The mock plugin
+    // will return the host's IP address for this test container.
+    if (networkNames.contains("__MESOS_TEST__")) {
+      launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
+    } else {
+      launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+    }
 
     return launchInfo;
   }
