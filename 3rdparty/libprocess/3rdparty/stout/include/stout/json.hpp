@@ -739,16 +739,15 @@ inline Value convert(const picojson::value& value)
   } else if (value.is<picojson::value::object>()) {
     Object object;
     foreachpair (const std::string& name,
-                 const picojson::value& value,
+                 const picojson::value& v,
                  value.get<picojson::value::object>()) {
-      object.values[name] = convert(value);
+      object.values[name] = convert(v);
     }
     return object;
   } else if (value.is<picojson::value::array>()) {
     Array array;
-    foreach (const picojson::value& value,
-             value.get<picojson::value::array>()) {
-      array.values.push_back(convert(value));
+    foreach (const picojson::value& v, value.get<picojson::value::array>()) {
+      array.values.push_back(convert(v));
     }
     return array;
   } else if (value.is<int64_t>()) {
