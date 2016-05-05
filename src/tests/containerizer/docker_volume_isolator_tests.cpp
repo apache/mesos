@@ -650,6 +650,141 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
   driver.join();
 }
 
+
+// This test verifies that a single docker volumes can be used by
+// multiple containers, and the docker volume isolator will mount
+// the single volume to multiple containers when running tasks and
+// the docker volume isolator will call unmount only once when cleanup
+// the last container that is using the volume.
+TEST_F(DockerVolumeIsolatorTest,
+       ROOT_CommandTaskNoRootfsSingleVolumeMultipleContainers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDockerVolumeDriverClient* mockClient =
+      new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get().get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a volume with relative path and share the volume with
+  // two different containers.
+  const string driver1 = "driver1";
+  const string name1 = "name1";
+  const string containerPath1 = "tmp/foo";
+
+  Volume volume1 = createDockerVolume(driver1, name1, containerPath1);
+
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:64").get(),
+      "while true; do test -f " + containerPath1 + "/file; done");
+
+  ContainerInfo containerInfo1;
+  containerInfo1.set_type(ContainerInfo::MESOS);
+  containerInfo1.add_volumes()->CopyFrom(volume1);
+
+  task1.mutable_container()->CopyFrom(containerInfo1);
+
+  // Create mount point for volume.
+  const string mountPoint1 = path::join(os::getcwd(), "volume");
+  ASSERT_SOME(os::mkdir(mountPoint1));
+  ASSERT_SOME(os::touch(path::join(mountPoint1, "file")));
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:64").get(),
+      "while true; do test -f " + containerPath1 + "/file; done");
+
+  ContainerInfo containerInfo2;
+  containerInfo2.set_type(ContainerInfo::MESOS);
+  containerInfo2.add_volumes()->CopyFrom(volume1);
+
+  task2.mutable_container()->CopyFrom(containerInfo2);
+
+  // The mount operation will be called multiple times as there are
+  // two containers using the same volume.
+  EXPECT_CALL(*mockClient, mount(driver1, _, _))
+    .WillRepeatedly(Return(mountPoint1));
+
+  // Expect the unmount was called only once because two containers
+  // sharing one volume.
+  EXPECT_CALL(*mockClient, unmount(driver1, _))
+    .WillOnce(Return(Nothing()));
+
+  Future<TaskStatus> statusRunning1;
+  Future<TaskStatus> statusKilled1;
+  Future<TaskStatus> statusRunning2;
+  Future<TaskStatus> statusKilled2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning1))
+    .WillOnce(FutureArg<1>(&statusRunning2))
+    .WillOnce(FutureArg<1>(&statusKilled1))
+    .WillOnce(FutureArg<1>(&statusKilled2));
+
+  driver.launchTasks(offer.id(), {task1, task2});
+
+  AWAIT_READY(statusRunning1);
+  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+
+  AWAIT_READY(statusRunning2);
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
+
+  // Kill both of the tasks.
+  driver.killTask(task1.task_id());
+  driver.killTask(task2.task_id());
+
+  AWAIT_READY(statusKilled1);
+  EXPECT_EQ(TASK_KILLED, statusKilled1->state());
+
+  AWAIT_READY(statusKilled2);
+  EXPECT_EQ(TASK_KILLED, statusKilled2->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
