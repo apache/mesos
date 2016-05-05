@@ -268,7 +268,6 @@ TEST(StringsTest, TokenizeNWithMultipleDelims)
 }
 
 
-
 TEST(StringsTest, SplitEmptyString)
 {
   vector<string> tokens = strings::split("", ",");
