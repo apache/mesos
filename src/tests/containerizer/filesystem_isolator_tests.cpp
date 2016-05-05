@@ -33,23 +33,16 @@
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
-#ifdef __linux__
 #include "linux/fs.hpp"
-#endif
 
 #include "slave/paths.hpp"
 
-#ifdef __linux__
+#include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
-#endif
-
-#include "slave/containerizer/mesos/containerizer.hpp"
-
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
-
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
 
 #include "tests/flags.hpp"
@@ -58,7 +51,10 @@
 #include "tests/containerizer/rootfs.hpp"
 #include "tests/containerizer/store.hpp"
 
-using namespace process;
+using process::Future;
+using process::Owned;
+using process::PID;
+using process::Shared;
 
 using std::string;
 using std::vector;
@@ -68,10 +64,8 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Backend;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Launcher;
-#ifdef __linux__
 using mesos::internal::slave::LinuxFilesystemIsolatorProcess;
 using mesos::internal::slave::LinuxLauncher;
-#endif
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Provisioner;
@@ -88,7 +82,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-#ifdef __linux__
 class LinuxFilesystemIsolatorTest : public MesosTest
 {
 protected:
@@ -1551,8 +1544,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
   driver.stop();
   driver.join();
 }
-
-#endif // __linux__
 
 } // namespace tests {
 } // namespace internal {
