@@ -48,7 +48,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-#ifdef __linux__
 class DockerArchiveTest : public TemporaryDirectoryTest {};
 
 
@@ -317,9 +316,6 @@ TEST_F(DockerRuntimeIsolatorTest,
   driver.stop();
   driver.join();
 }
-
-
-#endif // __linux__
 
 } // namespace tests {
 } // namespace internal {
