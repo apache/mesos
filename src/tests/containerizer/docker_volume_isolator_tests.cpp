@@ -355,8 +355,9 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
 }
 
 
-// This test verifies that multiple same docker volumes cannot be mounted
-// to the container without rootfs and the task will be failed.
+// This test verifies that multiple docker volumes with the same
+// driver and name cannot be mounted to the same container. If that
+// happens, the task will fail.
 TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -420,7 +421,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
   Volume volume1 = createDockerVolume(driver1, name1, containerPath1, options);
 
   // Create a volume with absolute path and make sure the absolute
-  // path exist.  Please note that volume1 and voume2 will be created
+  // path exist. Please note that volume1 and volume2 will be created
   // with same volume driver and name, this will cause task failed
   // when mounting same mount point to one container.
   const string containerPath2 = path::join(os::getcwd(), "foo2");
