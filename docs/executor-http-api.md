@@ -16,7 +16,7 @@ The executor interacts with Mesos via  "/api/v1/executor" endpoint hosted by the
 
 Note that we refer to this endpoint with its suffix "/executor" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that the executor sends to "/executor" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Executors are expected to keep the subscription connection open as long as possible (barring errors in network, agent process restarts, software bugs etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
 
-All the subsequent (non subscribe) requests to "/executor" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. Agent responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., agent fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
+All the subsequent (non-`SUBSCRIBE`) requests to the "/executor" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. The agent responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., agent fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
 
 ## Calls
 
@@ -31,7 +31,7 @@ To subscribe with the agent, the executor sends a HTTP POST request with encoded
 Additionally, if the executor is connecting to the agent after a [disconnection](#disconnections), it can also send a list of:
 
 * **Unacknowledged Status Updates**: The executor is expected to maintain a list of status updates not acknowledged by the agent via the `ACKNOWLEDGE` events.
-* **Unacknowledged Tasks**: The executor is expected to maintain a list of tasks that have not been acknowledged by the agent. A task is considered acknowledged if atleast one of the status updates for this task is acknowledged by the slave.
+* **Unacknowledged Tasks**: The executor is expected to maintain a list of tasks that have not been acknowledged by the agent. A task is considered acknowledged if at least one of the status updates for this task is acknowledged by the agent.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -326,7 +326,7 @@ The following environment variables are set by the agent that can be used by the
 * `MESOS_DIRECTORY`: Path to the working directory for the executor.
 * `MESOS_AGENT_ENDPOINT`: Agent endpoint i.e. ip:port to be used by the executor to connect to the agent.
 * `MESOS_CHECKPOINT`: If set to true, denotes that framework has checkpointing enabled.
-* `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60 secs, 3mins etc.) after sending a `SHUTDOWN` event.
+* `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60secs, 3mins etc.) after sending a `SHUTDOWN` event.
 
 If `MESOS_CHECKPOINT` is set i.e. when framework checkpointing is enabled, the following additional variables are also set that can be used by the executor for retrying upon a disconnection with the agent:
 
@@ -349,7 +349,7 @@ Upon detecting a disconnection from the agent, the retry behavior depends on whe
 Upon agent startup, an agent performs [recovery](slave-recovery.md). This allows the agent to recover status updates and reconnect with old executors. Currently, the agent supports the following recovery mechanisms specified via the `--recover` flag:
 
 * **reconnect** (default): This mode allows the agent to reconnect with any of it’s old live executors provided the framework has enabled checkpointing. The recovery of the agent is only marked complete once all the disconnected executors have connected and hung executors have been destroyed. Hence, it is mandatory that every executor retries at least once within the interval (`MESOS_SUBSCRIPTION_BACKOFF_MAX`) to ensure it is not shutdown by the agent due to being hung/unresponsive.
-* **cleanup** : This mode kills any old live executors and then exits the agent. This is usually done by operators when making a non-compatible slave/executor upgrade. Upon receiving a `SUBSCRIBE` request from the executor of a framework with checkpointing enabled, the agent would send it a `SHUTDOWN` event as soon as it reconnects. For hung executors, the agent would wait for a duration of `--executor_shutdown_grace_period` (configurable at agent startup) and then forcefully kill the container where the executor is running in.
+* **cleanup** : This mode kills any old live executors and then exits the agent. This is usually done by operators when making a non-compatible agent/executor upgrade. Upon receiving a `SUBSCRIBE` request from the executor of a framework with checkpointing enabled, the agent would send it a `SHUTDOWN` event as soon as it reconnects. For hung executors, the agent would wait for a duration of `--executor_shutdown_grace_period` (configurable at agent startup) and then forcefully kill the container where the executor is running in.
 
 
 ## Backoff Strategies
