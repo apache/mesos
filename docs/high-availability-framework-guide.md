@@ -185,7 +185,7 @@ initial state and several possible terminal states:
   has learned about the task (and maybe started fetching its dependencies) but has
   not yet started to run it.
 
-* A task transitions to the `TASK_RUNNING` state after it starts running
+* A task transitions to the `TASK_RUNNING` state after it has begun running
   successfully (if the task fails to start, it transitions to one of the
   terminal states listed below).
 
@@ -212,10 +212,17 @@ initial state and several possible terminal states:
   * `TASK_FAILED` indicates that a task aborted with an error.
   * `TASK_KILLED` indicates that a task was killed by the executor.
   * `TASK_LOST` indicates that the task was running on an agent that has lost
-    contact with the current master (typically due to a network partition or the
-    agent host crashing). This case is described further below.
+    contact with the current master (typically due to a network partition or an
+    agent host failure). This case is described further below.
   * `TASK_ERROR` indicates that a task launch attempt failed because of an error
     in the task specification.
+
+Note that the same task status can be used in several different (but usually
+related) situations. For example, `TASK_ERROR` is used when the framework's
+principal is not authorized to launch tasks as a certain user, and also when the
+task description is syntactically malformed (e.g., the task ID contains an
+invalid character). The `reason` field of the `TaskStatus` message can be used
+to disambiguate between such situations.
 
 ## Dealing with Partitioned or Failed Agents
 
@@ -262,19 +269,19 @@ it from the cluster. Specifically:
       network partitions may not be true in some environments.
 
 * If the agent fails health checks, it is scheduled for removal. The removals can
-  be rate limited by the master (see `---slave_removal_rate_limit` master flag)
+  be rate limited by the master (see `--slave_removal_rate_limit` master flag)
   to avoid removing a slew of slaves at once (e.g., during a network partition).
 
-* When it is time to remove an agent, the master marks the agent as "removed" in
-  the master's [durable state](replicated-log-internals.md) (this will survive
-  master failover). The master sends a `slaveLost` callback to every registered
-  scheduler driver; it also sends `TASK_LOST` status updates for every task that
-  was running on the removed agent.
+* When it is time to remove an agent, the master removes the agent from the list
+  of registered slaves in the master's [durable state](replicated-log-internals.md)
+  (this will survive master failover). The master sends a `slaveLost` callback
+  to every registered scheduler driver; it also sends `TASK_LOST` status updates
+  for every task that was running on the removed agent.
 
-    >NOTE: Neither the callback nor the status updates are delivered reliably by
-    the master. For example, if the master or scheduler fails over or there is a
-    network connectivity issue during the delivery of these messages, they will
-    not be resent.
+    >NOTE: Neither the callback nor the task status updates are delivered
+    reliably by the master. For example, if the master or scheduler fails over
+    or there is a network connectivity issue during the delivery of these
+    messages, they will not be resent.
 
 * Meanwhile, any tasks at the removed agent will continue to run and the agent
   will repeatedly attempt to reconnect to the master. Once a removed agent is
@@ -284,13 +291,13 @@ it from the cluster. Specifically:
   executors.  Persistent volumes and dynamic reservations on the removed agent
   will be preserved.
 
-  * A removed agent can rejoin the cluster by starting a new copy of the
-    `mesos-slave` process. When a removed agent is shutdown by the master, Mesos
-    ensures that the next time `mesos-slave` is started (using the same work
-    directory at the same host), the agent will receive a new agent ID; in
-    effect, the agent will be treated as a newly joined agent. The agent will
-    retain any previously created persistent volumes and dynamic reservations,
-    although the agent ID associated with these resources will have changed.
+  * A removed agent can rejoin the cluster by restarting the `mesos-slave`
+    process. When a removed agent is shutdown by the master, Mesos ensures that
+    the next time `mesos-slave` is started (using the same work directory at the
+    same host), the agent will receive a new agent ID; in effect, the agent will
+    be treated as a newly joined agent. The agent will retain any previously
+    created persistent volumes and dynamic reservations, although the agent ID
+    associated with these resources will have changed.
 
 Typically, frameworks respond to failed or partitioned agents by scheduling new
 copies of the tasks that were running on the lost agent. This should be done
