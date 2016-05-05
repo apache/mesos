@@ -456,6 +456,200 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
   driver.join();
 }
 
+
+// This test verifies that the docker volumes are properly recovered
+// during slave recovery.
+TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDockerVolumeDriverClient* mockClient =
+      new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get().get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  const string key = "iops";
+  const string value = "150";
+
+  hashmap<string, string> options = {{key, value}};
+
+  // Create a volume with relative path.
+  const string driver1 = "driver1";
+  const string name1 = "name1";
+  const string containerPath1 = "tmp/foo1";
+
+  Volume volume1 = createDockerVolume(driver1, name1, containerPath1, options);
+
+  // Create a volume with absolute path.
+  const string driver2 = "driver2";
+  const string name2 = "name2";
+
+  // Make sure the absolute path exist.
+  const string containerPath2 = path::join(os::getcwd(), "foo2");
+  ASSERT_SOME(os::mkdir(containerPath2));
+
+  Volume volume2 = createDockerVolume(driver2, name2, containerPath2);
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "while true; do test -f " + containerPath1 + "/file1 && "
+      "test -f " + containerPath2 + "/file2; done");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume1);
+  containerInfo.add_volumes()->CopyFrom(volume2);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // Create mount point for volume1.
+  const string mountPoint1 = path::join(os::getcwd(), "volume1");
+  ASSERT_SOME(os::mkdir(mountPoint1));
+  ASSERT_SOME(os::touch(path::join(mountPoint1, "file1")));
+
+  // Create mount point for volume2.
+  const string mountPoint2 = path::join(os::getcwd(), "volume2");
+  ASSERT_SOME(os::mkdir(mountPoint2));
+  ASSERT_SOME(os::touch(path::join(mountPoint2, "file2")));
+
+  Future<string> mount1Name;
+  Future<string> mount2Name;
+  Future<hashmap<string, string>> mount1Options;
+
+  EXPECT_CALL(*mockClient, mount(driver1, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mount1Name),
+                    FutureArg<2>(&mount1Options),
+                    Return(mountPoint1)));
+
+  EXPECT_CALL(*mockClient, mount(driver2, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mount2Name),
+                    Return(mountPoint2)));
+
+  Future<TaskStatus> statusRunning;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
+
+  // Stop the slave after TASK_RUNNING is received.
+  slave.get()->terminate();
+
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  Future<Nothing> update =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+
+  mockClient = new MockDockerVolumeDriverClient;
+
+  containerizer = createContainerizer(
+      flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Future<SlaveReregisteredMessage> reregistered =
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  Future<string> unmount1Name;
+  Future<string> unmount2Name;
+
+  EXPECT_CALL(*mockClient, unmount(driver1, _))
+    .WillOnce(DoAll(FutureArg<1>(&unmount1Name),
+                    Return(Nothing())));
+
+  EXPECT_CALL(*mockClient, unmount(driver2, _))
+    .WillOnce(DoAll(FutureArg<1>(&unmount2Name),
+                    Return(Nothing())));
+
+  // Use the same flags.
+  slave = StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregistered);
+
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  // Kill the task.
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+
+  // Make sure the docker volume unmount parameters are same with
+  // the parameters in `containerInfo`.
+  AWAIT_EXPECT_EQ(name1, unmount1Name);
+  AWAIT_EXPECT_EQ(name2, unmount2Name);
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
