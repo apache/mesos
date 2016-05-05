@@ -291,9 +291,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
   slave::Flags flags = CreateSlaveFlags();
   flags.image_provisioner_backend = "copy";
 
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
       {{"test_image", path::join(os::getcwd(), "test_image")}});
@@ -327,8 +324,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
   ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
 
   TaskInfo task = createTask(
       offer.slave_id(),
@@ -374,9 +369,6 @@ TEST_F(LinuxFilesystemIsolatorTest,
   slave::Flags flags = CreateSlaveFlags();
   flags.image_provisioner_backend = "copy";
 
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
       {{"test_image", path::join(os::getcwd(), "test_image")}});
@@ -410,8 +402,6 @@ TEST_F(LinuxFilesystemIsolatorTest,
   ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
 
   // Preparing two volumes:
   // - host_path: dir1, container_path: /tmp
@@ -479,9 +469,6 @@ TEST_F(LinuxFilesystemIsolatorTest,
   // Need this otherwise the persistent volumes are not created
   // within the slave work_dir and thus not retrievable.
   flags.work_dir = os::getcwd();
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
 
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
@@ -608,9 +595,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   flags.image_provisioner_backend = "copy";
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
   flags.isolation = "posix/disk,filesystem/linux";
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
 
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
