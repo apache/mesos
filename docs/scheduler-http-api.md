@@ -87,7 +87,6 @@ Connection: close
 
 {
    "type"		: "SUBSCRIBE",
-
    "subscribe"	: {
       "framework_info"	: {
         "user" :  "foo",
@@ -138,7 +137,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
-  "type"			: "TEARDOWN",
+  "type"			: "TEARDOWN"
 }
 
 TEARDOWN Response:
@@ -215,7 +214,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
-  "type"			: "REVIVE",
+  "type"			: "REVIVE"
 }
 
 REVIVE Response:
@@ -371,7 +370,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
       {
          "agent_id"       : {"value" : "12220-3440-12532-S1233"},
          "resources"      : {}
-      },
+      }
   ]
 }
 
@@ -443,7 +442,6 @@ UPDATE Event (JSON)
         "source"	: "SOURCE_EXECUTOR",
         "uuid"		: "adfadfadbhgvjayd23r2uahj",
         "bytes"		: "uhdjfhuagdj63d7hadkf"
-
       }
   }
 }
@@ -505,7 +503,7 @@ HEARTBEAT Event (JSON)
 
 <event-length>
 {
-  "type"	: "HEARTBEAT",
+  "type"	: "HEARTBEAT"
 }
 ```
 
