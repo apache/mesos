@@ -547,9 +547,7 @@ message MasterInfo {
 /**
  * Describes a slave. Note that the 'id' field is only available after
  * a slave is registered with the master, and is made available here
- * to facilitate re-registration.  If checkpoint is set, the slave is
- * checkpointing its own information and potentially frameworks'
- * information (if a framework has checkpointing enabled).
+ * to facilitate re-registration.
  */
 message SlaveInfo {
   required string hostname = 1;
@@ -558,6 +556,8 @@ message SlaveInfo {
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
 
+  // Slave checkpointing is always enabled in recent Mesos versions;
+  // the value of this field is ignored.
   // TODO(joerg84): Remove checkpoint field after deprecation cycle starting
   // with 0.27 (MESOS-2317).
   optional bool checkpoint = 7 [default = false];
