@@ -304,8 +304,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -382,8 +386,12 @@ TEST_F(LinuxFilesystemIsolatorTest,
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -487,7 +495,10 @@ TEST_F(LinuxFilesystemIsolatorTest,
   frameworkInfo.set_role("role1");
 
   MesosSchedulerDriver driver(
-    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -614,7 +625,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -1468,8 +1482,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
