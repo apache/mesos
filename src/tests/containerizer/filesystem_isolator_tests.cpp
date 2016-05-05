@@ -325,7 +325,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -341,7 +341,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
   containerInfo.set_type(ContainerInfo::MESOS);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
@@ -352,9 +352,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
 
   // Need to wait for Rootfs copying.
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -407,7 +407,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -443,7 +443,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
       createVolumeFromHostPath("relative_dir", dir2, Volume::RW));
   task.mutable_container()->CopyFrom(containerInfo);
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
@@ -453,9 +453,9 @@ TEST_F(LinuxFilesystemIsolatorTest,
     .WillOnce(FutureArg<1>(&statusFinished));
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -514,7 +514,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   Offer offer = offers.get()[0];
 
@@ -562,9 +562,9 @@ TEST_F(LinuxFilesystemIsolatorTest,
     .WillOnce(FutureArg<1>(&statusFinished));
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // NOTE: The command executor's id is the same as the task id.
   ExecutorID executorId;
@@ -644,7 +644,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1503,7 +1503,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   // We request a sandbox (1MB) that is smaller than the persistent
   // volume (4MB) and attempt to create a file in that volume that is
@@ -1536,12 +1536,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
       LAUNCH({task})});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(task.task_id(), statusRunning.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(task.task_id(), statusFinished.get().task_id());
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
