@@ -25,6 +25,7 @@
 #include <stout/hashmap.hpp>
 
 #include <mesos/mesos.hpp>
+
 #include <mesos/appc/spec.hpp>
 
 namespace mesos {

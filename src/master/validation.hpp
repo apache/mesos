@@ -21,6 +21,7 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <stout/error.hpp>
