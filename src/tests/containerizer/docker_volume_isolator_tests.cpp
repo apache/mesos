@@ -354,6 +354,107 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
   driver.join();
 }
 
+
+// This test verifies that multiple same docker volumes cannot be mounted
+// to the container without rootfs and the task will be failed.
+TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDockerVolumeDriverClient* mockClient =
+      new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get().get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  const string key = "iops";
+  const string value = "150";
+
+  hashmap<string, string> options = {{key, value}};
+
+  // Create a volume with relative path.
+  const string driver1 = "driver1";
+  const string name1 = "name1";
+  const string containerPath1 = "tmp/foo1";
+
+  Volume volume1 = createDockerVolume(driver1, name1, containerPath1, options);
+
+  // Create a volume with absolute path and make sure the absolute
+  // path exist.  Please note that volume1 and voume2 will be created
+  // with same volume driver and name, this will cause task failed
+  // when mounting same mount point to one container.
+  const string containerPath2 = path::join(os::getcwd(), "foo2");
+  ASSERT_SOME(os::mkdir(containerPath2));
+
+  Volume volume2 = createDockerVolume(driver1, name1, containerPath2);
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test -f " + containerPath1 + "/file1 && "
+      "test -f " + containerPath2 + "/file2;");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume1);
+  containerInfo.add_volumes()->CopyFrom(volume2);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(task.task_id(), statusFailed->task_id());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
