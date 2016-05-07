@@ -58,6 +58,7 @@
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/ip.hpp>
 #include <stout/lambda.hpp>
 #include <stout/multihashmap.hpp>
@@ -3098,7 +3099,7 @@ Future<bool> Master::authorizeReserveResources(
       .then([](const std::list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
-        for (const Future<bool>& authorization : authorizations) {
+        foreach (const Future<bool>& authorization, authorizations) {
           if (!authorization.get()) {
             return false;
           }
@@ -3151,7 +3152,7 @@ Future<bool> Master::authorizeUnreserveResources(
       .then([](const std::list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
-        for (const Future<bool>& authorization : authorizations) {
+        foreach (const Future<bool>& authorization, authorizations) {
           if (!authorization.get()) {
             return false;
           }
@@ -3203,7 +3204,7 @@ Future<bool> Master::authorizeCreateVolume(
       .then([](const std::list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
-        for (const Future<bool>& authorization : authorizations) {
+        foreach (const Future<bool>& authorization, authorizations) {
           if (!authorization.get()) {
             return false;
           }
@@ -3255,7 +3256,7 @@ Future<bool> Master::authorizeDestroyVolume(
       .then([](const std::list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
-        for (const Future<bool>& authorization : authorizations) {
+        foreach (const Future<bool>& authorization, authorizations) {
           if (!authorization.get()) {
             return false;
           }

@@ -30,6 +30,7 @@
 #include <process/queue.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -3068,7 +3069,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
       const FrameworkID& frameworkId,
       const hashmap<SlaveID, Resources>& resources_)
   {
-    for (auto resources : resources_) {
+    foreach (auto resources, resources_) {
       offers.push_back(
           OfferedResources{frameworkId, resources.first, resources.second});
     }
@@ -3117,7 +3118,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   // Loop enough times for all the frameworks to get offered all the resources.
   for (unsigned count = 0; count < frameworkCount * 2; count++) {
     // Permanently decline any offered resources.
-    for (auto offer : offers) {
+    foreach (auto offer, offers) {
       Filters filters;
 
       filters.set_refuse_seconds(INT_MAX);
@@ -3208,7 +3209,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
       const FrameworkID& frameworkId,
       const hashmap<SlaveID, Resources>& resources_)
   {
-    for (auto resources : resources_) {
+    foreach (auto resources, resources_) {
       offers.push_back(
           OfferedResources{frameworkId, resources.first, resources.second});
     }
@@ -3277,7 +3278,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   // Loop enough times for all the frameworks to get offered all the resources.
   for (unsigned count = 0; count < frameworkCount * 2; count++) {
     // Permanently decline any offered resources.
-    for (auto offer : offers) {
+    foreach (auto offer, offers) {
       Filters filters;
 
       filters.set_refuse_seconds(INT_MAX);

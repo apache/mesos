@@ -676,7 +676,7 @@ inline hashmap<std::string, double> convertToHashmap(
 {
   hashmap<std::string, double> weights;
 
-  for (const WeightInfo& weightInfo : weightInfos) {
+  foreach (const WeightInfo& weightInfo, weightInfos) {
     weights[weightInfo.role()] = weightInfo.weight();
   }
 

@@ -103,7 +103,7 @@ Future<http::Response> Master::WeightsHandler::update(
 
   vector<WeightInfo> validatedWeightInfos;
   vector<string> roles;
-  for (WeightInfo& weightInfo : weightInfos.get()) {
+  foreach (WeightInfo& weightInfo, weightInfos.get()) {
     string role = strings::trim(weightInfo.role());
 
     Option<Error> roleError = roles::validate(role);
@@ -247,7 +247,7 @@ Future<bool> Master::WeightsHandler::authorize(
       .then([](const std::list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
-        for (const Future<bool>& authorization : authorizations) {
+        foreach (const Future<bool>& authorization, authorizations) {
           if (!authorization.get()) {
             return false;
           }

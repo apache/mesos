@@ -25,6 +25,7 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
+#include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
@@ -95,7 +96,7 @@ public:
     if (overloaded) {
       list<QoSCorrection> corrections;
 
-      for (const ResourceUsage::Executor& executor : usage.executors()) {
+      foreach (const ResourceUsage::Executor& executor, usage.executors()) {
         // Set kill correction for all revocable executors.
         if (!Resources(executor.allocated()).revocable().empty()) {
           QoSCorrection correction;
@@ -175,7 +176,7 @@ static QoSController* create(const Parameters& parameters)
   Option<double> loadThreshold5Min = None();
   Option<double> loadThreshold15Min = None();
 
-  for (const Parameter& parameter : parameters.parameter()) {
+  foreach (const Parameter& parameter, parameters.parameter()) {
     if (parameter.key() == "load_threshold_5min") {
       // Try to parse the load 5min value.
       Try<double> thresholdParam = numify<double>(parameter.value());
