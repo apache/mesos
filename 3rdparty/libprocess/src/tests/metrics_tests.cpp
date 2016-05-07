@@ -518,26 +518,10 @@ TEST_F(MetricsTest, SnapshotAuthenticationEnabled)
 
   Clock::pause();
 
-  // Add a gauge and a counter.
-  GaugeProcess process;
-  PID<GaugeProcess> pid = spawn(&process);
-  ASSERT_TRUE(pid);
-
-  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
-  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
-  Counter counter("test/counter");
-
-  AWAIT_READY(metrics::add(gauge));
-  AWAIT_READY(metrics::add(gaugeFail));
-  AWAIT_READY(metrics::add(counter));
-
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
   // A request with no authentication header.
   Future<Response> response = http::get(upid, "snapshot");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-
-  terminate(process);
-  wait(process);
 }
