@@ -43,32 +43,30 @@ inline Try<int> accept(int s)
 
 
 // TODO(benh): Remove and defer to Socket::bind.
-inline Try<int> bind(int s, const Address& address)
+inline Try<Nothing> bind(int s, const Address& address)
 {
   struct sockaddr_storage storage =
     net::createSockaddrStorage(address.ip, address.port);
 
-  int error = ::bind(s, (struct sockaddr*) &storage, address.size());
-  if (error < 0) {
+  if (::bind(s, (struct sockaddr*) &storage, address.size()) < 0) {
     return ErrnoError("Failed to bind on " + stringify(address));
   }
 
-  return error;
+  return Nothing();
 }
 
 
 // TODO(benh): Remove and defer to Socket::connect.
-inline Try<int, SocketError> connect(int s, const Address& address)
+inline Try<Nothing, SocketError> connect(int s, const Address& address)
 {
   struct sockaddr_storage storage =
     net::createSockaddrStorage(address.ip, address.port);
 
-  int error = ::connect(s, (struct sockaddr*) &storage, address.size());
-  if (error < 0) {
+  if (::connect(s, (struct sockaddr*) &storage, address.size()) < 0) {
     return SocketError("Failed to connect to " + stringify(address));
   }
 
-  return error;
+  return Nothing();
 }
 
 

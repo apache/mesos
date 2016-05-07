@@ -140,7 +140,7 @@ Future<Nothing> connect(const Socket& socket)
 
 Future<Nothing> PollSocketImpl::connect(const Address& address)
 {
-  Try<int, SocketError> connect = network::connect(get(), address);
+  Try<Nothing, SocketError> connect = network::connect(get(), address);
   if (connect.isError()) {
     if (net::is_inprogress_error(connect.error().code)) {
       return io::poll(get(), io::WRITE)

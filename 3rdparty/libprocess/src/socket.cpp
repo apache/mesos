@@ -132,7 +132,7 @@ Try<Address> Socket::Impl::peer() const
 
 Try<Address> Socket::Impl::bind(const Address& address)
 {
-  Try<int> bind = network::bind(get(), address);
+  Try<Nothing> bind = network::bind(get(), address);
   if (bind.isError()) {
     return Error(bind.error());
   }
