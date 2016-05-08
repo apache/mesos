@@ -20,12 +20,22 @@
 
 #include <stout/os.hpp>
 
+#ifndef __WINDOWS__
+#include <stout/os/fork.hpp>
+#endif // __WINDOWS__
+#include <stout/os/pstree.hpp>
+
 #include <stout/tests/utils.hpp>
 
 
 class ProcessTest : public TemporaryDirectoryTest {};
 
+#ifndef __WINDOWS__
+using os::Exec;
+using os::Fork;
+#endif // __WINDOWS__
 using os::Process;
+using os::ProcessTree;
 
 using std::list;
 using std::set;
@@ -181,3 +191,96 @@ TEST_F(ProcessTest, Pids)
   EXPECT_ERROR(os::pids(None(), -1));
 #endif // __WINDOWS__
 }
+
+
+#ifdef __WINDOWS__
+TEST_F(ProcessTest, Pstree)
+{
+  Try<ProcessTree> tree = os::pstree(getpid());
+  ASSERT_SOME(tree);
+
+  // Windows spawns `conhost.exe` if we're running from VS, so the count of
+  // children could be 0 or 1.
+  const size_t total_children = tree.get().children.size();
+  EXPECT_TRUE(0u == total_children ||
+              1u == total_children) << stringify(tree.get());
+  const bool conhost_spawned = total_children == 1;
+
+  // Windows has no `sleep` command, so we fake it with `ping`.
+  const string command = "ping 127.0.0.1 -n 2";
+
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+  ZeroMemory(&pi, sizeof(pi));
+
+  // Create new process that "sleeps".
+  BOOL created = CreateProcess(
+      NULL,                   // No module name (use command line).
+      (LPSTR)command.c_str(),
+      NULL,                   // Process handle not inheritable.
+      NULL,                   // Thread handle not inheritable.
+      FALSE,                  // Set handle inheritance to FALSE.
+      0,                      // No creation flags.
+      NULL,                   // Use parent's environment block.
+      NULL,                   // Use parent's starting directory.
+      &si,
+      &pi);
+  ASSERT_TRUE(created);
+
+  Try<ProcessTree> tree_after_spawn = os::pstree(getpid());
+  ASSERT_SOME(tree_after_spawn);
+
+  // Windows spawns conhost.exe if we're running from VS, so the count of
+  // children could be 0 or 1.
+  const size_t children_after_span = tree_after_spawn.get().children.size();
+  EXPECT_TRUE((!conhost_spawned && 1u == children_after_span) ||
+              (conhost_spawned && 2u == children_after_span)
+              ) << stringify(tree_after_spawn.get());
+
+  WaitForSingleObject(pi.hProcess, INFINITE);
+}
+#else
+TEST_F(ProcessTest, Pstree)
+{
+  Try<ProcessTree> tree = os::pstree(getpid());
+
+  ASSERT_SOME(tree);
+  EXPECT_EQ(0u, tree.get().children.size()) << stringify(tree.get());
+
+  tree =
+    Fork(None(),                   // Child.
+      Fork(Exec("sleep 10")),   // Grandchild.
+      Exec("sleep 10"))();
+
+  ASSERT_SOME(tree);
+
+  // Depending on whether or not the shell has fork/exec'ed,
+  // we could have 1 or 2 direct children. That is, some shells
+  // might simply exec the command above (i.e., 'sleep 10') while
+  // others might fork/exec the command, keeping around a 'sh -c'
+  // process as well.
+  ASSERT_LE(1u, tree.get().children.size());
+  ASSERT_GE(2u, tree.get().children.size());
+
+  pid_t child = tree.get().process.pid;
+  pid_t grandchild = tree.get().children.front().process.pid;
+
+  // Now check pstree again.
+  tree = os::pstree(child);
+
+  ASSERT_SOME(tree);
+  EXPECT_EQ(child, tree.get().process.pid);
+
+  ASSERT_LE(1u, tree.get().children.size());
+  ASSERT_GE(2u, tree.get().children.size());
+
+  // Cleanup by killing the descendant processes.
+  EXPECT_EQ(0, kill(grandchild, SIGKILL));
+  EXPECT_EQ(0, kill(child, SIGKILL));
+
+  // We have to reap the child for running the tests in repetition.
+  ASSERT_EQ(child, waitpid(child, NULL, 0));
+}
+#endif // __WINDOWS__

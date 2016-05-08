@@ -578,49 +578,6 @@ TEST_F(OsTest, KilltreeNoRoot)
 }
 
 
-TEST_F(OsTest, Pstree)
-{
-  Try<ProcessTree> tree = os::pstree(getpid());
-
-  ASSERT_SOME(tree);
-  EXPECT_EQ(0u, tree.get().children.size()) << stringify(tree.get());
-
-  tree =
-    Fork(None(),                   // Child.
-         Fork(Exec("sleep 10")),   // Grandchild.
-         Exec("sleep 10"))();
-
-  ASSERT_SOME(tree);
-
-  // Depending on whether or not the shell has fork/exec'ed,
-  // we could have 1 or 2 direct children. That is, some shells
-  // might simply exec the command above (i.e., 'sleep 10') while
-  // others might fork/exec the command, keeping around a 'sh -c'
-  // process as well.
-  ASSERT_LE(1u, tree.get().children.size());
-  ASSERT_GE(2u, tree.get().children.size());
-
-  pid_t child = tree.get().process.pid;
-  pid_t grandchild = tree.get().children.front().process.pid;
-
-  // Now check pstree again.
-  tree = os::pstree(child);
-
-  ASSERT_SOME(tree);
-  EXPECT_EQ(child, tree.get().process.pid);
-
-  ASSERT_LE(1u, tree.get().children.size());
-  ASSERT_GE(2u, tree.get().children.size());
-
-  // Cleanup by killing the descendant processes.
-  EXPECT_EQ(0, kill(grandchild, SIGKILL));
-  EXPECT_EQ(0, kill(child, SIGKILL));
-
-  // We have to reap the child for running the tests in repetition.
-  ASSERT_EQ(child, waitpid(child, NULL, 0));
-}
-
-
 TEST_F(OsTest, ProcessExists)
 {
   // Check we exist.
