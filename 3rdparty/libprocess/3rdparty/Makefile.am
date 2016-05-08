@@ -197,6 +197,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/os/rmdir_tests.cpp		\
   $(STOUT)/tests/os/sendfile_tests.cpp		\
   $(STOUT)/tests/os/signals_tests.cpp		\
+  $(STOUT)/tests/os/socket_tests.cpp		\
   $(STOUT)/tests/os/strerror_tests.cpp		\
   $(STOUT)/tests/os/systems_tests.cpp		\
   $(STOUT)/tests/path_tests.cpp			\
