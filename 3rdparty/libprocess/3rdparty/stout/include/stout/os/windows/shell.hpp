@@ -30,9 +30,9 @@ namespace Shell {
   // by the callee, usually the command name and `arg1` is the second
   // command argument received by the callee.
 
-  constexpr const char* name = "sh";
-  constexpr const char* arg0 = "sh";
-  constexpr const char* arg1 = "-c";
+  constexpr const char* name = "cmd.exe";
+  constexpr const char* arg0 = "cmd";
+  constexpr const char* arg1 = "/c";
 
 } // namespace Shell {
 
@@ -40,10 +40,7 @@ namespace Shell {
 // of the command. Optionally, the output is returned via an argument.
 // TODO(vinod): Pass an istream object that can provide input to the command.
 template <typename... T>
-Try<std::string> shell(const std::string& fmt, const T... t)
-{
-  UNIMPLEMENTED;
-}
+Try<std::string> shell(const std::string& fmt, const T... t) = delete;
 
 // Executes a command by calling "cmd /c <command>", and returns
 // after the command has been completed. Returns 0 if succeeds, and
