@@ -42,6 +42,7 @@ set(STOUT_TESTS_SRC
   os/filesystem_tests.cpp
   os/process_tests.cpp
   os/rmdir_tests.cpp
+  os/socket_tests.cpp
   os/strerror_tests.cpp
   os/systems_tests.cpp
   protobuf_tests.pb.h

@@ -51,6 +51,7 @@ EXTRA_DIST =					\
   tests/os/rmdir_tests.cpp			\
   tests/os/sendfile_tests.cpp			\
   tests/os/signals_tests.cpp			\
+  tests/os/socket_tests.cpp			\
   tests/os/strerror_tests.cpp			\
   tests/os/systems_tests.cpp			\
   tests/path_tests.cpp				\

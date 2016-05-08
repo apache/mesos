@@ -82,6 +82,7 @@ inline bool wsa_cleanup()
         return false;
       }
     }
+    break;
   }
   if (retriesLeft == 0) {
     return false;
