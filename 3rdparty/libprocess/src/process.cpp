@@ -963,17 +963,40 @@ bool initialize(
   // process, and profiler always succeeds and use supervisors to make
   // sure that none terminate.
 
+  // For the global processes below, the order of initialization matters.
+  // Some global processes are necessary for the function of certain methods:
+  //
+  //   process | Underpins this method
+  //   --------|---------------------------
+  //   gc      | process::spawn(..., true)
+  //   help    | ProcessBase::route(...)
+  //   metrics | process::metrics::add(...)
+  //
+  // Due to the above, each global process must be started after the
+  // prerequisite global process(es) have been started. The following
+  // graph shows what processes depend on which other processes.
+  // Processes in the same vertical group can be safely started in any order.
+  //
+  //   gc
+  //   |--help
+  //   |  |--metrics
+  //   |  |  |--system
+  //   |  |  |--All other processes
+  //   |  |
+  //   |  |--logging
+  //   |  |--profiler
+  //   |  |--processesRoute
+  //   |
+  //   |--authentication_manager
+
   // Create global garbage collector process.
   gc = spawn(new GarbageCollector());
 
-  // Initialize the metrics process. We need to initialize this before the other
-  // global processes because `metrics::initialize` is also called when metrics
-  // are added in other initialization code, and we want this to be the first
-  // initialization in order to populate the authentication realm correctly.
-  metrics::initialize(authenticationRealm);
-
   // Create global help process.
   help = spawn(new Help(delegate), true);
+
+  // Initialize the global metrics process.
+  metrics::initialize(authenticationRealm);
 
   // Create the global logging process.
   spawn(new Logging(authenticationRealm), true);
