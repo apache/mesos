@@ -351,7 +351,10 @@ string Slave::Http::FLAGS_HELP()
   return HELP(
     TLDR("Exposes the agent's flag configuration."),
     None(),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The request principal should be authorized to query this endpoint.",
+        "See the authorization documentation for details."));
 }
 
 
