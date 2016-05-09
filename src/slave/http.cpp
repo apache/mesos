@@ -59,6 +59,7 @@
 #include "slave/validation.hpp"
 
 using process::AUTHENTICATION;
+using process::AUTHORIZATION;
 using process::Clock;
 using process::DESCRIPTION;
 using process::Future;
@@ -617,7 +618,11 @@ string Slave::Http::STATISTICS_HELP()
           "        \"timestamp\":1388534400.0",
           "    }",
           "}]",
-          "```"));
+          "```"),
+      AUTHENTICATION(true),
+      AUTHORIZATION(
+          "The request principal should be authorized to query this endpoint.",
+          "See the authorization documentation for details."));
 }
 
 
