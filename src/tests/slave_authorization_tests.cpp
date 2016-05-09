@@ -181,7 +181,7 @@ INSTANTIATE_TEST_CASE_P(
         "monitor/statistics", "monitor/statistics.json", "flags"));
 
 
-// Tests that an agent endpoint handler form
+// Tests that an agent endpoint handler forms
 // correct queries against the authorizer.
 TEST_P(SlaveEndpointTest, AuthorizedRequest)
 {
