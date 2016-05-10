@@ -447,81 +447,90 @@ TEST_F(ReplicaTest, Restore)
   initializer.flags.path = path;
   initializer.execute();
 
-  Replica replica1(path);
-
-  const uint64_t proposal= 1;
-
-  PromiseRequest request1;
-  request1.set_proposal(proposal);
-
-  Future<PromiseResponse> future1 =
-    protocol::promise(replica1.pid(), request1);
-
-  AWAIT_READY(future1);
-
-  PromiseResponse response1 = future1.get();
-  EXPECT_TRUE(response1.okay());
-  EXPECT_EQ(proposal, response1.proposal());
-  EXPECT_TRUE(response1.has_position());
-  EXPECT_EQ(0u, response1.position());
-  EXPECT_FALSE(response1.has_action());
-
-  WriteRequest request2;
-  request2.set_proposal(proposal);
-  request2.set_position(1);
-  request2.set_type(Action::APPEND);
-  request2.mutable_append()->set_bytes("hello world");
-
-  Future<WriteResponse> future2 =
-    protocol::write(replica1.pid(), request2);
-
-  AWAIT_READY(future2);
-
-  WriteResponse response2 = future2.get();
-  EXPECT_TRUE(response2.okay());
-  EXPECT_EQ(proposal, response2.proposal());
-  EXPECT_EQ(1u, response2.position());
-
-  Future<list<Action> > actions1 = replica1.read(1, 1);
-
-  AWAIT_READY(actions1);
-  ASSERT_EQ(1u, actions1.get().size());
-
+  // By design only a single process can access leveldb at a time. In
+  // this test, two instances of log replica need to open a connection
+  // to the leveldb. By introducing scope levels we ensure that the first
+  // instance is destructed and hence closes the connection before the
+  // second instance opens it.
   {
-    Action action = actions1.get().front();
-    EXPECT_EQ(1u, action.position());
-    EXPECT_EQ(1u, action.promised());
-    EXPECT_TRUE(action.has_performed());
-    EXPECT_EQ(1u, action.performed());
-    EXPECT_FALSE(action.has_learned());
-    EXPECT_TRUE(action.has_type());
-    EXPECT_EQ(Action::APPEND, action.type());
-    EXPECT_FALSE(action.has_nop());
-    EXPECT_TRUE(action.has_append());
-    EXPECT_FALSE(action.has_truncate());
-    EXPECT_EQ("hello world", action.append().bytes());
+    Replica replica1(path);
+
+    const uint64_t proposal= 1;
+
+    PromiseRequest request1;
+    request1.set_proposal(proposal);
+
+    Future<PromiseResponse> future1 =
+      protocol::promise(replica1.pid(), request1);
+
+    AWAIT_READY(future1);
+
+    PromiseResponse response1 = future1.get();
+    EXPECT_TRUE(response1.okay());
+    EXPECT_EQ(proposal, response1.proposal());
+    EXPECT_TRUE(response1.has_position());
+    EXPECT_EQ(0u, response1.position());
+    EXPECT_FALSE(response1.has_action());
+
+    WriteRequest request2;
+    request2.set_proposal(proposal);
+    request2.set_position(1);
+    request2.set_type(Action::APPEND);
+    request2.mutable_append()->set_bytes("hello world");
+
+    Future<WriteResponse> future2 =
+      protocol::write(replica1.pid(), request2);
+
+    AWAIT_READY(future2);
+
+    WriteResponse response2 = future2.get();
+    EXPECT_TRUE(response2.okay());
+    EXPECT_EQ(proposal, response2.proposal());
+    EXPECT_EQ(1u, response2.position());
+
+    Future<list<Action> > actions1 = replica1.read(1, 1);
+
+    AWAIT_READY(actions1);
+    ASSERT_EQ(1u, actions1.get().size());
+
+    {
+      Action action = actions1.get().front();
+      EXPECT_EQ(1u, action.position());
+      EXPECT_EQ(1u, action.promised());
+      EXPECT_TRUE(action.has_performed());
+      EXPECT_EQ(1u, action.performed());
+      EXPECT_FALSE(action.has_learned());
+      EXPECT_TRUE(action.has_type());
+      EXPECT_EQ(Action::APPEND, action.type());
+      EXPECT_FALSE(action.has_nop());
+      EXPECT_TRUE(action.has_append());
+      EXPECT_FALSE(action.has_truncate());
+      EXPECT_EQ("hello world", action.append().bytes());
+    }
   }
 
-  Replica replica2(path);
-
-  Future<list<Action> > actions2 = replica2.read(1, 1);
-
-  AWAIT_READY(actions2);
-  ASSERT_EQ(1u, actions2.get().size());
-
   {
-    Action action = actions2.get().front();
-    EXPECT_EQ(1u, action.position());
-    EXPECT_EQ(1u, action.promised());
-    EXPECT_TRUE(action.has_performed());
-    EXPECT_EQ(1u, action.performed());
-    EXPECT_FALSE(action.has_learned());
-    EXPECT_TRUE(action.has_type());
-    EXPECT_EQ(Action::APPEND, action.type());
-    EXPECT_FALSE(action.has_nop());
-    EXPECT_TRUE(action.has_append());
-    EXPECT_FALSE(action.has_truncate());
-    EXPECT_EQ("hello world", action.append().bytes());
+    Replica replica2(path);
+
+    Future<list<Action> > actions2 = replica2.read(1, 1);
+
+    AWAIT_READY(actions2);
+    ASSERT_EQ(1u, actions2.get().size());
+
+    {
+      Action action = actions2.get().front();
+      EXPECT_EQ(1u, action.position());
+      EXPECT_EQ(1u, action.promised());
+      EXPECT_TRUE(action.has_performed());
+      EXPECT_EQ(1u, action.performed());
+      EXPECT_FALSE(action.has_learned());
+      EXPECT_TRUE(action.has_type());
+      EXPECT_EQ(Action::APPEND, action.type());
+      EXPECT_FALSE(action.has_nop());
+      EXPECT_TRUE(action.has_append());
+      EXPECT_FALSE(action.has_truncate());
+      EXPECT_EQ("hello world", action.append().bytes());
+    }
   }
 }
 
