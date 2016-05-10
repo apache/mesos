@@ -76,6 +76,7 @@ layout: documentation
 * [Sailthru](http://www.sailthru.com)
 * [Scrapinghub](http://www.scrapinghub.com)
 * [Sharethrough](http://www.sharethrough.com)
+* [Shopee](http://www.shopee.sg)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
 * [Sloppy.io](http://sloppy.io)
