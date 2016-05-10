@@ -583,10 +583,21 @@ struct MethodNotAllowed : Response
 
   MethodNotAllowed(
       const std::initializer_list<std::string>& allowedMethods,
-      const std::string& body)
-    : Response(body, Status::METHOD_NOT_ALLOWED)
+      const std::string& requestMethod)
+    : Response(
+        constructBody(allowedMethods, requestMethod),
+        Status::METHOD_NOT_ALLOWED)
   {
     headers["Allow"] = strings::join(", ", allowedMethods);
+  }
+
+private:
+  static std::string constructBody(
+      const std::initializer_list<std::string>& allowedMethods,
+      const std::string& requestMethod)
+  {
+    return "Expecting one of { '" + strings::join("', '", allowedMethods) +
+           "' }, but received '" + requestMethod + "'";
   }
 };
 
