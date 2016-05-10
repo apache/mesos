@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <glog/logging.h>
+
 #include <mesos/zookeeper/contender.hpp>
 #include <mesos/zookeeper/detector.hpp>
 #include <mesos/zookeeper/group.hpp>
@@ -25,8 +27,11 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
+#include <process/process.hpp>
 
+#include <stout/check.hpp>
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
 using namespace process;
