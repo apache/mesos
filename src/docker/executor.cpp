@@ -76,6 +76,7 @@ public:
       const string& healthCheckDir)
     : killed(false),
       killedByHealthCheck(false),
+      terminated(false),
       healthPid(-1),
       healthCheckDir(healthCheckDir),
       docker(docker),
@@ -281,6 +282,15 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
+    if (terminated) {
+      return;
+    }
+
+    // TODO(alexr): If a kill is in progress, consider adjusting
+    // the grace period if a new one is provided.
+
+    // Issue the kill signal if the container is running
+    // and this is the first time we've received the kill.
     if (run.isSome() && !killed) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
@@ -331,6 +341,9 @@ private:
         })
         .onAny(defer(self(), [=](const Future<Nothing>&) {
           CHECK_SOME(driver);
+
+          terminated = true;
+
           TaskState state;
           string message;
           if (!stop.isReady()) {
@@ -375,6 +388,10 @@ private:
   {
     // Bail out early if we have been already killed or if the task has no
     // associated health checks.
+    //
+    // TODO(alexr): Consider starting health checks even if we have
+    // already been killed to ensure that tasks are health checked
+    // while in their kill grace period.
     if (killed || !task.has_health_check()) {
       return;
     }
@@ -465,8 +482,12 @@ private:
          << stringify(healthPid) << endl;
   }
 
+  // TODO(alexr): Introduce a state enum and document transitions,
+  // see MESOS-5252.
   bool killed;
   bool killedByHealthCheck;
+  bool terminated;
+
   pid_t healthPid;
   string healthCheckDir;
   Owned<Docker> docker;

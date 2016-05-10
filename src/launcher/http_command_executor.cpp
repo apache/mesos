@@ -116,6 +116,7 @@ public:
       launched(false),
       killed(false),
       killedByHealthCheck(false),
+      terminated(false),
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -593,6 +594,15 @@ protected:
 private:
   void kill(const TaskID& _taskId, const Duration& gracePeriod)
   {
+    if (terminated) {
+      return;
+    }
+
+    // TODO(alexr): If a kill is in progress, consider adjusting
+    // the grace period if a new one is provided.
+
+    // Issue the kill signal if the task has been launched
+    // and this is the first time we've received the kill.
     if (launched && !killed) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
@@ -646,6 +656,8 @@ private:
 
   void reaped(pid_t pid, const Future<Option<int> >& status_)
   {
+    terminated = true;
+
     TaskState taskState;
     string message;
 
@@ -695,6 +707,10 @@ private:
 
   void escalated(const Duration& timeout)
   {
+    if (terminated) {
+      return;
+    }
+
     cout << "Process " << pid << " did not terminate after " << timeout
          << ", sending SIGKILL to process tree at " << pid << endl;
 
@@ -803,9 +819,13 @@ private:
     SUBSCRIBED
   } state;
 
+  // TODO(alexr): Introduce a state enum and document transitions,
+  // see MESOS-5252.
   bool launched;
   bool killed;
   bool killedByHealthCheck;
+  bool terminated;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
