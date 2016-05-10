@@ -43,6 +43,7 @@ v1::AgentID evolve(const SlaveID& slaveId);
 v1::AgentInfo evolve(const SlaveInfo& slaveInfo);
 v1::FrameworkID evolve(const FrameworkID& frameworkId);
 v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo);
+v1::KillPolicy evolve(const KillPolicy& killPolicy);
 v1::ExecutorID evolve(const ExecutorID& executorId);
 v1::ExecutorInfo evolve(const ExecutorInfo& executorInfo);
 v1::Offer evolve(const Offer& offer);

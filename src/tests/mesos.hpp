@@ -1316,15 +1316,13 @@ public:
       const FrameworkInfo& frameworkInfo,
       const TaskInfo& task);
 
-  MOCK_METHOD3(killTask, void(
+  MOCK_METHOD2(killTask, void(
       const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId));
+      const KillTaskMessage& killTaskMessage));
 
   void unmocked_killTask(
       const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId);
+      const KillTaskMessage& killTaskMessage);
 
   MOCK_METHOD1(removeFramework, void(
       slave::Framework* framework));

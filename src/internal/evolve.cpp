@@ -84,6 +84,12 @@ v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo)
 }
 
 
+v1::KillPolicy evolve(const KillPolicy& killPolicy)
+{
+  return evolve<v1::KillPolicy>(killPolicy);
+}
+
+
 v1::ExecutorID evolve(const ExecutorID& executorId)
 {
   return evolve<v1::ExecutorID>(executorId);
@@ -301,6 +307,10 @@ v1::executor::Event evolve(const KillTaskMessage& message)
   v1::executor::Event::Kill* kill = event.mutable_kill();
 
   kill->mutable_task_id()->CopyFrom(evolve(message.task_id()));
+
+  if (message.has_kill_policy()) {
+    kill->mutable_kill_policy()->CopyFrom(evolve(message.kill_policy()));
+  }
 
   return event;
 }

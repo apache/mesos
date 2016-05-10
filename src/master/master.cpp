@@ -4083,6 +4083,8 @@ void Master::killTask(
 
   scheduler::Call::Kill call;
   call.mutable_task_id()->CopyFrom(taskId);
+  // NOTE: Kill policy in kill task is not supported for schedulers
+  // sending `KillTaskMessage` instead of `scheduler::Call::Kill`.
 
   kill(framework, call);
 }
@@ -4162,6 +4164,10 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
     KillTaskMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_task_id()->MergeFrom(taskId);
+    if (kill.has_kill_policy()) {
+      message.mutable_kill_policy()->MergeFrom(kill.kill_policy());
+    }
+
     send(slave->pid, message);
   } else {
     LOG(WARNING) << "Cannot kill task " << taskId

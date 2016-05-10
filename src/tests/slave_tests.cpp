@@ -2686,7 +2686,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
                     FutureSatisfy(&removeFramework)));
 
   Future<Nothing> killTask;
-  EXPECT_CALL(slave, killTask(_, _, _))
+  EXPECT_CALL(slave, killTask(_, _))
     .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
                     FutureSatisfy(&killTask)));
 
