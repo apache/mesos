@@ -54,7 +54,7 @@ public:
   virtual ~LeaderContenderProcess();
 
   // LeaderContender implementation.
-  Future<Future<Nothing> > contend();
+  Future<Future<Nothing>> contend();
   Future<bool> withdraw();
 
 protected:
@@ -81,7 +81,7 @@ private:
   // is assigned.
 
   // Holds the promise for the future for contend().
-  Option<Promise<Future<Nothing> >*> contending;
+  Option<Promise<Future<Nothing>>*> contending;
 
   // Holds the promise for the inner future enclosed by contend()'s
   // result which is satisfied when the contender's candidacy is
@@ -143,7 +143,7 @@ void LeaderContenderProcess::finalize()
 }
 
 
-Future<Future<Nothing> > LeaderContenderProcess::contend()
+Future<Future<Nothing>> LeaderContenderProcess::contend()
 {
   if (contending.isSome()) {
     return Failure("Cannot contend more than once");
@@ -155,7 +155,7 @@ Future<Future<Nothing> > LeaderContenderProcess::contend()
     .onAny(defer(self(), &Self::joined));
 
   // Okay, we wait and see what unfolds.
-  contending = new Promise<Future<Nothing> >();
+  contending = new Promise<Future<Nothing>>();
   return contending.get()->future();
 }
 
@@ -299,7 +299,7 @@ LeaderContender::~LeaderContender()
 }
 
 
-Future<Future<Nothing> > LeaderContender::contend()
+Future<Future<Nothing>> LeaderContender::contend()
 {
   return dispatch(process, &LeaderContenderProcess::contend);
 }
