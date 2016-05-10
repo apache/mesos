@@ -176,6 +176,7 @@ TEST_F(FsTest, Touch)
   ASSERT_TRUE(os::exists(testfile));
 }
 
+
 TEST_F(FsTest, Symlink)
 {
   const string temp_path = os::getcwd();
@@ -347,4 +348,91 @@ TEST_F(FsTest, Rename)
   allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
   EXPECT_EQ(1u, allFiles.get().size());
+}
+
+
+TEST_F(FsTest, Close)
+{
+#ifdef __WINDOWS__
+  // On Windows, CRT functions like `_close` will cause an assert dialog box
+  // to pop up if you pass them a bad file descriptor. For this test, we prefer
+  // to just have the functions error out.
+  const int previous_report_mode = _CrtSetReportMode(_CRT_ASSERT, 0);
+#endif // __WINDOWS__
+
+  const string testfile = path::join(os::getcwd(), UUID::random().toString());
+
+  ASSERT_SOME(os::touch(testfile));
+  ASSERT_TRUE(os::exists(testfile));
+
+  const string test_message1 = "test1";
+  const string error_message = "should not be written";
+
+  // Open a file, and verify that writing to that file descriptor succeeds
+  // before we close it, and fails after.
+  const Try<int> open_valid_fd = os::open(testfile, O_RDWR);
+  ASSERT_SOME(open_valid_fd);
+  ASSERT_SOME(os::write(open_valid_fd.get(), test_message1));
+
+  EXPECT_SOME(os::close(open_valid_fd.get()));
+
+  EXPECT_ERROR(os::write(open_valid_fd.get(), error_message));
+
+  const Result<string> read_valid_fd = os::read(testfile);
+  EXPECT_SOME(read_valid_fd);
+  ASSERT_EQ(test_message1, read_valid_fd.get());
+
+#ifdef __WINDOWS__
+  // Open a file with the traditional Windows `HANDLE` API, then verify that
+  // writing to that `HANDLE` succeeds before we close it, and fails after.
+  const HANDLE open_valid_handle = CreateFile(
+      testfile.c_str(),
+      FILE_APPEND_DATA,
+      0,                     // No sharing mode.
+      NULL,                  // Default security.
+      OPEN_EXISTING,         // Open only if it exists.
+      FILE_ATTRIBUTE_NORMAL, // Open a normal file.
+      NULL);                 // No attribute tempate file.
+  ASSERT_NE(INVALID_HANDLE_VALUE, open_valid_handle);
+
+  DWORD bytes_written;
+  BOOL written = WriteFile(
+      open_valid_handle,
+      test_message1.c_str(), // Data to write.
+      test_message1.size(),  // Bytes to write.
+      &bytes_written,        // Bytes written.
+      NULL);                 // No overlapped I/O.
+  ASSERT_TRUE(written);
+  ASSERT_EQ(test_message1.size(), bytes_written);
+
+  EXPECT_SOME(os::close(open_valid_handle));
+
+  written = WriteFile(
+      open_valid_handle,
+      error_message.c_str(), // Data to write.
+      error_message.size(),  // Bytes to write.
+      &bytes_written,        // Bytes written.
+      NULL);                 // No overlapped I/O.
+  ASSERT_FALSE(written);
+  ASSERT_EQ(0, bytes_written);
+
+  const Result<string> read_valid_handle = os::read(testfile);
+  EXPECT_SOME(read_valid_handle);
+  ASSERT_EQ(test_message1 + test_message1, read_valid_handle.get());
+#endif // __WINDOWS__
+
+  // Try `close` with invalid file descriptor.
+  EXPECT_ERROR(os::close(static_cast<int>(-1)));
+
+#ifdef __WINDOWS__
+  // Try `close` with invalid `SOCKET` and `HANDLE`.
+  EXPECT_ERROR(os::close(static_cast<SOCKET>(INVALID_SOCKET)));
+  EXPECT_ERROR(os::close(INVALID_SOCKET));
+  EXPECT_ERROR(os::close(static_cast<HANDLE>(open_valid_handle)));
+#endif // __WINDOWS__
+
+#ifdef __WINDOWS__
+  // Reset the CRT assert dialog settings.
+  _CrtSetReportMode(_CRT_ASSERT, previous_report_mode);
+#endif // __WINDOWS__
 }
