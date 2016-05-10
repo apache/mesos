@@ -34,9 +34,12 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
-using namespace process;
-
 using std::string;
+
+using process::Failure;
+using process::Future;
+using process::Process;
+using process::Promise;
 
 namespace zookeeper {
 
@@ -97,7 +100,7 @@ LeaderContenderProcess::LeaderContenderProcess(
     Group* _group,
     const string& _data,
     const Option<string>& _label)
-  : ProcessBase(ID::generate("leader-contender")),
+  : ProcessBase(process::ID::generate("leader-contender")),
     group(_group),
     data(_data),
     label(_label) {}
