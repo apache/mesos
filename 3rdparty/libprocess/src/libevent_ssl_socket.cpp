@@ -843,8 +843,9 @@ Future<Socket> LibeventSSLSocketImpl::accept()
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()
-    .then([](const Future<Socket>& future) -> Future<Socket> {
-      return future;
+    .then([](const Future<Socket>& socket) -> Future<Socket> {
+      CHECK(!socket.isPending());
+      return socket;
     });
 }
 
@@ -920,9 +921,15 @@ void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
 {
   CHECK(__in_event_loop__);
 
-  // Enqueue a potential socket that we will set up SSL state for and
-  // verify.
-  accept_queue.put(request->promise.future());
+  Queue<Future<Socket>> accept_queue_ = accept_queue;
+
+  // After the socket is accepted, it must complete the SSL
+  // handshake (or be downgraded to a regular socket) before
+  // we put it in the queue of connected sockets.
+  request->promise.future()
+    .onAny([accept_queue_](Future<Socket> socket) mutable {
+      accept_queue_.put(socket);
+    });
 
   // If we support downgrading the connection, first wait for this
   // socket to become readable. We will then MSG_PEEK it to test

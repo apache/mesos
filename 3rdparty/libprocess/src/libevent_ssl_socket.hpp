@@ -170,11 +170,11 @@ private:
   // event loop until it is destroyed.
   std::weak_ptr<LibeventSSLSocketImpl>* event_loop_handle;
 
-  // This queue stores buffered accepted sockets. 'Queue' is a thread
-  // safe queue implementation, and the event loop pushes connected
-  // sockets onto it, the 'accept()' call pops them off. We wrap these
-  // sockets with futures so that we can pass errors through and chain
-  // futures as well.
+  // This queue stores accepted sockets that are considered connected
+  // (either the SSL handshake has completed or the socket has been
+  // downgraded). The 'accept()' call returns sockets from this queue.
+  // We wrap the socket in a 'Future' so that we can pass failures or
+  // discards through.
   Queue<Future<Socket>> accept_queue;
 
   Option<std::string> peer_hostname;
