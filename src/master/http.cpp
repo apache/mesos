@@ -361,8 +361,7 @@ Future<Response> Master::Http::scheduler(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   v1::scheduler::Call v1Call;
@@ -606,8 +605,7 @@ Future<Response> Master::Http::createVolumes(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the query string in the request body.
@@ -717,8 +715,7 @@ Future<Response> Master::Http::destroyVolumes(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the query string in the request body.
@@ -1092,8 +1089,7 @@ Future<Response> Master::Http::reserve(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the query string in the request body.
@@ -1303,9 +1299,7 @@ Future<Response> Master::Http::quota(
   // TODO(joerg84): Add update logic for PUT requests
   // once Quota supports updates.
 
-  return MethodNotAllowed(
-      {"GET", "POST", "DELETE"},
-      "Expecting 'GET', 'POST' or 'DELETE', received '" + request.method + "'");
+  return MethodNotAllowed({"GET", "POST", "DELETE"}, request.method);
 }
 
 
@@ -1346,9 +1340,7 @@ Future<Response> Master::Http::weights(
     return weightsHandler.update(request, principal);
   }
 
-  return MethodNotAllowed(
-      {"GET", "PUT"},
-      "Expecting 'GET' or 'PUT', received '" + request.method + "'");
+  return MethodNotAllowed({"GET", "PUT"}, request.method);
 }
 
 
@@ -1987,8 +1979,7 @@ Future<Response> Master::Http::teardown(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the query string in the request body (since this is a POST)
@@ -2222,9 +2213,7 @@ Future<Response> Master::Http::maintenanceSchedule(
   }
 
   if (request.method != "GET" && request.method != "POST") {
-    return MethodNotAllowed(
-        {"GET", "POST"},
-        "Expecting 'GET' or 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"GET", "POST"}, request.method);
   }
 
   // JSON-ify and return the current maintenance schedule.
@@ -2370,8 +2359,7 @@ Future<Response> Master::Http::machineDown(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the POST body as JSON.
@@ -2486,8 +2474,7 @@ Future<Response> Master::Http::machineUp(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the POST body as JSON.
@@ -2604,8 +2591,7 @@ Future<Response> Master::Http::maintenanceStatus(
   }
 
   if (request.method != "GET") {
-    return MethodNotAllowed(
-        {"GET"}, "Expecting 'GET', received '" + request.method + "'");
+    return MethodNotAllowed({"GET"}, request.method);
   }
 
   return master->allocator->getInverseOfferStatuses()
@@ -2695,8 +2681,7 @@ Future<Response> Master::Http::unreserve(
   }
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   // Parse the query string in the request body.

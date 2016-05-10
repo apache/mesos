@@ -219,8 +219,7 @@ Future<Response> Slave::Http::executor(const Request& request) const
   // TODO(anand): Add metrics for rejected requests.
 
   if (request.method != "POST") {
-    return MethodNotAllowed(
-        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
+    return MethodNotAllowed({"POST"}, request.method);
   }
 
   v1::executor::Call v1Call;
