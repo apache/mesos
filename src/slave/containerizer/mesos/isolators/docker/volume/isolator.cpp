@@ -481,8 +481,8 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const string& source = sources[i];
     const string& target = targets[i];
 
-    VLOG(1) << "Mounting docker volume mount point '" << source
-            << "' to '" << target  << "' for container " << containerId;
+    LOG(INFO) << "Mounting docker volume mount point '" << source
+              << "' to '" << target  << "' for container " << containerId;
 
     const string command = "mount -n --rbind " + source + " " + target;
 
@@ -554,9 +554,9 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
       continue;
     }
 
-    VLOG(1) << "Unmounting the volume with driver '"
-            << volume.driver() << "' and name '" << volume.name()
-            << "' for container " << containerId;
+    LOG(INFO) << "Unmounting the volume with driver '"
+              << volume.driver() << "' and name '" << volume.name()
+              << "' for container " << containerId;
 
     // Invoke dvdcli client to unmount the docker volume.
     futures.push_back(this->unmount(volume.driver(), volume.name()));
