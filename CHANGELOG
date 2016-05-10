@@ -13,6 +13,16 @@ This release contains the following new features:
     executor-less tasks the grace period is passed to 'docker stop --time'. This
     feature supersedes the '--docker_stop_timeout', which is now deprecated.
 
+  * [MESOS-4908] - The task kill policy defined within 'TaskInfo' can now be
+    overridden when the scheduler kills the task. This can be used by schedulers
+    to forcefully kill a task which is already being killed, e.g. if something
+    went wrong during a graceful kill and a forcible kill is desired. Note that
+    it is the executor's responsibility to honor the 'Event.kill.kill_policy'
+    field and override the task's kill policy and kill policy from a previous
+    kill task request. To use this feature, schedulers and executors must
+    support HTTP API; use the '--http_command_executor' agent flag to ensure
+    the agent launches the HTTP API based command executor.
+
   * [MESOS-4949] - The executor shutdown grace period can now be configured in
     `ExecutorInfo`, which overrides the agent flag. When shutting down an
     executor the agent will wait in a best-effort manner for the grace period

@@ -86,6 +86,10 @@ message Event {
   // Mesos can release the resources associated with the task.
   message Kill {
     required TaskID task_id = 1;
+
+    // If set, overrides any previously specified kill policy for this task.
+    // This includes 'TaskInfo.kill_policy' and 'Executor.kill.kill_policy'.
+    optional KillPolicy kill_policy = 2;
   }
 
   // Received when the slave acknowledges the receipt of status

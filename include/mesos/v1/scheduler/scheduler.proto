@@ -242,6 +242,11 @@ message Call {
   message Kill {
     required TaskID task_id = 1;
     optional AgentID agent_id = 2;
+
+    // If set, overrides any previously specified kill policy for this task.
+    // This includes 'TaskInfo.kill_policy' and 'Executor.kill.kill_policy'.
+    // Can be used to forcefully kill a task which is already being killed.
+    optional KillPolicy kill_policy = 3;
   }
 
   // Shuts down a custom executor. When the executor gets a shutdown

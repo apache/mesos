@@ -338,6 +338,9 @@ message KillTaskMessage {
   // ability to respond for non-activated agents.
   required FrameworkID framework_id = 1;
   required TaskID task_id = 2;
+
+  // If set, overrides the `KillPolicy` specified when the task was launched.
+  optional KillPolicy kill_policy = 3;
 }
 
 
