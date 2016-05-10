@@ -346,6 +346,9 @@ message HealthCheck {
   // Amount of time to allow failed health checks since launch.
   optional double grace_period_seconds = 6 [default = 10.0];
 
+  // TODO(alexr): Add an optional `KillPolicy` that should be used
+  // if the task is killed because of a health check failure.
+
   // Command health check.
   optional CommandInfo command = 7;
 }
