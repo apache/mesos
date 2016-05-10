@@ -73,6 +73,23 @@ private:
     mach_port_deallocate(mach_task_self(), cclock);
     ts.tv_sec = mts.tv_sec;
     ts.tv_nsec = mts.tv_nsec;
+#elif __WINDOWS__
+    const static __int64 ticks_in_second = 10000000i64;
+    const static __int64 ns_in_tick = 100;
+
+    // Interpret the filetime as a 64-bit unsigned integer to simplify the math
+    // of converting to `timespec`.
+    static_assert(
+        sizeof(FILETIME) == sizeof(__int64),
+        "stopwatch: We currently require `FILETIME` to be 64 bits in size");
+    __int64 filetime_in_ticks;
+
+    GetSystemTimeAsFileTime(reinterpret_cast<FILETIME*>(&filetime_in_ticks));
+
+    // Conversions. `tv_sec` is elapsed seconds, and `tv_nsec` is the remainder
+    // of the elapsed time, in nanoseconds.
+    ts.tv_sec  = filetime_in_ticks / ticks_in_second;
+    ts.tv_nsec = filetime_in_ticks % ticks_in_second * ns_in_tick;
 #else
     clock_gettime(CLOCK_REALTIME, &ts);
 #endif // __MACH__
