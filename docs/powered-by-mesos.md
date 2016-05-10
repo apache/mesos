@@ -94,6 +94,7 @@ layout: documentation
 * [URX](http://www.urx.com)
 * [Viadeo](http://www.viadeo.com)
 * [Virdata](http://www.virdata.com)
+* [Weibo](http://weibo.com/)
 * [Whisk](http://www.whisk.com)
 * [Wizcorp](http://www.wizcorp.jp)
 * [WooRank](http://www.woorank.com)
