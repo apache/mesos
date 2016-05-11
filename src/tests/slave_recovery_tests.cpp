@@ -421,8 +421,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 }
 
 
-// The slave is stopped before the first update for a task is received
-// from the HTTP based executor. When it comes back up with recovery=reconnect,
+// The slave is stopped before the first update for a task is received from the
+// HTTP based command executor. When it comes back up with recovery=reconnect,
 // make sure the executor subscribes and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 {
@@ -430,6 +430,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
+  flags.http_command_executor = true;
 
   Fetcher fetcher;
 
@@ -468,31 +469,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // TODO(anand): Use the HTTP based command executor once MESOS-3558 is
-  // resolved.
-  ExecutorInfo executorInfo =
-    CREATE_EXECUTOR_INFO(
-        "http",
-        path::join(tests::flags.build_dir, "src", "test-http-executor"));
+  // Launch a task with the HTTP based command executor.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
-  task.mutable_executor()->CopyFrom(executorInfo);
-
-  Future<v1::executor::Call> updateCall1 =
-    DROP_HTTP_CALL(Call(), Call::UPDATE, _, ContentType::PROTOBUF);
-
-  Future<v1::executor::Call> updateCall2 =
+  Future<v1::executor::Call> updateCall =
     DROP_HTTP_CALL(Call(), Call::UPDATE, _, ContentType::PROTOBUF);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   // Stop the slave before the status updates are received.
-  AWAIT_READY(updateCall1);
-  AWAIT_READY(updateCall2);
+  AWAIT_READY(updateCall);
 
   slave.get()->terminate();
 
@@ -515,7 +501,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
   // Ensure that the executor subscribes again.
   AWAIT_READY(subscribeCall);
 
-  ASSERT_EQ(2, subscribeCall.get().subscribe().unacknowledged_updates().size());
+  ASSERT_EQ(1, subscribeCall.get().subscribe().unacknowledged_updates().size());
   ASSERT_EQ(1, subscribeCall.get().subscribe().unacknowledged_tasks().size());
 
   // Scheduler should receive the recovered update.
@@ -615,6 +601,123 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// The slave is stopped before the HTTP based command executor is
+// registered. When it comes back up with recovery=reconnect, make
+// sure the executor is killed and the task is transitioned to LOST.
+TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredHTTPExecutor)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.http_command_executor = true;
+
+  Fetcher fetcher;
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  // Start the slave with a static process ID. This allows the executor to
+  // reconnect with the slave upon a process restart.
+  const std::string id("agent");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), id, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+
+  // Drop the executor subscribe message.
+  Future<v1::executor::Call> subscribeCall =
+    DROP_HTTP_CALL(Call(), Call::SUBSCRIBE, _, ContentType::PROTOBUF);
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  // Stop the slave before the executor is subscribed.
+  AWAIT_READY(subscribeCall);
+
+  slave.get()->terminate();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  // Ensure the slave considers itself recovered.
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+
+  // Scheduler should receive the TASK_LOST update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
+            status->reason());
+
+  // Master should subsequently reoffer the same resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -1048,7 +1151,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
 
 // The slave is stopped before a terminal update is received from the HTTP
-// based executor. The slave is then restarted in recovery=cleanup mode.
+// based command executor. The slave is then restarted in recovery=cleanup mode.
 // It kills the executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 {
@@ -1056,6 +1159,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
+  flags.http_command_executor = true;
 
   Fetcher fetcher;
 
@@ -1094,31 +1198,16 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // TODO(anand): Use the HTTP based command executor once MESOS-3558 is
-  // resolved.
-  ExecutorInfo executorInfo =
-    CREATE_EXECUTOR_INFO(
-        "http",
-        path::join(tests::flags.build_dir, "src", "test-http-executor"));
+  // Launch a task with the HTTP based command executor.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
-  task.mutable_executor()->CopyFrom(executorInfo);
-
-  Future<v1::executor::Call> updateCall1 =
-    DROP_HTTP_CALL(Call(), Call::UPDATE, _, ContentType::PROTOBUF);
-
-  Future<v1::executor::Call> updateCall2 =
+  Future<v1::executor::Call> updateCall =
     DROP_HTTP_CALL(Call(), Call::UPDATE, _, ContentType::PROTOBUF);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   // Stop the slave before the status updates are received.
-  AWAIT_READY(updateCall1);
-  AWAIT_READY(updateCall2);
+  AWAIT_READY(updateCall);
 
   slave.get()->terminate();
 
@@ -1446,6 +1535,127 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
       frameworkId);
 
   ASSERT_FALSE(os::exists(path));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Scheduler asks a restarted slave to kill a task with HTTP based
+// command executor that has been running before the slave restarted.
+// This test ensures that a restarted slave is able to communicate
+// with all components (scheduler, master, executor).
+TYPED_TEST(SlaveRecoveryTest, KillTaskWithHTTPExecutor)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.http_command_executor = true;
+
+  Fetcher fetcher;
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  // Start the slave with a static process ID. This allows the executor to
+  // reconnect with the slave upon a process restart.
+  const std::string id("agent");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), id, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
+
+  slave.get()->terminate();
+
+  Future<v1::executor::Call> subscribeCall =
+    FUTURE_HTTP_CALL(Call(), Call::SUBSCRIBE, _, ContentType::PROTOBUF);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new isolator.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
+  ASSERT_SOME(slave);
+
+  // Wait for the executor to subscribe again.
+  AWAIT_READY(subscribeCall);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent updates.
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  // Kill the task.
+  driver.killTask(task.task_id());
+
+  // Wait for TASK_KILLED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_KILLED, status.get().state());
+
+  Clock::pause();
+
+  // Advance the clock until the allocator allocates
+  // the recovered resources.
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Make sure all slave resources are reoffered.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
 
   Clock::resume();
 
