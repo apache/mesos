@@ -202,6 +202,7 @@ public:
 
         case Event::ERROR: {
           cerr << "Error: " << event.error().message() << endl;
+          break;
         }
 
         case Event::UNKNOWN: {
