@@ -36,6 +36,7 @@ layout: documentation
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
 * [Ericsson](http://www.ericsson.com/)
+* [Football Radar](http://www.footballradar.com)
 * [Foursquare](http://www.foursquare.com)
 * [GenOuest](http://www.genouest.org)
 * [GoCardless](http://www.gocardless.com)
