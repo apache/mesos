@@ -20,6 +20,10 @@
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/stringify.hpp>
+
+#include <stout/os/killtree.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
@@ -42,6 +46,9 @@ namespace internal {
 namespace slave {
 namespace docker {
 namespace volume {
+
+constexpr Duration MOUNT_TIMEOUT = Seconds(120);
+constexpr Duration UNMOUNT_TIMEOUT = Seconds(120);
 
 Try<Owned<DriverClient>> DriverClient::create(
     const std::string& dvdcli)
@@ -134,6 +141,12 @@ Future<string> DriverClient::mount(
       }
 
       return output;
+    })
+    .after(MOUNT_TIMEOUT, [s](Future<string> future) -> Future<string> {
+      future.discard();
+      os::killtree(s->pid(), SIGKILL);
+
+      return Failure("'mount' timed out in " + stringify(MOUNT_TIMEOUT));
     });
 }
 
@@ -205,6 +218,12 @@ Future<Nothing> DriverClient::unmount(
       }
 
       return Nothing();
+    })
+    .after(UNMOUNT_TIMEOUT, [s](Future<Nothing> future) -> Future<Nothing> {
+      future.discard();
+      os::killtree(s->pid(), SIGKILL);
+
+      return Failure("'unmount' timed out in " + stringify(UNMOUNT_TIMEOUT));
     });
 }
 
