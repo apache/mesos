@@ -2153,8 +2153,8 @@ endif
 copy-template-and-create-symlink:
 	cp $(DESTDIR)/$(pkgsysconfdir)/mesos-agent-env.sh.template \
 	  $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template &&\
-	ln -s $(DESTDIR)/$(includedir)/mesos/agent \
-	  $(DESTDIR)/$(includedir)/mesos/slave
+	cd $(DESTDIR)/$(includedir)/mesos && \
+	ln -sf agent slave
 
 # Install compatibility symlinks for modules that used to be in $(LIBDIR)
 # but are now in $(PKGMODULEDIR). We use install-data-hook because it
