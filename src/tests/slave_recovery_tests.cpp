@@ -838,6 +838,155 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
 
 // The slave is stopped after a non-terminal update is received.
+// The HTTP command executor terminates when the slave is down.
+// When it comes back up with recovery=reconnect, make
+// sure the task is properly transitioned to FAILED.
+TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.http_command_executor = true;
+
+  Fetcher fetcher;
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  // Start the slave with a static process ID. This allows the executor to
+  // reconnect with the slave upon a process restart.
+  const std::string id("agent");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+
+  EXPECT_CALL(sched, statusUpdate(_, _));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
+
+  slave.get()->terminate();
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());        // Ignore subsequent status update.
+
+  // Now shut down the executor, when the slave is down.
+  // TODO(qianzhang): Once MESOS-5220 is resolved, we should send a SHUTDOWN
+  // event to the executor rather than manually kill it.
+  Result<slave::state::State> state =
+    slave::state::recover(slave::paths::getMetaRootDir(flags.work_dir), true);
+
+  ASSERT_SOME(state);
+  ASSERT_SOME(state.get().slave);
+  ASSERT_TRUE(state.get().slave.get().frameworks.contains(frameworkId.get()));
+
+  slave::state::FrameworkState frameworkState =
+    state.get().slave.get().frameworks.get(frameworkId.get()).get();
+
+  ASSERT_EQ(1u, frameworkState.executors.size());
+
+  slave::state::ExecutorState executorState =
+    frameworkState.executors.begin()->second;
+
+  ASSERT_EQ(1u, executorState.runs.size());
+
+  slave::state::RunState runState = executorState.runs.begin()->second;
+
+  ASSERT_SOME(runState.forkedPid);
+
+  ASSERT_SOME(os::killtree(runState.forkedPid.get(), SIGKILL));
+
+  // Ensure the executor is killed before restarting the slave.
+  while (os::exists(runState.forkedPid.get())) {
+    os::sleep(Milliseconds(100));
+  }
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  // Ensure the slave considers itself recovered.
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  // Now advance time until the reaper reaps the executor.
+  while (status.isPending()) {
+    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+
+  // Scheduler should receive the TASK_FAILED update.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_FAILED, status->state());
+
+  while (offers2.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  // Master should subsequently reoffer the same resources.
+  AWAIT_READY(offers2);
+  ASSERT_EQ(Resources(offers1.get()[0].resources()),
+            Resources(offers2.get()[0].resources()));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// The slave is stopped after a non-terminal update is received.
 // The command executor terminates when the slave is down.
 // When it comes back up with recovery=reconnect, make
 // sure the task is properly transitioned to LOST.
