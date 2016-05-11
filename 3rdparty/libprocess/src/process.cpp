@@ -12,19 +12,24 @@
 
 #include <errno.h>
 #include <limits.h>
+#ifndef __WINDOWS__
 #include <netdb.h>
+#endif // __WINDOWS__
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef __WINDOWS__
 #include <unistd.h>
 
 #include <arpa/inet.h>
+#endif // __WINDOWS__
 
 #include <glog/logging.h>
 
+#ifndef __WINDOWS__
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -35,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#endif // __WINDOWS__
 
 #include <algorithm>
 #include <deque>
@@ -889,8 +895,15 @@ bool initialize(
   __s__ = new Socket(create.get());
 
   // Allow address reuse.
+  // NOTE: We cast to `char*` here because the function prototypes on Windows
+  // use `char*` instead of `void*`.
   int on = 1;
-  if (setsockopt(__s__->get(), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+  if (::setsockopt(
+          __s__->get(),
+          SOL_SOCKET,
+          SO_REUSEADDR,
+          reinterpret_cast<char*>(&on),
+          sizeof(on)) < 0) {
     PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
   }
 
@@ -2263,32 +2276,38 @@ long ProcessManager::init_threads()
 
   threads.reserve(num_worker_threads + 1);
 
+  struct
+  {
+    void operator()() const
+    {
+      do {
+        ProcessBase* process = process_manager->dequeue();
+        if (process == NULL) {
+          Gate::state_t old = gate->approach();
+          process = process_manager->dequeue();
+          if (process == NULL) {
+            if (joining_threads.load()) {
+              break;
+            }
+            gate->arrive(old); // Wait at gate if idle.
+            continue;
+          } else {
+            gate->leave();
+          }
+        }
+        process_manager->resume(process);
+      } while (true);
+    }
+
+    // We hold a constant reference to `joining_threads` to make it clear that
+    // this value is only being tested (read), and not manipulated.
+    const std::atomic_bool& joining_threads;
+  } worker{joining_threads};
+
   // Create processing threads.
   for (long i = 0; i < num_worker_threads; i++) {
     // Retain the thread handles so that we can join when shutting down.
-    threads.emplace_back(
-        // We pass a constant reference to `joining` to make it clear that this
-        // value is only being tested (read), and not manipulated.
-        new std::thread(std::bind([](const std::atomic_bool& joining) {
-          do {
-            ProcessBase* process = process_manager->dequeue();
-            if (process == NULL) {
-              Gate::state_t old = gate->approach();
-              process = process_manager->dequeue();
-              if (process == NULL) {
-                if (joining.load()) {
-                  break;
-                }
-                gate->arrive(old); // Wait at gate if idle.
-                continue;
-              } else {
-                gate->leave();
-              }
-            }
-            process_manager->resume(process);
-          } while (true);
-        },
-        std::cref(joining_threads))));
+    threads.emplace_back(new std::thread(worker));
   }
 
   // Create a thread for the event loop.
