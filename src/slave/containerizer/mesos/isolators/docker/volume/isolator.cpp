@@ -178,7 +178,7 @@ Future<Nothing> DockerVolumeIsolatorProcess::recover(
     }
 
     LOG(INFO) << "Cleanup volumes for unknown orphaned "
-              << "docker container " << containerId;
+              << "container " << containerId;
 
     cleanup(containerId);
   }
