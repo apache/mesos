@@ -62,7 +62,7 @@ case $OS in
     [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool"
-    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
+    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"

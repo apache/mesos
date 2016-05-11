@@ -1486,12 +1486,6 @@ There are two possible workarounds for this issue:
 
   AC_DEFINE([MESOS_HAS_PYTHON])
 
-  AC_PYTHON_MODULE([boto], [no],
-		   AC_MSG_WARN([can not find python-boto
--------------------------------------------------------------------
-mesos-ec2 services will not function.
--------------------------------------------------------------------]))
-
   # Check if user has asked us to use a preinstalled setuptools, or if
   # they asked us to ignore all bundled libraries while compiling and linking.
   if test "x$without_bundled_setuptools" = "xyes" || \
