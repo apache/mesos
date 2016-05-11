@@ -555,8 +555,6 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
 
   // We should have 1 executor using resources.
   ASSERT_EQ(1, usage1.get().executors().size());
-  EXPECT_EQ(Megabytes(1), usage1->executors(0).statistics().disk_limit_bytes());
-  EXPECT_EQ(Megabytes(1), usage1->executors(0).statistics().disk_used_bytes());
 
   // Restart the slave.
   slave.get()->terminate();
@@ -564,16 +562,16 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  slave = StartSlave(detector.get(), flags);
-  ASSERT_SOME(slave);
-
   // Following the example of the filesystem isolator tests, wait
   // until the containerizer cleans up the orphans. Only after that
   // should we expect to find the project IDs removed.
   Future<Nothing> _recover =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
-  AWAIT_READY(_recover);
 
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(_recover);
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<ResourceUsage> usage2 =
