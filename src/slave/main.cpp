@@ -40,6 +40,7 @@
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
+#include "common/http.hpp"
 
 #include "hook/manager.hpp"
 
@@ -314,6 +315,14 @@ int main(int argc, char** argv)
                        << "' authorizer: " << authorizer.error();
   } else if (authorizer.isSome()) {
     authorizer_ = authorizer.get();
+
+    // Set the authorization callbacks for libprocess HTTP endpoints.
+    // Note that these callbacks capture `authorizer_.get()`, but the agent
+    // creates a copy of the authorizer during construction. Thus, if in the
+    // future it becomes possible to dynamically set the authorizer, this would
+    // break.
+    process::http::authorization::setCallbacks(
+        createAuthorizationCallbacks(authorizer_.get()));
   }
 
   if (flags.firewall_rules.isSome()) {

@@ -25,6 +25,13 @@
 #include <mesos/http.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
+#include <process/http.hpp>
+#include <process/pid.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
@@ -39,6 +46,8 @@ using std::ostream;
 using std::set;
 using std::string;
 using std::vector;
+
+using process::http::authorization::AuthorizationCallbacks;
 
 namespace mesos {
 
@@ -572,6 +581,13 @@ static void json(JSON::StringWriter* writer, const Value::Set& set)
 static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
   writer->append(text.value());
+}
+
+
+const AuthorizationCallbacks createAuthorizationCallbacks(
+    Authorizer* authorizer)
+{
+  return AuthorizationCallbacks();
 }
 
 }  // namespace mesos {

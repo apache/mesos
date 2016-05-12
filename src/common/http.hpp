@@ -22,6 +22,11 @@
 #include <mesos/http.hpp>
 #include <mesos/mesos.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
+#include <process/future.hpp>
+#include <process/http.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/jsonify.hpp>
@@ -91,6 +96,9 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo);
 void json(JSON::ArrayWriter* writer, const Labels& labels);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
+
+const process::http::authorization::AuthorizationCallbacks
+  createAuthorizationCallbacks(Authorizer* authorizer);
 
 } // namespace mesos {
 
