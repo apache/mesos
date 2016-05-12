@@ -290,7 +290,7 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
   internal::read(fd, data, limit, internal::PEEK, promise, io::READ);
 
   // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
-  promise->future().onAny(lambda::bind([fd]() { os::close(fd); }));
+  promise->future().onAny([fd]() { os::close(fd); });
 
   return promise->future();
 }
@@ -440,7 +440,7 @@ Future<string> read(int fd)
 
   // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE)
-    .onAny(lambda::bind([fd]() { os::close(fd); }));
+    .onAny([fd]() { os::close(fd); });
 }
 
 
@@ -482,7 +482,7 @@ Future<Nothing> write(int fd, const string& data)
 
   // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::_write(fd, Owned<string>(new string(data)), 0)
-    .onAny(lambda::bind([fd]() { os::close(fd); }));
+    .onAny([fd]() { os::close(fd); });
 }
 
 
@@ -553,8 +553,8 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
 
   // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::splice(from, to.get(), chunk)
-    .onAny(lambda::bind([from]() { os::close(from); }))
-    .onAny(lambda::bind([to]() { os::close(to.get()); }));
+    .onAny([from]() { os::close(from); })
+    .onAny([to]() { os::close(to.get()); });
 }
 
 
