@@ -164,6 +164,10 @@ public interface Scheduler {
    * machine failure, network partition). Most frameworks will need to
    * reschedule any tasks launched on this slave on a new slave.
    *
+   * NOTE: This callback is not reliably delivered. If a host or
+   * network failure causes messages between the master and the
+   * scheduler to be dropped, this callback may not be invoked.
+   *
    * @param driver  The driver that was used to run this scheduler.
    * @param slaveId The ID of the slave that was lost.
    *
@@ -177,7 +181,9 @@ public interface Scheduler {
    * tasks running will have TASK_LOST status updates automagically
    * generated.
    *
-   * NOTE: This callback is not reliably delivered.
+   * NOTE: This callback is not reliably delivered. If a host or
+   * network failure causes messages between the master and the
+   * scheduler to be dropped, this callback may not be invoked.
    *
    * @param driver      The driver that was used to run this scheduler.
    * @param executorId  The ID of the executor that was lost.

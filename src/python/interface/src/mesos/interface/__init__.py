@@ -112,13 +112,20 @@ class Scheduler(object):
       Invoked when a slave has been determined unreachable (e.g., machine
       failure, network partition.) Most frameworks will need to reschedule
       any tasks launched on this slave on a new slave.
+
+      NOTE: This callback is not reliably delivered. If a host or
+      network failure causes messages between the master and the
+      scheduler to be dropped, this callback may not be invoked.
     """
 
   def executorLost(self, driver, executorId, slaveId, status):
     """
       Invoked when an executor has exited/terminated. Note that any tasks
       running will have TASK_LOST status updates automatically generated.
-      NOTE: This callback is not reliably delivered.
+
+      NOTE: This callback is not reliably delivered. If a host or
+      network failure causes messages between the master and the
+      scheduler to be dropped, this callback may not be invoked.
     """
 
   def error(self, driver, message):
