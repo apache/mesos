@@ -335,7 +335,7 @@ string Master::Http::SCHEDULER_HELP()
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found."),
-    AUTHENTICATION(false));
+    AUTHENTICATION(true));
 }
 
 
