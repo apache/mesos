@@ -60,7 +60,7 @@ namespace internal {
 namespace tests {
 
 template <typename T>
-class SlaveAuthorizationTest : public MesosTest {};
+class SlaveAuthorizerTest : public MesosTest {};
 
 
 typedef ::testing::Types<
@@ -69,12 +69,12 @@ typedef ::testing::Types<
   AuthorizerTypes;
 
 
-TYPED_TEST_CASE(SlaveAuthorizationTest, AuthorizerTypes);
+TYPED_TEST_CASE(SlaveAuthorizerTest, AuthorizerTypes);
 
 
 // This test verifies that only authorized principals
 // can access the '/flags' endpoint.
-TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpoint)
+TYPED_TEST(SlaveAuthorizerTest, AuthorizeFlagsEndpoint)
 {
   const string endpoint = "flags";
 
@@ -120,7 +120,7 @@ TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpoint)
 // This test verifies that access to the '/flags' endpoint can be authorized
 // without authentication if an authorization rule exists that applies to
 // anyone. The authorizer will map the absence of a principal to "ANY".
-TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpointWithoutPrincipal)
+TYPED_TEST(SlaveAuthorizerTest, AuthorizeFlagsEndpointWithoutPrincipal)
 {
   const string endpoint = "flags";
 
