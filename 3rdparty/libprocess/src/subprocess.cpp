@@ -169,10 +169,18 @@ Try<Subprocess> subprocess(
   // it in the non-`__WINDOWS__` branch.
   {
 #ifndef __WINDOWS__
-    Try<pid_t> pid =
-      internal::cloneChild(path, argv, set_sid, environment, _clone,
-                           parent_hooks, working_directory, watchdog, stdinfds,
-                           stdoutfds, stderrfds);
+    Try<pid_t> pid = internal::cloneChild(
+        path,
+        argv,
+        set_sid,
+        environment,
+        _clone,
+        parent_hooks,
+        working_directory,
+        watchdog,
+        stdinfds,
+        stdoutfds,
+        stderrfds);
 
     if (pid.isError()) {
       return Error(pid.error());
@@ -180,9 +188,8 @@ Try<Subprocess> subprocess(
 
     process.data->pid = pid.get();
 #else
-    Try<PROCESS_INFORMATION> processInformation =
-      internal::createChildProcess(path, argv, environment, stdinfds, stdoutfds,
-                                   stderrfds);
+    Try<PROCESS_INFORMATION> processInformation = internal::createChildProcess(
+        path, argv, environment, stdinfds, stdoutfds, stderrfds);
 
     if (processInformation.isError()) {
       process::internal::close(stdinfds, stdoutfds, stderrfds);
