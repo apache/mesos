@@ -1485,7 +1485,7 @@ void HierarchicalAllocatorProcess::allocate(
   }
 
   if (offerable.empty()) {
-    VLOG(1) << "No resources available to allocate!";
+    VLOG(1) << "No allocations performed";
   } else {
     // Now offer the resources to each framework.
     foreachkey (const FrameworkID& frameworkId, offerable) {
