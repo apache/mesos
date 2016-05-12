@@ -587,9 +587,13 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 const AuthorizationCallbacks createAuthorizationCallbacks(
     Authorizer* authorizer)
 {
+  typedef lambda::function<process::Future<bool>(
+      const process::http::Request& httpRequest,
+      const Option<string>& principal)> Callback;
+
   AuthorizationCallbacks callbacks;
 
-  callbacks.insert(std::make_pair("/metrics/snapshot", [authorizer](
+  Callback getEndpoint = [authorizer](
       const process::http::Request& httpRequest,
       const Option<string>& principal) -> process::Future<bool> {
         authorization::Request authRequest;
@@ -607,7 +611,10 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
                   << "' to GET the endpoint '" << path << "'";
 
         return authorizer->authorized(authRequest);
-      }));
+      };
+
+  callbacks.insert(std::make_pair("/logging/toggle", getEndpoint));
+  callbacks.insert(std::make_pair("/metrics/snapshot", getEndpoint));
 
   return callbacks;
 }
