@@ -587,7 +587,29 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 const AuthorizationCallbacks createAuthorizationCallbacks(
     Authorizer* authorizer)
 {
-  return AuthorizationCallbacks();
+  AuthorizationCallbacks callbacks;
+
+  callbacks.insert(std::make_pair("/metrics/snapshot", [authorizer](
+      const process::http::Request& httpRequest,
+      const Option<string>& principal) -> process::Future<bool> {
+        authorization::Request authRequest;
+        authRequest.set_action(mesos::authorization::GET_ENDPOINT_WITH_PATH);
+
+        if (principal.isSome()) {
+          authRequest.mutable_subject()->set_value(principal.get());
+        }
+
+        const string path = httpRequest.url.path;
+        authRequest.mutable_object()->set_value(path);
+
+        LOG(INFO) << "Authorizing principal '"
+                  << (principal.isSome() ? principal.get() : "ANY")
+                  << "' to GET the endpoint '" << path << "'";
+
+        return authorizer->authorized(authRequest);
+      }));
+
+  return callbacks;
 }
 
 }  // namespace mesos {
