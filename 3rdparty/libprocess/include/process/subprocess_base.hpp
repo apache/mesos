@@ -13,10 +13,6 @@
 #ifndef __PROCESS_SUBPROCESS_BASE_HPP__
 #define __PROCESS_SUBPROCESS_BASE_HPP__
 
-#ifndef __WINDOWS__
-#include <unistd.h>
-#endif // __WINDOWS__
-
 #include <sys/types.h>
 
 #include <map>
@@ -32,6 +28,9 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/shell.hpp>
+
 
 namespace process {
 
@@ -88,8 +87,13 @@ public:
      */
     struct InputFileDescriptors
     {
+#ifndef __WINDOWS__
       int read = -1;
       Option<int> write = None();
+#else
+      HANDLE read = INVALID_HANDLE_VALUE;
+      Option<HANDLE> write = None();
+#endif // __WINDOWS__
     };
 
     /**
@@ -103,8 +107,13 @@ public:
      */
     struct OutputFileDescriptors
     {
+#ifndef __WINDOWS__
       Option<int> read = None();
       int write = -1;
+#else
+      Option<HANDLE> read = None();
+      HANDLE write = INVALID_HANDLE_VALUE;
+#endif // __WINDOWS__
     };
 
     /**
@@ -202,21 +211,42 @@ public:
    *     write side) of this subprocess' stdin pipe or None if no pipe
    *     was requested.
    */
-  Option<int> in()  const { return data->in;  }
+#ifdef __WINDOWS__
+  Option<HANDLE> in() const
+#else
+  Option<int> in() const
+#endif // __WINDOWS__
+  {
+    return data->in;
+  }
 
   /**
    * @return File descriptor representing the parent side (i.e., write
    *     side) of this subprocess' stdout pipe or None if no pipe was
    *     requested.
    */
-  Option<int> out() const { return data->out; }
+#ifdef __WINDOWS__
+  Option<HANDLE> out() const
+#else
+  Option<int> out() const
+#endif // __WINDOWS__
+  {
+    return data->out;
+  }
 
   /**
    * @return File descriptor representing the parent side (i.e., write
    *     side) of this subprocess' stderr pipe or None if no pipe was
    *     requested.
    */
-  Option<int> err() const { return data->err; }
+#ifdef __WINDOWS__
+  Option<HANDLE> err() const
+#else
+  Option<int> err() const
+#endif // __WINDOWS__
+  {
+    return data->err;
+  }
 
   /**
    * Exit status of this subprocess captured as a Future (completed
@@ -255,17 +285,32 @@ private:
       if (in.isSome()) { os::close(in.get()); }
       if (out.isSome()) { os::close(out.get()); }
       if (err.isSome()) { os::close(err.get()); }
+
+#ifdef __WINDOWS__
+      os::close(processInformation.hProcess);
+      os::close(processInformation.hThread);
+#endif // __WINDOWS__
     }
 
     pid_t pid;
+
+#ifdef __WINDOWS__
+    PROCESS_INFORMATION processInformation;
+#endif // __WINDOWS__
 
     // The parent side of the pipe for stdin/stdout/stderr. If the
     // IO mode is not a pipe, `None` will be stored.
     // NOTE: stdin, stdout, stderr are macros on some systems, hence
     // these names instead.
+#ifdef __WINDOWS__
+    Option<HANDLE> in;
+    Option<HANDLE> out;
+    Option<HANDLE> err;
+#else
     Option<int> in;
     Option<int> out;
     Option<int> err;
+#endif // __WINDOWS__
 
     Future<Option<int>> status;
   };
@@ -363,10 +408,10 @@ inline Try<Subprocess> subprocess(
     const Option<std::string>& working_directory = None(),
     const Watchdog watchdog = NO_MONITOR)
 {
-  std::vector<std::string> argv = {"sh", "-c", command};
+  std::vector<std::string> argv = {os::Shell::arg0, os::Shell::arg1, command};
 
   return subprocess(
-      "sh",
+      os::Shell::name,
       argv,
       in,
       out,

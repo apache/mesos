@@ -13,7 +13,10 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
+#include <sys/types.h>
 
 #ifdef __linux__
 #include <sys/prctl.h>
@@ -52,7 +55,6 @@ Subprocess::Hook::Hook(
 
 namespace internal {
 
-// See the comment below as to why subprocess is passed to cleanup.
 static void cleanup(
     const Future<Option<int>>& result,
     Promise<Option<int>>* promise,
@@ -73,6 +75,17 @@ static void cleanup(
 }  // namespace internal {
 
 
+// Executes a subprocess.
+//
+// NOTE: On Windows, components of the `path` and `argv` that need to be quoted
+// are expected to have been quoted before they are passed to `subprocess. For
+// example, either of these may contain paths with spaces in them, like
+// `C:\"Program Files"\foo.exe`, where notably the character sequence `\"` does
+// is not escaped quote, but instead a path separator and the start of a path
+// component. Since the semantics of quoting are shell-dependent, it is not
+// practical to attempt to re-parse the command that is passed in and properly
+// escape it. Therefore, incorrectly-quoted command arguments will probably
+// lead the child process to terminate with an error.
 Try<Subprocess> subprocess(
     const string& path,
     vector<string> argv,
@@ -122,12 +135,14 @@ Try<Subprocess> subprocess(
 
   stderrfds = output.get();
 
+#ifndef __WINDOWS__
   // TODO(jieyu): Consider using O_CLOEXEC for atomic close-on-exec.
   Try<Nothing> cloexec = internal::cloexec(stdinfds, stdoutfds, stderrfds);
   if (cloexec.isError()) {
     process::internal::close(stdinfds, stdoutfds, stderrfds);
     return Error("Failed to cloexec: " + cloexec.error());
   }
+#endif // __WINDOWS__
 
   // Prepare the arguments. If the user specifies the 'flags', we will
   // stringify them and append them to the existing arguments.
@@ -140,18 +155,52 @@ Try<Subprocess> subprocess(
     }
   }
 
-  Try<pid_t> pid =
-    internal::cloneChild(path, argv, set_sid, environment, _clone,
-                          parent_hooks, working_directory, watchdog, stdinfds,
-                          stdoutfds, stderrfds);
-
-  if (pid.isError()) {
-    return Error(pid.error());
-  }
-
   // Parent.
   Subprocess process;
-  process.data->pid = pid.get();
+
+  // Create child, passing in stdin/stdout/stderr handles. We store the
+  // information and data structures we need to manage the lifecycle of the
+  // child (e.g., the PID of the child) in `process.data`.
+  //
+  // NOTE: We use lexical blocking around the `#ifdef` to limit use of data
+  // structures declared in the `#ifdef`. Since objects like `pid` will go out
+  // of scope at the end of the block, there is no chance we will accidentally
+  // define something in (say) the `__WINDOWS__` branch and then attempt to use
+  // it in the non-`__WINDOWS__` branch.
+  {
+#ifndef __WINDOWS__
+    Try<pid_t> pid =
+      internal::cloneChild(path, argv, set_sid, environment, _clone,
+                           parent_hooks, working_directory, watchdog, stdinfds,
+                           stdoutfds, stderrfds);
+
+    if (pid.isError()) {
+      return Error(pid.error());
+    }
+
+    process.data->pid = pid.get();
+#else
+    Try<PROCESS_INFORMATION> processInformation =
+      internal::createChildProcess(path, argv, environment, stdinfds, stdoutfds,
+                                   stderrfds);
+
+    if (processInformation.isError()) {
+      process::internal::close(stdinfds, stdoutfds, stderrfds);
+      return Error(
+          "Could not launch child process" + processInformation.error());
+    }
+
+    if (processInformation.get().dwProcessId == -1) {
+      // Save the errno as 'close' below might overwrite it.
+      ErrnoError error("Failed to clone");
+      process::internal::close(stdinfds, stdoutfds, stderrfds);
+      return error;
+    }
+
+    process.data->processInformation = processInformation.get();
+    process.data->pid = processInformation.get().dwProcessId;
+#endif // __WINDOWS__
+  }
 
   // Close the child-ends of the file descriptors that are created
   // by this function.

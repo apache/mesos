@@ -288,7 +288,9 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
   // fixed in a newer version of libev (we use 3.8 at the time of
   // writing this comment).
   internal::read(fd, data, limit, internal::PEEK, promise, io::READ);
-  promise->future().onAny(lambda::bind(&os::close, fd));
+
+  // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
+  promise->future().onAny(lambda::bind([fd]() { os::close(fd); }));
 
   return promise->future();
 }
@@ -436,8 +438,9 @@ Future<string> read(int fd)
   std::shared_ptr<string> buffer(new string());
   boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
 
+  // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE)
-    .onAny(lambda::bind(&os::close, fd));
+    .onAny(lambda::bind([fd]() { os::close(fd); }));
 }
 
 
@@ -477,8 +480,9 @@ Future<Nothing> write(int fd, const string& data)
         nonblock.error());
   }
 
+  // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::_write(fd, Owned<string>(new string(data)), 0)
-    .onAny(lambda::bind(&os::close, fd));
+    .onAny(lambda::bind([fd]() { os::close(fd); }));
 }
 
 
@@ -547,9 +551,10 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
     return Failure("Failed to make 'to' non-blocking: " + nonblock.error());
   }
 
+  // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
   return internal::splice(from, to.get(), chunk)
-    .onAny(lambda::bind(&os::close, from))
-    .onAny(lambda::bind(&os::close, to.get()));
+    .onAny(lambda::bind([from]() { os::close(from); }))
+    .onAny(lambda::bind([to]() { os::close(to.get()); }));
 }
 
 
