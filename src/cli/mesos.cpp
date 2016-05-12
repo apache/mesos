@@ -48,7 +48,9 @@ void usage(const char* argv0)
           Try<bool> access = os::access(match, X_OK);
           if (access.isSome() && access.get()) {
             string basename = Path(match).basename();
-            commands.push_back(basename.substr(6));
+            if (basename != "mesos-slave") {
+              commands.push_back(basename.substr(6));
+            }
           }
         }
       }
@@ -118,6 +120,11 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   } else {
     string command = argv[1];
+    if (command == "slave") {
+      cerr << "WARNING: subcommand 'slave' is deprecated in flavor of 'agent'."
+           << endl
+           << endl;
+    }
     string executable = "mesos-" + command;
     argv[1] = (char*) executable.c_str();
     execvp(executable.c_str(), argv + 1);
