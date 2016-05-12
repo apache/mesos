@@ -852,7 +852,11 @@ string Master::Http::FLAGS_HELP()
   return HELP(
     TLDR("Exposes the master's flag configuration."),
     None(),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Querying this endpoint requires that the current principal",
+        "is authorized to query the path.",
+        "See the authorization documentation for details."));
 }
 
 

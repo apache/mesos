@@ -20,4 +20,5 @@ found.
 
 
 ### AUTHENTICATION ###
-This endpoint does not require authentication.
+This endpoint requires authentication iff HTTP authentication is
+enabled.

@@ -14,3 +14,8 @@ Exposes the master's flag configuration.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+Querying this endpoint requires that the current principal
+is authorized to query the path.
+See the authorization documentation for details.
