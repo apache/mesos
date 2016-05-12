@@ -11,6 +11,7 @@ These tools make it easy to set up and run a Mesos cluster.
 
 * [collectd plugin](https://github.com/rayrod2030/collectd-mesos) to collect Mesos cluster metrics.
 * [Deploy scripts](deploy-scripts.md) for launching a Mesos cluster on a set of machines.
+* [Chef Cookbook by Anthony Caiafa](https://github.com/acaiafa/mesos) Install Mesos and configure master/slave/standalone. This cookbook currently supports installation from the mesosphere packages.
 * [Chef cookbook by Everpeace](https://github.com/everpeace/cookbook-mesos) Install Mesos and configure master and slave. This cookbook supports installation from source or the Mesosphere packages.
 * [Chef cookbook by Mdsol](https://github.com/mdsol/mesos_cookbook) Application cookbook for installing the Apache Mesos cluster manager. This cookbook installs Mesos via packages provided by Mesosphere.
 * [Puppet Module by Deric](https://github.com/deric/puppet-mesos) This is a Puppet module for managing Mesos nodes in a cluster.
