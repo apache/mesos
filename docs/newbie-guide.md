@@ -1,7 +1,9 @@
---
+---
 title: Apache Mesos - Newbie Guide
 layout: documentation
 ---
+
+
 # Newbie Guide
 
 ## Introduction
@@ -10,9 +12,7 @@ The purpose of this document is to give an introduction and overall description 
 
 # Contribution Process Overview
 
-The figure below shows a high-level process flow of the contribution delivery process for the Mesos open source distribution. Details of the process can be obtained from the [submitting-a-patch] (submitting-a-patch.md) document of the Mesos distribution along with the Getting Started Guidance section of this document.
-
-![Newbie Document](NewbieContributionOverview.jpg)
+Details of the contribution process can be obtained from the [submitting-a-patch](submitting-a-patch.md) document of the Mesos distribution along with the Getting Started Guidance section of this document.
 
 ## Preparation and Build Environment Setup
 
@@ -21,7 +21,7 @@ In order to complete the contribution process you will need to obtain account au
 * Required account authorizations
     + Apache Review Board Account
     + Apache JIRA Account
-
+<br/><br/>
 * Required installations
     + Git
     + RBtools
@@ -74,7 +74,7 @@ Detailed steps are provided in the [Mesos documentation](getting-started.md) to 
 To begin the contribution process, identify a Mesos JIRA issue that is currently unassigned. It is highly recommended to start contributing to beginner level issues and overtime move to advanced level issues. The JIRA issue-tracking system can be filtered based on labels. The following labels can be used to identify beginner level JIRA tickets:
 
 * newbie
-* “*newbie++”
+* newbie++
 * beginner
 * beginners
 
@@ -84,7 +84,7 @@ When identifying a JIRA issue to work on, it is recommended to work on items tha
 
 There are a couple options to assign a work item: 1) create a new JIRA issue to work on or 2) identify an existing JIRA issue item to work on as described above. Whichever option is chosen there are several steps that should be followed when assigning yourself a JIRA ticket.
 
-It is important to identify a shepherd before you assign a ticket to yourself. Working with a shepherd will reveal its priority at the current time. To identify a shepherd look at the [maintainers](committers.md) file to get an idea who to ask to shepherd your JIRA issue.\
+It is important to identify a shepherd before you assign a ticket to yourself. Working with a shepherd will reveal its priority at the current time. To identify a shepherd look at the [maintainers](committers.md) file to get an idea who to ask to shepherd your JIRA issue.
 
 
 ## JIRA Issue Solution Proposals
@@ -92,21 +92,21 @@ Once you have an assigned JIRA issue and you have identified a shepherd, it is i
 
 1. ensure the solution will be scoped in a consumable fashion;
 
-1. eliminate duplicate work with other contributions; and
+2. eliminate duplicate work with other contributions; and
 
-1. alert anyone interested in following the activity and progress of the ticket.
+3. alert anyone interested in following the activity and progress of the ticket.
 
 
 Guidelines to consider when designing a solution can be found in the [effective-code-reviewing](effective-code-reviewing.md) document.
 
 ## Making Changes
 
-After completing the solution review make the source code changes, build and successfully run relevant test cases. Guidelines for these processes can be found in the [submitting-a-patch](submitting-a-patch.md) and [mesos-c++style-guide] (c++-style-guide.md).
+After completing the solution review make the source code changes, build and successfully run relevant test cases. Guidelines for these processes can be found in the [submitting-a-patch](submitting-a-patch.md) and [mesos-c++style-guide](c++-style-guide.md).
 
 When creating and running test cases pay particular attention to race conditions. One recommendation is to run system tests multiple times.  Below is a sample command to repeat the test 100 times.
 
 
-*sudo GLOG\_v=1 ./bin/mesos-tests.sh --verbose --gtest_filter=”\*DOCKER\*” --break-on-error --gtest_shuffle --gtest_repeat=100*
+    sudo GLOG_v=1 ./bin/mesos-tests.sh --verbose --gtest_filter=”*DOCKER*” --break-on-error --gtest_shuffle --gtest_repeat=100
 
 ## Submit a Patch to the Review Board
 
