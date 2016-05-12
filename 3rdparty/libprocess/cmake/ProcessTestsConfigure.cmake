@@ -37,11 +37,11 @@ set(
 
 # DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
 ############################################################################
-EXTERNAL("gmock" ${GMOCK_VERSION} "${PROCESS_3RD_BIN}")
+EXTERNAL("gmock" ${GMOCK_VERSION} "${MESOS_3RDPARTY_BIN}")
 
 set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
 set(GPERFTOOLS_VERSION 2.0)
-set(GPERFTOOLS         ${PROCESS_3RD_BIN}/gperftools-${GPERFTOOLS_VERSION})
+set(GPERFTOOLS         ${MESOS_3RDPARTY_BIN}/gperftools-${GPERFTOOLS_VERSION})
 
 # Convenience variables for include directories of third-party dependencies.
 set(GMOCK_INCLUDE_DIR ${GMOCK_ROOT}/include)

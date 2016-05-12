@@ -15,10 +15,6 @@
 # limitations under the License.
 include(ProcessTestsConfigure)
 
-# BUILD THIRD-PARTY DEPENDENCIES FIRST.
-#######################################
-add_subdirectory(3rdparty)
-
 # BUILD THE PROCESS LIBRARY.
 ############################
 if (NOT WIN32)

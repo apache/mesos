@@ -16,32 +16,29 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-set(PROCESS_3RD_SRC ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/3rdparty)
-set(PROCESS_3RD_BIN ${CMAKE_BINARY_DIR}/3rdparty/libprocess/3rdparty)
+set(STOUT ${MESOS_3RDPARTY_SRC}/stout)
 
-set(STOUT ${PROCESS_3RD_SRC}/stout)
-
-EXTERNAL("boost"       ${BOOST_VERSION}       "${PROCESS_3RD_BIN}")
-EXTERNAL("picojson"    ${PICOJSON_VERSION}    "${PROCESS_3RD_BIN}")
-EXTERNAL("http_parser" ${HTTP_PARSER_VERSION} "${PROCESS_3RD_BIN}")
-EXTERNAL("libev"       ${LIBEV_VERSION}       "${PROCESS_3RD_BIN}")
-EXTERNAL("libevent"    ${LIBEVENT_VERSION}    "${PROCESS_3RD_BIN}")
-EXTERNAL("libapr"      ${LIBAPR_VERSION}      "${PROCESS_3RD_BIN}")
-EXTERNAL("protobuf"    ${PROTOBUF_VERSION}    "${PROCESS_3RD_BIN}")
+EXTERNAL("boost"       ${BOOST_VERSION}       "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("picojson"    ${PICOJSON_VERSION}    "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("http_parser" ${HTTP_PARSER_VERSION} "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("libev"       ${LIBEV_VERSION}       "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("libevent"    ${LIBEVENT_VERSION}    "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("libapr"      ${LIBAPR_VERSION}      "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("protobuf"    ${PROTOBUF_VERSION}    "${MESOS_3RDPARTY_BIN}")
 
 if (NOT WIN32)
-  EXTERNAL("glog" ${GLOG_VERSION} "${PROCESS_3RD_BIN}")
+  EXTERNAL("glog" ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
 elseif (WIN32)
   # Glog 0.3.3 does not compile out of the box on Windows. Therefore, we
   # require 0.3.4.
-  EXTERNAL("glog" "0.3.4" "${PROCESS_3RD_BIN}")
+  EXTERNAL("glog" "0.3.4" "${MESOS_3RDPARTY_BIN}")
 
   # NOTE: We expect cURL and zlib exist on Unix (usually pulled in with a
   # package manager), but Windows has no package manager, so we have to go
   # get it.
-  EXTERNAL("curl" ${CURL_VERSION} "${PROCESS_3RD_BIN}")
+  EXTERNAL("curl" ${CURL_VERSION} "${MESOS_3RDPARTY_BIN}")
 
-  EXTERNAL("zlib" ${ZLIB_VERSION} "${PROCESS_3RD_BIN}")
+  EXTERNAL("zlib" ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
 endif (NOT WIN32)
 
 # Intermediate convenience variables for oddly-structured directories.
@@ -51,7 +48,7 @@ set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
 set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 
 # Convenience variables for include directories of third-party dependencies.
-set(PROCESS_INCLUDE_DIR     ${PROCESS_3RD_SRC}/../include)
+set(PROCESS_INCLUDE_DIR     ${MESOS_3RDPARTY_SRC}/libprocess/include)
 set(STOUT_INCLUDE_DIR       ${STOUT}/include)
 
 set(BOOST_INCLUDE_DIR       ${BOOST_ROOT})

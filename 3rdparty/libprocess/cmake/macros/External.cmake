@@ -22,7 +22,7 @@
 #   BOOST_VERSION    (e.g., 1.53.0)
 #   BOOST_TARGET     (a target folder name to put dep in e.g., boost-1.53.0)
 #   BOOST_CMAKE_ROOT (where to have CMake put the uncompressed source, e.g.,
-#                     build/3rdparty/libprocess/3rdparty/boost-1.53.0)
+#                     build/3rdparty/boost-1.53.0)
 #   BOOST_ROOT       (where the code goes in various stages of build, e.g.,
 #                     build/.../boost-1.53.0/src, which might contain folders
 #                     build-1.53.0-build, -lib, and so on, for each build step
@@ -70,7 +70,7 @@ function(EXTERNAL
     ${TARGET_DATA}
     PARENT_SCOPE)
 
-  set(${CMAKE_ROOT_VAR} # e.g., build/3rdparty/libprocess/3rdparty/boost-1.53.0
+  set(${CMAKE_ROOT_VAR} # e.g., build/3rdparty/boost-1.53.0
     ${CMAKE_ROOT_DATA}
     PARENT_SCOPE)
 
