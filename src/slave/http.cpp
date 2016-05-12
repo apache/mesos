@@ -823,6 +823,10 @@ Future<bool> Slave::Http::authorizeEndpoint(
 
   // Paths are of the form "/slave(n)/endpoint". We're only interested
   // in the part after "/slave(n)" and tokenize the path accordingly.
+  //
+  // TODO(alexr): Refactor this into a helper function in `Slave::Http` so
+  // that other endpoints can reuse it. In the long run, absolute paths for
+  // endpoins should be supported, see MESOS-5369.
   const vector<string> pathComponents =
     strings::tokenize(httpRequest.url.path, "/", 2);
 
