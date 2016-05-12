@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -21,15 +22,22 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
+
+#include <mesos/module/authorizer.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/try.hpp>
+
+#include "authorizer/local/authorizer.hpp"
 
 #include "master/master.hpp"
 
@@ -43,7 +51,10 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 #include "tests/utils.hpp"
+
+namespace http = process::http;
 
 using mesos::internal::master::Master;
 
@@ -60,6 +71,11 @@ using process::Owned;
 using process::PID;
 using process::Promise;
 
+using process::http::Forbidden;
+using process::http::OK;
+using process::http::Response;
+
+using std::string;
 using std::vector;
 
 using testing::_;
@@ -1007,6 +1023,194 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   // Settle the clock here to ensure 'Master::_reregisterFramework()'
   // is executed.
   Clock::settle();
+}
+
+
+template <typename T>
+class MasterAuthorizerTest : public MesosTest {};
+
+
+typedef ::testing::Types<
+  LocalAuthorizer,
+  tests::Module<Authorizer, TestLocalAuthorizer>>
+  AuthorizerTypes;
+
+
+TYPED_TEST_CASE(MasterAuthorizerTest, AuthorizerTypes);
+
+
+// This test verifies that only authorized principals
+// can access the '/flags' endpoint.
+TYPED_TEST(MasterAuthorizerTest, AuthorizeFlagsEndpoint)
+{
+  const string endpoint = "flags";
+
+  // Setup ACLs so that only the default principal
+  // can access the '/flags' endpoint.
+  ACLs acls;
+  acls.set_permissive(false);
+
+  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_paths()->add_values("/" + endpoint);
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(authorizer.get());
+  ASSERT_SOME(master);
+
+  Future<Response> response = http::get(
+      master.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+
+  response = http::get(
+      master.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+    << response.get().body;
+}
+
+
+// This test verifies that access to the '/flags' endpoint can be authorized
+// without authentication if an authorization rule exists that applies to
+// anyone. The authorizer will map the absence of a principal to "ANY".
+TYPED_TEST(MasterAuthorizerTest, AuthorizeFlagsEndpointWithoutPrincipal)
+{
+  const string endpoint = "flags";
+
+  // Setup ACLs so that any principal can access the '/flags' endpoint.
+  ACLs acls;
+  acls.set_permissive(false);
+
+  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl->mutable_paths()->add_values("/" + endpoint);
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.authenticate_http = false;
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(authorizer.get(), masterFlags);
+  ASSERT_SOME(master);
+
+  Future<Response> response = http::get(master.get()->pid, endpoint);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+}
+
+
+// Parameterized fixture for master-specific authorization tests. The
+// path of the tested endpoint is passed as the only parameter.
+class MasterEndpointTest:
+    public MesosTest,
+    public ::testing::WithParamInterface<string> {};
+
+
+// The tests are parameterized by the endpoint being queried.
+INSTANTIATE_TEST_CASE_P(
+    Endpoint,
+    MasterEndpointTest,
+    ::testing::Values(string("flags")));
+
+
+// Tests that a master endpoint handler forms
+// correct queries against the authorizer.
+TEST_P(MasterEndpointTest, AuthorizedRequest)
+{
+  const string endpoint = GetParam();
+
+  MockAuthorizer mockAuthorizer;
+
+  Try<Owned<cluster::Master>> master = StartMaster(&mockAuthorizer);
+  ASSERT_SOME(master);
+
+  Future<authorization::Request> request;
+  EXPECT_CALL(mockAuthorizer, authorized(_))
+    .WillOnce(DoAll(FutureArg<0>(&request),
+                    Return(true)));
+
+  Future<Response> response = http::get(
+      master.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_READY(request);
+
+  const string principal = DEFAULT_CREDENTIAL.principal();
+  EXPECT_EQ(principal, request.get().subject().value());
+
+  // TODO(nfnt): Once master endpoint handlers use more than just
+  // `GET_ENDPOINT_WITH_PATH` we should factor out the request method
+  // and expected authorization action and parameterize
+  // `MasterEndpointTest` on that.
+  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
+
+  EXPECT_EQ("/" + endpoint, request.get().object().value());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+}
+
+
+// Tests that unauthorized requests for a master endpoint are properly rejected.
+TEST_P(MasterEndpointTest, UnauthorizedRequest)
+{
+  const string endpoint = GetParam();
+
+  MockAuthorizer mockAuthorizer;
+
+  Try<Owned<cluster::Master>> master = StartMaster(&mockAuthorizer);
+  ASSERT_SOME(master);
+
+  EXPECT_CALL(mockAuthorizer, authorized(_))
+    .WillOnce(Return(false));
+
+  Future<Response> response = http::get(
+      master.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+    << response.get().body;
+}
+
+
+// Tests that requests for a master endpoint
+// always succeed if the authorizer is absent.
+TEST_P(MasterEndpointTest, NoAuthorizer)
+{
+  const string endpoint = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  Future<Response> response = http::get(
+      master.get()->pid,
+      endpoint,
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
 }
 
 } // namespace tests {

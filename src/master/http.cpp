@@ -78,6 +78,7 @@ using process::AUTHENTICATION;
 using process::AUTHORIZATION;
 using process::Clock;
 using process::DESCRIPTION;
+using process::Failure;
 using process::Future;
 using process::HELP;
 using process::TLDR;
@@ -857,7 +858,43 @@ string Master::Http::FLAGS_HELP()
 
 Future<Response> Master::Http::flags(
     const Request& request,
-    const Option<string>& /*principal*/) const
+    const Option<string>& principal) const
+{
+  // TODO(nfnt): Remove check for enabled
+  // authorization as part of MESOS-5346.
+  if (request.method != "GET" && master->authorizer.isSome()) {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
+  // Paths are of the form "/master/endpoint". We're only interested
+  // in the part after "/master" and tokenize the path accordingly.
+  //
+  // TODO(nfnt): Refactor this into a helper function in `Master::Http` so
+  // that other endpoints can reuse it. In the long run, absolute paths for
+  // endpoins should be supported, see MESOS-5369.
+  const vector<string> pathComponents =
+    strings::tokenize(request.url.path, "/", 2);
+
+  if (pathComponents.size() != 2u ||
+      pathComponents[0] != master->self().id) {
+    return Failure("Unexpected path '" + request.url.path + "'");
+  }
+  const string endpoint = "/" + pathComponents[1];
+
+  return authorizeEndpoint(principal, endpoint, request.method)
+    .then(defer(
+          master->self(),
+          [this, request](bool authorized) -> Future<Response> {
+            if (!authorized) {
+              return Forbidden();
+            }
+
+            return _flags(request);
+          }));
+}
+
+
+Future<Response> Master::Http::_flags(const Request& request) const
 {
   JSON::Object object;
 
@@ -2809,6 +2846,40 @@ Future<Response> Master::Http::_operation(
     .repair([](const Future<Response>& result) {
        return Conflict(result.failure());
     });
+}
+
+
+Future<bool> Master::Http::authorizeEndpoint(
+    const Option<string>& principal,
+    const string& endpoint,
+    const string& method) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  authorization::Request request;
+
+  // TODO(nfnt): Add an additional method when POST requests
+  // need to be authorized separately from GET requests.
+  if (method == "GET") {
+    request.set_action(authorization::GET_ENDPOINT_WITH_PATH);
+  } else {
+    return Failure("Unexpected request method '" + method + "'");
+  }
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  request.mutable_object()->set_value(endpoint);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to " << method
+            << " the '" << endpoint << "' endpoint";
+
+  return master->authorizer.get()->authorized(request);
 }
 
 } // namespace master {

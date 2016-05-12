@@ -1202,6 +1202,9 @@ private:
 
   private:
     // Continuations.
+    process::Future<process::http::Response> _flags(
+        const process::http::Request& request) const;
+
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;
 
@@ -1228,6 +1231,18 @@ private:
         const SlaveID& slaveId,
         Resources required,
         const Offer::Operation& operation) const;
+
+    // Authorizes access to an HTTP endpoint. The `method` parameter
+    // determines which ACL action will be used in the authorization.
+    // It is expected that the caller has validated that `method` is
+    // supported by this function. Currently "GET" is supported.
+    //
+    // TODO(nfnt): Prefer types instead of strings
+    // for `endpoint` and `method`, see MESOS-5300.
+    process::Future<bool> authorizeEndpoint(
+        const Option<std::string>& principal,
+        const std::string& endpoint,
+        const std::string& method) const;
 
     Master* master;
 

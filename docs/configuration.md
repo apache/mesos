@@ -458,6 +458,12 @@ Example:
       "principals": { "values": ["a"] },
       "quota_principals": { "values": ["a"] }
     }
+  ],
+  "get_endpoints": [
+    {
+      "principals": { "values": ["a"] },
+      "paths": { "values": ["/flags"] }
+    }
   ]
 }</code></pre>
   </td>
