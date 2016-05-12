@@ -18,11 +18,15 @@
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
+
+#include "common/http.hpp"
 
 #include "logging/logging.hpp"
 
@@ -33,6 +37,7 @@ namespace authentication = process::http::authentication;
 using mesos::http::authentication::BasicAuthenticatorFactory;
 
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -71,6 +76,10 @@ protected:
     }
 
     realms.clear();
+
+    // In case libprocess-level authorization was enabled in the test, we unset
+    // the libprocess authorization callbacks.
+    process::http::authorization::unsetCallbacks();
 
     MesosTest::TearDown();
   }
@@ -145,6 +154,46 @@ TEST_F(LoggingTest, ToggleAuthenticationEnabled)
   process::Future<Response> response = process::http::get(pid, "toggle");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+}
+
+
+// Tests that the `/logging/toggle` endpoint rejects unauthorized requests when
+// authorization is enabled.
+TEST_F(LoggingTest, ToggleAuthorizationEnabled)
+{
+  Credentials credentials;
+  credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
+
+  // Create a basic HTTP authenticator with the specified credentials and set it
+  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+
+  ACLs acls;
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL` can GET any
+  // HTTP endpoints that are authorized with the `GetEndpoint` ACL.
+  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_paths()->set_type(mesos::ACL::Entity::NONE);
+
+  Result<Authorizer*> authorizer = Authorizer::create(acls);
+  ASSERT_SOME(authorizer);
+
+  // Set authorization callbacks for libprocess-level HTTP endpoints.
+  process::http::authorization::setCallbacks(
+      createAuthorizationCallbacks(authorizer.get()));
+
+  process::PID<> pid;
+  pid.id = "logging";
+  pid.address = process::address();
+
+  process::Future<Response> response = process::http::get(
+      pid,
+      "toggle",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 }
 
 } // namespace tests {
