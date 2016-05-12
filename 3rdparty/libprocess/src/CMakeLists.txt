@@ -16,6 +16,19 @@
 
 # SOURCE FILES FOR THE PROCESS LIBRARY.
 #######################################
+
+if (WIN32)
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    subprocess_windows.cpp
+    )
+else (WIN32)
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    subprocess_posix.cpp
+    )
+endif (WIN32)
+
 set(PROCESS_SRC
   ${PROCESS_SRC}
   authenticator_manager.cpp

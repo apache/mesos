@@ -10,17 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __PROCESS_SUBPROCESS_HPP__
-#define __PROCESS_SUBPROCESS_HPP__
+#ifndef __PROCESS_WINDOWS_SUBPROCESS_HPP__
+#define __PROCESS_WINDOWS_SUBPROCESS_HPP__
 
-// Various declarations appear in this header, and must be included before we
-// include the platform-dependent versions of the headers.
-#include <process/subprocess_base.hpp>
+namespace process {
+namespace internal {
 
-#ifndef __WINDOWS__
-#include <process/posix/subprocess.hpp>
-#else
-#include <process/windows/subprocess.hpp>
-#endif // __WINDOWS__
+}  // namespace internal {
+}  // namespace process {
 
-#endif // __PROCESS_SUBPROCESS_HPP__
+#endif // __PROCESS_WINDOWS_SUBPROCESS_HPP__

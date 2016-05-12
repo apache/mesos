@@ -118,6 +118,7 @@ libprocess_la_SOURCES =		\
   src/reap.cpp			\
   src/socket.cpp		\
   src/subprocess.cpp		\
+  src/subprocess_posix.cpp	\
   src/time.cpp			\
   src/timeseries.cpp
 
