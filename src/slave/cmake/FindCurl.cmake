@@ -20,7 +20,7 @@
 # original version[2] of this file was also released under the
 # Apache 2.0 license, and licensed to the ASF, making it fully
 # compatible with the Mesos project.
-#  [1] 3rdparty/libprocess/3rdparty/stout/cmake/FindApr.cmake
+#  [1] 3rdparty/stout/cmake/FindApr.cmake
 #  [2] https://github.com/akumuli/Akumuli/blob/master/cmake/FindAPR.cmake
 
 # This module helps to find the cURL library.
