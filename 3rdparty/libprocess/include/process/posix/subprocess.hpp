@@ -13,6 +13,9 @@
 #ifndef __PROCESS_POSIX_SUBPROCESS_HPP__
 #define __PROCESS_POSIX_SUBPROCESS_HPP__
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif // __linux__
 #include <sys/types.h>
 
 #include <string>
@@ -171,9 +174,9 @@ inline int watchdogProcess()
 
     // Close the files to prevent interference on the communication
     // between the slave and the child process.
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    ::close(STDIN_FILENO);
+    ::close(STDOUT_FILENO);
+    ::close(STDERR_FILENO);
 
     // Block until the child process finishes.
     int status = 0;
@@ -321,7 +324,7 @@ inline Try<pid_t> cloneChild(
   // to construct them here before doing the clone as it might not be
   // async signal safe to perform the memory allocation.
   char** _argv = new char*[argv.size() + 1];
-  for (int i = 0; i < argv.size(); i++) {
+  for (size_t i = 0; i < argv.size(); i++) {
     _argv[i] = (char*) argv[i].c_str();
   }
   _argv[argv.size()] = NULL;
