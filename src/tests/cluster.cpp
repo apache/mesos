@@ -39,6 +39,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
@@ -60,6 +61,8 @@
 #endif
 
 #include "authorizer/local/authorizer.hpp"
+
+#include "common/http.hpp"
 
 #include "files/files.hpp"
 
@@ -125,6 +128,10 @@ Try<process::Owned<Master>> Master::start(
 
   // If the authorizer is not provided, create a default one.
   if (authorizer.isNone()) {
+    // Indicates whether or not the caller explicitly specified the
+    // authorization configuration for this master.
+    bool authorizationSpecified = true;
+
     std::vector<std::string> authorizerNames =
       strings::split(flags.authorizers, ",");
 
@@ -149,6 +156,9 @@ Try<process::Owned<Master>> Master::start(
         LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
 
         authorizer = Authorizer::create(flags.acls.get());
+        CHECK_SOME(authorizer);
+      } else {
+        authorizationSpecified = false;
       }
     }
 
@@ -158,7 +168,16 @@ Try<process::Owned<Master>> Master::start(
           authorizer.error());
     } else if (authorizer.isSome()) {
       master->authorizer.reset(authorizer.get());
+
+      if (authorizationSpecified) {
+        // Authorization config was explicitly provided, so set authorization
+        // callbacks in libprocess.
+        master->setAuthorizationCallbacks(authorizer.get());
+      }
     }
+  } else {
+    // An authorizer was provided, so set authorization callbacks in libprocess.
+    master->setAuthorizationCallbacks(authorizer.get());
   }
 
   // Create the appropriate master contender/detector.
@@ -317,6 +336,11 @@ Try<process::Owned<Master>> Master::start(
 
 Master::~Master()
 {
+  // Remove any libprocess authorization callbacks that were installed.
+  if (authorizationCallbacksSet) {
+    process::http::authorization::unsetCallbacks();
+  }
+
   // NOTE: Authenticators' lifetimes are tied to libprocess's lifetime.
   // This means that multiple masters in tests are not supported.
   process::http::authentication::unsetAuthenticator(
@@ -341,6 +365,15 @@ process::Owned<MasterDetector> Master::createDetector()
 MasterInfo Master::getMasterInfo()
 {
   return master->info();
+}
+
+
+void Master::setAuthorizationCallbacks(Authorizer* authorizer)
+{
+  process::http::authorization::setCallbacks(
+      mesos::createAuthorizationCallbacks(authorizer));
+
+  authorizationCallbacksSet = true;
 }
 
 
@@ -384,6 +417,10 @@ Try<process::Owned<Slave>> Slave::start(
 
   // If the authorizer is not provided, create a default one.
   if (providedAuthorizer.isNone()) {
+    // Indicates whether or not the caller explicitly specified the
+    // authorization configuration for this agent.
+    bool authorizationSpecified = true;
+
     std::string authorizerName = flags.authorizer;
 
     Result<Authorizer*> createdAuthorizer((None()));
@@ -398,6 +435,9 @@ Try<process::Owned<Slave>> Slave::start(
         LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
 
         createdAuthorizer = Authorizer::create(flags.acls.get());
+      } else {
+        // Neither a non-default authorizer nor a set of ACLs were specified.
+        authorizationSpecified = false;
       }
     }
 
@@ -407,7 +447,16 @@ Try<process::Owned<Slave>> Slave::start(
     } else if (createdAuthorizer.isSome()) {
       slave->authorizer.reset(createdAuthorizer.get());
       authorizer = createdAuthorizer.get();
+
+      if (authorizationSpecified) {
+        // Authorization config was explicitly provided, so set authorization
+        // callbacks in libprocess.
+        slave->setAuthorizationCallbacks(authorizer.get());
+      }
     }
+  } else {
+    // An authorizer was provided, so set authorization callbacks in libprocess.
+    slave->setAuthorizationCallbacks(providedAuthorizer.get());
   }
 
   // If the garbage collector is not provided, create a default one.
@@ -467,6 +516,11 @@ Try<process::Owned<Slave>> Slave::start(
 
 Slave::~Slave()
 {
+  // Remove any libprocess authorization callbacks that were installed.
+  if (authorizationCallbacksSet) {
+    process::http::authorization::unsetCallbacks();
+  }
+
   // If either `shutdown()` or `terminate()` were called already,
   // skip the below container cleanup logic.  Additionally, we can skip
   // termination, as the shutdown/terminate will do this too.
@@ -508,6 +562,15 @@ Slave::~Slave()
   }();
 
   terminate();
+}
+
+
+void Slave::setAuthorizationCallbacks(Authorizer* authorizer)
+{
+  process::http::authorization::setCallbacks(
+      mesos::createAuthorizationCallbacks(authorizer));
+
+  authorizationCallbacksSet = true;
 }
 
 

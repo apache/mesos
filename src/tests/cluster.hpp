@@ -99,6 +99,9 @@ public:
   // The underlying master process.
   process::PID<master::Master> pid;
 
+  // Sets authorization callbacks in libprocess.
+  void setAuthorizationCallbacks(Authorizer* authorizer);
+
 private:
   Master() : files(master::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
 
@@ -121,6 +124,10 @@ private:
   process::Owned<master::Repairer> repairer;
 
   Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
+
+  // Indicates whether or not authorization callbacks were set when this master
+  // was constructed.
+  bool authorizationCallbacksSet;
 
   // The underlying master object.
   process::Owned<master::Master> master;
@@ -166,6 +173,9 @@ public:
   // The underlying slave process.
   process::PID<slave::Slave> pid;
 
+  // Sets authorization callbacks in libprocess.
+  void setAuthorizationCallbacks(Authorizer* authorizer);
+
 private:
   Slave() : files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
 
@@ -202,6 +212,10 @@ private:
   process::Owned<mesos::slave::QoSController> qosController;
   process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
   process::Owned<slave::StatusUpdateManager> statusUpdateManager;
+
+  // Indicates whether or not authorization callbacks were set when this agent
+  // was constructed.
+  bool authorizationCallbacksSet;
 
   // The underlying slave object.
   process::Owned<slave::Slave> slave;
