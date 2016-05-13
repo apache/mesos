@@ -56,3 +56,8 @@ Example:
   }
 }
 ```
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

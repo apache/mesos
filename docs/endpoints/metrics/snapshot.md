@@ -19,3 +19,8 @@ amount of time the endpoint will take to respond. If the timeout
 is exceeded, some metrics may not be included in the response.
 
 The key is the metric name, and the value is a double-type.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

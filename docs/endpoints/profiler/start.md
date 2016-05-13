@@ -12,3 +12,8 @@ Start profiling.
 
 ### DESCRIPTION ###
 Start to use google perftools do profiling.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

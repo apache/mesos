@@ -25,4 +25,8 @@ Query parameters:
 >                             toggled (e.g., 10secs, 15mins, etc.)
 
 
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.
+
 [glog]: https://code.google.com/p/google-glog

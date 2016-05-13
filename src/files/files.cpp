@@ -56,6 +56,7 @@
 
 using namespace process;
 
+using process::AUTHENTICATION;
 using process::DESCRIPTION;
 using process::HELP;
 using process::TLDR;
@@ -259,7 +260,8 @@ const string FilesProcess::BROWSE_HELP = HELP(
         "",
         "Query parameters:",
         "",
-        ">        path=VALUE          The path of directory to browse."));
+        ">        path=VALUE          The path of directory to browse."),
+    AUTHENTICATION(true));
 
 
 Future<Response> FilesProcess::browse(
@@ -334,7 +336,8 @@ const string FilesProcess::READ_HELP = HELP(
         ">        path=VALUE          The path of directory to browse.",
         ">        offset=VALUE        Value added to base address to obtain "
         "a second address",
-        ">        length=VALUE        Length of file to read."));
+        ">        length=VALUE        Length of file to read."),
+    AUTHENTICATION(true));
 
 
 Future<Response> FilesProcess::read(
@@ -476,7 +479,8 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
         "",
         "Query parameters:",
         "",
-        ">        path=VALUE          The path of directory to browse."));
+        ">        path=VALUE          The path of directory to browse."),
+    AUTHENTICATION(true));
 
 
 Future<Response> FilesProcess::download(
@@ -527,7 +531,8 @@ const string FilesProcess::DEBUG_HELP = HELP(
         "Returns the internal virtual path mapping."),
     DESCRIPTION(
         "This endpoint shows the internal virtual path map as a",
-        "JSON object."));
+        "JSON object."),
+    AUTHENTICATION(true));
 
 
 Future<Response> FilesProcess::debug(

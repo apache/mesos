@@ -17,3 +17,8 @@ a JSON object.
 Query parameters:
 
 >        path=VALUE          The path of directory to browse.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

@@ -13,3 +13,8 @@ Returns the internal virtual path mapping.
 ### DESCRIPTION ###
 This endpoint shows the internal virtual path map as a
 JSON object.
+
+
+### AUTHENTICATION ###
+This endpoint requires authentication iff HTTP authentication is
+enabled.

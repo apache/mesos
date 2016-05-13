@@ -52,6 +52,7 @@ using process::spawn;
 using process::terminate;
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using process::AUTHENTICATION;
 using process::DESCRIPTION;
 using process::Failure;
 using process::Future;
@@ -321,7 +322,8 @@ string RegistrarProcess::registryHelp()
           "    ]",
           "  }",
           "}",
-          "```"));
+          "```"),
+      AUTHENTICATION(true));
 }
 
 
