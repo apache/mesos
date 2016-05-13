@@ -5922,12 +5922,11 @@ void Master::reconcile(
   reregistered.mutable_slave_id()->CopyFrom(slave->id);
   reregistered.mutable_connection()->CopyFrom(connection);
 
-  // NOTE: copies are needed because removeTask modified slave->tasks.
-  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+  foreachkey (const FrameworkID& frameworkId, slave->tasks) {
     ReconcileTasksMessage reconcile;
     reconcile.mutable_framework_id()->CopyFrom(frameworkId);
 
-    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+    foreachvalue (Task* task, slave->tasks[frameworkId]) {
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
         LOG(WARNING) << "Task " << task->task_id()
                      << " of framework " << task->framework_id()
@@ -5980,6 +5979,9 @@ void Master::reconcile(
 
   // Now that we have the index for lookup, remove all the executors
   // in the master that are not known to the slave.
+  //
+  // NOTE: A copy is needed because removeExecutor modifies
+  // slave->executors.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
     foreachkey (const ExecutorID& executorId,
                 utils::copy(slave->executors[frameworkId])) {
