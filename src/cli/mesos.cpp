@@ -121,7 +121,7 @@ int main(int argc, char** argv)
   } else {
     string command = argv[1];
     if (command == "slave") {
-      cerr << "WARNING: subcommand 'slave' is deprecated in flavor of 'agent'."
+      cerr << "WARNING: subcommand 'slave' is deprecated in favor of 'agent'."
            << endl
            << endl;
     }
