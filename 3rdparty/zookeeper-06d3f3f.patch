@@ -138,7 +138,18 @@ index ccc3c18..b1f4bfe
  /* Define to 1 if you have the <arpa/inet.h> header file. */
  #undef HAVE_ARPA_INET_H
 
-@@ -171,12 +173,17 @@
+@@ -156,9 +158,2 @@ Allow APIs defined post NT4 to be used in files using the header
+
+-#ifndef _WIN32_WINNT_NT4
+-#define _WIN32_WINNT_NT4 0x0400
+-#endif
+-
+-#define NTDDI_VERSION _WIN32_WINNT_NT4
+-#define _WIN32_WINNT _WIN32_WINNT_NT4
+-
+#define _CRT_SECURE_NO_WARNINGS
+
+@@ -171,12 +164,17 @@
  #undef max
 
  #include <errno.h>
