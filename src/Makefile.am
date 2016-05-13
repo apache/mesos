@@ -859,10 +859,12 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/gc.hpp								\
   slave/metrics.hpp							\
   slave/paths.hpp							\
+  slave/posix_signalhandler.hpp						\
   slave/slave.hpp							\
   slave/state.hpp							\
   slave/status_update_manager.hpp					\
   slave/validation.hpp							\
+  slave/windows_ctrlhandler.hpp						\
   slave/container_loggers/sandbox.hpp					\
   slave/containerizer/composing.hpp					\
   slave/containerizer/containerizer.hpp					\
