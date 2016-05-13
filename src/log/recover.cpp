@@ -33,6 +33,7 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 
 #include "log/catchup.hpp"
 #include "log/recover.hpp"
@@ -332,7 +333,7 @@ private:
       // likelihood of conflicts (i.e., a replica receives a recover
       // request while it is changing its status).
       static const Duration T = Milliseconds(500);
-      Duration d = T * (1.0 + (double) ::random() / RAND_MAX);
+      Duration d = T * (1.0 + (double) os::random() / RAND_MAX);
       VLOG(2) << "Didn't receive enough responses for recovery, retrying "
               << "in " << stringify(d);
 

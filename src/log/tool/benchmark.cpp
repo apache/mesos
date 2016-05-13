@@ -31,6 +31,7 @@
 #include <stout/bytes.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/strings.hpp>
 #include <stout/os/read.hpp>
@@ -216,7 +217,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
     if (flags.type == "one") {
       data.push_back(string(sizes[i].bytes(), static_cast<char>(0xff)));
     } else if (flags.type == "random") {
-      data.push_back(string(sizes[i].bytes(), ::random() % 256));
+      data.push_back(string(sizes[i].bytes(), os::random() % 256));
     } else {
       data.push_back(string(sizes[i].bytes(), 0));
     }

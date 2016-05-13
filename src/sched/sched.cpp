@@ -811,7 +811,7 @@ protected:
     // Determine the delay for next attempt by picking a random
     // duration between 0 and 'maxBackoff'.
     // TODO(vinod): Use random numbers from <random> header.
-    Duration delay = maxBackoff * ((double) ::random() / RAND_MAX);
+    Duration delay = maxBackoff * ((double) os::random() / RAND_MAX);
 
     VLOG(1) << "Will retry registration in " << delay << " if necessary";
 

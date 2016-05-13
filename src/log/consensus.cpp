@@ -27,6 +27,7 @@
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
+#include <stout/os.hpp>
 #include <stout/nothing.hpp>
 #include <stout/foreach.hpp>
 
@@ -771,7 +772,7 @@ private:
     // one proposer usually times out and wins before others wake up.
     // On the other hand, we want T to be as small as possible such
     // that we can reduce the wait time.
-    Duration d = T * (1.0 + (double) ::random() / RAND_MAX);
+    Duration d = T * (1.0 + (double) os::random() / RAND_MAX);
     delay(d, self(), &Self::runPromisePhase);
   }
 

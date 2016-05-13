@@ -485,7 +485,7 @@ protected:
 
     // Linearly backoff by picking a random duration between 0 and
     // `maxBackoff`.
-    Duration backoff = maxBackoff.get() * ((double) ::random() / RAND_MAX);
+    Duration backoff = maxBackoff.get() * ((double) os::random() / RAND_MAX);
 
     VLOG(1) << "Will retry connecting with the agent again in " << backoff;
 
