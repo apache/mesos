@@ -195,13 +195,19 @@ protected:
     return slave;
   }
 
-  FrameworkInfo createFrameworkInfo(const string& role)
+  FrameworkInfo createFrameworkInfo(
+      const string& role,
+      const vector<FrameworkInfo::Capability::Type>& capabilities = {})
   {
     FrameworkInfo frameworkInfo;
     frameworkInfo.set_user("user");
     frameworkInfo.set_name("framework" + stringify(nextFrameworkId++));
     frameworkInfo.mutable_id()->set_value(frameworkInfo.name());
     frameworkInfo.set_role(role);
+
+    foreach (const FrameworkInfo::Capability::Type& capability, capabilities) {
+      frameworkInfo.add_capabilities()->set_type(capability);
+    }
 
     return frameworkInfo;
   }
@@ -1193,9 +1199,9 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlave)
   allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
 
   // Add a framework that can accept revocable resources.
-  FrameworkInfo framework = createFrameworkInfo("role1");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+  FrameworkInfo framework = createFrameworkInfo(
+      "role1",
+      {FrameworkInfo::Capability::REVOCABLE_RESOURCES});
   allocator->addFramework(framework.id(), framework, {});
 
   // Initially, all the resources are allocated.
@@ -1280,9 +1286,9 @@ TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
   allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
 
   // Add a framework that can accept revocable resources.
-  FrameworkInfo framework = createFrameworkInfo("role1");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+  FrameworkInfo framework = createFrameworkInfo(
+      "role1",
+      {FrameworkInfo::Capability::REVOCABLE_RESOURCES});
   allocator->addFramework(framework.id(), framework, {});
 
   // Initially, all the resources are allocated.
@@ -2957,9 +2963,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   }
 
   for (unsigned i = 0; i < frameworkCount; i++) {
-    frameworks.push_back(createFrameworkInfo("*"));
-    frameworks.back().add_capabilities()->set_type(
-        FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+    frameworks.push_back(createFrameworkInfo(
+        "*",
+        {FrameworkInfo::Capability::REVOCABLE_RESOURCES}));
   }
 
   cout << "Using " << slaveCount << " agents"
