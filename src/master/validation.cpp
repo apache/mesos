@@ -744,11 +744,6 @@ Option<Error> validate(
             "request with principal '" + resource.reservation().principal() +
             "' set in `ReservationInfo`");
       }
-    } else if (resource.reservation().has_principal()) {
-      return Error(
-          "A reserve operation was attempted with no principal, but there is a "
-          "reserved resource in the request with principal '" +
-          resource.reservation().principal() + "' set in `ReservationInfo`");
     }
 
     // NOTE: This check would be covered by 'contains' since there

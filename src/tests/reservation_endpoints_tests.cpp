@@ -1436,6 +1436,30 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+  Resources dynamicallyReservedWithPrincipal = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  // Try a reservation with a principal in `ReservationInfo` and no
+  // authentication headers.
+  response = process::http::post(
+      master.get()->pid,
+      "reserve",
+      None(),
+      createRequestBody(slaveId.get(), dynamicallyReservedWithPrincipal));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+  // Try to unreserve with a principal in `ReservationInfo` and no
+  // authentication headers.
+  response = process::http::post(
+      master.get()->pid,
+      "unreserve",
+      None(),
+      createRequestBody(slaveId.get(), dynamicallyReservedWithPrincipal));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 }
 
 
