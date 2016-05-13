@@ -724,8 +724,9 @@ private:
     TaskState taskState;
     string message;
 
-    CHECK_SOME(killGracePeriodTimer);
-    Clock::cancel(killGracePeriodTimer.get());
+    if (killGracePeriodTimer.isSome()) {
+      Clock::cancel(killGracePeriodTimer.get());
+    }
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
