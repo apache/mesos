@@ -42,7 +42,8 @@ const std::string Profiler::START_HELP()
     TLDR(
         "Start profiling."),
     DESCRIPTION(
-        "Start to use google perftools do profiling."));
+        "Start to use google perftools do profiling."),
+    AUTHENTICATION(true));
 }
 
 
@@ -52,7 +53,8 @@ const std::string Profiler::STOP_HELP()
     TLDR(
         "Stops profiling."),
     DESCRIPTION(
-        "Stop to use google perftools do profiling."));
+        "Stop to use google perftools do profiling."),
+    AUTHENTICATION(true));
 }
 
 

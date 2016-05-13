@@ -94,7 +94,7 @@ const std::string Logging::TOGGLE_HELP()
         ">        level=VALUE          Verbosity level (e.g., 1, 2, 3)",
         ">        duration=VALUE       Duration to keep verbosity level",
         ">                             toggled (e.g., 10secs, 15mins, etc.)"),
-    None(),
+    AUTHENTICATION(true),
     None(),
     REFERENCES(
         "[glog]: https://code.google.com/p/google-glog"));
