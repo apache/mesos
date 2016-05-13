@@ -352,6 +352,10 @@ static Try<Nothing> setProjectIdRecursively(
     return error;
   }
 
+  if (::fts_close(tree) != 0) {
+    return ErrnoError("Failed to stop traversing file system");
+  }
+
   return Nothing();
 }
 
