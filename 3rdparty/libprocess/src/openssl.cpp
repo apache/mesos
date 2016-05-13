@@ -284,11 +284,16 @@ void reinitialize()
 
   // Load all the flags prefixed by SSL_ from the environment. See
   // comment at top of openssl.hpp for a full list.
-  Try<Nothing> load = ssl_flags->load("SSL_");
+  Try<flags::Warnings> load = ssl_flags->load("SSL_");
   if (load.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to load flags from environment variables (prefixed by SSL_):"
       << load.error();
+  }
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   // Exit early if SSL is not enabled.

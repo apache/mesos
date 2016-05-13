@@ -90,7 +90,7 @@ Flags SSLClientTest::flags;
 int main(int argc, char** argv)
 {
   // Load all the client flags.
-  Try<Nothing> load = SSLClientTest::flags.load("", argc, argv);
+  Try<flags::Warnings> load = SSLClientTest::flags.load("", argc, argv);
   if (load.isError()) {
     EXIT(EXIT_FAILURE) << "Failed to load flags: " << load.error();
   }
@@ -98,6 +98,11 @@ int main(int argc, char** argv)
   if (SSLClientTest::flags.help) {
     cout << SSLClientTest::flags.usage() << endl;
     return EXIT_SUCCESS;
+  }
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    cout << warning.message << endl;
   }
 
   process::initialize();
