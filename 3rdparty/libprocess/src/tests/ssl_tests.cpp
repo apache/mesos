@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/io.hpp>
@@ -41,6 +42,7 @@ namespace openssl = network::openssl;
 using network::Address;
 using network::Socket;
 
+using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Subprocess;
@@ -704,6 +706,65 @@ TEST_F(SSLTest, HTTPSPost)
   AWAIT_ASSERT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   ASSERT_EQ(data, response.get().body);
+}
+
+
+// This test ensures that if an SSL connection never sends any
+// data (i.e. no handshake or downgrade completes), it will not
+// impact our ability to accept additional connections.
+// This test was added due to MESOS-5340.
+TEST_F(SSLTest, SilentSocket)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server->address());
+  ASSERT_SOME(server->address()->hostname());
+
+  Future<Socket> socket = server->accept();
+
+  // We initiate a connection on which we will not send
+  // any data. This means the socket on the server will
+  // not complete the SSL handshake, nor be downgraded.
+  // As a result, we expect that the server will not see
+  // an accepted socket for this connection.
+  Try<Socket> connection = Socket::create(Socket::POLL);
+  ASSERT_SOME(connection);
+  connection->connect(server->address().get());
+
+  // Note that settling libprocess is not sufficient
+  // for ensuring socket events are processed.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  ASSERT_TRUE(socket.isPending());
+
+  // Now send an HTTP GET request, it should complete
+  // without getting blocked by the socket above
+  // undergoing the SSL handshake.
+  const http::URL url(
+      "https",
+      server->address()->hostname().get(),
+      server->address()->port);
+
+  Future<http::Response> response = http::get(url);
+
+  AWAIT_READY(socket);
+
+  // Send the response from the server.
+  const string buffer = string() +
+    "HTTP/1.1 200 OK\r\n" +
+    "Content-Length: " + stringify(data.length()) + "\r\n" +
+    "\r\n" +
+    data;
+  AWAIT_READY(Socket(socket.get()).send(buffer));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  EXPECT_EQ(data, response->body);
 }
 
 #endif // USE_SSL_SOCKET
