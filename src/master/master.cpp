@@ -132,6 +132,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
 
+static bool isValidFailoverTimeout(const FrameworkInfo& frameworkinfo);
 
 class SlaveObserver : public ProtobufProcess<SlaveObserver>
 {
@@ -1384,24 +1385,13 @@ void Master::_exited(Framework* framework)
   // Disconnect the framework.
   disconnect(framework);
 
-  // Set 'failoverTimeout' to the default and update only if the
-  // input is valid.
+  // We can assume framework's failover_timeout is valid
+  // because it has been validated in framework subscription.
   Try<Duration> failoverTimeout_ =
-    Duration::create(FrameworkInfo().failover_timeout());
+    Duration::create(framework->info.failover_timeout());
 
   CHECK_SOME(failoverTimeout_);
   Duration failoverTimeout = failoverTimeout_.get();
-
-  failoverTimeout_ =
-    Duration::create(framework->info.failover_timeout());
-
-  if (failoverTimeout_.isSome()) {
-    failoverTimeout = failoverTimeout_.get();
-  } else {
-    LOG(WARNING) << "Using the default value for 'failover_timeout' because "
-                 << "the input value is invalid: "
-                 << failoverTimeout_.error();
-  }
 
   LOG(INFO) << "Giving framework " << *framework << " "
             << failoverTimeout << " to failover";
@@ -2252,6 +2242,12 @@ void Master::subscribe(
     }
   }
 
+  if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
+    validationError = Error("The framework failover_timeout (" +
+                            stringify(frameworkInfo.failover_timeout()) +
+                            ") is invalid");
+  }
+
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "': "
@@ -2468,6 +2464,12 @@ void Master::subscribe(
         break;
       }
     }
+  }
+
+  if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
+    validationError = Error("The framework failover_timeout (" +
+                            stringify(frameworkInfo.failover_timeout()) +
+                            ") is invalid");
   }
 
   // Note that re-authentication errors are already handled above.
@@ -7333,6 +7335,11 @@ double Master::_resources_revocable_percent(const string& name)
   }
 
   return _resources_revocable_used(name) / total;
+}
+
+static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
+{
+  return Duration::create(frameworkInfo.failover_timeout()).isSome();
 }
 
 } // namespace master {

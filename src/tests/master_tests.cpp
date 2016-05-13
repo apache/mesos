@@ -4471,6 +4471,33 @@ TEST_F(MasterTest, EndpointsBadAuthentication)
   }
 }
 
+
+TEST_F(MasterTest, RejectFrameworkWithInvalidFailoverTimeout)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+
+  // Add invalid failover timeout to the FrameworkInfo.
+  // As the timeout is represented using nanoseconds as an int64, the
+  // following value converted to seconds is too large and does not
+  // fit in int64.
+  framework.set_failover_timeout(99999999999999999);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(error);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
