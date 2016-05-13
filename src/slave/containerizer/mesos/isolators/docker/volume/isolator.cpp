@@ -98,18 +98,18 @@ Try<Isolator*> DockerVolumeIsolatorProcess::_create(
   // Create the docker volume information root directory if it does
   // not exist, this directory is used to checkpoint the docker
   // volumes used by containers.
-  Try<Nothing> mkdir = os::mkdir(paths::ROOT_DIR);
+  Try<Nothing> mkdir = os::mkdir(flags.docker_volume_checkpoint_dir);
   if (mkdir.isError()) {
     return Error(
         "Failed to create docker volume information root directory at '" +
-        string(paths::ROOT_DIR) + "': " + mkdir.error());
+        flags.docker_volume_checkpoint_dir + "': " + mkdir.error());
   }
 
-  Result<string> rootDir = os::realpath(paths::ROOT_DIR);
+  Result<string> rootDir = os::realpath(flags.docker_volume_checkpoint_dir);
   if (!rootDir.isSome()) {
     return Error(
         "Failed to determine canonical path of docker volume information root "
-        "directory at '" + string(paths::ROOT_DIR) + "': " +
+        "directory at '" + flags.docker_volume_checkpoint_dir + "': " +
         (rootDir.isError() ? rootDir.error() : "No such file or directory"));
   }
 

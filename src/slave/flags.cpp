@@ -140,6 +140,12 @@ mesos::internal::slave::Flags::Flags()
       "Directory the Docker provisioner will store images in",
       "/tmp/mesos/store/docker");
 
+  add(&Flags::docker_volume_checkpoint_dir,
+      "docker_volume_checkpoint_dir",
+      "The root directory where we checkpoint the information about docker\n"
+      "volumes that each container uses.",
+      "/var/run/mesos/isolators/docker/volume");
+
   add(&Flags::default_role,
       "default_role",
       "Any resources in the `--resources` flag that\n"

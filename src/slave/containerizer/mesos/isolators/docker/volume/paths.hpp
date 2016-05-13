@@ -26,17 +26,15 @@ namespace docker {
 namespace volume {
 namespace paths {
 
-// The root directory where we keep the information about volumes that
-// each container uses. The layout is as follows:
-//   /var/run/mesos/isolators/docker/volume
+// We checkpoint the information about docker volumes that each
+// container uses. The layout is as follows:
+//   <docker_volume_checkpoint_dir> ('--docker_volume_checkpoint_dir' flag)
 //      |-- <ID of Container1>/
 //      |      |-- volumes
 //      |-- <ID of Container2>/
 //      |      |-- volumes
 //      |-- <ID of Container3>/
 //      |-- ...
-constexpr char ROOT_DIR[] = "/var/run/mesos/isolators/docker/volume";
-
 
 std::string getContainerDir(
     const std::string& rootDir,
