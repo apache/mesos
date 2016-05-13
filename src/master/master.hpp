@@ -1232,6 +1232,9 @@ private:
         Resources required,
         const Offer::Operation& operation) const;
 
+    // Helper routines for endpoint authorization.
+    Try<std::string> extractEndpoint(const process::http::URL& url) const;
+
     // Authorizes access to an HTTP endpoint. The `method` parameter
     // determines which ACL action will be used in the authorization.
     // It is expected that the caller has validated that `method` is

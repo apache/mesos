@@ -360,9 +360,20 @@ Future<Response> Slave::Http::flags(
     const Request& request,
     const Option<string>& principal) const
 {
+  // TODO(nfnt): Remove check for enabled
+  // authorization as part of MESOS-5346.
+  if (request.method != "GET" && slave->authorizer.isSome()) {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
   const Flags slaveFlags = slave->flags;
 
-  return authorizeEndpoint(request, principal)
+  Try<string> endpoint = extractEndpoint(request.url);
+  if (endpoint.isError()) {
+    return Failure("Failed to extract endpoint: " + endpoint.error());
+  }
+
+  return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
         slave->self(),
         [request, slaveFlags](bool authorized) -> Future<Response> {
@@ -631,10 +642,21 @@ Future<Response> Slave::Http::statistics(
     const Request& request,
     const Option<string>& principal) const
 {
+  // TODO(nfnt): Remove check for enabled
+  // authorization as part of MESOS-5346.
+  if (request.method != "GET" && slave->authorizer.isSome()) {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
   const PID<Slave> pid = slave->self();
   Shared<RateLimiter> limiter = statisticsLimiter;
 
-  return authorizeEndpoint(request, principal)
+  Try<string> endpoint = extractEndpoint(request.url);
+  if (endpoint.isError()) {
+    return Failure("Failed to extract endpoint: " + endpoint.error());
+  }
+
+  return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
         pid,
         [pid, limiter, request](bool authorized) -> Future<Response> {
@@ -812,51 +834,55 @@ Future<Response> Slave::Http::containers(const Request& request) const
 }
 
 
+Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
+{
+  // Paths are of the form "/slave(n)/endpoint". We're only interested
+  // in the part after "/slave(n)" and tokenize the path accordingly.
+  //
+  // TODO(alexr): In the long run, absolute paths for
+  // endpoins should be supported, see MESOS-5369.
+  const vector<string> pathComponents = strings::tokenize(url.path, "/", 2);
+
+  if (pathComponents.size() < 2u ||
+      pathComponents[0] != slave->self().id) {
+    return Error("Unexpected path '" + url.path + "'");
+  }
+
+  return "/" + pathComponents[1];
+}
+
+
 Future<bool> Slave::Http::authorizeEndpoint(
-    const Request& httpRequest,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const string& endpoint,
+    const string& method) const
 {
   if (slave->authorizer.isNone()) {
     return true;
   }
 
-  // Paths are of the form "/slave(n)/endpoint". We're only interested
-  // in the part after "/slave(n)" and tokenize the path accordingly.
-  //
-  // TODO(alexr): Refactor this into a helper function in `Slave::Http` so
-  // that other endpoints can reuse it. In the long run, absolute paths for
-  // endpoins should be supported, see MESOS-5369.
-  const vector<string> pathComponents =
-    strings::tokenize(httpRequest.url.path, "/", 2);
+  authorization::Request request;
 
-  if (pathComponents.size() != 2u ||
-      pathComponents[0] != slave->self().id) {
-    return Failure("Unexpected path '" + httpRequest.url.path + "'");
-  }
-  const string endpoint = "/" + pathComponents[1];
-
-  authorization::Request authorizationRequest;
-
-  // TODO(nfnt): Add an additional case when POST requests need to be
-  // authorized separately from GET requests.
-  if (httpRequest.method == "GET") {
-    authorizationRequest.set_action(authorization::GET_ENDPOINT_WITH_PATH);
+  // TODO(nfnt): Add an additional case when POST requests
+  // need to be authorized separately from GET requests.
+  if (method == "GET") {
+    request.set_action(authorization::GET_ENDPOINT_WITH_PATH);
   } else {
-    return Failure("Unexpected request method '" + httpRequest.method + "'");
+    return Failure("Unexpected request method '" + method + "'");
   }
 
   if (principal.isSome()) {
-    authorizationRequest.mutable_subject()->set_value(principal.get());
+    request.mutable_subject()->set_value(principal.get());
   }
 
-  authorizationRequest.mutable_object()->set_value(endpoint);
+  request.mutable_object()->set_value(endpoint);
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? principal.get() : "ANY")
-            << "' to " <<  httpRequest.method
+            << "' to " <<  method
             << " the '" << endpoint << "' endpoint";
 
-  return slave->authorizer.get()->authorized(authorizationRequest);
+  return slave->authorizer.get()->authorized(request);
 }
 
 } // namespace slave {

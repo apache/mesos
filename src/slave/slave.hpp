@@ -472,20 +472,26 @@ private:
         const process::http::Request& request,
         const Flags& flags);
 
-    // Authorizes access to an HTTP endpoint. It extracts the endpoint
-    // from the URL of the request by removing the "/slave(n)" part of
-    // the URL's path. The request's `method` determines which ACL action
-    // will be used in the authorization.
-    process::Future<bool> authorizeEndpoint(
-        const process::http::Request& request,
-        const Option<std::string>& principal) const;
-
-
     // Make continuation for `statistics` `static` as it might
     // execute when the invoking `Http` is already destructed.
     static process::http::Response _statistics(
         const ResourceUsage& usage,
         const process::http::Request& request);
+
+    // Helper routines for endpoint authorization.
+    Try<std::string> extractEndpoint(const process::http::URL& url) const;
+
+    // Authorizes access to an HTTP endpoint. The `method` parameter
+    // determines which ACL action will be used in the authorization.
+    // It is expected that the caller has validated that `method` is
+    // supported by this function. Currently "GET" is supported.
+    //
+    // TODO(nfnt): Prefer types instead of strings
+    // for `endpoint` and `method`, see MESOS-5300.
+    process::Future<bool> authorizeEndpoint(
+        const Option<std::string>& principal,
+        const std::string& endpoint,
+        const std::string& method) const;
 
     Slave* slave;
 

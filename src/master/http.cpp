@@ -870,31 +870,21 @@ Future<Response> Master::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  // Paths are of the form "/master/endpoint". We're only interested
-  // in the part after "/master" and tokenize the path accordingly.
-  //
-  // TODO(nfnt): Refactor this into a helper function in `Master::Http` so
-  // that other endpoints can reuse it. In the long run, absolute paths for
-  // endpoins should be supported, see MESOS-5369.
-  const vector<string> pathComponents =
-    strings::tokenize(request.url.path, "/", 2);
-
-  if (pathComponents.size() != 2u ||
-      pathComponents[0] != master->self().id) {
-    return Failure("Unexpected path '" + request.url.path + "'");
+  Try<string> endpoint = extractEndpoint(request.url);
+  if (endpoint.isError()) {
+    return Failure("Failed to extract endpoint: " + endpoint.error());
   }
-  const string endpoint = "/" + pathComponents[1];
 
-  return authorizeEndpoint(principal, endpoint, request.method)
+  return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
-          master->self(),
-          [this, request](bool authorized) -> Future<Response> {
-            if (!authorized) {
-              return Forbidden();
-            }
+        master->self(),
+        [this, request](bool authorized) -> Future<Response> {
+          if (!authorized) {
+            return Forbidden();
+          }
 
-            return _flags(request);
-          }));
+          return _flags(request);
+        }));
 }
 
 
@@ -2850,6 +2840,24 @@ Future<Response> Master::Http::_operation(
     .repair([](const Future<Response>& result) {
        return Conflict(result.failure());
     });
+}
+
+
+Try<string> Master::Http::extractEndpoint(const process::http::URL& url) const
+{
+  // Paths are of the form "/master/endpoint". We're only interested
+  // in the part after "/master" and tokenize the path accordingly.
+  //
+  // TODO(nfnt): In the long run, absolute paths for
+  // endpoins should be supported, see MESOS-5369.
+  const vector<string> pathComponents = strings::tokenize(url.path, "/", 2);
+
+  if (pathComponents.size() < 2u ||
+      pathComponents[0] != master->self().id) {
+    return Error("Unexpected path '" + url.path + "'");
+  }
+
+  return "/" + pathComponents[1];
 }
 
 
