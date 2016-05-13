@@ -13,33 +13,66 @@
 #ifndef __STOUT_OS_WINDOWS_FCNTL_HPP__
 #define __STOUT_OS_WINDOWS_FCNTL_HPP__
 
+#include <glog/logging.h>
+
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/socket.hpp>
 
 
 namespace os {
 
+// NOTE: This is not supported on Windows.
 inline Try<Nothing> cloexec(int fd)
 {
-  UNIMPLEMENTED;
+  LOG(WARNING) << "`os::cloexec` has been called, but is a no-op on Windows";
+  return Nothing();
 }
 
 
+// NOTE: This is not supported on Windows.
 inline Try<bool> isCloexec(int fd)
 {
-  UNIMPLEMENTED;
+  LOG(WARNING) << "`os::isCloexec` has been called, but is a stub on Windows";
+  return true;
 }
 
 
 inline Try<Nothing> nonblock(int fd)
 {
-  UNIMPLEMENTED;
+  if (net::is_socket(fd)) {
+    const u_long non_block_mode = 1;
+    u_long mode = non_block_mode;
+
+    int result = ioctlsocket(fd, FIONBIO, &mode);
+    if (result != NO_ERROR) {
+      return WindowsSocketError();
+    }
+  } else {
+    // Extract handle from file descriptor.
+    HANDLE handle = reinterpret_cast<HANDLE>(::_get_osfhandle(fd));
+    if (handle == INVALID_HANDLE_VALUE) {
+      return WindowsError("Failed to get `HANDLE` for file descriptor");
+    }
+
+    if (GetFileType(handle) == FILE_TYPE_PIPE) {
+      DWORD pipe_mode = PIPE_NOWAIT;
+      if (SetNamedPipeHandleState(handle, &pipe_mode, NULL, NULL)) {
+        return WindowsError();
+      }
+    }
+  }
+
+  return Nothing();
 }
 
 
+// NOTE: This is not supported on Windows.
 inline Try<bool> isNonblock(int fd)
 {
-  UNIMPLEMENTED;
+  LOG(WARNING) << "`os::isNonblock` has been called, but is a stub on Windows";
+  return true;
 }
 
 } // namespace os {
