@@ -2151,6 +2151,10 @@ void Slave::killTask(
 
   switch (executor->state) {
     case Executor::REGISTERING: {
+      LOG(WARNING) << "Transitioning the state of task " << taskId
+                   << " of framework " << frameworkId
+                   << " to TASK_KILED because the executor is not registered";
+
       // The executor hasn't registered yet.
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
@@ -2167,24 +2171,6 @@ void Slave::killTask(
       // task from 'executor->queuedTasks', so that if the executor
       // registers at a later point in time, it won't get this task.
       statusUpdate(update, UPID());
-
-      // TODO(jieyu): Here, we kill the executor if it no longer has
-      // any task to run and has not yet registered. This is a
-      // workaround for those single task executors that do not have a
-      // proper self terminating logic when they haven't received the
-      // task within a timeout.
-      if (executor->queuedTasks.empty()) {
-        CHECK(executor->launchedTasks.empty())
-            << " Unregistered executor '" << executor->id
-            << "' has launched tasks";
-
-        LOG(WARNING) << "Killing the unregistered executor " << *executor
-                     << " because it has no tasks";
-
-        executor->state = Executor::TERMINATING;
-
-        containerizer->destroy(executor->containerId);
-      }
       break;
     }
     case Executor::TERMINATING:
@@ -2969,6 +2955,24 @@ void Slave::registerExecutor(
       message.mutable_slave_info()->MergeFrom(info);
       executor->send(message);
 
+      // Here, we kill the executor if it no longer has any task to run
+      // (e.g., framework sent a `killTask()`). This is a workaround for those
+      // single task executors (e.g., command executor) that do not have a
+      // proper self terminating logic when they haven't received the task
+      // within a timeout.
+      if (executor->queuedTasks.empty()) {
+        CHECK(executor->launchedTasks.empty())
+            << " Newly registered executor '" << executor->id
+            << "' has launched tasks";
+
+        LOG(WARNING) << "Shutting down the executor " << *executor
+                     << " because it has no tasks to run";
+
+        _shutdownExecutor(framework, executor);
+
+        return;
+      }
+
       // Update the resource limits for the container. Note that the
       // resource limits include the currently queued tasks because we
       // want the container to have enough resources to hold the
@@ -3122,6 +3126,9 @@ void Slave::reregisterExecutor(
           statusUpdate(update, UPID());
         }
       }
+
+      // TODO(vinod): Similar to what we do in `registerExecutor()` the executor
+      // should be shutdown if it hasn't received any tasks.
       break;
     }
     default:
