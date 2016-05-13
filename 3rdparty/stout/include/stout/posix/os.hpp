@@ -87,11 +87,14 @@
 
 namespace os {
 
-// Import `::gmtime_r` into `os::` namespace
+// Import `::gmtime_r` into `os::` namespace.
 using ::gmtime_r;
 
-// Import `::hstrerror` into `os::` namespace
+// Import `::hstrerror` into `os::` namespace.
 using ::hstrerror;
+
+// Import `::random` into `os::` namespace.
+using ::random;
 
 // Forward declarations.
 inline Try<Nothing> utime(const std::string&);

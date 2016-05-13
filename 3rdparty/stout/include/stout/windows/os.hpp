@@ -667,6 +667,11 @@ inline Result<Process> process(pid_t pid)
 }
 
 
+inline int random()
+{
+  return rand();
+}
+
 } // namespace os {
 
 #endif // __STOUT_WINDOWS_OS_HPP__

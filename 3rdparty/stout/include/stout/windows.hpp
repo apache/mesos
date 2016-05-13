@@ -117,19 +117,6 @@ inline BOOL GetMessage(
 #endif // GetMessage
 
 
-// Zookeeper's native `winconfig.h` defines a macro `random` to point at
-// `rand`. This inteferes with `UUID::rand`, so we redfine it as a global
-// function in a manner similar to the `GetMessage` macro above. See the
-// accompanying comment for rationale.
-#ifdef random
-#undef random
-inline int random()
-{
-  return rand();
-}
-#endif // random
-
-
 // Define constants used for Windows compat. Allows a lot of code on
 // Windows and POSIX systems to be the same, because we can pass the
 // same constants to functions we call to do things like file I/O.
