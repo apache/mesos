@@ -56,6 +56,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+
 #ifdef __linux__
 #include <stout/proc.hpp>
 #endif // __linux__
@@ -91,6 +92,16 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
+
+#ifdef __WINDOWS__
+// Used to install a Windows console ctrl handler.
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ms682066(v=vs.85).aspx
+#include <slave/windows_ctrlhandler.hpp>
+#else
+// Used to install a handler for POSIX signal.
+// http://pubs.opengroup.org/onlinepubs/009695399/functions/sigaction.html
+#include <slave/posix_signalhandler.hpp>
+#endif // __WINDOWS__
 
 using mesos::executor::Call;
 
@@ -173,18 +184,6 @@ Slave::~Slave()
 
   delete authenticatee;
 }
-
-
-lambda::function<void(int, int)>* signaledWrapper = NULL;
-
-
-static void signalHandler(int sig, siginfo_t* siginfo, void* context)
-{
-  if (signaledWrapper != NULL) {
-    (*signaledWrapper)(sig, siginfo->si_uid);
-  }
-}
-
 
 void Slave::signaled(int signal, int uid)
 {
@@ -605,7 +604,8 @@ void Slave::initialize()
 
   LOG(INFO) << "Agent hostname: " << info.hostname();
 
-  statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
+  statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)
+    .operator std::function<void(StatusUpdate)>());
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
@@ -791,24 +791,20 @@ void Slave::initialize()
       << " Please run the agent with '--help' to see the valid options";
   }
 
-  struct sigaction action;
-  memset(&action, 0, sizeof(struct sigaction));
+  auto signalHandler = defer(self(), &Slave::signaled, lambda::_1, lambda::_2)
+    .operator std::function<void(int, int)>();
 
-  // Do not block additional signals while in the handler.
-  sigemptyset(&action.sa_mask);
-
-  // The SA_SIGINFO flag tells sigaction() to use
-  // the sa_sigaction field, not sa_handler.
-  action.sa_flags = SA_SIGINFO;
-
-  signaledWrapper = new lambda::function<void(int, int)>(
-      defer(self(), &Slave::signaled, lambda::_1, lambda::_2));
-
-  action.sa_sigaction = signalHandler;
-
-  if (sigaction(SIGUSR1, &action, NULL) < 0) {
-    EXIT(EXIT_FAILURE) << "Failed to set sigaction: " << os::strerror(errno);
+#ifdef __WINDOWS__
+  if (!os::internal::installCtrlHandler(&signalHandler)) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to configure consoel handlers: " << WindowsError().message;
   }
+#else
+  if (os::internal::configureSignal(&signalHandler) < 0) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to configure signal handlers: " << os::strerror(errno);
+  }
+#endif  // __WINDOWS__
 
   // Do recovery.
   async(&state::recover, metaDir, flags.strict)
@@ -816,7 +812,6 @@ void Slave::initialize()
     .then(defer(self(), &Slave::_recover))
     .onAny(defer(self(), &Slave::__recover, lambda::_1));
 }
-
 
 void Slave::finalize()
 {
