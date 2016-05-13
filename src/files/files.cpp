@@ -60,7 +60,6 @@ using process::AUTHENTICATION;
 using process::DESCRIPTION;
 using process::HELP;
 using process::TLDR;
-using process::USAGE;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::BadRequest;

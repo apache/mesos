@@ -62,7 +62,6 @@ using process::PID;
 using process::Process;
 using process::Promise;
 using process::TLDR;
-using process::USAGE;
 
 using process::http::OK;
 

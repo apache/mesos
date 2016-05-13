@@ -66,7 +66,6 @@ using process::Future;
 using process::HELP;
 using process::Owned;
 using process::TLDR;
-using process::USAGE;
 
 using process::http::Accepted;
 using process::http::BadRequest;
