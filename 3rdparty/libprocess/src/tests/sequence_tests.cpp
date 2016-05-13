@@ -23,6 +23,7 @@
 #include <process/sequence.hpp>
 
 #include <stout/nothing.hpp>
+#include <stout/os.hpp>
 
 using process::Clock;
 using process::Future;
@@ -255,7 +256,7 @@ TEST(SequenceTest, Random)
     // We randomly do 'pulse' and 'verify'. The idea here is that: if
     // sequence is not used, a 'verify' may see an intermediate
     // result of a 'pulse', in which case the value is not zero.
-    if (::random() % 2 == 0) {
+    if (os::random() % 2 == 0) {
       f = defer(process, &RandomProcess::pulse);
     } else {
       f = defer(process, &RandomProcess::verify);
