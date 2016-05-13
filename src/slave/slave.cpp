@@ -794,7 +794,6 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
     master = UPID(_master.get().get().pid());
 
     LOG(INFO) << "New master detected at " << master.get();
-    link(master.get());
 
     if (state == TERMINATING) {
       LOG(INFO) << "Skipping registration because slave is terminating";
@@ -857,6 +856,10 @@ void Slave::authenticate()
   }
 
   LOG(INFO) << "Authenticating with master " << master.get();
+
+  // Ensure there is a link to the master before we start
+  // communicating with it.
+  link(master.get());
 
   CHECK(authenticatee == NULL);
 
@@ -1196,6 +1199,13 @@ void Slave::doReliableRegistration(Duration maxBackoff)
   CHECK(state == DISCONNECTED) << state;
 
   CHECK_NE("cleanup", flags.recover);
+
+  // Ensure there is a link to the master before we start
+  // communicating with it. We want to link after the initial
+  // registration backoff in order to avoid all of the agents
+  // establishing connections with the master at once.
+  // See MESOS-5330.
+  link(master.get());
 
   if (!info.has_id()) {
     // Registering for the first time.
