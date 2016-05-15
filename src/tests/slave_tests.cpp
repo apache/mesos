@@ -2124,7 +2124,8 @@ TEST_F(SlaveTest, KillTaskUnregisteredExecutor)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(0);
 
   EXPECT_CALL(exec, launchTask(_, _))
     .Times(0);

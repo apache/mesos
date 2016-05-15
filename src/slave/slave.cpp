@@ -2717,20 +2717,14 @@ void Slave::registerExecutor(
         CHECK_SOME(state::checkpoint(path, executor->pid.get()));
       }
 
-      // Tell executor it's registered and give it any queued tasks.
-      ExecutorRegisteredMessage message;
-      message.mutable_executor_info()->MergeFrom(executor->info);
-      message.mutable_framework_id()->MergeFrom(framework->id());
-      message.mutable_framework_info()->MergeFrom(framework->info);
-      message.mutable_slave_id()->MergeFrom(info.id());
-      message.mutable_slave_info()->MergeFrom(info);
-      executor->send(message);
-
       // Here, we kill the executor if it no longer has any task to run
       // (e.g., framework sent a `killTask()`). This is a workaround for those
       // single task executors (e.g., command executor) that do not have a
       // proper self terminating logic when they haven't received the task
-      // within a timeout.
+      // within a timeout. Also note even if the agent restarts before sending
+      // this shutdown message, it is safe because the executor driver shuts
+      // down the executor if it gets disconnected from the agent before
+      // registration.
       if (executor->queuedTasks.empty()) {
         CHECK(executor->launchedTasks.empty())
             << " Newly registered executor '" << executor->id
@@ -2743,6 +2737,15 @@ void Slave::registerExecutor(
 
         return;
       }
+
+      // Tell executor it's registered and give it any queued tasks.
+      ExecutorRegisteredMessage message;
+      message.mutable_executor_info()->MergeFrom(executor->info);
+      message.mutable_framework_id()->MergeFrom(framework->id());
+      message.mutable_framework_info()->MergeFrom(framework->info);
+      message.mutable_slave_id()->MergeFrom(info.id());
+      message.mutable_slave_info()->MergeFrom(info);
+      executor->send(message);
 
       // Update the resource limits for the container. Note that the
       // resource limits include the currently queued tasks because we

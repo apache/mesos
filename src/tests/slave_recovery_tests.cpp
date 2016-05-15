@@ -725,6 +725,105 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   delete containerizer2.get();
 }
 
+// This test verifies that when the agent gets a `killTask` message and restarts
+// before the executor registers, a TASK_KILLED update is sent and the executor
+// shuts down.
+TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
+{
+  Try<PID<Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(containerizer1);
+
+  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
+
+  // Drop the executor registration message so that the task stays
+  // queued on the agent
+  Future<Message> registerExecutor =
+    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  AWAIT_READY(registerExecutor);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  // Kill the task enqueued on the agent.
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_KILLED, status->state());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_UNREGISTERED, status->reason());
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(containerizer2);
+
+  slave = this->StartSlave(containerizer2.get(), flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for the agent to schedule reregister timeout.
+
+  // Ensure the agent considers itself recovered.
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+
+  while(executorTerminated.isPending()) {
+    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+
+  AWAIT_READY(executorTerminated);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  this->Shutdown();
+  delete containerizer2.get();
+}
+
 
 // The slave is stopped after a non-terminal update is received.
 // The command executor terminates when the slave is down.
