@@ -759,9 +759,11 @@ void Slave::initialize()
           return http.statistics(request, principal);
         });
   route("/containers",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::CONTAINERS_HELP(),
-        [http](const process::http::Request& request) {
-          return http.containers(request);
+        [http](const process::http::Request& request,
+               const Option<string>& principal) {
+          return http.containers(request, principal);
         });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if

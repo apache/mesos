@@ -743,11 +743,14 @@ string Slave::Http::CONTAINERS_HELP()
           "        \"timestamp\":1388534400.0",
           "    }",
           "}]",
-          "```"));
+          "```"),
+      AUTHENTICATION(true));
 }
 
 
-Future<Response> Slave::Http::containers(const Request& request) const
+Future<Response> Slave::Http::containers(
+    const Request& request,
+    const Option<string>& /* principal */) const
 {
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
   list<Future<ContainerStatus>> statusFutures;
