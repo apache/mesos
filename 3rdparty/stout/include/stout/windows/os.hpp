@@ -615,7 +615,7 @@ inline Result<Process> process(pid_t pid)
   // Get Windows Working set size (Resident set size in linux).
   PROCESS_MEMORY_COUNTERS proc_mem_counters;
   BOOL get_process_memory_info = ::GetProcessMemoryInfo(
-      safe_process_handle.get(),
+      safe_process_handle.get_handle(),
       &proc_mem_counters,
       sizeof(proc_mem_counters));
 
@@ -634,7 +634,7 @@ inline Result<Process> process(pid_t pid)
   // Get Process CPU time.
   FILETIME create_filetime, exit_filetime, kernel_filetime, user_filetime;
   BOOL get_process_times = ::GetProcessTimes(
-      safe_process_handle.get(),
+      safe_process_handle.get_handle(),
       &create_filetime,
       &exit_filetime,
       &kernel_filetime,
@@ -670,6 +670,80 @@ inline Result<Process> process(pid_t pid)
 inline int random()
 {
   return rand();
+}
+
+
+// `create_job` function creates a job object whose name is derived
+// from the `pid` and associates the process with the job object.
+// Every process started by the `pid` process which is part of the job
+// object becomes part of the job object. The job name should match
+// the name used in `kill_job`.
+inline Try<Nothing> create_job(pid_t pid)
+{
+  Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
+  if (alpha_pid.isError()) {
+    return Error(alpha_pid.error());
+  }
+
+  HANDLE process_handle = ::OpenProcess(
+      PROCESS_SET_QUOTA | PROCESS_TERMINATE,
+      false,
+      pid);
+
+  if (process_handle == INVALID_HANDLE_VALUE) {
+    return WindowsError("os::create_job: Call to `OpenProcess` failed");
+  }
+
+  SharedHandle safe_process_handle(process_handle, ::CloseHandle);
+
+  HANDLE job_handle = ::CreateJobObject(NULL, alpha_pid.get().c_str());
+
+  if (job_handle == NULL) {
+    return WindowsError("os::create_job: Call to `CreateJobObject` failed");
+  }
+
+  SharedHandle safe_job_handle(job_handle, ::CloseHandle);
+
+  if (::AssignProcessToJobObject(
+          safe_job_handle.get_handle(),
+          safe_process_handle.get_handle()) == 0) {
+    return WindowsError(
+        "os::create_job: Call to `AssignProcessToJobObject` failed");
+  };
+
+  return Nothing();
+}
+
+
+// `kill_job` function assumes the process identified by `pid`
+// is associated with a job object whose name is derived from it.
+// Every process started by the `pid` process which is part of the job
+// object becomes part of the job object. Destroying the task
+// will close all such processes.
+inline Try<Nothing> kill_job(pid_t pid)
+{
+  Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
+  if (alpha_pid.isError()) {
+    return Error(alpha_pid.error());
+  }
+
+  HANDLE job_handle = ::OpenJobObject(
+      JOB_OBJECT_TERMINATE,
+      FALSE,
+      alpha_pid.get().c_str());
+
+  if (job_handle == NULL) {
+    return WindowsError("os::kill_job: Call to `OpenJobObject` failed");
+  }
+
+  SharedHandle safe_job_handle(job_handle, ::CloseHandle);
+
+  BOOL result = ::TerminateJobObject(safe_job_handle.get_handle(), 1);
+  if (result == 0) {
+    return WindowsError();
+  }
+
+  return Nothing();
 }
 
 } // namespace os {

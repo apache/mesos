@@ -15,34 +15,35 @@
 
 #include <stdlib.h>
 
-#include <stout/os/windows/process.hpp>
+#include <stout/os/pstree.hpp>
 
 namespace os {
 
-// Sends a signal to a process tree rooted at the specified pid.
-// If groups is true, this also sends the signal to all encountered
-// process groups.
-// If sessions is true, this also sends the signal to all encountered
-// process sessions.
-// Note that processes of the group and session of the parent of the
-// root process is not included unless they are part of the root
-// process tree.
-// Note that if the process 'pid' has exited we'll signal the process
-// tree(s) rooted at pids in the group or session led by the process
-// if groups = true or sessions = true, respectively.
+// Terminate the process tree rooted at the specified pid.
+// Note that if the process 'pid' has exited we'll terminate the process
+// tree(s) rooted at pids.
 // Returns the process trees that were succesfully or unsuccessfully
 // signaled. Note that the process trees can be stringified.
-// TODO(benh): Allow excluding the root pid from stopping, killing,
-// and continuing so as to provide a means for expressing "kill all of
-// my children". This is non-trivial because of the current
-// implementation.
 inline Try<std::list<ProcessTree>> killtree(
     pid_t pid,
     int signal,
     bool groups = false,
     bool sessions = false)
 {
-  UNIMPLEMENTED;
+  std::list<ProcessTree> process_tree_list;
+  Try<ProcessTree> process_tree = os::pstree(pid);
+  if (process_tree.isError()) {
+    return WindowsError();
+  }
+
+  process_tree_list.push_back(process_tree.get());
+
+  Try<Nothing> kill_job = os::kill_job(pid);
+  if (kill_job.isError())
+  {
+    return Error(kill_job.error());
+  }
+  return process_tree_list;
 }
 
 } // namespace os {
