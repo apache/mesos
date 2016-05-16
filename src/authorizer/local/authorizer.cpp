@@ -37,9 +37,9 @@
 
 #include "common/parse.hpp"
 
+using process::dispatch;
 using process::Failure;
 using process::Future;
-using process::dispatch;
 
 using std::string;
 using std::vector;
