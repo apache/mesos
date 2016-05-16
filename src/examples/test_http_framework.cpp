@@ -370,13 +370,12 @@ int main(int argc, char** argv)
 {
   // Find this executable's directory to locate executor.
   string uri;
-  Option<string> value = os::getenv("MESOS_BUILD_DIR");
+  Option<string> value = os::getenv("MESOS_HELPER_DIR");
   if (value.isSome()) {
-    uri = path::join(value.get(), "src", "test-http-executor");
+    uri = path::join(value.get(), "test-http-executor");
   } else {
     uri = path::join(
         os::realpath(Path(argv[0]).dirname()).get(),
-        "src",
         "test-http-executor");
   }
 
