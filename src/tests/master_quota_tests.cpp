@@ -1244,7 +1244,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     EXPECT_EQ(quotaResources, quota.get().info.guarantee());
   }
 
-  // Try to get the previously requested quota using a princilal that is
+  // Try to get the previously requested quota using a principal that is
   // not authorized to see it. This will result in empty information
   // returned.
   {
@@ -1273,7 +1273,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     EXPECT_EQ(0, status.get().infos().size());
   }
 
-  // Get the previous requested quota using default principal, which is
+  // Get the previously requested quota using the default principal, which is
   // authorized to see it.
   {
     Future<Response> response = process::http::get(

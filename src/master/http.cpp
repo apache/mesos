@@ -1303,7 +1303,7 @@ string Master::Http::QUOTA_HELP()
         "to remove quota created by the quota_principal.",
         "Getting quota information for a certain role requires that the",
         "current principal is authorized to get quota for the target role,",
-        "otherwise the entry fot the target role could be silently filtered.",
+        "otherwise the entry for the target role could be silently filtered.",
         "See the authorization documentation for details."));
 }
 

@@ -122,7 +122,7 @@ message ACL {
 
   // Which principals are authorized to see quotas for the given roles.
   message GetQuota {
-    // Subjects: operator username.
+    // Subjects: Operator username.
     required Entity principals = 1;
 
     // Objects: The list of roles whose quotas can be seen.
