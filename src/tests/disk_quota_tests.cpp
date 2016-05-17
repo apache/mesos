@@ -183,7 +183,7 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem,posix/disk";
+  flags.isolation = "posix/cpu,posix/mem,disk/du";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
@@ -253,7 +253,7 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "posix/cpu,posix/mem,posix/disk";
+  slaveFlags.isolation = "posix/cpu,posix/mem,disk/du";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
@@ -347,7 +347,7 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem,posix/disk";
+  flags.isolation = "posix/cpu,posix/mem,disk/du";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
@@ -445,7 +445,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem,posix/disk";
+  flags.isolation = "posix/cpu,posix/mem,disk/du";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
@@ -541,7 +541,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem,posix/disk";
+  flags.isolation = "posix/cpu,posix/mem,disk/du";
   flags.container_disk_watch_interval = Milliseconds(1);
 
   Fetcher fetcher;

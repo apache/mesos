@@ -145,7 +145,7 @@ executor and isolators:
 * Mesos containerizer - For backwards compatibility, the Mesos containerizer
   does not enforce a container's disk quota by default.  However, if the
   `--enforce_container_disk_quota` flag is enabled on the agent, and
-  `posix/disk` is specified in the `--isolation` flag, the executor
+  `disk/du` is specified in the `--isolation` flag, the executor
   will be killed if the sandbox size exceeds the executor's `disk` resource.
 * Docker containerizer - As of Docker `1.9.1`, the Docker containerizer
   does not enforce nor support a disk quota.  See the

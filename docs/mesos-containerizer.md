@@ -69,8 +69,8 @@ The Posix Disk isolator provides basic disk isolation. It is able to
 report the disk usage for each sandbox and optionally enforce the disk
 quota. It can be used on both Linux and OS X.
 
-To enable the Posix Disk isolator, append `posix/disk` to the
-`--isolation` flag when starting the agent.
+To enable the Posix Disk isolator, append `disk/du` to the `--isolation`
+flag when starting the agent.
 
 By default, the disk quota enforcement is disabled. To enable it,
 specify `--enforce_container_disk_quota` when starting the agent.

@@ -1031,7 +1031,7 @@ Name of the root cgroup. (default: mesos)
   </td>
   <td>
 The interval between disk quota checks for containers. This flag is
-used for the <code>posix/disk</code> isolator. (default: 15secs)
+used for the <code>disk/du</code> isolator. (default: 15secs)
   </td>
 </tr>
 <tr>
@@ -1250,7 +1250,7 @@ Directory the Docker provisioner will store images in (default: /tmp/mesos/store
   </td>
   <td>
 Whether to enable disk quota enforcement for containers. This flag
-is used for the <code>posix/disk</code> isolator. (default: false)
+is used for the <code>disk/du</code> isolator. (default: false)
   </td>
 </tr>
 <tr>

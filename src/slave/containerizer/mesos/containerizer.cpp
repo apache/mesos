@@ -163,6 +163,16 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     flags_.isolation += ",filesystem/posix";
   }
 
+  if (strings::contains(flags_.isolation, "posix/disk")) {
+    LOG(WARNING) << "'posix/disk' has been renamed as 'disk/du', "
+                 << "please update your --isolation flag to use 'disk/du'";
+
+    if (strings::contains(flags_.isolation, "disk/du")) {
+      return Error(
+          "Using 'posix/disk' and 'disk/du' simultaneously is disallowed");
+    }
+  }
+
 #ifdef __linux__
   // One and only one `network` isolator is required. The network
   // isolator is responsible for preparing the network namespace for
@@ -237,7 +247,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     // Runtime isolators.
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
+
+    // "posix/disk" is deprecated in favor of the name "disk/du".
     {"posix/disk", &PosixDiskIsolatorProcess::create},
+    {"disk/du", &PosixDiskIsolatorProcess::create},
+
 #if ENABLE_XFS_DISK_ISOLATOR
     {"disk/xfs", &XfsDiskIsolatorProcess::create},
 #endif

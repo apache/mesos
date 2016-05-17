@@ -675,7 +675,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::container_disk_watch_interval,
       "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"
-      "used for the `posix/disk` isolator.",
+      "used for the `disk/du` isolator.",
       Seconds(15));
 
   // TODO(jieyu): Consider enabling this flag by default. Remember
@@ -683,7 +683,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::enforce_container_disk_quota,
       "enforce_container_disk_quota",
       "Whether to enable disk quota enforcement for containers. This flag\n"
-      "is used for the `posix/disk` isolator.",
+      "is used for the `disk/du` isolator.",
       false);
 
   // This help message for --modules flag is the same for

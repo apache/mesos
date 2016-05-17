@@ -608,7 +608,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   slave::Flags flags = CreateSlaveFlags();
   flags.image_provisioner_backend = "copy";
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-  flags.isolation = "posix/disk,filesystem/linux";
+  flags.isolation = "disk/du,filesystem/linux";
 
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
@@ -1474,7 +1474,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/disk,filesystem/linux";
+  flags.isolation = "disk/du,filesystem/linux";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.

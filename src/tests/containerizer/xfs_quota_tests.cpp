@@ -396,7 +396,7 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
   EXPECT_EQ(task.task_id(), status2.get().task_id());
   EXPECT_EQ(TASK_FAILED, status2.get().state());
 
-  // Unlike the posix/disk isolator, the reason for task failure
+  // Unlike the 'disk/du' isolator, the reason for task failure
   // should be that dd got an IO error.
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status2.get().source());
   EXPECT_EQ("Command exited with status 1", status2.get().message());

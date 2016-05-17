@@ -110,7 +110,7 @@ and provide the mount point as the `root` of the `Mount` in `DiskInfo`'s
 Aside from the performance advantages of `Mount` disks, applications running on
 them should be able to rely on disk errors when they attempt to exceed the
 capacity of the volume. This holds true as long as the file system in use
-correctly propagates these errors. Due to this expectation, the `posix/disk`
+correctly propagates these errors. Due to this expectation, the `disk/du`
 isolation is disabled for `Mount` disks.
 
 An example resources value for a `Mount` disk is shown below. Note that the
