@@ -1218,10 +1218,10 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     // request below to override the capacity heuristic check.
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-  Future<Quota> quota;
+    Future<Quota> quota;
     EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
       .WillOnce(DoAll(InvokeSetQuota(&allocator),
-                    FutureArg<1>(&quota)));
+                      FutureArg<1>(&quota)));
 
     Future<Response> response = process::http::post(
         master.get()->pid,
@@ -1232,7 +1232,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response.get().body;
 
-  AWAIT_READY(quota);
+    AWAIT_READY(quota);
 
     // Extract the principal from `DEFAULT_CREDENTIAL` because `EXPECT_EQ`
     // does not compile if `DEFAULT_CREDENTIAL.principal()` is used as an
