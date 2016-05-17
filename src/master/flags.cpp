@@ -112,7 +112,8 @@ mesos::internal::master::Flags::Flags()
       true);
 
   add(&Flags::slave_reregister_timeout,
-      "slave_reregister_timeout",
+      "agent_reregister_timeout",
+      flags::DeprecatedName("slave_reregister_timeout"),
       "The timeout within which all agents are expected to re-register\n"
       "when a new master is elected as the leader. Agents that do not\n"
       "re-register within the timeout will be removed from the registry\n"
@@ -124,7 +125,8 @@ mesos::internal::master::Flags::Flags()
   // TODO(bmahler): Add a `Percentage` abstraction for flags.
   // TODO(bmahler): Add a `--production` flag for production defaults.
   add(&Flags::recovery_slave_removal_limit,
-      "recovery_slave_removal_limit",
+      "recovery_agent_removal_limit",
+      flags::DeprecatedName("recovery_slave_removal_limit"),
       "For failovers, limit on the percentage of agents that can be removed\n"
       "from the registry *and* shutdown after the re-registration timeout\n"
       "elapses. If the limit is exceeded, the master will fail over rather\n"
@@ -142,7 +144,8 @@ mesos::internal::master::Flags::Flags()
   // TODO(vinod): Add a `Rate` abstraction in stout and the
   // corresponding parser for flags.
   add(&Flags::slave_removal_rate_limit,
-      "slave_removal_rate_limit",
+      "agent_removal_rate_limit",
+      flags::DeprecatedName("slave_removal_rate_limit"),
       "The maximum rate (e.g., `1/10mins`, `2/3hrs`, etc) at which agents\n"
       "will be removed from the master when they fail health checks.\n"
       "By default, agents will be removed as soon as they fail the health\n"
@@ -210,7 +213,8 @@ mesos::internal::master::Flags::Flags()
       false);
 
   add(&Flags::authenticate_slaves,
-      "authenticate_slaves",
+      "authenticate_agents",
+      flags::DeprecatedName("authenticate_slaves"),
       "If `true`, only authenticated agents are allowed to register.\n"
       "If `false`, unauthenticated agents are also allowed to register.",
       false);
@@ -335,7 +339,8 @@ mesos::internal::master::Flags::Flags()
 
 #ifdef WITH_NETWORK_ISOLATOR
   add(&Flags::max_executors_per_slave,
-      "max_executors_per_slave",
+      "max_executors_per_agent",
+      flags::DeprecatedName("max_executors_per_slave"),
       "Maximum number of executors allowed per agent. The network\n"
       "monitoring/isolation technique imposes an implicit resource\n"
       "acquisition on each executor (# ephemeral ports), as a result\n"
@@ -418,7 +423,8 @@ mesos::internal::master::Flags::Flags()
       "installed inside master.");
 
   add(&Flags::slave_ping_timeout,
-      "slave_ping_timeout",
+      "agent_ping_timeout",
+      flags::DeprecatedName("slave_ping_timeout"),
       "The timeout within which each agent is expected to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
       "max_slave_ping_timeouts ping retries will be asked to shutdown.\n"
@@ -436,7 +442,8 @@ mesos::internal::master::Flags::Flags()
       });
 
   add(&Flags::max_slave_ping_timeouts,
-      "max_slave_ping_timeouts",
+      "max_agent_ping_timeouts",
+      flags::DeprecatedName("max_slave_ping_timeouts"),
       "The number of times an agent can fail to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
       "`max_slave_ping_timeouts` ping retries will be asked to shutdown.\n",
