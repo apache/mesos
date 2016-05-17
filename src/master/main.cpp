@@ -441,25 +441,25 @@ int main(int argc, char** argv)
   }
 
   Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
-  if (flags.slave_removal_rate_limit.isSome()) {
+  if (flags.agent_removal_rate_limit.isSome()) {
     // Parse the flag value.
     // TODO(vinod): Move this parsing logic to flags once we have a
     // 'Rate' abstraction in stout.
     vector<string> tokens =
-      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+      strings::tokenize(flags.agent_removal_rate_limit.get(), "/");
 
     if (tokens.size() != 2) {
       EXIT(EXIT_FAILURE)
-        << "Invalid slave_removal_rate_limit: "
-        << flags.slave_removal_rate_limit.get()
+        << "Invalid agent_removal_rate_limit: "
+        << flags.agent_removal_rate_limit.get()
         << ". Format is <Number of agents>/<Duration>";
     }
 
     Try<int> permits = numify<int>(tokens[0]);
     if (permits.isError()) {
       EXIT(EXIT_FAILURE)
-        << "Invalid slave_removal_rate_limit: "
-        << flags.slave_removal_rate_limit.get()
+        << "Invalid agent_removal_rate_limit: "
+        << flags.agent_removal_rate_limit.get()
         << ". Format is <Number of agents>/<Duration>"
         << ": " << permits.error();
     }
@@ -467,8 +467,8 @@ int main(int argc, char** argv)
     Try<Duration> duration = Duration::parse(tokens[1]);
     if (duration.isError()) {
       EXIT(EXIT_FAILURE)
-        << "Invalid slave_removal_rate_limit: "
-        << flags.slave_removal_rate_limit.get()
+        << "Invalid agent_removal_rate_limit: "
+        << flags.agent_removal_rate_limit.get()
         << ". Format is <Number of agents>/<Duration>"
         << ": " << duration.error();
     }

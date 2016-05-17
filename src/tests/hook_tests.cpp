@@ -235,8 +235,8 @@ TEST_F(HookTest, MasterSlaveLostHookTest)
   master::Flags masterFlags = CreateMasterFlags();
 
   // Speed up timeout cycles.
-  masterFlags.slave_ping_timeout = Seconds(1);
-  masterFlags.max_slave_ping_timeouts = 1;
+  masterFlags.agent_ping_timeout = Seconds(1);
+  masterFlags.max_agent_ping_timeouts = 1;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -258,7 +258,7 @@ TEST_F(HookTest, MasterSlaveLostHookTest)
 
   // Forward clock slave timeout.
   Duration totalTimeout =
-    masterFlags.slave_ping_timeout * masterFlags.max_slave_ping_timeouts;
+    masterFlags.agent_ping_timeout * masterFlags.max_agent_ping_timeouts;
 
   Clock::pause();
   Clock::advance(totalTimeout);

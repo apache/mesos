@@ -396,36 +396,36 @@ void Master::initialize()
 
   // NOTE: We enforce a minimum slave re-register timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
-  if (flags.slave_reregister_timeout < MIN_SLAVE_REREGISTER_TIMEOUT) {
+  if (flags.agent_reregister_timeout < MIN_AGENT_REREGISTER_TIMEOUT) {
     EXIT(EXIT_FAILURE)
-      << "Invalid value '" << flags.slave_reregister_timeout << "'"
-      << " for --slave_reregister_timeout:"
-      << " Must be at least " << MIN_SLAVE_REREGISTER_TIMEOUT;
+      << "Invalid value '" << flags.agent_reregister_timeout << "'"
+      << " for --agent_reregister_timeout:"
+      << " Must be at least " << MIN_AGENT_REREGISTER_TIMEOUT;
   }
 
   // Parse the percentage for the slave removal limit.
   // TODO(bmahler): Add a 'Percentage' abstraction.
-  if (!strings::endsWith(flags.recovery_slave_removal_limit, "%")) {
+  if (!strings::endsWith(flags.recovery_agent_removal_limit, "%")) {
     EXIT(EXIT_FAILURE)
-      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
       << " for --recovery_slave_removal_percent_limit: " << "missing '%'";
   }
 
   Try<double> limit = numify<double>(
       strings::remove(
-          flags.recovery_slave_removal_limit,
+          flags.recovery_agent_removal_limit,
           "%",
           strings::SUFFIX));
 
   if (limit.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
       << " for --recovery_slave_removal_percent_limit: " << limit.error();
   }
 
   if (limit.get() < 0.0 || limit.get() > 100.0) {
     EXIT(EXIT_FAILURE)
-      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
       << " for --recovery_slave_removal_percent_limit:"
       << " Must be within [0%-100%]";
   }
@@ -437,7 +437,7 @@ void Master::initialize()
     LOG(INFO) << "Master allowing unauthenticated frameworks to register";
   }
 
-  if (flags.authenticate_slaves) {
+  if (flags.authenticate_agents) {
     LOG(INFO) << "Master only allowing authenticated agents to register";
   } else {
     LOG(INFO) << "Master allowing unauthenticated agents to register";
@@ -510,7 +510,7 @@ void Master::initialize()
     const string error =
       "Failed to initialize authenticator '" + authenticatorNames[0] +
       "': " + initialize.error();
-    if (flags.authenticate_frameworks || flags.authenticate_slaves) {
+    if (flags.authenticate_frameworks || flags.authenticate_agents) {
       EXIT(EXIT_FAILURE)
         << "Failed to start master with authentication enabled: " << error;
     } else {
@@ -741,9 +741,9 @@ void Master::initialize()
 
   // If the rate limiter is injected for testing,
   // the flag may not be set.
-  if (slaves.limiter.isSome() && flags.slave_removal_rate_limit.isSome()) {
+  if (slaves.limiter.isSome() && flags.agent_removal_rate_limit.isSome()) {
     LOG(INFO) << "Agent removal is rate limited to "
-              << flags.slave_removal_rate_limit.get();
+              << flags.agent_removal_rate_limit.get();
   }
 
   // If "--roles" is set, configure the role whitelist.
@@ -1644,7 +1644,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   // Set up a timeout for slaves to re-register.
   slaves.recoveredTimer =
-    delay(flags.slave_reregister_timeout,
+    delay(flags.agent_reregister_timeout,
           self(),
           &Self::recoveredSlavesTimeout,
           registry);
@@ -1736,7 +1736,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " agents"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
-            << " ; allowing " << flags.slave_reregister_timeout
+            << " ; allowing " << flags.agent_reregister_timeout
             << " for agents to re-register";
 
   return Nothing();
@@ -1750,7 +1750,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
   // TODO(bmahler): Add a 'Percentage' abstraction.
   Try<double> limit_ = numify<double>(
       strings::remove(
-          flags.recovery_slave_removal_limit,
+          flags.recovery_agent_removal_limit,
           "%",
           strings::SUFFIX));
 
@@ -1767,7 +1767,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
   if (removalPercentage > limit) {
     EXIT(EXIT_FAILURE)
       << "Post-recovery agent removal limit exceeded! After "
-      << flags.slave_reregister_timeout
+      << flags.agent_reregister_timeout
       << " there were " << slaves.recovered.size()
       << " (" << removalPercentage * 100 << "%) agents recovered from the"
       << " registry that did not re-register: \n"
@@ -1790,7 +1790,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       LOG(INFO) << "Scheduling removal of agent "
                 << slave.info().id() << " (" << slave.info().hostname() << ")"
                 << "; did not re-register within "
-                << flags.slave_reregister_timeout << " after master failover";
+                << flags.agent_reregister_timeout << " after master failover";
 
       acquire = slaves.limiter.get()->acquire();
     }
@@ -1826,7 +1826,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
 
   LOG(WARNING) << "Agent " << slave.info().id()
                << " (" << slave.info().hostname() << ") did not re-register"
-               << " within " << flags.slave_reregister_timeout
+               << " within " << flags.agent_reregister_timeout
                << " after master failover; removing it from the registrar";
 
   ++metrics->slave_shutdowns_completed;
@@ -4464,7 +4464,7 @@ void Master::registerSlave(
     return;
   }
 
-  if (flags.authenticate_slaves && !authenticated.contains(from)) {
+  if (flags.authenticate_agents && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a slave tried to register
     // without authentication.
@@ -4517,7 +4517,7 @@ void Master::registerSlave(
                 << " resending acknowledgement";
 
       Duration pingTimeout =
-        flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+        flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
       MasterSlaveConnection connection;
       connection.set_total_ping_timeout_seconds(pingTimeout.secs());
 
@@ -4602,7 +4602,7 @@ void Master::_registerSlave(
     addSlave(slave);
 
     Duration pingTimeout =
-      flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+      flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
     MasterSlaveConnection connection;
     connection.set_total_ping_timeout_seconds(pingTimeout.secs());
 
@@ -4645,7 +4645,7 @@ void Master::reregisterSlave(
     return;
   }
 
-  if (flags.authenticate_slaves && !authenticated.contains(from)) {
+  if (flags.authenticate_agents && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a slave tried to
     // re-register without authentication.
@@ -4849,7 +4849,7 @@ void Master::_reregisterSlave(
     addSlave(slave, completedFrameworks);
 
     Duration pingTimeout =
-      flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+      flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
     MasterSlaveConnection connection;
     connection.set_total_ping_timeout_seconds(pingTimeout.secs());
 
@@ -5569,14 +5569,14 @@ void Master::offer(const FrameworkID& frameworkId,
     // ephemeral ports leads to a maximum number of containers that can
     // be created on each slave. Once MESOS-1654 is fixed and ephemeral
     // ports are a first class resource, this can be removed.
-    if (flags.max_executors_per_slave.isSome()) {
+    if (flags.max_executors_per_agent.isSome()) {
       // Check that we haven't hit the executor limit.
       size_t numExecutors = 0;
       foreachkey (const FrameworkID& frameworkId, slave->executors) {
         numExecutors += slave->executors[frameworkId].keys().size();
       }
 
-      if (numExecutors >= flags.max_executors_per_slave.get()) {
+      if (numExecutors >= flags.max_executors_per_agent.get()) {
         LOG(WARNING) << "Master returning resources offered because agent "
                      << *slave << " has reached the maximum number of "
                      << "executors";
@@ -5914,7 +5914,7 @@ void Master::reconcile(
   // slave. For slaves that do not support reconciliation, we keep
   // the old semantics and cover only case (1) via TASK_LOST.
   Duration pingTimeout =
-    flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+    flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
   MasterSlaveConnection connection;
   connection.set_total_ping_timeout_seconds(pingTimeout.secs());
 
@@ -6454,8 +6454,8 @@ void Master::addSlave(
       self(),
       slaves.limiter,
       metrics,
-      flags.slave_ping_timeout,
-      flags.max_slave_ping_timeouts);
+      flags.agent_ping_timeout,
+      flags.max_agent_ping_timeouts);
 
   spawn(slave->observer);
 

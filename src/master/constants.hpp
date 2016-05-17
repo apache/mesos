@@ -54,15 +54,15 @@ constexpr Duration DEFAULT_HEARTBEAT_INTERVAL = Seconds(15);
 // configurable, then we'll need to rely on upper/lower bounds
 // to ensure that the slave is not unnecessarily triggering
 // re-registrations.
-constexpr Duration DEFAULT_SLAVE_PING_TIMEOUT = Seconds(15);
+constexpr Duration DEFAULT_AGENT_PING_TIMEOUT = Seconds(15);
 
 // Maximum number of ping timeouts until slave is considered failed.
-constexpr size_t DEFAULT_MAX_SLAVE_PING_TIMEOUTS = 5;
+constexpr size_t DEFAULT_MAX_AGENT_PING_TIMEOUTS = 5;
 
 // The minimum timeout that can be used by a newly elected leader to
 // allow re-registration of slaves. Any slaves that do not re-register
 // within this timeout will be shutdown.
-constexpr Duration MIN_SLAVE_REREGISTER_TIMEOUT = Minutes(10);
+constexpr Duration MIN_AGENT_REREGISTER_TIMEOUT = Minutes(10);
 
 // Default limit on the percentage of slaves that will be removed
 // after recovering if no re-registration attempts were made.
@@ -73,7 +73,7 @@ constexpr Duration MIN_SLAVE_REREGISTER_TIMEOUT = Minutes(10);
 // production clusters. This TODO is to provide a --production flag
 // which would allow flag defaults that are more appropriate for
 // production use-cases.
-constexpr double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
+constexpr double RECOVERY_AGENT_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
 
 // Maximum number of removed slaves to store in the cache.
 constexpr size_t MAX_REMOVED_SLAVES = 100000;

@@ -494,7 +494,7 @@ message UnregisterSlaveMessage {
  * Describes the connection between the master and agent.
  */
 message MasterSlaveConnection {
-  // Product of max_slave_ping_timeouts * slave_ping_timeout.
+  // Product of max_agent_ping_timeouts * agent_ping_timeout.
   // If no pings are received within the total timeout,
   // the master will remove the agent.
   optional double total_ping_timeout_seconds = 1;

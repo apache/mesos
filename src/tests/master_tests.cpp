@@ -1806,7 +1806,7 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
     .WillOnce(FutureSatisfy(&slaveLost));
 
   Clock::pause();
-  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::advance(masterFlags.agent_reregister_timeout);
 
   AWAIT_READY(slaveLost);
 
@@ -1889,7 +1889,7 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
     .WillRepeatedly(FutureSatisfy(&slaveLost));
 
   Clock::pause();
-  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::advance(masterFlags.agent_reregister_timeout);
   Clock::settle();
 
   ASSERT_TRUE(slaveLost.isPending());
@@ -1970,7 +1970,7 @@ TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
 
   // Trigger the slave re-registration timeout.
   Clock::pause();
-  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::advance(masterFlags.agent_reregister_timeout);
 
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
@@ -2047,7 +2047,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
 
   // Trigger the slave re-registration timeout.
   Clock::pause();
-  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::advance(masterFlags.agent_reregister_timeout);
 
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
@@ -2151,7 +2151,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
     .WillRepeatedly(FutureSatisfy(&slaveLost));
 
   Clock::pause();
-  Clock::advance(masterFlags.slave_reregister_timeout);
+  Clock::advance(masterFlags.agent_reregister_timeout);
   Clock::settle();
 
   ASSERT_TRUE(slaveLost.isPending());
@@ -2510,7 +2510,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
 TEST_F(MasterTest, MaxExecutorsPerSlave)
 {
   master::Flags flags = CreateMasterFlags();
-  flags.max_executors_per_slave = 0;
+  flags.max_executors_per_agent = 0;
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);

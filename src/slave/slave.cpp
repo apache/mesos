@@ -218,9 +218,9 @@ void Slave::initialize()
   // NOTE: Any subsystem configuration is inherited from the mesos
   // root cgroup for that subsystem, e.g., by default the memory
   // cgroup will be unlimited.
-  if (flags.slave_subsystems.isSome()) {
+  if (flags.agent_subsystems.isSome()) {
     foreach (const string& subsystem,
-            strings::tokenize(flags.slave_subsystems.get(), ",")) {
+            strings::tokenize(flags.agent_subsystems.get(), ",")) {
       LOG(INFO) << "Moving agent process into its own cgroup for"
                 << " subsystem: " << subsystem;
 

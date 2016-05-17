@@ -136,7 +136,7 @@ TEST_F(AuthenticationTest, DisableFrameworkAuthentication)
 TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 {
   master::Flags flags = CreateMasterFlags();
-  flags.authenticate_slaves = false; // Disable authentication.
+  flags.authenticate_agents = false; // Disable authentication.
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
@@ -283,7 +283,7 @@ TEST_F(AuthenticationTest, AuthenticatedFramework)
 TEST_F(AuthenticationTest, AuthenticatedSlave)
 {
   master::Flags flags = CreateMasterFlags();
-  flags.authenticate_slaves = false; // Disable authentication.
+  flags.authenticate_agents = false; // Disable authentication.
 
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);

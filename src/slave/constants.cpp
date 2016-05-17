@@ -24,8 +24,8 @@ namespace slave {
 
 Duration DEFAULT_MASTER_PING_TIMEOUT()
 {
-  return master::DEFAULT_SLAVE_PING_TIMEOUT *
-    master::DEFAULT_MAX_SLAVE_PING_TIMEOUTS;
+  return master::DEFAULT_AGENT_PING_TIMEOUT *
+    master::DEFAULT_MAX_AGENT_PING_TIMEOUTS;
 }
 
 } // namespace slave {

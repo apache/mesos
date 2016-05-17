@@ -93,7 +93,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.authenticate_http = true;
   flags.authenticate_frameworks = true;
-  flags.authenticate_slaves = true;
+  flags.authenticate_agents = true;
 
   flags.authenticate_http_frameworks = true;
   flags.http_framework_authenticators = "basic";
@@ -739,7 +739,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
 
     // Enable putting the slave into memory and cpuacct cgroups.
-    flags.slave_subsystems = "memory,cpuacct";
+    flags.agent_subsystems = "memory,cpuacct";
   } else {
     flags.isolation = "posix/cpu,posix/mem";
   }

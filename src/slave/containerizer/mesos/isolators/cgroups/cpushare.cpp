@@ -208,7 +208,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     }
 
     foreach (const string& cgroup, cgroups.get()) {
-      // Ignore the slave cgroup (see the --slave_subsystems flag).
+      // Ignore the slave cgroup (see the --agent_subsystems flag).
       // TODO(idownes): Remove this when the cgroups layout is
       // updated, see MESOS-1185.
       if (cgroup == path::join(flags.cgroups_root, "slave")) {

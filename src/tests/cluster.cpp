@@ -246,33 +246,33 @@ Try<process::Owned<Master>> Master::start(
       flags, master->state.get(), master::DEFAULT_HTTP_AUTHENTICATION_REALM));
   master->repairer.reset(new master::Repairer());
 
-  if (slaveRemovalLimiter.isNone() && flags.slave_removal_rate_limit.isSome()) {
+  if (slaveRemovalLimiter.isNone() && flags.agent_removal_rate_limit.isSome()) {
     // Parse the flag value.
     // TODO(vinod): Move this parsing logic to flags once we have a
     // 'Rate' abstraction in stout.
     std::vector<std::string> tokens =
-      strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
+      strings::tokenize(flags.agent_removal_rate_limit.get(), "/");
 
     if (tokens.size() != 2) {
       return Error(
-          "Invalid slave_removal_rate_limit: " +
-          flags.slave_removal_rate_limit.get() +
+          "Invalid agent_removal_rate_limit: " +
+          flags.agent_removal_rate_limit.get() +
           ". Format is <Number of agents>/<Duration>");
     }
 
     Try<int> permits = numify<int>(tokens[0]);
     if (permits.isError()) {
       return Error(
-          "Invalid slave_removal_rate_limit: " +
-          flags.slave_removal_rate_limit.get() +
+          "Invalid agent_removal_rate_limit: " +
+          flags.agent_removal_rate_limit.get() +
           ". Format is <Number of agents>/<Duration>: " + permits.error());
     }
 
     Try<Duration> duration = Duration::parse(tokens[1]);
     if (duration.isError()) {
       return Error(
-          "Invalid slave_removal_rate_limit: " +
-          flags.slave_removal_rate_limit.get() +
+          "Invalid agent_removal_rate_limit: " +
+          flags.agent_removal_rate_limit.get() +
           ". Format is <Number of agents>/<Duration>: " + duration.error());
     }
 
@@ -599,10 +599,10 @@ void Slave::wait()
 #ifdef __linux__
   // Remove all of this processes threads into the root cgroups - this
   // simulates the slave process terminating and permits a new slave to start
-  // when the --slave_subsystems flag is used.
-  if (flags.slave_subsystems.isSome()) {
+  // when the --agent_subsystems flag is used.
+  if (flags.agent_subsystems.isSome()) {
     foreach (const std::string& subsystem,
-             strings::tokenize(flags.slave_subsystems.get(), ",")) {
+             strings::tokenize(flags.agent_subsystems.get(), ",")) {
       std::string hierarchy = path::join(flags.cgroups_hierarchy, subsystem);
 
       std::string cgroup = path::join(flags.cgroups_root, "slave");

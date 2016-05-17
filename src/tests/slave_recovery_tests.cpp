@@ -2431,7 +2431,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   master::Flags masterFlags = this->CreateMasterFlags();
 
   // Disable authentication so the spoofed re-registration below works.
-  masterFlags.authenticate_slaves = false;
+  masterFlags.authenticate_agents = false;
 
   Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -3148,15 +3148,15 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
+    if (pings == masterFlags.max_agent_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
   // The master will notify the framework that the slave was lost.
@@ -3544,7 +3544,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
 #ifdef __linux__
   // Disable putting slave into cgroup(s) because this is a multi-slave test.
-  flags1.slave_subsystems = None();
+  flags1.agent_subsystems = None();
 #endif
 
   Fetcher fetcher;
@@ -3589,7 +3589,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
 #ifdef __linux__
   // Disable putting slave into cgroup(s) because this is a multi-slave test.
-  flags2.slave_subsystems = None();
+  flags2.agent_subsystems = None();
 #endif
 
   Try<TypeParam*> _containerizer2 = TypeParam::create(flags2, true, &fetcher);
@@ -3901,7 +3901,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   // isolator.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
-  flags.slave_subsystems = "";
+  flags.agent_subsystems = "";
 
   Fetcher fetcher;
 
@@ -4048,7 +4048,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   // isolation.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
-  flags.slave_subsystems = "";
+  flags.agent_subsystems = "";
 
   Fetcher fetcher;
 
@@ -4153,7 +4153,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   // Start a slave using a containerizer with pid namespace isolation.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
-  flags.slave_subsystems = "";
+  flags.agent_subsystems = "";
 
   Fetcher fetcher;
 

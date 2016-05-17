@@ -124,14 +124,14 @@ TEST_F(PartitionTest, PartitionedSlave)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
+    if (pings == masterFlags.max_agent_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
   }
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
 
   AWAIT_READY(slaveLost);
 
@@ -253,15 +253,15 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
+    if (pings == masterFlags.max_agent_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
@@ -372,15 +372,15 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
+    if (pings == masterFlags.max_agent_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
   // Wait for the master to attempt to shut down the slave.
@@ -517,15 +517,15 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
+    if (pings == masterFlags.max_agent_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
@@ -598,7 +598,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   Clock::settle();
 
   // Let the slave observer send the next ping.
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
 
   // Slave should re-register.
   AWAIT_READY(slaveReregisteredMessage);

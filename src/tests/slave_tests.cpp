@@ -2360,10 +2360,10 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
 {
   // Set shorter ping timeout values.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.slave_ping_timeout = Seconds(5);
-  masterFlags.max_slave_ping_timeouts = 2u;
+  masterFlags.agent_ping_timeout = Seconds(5);
+  masterFlags.max_agent_ping_timeouts = 2u;
   Duration totalTimeout =
-    masterFlags.slave_ping_timeout * masterFlags.max_slave_ping_timeouts;
+    masterFlags.agent_ping_timeout * masterFlags.max_agent_ping_timeouts;
 
   // Start a master.
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2431,7 +2431,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
 
   AWAIT_READY(ping);
 
@@ -2499,12 +2499,12 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
-      Clock::advance(masterFlags.slave_ping_timeout);
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      Clock::advance(masterFlags.agent_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
   }
 
   // The master should attempt to acquire a permit.
@@ -2569,12 +2569,12 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == masterFlags.max_slave_ping_timeouts) {
-      Clock::advance(masterFlags.slave_ping_timeout);
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      Clock::advance(masterFlags.agent_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
-    Clock::advance(masterFlags.slave_ping_timeout);
+    Clock::advance(masterFlags.agent_ping_timeout);
   }
 
   // The master should attempt to acquire a permit.
@@ -2587,7 +2587,7 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   filter(NULL);
 
   // Advance clock enough to do a ping pong.
-  Clock::advance(masterFlags.slave_ping_timeout);
+  Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
   // The master should have tried to cancel the removal.

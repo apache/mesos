@@ -53,9 +53,9 @@ public:
   Duration registry_fetch_timeout;
   Duration registry_store_timeout;
   bool log_auto_initialize;
-  Duration slave_reregister_timeout;
-  std::string recovery_slave_removal_limit;
-  Option<std::string> slave_removal_rate_limit;
+  Duration agent_reregister_timeout;
+  std::string recovery_agent_removal_limit;
+  Option<std::string> agent_removal_rate_limit;
   std::string webui_dir;
   Option<Path> whitelist;
   std::string user_sorter;
@@ -65,7 +65,7 @@ public:
   Option<std::string> roles;
   Option<std::string> weights;
   bool authenticate_frameworks;
-  bool authenticate_slaves;
+  bool authenticate_agents;
   bool authenticate_http;
   bool authenticate_http_frameworks;
   Option<Path> credentials;
@@ -77,8 +77,8 @@ public:
   std::string authenticators;
   std::string allocator;
   Option<std::string> hooks;
-  Duration slave_ping_timeout;
-  size_t max_slave_ping_timeouts;
+  Duration agent_ping_timeout;
+  size_t max_agent_ping_timeouts;
   std::string authorizers;
   std::string http_authenticators;
   Option<std::string> http_framework_authenticators;
@@ -88,7 +88,7 @@ public:
   Option<std::string> master_detector;
 
 #ifdef WITH_NETWORK_ISOLATOR
-  Option<size_t> max_executors_per_slave;
+  Option<size_t> max_executors_per_agent;
 #endif  // WITH_NETWORK_ISOLATOR
 };
 
