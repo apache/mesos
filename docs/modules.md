@@ -32,7 +32,7 @@ without having to know all the internal details.
 
 ## <a name="Invoking"></a>Invoking Mesos modules
 
-The command-line flag `--modules` is available for Mesos master, slave, and
+The command-line flag `--modules` is available for Mesos master, agent, and
 tests to specify a list of modules to be loaded and be available to the internal
 subsystems.
 
@@ -143,7 +143,7 @@ directly add or inject data into Mesos core either.
 
 Anonymous modules do not require any specific selectors (flags) as
 they are immediately instantiated when getting loaded via the
-`--modules` flag by the Mesos master or slave.
+`--modules` flag by the Mesos master or agent.
 
 ### Authentication
 
@@ -201,10 +201,10 @@ To load a hook into Mesos, you need to
 
 - select it as a hook module via the `--hooks` flag.
 
-For example, the following command will run the Mesos slave with the
+For example, the following command will run the Mesos agent with the
 `TestTaskHook` hook:
 
-    ./bin/mesos-slave.sh --master=<IP>:<PORT> --modules="file://<path-to-modules-config>.json" --hooks=TestTaskHook
+    ./bin/mesos-agent.sh --master=<IP>:<PORT> --modules="file://<path-to-modules-config>.json" --hooks=TestTaskHook
 
 
 ### Isolator

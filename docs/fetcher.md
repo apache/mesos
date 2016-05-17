@@ -22,8 +22,8 @@ The Mesos fetcher can copy files from a local filesytem and it also natively
 supports the HTTP, HTTPS, FTP and FTPS protocols. If the requested URI is based
 on some other protocol, then the fetcher tries to utilise a local Hadoop client
 and hence supports any protocol supported by the Hadoop client, e.g., HDFS, S3.
-See the slave [configuration documentation](configuration.md)
-for how to configure the slave with a path to the Hadoop client.
+See the agent [configuration documentation](configuration.md)
+for how to configure the agent with a path to the Hadoop client.
 
 By default, each requested URI is downloaded directly into the sandbox directory
 and repeated requests for the same URI leads to downloading another copy of the
@@ -32,8 +32,8 @@ downloads in a dedicated directory for reuse by subsequent downloads.
 
 The Mesos fetcher mechanism comprises of these two parts:
 
-1. The slave-internal Fetcher Process (in terms of libprocess) that controls and
-coordinates all fetch actions. Every slave instance has exactly one internal
+1. The agent-internal Fetcher Process (in terms of libprocess) that controls and
+coordinates all fetch actions. Every agent instance has exactly one internal
 fetcher instance that is used by every kind of containerizer (except the
 external containerizer variant, which is responsible for its own approach to
 fetching).
@@ -41,7 +41,7 @@ fetching).
 2. The external program `mesos-fetcher` that is invoked by the former. It
 performs all network and disk operations except file deletions and file size
 queries for cache-internal bookkeeping. It is run as an external OS process in
-order to shield the slave process from I/O-related hazards. It takes
+order to shield the agent process from I/O-related hazards. It takes
 instructions in form of an environment variable containing a JSON object with
 detailed fetch action descriptions.
 
@@ -50,8 +50,8 @@ detailed fetch action descriptions.
 Frameworks launch tasks by calling the scheduler driver method `launchTasks()`,
 passing `CommandInfo` protobuf structures as arguments. This type of structure
 specifies (among other things) a command and a list of URIs that need to be
-"fetched" into the sandbox directory on the slave node as a precondition for
-task execution. Hence, when the slave receives a request to launch a task, it
+"fetched" into the sandbox directory on the agent node as a precondition for
+task execution. Hence, when the agent receives a request to launch a task, it
 calls upon its fetcher, first, to provision the specified resources into the
 sandbox directory. If fetching fails, the task is not started and the reported
 task status is `TASK_FAILED`.
@@ -98,7 +98,7 @@ causes its executors and tasks to run under a specific user. However, if the
 the affected task.
 
 If a user name is specified either way, the fetcher first validates that it is
-in fact a valid user name on the slave. If it is not, fetching fails right here.
+in fact a valid user name on the agent. If it is not, fetching fails right here.
 Otherwise, the sandbox directory is assigned to the specified user as owner
 (using `chown`) at the end of the fetch procedure, before task execution begins.
 
@@ -201,7 +201,7 @@ cache as described above.
 WARNING: Only URIs for which download sizes can be queried up front and for
 which accurate sizes are reported reliably are eligible for any fetcher cache
 involvement. If actual cache file sizes exceed the physical capacity of the
-cache directory in any way, all further slave behavior is completely
+cache directory in any way, all further agent behavior is completely
 unspecified. Do not use any cache feature with any URI for which you have any
 doubts!
 
@@ -266,12 +266,12 @@ export https_proxy=https://proxy.example.com:3128
 ```
 
 The fetcher will pick up these environment variable settings since the utility
-program `mesos-fetcher` which it employs is a child of mesos-slave.
+program `mesos-fetcher` which it employs is a child of mesos-agent.
 
 For more details, please check the
 [libcurl manual](http://curl.haxx.se/libcurl/c/libcurl-tutorial.html).
 
-## Slave flags
+## Agent flags
 
 It is highly recommended to set these flags explicitly to values other than
 their defaults or to not use the fetcher cache in production.
@@ -285,13 +285,13 @@ Recommended practice:
 - Use a separate volume as fetcher cache. Do not specify a directory as fetcher
   cache directory that competes with any other contributor for the underlying
   volume's space.
-- Set the cache directory size flag of the slave to less than your actual cache
+- Set the cache directory size flag of the agent to less than your actual cache
   volume's physical size. Use a safety margin, especially if you do not know
   for sure if all frameworks are going to be compliant.
 
 Ultimate remedy:
 
-You can disable the fetcher cache entirely on each slave by setting its
+You can disable the fetcher cache entirely on each agent by setting its
 "fetcher_cache_size" flag to zero bytes.
 
 ## Future Features

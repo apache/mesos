@@ -85,7 +85,7 @@ EXPECT_CALL(sched, statusUpdate(&driver, _))
 Future<KillTaskMessage> killTaskMessage =
   FUTURE_PROTOBUF(KillTaskMessage(), _, master.get());
 
-// Attempt to kill unknown task while slave is transitioning.
+// Attempt to kill unknown task while agent is transitioning.
 TaskID unknownTaskId;
 unknownTaskId.set_value("2");
 
@@ -115,7 +115,7 @@ Future<SlaveReregisteredMessage> slaveReregisteredMessage =
 AWAIT_READY(slaveReregisteredMessage);
 ~~~
 
-However, this won't work if we want to intercept a message sent to an actor (technically a `UPID`) that lives in another OS process. For example, `CommandExecutor` spawned by a slave will live in a separate OS process, though master and slave instances live in the same OS process together with our test (see `mesos/src/tests/cluster.hpp`). The wait in this code will fail:
+However, this won't work if we want to intercept a message sent to an actor (technically a `UPID`) that lives in another OS process. For example, `CommandExecutor` spawned by a agent will live in a separate OS process, though master and agent instances live in the same OS process together with our test (see `mesos/src/tests/cluster.hpp`). The wait in this code will fail:
 
 ~~~{.cpp}
 Future<ExecutorRegisteredMessage> executorRegisteredMessage =
@@ -127,7 +127,7 @@ AWAIT_READY(executorRegisteredMessage);
 ### Why messages sent outside the OS process are not intercepted?
 Libprocess events may be filtered (see `libprocess/include/process/filter.hpp`). `FUTURE_PROTOBUF` uses this ability and sets an expectation on a `filter` method of `TestsFilter` class with a `MessageMatcher`, that matches the message we want to intercept. The actual filtering happens in `ProcessManager::resume()`, which fetches messages from the queue of the received events.
 
-*No* filtering happens when sending, encoding, or transporting the message (see e.g. `ProcessManager::deliver()` or `SocketManager::send()`). Therefore in the aforementioned example, `ExecutorRegisteredMessage` leaves the slave undetected by the filter, reaches another OS process where executor lives, gets enqueued into the `CommandExecutorProcess`' mailbox and can be filtered there, but remember our expectation is set in another OS process!
+*No* filtering happens when sending, encoding, or transporting the message (see e.g. `ProcessManager::deliver()` or `SocketManager::send()`). Therefore in the aforementioned example, `ExecutorRegisteredMessage` leaves the agent undetected by the filter, reaches another OS process where executor lives, gets enqueued into the `CommandExecutorProcess`' mailbox and can be filtered there, but remember our expectation is set in another OS process!
 
 ### How to workaround
 Consider setting expectations on corresponding incoming messages ensuring they are processed and therefore ACK message is sent.

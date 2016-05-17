@@ -79,7 +79,7 @@ the agent will refuse to start.
 In summary, to enable container image support in Mesos containerizer,
 please specify the following agent flags:
 
-    $ sudo mesos-slave \
+    $ sudo mesos-agent \
       --containerizers=mesos \
       --image_providers=appc,docker \
       --isolation=filesystem/linux,docker/runtime
@@ -151,10 +151,10 @@ First, start the Mesos master:
 
 Then, start the Mesos agent:
 
-    $ sudo GLOG_v=1 sbin/mesos-slave \
+    $ sudo GLOG_v=1 sbin/mesos-agent \
       --master=<MASTER_IP>:5050 \
       --isolation=docker/runtime,filesystem/linux \
-      --work_dir=/tmp/mesos/slave \
+      --work_dir=/tmp/mesos/agent \
       --image_providers=docker \
       --executor_environment_variables="{}"
 

@@ -162,7 +162,7 @@ We categorize the changes as follows:
 <a name="0-29-x-credentials"></a>
 * Mesos 0.29 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
 
-* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
+* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate agent. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
 
 * Mesos 0.29 changes the HTTP status code of the following endpoints from `200 OK` to `202 Accepted`:
   * `/reserve`
@@ -182,9 +182,9 @@ We categorize the changes as follows:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -201,7 +201,7 @@ In order to upgrade a running cluster:
 
 <a name="0-27-x-executor-lost-callback"></a>
 
-* The `executorLost` callback in the Scheduler interface will now be called whenever the slave detects termination of a custom executor. This callback was never called in previous versions, so please make sure any framework schedulers can now safely handle this callback. Note that this callback may not be reliably delivered.
+* The `executorLost` callback in the Scheduler interface will now be called whenever the agent detects termination of a custom executor. This callback was never called in previous versions, so please make sure any framework schedulers can now safely handle this callback. Note that this callback may not be reliably delivered.
 
 <a name="0-27-x-isolator-api"></a>
 
@@ -215,9 +215,9 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -237,9 +237,9 @@ In order to upgrade a running cluster:
 
 <a name="0-26-x-state-endpoint"></a>
 
-* The `/state` endpoints on master and slave will no longer include `data` fields as part of the JSON models for `ExecutorInfo` and `TaskInfo` out of consideration for memory scalability (see [MESOS-3794](https://issues.apache.org/jira/browse/MESOS-3794) and [this email thread](http://www.mail-archive.com/dev@mesos.apache.org/msg33536.html)).
+* The `/state` endpoints on master and agent will no longer include `data` fields as part of the JSON models for `ExecutorInfo` and `TaskInfo` out of consideration for memory scalability (see [MESOS-3794](https://issues.apache.org/jira/browse/MESOS-3794) and [this email thread](http://www.mail-archive.com/dev@mesos.apache.org/msg33536.html)).
   * On master, the affected `data` field was originally found via `frameworks[*].executors[*].data`.
-  * On slaves, the affected `data` field was originally found via `executors[*].tasks[*].data`.
+  * On agents, the affected `data` field was originally found via `executors[*].tasks[*].data`.
 
 <a name="0-26-x-network-info-protobuf"></a>
 
@@ -247,9 +247,9 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -265,12 +265,12 @@ In order to upgrade a running cluster:
   * /state.json becomes /state
   * /tasks.json becomes /tasks
 
-  For slave endpoints:
+  For agent endpoints:
 
   * /state.json becomes /stateπ
   * /monitor/statistics.json becomes /monitor/statisticsπ
 
-  For both master and slave:
+  For both master and agent:
 
   * /files/browse.json becomes /files/browse
   * /files/debug.json becomes /files/debug
@@ -283,9 +283,9 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -299,9 +299,9 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -309,13 +309,13 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.22.x to 0.23.x
 
-* The 'stats.json' endpoints for masters and slaves have been removed. Please use the 'metrics/snapshot' endpoints instead.
+* The 'stats.json' endpoints for masters and agents have been removed. Please use the 'metrics/snapshot' endpoints instead.
 
 * The '/master/shutdown' endpoint is deprecated in favor of the new '/master/teardown' endpoint.
 
 * In order to enable decorator modules to remove metadata (environment variables or labels), we changed the meaning of the return value for decorator hooks in Mesos 0.23.0. Please refer to the modules documentation for more details.
 
-* Slave ping timeouts are now configurable on the master via `--slave_ping_timeout` and `--max_slave_ping_timeouts`. Slaves should be upgraded to 0.23.x before changing these flags.
+* Agent ping timeouts are now configurable on the master via `--slave_ping_timeout` and `--max_slave_ping_timeouts`. Agents should be upgraded to 0.23.x before changing these flags.
 
 * A new scheduler driver API, `acceptOffers`, has been introduced. This is a more general version of the `launchTasks` API, which allows the scheduler to accept an offer and specify a list of operations (Offer.Operation) to perform using the resources in the offer. Currently, the supported operations include LAUNCH (launching tasks), RESERVE (making dynamic reservations), UNRESERVE (releasing dynamic reservations), CREATE (creating persistent volumes) and DESTROY (releasing persistent volumes). Similar to the `launchTasks` API, any unused resources will be considered declined, and the specified filters will be applied on all unused resources.
 
@@ -323,9 +323,9 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Rebuild and install any modules so that upgraded masters/slaves can use them.
+1. Rebuild and install any modules so that upgraded masters/agents can use them.
 2. Install the new master binaries and restart the masters.
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
@@ -333,11 +333,11 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.21.x to 0.22.x
 
-* Slave checkpoint flag has been removed as it will be enabled for all
-slaves. Frameworks must still enable checkpointing during registration to take advantage
+* Agent checkpoint flag has been removed as it will be enabled for all
+agents. Frameworks must still enable checkpointing during registration to take advantage
 of checkpointing their tasks.
 
-* The stats.json endpoints for masters and slaves have been deprecated.
+* The stats.json endpoints for masters and agents have been deprecated.
 Please refer to the metrics/snapshot endpoint.
 
 * The C++/Java/Python scheduler bindings have been updated. In particular, the driver can be constructed with an additional argument that specifies whether to use implicit driver acknowledgements. In `statusUpdate`, the `TaskStatus` now includes a UUID to make explicit acknowledgements possible.
@@ -355,7 +355,7 @@ Please refer to the metrics/snapshot endpoint.
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
-2. Install the new slave binaries and restart the slaves.
+2. Install the new agent binaries and restart the agents.
 3. Upgrade the schedulers:
   * For Java schedulers, link the new native library against the new JAR. The JAR contains API above changes. A 0.21.0 JAR will work with a 0.22.0 libmesos. A 0.22.0 JAR will work with a 0.21.0 libmesos if explicit acks are not being used. 0.22.0 and 0.21.0 are inter-operable at the protocol level between the master and the scheduler.
   * For Python schedulers, upgrade to use a 0.22.0 egg. If constructing `MesosSchedulerDriverImpl` with `Credentials`, your code must be updated to pass the `implicitAcknowledgements` argument before `Credentials`. You may run a 0.21.0 Python scheduler against a 0.22.0 master, and vice versa.
@@ -365,12 +365,12 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.20.x to 0.21.x
 
-* Disabling slave checkpointing has been deprecated; the slave --checkpoint flag has been deprecated and will be removed in a future release.
+* Disabling agent checkpointing has been deprecated; the agent --checkpoint flag has been deprecated and will be removed in a future release.
 
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
-2. Install the new slave binaries and restart the slaves.
+2. Install the new agent binaries and restart the agents.
 3. Upgrade the schedulers by linking the latest native library (mesos jar upgrade not necessary).
 4. Restart the schedulers.
 5. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
@@ -418,7 +418,7 @@ In order to upgrade a running cluster:
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
-2. Install the new slave binaries and restart the slaves.
+2. Install the new agent binaries and restart the agents.
 3. Upgrade the schedulers by linking the latest native library (install the latest mesos jar and python egg if necessary).
 4. Restart the schedulers.
 5. Upgrade the executors by linking the latest native library (install the latest mesos jar and python egg if necessary).
@@ -432,7 +432,7 @@ In order to upgrade a running cluster:
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
-2. Install the new slave binaries and restart the slaves.
+2. Install the new agent binaries and restart the agents.
 3. Upgrade the schedulers by linking the latest native library (mesos jar upgrade not necessary).
 4. Restart the schedulers.
 5. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
@@ -440,20 +440,20 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.17.0 to 0.18.x.
 
-* This upgrade requires a system reboot for slaves that use Linux cgroups for isolation.
+* This upgrade requires a system reboot for agents that use Linux cgroups for isolation.
 
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
 2. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 3. Restart the schedulers.
-4. Install the new slave binaries then perform one of the following two steps, depending on if cgroups isolation is used:
+4. Install the new agent binaries then perform one of the following two steps, depending on if cgroups isolation is used:
   * [no cgroups]
-    - Restart the slaves. The "--isolation" flag has changed and "process" has been deprecated in favor of "posix/cpu,posix/mem".
+    - Restart the agents. The "--isolation" flag has changed and "process" has been deprecated in favor of "posix/cpu,posix/mem".
   * [cgroups]
     - Change from a single mountpoint for all controllers to separate mountpoints for each controller, e.g., /sys/fs/cgroup/memory/ and /sys/fs/cgroup/cpu/.
-    - The suggested configuration is to mount a tmpfs filesystem to /sys/fs/cgroup and to let the slave mount the required controllers. However, the slave will also use previously mounted controllers if they are appropriately mounted under "--cgroups_hierarchy".
-    - It has been observed that unmounting and remounting of cgroups from the single to separate configuration is unreliable and a reboot into the new configuration is strongly advised. Restart the slaves after reboot.
+    - The suggested configuration is to mount a tmpfs filesystem to /sys/fs/cgroup and to let the agent mount the required controllers. However, the agent will also use previously mounted controllers if they are appropriately mounted under "--cgroups_hierarchy".
+    - It has been observed that unmounting and remounting of cgroups from the single to separate configuration is unreliable and a reboot into the new configuration is strongly advised. Restart the agents after reboot.
     - The "--cgroups_hierarchy" now defaults to "/sys/fs/cgroup". The "--cgroups_root" flag default remains "mesos".
     -  The "--isolation" flag has changed and "cgroups" has been deprecated in favor of "cgroups/cpu,cgroups/mem".
     - The "--cgroup_subsystems" flag is no longer required and will be ignored.
@@ -467,7 +467,7 @@ In order to upgrade a running cluster:
 1. Install the new master binaries and restart the masters.
 2. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 3. Restart the schedulers.
-4. Install the new slave binaries and restart the slaves.
+4. Install the new agent binaries and restart the agents.
 5. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
 
 
@@ -478,7 +478,7 @@ In order to upgrade a running cluster:
 1. Install the new master binaries and restart the masters.
 2. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 3. Restart the schedulers.
-4. Install the new slave binaries and restart the slaves.
+4. Install the new agent binaries and restart the agents.
 5. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
 
 
@@ -492,7 +492,7 @@ In order to upgrade a running cluster:
 
 1. Install the new master binaries.
 2. Restart the masters with --credentials pointing to credentials of the framework(s).
-3. Install the new slave binaries and restart the slaves.
+3. Install the new agent binaries and restart the agents.
 4. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
 5. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 6. Restart the schedulers.
@@ -509,25 +509,25 @@ In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
 2. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
-3. Install the new slave binaries.
-4. Restart the slaves after adding --checkpoint flag to enable checkpointing.
+3. Install the new agent binaries.
+4. Restart the agents after adding --checkpoint flag to enable checkpointing.
 5. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 6. Set FrameworkInfo.checkpoint in the scheduler if checkpointing is desired (recommended).
 7. Restart the schedulers.
 8. Restart the masters (to get rid of the cached FrameworkInfo).
-9. Restart the slaves (to get rid of the cached FrameworkInfo).
+9. Restart the agents (to get rid of the cached FrameworkInfo).
 
 ## Upgrading from 0.12.0 to 0.13.0.
 
-* cgroups_hierarchy_root slave flag is renamed as cgroups_hierarchy
+* cgroups_hierarchy_root agent flag is renamed as cgroups_hierarchy
 
 In order to upgrade a running cluster:
 
 1. Install the new master binaries and restart the masters.
 2. Upgrade the schedulers by linking the latest native library and mesos jar (if necessary).
 3. Restart the schedulers.
-4. Install the new slave binaries.
-5. Restart the slaves.
+4. Install the new agent binaries.
+5. Restart the agents.
 6. Upgrade the executors by linking the latest native library and mesos jar (if necessary).
 
 ## Upgrading from 0.11.0 to 0.12.0.
@@ -536,5 +536,5 @@ In order to upgrade a running cluster:
 
 In order to upgrade a running cluster:
 
-1. Install the new slave binaries and restart the slaves.
+1. Install the new agent binaries and restart the agents.
 2. Install the new master binaries and restart the masters.

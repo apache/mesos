@@ -25,7 +25,7 @@ We have three different kinds of documentation:
   enhanced by source code comments as appropriate, but these comments should not follow the doxygen style.
 
   Substantial libraries, components, and subcomponents of the Mesos system such as
-  stout, libprocess, master, slave, containerizer, allocator, and others
+  stout, libprocess, master, agent, containerizer, allocator, and others
   should have an overview page in markdown format that explains their
   purpose, overall structure, and general use. This can even be a complete developer guide.
 

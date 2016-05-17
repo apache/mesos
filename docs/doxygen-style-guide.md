@@ -171,7 +171,7 @@ Example:
 ## Library and Component Overview Pages and Developer Guides
 
 Substantial libraries, components, and subcomponents of the Mesos system such as
-stout, libprocess, master, slave, containerizer, allocator, and others
+stout, libprocess, master, agent, containerizer, allocator, and others
 should have an overview page in markdown format that explains their
 purpose, overall structure, and general use. This can even be a complete developer guide.
 

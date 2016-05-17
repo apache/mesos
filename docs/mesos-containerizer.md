@@ -21,7 +21,7 @@ filesystem.
 
 The modifications are specified in the ContainerInfo included in the
 ExecutorInfo, either by a framework or by using the
-`--default_container_info` slave flag.
+`--default_container_info` agent flag.
 
 ContainerInfo specifies Volumes which map parts of the shared
 filesystem (host\_path) into the container's view of the filesystem
@@ -70,16 +70,16 @@ report the disk usage for each sandbox and optionally enforce the disk
 quota. It can be used on both Linux and OS X.
 
 To enable the Posix Disk isolator, append `posix/disk` to the
-`--isolation` flag when starting the slave.
+`--isolation` flag when starting the agent.
 
 By default, the disk quota enforcement is disabled. To enable it,
-specify `--enforce_container_disk_quota` when starting the slave.
+specify `--enforce_container_disk_quota` when starting the agent.
 
 The Posix Disk isolator reports disk usage for each sandbox by
 periodically running the `du` command. The disk usage can be retrieved
 from the resource statistics endpoint ([/monitor/statistics](endpoints/monitor/statistics.md)).
 
-The interval between two `du`s can be controlled by the slave flag
+The interval between two `du`s can be controlled by the agent flag
 `--container_disk_watch_interval`. For example,
 `--container_disk_watch_interval=1mins` sets the interval to be 1
 minute. The default interval is 15 seconds.
@@ -98,7 +98,7 @@ but avoids the cost of repeatedly running the `du`.  Though they will
 not interfere with each other, it is not recommended to use them together.
 
 To enable the XFS Disk isolator, append `xfs/disk` to the
-`--isolation` flag when starting the slave.
+`--isolation` flag when starting the agent.
 
 The XFS Disk isolator requires the sandbox directory to be located
 on an XFS filesystem that is mounted with the `pquota` option. There
@@ -134,10 +134,10 @@ The Docker Runtime isolator is used for supporting runtime
 configurations from the docker image (e.g., Entrypoint/Cmd, Env,
 etc.). This isolator is tied with `--image_providers=docker`. If
 `--image_providers` contains `docker`, this isolator must be used.
-Otherwise, slave will refuse to start.
+Otherwise, agent will refuse to start.
 
 To enable the Docker Runtime isolator, append `docker/runtime` to the
-`--isolation` flag when starting the slave.
+`--isolation` flag when starting the agent.
 
 Currently, docker image default `Entrypoint`, `Cmd`, `Env` and
 `WorkingDir` are supported with docker runtime isolator. Users can
@@ -234,7 +234,7 @@ arguments.
 The cgroups/net_cls isolator allows operators to provide network
 performance isolation and network segmentation for containers within
 a Mesos cluster. To enable the cgroups/net_cls isolator, append
-`cgroups/net_cls` to the `--isolation` flag when starting the slave.
+`cgroups/net_cls` to the `--isolation` flag when starting the agent.
 
 As the name suggests, the isolator enables the net_cls subsystem for
 Linux cgroups and assigns a net_cls cgroup to each container launched
@@ -262,13 +262,13 @@ handles, and assumes the operator is going to manage/assign these
 handles. To enable the management of net_cls handles by the
 cgroups/net_cls isolator you need to specify a 16-bit primary handle,
 of the form 0xAAAA, using the `--cgroups_net_cls_primary_handle` flag at
-slave startup.
+agent startup.
 
-Once a primary handle has been specified for a slave, for each
+Once a primary handle has been specified for a agent, for each
 container the cgroups/net_cls isolator allocates a 16-bit secondary
 handle. It then assigns the 32-bit combination of the primary and
 secondary handle to the net_cls cgroup associated with the container
 by writing to `net_cls.classid`. The cgroups/net_cls isolator exposes
 the assigned net_cls handle to operators by exposing the handle as
 part of the `ContainerStatus` &mdash;associated with any task running within
-the container&mdash; in the slave's `state` endpoint.
+the container&mdash; in the agent's `state` endpoint.

@@ -15,7 +15,7 @@ events (e.g., statistics).
 
 ### Containerizer creation and launch
 
-* Agent creates a containerizer based on the flags (using slave flag
+* Agent creates a containerizer based on the flags (using agent flag
   `--containerizers`). If multiple containerizers (e.g., docker,
   mesos) are specified using the `--containerizers` flag, then the
   composing containerizer will be used to create a containerizer.
@@ -38,7 +38,7 @@ Mesos currently supports the following containerizers:
 #### Composing Containerizer
 
 Composing containerizer will compose the specified containerizers
-(using slave flag `--containerizers`) and act like a single
+(using agent flag `--containerizers`) and act like a single
 containerizer. This is an implementation of `composite` design
 pattern.
 

@@ -6,10 +6,10 @@ layout: documentation
 
 # Mesos Configuration
 
-The Mesos master and slave can take a variety of configuration options
+The Mesos master and agent can take a variety of configuration options
 through command-line arguments, or environment variables. A list of
 the available options can be seen by running `mesos-master --help` or
-`mesos-slave --help`. Each option can be set in two ways:
+`mesos-agent --help`. Each option can be set in two ways:
 
 * By passing it to the binary using `--option_name=value`, either
 specifying the value directly, or specifying a file in which the value
@@ -31,9 +31,9 @@ definitive source for which flags your version of Mesos supports can
 be found by running the binary with the flag `--help`, for example
 `mesos-master --help`.
 
-## Master and Slave Options
+## Master and Agent Options
 
-*These options can be supplied to both masters and slaves.*
+*These options can be supplied to both masters and agents.*
 
 <table class="table table-striped">
   <thead>
@@ -51,9 +51,9 @@ be found by running the binary with the flag `--help`, for example
     --advertise_ip=VALUE
   </td>
   <td>
-IP address advertised to reach this Mesos master/slave.
-The master/slave does not bind to this IP address.
-However, this IP address may be used to access this master/slave.
+IP address advertised to reach this Mesos master/agent.
+The master/agent does not bind to this IP address.
+However, this IP address may be used to access this master/agent.
   </td>
 </tr>
 <tr>
@@ -61,10 +61,10 @@ However, this IP address may be used to access this master/slave.
     --advertise_port=VALUE
   </td>
   <td>
-Port advertised to reach this Mesos master/slave (along with
-<code>advertise_ip</code>). The master/slave does not bind using this port.
+Port advertised to reach this Mesos master/agent (along with
+<code>advertise_ip</code>). The master/agent does not bind using this port.
 However, this port (along with <code>advertise_ip</code>) may be used to
-access Mesos master/slave.
+access Mesos master/agent.
   </td>
 </tr>
 <tr>
@@ -152,7 +152,7 @@ Currently there is no support for multiple HTTP authenticators.
   </td>
   <td>
 IP address to listen on. This cannot be used in conjunction
-with <code>--ip_discovery_command</code>. (master default: 5050; slave default: 5051)
+with <code>--ip_discovery_command</code>. (master default: 5050; agent default: 5051)
   </td>
 </tr>
 <tr>
@@ -161,7 +161,7 @@ with <code>--ip_discovery_command</code>. (master default: 5050; slave default: 
   </td>
   <td>
 Optional IP discovery binary: if set, it is expected to emit
-the IP address which the master/slave will try to bind to.
+the IP address which the master/agent will try to bind to.
 Cannot be used in conjunction with <code>--ip</code>.
   </td>
 </tr>
@@ -186,7 +186,7 @@ Show version and exit. (default: false)
     --hooks=VALUE
   </td>
   <td>
-A comma-separated list of hook modules to be installed inside master/slave.
+A comma-separated list of hook modules to be installed inside master/agent.
   </td>
 </tr>
 <tr>
@@ -194,10 +194,10 @@ A comma-separated list of hook modules to be installed inside master/slave.
     --hostname=VALUE
   </td>
   <td>
-The hostname the slave node should report, or that the master
+The hostname the agent node should report, or that the master
 should advertise in ZooKeeper.
 If left unset, the hostname is resolved from the IP address
-that the master/slave binds to; unless the user explicitly prevents
+that the master/agent binds to; unless the user explicitly prevents
 that, using <code>--no-hostname_lookup</code>, in which case the IP itself
 is used.
   </td>
@@ -261,7 +261,7 @@ Example:
 </tr>
 </table>
 
-*These logging options can also be supplied to both masters and slaves.*
+*These logging options can also be supplied to both masters and agents.*
 For more about logging, see the [logging documentation](logging.md).
 
 <table class="table table-striped">
@@ -320,10 +320,10 @@ written to <code>--log_dir</code>, if specified. (default: INFO)
     --[no-]initialize_driver_logging
   </td>
   <td>
-Whether the master/slave should initialize Google logging for the
+Whether the master/agent should initialize Google logging for the
 Mesos scheduler and executor drivers, in same way as described here.
 The scheduler/executor drivers have separate logs and do not get
-written to the master/slave logs.
+written to the master/agent logs.
 <p/>
 This option has no effect when using the HTTP scheduler/executor APIs.
 (default: true)
@@ -500,11 +500,11 @@ HTTP based frameworks use the <code>--authenticate_http_frameworks</code> flag. 
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_slaves
+    --[no-]authenticate_agents
   </td>
   <td>
-If <code>true</code> only authenticated slaves are allowed to register.
-If <code>false</code> unauthenticated slaves are also allowed to register. (default: false)
+If <code>true</code> only authenticated agents are allowed to register.
+If <code>false</code> unauthenticated agents are also allowed to register. (default: false)
   </td>
 </tr>
 <tr>
@@ -513,7 +513,7 @@ If <code>false</code> unauthenticated slaves are also allowed to register. (defa
   </td>
   <td>
 Authenticator implementation to use when authenticating frameworks
-and/or slaves. Use the default <code>crammd5</code>, or
+and/or agents. Use the default <code>crammd5</code>, or
 load an alternate authenticator module using <code>--modules</code>. (default: crammd5)
   </td>
 </tr>
@@ -599,12 +599,12 @@ Maximum number of completed tasks per framework to store in memory. (default: 10
 </tr>
 <tr>
   <td>
-    --max_slave_ping_timeouts=VALUE
+    --max_agent_ping_timeouts=VALUE
   </td>
   <td>
-The number of times a slave can fail to respond to a
-ping from the master. Slaves that do not respond within
-<code>max_slave_ping_timeouts</code> ping retries will be asked to shutdown.
+The number of times a agent can fail to respond to a
+ping from the master. Agents that do not respond within
+<code>max_agent_ping_timeouts</code> ping retries will be asked to shutdown.
 (default: 5)
   </td>
 </tr>
@@ -649,19 +649,19 @@ Example:
 </tr>
 <tr>
   <td>
-    --recovery_slave_removal_limit=VALUE
+    --recovery_agent_removal_limit=VALUE
   </td>
   <td>
-For failovers, limit on the percentage of slaves that can be removed
+For failovers, limit on the percentage of agents that can be removed
 from the registry *and* shutdown after the re-registration timeout
 elapses. If the limit is exceeded, the master will fail over rather
-than remove the slaves.
+than remove the agents.
 This can be used to provide safety guarantees for production
 environments. Production environments may expect that across master
-failovers, at most a certain percentage of slaves will fail
+failovers, at most a certain percentage of agents will fail
 permanently (e.g. due to rack-level failures).
 Setting this limit would ensure that a human needs to get
-involved should an unexpected widespread failure of slaves occur
+involved should an unexpected widespread failure of agents occur
 in the cluster.
 Values: [0%-100%] (default: 100%)
   </td>
@@ -701,7 +701,7 @@ after which the operation is considered a failure. (default: 20secs)
 Whether the master will take actions based on the persistent
 information stored in the Registry. Setting this to false means
 that the Registrar will never reject the admission, readmission,
-or removal of a slave. Consequently, <code>false</code> can be used to
+or removal of a agent. Consequently, <code>false</code> can be used to
 bootstrap the persistent state on a running cluster.
 <b>NOTE</b>: This flag is *experimental* and should not be used in
 production yet. (default: false)
@@ -727,36 +727,36 @@ Can root submit frameworks? (default: true)
 </tr>
 <tr>
   <td>
-    --slave_ping_timeout=VALUE
+    --agent_ping_timeout=VALUE
   </td>
   <td>
-The timeout within which each slave is expected to respond to a
-ping from the master. Slaves that do not respond within
-max_slave_ping_timeouts ping retries will be asked to shutdown.
-<b>NOTE</b>: The total ping timeout (<code>slave_ping_timeout</code> multiplied by
-<code>max_slave_ping_timeouts</code>) should be greater than the ZooKeeper
+The timeout within which each agent is expected to respond to a
+ping from the master. Agents that do not respond within
+max_agent_ping_timeouts ping retries will be asked to shutdown.
+<b>NOTE</b>: The total ping timeout (<code>agent_ping_timeout</code> multiplied by
+<code>max_agent_ping_timeouts</code>) should be greater than the ZooKeeper
 session timeout to prevent useless re-registration attempts.
 (default: 15secs)
   </td>
 </tr>
 <tr>
   <td>
-    --slave_removal_rate_limit=VALUE
+    --agent_removal_rate_limit=VALUE
   </td>
   <td>
-The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc) at which slaves
+The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc) at which agents
 will be removed from the master when they fail health checks.
-By default, slaves will be removed as soon as they fail the health
-checks. The value is of the form <code>(Number of slaves)/(Duration)</code>.
+By default, agents will be removed as soon as they fail the health
+checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
   </td>
 </tr>
 <tr>
   <td>
-    --slave_reregister_timeout=VALUE
+    --agent_reregister_timeout=VALUE
   </td>
   <td>
-The timeout within which all slaves are expected to re-register
-when a new master is elected as the leader. Slaves that do not
+The timeout within which all agents are expected to re-register
+when a new master is elected as the leader. Agents that do not
 re-register within the timeout will be removed from the registry
 and will be shutdown if they attempt to communicate with master.
 <b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
@@ -797,9 +797,9 @@ using the <code>/weights</code> HTTP endpoint.
     --whitelist=VALUE
   </td>
   <td>
-Path to a file which contains a list of slaves (one per line) to
+Path to a file which contains a list of agents (one per line) to
 advertise offers for. The file is watched, and periodically re-read to
-refresh the slave whitelist. By default there is no whitelist / all
+refresh the agent whitelist. By default there is no whitelist / all
 machines are accepted. Path could be of the form
 <code>file:///path/to/file</code> or <code>/path/to/file</code>.
   </td>
@@ -829,18 +829,18 @@ ZooKeeper session timeout. (default: 10secs)
   </thead>
 <tr>
   <td>
-    --max_executors_per_slave=VALUE
+    --max_executors_per_agent=VALUE
   </td>
   <td>
-Maximum number of executors allowed per slave. The network
+Maximum number of executors allowed per agent. The network
 monitoring/isolation technique imposes an implicit resource
 acquisition on each executor (# ephemeral ports), as a result
-one can only run a certain number of executors on each slave.
+one can only run a certain number of executors on each agent.
   </td>
 </tr>
 </table>
 
-## Slave Options
+## Agent Options
 
 *Required Flags*
 
@@ -923,7 +923,7 @@ Directory the appc provisioner will store images in.
     --attributes=VALUE
   </td>
   <td>
-Attributes of the slave machine, in the form:
+Attributes of the agent machine, in the form:
 <code>rack:2</code> or <code>rack:2;u:1</code>
   </td>
 </tr>
@@ -1122,7 +1122,7 @@ this role. (default: *)
   </td>
   <td>
 Periodic time interval (e.g., 10secs, 2mins, etc)
-to check the overall disk usage managed by the slave.
+to check the overall disk usage managed by the agent.
 This drives the garbage collection of archived
 information and sandboxes. (default: 1mins)
   </td>
@@ -1142,8 +1142,8 @@ containerizer.
     --docker_config=VALUE
   </td>
   <td>
-The default docker config file for slave. Can be provided either as a
-path pointing to the slave local docker config file, or as a JSON-formatted
+The default docker config file for agent. Can be provided either as a
+path pointing to the agent local docker config file, or as a JSON-formatted
 string. The format of the docker config file should be identical to docker's
 default one (e.g., either <code>~/.docker/config.json</code> or
 <code>~/.dockercfg</code>).
@@ -1166,8 +1166,8 @@ Example JSON (<code>~/.docker/config.json</code>):
   <td>
 Enable docker containerizer to kill orphaned containers.
 You should consider setting this to false when you launch multiple
-slaves in the same OS, to avoid one of the DockerContainerizer
-removing docker tasks launched by other slaves.
+agents in the same OS, to avoid one of the DockerContainerizer
+removing docker tasks launched by other agents.
 (default: true)
   </td>
 </tr>
@@ -1176,10 +1176,10 @@ removing docker tasks launched by other slaves.
     --docker_mesos_image=VALUE
   </td>
   <td>
-The Docker image used to launch this Mesos slave instance.
-If an image is specified, the docker containerizer assumes the slave
+The Docker image used to launch this Mesos agent instance.
+If an image is specified, the docker containerizer assumes the agent
 is running in a docker container, and launches executors with
-docker containers in order to recover them when the slave restarts and
+docker containers in order to recover them when the agent restarts and
 recovers.
   </td>
 </tr>
@@ -1211,7 +1211,7 @@ The amount of time to wait before removing docker containers
   <td>
 The UNIX socket path to be mounted into the docker executor container
 to provide docker CLI access to the docker daemon. This must be the
-path used by the slave's docker image.
+path used by the agent's docker image.
 (default: /var/run/docker.sock)
   </td>
 </tr>
@@ -1249,7 +1249,7 @@ is used for the <code>posix/disk</code> isolator. (default: false)
   <td>
 JSON object representing the environment variables that should be
 passed to the executor, and thus subsequently task(s). By default the
-executor will inherit the slave's environment variables.
+executor will inherit the agent's environment variables.
 Example:
 <pre><code>{
   "PATH": "/bin:/usr/bin",
@@ -1263,7 +1263,7 @@ Example:
   </td>
   <td>
 Amount of time to wait for an executor
-to register with the slave before considering it hung and
+to register with the agent before considering it hung and
 shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
   </td>
 </tr>
@@ -1287,7 +1287,7 @@ terminations may occur.
   </td>
   <td>
 Parent directory for fetcher cache directories
-(one subdirectory per slave). (default: /tmp/mesos/fetch)
+(one subdirectory per agent). (default: /tmp/mesos/fetch)
   </td>
 </tr>
 <tr>
@@ -1347,7 +1347,7 @@ environment or find hadoop on <code>PATH</code>) (default: )
   </td>
   <td>
 Path to a JSON-formatted file containing credentials. These
-credentials are used to authenticate HTTP endpoints on the slave.
+credentials are used to authenticate HTTP endpoints on the agent.
 Path can be of the form <code>file:///path/to/file</code> or <code>/path/to/file</code>.
 <p/>
 Example:
@@ -1416,7 +1416,7 @@ for the Mesos Containerizer. (default: posix/cpu,posix/mem)
 The launcher to be used for Mesos containerizer. It could either be
 <code>linux</code> or <code>posix</code>. The Linux launcher is required for cgroups
 isolation and for any isolators that require Linux namespaces such as
-network, pid, etc. If unspecified, the slave will choose the Linux
+network, pid, etc. If unspecified, the agent will choose the Linux
 launcher if it's running as root on Linux.
   </td>
 </tr>
@@ -1471,7 +1471,7 @@ a network configuration file in JSON format in the specified directory.
     --oversubscribed_resources_interval=VALUE
   </td>
   <td>
-The slave periodically updates the master with the current estimation
+The agent periodically updates the master with the current estimation
 about the total amount of oversubscribed resources that are allocated
 and available. The interval between updates is controlled by this flag.
 (default: 15secs)
@@ -1524,7 +1524,7 @@ The name of the QoS Controller to use for oversubscription.
     --qos_correction_interval_min=VALUE
   </td>
   <td>
-The slave polls and carries out QoS corrections from the QoS
+The agent polls and carries out QoS corrections from the QoS
 Controller based on its observed performance of running tasks.
 The smallest interval between these corrections is controlled by
 this flag. (default: 0secs)
@@ -1539,7 +1539,7 @@ Whether to recover status updates and reconnect with old executors.
 Valid values for <code>recover</code> are
 reconnect: Reconnect with any old live executors.
 cleanup  : Kill any old live executors and exit.
-           Use this option when doing an incompatible slave
+           Use this option when doing an incompatible agent
            or executor upgrade!). (default: reconnect)
   </td>
 </tr>
@@ -1548,9 +1548,9 @@ cleanup  : Kill any old live executors and exit.
     --recovery_timeout=VALUE
   </td>
   <td>
-Amount of time allotted for the slave to recover. If the slave takes
+Amount of time allotted for the agent to recover. If the agent takes
 longer than recovery_timeout to recover, any executors that are
-waiting to reconnect to the slave will self-terminate.
+waiting to reconnect to the agent will self-terminate.
 (default: 15mins)
   </td>
 </tr>
@@ -1559,7 +1559,7 @@ waiting to reconnect to the slave will self-terminate.
     --registration_backoff_factor=VALUE
   </td>
   <td>
-Slave initially picks a random amount of time between <code>[0, b]</code>, where
+Agent initially picks a random amount of time between <code>[0, b]</code>, where
 <code>b = registration_backoff_factor</code>, to (re-)register with a new master.
 Subsequent retries are exponentially backed off based on this
 interval (e.g., 1st retry uses a random value between <code>[0, b * 2^1]</code>,
@@ -1580,7 +1580,7 @@ The name of the resource estimator to use for oversubscription.
     --resources=VALUE
   </td>
   <td>
-Total consumable resources per slave. Can be provided in JSON format
+Total consumable resources per agent. Can be provided in JSON format
 or as a semicolon-delimited list of key:value pairs, with the role
 optionally specified.
 <p/>
@@ -1633,10 +1633,10 @@ sandbox is mapped to.
 </tr>
 <tr>
   <td>
-    --slave_subsystems=VALUE
+    --agent_subsystems=VALUE
   </td>
   <td>
-List of comma-separated cgroup subsystems to run the slave binary
+List of comma-separated cgroup subsystems to run the agent binary
 in, e.g., <code>memory,cpuacct</code>. The default is none.
 Present functionality is intended for resource monitoring and
 no cgroup limits are set, they are inherited from the root mesos
@@ -1649,8 +1649,8 @@ cgroup.
   </td>
   <td>
 If <code>strict=true</code>, any and all recovery errors are considered fatal.
-If <code>strict=false</code>, any expected errors (e.g., slave cannot recover
-information about an executor, because the slave died right before
+If <code>strict=false</code>, any expected errors (e.g., agent cannot recover
+information about an executor, because the agent died right before
 the executor registered.) during recovery are ignored and as much
 state as possible is recovered.
 (default: true)
@@ -1661,14 +1661,14 @@ state as possible is recovered.
     --[no-]switch_user
   </td>
   <td>
-If set to <code>true</code>, the slave will attempt to run tasks as
+If set to <code>true</code>, the agent will attempt to run tasks as
 the <code>user</code> who submitted them (as defined in <code>FrameworkInfo</code>)
 (this requires <code>setuid</code> permission and that the given <code>user</code>
-exists on the slave).
+exists on the agent).
 If the user does not exist, an error occurs and the task will fail.
 If set to <code>false</code>, tasks will be run as the same user as the Mesos
-slave process.
-<b>NOTE</b>: This feature is not yet supported on Windows slave, and
+agent process.
+<b>NOTE</b>: This feature is not yet supported on Windows agent, and
 therefore the flag currently does not exist on that platform. (default: true)
   </td>
 </tr>

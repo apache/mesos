@@ -11,10 +11,10 @@ It assumed that readers of this document are familiar with the contents of the [
 
 0. Direct fetching: Provide the pre-existing fetcher functionality (as in Mesos 0.22 and before) when caching is not explicitly requested.
 1. Program isolation: Preserve the approach to employ an external "mesos-fetcher" program to handle all (potentially very lengthy or blocking) content download operations.
-2. Cache effect: Significant lessen overall time spent on fetching in case of repetition of requests for the same URI. This holds for both sequential and concurrent repetition. The latter is the case when concurrently launched tasks on the same slave require overlapping URI sets.
+2. Cache effect: Significant lessen overall time spent on fetching in case of repetition of requests for the same URI. This holds for both sequential and concurrent repetition. The latter is the case when concurrently launched tasks on the same agent require overlapping URI sets.
 3. Cache space limit: Use a user-specified directory for cache storage and maintain a user-specified physical storage space limit for it. Evict older cache files as needed to fetch new cache content.
 4. Fallback strategy: Whenever downloading to or from the cache fails for any reason, fetching into the sandbox should still succeed somehow if at all possible.
-5. Slave recovery: Support slave recovery.
+5. Agent recovery: Support agent recovery.
 
 For future releases, we foresee additional features:
 
@@ -29,8 +29,8 @@ In this section we look deeper into the implementation of design goals #1, #2, #
 
 The fetcher mechanism consists of two separate entities:
 
-1. The fetcher process included in the slave program. There is exactly one instance of this per slave.
-2. The separate mesos-fetcher program. There is one invocation of this per fetch request from the slave to the fetcher process.
+1. The fetcher process included in the agent program. There is exactly one instance of this per agent.
+2. The separate mesos-fetcher program. There is one invocation of this per fetch request from the agent to the fetcher process.
 
 The fetcher process performs internal bookkeeping of what is in the cache and what is not. As needed, it invokes the mesos-fetcher program to download resources from URIs to the cache or directly to sandbox directories, and to copy resources from the cache to a sandbox directory.
 

@@ -16,15 +16,15 @@ support, and also how to setup Docker.
 
 ## Setup
 
-To run the slave to enable the Docker Containerizer, you must launch
-the slave with "docker" as one of the containerizers option.
+To run the agent to enable the Docker Containerizer, you must launch
+the agent with "docker" as one of the containerizers option.
 
-Example: `mesos-slave --containerizers=docker,mesos`
+Example: `mesos-agent --containerizers=docker,mesos`
 
-Each slave that has the Docker containerizer should have Docker CLI
+Each agent that has the Docker containerizer should have Docker CLI
 client installed (version >= 1.0.0).
 
-If you enable iptables on slave, make sure the iptables allow all
+If you enable iptables on agent, make sure the iptables allow all
 traffic from docker bridge interface through add below rule:
 
     iptables -A INPUT -s 172.17.0.0/16 -i docker0 -p tcp -j ACCEPT
@@ -50,7 +50,7 @@ To run a Docker image as an executor, in TaskInfo one must set the
 ExecutorInfo that contains a ContainerInfo with type docker and the
 CommandInfo that will be used to launch the executor.  Note that the
 Docker image is expected to launch up as a Mesos executor that will
-register with the slave once it launches.
+register with the agent once it launches.
 
 ## What does the Docker Containerizer do?
 
@@ -73,9 +73,9 @@ the container logs into stdout/stderr files in the sandbox.
 docker container.
 
 The Docker Containerizer launches all containers with the `mesos-`
-prefix plus the slave id (ie: `mesos-slave1-abcdefghji`), and also
+prefix plus the agent id (ie: `mesos-agent1-abcdefghji`), and also
 assumes all containers with the `mesos-` prefix is managed by the
-slave and is free to stop or kill the containers.
+agent and is free to stop or kill the containers.
 
 When launching the docker image as an Executor, the only difference is
 that it skips launching a command executor but just reaps on the
@@ -104,7 +104,7 @@ This docker config file will be used to pull images from private
 registries for all containers. See [configuration
 documentation](configuration.md) for detail. Operators can either use
 a local docker config file (need to manually configure
-.docker/config.json or .dockercfg on each slave), or specify the flag
+.docker/config.json or .dockercfg on each agent), or specify the flag
 as a JSON-formatted string. For example:
 
     --docker_config=file:///home/vagrant/.docker/config.json
@@ -134,10 +134,10 @@ shell option must be set to false.  If shell option is set to true the
 Docker Containerizer will run the user's command wrapped with `/bin/sh
 -c` which will also become parameters to the image entrypoint.
 
-## Recover Docker containers on slave recovery
+## Recover Docker containers on agent recovery
 
 The Docker containerizer supports recovering Docker containers when
-the slave restarts, which supports both when the slave is running in a
+the agent restarts, which supports both when the agent is running in a
 Docker container or not.
 
 With the `--docker_mesos_image` flag enabled, the Docker containerizer

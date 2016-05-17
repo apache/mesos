@@ -82,7 +82,7 @@ This guide describes the process of doing an official release of Mesos.
 3. If not already done, update and commit `configure.ac` for the release.
 
 4. Update and commit `docs/configuration.md` to reflect the current state of
-   the master, slave, and configure flags.
+   the master, agent, and configure flags.
 
 5. Update and commit `docs/upgrades.md` with instructions about how to upgrade
    a live cluster from the previous release version to this release version.

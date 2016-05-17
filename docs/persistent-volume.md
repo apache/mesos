@@ -50,7 +50,7 @@ appropriate ACLs. For more information, see the
   __operators__ to manage persistent volumes through the master.
 
 When a persistent volume is destroyed, all the data on that volume is removed
-from the slave's filesystem. Note that for persistent volumes created on `Mount`
+from the agent's filesystem. Note that for persistent volumes created on `Mount`
 disks, the root directory is not removed, because it is typically the mount
 point used for a separate storage device.
 
@@ -87,7 +87,7 @@ an `Offer::Operation` message via the `acceptOffers` API.
 `Offer::Operation::Create` has a `volumes` field which specifies the persistent
 volume information. We need to specify the following:
 
-1. The ID for the persistent volume; this must be unique per role on each slave.
+1. The ID for the persistent volume; this must be unique per role on each agent.
 1. The non-nested relative path within the container to mount the volume.
 1. The permissions for the volume. Currently, `"RW"` is the only possible value.
 
@@ -249,7 +249,7 @@ by operators and administrative tools.
 ### `/create-volumes`
 
 To use this endpoint, the operator should first ensure that a reservation for
-the necessary resources has been made on the appropriate slave (e.g., by using
+the necessary resources has been made on the appropriate agent (e.g., by using
 the [/reserve](endpoints/master/reserve.md) HTTP endpoint or by configuring a
 static reservation).
 
@@ -291,15 +291,15 @@ The user receives one of the following HTTP responses:
 * `409 Conflict`: Insufficient resources to create the volumes.
 
 A single `/create-volumes` request can create multiple persistent volumes, but
-all of the volumes must be on the same slave.
+all of the volumes must be on the same agent.
 
 This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
 the create operation has been validated successfully by the master. The request
-is then forwarded asynchronously to the Mesos slave where the reserved
+is then forwarded asynchronously to the Mesos agent where the reserved
 resources are located. That asynchronous message may not be delivered or
-creating the volumes at the slave might fail, in which case no volumes will be
+creating the volumes at the agent might fail, in which case no volumes will be
 created. To determine if a create operation has succeeded, the user can examine
-the state of the appropriate Mesos slave (e.g., via the slave's
+the state of the appropriate Mesos agent (e.g., via the agent's
 [/state](endpoints/slave/state.md) HTTP endpoint).
 
 ### `/destroy-volumes`
@@ -341,20 +341,20 @@ The user receives one of the following HTTP responses:
 * `409 Conflict`: Insufficient resources to destroy the volumes.
 
 A single `/destroy-volumes` request can destroy multiple persistent volumes, but
-all of the volumes must be on the same slave.
+all of the volumes must be on the same agent.
 
 This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
 the destroy operation has been validated successfully by the master. The
-request is then forwarded asynchronously to the Mesos slave where the reserved
+request is then forwarded asynchronously to the Mesos agent where the reserved
 resources are located. That asynchronous message may not be delivered or
-destroying the volumes at the slave might fail, in which case no volumes will
+destroying the volumes at the agent might fail, in which case no volumes will
 be destroyed. To determine if a destroy operation has succeeded, the user can
-examine the state of the appropriate Mesos slave (e.g., via the slave's
+examine the state of the appropriate Mesos agent (e.g., via the agent's
 [/state](endpoints/slave/state.md) HTTP endpoint).
 
 ## Listing Persistent Volumes
 
-Information about the persistent volumes at each slave in the cluster can be
+Information about the persistent volumes at each agent in the cluster can be
 found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
 (under the `reserved_resources_full` key).
 
@@ -409,8 +409,8 @@ volumes:
   might submit more reservation requests than intended (e.g., a timeout fires
   and an application makes another reservation request; meanwhile, the original
   reservation request is also processed). Recall that two reservations for the
-  same role at the same slave are "merged": for example, role `foo` makes two
-  requests to reserve 2 CPUs at a single slave and both reservation requests
+  same role at the same agent are "merged": for example, role `foo` makes two
+  requests to reserve 2 CPUs at a single agent and both reservation requests
   succeed, the result will be a single reservation of 4 CPUs. To handle this
   situation, applications should be prepared for resource offers that contain
   more resources than expected. Some applications may also want to detect this
@@ -451,4 +451,4 @@ endpoints for creating and destroying volumes. Mesos 0.28 introduced support for
 master endpoint to include detailed information about persistent volumes and
 dynamic reservations. Mesos 0.29 changed the semantics of destroying a volume:
 in previous releases, destroying a volume would remove the Mesos-level metadata,
-but would not remove the volume's data from the slave's filesystem.
+but would not remove the volume's data from the agent's filesystem.

@@ -8,7 +8,7 @@ layout: documentation
 Authentication permits only trusted entities to interact with a Mesos cluster. Authentication can be used by Mesos in three ways:
 
 1. To require that frameworks be authenticated in order to register with the master.
-2. To require that slaves be authenticated in order to register with the master.
+2. To require that agents be authenticated in order to register with the master.
 3. To require that operators be authenticated to use many [HTTP endpoints](endpoints/index.md).
 
 Authentication is disabled by default. When authentication is enabled, operators
@@ -32,14 +32,14 @@ passwords.
 
 Principals are used primarily for authentication and
 [authorization](authorization.md); note that a principal is different from a
-framework's *user*, which is the operating system account used by the slave to
+framework's *user*, which is the operating system account used by the agent to
 run executors, and a framework's *[role](roles.md)*, which is used to determine
 which resources a framework can use.
 
 ## Configuration
 
 Authentication is configured by specifying command-line flags when starting the
-Mesos master and slave processes. For more information, refer to the
+Mesos master and agent processes. For more information, refer to the
 [configuration](configuration.md) documentation.
 
 ### Master
@@ -52,8 +52,8 @@ Mesos master and slave processes. For more information, refer to the
   HTTP requests to the HTTP endpoints that support authentication. If `false`
   (the default), all endpoints can be used without authentication.
 
-* `--[no-]authenticate_slaves` - If `true`, only authenticated slaves are
-  allowed to register. If `false` (the default), unauthenticated slaves are also
+* `--[no-]authenticate_agents` - If `true`, only authenticated agents are
+  allowed to register. If `false` (the default), unauthenticated agents are also
   allowed to register.
 
 * `--authenticators` - Specifies which authenticator module to use.  The default
@@ -67,13 +67,13 @@ Mesos master and slave processes. For more information, refer to the
 * `--credentials` - The path to a text file which contains a list of accepted
   credentials.  This may be optional depending on the authenticator being used.
 
-### Slave
+### Agent
 
 * `--authenticatee` - Analog to the master's `--authenticators` option to
   specify what module to use.  Defaults to `crammd5`.
 
 * `--credential` - Just like the master's `--credentials` option except that
-  only one credential is allowed. This credential is used to identify the slave
+  only one credential is allowed. This credential is used to identify the agent
   to the master.
 
 * `--[no-]authenticate_http` - If `true`, authentication is required to make
@@ -120,20 +120,20 @@ the `Credential.principal` into `FrameworkInfo.principal` when registering.
 
 2. Start the master using the credentials file (assuming the file is `/home/user/credentials`):
 
-        ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos --authenticate --authenticate_slaves --credentials=/home/user/credentials
+        ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos --authenticate --authenticate_agents --credentials=/home/user/credentials
 
-3. Create another file with a single credential in it (`/home/user/slave_credential`):
+3. Create another file with a single credential in it (`/home/user/agent_credential`):
 
         {
           "principal": "principal1",
           "secret": "secret1"
         }
 
-4. Start the slave:
+4. Start the agent:
 
-        ./bin/mesos-slave.sh --master=127.0.0.1:5050 --credential=/home/user/slave_credential
+        ./bin/mesos-agent.sh --master=127.0.0.1:5050 --credential=/home/user/agent_credential
 
-5. Your new slave should have now successfully authenticated with the master.
+5. Your new agent should have now successfully authenticated with the master.
 
 6. You can test out framework authentication using one of the test frameworks
 provided with Mesos as follows:

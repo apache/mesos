@@ -31,7 +31,7 @@ layout: documentation
 * [Operational Guide](operational-guide.md)
 * [Monitoring](monitoring.md)
 * [Network Monitoring and Isolation](network-monitoring.md)
-* [Slave Recovery](slave-recovery.md) for doing seamless slave upgrades and allowing executors to survive `mesos-slave` crashes.
+* [Agent Recovery](agent-recovery.md) for doing seamless agent upgrades and allowing executors to survive `mesos-agent` crashes.
 * [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
 * [Tools](tools.md) for setting up and running a Mesos cluster.
 * [SSL](ssl.md) for enabling and enforcing SSL communication.
@@ -39,7 +39,7 @@ layout: documentation
 
 ## Advanced Features
 
-* [Attributes and Resources](attributes-resources.md) for how to describe the slaves that comprise a cluster.
+* [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
 * [Fetcher Cache](fetcher.md) for how to configure the Mesos fetcher cache.
 * [Networking for Mesos-managed Containers](networking-for-mesos-managed-containers.md)
 * [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
@@ -68,7 +68,7 @@ layout: documentation
 
 ## Extending Mesos
 
-* [Mesos Modules](modules.md) for specifying Mesos modules for master, slave and tests.
+* [Mesos Modules](modules.md) for specifying Mesos modules for master, agent and tests.
 * [Allocation Modules](allocation-module.md) for how to write custom resource allocators.
 
 ## Contributing to Mesos

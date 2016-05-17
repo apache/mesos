@@ -8,7 +8,7 @@ layout: documentation
 **NOTE:**  The external containerizer is deprecated. See
 [MESOS-3370](https://issues.apache.org/jira/browse/MESOS-3370) for details.
 
-* EC = external containerizer. A part of the mesos slave that provides
+* EC = external containerizer. A part of the mesos agent that provides
 an API for containerizing via external plugin executables.
 * ECP = external containerizer program. An external plugin executable
 implementing the actual containerizing by interfacing with a
@@ -97,7 +97,7 @@ until it gets into a final state.
 ### Container Running
 
 A container has gotten launched at some point and now is considered
-being in a non terminal state by the slave. The following commands
+being in a non terminal state by the agent. The following commands
 will get triggered multiple times at the ECP over the lifetime of a
 container. Their order however is not determined.
 
@@ -110,9 +110,9 @@ While a container is active, a resource limitation was identified
 
 ![Resource Limitation Scheme](images/ec_kill_seqdiag.png?raw=true)
 
-## Slave Recovery Overview
+## Agent Recovery Overview
 
-* Slave recovers via check pointed state.
+* Agent recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
 or expected as a result from this command.
  * The ECP may try to recover internal states via its own failover
@@ -121,29 +121,29 @@ mechanisms, if needed.
  * The ECP should return Containers which is a list of currently
  active containers.
 **Note** these containers are known to the ECP but might in fact
-partially be unknown to the slave (e.g. slave failed after launch but
+partially be unknown to the agent (e.g. agent failed after launch but
 before or within wait) - those containers are considered to be
 orphans.
-* The EC now compares the list of slave known containers to those
-listed within `Containers`. For each orphan it identifies, the slave
+* The EC now compares the list of agent known containers to those
+listed within `Containers`. For each orphan it identifies, the agent
 will invoke a `wait` followed by a `destroy` on the ECP for those
 containers.
-* Slave will now call `wait` on the ECP (via EC) for all recovered
+* Agent will now call `wait` on the ECP (via EC) for all recovered
 containers. This does once again put `wait` into the position of the
 ultimate command reaper.
 
 
-## Slave Recovery Sequence Diagram
+## Agent Recovery Sequence Diagram
 
 ### Recovery
 
-While containers are active, the slave fails over.
+While containers are active, the agent fails over.
 
 ![Recovery Scheme](images/ec_recover_seqdiag.png?raw=true)
 
 ### Orphan Destruction
 
-Containers identified by the ECP as being active but not slave state
+Containers identified by the ECP as being active but not agent state
 recoverable are getting terminated.
 
 ![Orphan Destruction Scheme](images/ec_orphan_seqdiag.png?raw=true)
@@ -174,8 +174,8 @@ This call receives the containerizer::Launch protobuf via stdin.
       optional ExecutorInfo executor_info = 3;
       optional string directory = 4;
       optional string user = 5;
-      optional SlaveID slave_id = 6;
-      optional string slave_pid = 7;
+      optional SlaveID agent_id = 6;
+      optional string agent_pid = 7;
       optional bool checkpoint = 8;
     }
 
@@ -203,7 +203,7 @@ This call is expected to return containerizer::Termination via stdout.
 
     /**
      * Information about a container termination, returned by the
-     * containerizer to the slave.
+     * containerizer to the agent.
      */
     message Termination {
       // A container may be killed if it exceeds its resources; this will
@@ -293,8 +293,8 @@ This call is expected to return mesos::ResourceStatistics via stdout.
 ## destroy
 ### Terminates the containerized executor
 
-Is used in rare situations, like for graceful slave shutdown
-but also in slave fail over scenarios - see Slave Recovery for more.
+Is used in rare situations, like for graceful agent shutdown
+but also in agent fail over scenarios - see Agent Recovery for more.
 
     destroy < containerizer::Destroy
 
@@ -324,7 +324,7 @@ stdout.
 
     /**
      * Information on all active containers returned by the containerizer
-     * to the slave.
+     * to the agent.
      */
     message Containers {
       repeated ContainerID containers = 1;
@@ -337,7 +337,7 @@ stdout.
 Allows the ECP to do a state recovery on its own. If the ECP
 uses state check-pointing e.g. via file system, then this call would
 be a good moment to de-serialize that state information. Make sure you
-also see [Slave Recovery Overview](#slave-recovery-overview) for more.
+also see [Agent Recovery Overview](#agent-recovery-overview) for more.
 
     recover
 
@@ -377,15 +377,15 @@ invoking the ECP.
 * MESOS_LIBEXEC_DIRECTORY = path to mesos-executor, mesos-usage, ...
 This information is always present.
 
-* MESOS_WORK_DIRECTORY = slave work directory. This should be used for
-distinguishing slave instances.
+* MESOS_WORK_DIRECTORY = agent work directory. This should be used for
+distinguishing agent instances.
 This information is always present.
 
 **Note** that this is specifically helpful for being able to tie a set
-of containers to a specific slave instance, thus allowing proper
+of containers to a specific agent instance, thus allowing proper
 recovery when needed.
 
-* MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via slave
+* MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via agent
 flags (default_container_image). This variable is provided only in
 calls to `launch`.
 
@@ -399,7 +399,7 @@ For receiving an increased level of status information from the EC
 use the GLOG verbosity level. Prefix your mesos startup call by
 setting the level to a value higher than or equal to two.
 
-`GLOG_v=2 ./bin/mesos-slave --master=[...]`
+`GLOG_v=2 ./bin/mesos-agent --master=[...]`
 
 
 ## ECP stderr Logging
@@ -413,12 +413,12 @@ Example Log Output:
 
     I0603 02:12:34.165662 174215168 external_containerizer.cpp:1083] Invoking external containerizer for method 'launch'
     I0603 02:12:34.165675 174215168 external_containerizer.cpp:1100] calling: [/Users/till/Development/mesos-till/build/src/test-containerizer launch]
-    I0603 02:12:34.165678 175824896 slave.cpp:497] Successfully attached file '/tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345'
-    I0603 02:12:34.165686 174215168 external_containerizer.cpp:1101] directory: /tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345
+    I0603 02:12:34.165678 175824896 agent.cpp:497] Successfully attached file '/tmp/ExternalContainerizerTest_Launch_lP22ci/agents/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345'
+    I0603 02:12:34.165686 174215168 external_containerizer.cpp:1101] directory: /tmp/ExternalContainerizerTest_Launch_lP22ci/agents/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345
 
 The stderr output of the ECP for this call is found within the stderr file located in the directory displayed in the last quoted line.
 
-    cat /tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345/stderr
+    cat /tmp/ExternalContainerizerTest_Launch_lP22ci/agents/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345/stderr
 
 
 # Appendix
@@ -451,7 +451,7 @@ Example Hexdump:
     00000108:  3129 2028 436f 6d6d 616e 643a 2073 6820 2d63 2027 7768 696c  :1) (Command: sh -c 'whil
     00000120:  6520 7472 7565 203b 2e2e 2e27 2952 0131 22c5 012f 746d 702f  :e true ;...')R.1"../tmp/
     00000138:  4578 7465 726e 616c 436f 6e74 6169 6e65 7269 7a65 7254 6573  :ExternalContainerizerTes
-    00000150:  745f 4c61 756e 6368 5f6c 5855 6839 662f 736c 6176 6573 2f32  :t_Launch_lXUh9f/slaves/2
+    00000150:  745f 4c61 756e 6368 5f6c 5855 6839 662f 736c 6176 6573 2f32  :t_Launch_lXUh9f/agents/2
     00000168:  3031 3430 3532 362d 3031 3530 3036 2d31 3637 3737 3334 332d  :0140526-015006-16777343-
     00000180:  3535 3430 332d 3632 3536 372d 302f 6672 616d 6577 6f72 6b73  :55403-62567-0/frameworks
     00000198:  2f32 3031 3430 3532 362d 3031 3530 3036 2d31 3637 3737 3334  :/20140526-015006-1677734

@@ -10,8 +10,8 @@ isolation. The network isolation prevents a single container from exhausting the
 available network ports, consuming an unfair share of the network bandwidth or
 significantly delaying packet transmission for others. Network statistics for
 each active container are published through the [/monitor/statistics](endpoints/monitor/statistics.md)
-endpoint on the slave. The network isolation is transparent for the majority of
-tasks running on a slave (those that bind to port 0 and let the kernel allocate
+endpoint on the agent. The network isolation is transparent for the majority of
+tasks running on a agent (those that bind to port 0 and let the kernel allocate
 their port).
 
 ## Installation
@@ -31,7 +31,7 @@ versions 3.6 and above. Additionally, the kernel must include these patches
 * [e374c618b1465f0292047a9f4c244bd71ab5f1f0](https://github.com/torvalds/linux/commit/e374c618b1465f0292047a9f4c244bd71ab5f1f0)
 * [25f929fbff0d1bcebf2e92656d33025cd330cbf8](https://github.com/torvalds/linux/commit/25f929fbff0d1bcebf2e92656d33025cd330cbf8)
 
-The following packages are required on the slave:
+The following packages are required on the agent:
 
 * [libnl3](https://github.com/thom311/libnl/releases) >= 3.2.26
 * [iproute](http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2) >= 2.6.39 is advised for debugging purpose but not required.
@@ -51,12 +51,12 @@ need to add a configure option:
 
 ## Configuration
 
-Per-container network monitoring and isolation is enabled on the slave by adding
-`network/port_mapping` to the slave command line `--isolation` flag.
+Per-container network monitoring and isolation is enabled on the agent by adding
+`network/port_mapping` to the agent command line `--isolation` flag.
 
     --isolation="network/port_mapping"
 
-If the slave has not been compiled with per-container network monitoring and
+If the agent has not been compiled with per-container network monitoring and
 isolation support, it will refuse to start and print an error:
 
     I0708 00:17:08.080271 44267 containerizer.cpp:111] Using isolation: network/port_mapping
@@ -66,12 +66,12 @@ isolation support, it will refuse to start and print an error:
 ## Configuring network ports
 
 Without network isolation, all the containers on a host share the public IP
-address of the slave and can bind to any port allowed by the OS.
+address of the agent and can bind to any port allowed by the OS.
 
-When network isolation is enabled, each container on the slave has a separate
+When network isolation is enabled, each container on the agent has a separate
 network stack (via Linux [network namespaces](http://lwn.net/Articles/580893/)).
-All containers still share the same public IP of the slave (so that the service
-discovery mechanism does not need to be changed). The slave assigns each
+All containers still share the same public IP of the agent (so that the service
+discovery mechanism does not need to be changed). The agent assigns each
 container a non-overlapping range of the ports and only packets to/from these
 assigned port ranges will be delivered. Applications requesting the kernel
 assign a port (by binding to port 0) will be given ports from the container
@@ -96,13 +96,13 @@ on the host.
 
 The currently configured host ephemeral port range can be discovered at any time
 using the command `sysctl net.ipv4.ip_local_port_range`. If ports need to be set
-aside for slave containers, the ephemeral port range can be updated in
+aside for agent containers, the ephemeral port range can be updated in
 `/etc/sysctl.conf`. Rebooting after the update will apply the change and
 eliminate the possibility that ports are already in use by other processes. For
 example, by adding the following:
 
     # net.ipv4.ip_local_port_range defines the host ephemeral port range, by
-    # default 32768-61000.  We reduce this range to allow the Mesos slave to
+    # default 32768-61000.  We reduce this range to allow the Mesos agent to
     # allocate ports 32768-57344
     # net.ipv4.ip_local_port_range = 32768 61000
     net.ipv4.ip_local_port_range = 57345 61000
@@ -110,17 +110,17 @@ example, by adding the following:
 ### Container port ranges
 
 The container ephemeral and non-ephemeral port ranges are configured using the
-slave `--resources` flag. The non-ephemeral port range is provided to the
+agent `--resources` flag. The non-ephemeral port range is provided to the
 master, which will then offer it to frameworks for allocation.
 
-The ephemeral port range is sub-divided by the slave, giving
+The ephemeral port range is sub-divided by the agent, giving
 `ephemeral_ports_per_container` (default 1024) to each container. The maximum
-number of containers on the slave will therefore be limited to approximately:
+number of containers on the agent will therefore be limited to approximately:
 
     number of ephemeral_ports / ephemeral_ports_per_container
 
-The master `--max_executors_per_slave` flag is be used to prevent allocation of
-more executors on a slave when the ephemeral port range has been exhausted.
+The master `--max_executors_per_agent` flag is be used to prevent allocation of
+more executors on a agent when the ephemeral port range has been exhausted.
 
 It is recommended (but not required) that `ephemeral_ports_per_container` be set
 to a power of 2 (e.g., 512, 1024) and the lower bound of the ephemeral port
@@ -161,13 +161,13 @@ algorithm). Use the `--egress_unique_flow_per_container` flag to enable.
 
 ### Putting it all together
 
-A complete slave command line enabling network isolation, reserving ports
+A complete agent command line enabling network isolation, reserving ports
 57345-61000 for host ephemeral ports, 32768-57344 for container ephemeral ports,
 31000-32000 for non-ephemeral ports allocated by the framework, limiting
 container transmit bandwidth to 300 Mbits/second (37.5MBytes) with unique flows
 enabled would thus be:
 
-    mesos-slave \
+    mesos-agent \
     --isolation=network/port_mapping \
     --resources=ports:[31000-32000];ephemeral_ports:[32768-57344] \
     --ephemeral_ports_per_container=1024 \
@@ -177,7 +177,7 @@ enabled would thus be:
 ## Monitoring container network statistics
 
 Mesos exposes statistics from the Linux network stack for each container network
-on the [/monitor/statistics](endpoints/monitor/statistics.md) slave endpoint.
+on the [/monitor/statistics](endpoints/monitor/statistics.md) agent endpoint.
 
 From the network interface inside the container, we report the following
 counters (since container creation) under the `statistics` key:
@@ -291,7 +291,7 @@ for each of these elements includes:
 
 [3] Currently always reported as 0 by the underlying Traffic Control element.
 
-For example, these are the statistics you will get by hitting the `/monitor/statistics` endpoint on a slave with network monitoring turned on:
+For example, these are the statistics you will get by hitting the `/monitor/statistics` endpoint on a agent with network monitoring turned on:
 
     $ curl -s http://localhost:5051/monitor/statistics | python2.6 -mjson.tool
     [

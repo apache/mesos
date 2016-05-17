@@ -235,7 +235,7 @@ using two different mechanisms:
    "ping" messages to the agent and expects a "pong" response message within a
    configurable timeout. The agent is considered to have failed if it does not
    respond promptly to a certain number of ping messages in a row. This behavior
-   is controlled by the `--slave_ping_timeout` and `--max_slave_ping_timeouts`
+   is controlled by the `--agent_ping_timeout` and `--max_agent_ping_timeouts`
    master flags.
 
 If the persistent TCP connection to the agent breaks or the agent fails health
@@ -246,7 +246,7 @@ it from the cluster. Specifically:
   semantics when a registered agent gets disconnected are as follows for each
   framework running on that agent:
 
-  * If the framework is [checkpointing](slave-recovery.md): no immediate action
+  * If the framework is [checkpointing](agent-recovery.md): no immediate action
     is taken. The agent is given a chance to reconnect until health checks time
     out.
 
@@ -259,21 +259,21 @@ it from the cluster. Specifically:
 
     * The rationale for this behavior is that, using typical TCP settings, an
       error in the persistent TCP connection between the master and the agent is
-      more likely to correspond to an agent error (e.g., the `mesos-slave`
+      more likely to correspond to an agent error (e.g., the `mesos-agent`
       process terminating unexpectedly) than a network partition, because the
       Mesos health-check timeouts are much smaller than the typical values of
       the corresponding TCP-level timeouts. Since non-checkpointing frameworks
-      will not survive a restart of the `mesos-slave` process, the master sends
+      will not survive a restart of the `mesos-agent` process, the master sends
       `TASK_LOST` status updates so that these tasks can be rescheduled
       promptly.  Of course, the heuristic that TCP errors do not correspond to
       network partitions may not be true in some environments.
 
 * If the agent fails health checks, it is scheduled for removal. The removals can
-  be rate limited by the master (see `--slave_removal_rate_limit` master flag)
-  to avoid removing a slew of slaves at once (e.g., during a network partition).
+  be rate limited by the master (see `--agent_removal_rate_limit` master flag)
+  to avoid removing a slew of agents at once (e.g., during a network partition).
 
 * When it is time to remove an agent, the master removes the agent from the list
-  of registered slaves in the master's [durable state](replicated-log-internals.md)
+  of registered agents in the master's [durable state](replicated-log-internals.md)
   (this will survive master failover). The master sends a `slaveLost` callback
   to every registered scheduler driver; it also sends `TASK_LOST` status updates
   for every task that was running on the removed agent.
@@ -291,9 +291,9 @@ it from the cluster. Specifically:
   executors.  Persistent volumes and dynamic reservations on the removed agent
   will be preserved.
 
-  * A removed agent can rejoin the cluster by restarting the `mesos-slave`
+  * A removed agent can rejoin the cluster by restarting the `mesos-agent`
     process. When a removed agent is shutdown by the master, Mesos ensures that
-    the next time `mesos-slave` is started (using the same work directory at the
+    the next time `mesos-agent` is started (using the same work directory at the
     same host), the agent will receive a new agent ID; in effect, the agent will
     be treated as a newly joined agent. The agent will retain any previously
     created persistent volumes and dynamic reservations, although the agent ID
@@ -328,16 +328,16 @@ framework has successfully reregistered with the new leading master, the
 
 ### Agent Reregistration
 During the period after a new master has been elected but before a given agent
-has reregistered or the `slave_reregister_timeout` has fired, attempting to
+has reregistered or the `agent_reregister_timeout` has fired, attempting to
 reconcile the state of a task running on that agent will not return any
 information (because the master cannot accurately determine the state of the
 task).
 
 If an agent does not reregister with the new master within a timeout (controlled
-by the `--slave_reregister_timeout` configuration flag), the master marks the
+by the `--agent_reregister_timeout` configuration flag), the master marks the
 agent as failed and follows the same steps described above. However, there is
 one difference: by default, agents are _allowed to reconnect_ following master
-failover, even after the `slave_reregister_timeout` has fired. This means that
+failover, even after the `agent_reregister_timeout` has fired. This means that
 frameworks might see a `TASK_LOST` update for a task but then later discover
 that the task is running (because the agent where it was running was allowed to
 reconnect). This behavior can be avoided by enabling the `--registry_strict`

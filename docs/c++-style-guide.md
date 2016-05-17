@@ -84,15 +84,15 @@ driver.acceptOffers({offer.id()},
 
 ~~~{.cpp}
 // 1: OK.
-allocator->resourcesRecovered(frameworkId, slaveId, resources, filters);
+allocator->resourcesRecovered(frameworkId, agentId, resources, filters);
 
 // 2: Don't use.
-allocator->resourcesRecovered(frameworkId, slaveId,
+allocator->resourcesRecovered(frameworkId, agentId,
                               resources, filters);
 
 // 3: Don't use in this case due to "jaggedness".
 allocator->resourcesRecovered(frameworkId,
-                              slaveId,
+                              agentId,
                               resources,
                               filters);
 
@@ -104,13 +104,13 @@ foobar(someArgument,
 // 4: OK.
 allocator->resourcesRecovered(
     frameworkId,
-    slaveId,
+    agentId,
     resources,
     filters);
 
 // 5: OK.
 allocator->resourcesRecovered(
-    frameworkId, slaveId, resources, filters);
+    frameworkId, agentId, resources, filters);
 ~~~
 
 ### Continuation

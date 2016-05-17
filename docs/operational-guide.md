@@ -42,7 +42,7 @@ The following steps indicate how to increment the quorum size, using 3 -> 5 mast
 To increase the quorum by N, repeat this process to increment the quorum size N times.
 
 NOTE: Currently, moving out of a single master setup requires wiping the replicated log
-state and starting fresh. This will wipe all persistent data (e.g., slaves, maintenance
+state and starting fresh. This will wipe all persistent data (e.g., agents, maintenance
 information, quota information, etc). To move from 1 master to 3 masters:
 
 1. Stop the standalone master.

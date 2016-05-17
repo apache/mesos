@@ -231,7 +231,7 @@ When sending reviews, it can be valuable to consult the component maintainers, a
   </thead>
   <tbody>
     <tr>
-      <td>Master / Slave</td>
+      <td>Master / Agent</td>
       <td>Benjamin Hindman, Vinod Kone, Benjamin Mahler, Jie Yu</td>
     </tr>
     <tr>

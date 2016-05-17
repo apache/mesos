@@ -5,7 +5,7 @@ layout: documentation
 
 # Mesos Attributes & Resources
 
-Mesos has two basic methods to describe the slaves that comprise a cluster.  One of these is managed by the Mesos master, the other is simply passed onwards to the frameworks using the cluster.
+Mesos has two basic methods to describe the agents that comprise a cluster. One of these is managed by the Mesos master, the other is simply passed onwards to the frameworks using the cluster.
 
 ## Types
 
@@ -37,7 +37,7 @@ Attributes are key-value pairs (where value is optional) that Mesos passes along
 
 ## Resources
 
-Mesos can manage three different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos slave has to offer.  For example, a scalar resource type could be used to represent the amount of memory on a slave. Scalar resources are represented using floating point numbers to allow fractional values to be specified (e.g., "1.5 CPUs"). Mesos only supports three decimal digits of precision for scalar resources (e.g., reserving "1.5123 CPUs" is considered equivalent to reserving "1.512 CPUs"). For GPUs, Mesos only supports whole number values.
+Mesos can manage three different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos agent has to offer.  For example, a scalar resource type could be used to represent the amount of memory on a agent. Scalar resources are represented using floating point numbers to allow fractional values to be specified (e.g., "1.5 CPUs"). Mesos only supports three decimal digits of precision for scalar resources (e.g., reserving "1.5123 CPUs" is considered equivalent to reserving "1.512 CPUs"). For GPUs, Mesos only supports whole number values.
 
 Resources can be specified either with a JSON array or a semicolon-delimited string of key-value pairs.  If, after examining the examples below, you have questions about the format of the JSON, inspect the `Resource` protobuf message definition in `include/mesos/mesos.proto`.
 
@@ -102,13 +102,13 @@ There are several kinds of resources that have predefined behavior:
 
 Note that `disk` and `mem` resources are specified in megabytes. The master's user interface will convert resource values into a more human-readable format: for example, the value `15000` will be displayed as `14.65GB`.
 
-A slave without `cpus` and `mem` resources will not have its resources advertised to any frameworks.
+A agent without `cpus` and `mem` resources will not have its resources advertised to any frameworks.
 
 ## Examples
 
-By default, Mesos will try to autodetect the resources available at the local machine when `mesos-slave` starts up. Alternatively, you can explicitly configure which resources a slave should make available.
+By default, Mesos will try to autodetect the resources available at the local machine when `mesos-agent` starts up. Alternatively, you can explicitly configure which resources a agent should make available.
 
-Here are some examples of how to configure the resources at a Mesos slave:
+Here are some examples of how to configure the resources at a Mesos agent:
 
     --resources='cpus:24;gpus:2;mem:24576;disk:409600;ports:[21000-24000,30000-34000];bugs(debug_role):{a,b,c}'
 
@@ -177,7 +177,7 @@ Or given a file `resources.txt` containing the following:
 
 You can do:
 
-    $ path/to/mesos-slave --resources=file:///path/to/resources.txt ...
+    $ path/to/mesos-agent --resources=file:///path/to/resources.txt ...
 
 In this case, we have five resources of three different types: scalars, a range, and a set.  There are scalars called `cpus`, `gpus`, `mem` and `disk`, a range called `ports`, and a set called `bugs`. `bugs` is assigned to the role `debug_role`, while the other resources do not specify a role and are thus assigned to the default role.
 
@@ -190,7 +190,7 @@ Note: the "default role" can be set by the `--default_role` flag.
   - range called `ports`, with values `21000` through `24000` and `30000` through `34000` (inclusive)
   - set called `bugs`, with the values `a`, `b` and `c`, assigned to the role `debug_role`
 
-To configure the attributes of a Mesos slave, you can use the `--attributes` command-line flag of `mesos-slave`:
+To configure the attributes of a Mesos agent, you can use the `--attributes` command-line flag of `mesos-agent`:
 
     --attributes='rack:abc;zone:west;os:centos5;level:10;keys:[1000-1500]'
 

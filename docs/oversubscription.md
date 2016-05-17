@@ -14,10 +14,10 @@ jobs.
 
 ## How does it work?
 
-Oversubscription was introduced in Mesos 0.23.0 and adds two new slave
+Oversubscription was introduced in Mesos 0.23.0 and adds two new agent
 components: a Resource Estimator and a Quality of Service (QoS) Controller,
 alongside extending the existing resource allocator, resource monitor, and
-mesos slave. The new components and their interactions are illustrated below.
+mesos agent. The new components and their interactions are illustrated below.
 
 ![Oversubscription overview](images/oversubscription-overview.jpg)
 
@@ -31,10 +31,10 @@ amount of oversubscribed resources. This can be a series of control algorithms
 based on measured resource usage slack (allocated but unused resources) and
 allocation slack.
 
- - (2) The slave keeps polling estimates from the resource estimator and tracks
+ - (2) The agent keeps polling estimates from the resource estimator and tracks
    the latest estimate.
 
- - (3) The slave will send the total amount of oversubscribed resources to the
+ - (3) The agent will send the total amount of oversubscribed resources to the
    master when the latest estimate is different from the previous estimate.
 
 ### Resource tracking & scheduling algorithm
@@ -58,7 +58,7 @@ disk resources.
 ### Task launch
 
  - The revocable task is launched as usual when the `runTask` request is received
-   on the slave. The resources will still be marked as revocable and isolators
+   on the agent. The resources will still be marked as revocable and isolators
 can take appropriate actions, if certain resources need to be setup differently
 for revocable and regular tasks.
 
@@ -103,7 +103,7 @@ below for an example offer with regular and revocable resources.
 {
   "id": "20150618-112946-201330860-5050-2210-0000",
   "framework_id": "20141119-101031-201330860-5050-3757-0000",
-  "slave_id": "20150618-112946-201330860-5050-2210-S1",
+  "agent_id": "20150618-112946-201330860-5050-2210-S1",
   "hostname": "foobar",
   "resources": [
     {
@@ -137,9 +137,9 @@ below for an example offer with regular and revocable resources.
 ## Writing a custom resource estimator
 
 The resource estimator estimates and predicts the total resources used on the
-slave and informs the master about resources that can be oversubscribed. By
+agent and informs the master about resources that can be oversubscribed. By
 default, Mesos comes with a `noop` and a `fixed` resource estimator. The `noop`
-estimator only provides an empty estimate to the slave and stalls, effectively
+estimator only provides an empty estimate to the agent and stalls, effectively
 disabling oversubscription. The `fixed` estimator doesn't use the actual
 measured slack, but oversubscribes the node with fixed resource amount (defined
 via a command line flag).
@@ -154,14 +154,14 @@ public:
   // called before any other member method is called. It registers
   // a callback in the resource estimator. The callback allows the
   // resource estimator to fetch the current resource usage for each
-  // executor on slave.
+  // executor on agent.
   virtual Try<Nothing> initialize(
       const lambda::function<process::Future<ResourceUsage>()>& usage) = 0;
 
   // Returns the current estimation about the *maximum* amount of
-  // resources that can be oversubscribed on the slave. A new
+  // resources that can be oversubscribed on the agent. A new
   // estimation will invalidate all the previously returned
-  // estimations. The slave will be calling this method periodically
+  // estimations. The agent will be calling this method periodically
   // to forward it to the master. As a result, the estimator should
   // respond with an estimate every time this method is called.
   virtual process::Future<Resources> oversubscribable() = 0;
@@ -180,11 +180,11 @@ public:
   // called before any other member method is called. It registers
   // a callback in the QoS Controller. The callback allows the
   // QoS Controller to fetch the current resource usage for each
-  // executor on slave.
+  // executor on agent.
   virtual Try<Nothing> initialize(
       const lambda::function<process::Future<ResourceUsage>()>& usage) = 0;
 
-  // A QoS Controller informs the slave about corrections to carry
+  // A QoS Controller informs the agent about corrections to carry
   // out, but returning futures to QoSCorrection objects. For more
   // information, please refer to mesos.proto.
   virtual process::Future<std::list<QoSCorrection>> corrections() = 0;
@@ -194,7 +194,7 @@ public:
 > NOTE The QoS Controller must not block `corrections()`. Back the QoS
 > Controller with it's own libprocess actor instead.
 
-The QoS Controller informs the slave that particular corrective actions need to
+The QoS Controller informs the agent that particular corrective actions need to
 be made. Each corrective action contains information about executor or task and
 the type of action to perform.
 
@@ -226,7 +226,7 @@ message QoSCorrection {
 
 ## Configuring oversubscription
 
-Five new flags has been added to the slave:
+Five new flags has been added to the agent:
 
 <table class="table table-striped">
   <thead>
@@ -244,7 +244,7 @@ Five new flags has been added to the slave:
       --oversubscribed_resources_interval=VALUE
     </td>
     <td>
-      The slave periodically updates the master with the current estimation
+      The agent periodically updates the master with the current estimation
 about the total amount of oversubscribed resources that are allocated and
 available. The interval between updates is controlled by this flag. (default:
 15secs)
@@ -265,7 +265,7 @@ available. The interval between updates is controlled by this flag. (default:
       --qos_correction_interval_min=VALUE
     </td>
     <td>
-      The slave polls and carries out QoS corrections from the QoS Controller
+      The agent polls and carries out QoS corrections from the QoS Controller
 based on its observed performance of running tasks. The smallest interval
 between these corrections is controlled by this flag. (default: 0ns)
     </td>
@@ -332,7 +332,7 @@ The `load` qos controller is enabled as follows:
 ```
 
 In the example above, when standard unix system load average for 5 minutes will
-be above 6, or for 15 minutes will be above 4 then slave will evict all the
+be above 6, or for 15 minutes will be above 4 then agent will evict all the
 `revocable` executors. `LoadQoSController` will be effectively run every 20
 seconds.
 

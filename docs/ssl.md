@@ -19,7 +19,7 @@ Before building Mesos 0.23.0 from source, assuming you have installed the requir
 ~~~
 
 # Running
-Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Slave`, `Framework Scheduler/Executor`, or any `libprocess process`:
+Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Agent`, `Framework Scheduler/Executor`, or any `libprocess process`:
 
 #### SSL_ENABLED=(false|0,true|1) [default=false|0]
 Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `SSL_CERT_FILE` and `SSL_KEY_FILE` must be supplied.
@@ -92,22 +92,22 @@ _There is no SSL specific requirement for upgrading different components in a sp
 The recommended strategy is to restart all your components to enable SSL with downgrades support enabled. Once all components have SSL enabled, then do a second restart of all your components to disable downgrades. This strategy will allow each component to be restarted independently at your own convenience with no time restrictions. It will also allow you to try SSL in a subset of your cluster. __NOTE:__ While different components in your cluster are serving SSL vs non-SSL traffic, any relative links in the WebUI may be broken. Please see the [WebUI](#WebUI) section for details. Here are sample commands for upgrading your cluster:
 
 ~~~
-// Restart each component with downgrade support (master, slave, framework):
+// Restart each component with downgrade support (master, agent, framework):
 SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=true SSL_KEY_FILE=<path-to-your-private-key> SSL_CERT_FILE=<path-to-your-certificate> <Any other SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
 
-// Restart each component WITHOUT downgrade support (master, slave, framework):
+// Restart each component WITHOUT downgrade support (master, agent, framework):
 SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=false SSL_KEY_FILE=<path-to-your-private-key> SSL_CERT_FILE=<path-to-your-certificate> <Any other SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
 ~~~
-Executors must be able to access the SSL environment variables and the files referred to by those variables. Environment variables can be provided to an executor by specifying `CommandInfo.environment` or by using the slave's `--executor_environment_variables` command line flag. If the slave and the executor are running in separate containers, `ContainerInfo.volumes` can be used to mount SSL files from the host into the executor's container.
+Executors must be able to access the SSL environment variables and the files referred to by those variables. Environment variables can be provided to an executor by specifying `CommandInfo.environment` or by using the agent's `--executor_environment_variables` command line flag. If the agent and the executor are running in separate containers, `ContainerInfo.volumes` can be used to mount SSL files from the host into the executor's container.
 
 The end state is a cluster that is only communicating with SSL.
 
 __NOTE:__ Any tools you may use that communicate with your components must be able to speak SSL, or they will be denied. You may choose to maintain `SSL_SUPPORT_DOWNGRADE=true` for some time as you upgrade your internal tooling. The advantage of `SSL_SUPPORT_DOWNGRADE=true` is that all components that speak SSL will do so, while other components may still communicate over insecure channels.
 
 # <a name="WebUI"></a>WebUI
-The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and slaves. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `SSL_SUPPORT_DOWNGRADE` option is set to true.
+The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and agents. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `SSL_SUPPORT_DOWNGRADE` option is set to true.
 
 __NOTE:__ Frameworks with their own WebUI will need to add HTTPS support separately.
 
 ### Certificates
-Most browsers have built in protection that guard transitions between pages served using different certificates. For this reason you may choose to serve both the master and slave endpoints using a common certificate that covers multiple hostnames. If you do not do this, certain links, such as those to slave sandboxes, may seem broken as the browser treats the transition between differing certificates transition as unsafe.
+Most browsers have built in protection that guard transitions between pages served using different certificates. For this reason you may choose to serve both the master and agent endpoints using a common certificate that covers multiple hostnames. If you do not do this, certain links, such as those to agent sandboxes, may seem broken as the browser treats the transition between differing certificates transition as unsafe.

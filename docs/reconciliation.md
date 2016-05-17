@@ -28,7 +28,7 @@ example:
 before the launch task message was sent.
 * Master fails before receiving the message.
 * Master fails after receiving the message, but before sending it to the
-slave.
+agent.
 
 In these cases, the framework believes the task to be staging, but the
 task is unknown to Mesos. To cope with such situations, **task state must be
@@ -84,7 +84,7 @@ Currently, the master will only examine two fields in `TaskStatus`:
 
 * `TaskID`: This is required.
 * `SlaveID`: Optional, leads to faster reconciliation in the presence of
-slaves that are transitioning between states.
+agents that are transitioning between states.
 
 ### Algorithm
 
@@ -92,9 +92,9 @@ This technique for explicit reconciliation reconciles all non-terminal tasks,
 until an update is received for each task, using exponential backoff to retry
 tasks that remain unreconciled. Retries are needed because the master temporarily
 may not be able to reply for a particular task. For example, during master
-failover the master must re-register all of the slaves to rebuild its
+failover the master must re-register all of the agents to rebuild its
 set of known tasks (this process can take minutes for large clusters, and
-is bounded by the `--slave_reregister_timeout` flag on the master).
+is bounded by the `--agent_reregister_timeout` flag on the master).
 
 Steps:
 
@@ -111,7 +111,7 @@ Implicit reconciliation (passing an empty list) should also be used
 periodically, as a defense against data loss in the framework. Unless a
 strict registry is in use on the master, its possible for tasks to resurrect
 from a LOST state (without a strict registry the master does not enforce
-slave removal across failovers). When an unknown task is encountered, the
+agent removal across failovers). When an unknown task is encountered, the
 scheduler should kill or recover the task.
 
 Notes:
