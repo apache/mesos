@@ -239,7 +239,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"posix/mem", &PosixMemIsolatorProcess::create},
     {"posix/disk", &PosixDiskIsolatorProcess::create},
 #if ENABLE_XFS_DISK_ISOLATOR
-    {"xfs/disk", &XfsDiskIsolatorProcess::create},
+    {"disk/xfs", &XfsDiskIsolatorProcess::create},
 #endif
 #ifdef __linux__
     {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},

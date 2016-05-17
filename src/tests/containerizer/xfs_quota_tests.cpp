@@ -162,7 +162,7 @@ public:
     // We only need an XFS-specific directory for the work directory. We
     // don't mind that other flags refer to a different temp directory.
     flags.work_dir = mountPoint.get();
-    flags.isolation = "xfs/disk";
+    flags.isolation = "disk/xfs";
     return flags;
   }
 

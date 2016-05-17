@@ -97,8 +97,8 @@ The XFS disk isolator is functionally similar to Posix Disk isolator
 but avoids the cost of repeatedly running the `du`.  Though they will
 not interfere with each other, it is not recommended to use them together.
 
-To enable the XFS Disk isolator, append `xfs/disk` to the
-`--isolation` flag when starting the agent.
+To enable the XFS Disk isolator, append `disk/xfs` to the `--isolation`
+flag when starting the agent.
 
 The XFS Disk isolator requires the sandbox directory to be located
 on an XFS filesystem that is mounted with the `pquota` option. There
