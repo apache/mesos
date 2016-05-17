@@ -1301,6 +1301,9 @@ string Master::Http::QUOTA_HELP()
         "the current principal is authorized to set quota for the target role.",
         "Similarly, removing quota requires that the principal is authorized",
         "to remove quota created by the quota_principal.",
+        "Getting quota information for a certain role requires that the",
+        "current principal is authorized to get quota for the target role,",
+        "otherwise the entry fot the target role could be silently filtered.",
         "See the authorization documentation for details."));
 }
 
@@ -1316,7 +1319,7 @@ Future<Response> Master::Http::quota(
 
   // Dispatch based on HTTP method to separate `QuotaHandler`.
   if (request.method == "GET") {
-    return quotaHandler.status(request);
+    return quotaHandler.status(request, principal);
   }
 
   if (request.method == "POST") {

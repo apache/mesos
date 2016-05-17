@@ -943,7 +943,8 @@ private:
 
     // Returns a list of set quotas.
     process::Future<process::http::Response> status(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> set(
         const process::http::Request& request,
@@ -998,6 +999,10 @@ private:
     // (including rescinding) is moved to allocator.
     void rescindOffers(const mesos::quota::QuotaInfo& request) const;
 
+    process::Future<bool> authorizeGetQuota(
+        const Option<std::string>& principal,
+        const std::string& role) const;
+
     process::Future<bool> authorizeSetQuota(
         const Option<std::string>& principal,
         const std::string& role) const;
@@ -1005,6 +1010,11 @@ private:
     process::Future<bool> authorizeRemoveQuota(
         const Option<std::string>& requestPrincipal,
         const Option<std::string>& quotaPrincipal) const;
+
+    process::Future<process::http::Response> _status(
+        const process::http::Request& request,
+        const std::vector<mesos::quota::QuotaInfo>& quotaInfos,
+        const std::list<bool>& authorized) const;
 
     process::Future<process::http::Response> _set(
         const mesos::quota::QuotaInfo& quota,

@@ -1154,8 +1154,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  // Setup ACLs so that only the default principal can set quotas for `ROLE1`
-  // and can remove its own quotas.
+  // Setup ACLs so that only the default principal can set and see
+  // quotas for `ROLE1` and can remove its own quotas.
   ACLs acls;
 
   mesos::ACL::SetQuota* acl1 = acls.add_set_quotas();
@@ -1173,6 +1173,14 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
   mesos::ACL::RemoveQuota* acl4 = acls.add_remove_quotas();
   acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl4->mutable_quota_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  mesos::ACL::GetQuota* acl5 = acls.add_get_quotas();
+  acl5->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl5->mutable_roles()->add_values(ROLE1);
+
+  mesos::ACL::GetQuota* acl6 = acls.add_get_quotas();
+  acl6->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl6->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
@@ -1234,6 +1242,64 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     EXPECT_EQ(ROLE1, quota.get().info.role());
     EXPECT_EQ(principal, quota.get().info.principal());
     EXPECT_EQ(quotaResources, quota.get().info.guarantee());
+  }
+
+  // Try to get the previously requested quota using a princilal that is
+  // not authorized to see it. This will result in empty information
+  // returned.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    EXPECT_EQ(0, status.get().infos().size());
+  }
+
+  // Get the previous requested quota using default principal, which is
+  // authorized to see it.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    EXPECT_EQ(1, status.get().infos().size());
+    EXPECT_EQ(ROLE1, status.get().infos(0).role());
   }
 
   // Try to remove the previously requested quota using a principal that is

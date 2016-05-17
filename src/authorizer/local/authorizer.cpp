@@ -172,6 +172,17 @@ public:
 
         return authorized(request, acls_);
         break;
+      case authorization::GET_QUOTA_WITH_ROLE:
+        foreach (const ACL::GetQuota& acl, acls.get_quotas()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.roles();
+
+          acls_.push_back(acl_);
+        }
+
+        return authorized(request, acls_);
+        break;
       case authorization::SET_QUOTA_WITH_ROLE:
         foreach (const ACL::SetQuota& acl, acls.set_quotas()) {
           GenericACL acl_;

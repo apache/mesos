@@ -120,6 +120,15 @@ message ACL {
     required Entity creator_principals = 2;
   }
 
+  // Which principals are authorized to see quotas for the given roles.
+  message GetQuota {
+    // Subjects: operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of roles whose quotas can be seen.
+    optional Entity roles = 2;
+  }
+
   // Which principals are authorized to set quotas for given roles.
   message SetQuota {
     // Subjects: Operator username.
@@ -188,6 +197,7 @@ message ACLs {
   repeated ACL.UnreserveResources unreserve_resources = 6;
   repeated ACL.CreateVolume create_volumes = 7;
   repeated ACL.DestroyVolume destroy_volumes = 8;
+  repeated ACL.GetQuota get_quotas = 14;
   repeated ACL.SetQuota set_quotas = 9;
   repeated ACL.RemoveQuota remove_quotas = 10;
   repeated ACL.TeardownFramework teardown_frameworks = 11;
