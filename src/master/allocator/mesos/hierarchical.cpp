@@ -1569,7 +1569,7 @@ void HierarchicalAllocatorProcess::deallocate(
               // host, as we have the information available.
               offerable[frameworkId][slaveId] = unavailableResources;
 
-              // Mark this framework as having an offer oustanding for the
+              // Mark this framework as having an offer outstanding for the
               // specified slave.
               maintenance.offersOutstanding.insert(frameworkId);
             }

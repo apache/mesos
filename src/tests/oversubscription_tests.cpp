@@ -509,7 +509,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Inject another estimation of oversubscribable resources while the
-  // previous revocable offer is oustanding.
+  // previous revocable offer is outstanding.
   Resources resources2 = createRevocableResources("cpus", "2");
   estimations.put(resources2);
 
