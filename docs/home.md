@@ -91,4 +91,4 @@ layout: documentation
 ## More Info about Mesos
 
 * [Powered by Mesos](powered-by-mesos.md) lists organizations and software that are powered by Apache Mesos.
-* Academic Papers and Project History
+* [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
