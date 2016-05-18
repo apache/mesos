@@ -361,6 +361,8 @@ map<string, string> executorEnvironment(
   environment["MESOS_SLAVE_PID"] = stringify(slavePid);
   environment["MESOS_AGENT_ENDPOINT"] = stringify(slavePid.address);
   environment["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+  environment["MESOS_HTTP_COMMAND_EXECUTOR"] =
+    flags.http_command_executor ? "1" : "0";
 
   // Set executor's shutdown grace period. If set, the customized value
   // from `ExecutorInfo` overrides the default from agent flags.
