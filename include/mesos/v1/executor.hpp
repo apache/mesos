@@ -35,6 +35,15 @@ namespace executor {
 
 class MesosProcess; // Forward declaration.
 
+class MesosBase
+{
+public:
+  // Empty virtual destructor (necessary to instantiate subclasses).
+  virtual ~MesosBase() {}
+  virtual void send(const Call& call) = 0;
+};
+
+
 // Interface to Mesos for an executor.
 //
 // Expects three callbacks, 'connected', 'disconnected', and
@@ -42,7 +51,7 @@ class MesosProcess; // Forward declaration.
 // that we've connected (i.e. established TCP connection), disconnected
 // (i.e, connection is broken), or received events from the agent.
 // Note that we drop events while disconnected.
-class Mesos
+class Mesos : public MesosBase
 {
 public:
   Mesos(ContentType contentType,
@@ -62,7 +71,7 @@ public:
   //
   // Some local validation of calls is performed which may result in dropped
   // events without ever being sent to the agent.
-  virtual void send(const Call& call);
+  virtual void send(const Call& call) override;
 
 private:
   process::Owned<MesosProcess> process;

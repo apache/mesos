@@ -698,6 +698,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   docker/spec.cpp							\
   exec/exec.cpp								\
   executor/executor.cpp							\
+  executor/v0_v1executor.cpp						\
   files/files.cpp							\
   hdfs/hdfs.cpp								\
   hook/manager.cpp							\
@@ -818,6 +819,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
+  executor/v0_v1executor.hpp						\
   files/files.hpp							\
   hdfs/hdfs.hpp								\
   hook/manager.hpp							\
