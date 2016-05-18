@@ -13,6 +13,7 @@ layout: documentation
 ## Running Mesos
 
 * [Getting Started](getting-started.md) for basic instructions on compiling and installing Mesos.
+* [CMake](cmake.md) for building Mesos with CMake.
 * [Upgrades](upgrades.md) for upgrading a Mesos cluster.
 * [Configuration](configuration.md) for command-line arguments.
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
