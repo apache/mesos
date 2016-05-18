@@ -22,6 +22,7 @@
 #include <process/future.hpp>
 #include <process/once.hpp>
 
+#include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -66,6 +67,8 @@ public:
 
 private:
   LocalAuthorizer(const ACLs& acls);
+
+  static Option<Error> validate(const ACLs& acls);
 
   LocalAuthorizerProcess* process;
 };

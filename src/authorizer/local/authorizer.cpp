@@ -30,6 +30,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
@@ -62,6 +63,14 @@ public:
 
   virtual void initialize()
   {
+    // TODO(zhitao): Remove the following log warning at the end of the
+    // deprecation cycle which started with 0.29.
+    if (acls.set_quotas_size() > 0 ||
+        acls.remove_quotas_size() > 0) {
+      LOG(WARNING) << "SetQuota and RemoveQuota ACLs are deprecacted; "
+                   << "please use UpdateQuota";
+    }
+
     // TODO(arojas): Remove the following two if blocks once
     // ShutdownFramework reaches the end of deprecation cycle
     // which started with 0.27.0.
@@ -183,7 +192,38 @@ public:
 
         return authorized(request, acls_);
         break;
+      case authorization::UPDATE_QUOTA_WITH_ROLE:
+        // Deprecation case: If `update_quotas` is empty but
+        // `set_quotas` or `remove_quotas` are not, "skip"
+        // authorization here under assumption that the caller,
+        // i.e., `QuotaHandler`, checks `set_quotas`/`remove_quotas`.
+        //
+        // TODO(zhitao): Remove this special case at the end
+        // of the deprecation cycle which started with 0.29.
+        if (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0) {
+          CHECK(acls.update_quotas_size() == 0);
+          return true;
+        }
+
+        foreach (const ACL::UpdateQuota& acl, acls.update_quotas()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.roles();
+
+          acls_.push_back(acl_);
+        }
+
+        return authorized(request, acls_);
+        break;
+
+      // TODO(zhitao): Remove the following two cases at the end
+      // of the deprecation cycle which started with 0.29.
       case authorization::SET_QUOTA_WITH_ROLE:
+        if (acls.update_quotas_size() > 0) {
+          CHECK(acls.set_quotas_size() == 0);
+          return true;
+        }
+
         foreach (const ACL::SetQuota& acl, acls.set_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -195,6 +235,11 @@ public:
         return authorized(request, acls_);
         break;
       case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
+        if (acls.update_quotas_size() > 0) {
+          CHECK(acls.remove_quotas_size() == 0);
+          return true;
+        }
+
         foreach (const ACL::RemoveQuota& acl, acls.remove_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -205,6 +250,7 @@ public:
 
         return authorized(request, acls_);
         break;
+
       case authorization::UPDATE_WEIGHTS_WITH_ROLE:
         foreach (const ACL::UpdateWeights& acl, acls.update_weights()) {
           GenericACL acl_;
@@ -381,6 +427,11 @@ private:
 
 Try<Authorizer*> LocalAuthorizer::create(const ACLs& acls)
 {
+  Option<Error> validationError = validate(acls);
+  if (validationError.isSome()) {
+    return validationError.get();
+  }
+
   Authorizer* local = new LocalAuthorizer(acls);
 
   return local;
@@ -407,6 +458,18 @@ Try<Authorizer*> LocalAuthorizer::create(const Parameters& parameters)
   }
 
   return LocalAuthorizer::create(acls_.get());
+}
+
+
+Option<Error> LocalAuthorizer::validate(const ACLs& acls)
+{
+  if (acls.update_quotas_size() > 0 &&
+      (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0)) {
+    return Error("acls.update_quotas cannot be used "
+                 "together with deprecated set_quotas/remove_quotas!");
+  }
+
+  return None();
 }
 
 

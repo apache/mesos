@@ -957,7 +957,161 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
 }
 
 
+// This tests the authorization of requests to update quotas.
+TYPED_TEST(AuthorizationTest, UpdateQuota)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can update quotas for all roles.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // "bar" principal can update quotas for "dev" role.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("dev");
+  }
+
+  {
+    // Anyone can update quotas for "test" role.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->add_values("test");
+  }
+
+  {
+    // No other principal can update quotas.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can update quota for all roles, so requests 1 and 2 will
+  // pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->set_value("prod");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can update quotas for role "dev", so this will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("dev");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can only update quotas for role "dev",
+  // so requests 4 and 5 will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("prod");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Anyone can update quotas for role "test", so request 6 will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_object()->set_value("test");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "jeff" is not mentioned in the ACLs of the `Authorizer`, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.mutable_subject()->set_value("jeff");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+}
+
+
+// This tests that update_quotas and set_quotas/remove_quotas
+// cannot be used together.
+// TODO(zhitao): Remove this test case at the end of the deprecation
+// cycle started with 0.29.
+TYPED_TEST(AuthorizationTest, ConflictQuotaACLs) {
+  {
+    ACLs acls;
+
+    {
+      // Add an UpdateQuota ACL.
+      mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+      acl->mutable_principals()->add_values("foo");
+      acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+    }
+
+    {
+      // Add a SetQuota ACL.
+      mesos::ACL::SetQuota* acl = acls.add_set_quotas();
+      acl->mutable_principals()->add_values("foo");
+      acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+    }
+
+    // Create an `Authorizer` with the ACLs should error out.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    ASSERT_ERROR(create);
+  }
+
+  {
+    ACLs acls;
+
+    {
+      // Add an UpdateQuota ACL.
+      mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+      acl->mutable_principals()->add_values("foo");
+      acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+    }
+
+    {
+      // Add a RemoveQuota ACL.
+      mesos::ACL::RemoveQuota* acl = acls.add_remove_quotas();
+      acl->mutable_principals()->add_values("foo");
+      acl->mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
+    }
+
+    // Create an `Authorizer` with the ACLs should error out.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    ASSERT_ERROR(create);
+  }
+}
+
+
 // This tests the authorization of requests to set quotas.
+// TODO(zhitao): Remove this test case at the end of the deprecation
+// cycle started with 0.29.
 TYPED_TEST(AuthorizationTest, SetQuota)
 {
   ACLs acls;
@@ -1057,6 +1211,8 @@ TYPED_TEST(AuthorizationTest, SetQuota)
 
 
 // This tests the authorization of requests to remove quotas.
+// TODO(zhitao): Remove this test case at the end of the deprecation
+// cycle started with 0.29.
 TYPED_TEST(AuthorizationTest, RemoveQuota)
 {
   ACLs acls;

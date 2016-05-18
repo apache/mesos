@@ -1003,6 +1003,10 @@ private:
         const Option<std::string>& principal,
         const std::string& role) const;
 
+    process::Future<bool> authorizeUpdateQuota(
+        const Option<std::string>& principal,
+        const std::string& role) const;
+
     process::Future<bool> authorizeSetQuota(
         const Option<std::string>& principal,
         const std::string& role) const;

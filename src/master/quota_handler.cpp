@@ -335,11 +335,21 @@ Future<http::Response> Master::QuotaHandler::set(
     quotaInfo.set_principal(principal.get());
   }
 
-  return authorizeSetQuota(principal, quotaInfo.role())
-    .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
-      if (!authorized) {
-        return Forbidden();
-      }
+  // TODO(zhitao): Remove the deprecated action at the end
+  // of the deprecation cycle which started with 0.29.
+  list<Future<bool>> authorizeRequests = {
+    authorizeSetQuota(principal, quotaInfo.role()),
+    authorizeUpdateQuota(principal, quotaInfo.role())};
+
+  return process::collect(authorizeRequests)
+    .then(defer(
+        master->self(),
+        [=](const list<bool>& authorizeResults) -> Future<http::Response> {
+          foreach (const bool& authorized, authorizeResults) {
+            if (!authorized) {
+              return Forbidden();
+            }
+          }
 
       return _set(quotaInfo, forced);
     }));
@@ -444,11 +454,21 @@ Future<http::Response> Master::QuotaHandler::remove(
     ? master->quotas[role].info.principal()
     : Option<string>::none();
 
-  return authorizeRemoveQuota(principal, quota_principal)
-    .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
-      if (!authorized) {
-        return Forbidden();
-      }
+  // TODO(zhitao): Remove the deprecated action at the end
+  // of the deprecation cycle which started with 0.29.
+  list<Future<bool>> authorizeRequests = {
+    authorizeRemoveQuota(principal, quota_principal),
+    authorizeUpdateQuota(principal, role)};
+
+  return process::collect(authorizeRequests)
+    .then(defer(
+        master->self(),
+        [=](const list<bool>& authorizeResults) -> Future<http::Response> {
+          foreach (const bool& authorized, authorizeResults) {
+            if (!authorized) {
+              return Forbidden();
+            }
+          }
 
       return _remove(role);
     }));
@@ -504,6 +524,33 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
 }
 
 
+Future<bool> Master::QuotaHandler::authorizeUpdateQuota(
+    const Option<string>& principal,
+    const string& role) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to update quota for role '" << role << "'";
+
+  authorization::Request request;
+  request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  request.mutable_object()->set_value(role);
+
+  return master->authorizer.get()->authorized(request);
+}
+
+
+// TODO(zhitao): Remove this function at the end of the
+// deprecation cycle which started with 0.29.
 Future<bool> Master::QuotaHandler::authorizeSetQuota(
     const Option<string>& principal,
     const string& role) const
@@ -529,6 +576,8 @@ Future<bool> Master::QuotaHandler::authorizeSetQuota(
 }
 
 
+// TODO(zhitao): Remove this function at the end of the
+// deprecation cycle which started with 0.29.
 Future<bool> Master::QuotaHandler::authorizeRemoveQuota(
     const Option<string>& requestPrincipal,
     const Option<string>& quotaPrincipal) const

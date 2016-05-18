@@ -1129,8 +1129,8 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
         createBasicAuthHeaders(credential),
         createRequestBody(ROLE1, quotaResources));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
+      << response.get().body;
   }
 
   // The absense of credentials leads to authentication failure as well.
@@ -1141,15 +1141,199 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
         None(),
         createRequestBody(ROLE1, quotaResources));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
+      << response.get().body;
   }
 }
 
 
 // Checks that an authorized principal can set and remove quota while
-// unauthorized principals cannot.
-TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
+// using get_quotas and update_quotas ACLs, while unauthorized user
+// cannot.
+TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  // Setup ACLs so that only the default principal can modify quotas
+  // for `ROLE1` and read status.
+  ACLs acls;
+
+  mesos::ACL::UpdateQuota* acl1 = acls.add_update_quotas();
+  acl1->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl1->mutable_roles()->add_values(ROLE1);
+
+  mesos::ACL::UpdateQuota* acl2 = acls.add_update_quotas();
+  acl2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl2->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+
+  mesos::ACL::GetQuota* acl3 = acls.add_get_quotas();
+  acl3->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl3->mutable_roles()->add_values(ROLE1);
+
+  mesos::ACL::GetQuota* acl4 = acls.add_get_quotas();
+  acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl4->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  // Try to update quota using a principal that is not the default principal.
+  // This request will fail because only the default principal is authorized
+  // to do that.
+  {
+    // As we don't care about the enforcement of quota but only the
+    // authorization of the quota request we set the force flag in the post
+    // request below to override the capacity heuristic check.
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
+        createRequestBody(ROLE1, quotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
+  }
+
+  // Set quota using the default principal.
+  {
+    // As we don't care about the enforcement of quota but only the
+    // authorization of the quota request we set the force flag in the post
+    // request below to override the capacity heuristic check.
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+    Future<Quota> quota;
+    EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                      FutureArg<1>(&quota)));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    AWAIT_READY(quota);
+
+    // Extract the principal from `DEFAULT_CREDENTIAL` because `EXPECT_EQ`
+    // does not compile if `DEFAULT_CREDENTIAL.principal()` is used as an
+    // argument.
+    const string principal = DEFAULT_CREDENTIAL.principal();
+
+    EXPECT_EQ(ROLE1, quota.get().info.role());
+    EXPECT_EQ(principal, quota.get().info.principal());
+    EXPECT_EQ(quotaResources, quota.get().info.guarantee());
+  }
+
+  // Try to get the previously requested quota using a princilal that is
+  // not authorized to see it. This will result in empty information
+  // returned.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    EXPECT_EQ(0, status.get().infos().size());
+  }
+
+  // Get the previous requested quota using default principal, which is
+  // authorized to see it.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    EXPECT_EQ(1, status.get().infos().size());
+    EXPECT_EQ(ROLE1, status.get().infos(0).role());
+  }
+
+  // Try to remove the previously requested quota using a principal that is
+  // not the default principal. This will fail because only the default
+  // principal is authorized to do that.
+  {
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
+  }
+
+  // Remove the previously requested quota using the default principal.
+  {
+    Future<Nothing> receivedRemoveRequest;
+    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
+      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
+                      FutureSatisfy(&receivedRemoveRequest)));
+
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    AWAIT_READY(receivedRemoveRequest);
+  }
+}
+
+
+// Checks that an authorized principal can update quota using deprecated
+// set_quotas and remove_quotas, while unauthorized principals cannot.
+//
+// TODO(zhitao): Remove this test case at the end of deprecation cycle
+// started with 0.29.
+TEST_F(MasterQuotaTest, AuthorizeSetAndRemoveQuotaRequests)
 {
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _, _));
@@ -1207,8 +1391,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
         createRequestBody(ROLE1, quotaResources, FORCE));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        Forbidden().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
   }
 
   // Request quota using the default principal.
@@ -1311,8 +1495,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         "quota/" + ROLE1,
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        Forbidden().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
   }
 
   // Remove the previously requested quota using the default principal.
@@ -1335,10 +1519,104 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
 }
 
 
+// Checks that get and update quota requests can be authorized without
+// authentication if an authorization rule exists that applies to anyone.
+// The authorizer will map the absence of a principal to "ANY".
+TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
+{
+  // Setup ACLs so that any principal can set quotas for `ROLE1` and remove
+  // anyone's quotas.
+  ACLs acls;
+
+  mesos::ACL::GetQuota* acl1 = acls.add_get_quotas();
+  acl1->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl1->mutable_roles()->add_values(ROLE1);
+
+  mesos::ACL::UpdateQuota* acl2 = acls.add_update_quotas();
+  acl2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl2->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_frameworks = false;
+  masterFlags.credentials = None();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  // Request quota without providing authorization headers.
+  {
+    // As we don't care about the enforcement of quota but only the
+    // authorization of the quota request we set the force flag in the post
+    // request below to override the capacity heuristic check.
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+    // Create an HTTP request without authorization headers.
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        None(),
+        createRequestBody(ROLE1, quotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  }
+
+  // Get the previously requested quota without providing authoriation
+  // headers.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    EXPECT_EQ(1, status.get().infos().size());
+    EXPECT_EQ(ROLE1, status.get().infos(0).role());
+  }
+
+  // Remove the previously requested quota without providing authorization
+  // headers.
+  {
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  }
+}
+
+
 // Checks that set and remove quota requests can be authorized without
 // authentication if an authorization rule exists that applies to anyone.
 // The authorizer will map the absence of a principal to "ANY".
-TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
+//
+// TODO(zhitao): Remove this test case at the end of deprecation cycle
+// started with 0.29.
+TEST_F(MasterQuotaTest, AuthorizeSetRemoveQuotaRequestsWithoutPrincipal)
 {
   // Setup ACLs so that any principal can set quotas for `ROLE1` and remove
   // anyone's quotas.
