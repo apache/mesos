@@ -24,9 +24,12 @@
 #include <string>
 #include <vector>
 
-#include <mesos/executor.hpp>
+#include <mesos/v1/executor.hpp>
+#include <mesos/v1/mesos.hpp>
+
 #include <mesos/type_utils.hpp>
 
+#include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
@@ -35,12 +38,14 @@
 #include <process/protobuf.hpp>
 #include <process/subprocess.hpp>
 #include <process/reap.hpp>
+#include <process/time.hpp>
 #include <process/timer.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -49,6 +54,8 @@
 
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
+
+#include "internal/evolve.hpp"
 
 #ifdef __linux__
 #include "linux/fs.hpp"
@@ -60,25 +67,44 @@
 
 #include "slave/constants.hpp"
 
-using namespace mesos::internal::slave;
+#ifdef __linux__
+namespace fs = mesos::internal::fs;
+#endif
 
-using process::wait; // Necessary on some OS's to disambiguate.
+using namespace mesos::internal::slave;
 
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::queue;
 using std::string;
 using std::vector;
 
+using process::Clock;
+using process::Future;
+using process::Owned;
+using process::Subprocess;
+using process::Time;
+using process::Timer;
+
+using mesos::internal::evolve;
+using mesos::internal::TaskHealthStatus;
+
+using mesos::v1::ExecutorID;
+using mesos::v1::FrameworkID;
+
+using mesos::v1::executor::Call;
+using mesos::v1::executor::Event;
+using mesos::v1::executor::Mesos;
+
 namespace mesos {
+namespace v1 {
 namespace internal {
 
-using namespace process;
-
-class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
+class HttpCommandExecutor: public ProtobufProcess<HttpCommandExecutor>
 {
 public:
-  CommandExecutorProcess(
+  HttpCommandExecutor(
       const Option<char**>& _override,
       const string& _healthCheckDir,
       const Option<string>& _rootfs,
@@ -86,8 +112,10 @@ public:
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
       const Option<string>& _taskCommand,
+      const FrameworkID& _frameworkId,
+      const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
-    : state(REGISTERING),
+    : state(DISCONNECTED),
       launched(false),
       killed(false),
       killedByHealthCheck(false),
@@ -95,7 +123,6 @@ public:
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
-      driver(None()),
       frameworkInfo(None()),
       taskId(None()),
       healthCheckDir(_healthCheckDir),
@@ -104,60 +131,176 @@ public:
       sandboxDirectory(_sandboxDirectory),
       workingDirectory(_workingDirectory),
       user(_user),
-      taskCommand(_taskCommand) {}
+      taskCommand(_taskCommand),
+      frameworkId(_frameworkId),
+      executorId(_executorId),
+      task(None()) {}
 
-  virtual ~CommandExecutorProcess() {}
+  virtual ~HttpCommandExecutor() = default;
 
-  void registered(
-      ExecutorDriver* _driver,
-      const ExecutorInfo& _executorInfo,
-      const FrameworkInfo& _frameworkInfo,
-      const SlaveInfo& slaveInfo)
+  void connected()
   {
-    CHECK_EQ(REGISTERING, state);
+    state = CONNECTED;
 
-    cout << "Registered executor on " << slaveInfo.hostname() << endl;
-
-    driver = _driver;
-    frameworkInfo = _frameworkInfo;
-
-    state = REGISTERED;
+    doReliableRegistration();
   }
 
-  void reregistered(
-      ExecutorDriver* driver,
-      const SlaveInfo& slaveInfo)
+  void disconnected()
   {
-    CHECK(state == REGISTERED || state == REGISTERING) << state;
-
-    cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
-
-    state = REGISTERED;
+    state = DISCONNECTED;
   }
 
-  void disconnected(ExecutorDriver* driver) {}
-
-  void launchTask(ExecutorDriver* driver, const TaskInfo& task)
+  void received(queue<Event> events)
   {
-    CHECK_EQ(REGISTERED, state);
+    while (!events.empty()) {
+      Event event = events.front();
+      events.pop();
 
-    if (launched) {
-      TaskStatus status;
-      status.mutable_task_id()->MergeFrom(task.task_id());
-      status.set_state(TASK_FAILED);
-      status.set_message(
-          "Attempted to run multiple tasks using a \"command\" executor");
+      cout << "Received " << event.type() << " event" << endl;
 
-      driver->sendStatusUpdate(status);
+      switch (event.type()) {
+        case Event::SUBSCRIBED: {
+          cout << "Subscribed executor on "
+               << event.subscribed().agent_info().hostname() << endl;
+
+          frameworkInfo = event.subscribed().framework_info();
+          state = SUBSCRIBED;
+          break;
+        }
+
+        case Event::LAUNCH: {
+          launch(event.launch().task());
+          break;
+        }
+
+        case Event::KILL: {
+          Option<KillPolicy> override = event.kill().has_kill_policy()
+            ? Option<KillPolicy>(event.kill().kill_policy())
+            : None();
+
+          kill(event.kill().task_id(), override);
+          break;
+        }
+
+        case Event::ACKNOWLEDGED: {
+          // Remove the corresponding update.
+          updates.erase(UUID::fromBytes(event.acknowledged().uuid()));
+
+          // Remove the corresponding task.
+          task = None();
+          break;
+        }
+
+        case Event::SHUTDOWN: {
+          shutdown();
+          break;
+        }
+
+        case Event::MESSAGE: {
+          break;
+        }
+
+        case Event::ERROR: {
+          cerr << "Error: " << event.error().message() << endl;
+          break;
+        }
+
+        case Event::UNKNOWN: {
+          LOG(WARNING) << "Received an UNKNOWN event and ignored";
+          break;
+        }
+      }
+    }
+  }
+
+protected:
+  virtual void initialize()
+  {
+    // TODO(qianzhang): Currently, the `mesos-health-check` binary can only
+    // send unversioned `TaskHealthStatus` messages. This needs to be revisited
+    // as part of MESOS-5103.
+    install<TaskHealthStatus>(
+        &HttpCommandExecutor::taskHealthUpdated,
+        &TaskHealthStatus::task_id,
+        &TaskHealthStatus::healthy,
+        &TaskHealthStatus::kill_task);
+
+    // We initialize the library here to ensure that callbacks are only invoked
+    // after the process has spawned.
+    mesos.reset(new Mesos(
+        mesos::ContentType::PROTOBUF,
+        defer(self(), &Self::connected),
+        defer(self(), &Self::disconnected),
+        defer(self(), &Self::received, lambda::_1)));
+  }
+
+  void taskHealthUpdated(
+      const mesos::TaskID& taskID,
+      const bool healthy,
+      const bool initiateTaskKill)
+  {
+    cout << "Received task health update, healthy: "
+         << stringify(healthy) << endl;
+
+    update(evolve(taskID), TASK_RUNNING, healthy);
+
+    if (initiateTaskKill) {
+      killedByHealthCheck = true;
+      kill(evolve(taskID));
+    }
+  }
+
+  void doReliableRegistration()
+  {
+    if (state == SUBSCRIBED || state == DISCONNECTED) {
       return;
     }
 
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.mutable_executor_id()->CopyFrom(executorId);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    // Send all unacknowledged updates.
+    foreach (const Call::Update& update, updates.values()) {
+      subscribe->add_unacknowledged_updates()->MergeFrom(update);
+    }
+
+    // Send the unacknowledged task.
+    if (task.isSome()) {
+      subscribe->add_unacknowledged_tasks()->MergeFrom(task.get());
+    }
+
+    mesos->send(call);
+
+    delay(Seconds(1), self(), &Self::doReliableRegistration);
+  }
+
+  void launch(const TaskInfo& _task)
+  {
+    CHECK_EQ(SUBSCRIBED, state);
+
+    if (launched) {
+      update(
+          _task.task_id(),
+          TASK_FAILED,
+          None(),
+          "Attempted to run multiple tasks using a \"command\" executor");
+      return;
+    }
+
+    // Capture the task.
+    task = _task;
+
     // Capture the TaskID.
-    taskId = task.task_id();
+    taskId = task->task_id();
 
     // Capture the kill policy.
-    if (task.has_kill_policy()) {
-      killPolicy = task.kill_policy();
+    if (task->has_kill_policy()) {
+      killPolicy = task->kill_policy();
     }
 
     // Determine the command to launch the task.
@@ -178,11 +321,11 @@ public:
       }
 
       command = parse.get();
-    } else if (task.has_command()) {
-      command = task.command();
+    } else if (task->has_command()) {
+      command = task->command();
     } else {
       CHECK_SOME(override)
-        << "Expecting task '" << task.task_id()
+        << "Expecting task '" << task->task_id()
         << "' to have a command!";
     }
 
@@ -194,16 +337,16 @@ public:
       // correct solution is to perform this validation at master side.
       if (command.shell()) {
         CHECK(command.has_value())
-          << "Shell command of task '" << task.task_id()
+          << "Shell command of task '" << task->task_id()
           << "' is not specified!";
       } else {
         CHECK(command.has_value())
-          << "Executable of task '" << task.task_id()
+          << "Executable of task '" << task->task_id()
           << "' is not specified!";
       }
     }
 
-    cout << "Starting task " << task.task_id() << endl;
+    cout << "Starting task " << task->task_id() << endl;
 
     // TODO(benh): Clean this up with the new 'Fork' abstraction.
     // Use pipes to determine which child has successfully changed
@@ -401,42 +544,42 @@ public:
 
     cout << "Forked command at " << pid << endl;
 
-    if (task.has_health_check()) {
-      launchHealthCheck(task);
+    if (task->has_health_check()) {
+      launchHealthCheck(task.get());
     }
 
     // Monitor this process.
     process::reap(pid)
-      .onAny(defer(self(), &Self::reaped, driver, pid, lambda::_1));
+      .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    TaskStatus status;
-    status.mutable_task_id()->MergeFrom(task.task_id());
-    status.set_state(TASK_RUNNING);
-    driver->sendStatusUpdate(status);
+    update(task->task_id(), TASK_RUNNING);
 
     launched = true;
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void kill(const TaskID& taskId, const Option<KillPolicy>& override = None())
   {
-    cout << "Received killTask for task " << taskId.value() << endl;
-
     // Default grace period is set to 3s for backwards compatibility.
     //
     // TODO(alexr): Replace it with a more meaningful default, e.g.
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `Kill` event takes precedence
+    // over kill policy specified when the task was launched.
+    if (override.isSome() && override->has_grace_period()) {
+      gracePeriod = Nanoseconds(override->grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    killTask(driver, taskId, gracePeriod);
+    cout << "Received kill for task " << taskId.value()
+         << " with grace period of " << gracePeriod << endl;
+
+    kill(taskId, gracePeriod);
   }
 
-  void frameworkMessage(ExecutorDriver* driver, const string& data) {}
-
-  void shutdown(ExecutorDriver* driver)
+  void shutdown()
   {
     cout << "Shutting down" << endl;
 
@@ -457,61 +600,65 @@ public:
     // agent is smaller than the kill grace period).
     if (launched) {
       CHECK_SOME(taskId);
-      killTask(driver, taskId.get(), gracePeriod);
-    } else {
-      driver->stop();
-    }
-  }
-
-  virtual void error(ExecutorDriver* driver, const string& message) {}
-
-protected:
-  virtual void initialize()
-  {
-    install<TaskHealthStatus>(
-        &CommandExecutorProcess::taskHealthUpdated,
-        &TaskHealthStatus::task_id,
-        &TaskHealthStatus::healthy,
-        &TaskHealthStatus::kill_task);
-  }
-
-  void taskHealthUpdated(
-      const TaskID& taskID,
-      const bool healthy,
-      const bool initiateTaskKill)
-  {
-    if (driver.isNone()) {
-      return;
-    }
-
-    cout << "Received task health update, healthy: "
-         << stringify(healthy) << endl;
-
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskID);
-    status.set_healthy(healthy);
-    status.set_state(TASK_RUNNING);
-
-    driver.get()->sendStatusUpdate(status);
-
-    if (initiateTaskKill) {
-      killedByHealthCheck = true;
-      killTask(driver.get(), taskID);
+      kill(taskId.get(), gracePeriod);
     }
   }
 
 private:
-  void killTask(
-      ExecutorDriver* driver,
-      const TaskID& _taskId,
-      const Duration& gracePeriod)
+  void kill(const TaskID& _taskId, const Duration& gracePeriod)
   {
     if (terminated) {
       return;
     }
 
-    // TODO(alexr): If a kill is in progress, consider adjusting
-    // the grace period if a new one is provided.
+    // If the task is being killed but has not terminated yet and
+    // we receive another kill request. Check if we need to adjust
+    // the remaining grace period.
+    if (killed && !terminated) {
+      // When a kill request arrives on the executor, we cannot simply
+      // restart the escalation timer, because the scheduler may retry
+      // and this must be a no-op.
+      //
+      // The escalation grace period can be only decreased. We disallow
+      // increasing the total grace period for the terminating task in
+      // order to avoid possible confusion when a subsequent kill overrides
+      // the previous one and gives the task _more_ time to clean up. Other
+      // systems, e.g., docker, do not allow this.
+      //
+      // The escalation grace period can be only decreased. We intentionally
+      // do not support increasing the total grace period for the terminating
+      // task, because we do not want users to "slow down" a kill that is in
+      // progress. Also note that docker does not support this currently.
+      //
+      // Here are some examples to illustrate:
+      //
+      // 20, 30 -> Increased grace period is a no-op, grace period remains 20.
+      // 20, 20 -> Retries are a no-op, grace period remains 20.
+      // 20, 5  -> if `elapsed` >= 5:
+      //             SIGKILL immediately, total grace period is `elapsed`.
+      //           if `elapsed` < 5:
+      //             SIGKILL in (5 - `elapsed`), total grace period is 5.
+
+      CHECK_SOME(killGracePeriodStart);
+      CHECK_SOME(killGracePeriodTimer);
+
+      if (killGracePeriodStart.get() + gracePeriod >
+          killGracePeriodTimer->timeout().time()) {
+        return;
+      }
+
+      Duration elapsed = Clock::now() - killGracePeriodStart.get();
+      Duration remaining = gracePeriod > elapsed
+        ? gracePeriod - elapsed
+        : Duration::zero();
+
+      cout << "Rescheduling escalation to SIGKILL in " << remaining
+           << " from now" << endl;
+
+      Clock::cancel(killGracePeriodTimer.get());
+      killGracePeriodTimer = delay(
+          remaining, self(), &Self::escalated, gracePeriod);
+    }
 
     // Issue the kill signal if the task has been launched
     // and this is the first time we've received the kill.
@@ -524,10 +671,7 @@ private:
       foreach (const FrameworkInfo::Capability& c,
                frameworkInfo->capabilities()) {
         if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
-          TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId.get());
-          status.set_state(TASK_KILLING);
-          driver->sendStatusUpdate(status);
+          update(taskId.get(), TASK_KILLING);
           break;
         }
       }
@@ -552,9 +696,13 @@ private:
              << stringify(trees.get()) << endl;
       }
 
-      escalationTimer =
+      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
+
+      killGracePeriodTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
+      killGracePeriodStart = Clock::now();
       killed = true;
     }
 
@@ -569,17 +717,16 @@ private:
     }
   }
 
-  void reaped(
-      ExecutorDriver* driver,
-      pid_t pid,
-      const Future<Option<int> >& status_)
+  void reaped(pid_t pid, const Future<Option<int> >& status_)
   {
     terminated = true;
 
     TaskState taskState;
     string message;
 
-    Clock::cancel(escalationTimer);
+    if (killGracePeriodTimer.isSome()) {
+      Clock::cancel(killGracePeriodTimer.get());
+    }
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -597,7 +744,7 @@ private:
         taskState = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
-        // killTask() or shutdown().
+        // kill() or shutdown().
         taskState = TASK_KILLED;
       } else {
         taskState = TASK_FAILED;
@@ -610,22 +757,17 @@ private:
 
     CHECK_SOME(taskId);
 
-    TaskStatus taskStatus;
-    taskStatus.mutable_task_id()->MergeFrom(taskId.get());
-    taskStatus.set_state(taskState);
-    taskStatus.set_message(message);
     if (killed && killedByHealthCheck) {
-      taskStatus.set_healthy(false);
+      update(taskId.get(), taskState, false, message);
+    } else {
+      update(taskId.get(), taskState, None(), message);
     }
 
-    driver->sendStatusUpdate(taskStatus);
-
-    // This is a hack to ensure the message is sent to the
-    // slave before we exit the process. Without this, we
-    // may exit before libprocess has sent the data over
-    // the socket. See MESOS-4111.
+    // TODO(qianzhang): Remove this hack since the executor now receives
+    // acknowledgements for status updates. The executor can terminate
+    // after it receives an ACK for a terminal status update.
     os::sleep(Seconds(1));
-    driver->stop();
+    terminate(self());
   }
 
   void escalated(const Duration& timeout)
@@ -697,10 +839,49 @@ private:
          << stringify(healthPid) << endl;
   }
 
+  void update(
+      const TaskID& taskID,
+      const TaskState& state,
+      const Option<bool>& healthy = None(),
+      const Option<string>& message = None())
+  {
+    UUID uuid = UUID::random();
+
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(taskID);
+    status.mutable_executor_id()->CopyFrom(executorId);
+
+    status.set_state(state);
+    status.set_source(TaskStatus::SOURCE_EXECUTOR);
+    status.set_uuid(uuid.toBytes());
+
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    if (message.isSome()) {
+      status.set_message(message.get());
+    }
+
+    Call call;
+    call.set_type(Call::UPDATE);
+
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.mutable_executor_id()->CopyFrom(executorId);
+
+    call.mutable_update()->mutable_status()->CopyFrom(status);
+
+    // Capture the status update.
+    updates[uuid] = call.update();
+
+    mesos->send(call);
+  }
+
   enum State
   {
-    REGISTERING, // Executor is launched but not (re-)registered yet.
-    REGISTERED,  // Executor has (re-)registered.
+    CONNECTED,
+    DISCONNECTED,
+    SUBSCRIBED
   } state;
 
   // TODO(alexr): Introduce a state enum and document transitions,
@@ -710,12 +891,13 @@ private:
   bool killedByHealthCheck;
   bool terminated;
 
+  Option<Time> killGracePeriodStart;
+  Option<Timer> killGracePeriodTimer;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
-  Timer escalationTimer;
-  Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
   string healthCheckDir;
@@ -725,101 +907,15 @@ private:
   Option<string> workingDirectory;
   Option<string> user;
   Option<string> taskCommand;
-};
-
-
-class CommandExecutor: public Executor
-{
-public:
-  CommandExecutor(
-      const Option<char**>& override,
-      const string& healthCheckDir,
-      const Option<string>& rootfs,
-      const Option<string>& sandboxDirectory,
-      const Option<string>& workingDirectory,
-      const Option<string>& user,
-      const Option<string>& taskCommand,
-      const Duration& shutdownGracePeriod)
-  {
-    process = new CommandExecutorProcess(
-        override,
-        healthCheckDir,
-        rootfs,
-        sandboxDirectory,
-        workingDirectory,
-        user,
-        taskCommand,
-        shutdownGracePeriod);
-
-    spawn(process);
-  }
-
-  virtual ~CommandExecutor()
-  {
-    terminate(process);
-    wait(process);
-    delete process;
-  }
-
-  virtual void registered(
-        ExecutorDriver* driver,
-        const ExecutorInfo& executorInfo,
-        const FrameworkInfo& frameworkInfo,
-        const SlaveInfo& slaveInfo)
-  {
-    dispatch(process,
-             &CommandExecutorProcess::registered,
-             driver,
-             executorInfo,
-             frameworkInfo,
-             slaveInfo);
-  }
-
-  virtual void reregistered(
-      ExecutorDriver* driver,
-      const SlaveInfo& slaveInfo)
-  {
-    dispatch(process,
-             &CommandExecutorProcess::reregistered,
-             driver,
-             slaveInfo);
-  }
-
-  virtual void disconnected(ExecutorDriver* driver)
-  {
-    dispatch(process, &CommandExecutorProcess::disconnected, driver);
-  }
-
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
-  {
-    dispatch(process, &CommandExecutorProcess::launchTask, driver, task);
-  }
-
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
-  {
-    dispatch(process, &CommandExecutorProcess::killTask, driver, taskId);
-  }
-
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
-  {
-    dispatch(process, &CommandExecutorProcess::frameworkMessage, driver, data);
-  }
-
-  virtual void shutdown(ExecutorDriver* driver)
-  {
-    dispatch(process, &CommandExecutorProcess::shutdown, driver);
-  }
-
-  virtual void error(ExecutorDriver* driver, const string& data)
-  {
-    dispatch(process, &CommandExecutorProcess::error, driver, data);
-  }
-
-private:
-  CommandExecutorProcess* process;
+  const FrameworkID frameworkId;
+  const ExecutorID executorId;
+  Owned<Mesos> mesos;
+  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
+  Option<TaskInfo> task; // Unacknowledged task.
 };
 
 } // namespace internal {
+} // namespace v1 {
 } // namespace mesos {
 
 
@@ -878,6 +974,8 @@ public:
 int main(int argc, char** argv)
 {
   Flags flags;
+  FrameworkID frameworkId;
+  ExecutorID executorId;
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
@@ -892,7 +990,7 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
-  // Log any flag warnings.
+  // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
   }
@@ -915,6 +1013,20 @@ int main(int argc, char** argv)
     ? envPath.get()
     : os::realpath(Path(argv[0]).dirname()).get();
 
+  Option<string> value = os::getenv("MESOS_FRAMEWORK_ID");
+  if (value.isNone()) {
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment";
+  }
+  frameworkId.set_value(value.get());
+
+  value = os::getenv("MESOS_EXECUTOR_ID");
+  if (value.isNone()) {
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment";
+  }
+  executorId.set_value(value.get());
+
   // Get executor shutdown grace period from the environment.
   //
   // NOTE: We avoided introducing a command executor flag for this
@@ -922,7 +1034,7 @@ int main(int argc, char** argv)
   // This makes it difficult to add or remove command executor flags
   // that are unconditionally set by the agent.
   Duration shutdownGracePeriod = DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+  value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
   if (value.isSome()) {
     Try<Duration> parse = Duration::parse(value.get());
     if (parse.isError()) {
@@ -934,17 +1046,21 @@ int main(int argc, char** argv)
     shutdownGracePeriod = parse.get();
   }
 
-  mesos::internal::CommandExecutor executor(
-      override,
-      path,
-      flags.rootfs,
-      flags.sandbox_directory,
-      flags.working_directory,
-      flags.user,
-      flags.task_command,
-      shutdownGracePeriod);
+  Owned<mesos::v1::internal::HttpCommandExecutor> executor(
+      new mesos::v1::internal::HttpCommandExecutor(
+          override,
+          path,
+          flags.rootfs,
+          flags.sandbox_directory,
+          flags.working_directory,
+          flags.user,
+          flags.task_command,
+          frameworkId,
+          executorId,
+          shutdownGracePeriod));
 
-  mesos::MesosExecutorDriver driver(&executor);
+  process::spawn(executor.get());
+  process::wait(executor.get());
 
-  return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }
