@@ -103,6 +103,9 @@ All Issues:
 ** Improvement
   * [MESOS-5307] - Sandbox mounts should not be in the host mount namespace.
 
+Web UI Changes:
+  * [MESOS-3779] - Slave/Agent Rename Phase I - Update terms in Web UI.
+
 
 Release Notes - Mesos - Version 0.28.1
 --------------------------------------

@@ -12,14 +12,23 @@
           {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
         .when('/offers',
           {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
-        .when('/slaves',
-          {templateUrl: 'static/slaves.html', controller: 'SlavesCtrl'})
-        .when('/slaves/:slave_id',
-          {templateUrl: 'static/slave.html', controller: 'SlaveCtrl'})
-        .when('/slaves/:slave_id/frameworks/:framework_id',
-          {templateUrl: 'static/slave_framework.html', controller: 'SlaveFrameworkCtrl'})
-        .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id',
-          {templateUrl: 'static/slave_executor.html', controller: 'SlaveExecutorCtrl'})
+        .when('/agents',
+          {templateUrl: 'static/agents.html', controller: 'AgentsCtrl'})
+        .when('/agents/:agent_id',
+          {templateUrl: 'static/agent.html', controller: 'AgentCtrl'})
+        .when('/agents/:agent_id/frameworks/:framework_id',
+          {templateUrl: 'static/agent_framework.html', controller: 'AgentFrameworkCtrl'})
+        .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id',
+          {templateUrl: 'static/agent_executor.html', controller: 'AgentExecutorCtrl'})
+
+        // TODO(tomxing): Remove the following '/slaves/*' paths once the
+        // slave->agent rename is complete(MESOS-3779).
+        .when('/slaves', {redirectTo: '/agents'})
+        .when('/slaves/:agent_id', {redirectTo: '/agents/:agent_id'})
+        .when('/slaves/:agent_id/frameworks/:framework_id',
+          {redirectTo: '/agents/:agent_id/frameworks/:framework_id'})
+        .when('/slaves/:agent_id/frameworks/:framework_id/executors/:executor_id',
+          {redirectTo: '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id'})
 
         // Use a non-falsy template so the controller will still be executed.
         // Since the controller is intended only to redirect, the blank template
@@ -30,10 +39,17 @@
         // feature:
         //
         //     https://github.com/angular/angular.js/issues/1838
-        .when('/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id/browse',
-          {template: ' ', controller: 'SlaveExecutorRerouterCtrl'})
-        .when('/slaves/:slave_id/browse',
+        .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse',
+          {template: ' ', controller: 'AgentExecutorRerouterCtrl'})
+        .when('/agents/:agent_id/browse',
           {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
+
+        // TODO(tomxing): Remove the following '/slaves/*' paths once the
+        // slave->agent rename is complete(MESOS-3779).
+        .when('/slaves/:agent_id/frameworks/:framework_id/executors/:executor_id/browse',
+          {redirectTo: '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse'})
+        .when('/slaves/:agent_id/browse',
+          {redirectTo: '/agents/:agent_id/browse'})
         .otherwise({redirectTo: '/'});
 
       // Configure [Angular UI Pagination][1]:

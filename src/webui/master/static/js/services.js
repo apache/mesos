@@ -149,7 +149,7 @@
     return statistics;
   };
 
-  // Top is an abstraction for polling a slave's monitoring endpoint to
+  // Top is an abstraction for polling an agent's monitoring endpoint to
   // periodically update the monitoring data. It also computes CPU usage.
   // This places the following data in scope.monitor:
   //
@@ -171,7 +171,7 @@
   //     }
   //    }
   //
-  // To obtain slave statistics:
+  // To obtain agent statistics:
   //   $scope.monitor.statistics
   //
   // To obtain a framework's statistics:
@@ -192,7 +192,7 @@
   //
   // TODO(bmahler): The complexity of the monitor object is mostly in place
   // until we have path-params on the monitoring endpoint to request
-  // statistics for the slave, or for a specific framework / executor.
+  // statistics for the agent, or for a specific framework / executor.
   //
   // Arguments:
   //   http: $http service from Angular.
@@ -241,7 +241,7 @@
         };
       }
 
-      // Aggregate these statistics into the slave and framework statistics.
+      // Aggregate these statistics into the agent and framework statistics.
       monitor.statistics.add(current);
       monitor.frameworks[executor.framework_id].statistics.add(current);
       monitor.frameworks[executor.framework_id].executors[executor.executor_id] = {
@@ -262,7 +262,7 @@
   };
 
   // Arguments:
-  //   host: host of slave.
+  //   host: host of agent.
   //   scope: $scope service from Angular.
   Top.prototype.start = function(host, scope) {
     if (this.started()) {

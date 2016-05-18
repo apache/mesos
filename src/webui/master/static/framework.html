@@ -62,7 +62,7 @@
       <tbody>
         <tr ng-repeat="task in $data">
           <td>
-            <a href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
+            <a href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
               {{task.id}}
             </a>
           </td>
@@ -72,19 +72,19 @@
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>
           <td>
-            <span data-ng-show="slaves[task.slave_id]">
-              {{slaves[task.slave_id].hostname}}
+            <span data-ng-show="agents[task.slave_id]">
+              {{agents[task.slave_id].hostname}}
             </span>
-            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
-              Slave offline
+            <span class="text-muted" data-ng-show="!agents[task.slave_id]">
+              Agent offline
             </span>
           </td>
           <td>
-            <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
-            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
-              Slave offline
+            <span class="text-muted" data-ng-show="!agents[task.slave_id]">
+              Agent offline
             </span>
           </td>
         </tr>
@@ -116,20 +116,20 @@
             <m-timestamp value="{{task.finish_time}}"></m-timestamp>
           </td>
           <td>
-            <a data-ng-show="slaves[task.slave_id]"
-                href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
-              {{slaves[task.slave_id].hostname}}
+            <a data-ng-show="agents[task.slave_id]"
+                href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
+              {{agents[task.slave_id].hostname}}
             </a>
-            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
-              Slave offline
+            <span class="text-muted" data-ng-show="!agents[task.slave_id]">
+              Agent offline
             </span>
           </td>
           <td>
-            <a data-ng-show="slaves[task.slave_id]" href="#/slaves/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
               Sandbox
             </a>
-            <span class="text-muted" data-ng-show="!slaves[task.slave_id]">
-              Slave offline
+            <span class="text-muted" data-ng-show="!agents[task.slave_id]">
+              Agent offline
             </span>
           </td>
         </tr>

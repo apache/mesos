@@ -3,8 +3,8 @@
     <a class="badge badge-type" href="#">Master</a>
   </li>
   <li>
-    <a class="badge badge-type" href="#/slaves/{{slave_id}}" title="{{slave_id}}">
-      Slave</a>
+    <a class="badge badge-type" href="#/agents/{{agent_id}}" title="{{agent_id}}">
+      Agent</a>
   </li>
   <li class="active">
     Browse
@@ -13,7 +13,7 @@
 
 <ol class="breadcrumb">
   <li ng-repeat="dir in path.split('/')">
-    <a href="#/slaves/{{slave_id}}/browse?path={{
+    <a href="#/agents/{{agent_id}}/browse?path={{
              encodeURIComponent(path.split('/').slice(0, $index + 1).join('/'))}}">
       {{dir}}
     </a>
@@ -55,7 +55,7 @@
             <td>
               <span data-ng-show="file.mode[0] == 'd'">
                 <i class="glyphicon glyphicon-folder-close"></i>
-                <a href="#/slaves/{{slave_id}}/browse?path={{encodeURIComponent(file.path)}}">
+                <a href="#/agents/{{agent_id}}/browse?path={{encodeURIComponent(file.path)}}">
                   {{basename(file.path)}}
                 </a>
               </span>
@@ -68,7 +68,7 @@
             </td>
             <td>
               <a data-ng-show="file.mode[0] != 'd'"
-                 href="//{{slave_host}}/files/download?path={{encodeURIComponent(file.path)}}">
+                 href="//{{agent_host}}/files/download?path={{encodeURIComponent(file.path)}}">
                 <button class="btn btn-xs btn-default" type="button">
                   Download
                 </button>

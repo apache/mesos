@@ -3,11 +3,11 @@
     <a class="badge badge-type" href="#">Master</a>
   </li>
   <li>
-    <a class="badge badge-type" href="#/slaves/{{slave_id}}" title="{{slave_id}}">
-      Slave</a>
+    <a class="badge badge-type" href="#/agents/{{agent_id}}" title="{{agent_id}}">
+      Agent</a>
   </li>
   <li>
-    <a class="badge badge-type" href="#/slaves/{{slave_id}}/frameworks/{{framework_id}}" title="{{framework_id}}">
+    <a class="badge badge-type" href="#/agents/{{agent_id}}/frameworks/{{framework_id}}" title="{{framework_id}}">
       Framework</a>
   </li>
   <li class="active">
@@ -21,7 +21,7 @@
   <strong>{{alert_message}}</strong>
 </div>
 
-<div class="row" id="slave">
+<div class="row" id="agent">
   <div class="col-md-3">
     <div class="well">
       <dl class="inline clearfix">
@@ -146,7 +146,7 @@
           <td>{{task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
-            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+            <a href="{{'#/agents/' + agent_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">
               Sandbox
             </a>
@@ -179,7 +179,7 @@
           <td>{{completed_task.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{completed_task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
-            <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
+            <a href="{{'#/agents/' + agent_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">
               Sandbox
             </a>

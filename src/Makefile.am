@@ -1309,6 +1309,10 @@ nobase_dist_pkgdata_DATA +=						\
 
 # Need to distribute/install webui HTML.
 nobase_dist_pkgdata_DATA +=						\
+  webui/master/static/agent.html					\
+  webui/master/static/agents.html					\
+  webui/master/static/agent_executor.html				\
+  webui/master/static/agent_framework.html				\
   webui/master/static/browse.html					\
   webui/master/static/framework.html					\
   webui/master/static/frameworks.html					\
@@ -1316,10 +1320,6 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/index.html					\
   webui/master/static/offers.html					\
   webui/master/static/pailer.html					\
-  webui/master/static/slave.html					\
-  webui/master/static/slave_executor.html				\
-  webui/master/static/slave_framework.html				\
-  webui/master/static/slaves.html					\
   webui/master/static/directives/pagination.html			\
   webui/master/static/directives/tableHeader.html			\
   webui/master/static/directives/timestamp.html

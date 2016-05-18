@@ -3,11 +3,11 @@
     <a class="badge badge-type" href="#">Master</a>
   </li>
   <li class="active">
-    <span class="badge badge-type">Slaves</span>
+    <span class="badge badge-type">Agents</span>
   </li>
 </ol>
 
-<table m-table table-content="slaves" title="Slaves"
+<table m-table table-content="agents" title="Agents"
   class="table table-striped table-bordered table-condensed">
   <thead>
     <tr>
@@ -21,29 +21,29 @@
       <th data-key="reregistered_time">Re-Registered</th>
     </tr>
   </thead>
-  <tr ng-repeat="slave in $data">
+  <tr ng-repeat="agent in $data">
     <td>
-      <a href="#/slaves/{{slave.id}}">{{slave.id | truncateMesosID}}</a>
+      <a href="#/agents/{{agent.id}}">{{agent.id | truncateMesosID}}</a>
       <button class="btn btn-xs btn-default btn-toggle"
           clipboard
-          data-clipboard-text="{{slave.id}}"
+          data-clipboard-text="{{agent.id}}"
           tooltip="Copy ID"
           tooltip-placement="right"
           tooltip-trigger="clipboardhover">
         <i class="icon-file"></i>
       </button>
     </td>
-    <td>{{slave.hostname}}</td>
-    <td>{{slave.resources.cpus | number}}</td>
-    <td>{{slave.resources.gpus | number}}</td>
-    <td>{{slave.resources.mem * (1024 * 1024) | dataSize}}</td>
-    <td>{{slave.resources.disk * (1024 * 1024) | dataSize}}</td>
+    <td>{{agent.hostname}}</td>
+    <td>{{agent.resources.cpus | number}}</td>
+    <td>{{agent.resources.gpus | number}}</td>
+    <td>{{agent.resources.mem * (1024 * 1024) | dataSize}}</td>
+    <td>{{agent.resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>
 
-      <m-timestamp value="{{slave.registered_time * 1000}}"></m-timestamp>
+      <m-timestamp value="{{agent.registered_time * 1000}}"></m-timestamp>
     </td>
     <td>
-      <m-timestamp value="{{slave.reregistered_time * 1000}}"></m-timestamp>
+      <m-timestamp value="{{agent.reregistered_time * 1000}}"></m-timestamp>
     </td>
   </tr>
 </table>

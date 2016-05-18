@@ -26,23 +26,23 @@
   }
 
 
-  function updateInterval(num_slaves) {
+  function updateInterval(num_agents) {
     // TODO(bmahler): Increasing the update interval for large clusters
     // is done purely to mitigate webui performance issues. Ideally we can
     // keep a consistently fast rate for updating statistical information.
     // For the full system state updates, it may make sense to break
     // it up using pagination and/or splitting the endpoint.
-    if (num_slaves < 500) {
+    if (num_agents < 500) {
       return 10000;
-    } else if (num_slaves < 1000) {
+    } else if (num_agents < 1000) {
       return 20000;
-    } else if (num_slaves < 5000) {
+    } else if (num_agents < 5000) {
       return 60000;
-    } else if (num_slaves < 10000) {
+    } else if (num_agents < 10000) {
       return 120000;
-    } else if (num_slaves < 15000) {
+    } else if (num_agents < 15000) {
       return 240000;
-    } else if (num_slaves < 20000) {
+    } else if (num_agents < 20000) {
       return 480000;
     } else {
       return 960000;
@@ -107,7 +107,7 @@
     $scope.pollTime = new Date();
 
     // Update the maps.
-    $scope.slaves = {};
+    $scope.agents = {};
     $scope.frameworks = {};
     $scope.offers = {};
     $scope.completed_frameworks = {};
@@ -129,15 +129,15 @@
     $scope.offered_mem = 0;
     $scope.offered_disk = 0;
 
-    $scope.activated_slaves = $scope.state.activated_slaves;
-    $scope.deactivated_slaves = $scope.state.deactivated_slaves;
+    $scope.activated_agents = $scope.state.activated_slaves;
+    $scope.deactivated_agents = $scope.state.deactivated_slaves;
 
-    _.each($scope.state.slaves, function(slave) {
-      $scope.slaves[slave.id] = slave;
-      $scope.total_cpus += slave.resources.cpus;
-      $scope.total_gpus += slave.resources.gpus;
-      $scope.total_mem += slave.resources.mem;
-      $scope.total_disk += slave.resources.disk;
+    _.each($scope.state.slaves, function(agent) {
+      $scope.agents[agent.id] = agent;
+      $scope.total_cpus += agent.resources.cpus;
+      $scope.total_gpus += agent.resources.gpus;
+      $scope.total_mem += agent.resources.mem;
+      $scope.total_disk += agent.resources.disk;
     });
 
     var setTaskMetadata = function(task) {
@@ -161,7 +161,7 @@
         $scope.offered_mem += offer.resources.mem;
         $scope.offered_disk += offer.resources.disk;
         offer.framework_name = $scope.frameworks[offer.framework_id].name;
-        offer.hostname = $scope.slaves[offer.slave_id].hostname;
+        offer.hostname = $scope.agents[offer.slave_id].hostname;
       });
 
       $scope.used_cpus += framework.resources.cpus;
@@ -293,8 +293,8 @@
     // match will be used to set the active navbar tab.
     var NAVBAR_PATHS = [
       {
-        pathRegexp: /^\/slaves/,
-        tab: 'slaves'
+        pathRegexp: /^\/agents/,
+        tab: 'agents'
       },
       {
         pathRegexp: /^\/frameworks/,
@@ -380,7 +380,7 @@
                 {transformResponse: function(data) { return data; }})
         .success(function(data) {
           if (updateState($scope, $timeout, data)) {
-            $scope.delay = updateInterval(_.size($scope.slaves));
+            $scope.delay = updateInterval(_.size($scope.agents));
             $timeout(pollState, $scope.delay);
           }
         })
@@ -396,7 +396,7 @@
                 {transformResponse: function(data) { return data; }})
         .success(function(data) {
           if (updateMetrics($scope, $timeout, data)) {
-            $scope.delay = updateInterval(_.size($scope.slaves));
+            $scope.delay = updateInterval(_.size($scope.agents));
             $timeout(pollMetrics, $scope.delay);
           }
         })
@@ -458,23 +458,23 @@
   });
 
 
-  mesosApp.controller('SlavesCtrl', function() {});
+  mesosApp.controller('AgentsCtrl', function() {});
 
 
-  mesosApp.controller('SlaveCtrl', [
+  mesosApp.controller('AgentCtrl', [
       '$dialog', '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
       function($dialog, $scope, $routeParams, $http, $q, $timeout, $top) {
-    $scope.slave_id = $routeParams.slave_id;
+    $scope.agent_id = $routeParams.agent_id;
 
     var update = function() {
-      if (!($routeParams.slave_id in $scope.slaves)) {
-        $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      if (!($routeParams.agent_id in $scope.agents)) {
+        $scope.alert_message = 'No agent found with ID: ' + $routeParams.agent_id;
         $('#alert').show();
         return;
       }
 
-      var pid = $scope.slaves[$routeParams.slave_id].pid;
-      var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+      var pid = $scope.agents[$routeParams.agent_id].pid;
+      var hostname = $scope.agents[$routeParams.agent_id].hostname;
       var id = pid.substring(0, pid.indexOf('@'));
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
@@ -486,7 +486,7 @@
             [{label: 'Continue'}]
           ).open();
         } else {
-          pailer(host, '/slave/log', 'Mesos Slave');
+          pailer(host, '/slave/log', 'Mesos Agent');
         }
       };
 
@@ -499,9 +499,9 @@
         .success(function (response) {
           $scope.state = response;
 
-          $scope.slave = {};
-          $scope.slave.frameworks = {};
-          $scope.slave.completed_frameworks = {};
+          $scope.agent = {};
+          $scope.agent.frameworks = {};
+          $scope.agent.completed_frameworks = {};
 
           // Computes framework stats by setting new attributes on the 'framework'
           // object.
@@ -521,22 +521,22 @@
             });
           }
 
-          // Compute framework stats and update slave's mappings of those
+          // Compute framework stats and update agent's mappings of those
           // frameworks.
           _.each($scope.state.frameworks, function(framework) {
-            $scope.slave.frameworks[framework.id] = framework;
+            $scope.agent.frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
           });
 
           _.each($scope.state.completed_frameworks, function(framework) {
-            $scope.slave.completed_frameworks[framework.id] = framework;
+            $scope.agent.completed_frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
           });
 
-          $('#slave').show();
+          $('#agent').show();
         })
         .error(function(reason) {
-          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $scope.alert_message = 'Failed to get agent usage / state: ' + reason;
           $('#alert').show();
         });
 
@@ -556,7 +556,7 @@
           $scope.state.lost_tasks = response['slave/tasks_lost'];
         })
         .error(function(reason) {
-          $scope.alert_message = 'Failed to get slave metrics: ' + reason;
+          $scope.alert_message = 'Failed to get agent metrics: ' + reason;
           $('#alert').show();
         });
     };
@@ -570,21 +570,21 @@
   }]);
 
 
-  mesosApp.controller('SlaveFrameworkCtrl', [
+  mesosApp.controller('AgentFrameworkCtrl', [
       '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
       function($scope, $routeParams, $http, $q, $timeout, $top) {
-    $scope.slave_id = $routeParams.slave_id;
+    $scope.agent_id = $routeParams.agent_id;
     $scope.framework_id = $routeParams.framework_id;
 
     var update = function() {
-      if (!($routeParams.slave_id in $scope.slaves)) {
-        $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      if (!($routeParams.agent_id in $scope.agents)) {
+        $scope.alert_message = 'No agent found with ID: ' + $routeParams.agent_id;
         $('#alert').show();
         return;
       }
 
-      var pid = $scope.slaves[$routeParams.slave_id].pid;
-      var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+      var pid = $scope.agents[$routeParams.agent_id].pid;
+      var hostname = $scope.agents[$routeParams.agent_id].hostname;
       var id = pid.substring(0, pid.indexOf('@'));
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
@@ -597,7 +597,7 @@
         .success(function (response) {
           $scope.state = response;
 
-          $scope.slave = {};
+          $scope.agent = {};
 
           function matchFramework(framework) {
             return $scope.framework_id === framework.id;
@@ -629,10 +629,10 @@
             $scope.framework.disk += executor.resources.disk;
           });
 
-          $('#slave').show();
+          $('#agent').show();
         })
         .error(function (reason) {
-          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $scope.alert_message = 'Failed to get agent usage / state: ' + reason;
           $('#alert').show();
         });
     };
@@ -646,22 +646,22 @@
   }]);
 
 
-  mesosApp.controller('SlaveExecutorCtrl', [
+  mesosApp.controller('AgentExecutorCtrl', [
       '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
       function($scope, $routeParams, $http, $q, $timeout, $top) {
-    $scope.slave_id = $routeParams.slave_id;
+    $scope.agent_id = $routeParams.agent_id;
     $scope.framework_id = $routeParams.framework_id;
     $scope.executor_id = $routeParams.executor_id;
 
     var update = function() {
-      if (!($routeParams.slave_id in $scope.slaves)) {
-        $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+      if (!($routeParams.agent_id in $scope.agents)) {
+        $scope.alert_message = 'No agent found with ID: ' + $routeParams.agent_id;
         $('#alert').show();
         return;
       }
 
-      var pid = $scope.slaves[$routeParams.slave_id].pid;
-      var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+      var pid = $scope.agents[$routeParams.agent_id].pid;
+      var hostname = $scope.agents[$routeParams.agent_id].hostname;
       var id = pid.substring(0, pid.indexOf('@'));
       var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
 
@@ -674,7 +674,7 @@
         .success(function (response) {
           $scope.state = response;
 
-          $scope.slave = {};
+          $scope.agent = {};
 
           function matchFramework(framework) {
             return $scope.framework_id === framework.id;
@@ -706,10 +706,10 @@
             return;
           }
 
-          $('#slave').show();
+          $('#agent').show();
         })
         .error(function (reason) {
-          $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $scope.alert_message = 'Failed to get agent usage / state: ' + reason;
           $('#alert').show();
         });
     };
@@ -724,14 +724,14 @@
 
 
   // Reroutes a request like
-  // '/slaves/:slave_id/frameworks/:framework_id/executors/:executor_id/browse'
+  // '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse'
   // to the executor's sandbox. This requires a second request because the
-  // directory to browse is known by the slave but not by the master. Request
-  // the directory from the slave, and then redirect to it.
+  // directory to browse is known by the agent but not by the master. Request
+  // the directory from the agent, and then redirect to it.
   //
   // TODO(ssorallen): Add `executor.directory` to the master's state endpoint
   // output so this controller of rerouting is no longer necessary.
-  mesosApp.controller('SlaveExecutorRerouterCtrl',
+  mesosApp.controller('AgentExecutorRerouterCtrl',
       function($alert, $http, $location, $routeParams, $scope, $window) {
 
     function goBack(flashMessageOrOptions) {
@@ -752,28 +752,28 @@
     // When navigating directly to this page, e.g. pasting the URL into the
     // browser, the previous page is not a page in Mesos. In that case, navigate
     // home.
-    if (!$scope.slaves) {
+    if (!$scope.agents) {
       $alert.danger({
-        message: "Navigate to the slave's sandbox via the Mesos UI.",
-        title: "Failed to find slaves."
+        message: "Navigate to the agent's sandbox via the Mesos UI.",
+        title: "Failed to find agents."
       });
       return $location.path('/').replace();
     }
 
-    var slave = $scope.slaves[$routeParams.slave_id];
+    var agent = $scope.agents[$routeParams.agent_id];
 
-    // If the slave doesn't exist, send the user back.
-    if (!slave) {
-      return goBack("Slave with ID '" + $routeParams.slave_id + "' does not exist.");
+    // If the agent doesn't exist, send the user back.
+    if (!agent) {
+      return goBack("Agent with ID '" + $routeParams.agent_id + "' does not exist.");
     }
 
-    var pid = slave.pid;
-    var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+    var pid = agent.pid;
+    var hostname = $scope.agents[$routeParams.agent_id].hostname;
     var id = pid.substring(0, pid.indexOf('@'));
     var port = pid.substring(pid.lastIndexOf(':') + 1);
     var host = hostname + ":" + port;
 
-    // Request slave details to get access to the route executor's "directory"
+    // Request agent details to get access to the route executor's "directory"
     // to navigate directly to the executor's sandbox.
     $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
       .success(function(response) {
@@ -789,7 +789,7 @@
         if (!framework) {
           return goBack(
             "Framework with ID '" + $routeParams.framework_id +
-              "' does not exist on slave with ID '" + $routeParams.slave_id +
+              "' does not exist on agent with ID '" + $routeParams.agent_id +
               "'."
           );
         }
@@ -805,30 +805,30 @@
         if (!executor) {
           return goBack(
             "Executor with ID '" + $routeParams.executor_id +
-              "' does not exist on slave with ID '" + $routeParams.slave_id +
+              "' does not exist on agent with ID '" + $routeParams.agent_id +
               "'."
           );
         }
 
-        // Navigate to a path like '/slaves/:id/browse?path=%2Ftmp%2F', the
-        // recognized "browse" endpoint for a slave.
-        $location.path('/slaves/' + $routeParams.slave_id + '/browse')
+        // Navigate to a path like '/agents/:id/browse?path=%2Ftmp%2F', the
+        // recognized "browse" endpoint for an agent.
+        $location.path('/agents/' + $routeParams.agent_id + '/browse')
           .search({path: executor.directory})
           .replace();
       })
       .error(function(response) {
         $alert.danger({
           bullets: [
-            "The slave's hostname, '" + hostname + "', is not accessible from your network",
-            "The slave's port, '" + port + "', is not accessible from your network",
-            "The slave timed out or went offline"
+            "The agent's hostname, '" + hostname + "', is not accessible from your network",
+            "The agent's port, '" + port + "', is not accessible from your network",
+            "The agent timed out or went offline"
           ],
           message: "Potential reasons:",
-          title: "Failed to connect to slave '" + $routeParams.slave_id +
+          title: "Failed to connect to agent '" + $routeParams.agent_id +
             "' on '" + host + "'."
         });
 
-        // Is the slave dead? Navigate home since returning to the slave might
+        // Is the agent dead? Navigate home since returning to the agent might
         // end up in an endless loop.
         $location.path('/').replace();
       });
@@ -837,17 +837,17 @@
 
   mesosApp.controller('BrowseCtrl', function($scope, $routeParams, $http) {
     var update = function() {
-      if ($routeParams.slave_id in $scope.slaves && $routeParams.path) {
-        $scope.slave_id = $routeParams.slave_id;
+      if ($routeParams.agent_id in $scope.agents && $routeParams.path) {
+        $scope.agent_id = $routeParams.agent_id;
         $scope.path = $routeParams.path;
 
-        var pid = $scope.slaves[$routeParams.slave_id].pid;
-        var hostname = $scope.slaves[$routeParams.slave_id].hostname;
+        var pid = $scope.agents[$routeParams.agent_id].pid;
+        var hostname = $scope.agents[$routeParams.agent_id].hostname;
         var id = pid.substring(0, pid.indexOf('@'));
         var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
         var url = '//' + host + '/files/browse?jsonp=JSON_CALLBACK';
 
-        $scope.slave_host = host;
+        $scope.agent_host = host;
 
         $scope.pail = function($event, path) {
           pailer(host, path, decodeURIComponent(path));
@@ -865,8 +865,8 @@
             $('#alert').show();
           });
       } else {
-        if (!($routeParams.slave_id in $scope.slaves)) {
-          $scope.alert_message = 'No slave found with ID: ' + $routeParams.slave_id;
+        if (!($routeParams.agent_id in $scope.agents)) {
+          $scope.alert_message = 'No agent found with ID: ' + $routeParams.agent_id;
         } else {
           $scope.alert_message = 'Missing "path" request parameter.';
         }
