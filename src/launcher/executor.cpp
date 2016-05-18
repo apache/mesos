@@ -61,6 +61,8 @@
 #include "linux/fs.hpp"
 #endif
 
+#include "executor/v0_v1executor.hpp"
+
 #include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
@@ -96,6 +98,8 @@ using mesos::v1::FrameworkID;
 using mesos::v1::executor::Call;
 using mesos::v1::executor::Event;
 using mesos::v1::executor::Mesos;
+using mesos::v1::executor::MesosBase;
+using mesos::v1::executor::V0ToV1Adapter;
 
 namespace mesos {
 namespace v1 {
@@ -225,13 +229,22 @@ protected:
         &TaskHealthStatus::healthy,
         &TaskHealthStatus::kill_task);
 
+    Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
+
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
-    mesos.reset(new Mesos(
-        mesos::ContentType::PROTOBUF,
-        defer(self(), &Self::connected),
-        defer(self(), &Self::disconnected),
-        defer(self(), &Self::received, lambda::_1)));
+    if (value.isSome() && value.get() == "1") {
+      mesos.reset(new Mesos(
+          mesos::ContentType::PROTOBUF,
+          defer(self(), &Self::connected),
+          defer(self(), &Self::disconnected),
+          defer(self(), &Self::received, lambda::_1)));
+    } else {
+      mesos.reset(new V0ToV1Adapter(
+          defer(self(), &Self::connected),
+          defer(self(), &Self::disconnected),
+          defer(self(), &Self::received, lambda::_1)));
+    }
   }
 
   void taskHealthUpdated(
@@ -909,7 +922,7 @@ private:
   Option<string> taskCommand;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
-  Owned<Mesos> mesos;
+  Owned<MesosBase> mesos;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   Option<TaskInfo> task; // Unacknowledged task.
 };
