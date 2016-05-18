@@ -95,7 +95,7 @@ inline Try<std::string> read(const std::string& path)
   std::ifstream file(path.c_str());
   if (!file.is_open()) {
     // Does ifstream actually set errno?
-    return ErrnoError("Failed to open file '" + path + "'");
+    return ErrnoError("Failed to open file");
   }
   return std::string((std::istreambuf_iterator<char>(file)),
                      (std::istreambuf_iterator<char>()));
@@ -105,7 +105,7 @@ inline Try<std::string> read(const std::string& path)
 {
   FILE* file = fopen(path.c_str(), "r");
   if (file == NULL) {
-    return ErrnoError("Failed to open file '" + path + "'");
+    return ErrnoError("Failed to open file");
   }
 
   // Initially the 'line' is NULL and length 0, getline() allocates
