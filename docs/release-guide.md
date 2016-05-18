@@ -81,16 +81,18 @@ This guide describes the process of doing an official release of Mesos.
 
 3. If not already done, update and commit `configure.ac` for the release.
 
-4. Update and commit `docs/configuration.md` to reflect the current state of
+4. Run `support/generate-endpoint-help.py` and commit any resulting changes.
+
+5. Update and commit `docs/configuration.md` to reflect the current state of
    the master, agent, and configure flags.
 
-5. Update and commit `docs/upgrades.md` with instructions about how to upgrade
+6. Update and commit `docs/upgrades.md` with instructions about how to upgrade
    a live cluster from the previous release version to this release version.
 
-6. If this is a major release, please ensure that user documentation has been
+7. If this is a major release, please ensure that user documentation has been
    added for any new features.
 
-7. Make sure that for any updates of the API, specifically the scheduler API, the public mesos protobuf definitions are part of both, `include/mesos` as well as `include/mesos/v1`. NOTE: This might actually demand code updates if any omissions were identified.
+8. Make sure that for any updates of the API, specifically the scheduler API, the public mesos protobuf definitions are part of both, `include/mesos` as well as `include/mesos/v1`. NOTE: This might actually demand code updates if any omissions were identified.
 
 ## Tagging the release candidate
 
