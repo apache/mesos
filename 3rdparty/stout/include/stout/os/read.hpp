@@ -13,6 +13,7 @@
 #ifndef __STOUT_OS_READ_HPP__
 #define __STOUT_OS_READ_HPP__
 
+#include <assert.h>
 #include <stdio.h>
 #ifndef __WINDOWS__
 #include <unistd.h>
@@ -103,41 +104,42 @@ inline Try<std::string> read(const std::string& path)
 #else
 inline Try<std::string> read(const std::string& path)
 {
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = ::fopen(path.c_str(), "r");
   if (file == NULL) {
     return ErrnoError("Failed to open file");
   }
 
-  // Initially the 'line' is NULL and length 0, getline() allocates
-  // ('malloc') a buffer for reading the line.
-  // In subsequent iterations, if the buffer is not large enough to
-  // hold the line, getline() resizes it with 'realloc' and updates
-  // 'line' and 'length' as necessary. See:
-  // - http://pubs.opengroup.org/onlinepubs/9699919799/functions/getline.html
-  // - http://man7.org/linux/man-pages/man3/getline.3.html
+  // Use a buffer to read the file in BUFSIZ
+  // chunks and append it to the string we return.
+  //
+  // NOTE: We aren't able to use fseek() / ftell() here
+  // to find the file size because these functions don't
+  // work properly for in-memory files like /proc/*/stat.
+  char* buffer = new char[BUFSIZ];
   std::string result;
-  char* line = NULL;
-  size_t length = 0;
-  ssize_t read;
 
-  while ((read = getline(&line, &length, file)) != -1) {
-    result.append(line, read);
-  }
+  while (true) {
+    size_t read = ::fread(buffer, 1, BUFSIZ, file);
 
-  // getline() requires the line buffer to be freed by the caller.
-  free(line);
+    if (::ferror(file)) {
+      // NOTE: ferror() will not modify errno if the stream
+      // is valid, which is the case here since it is open.
+      ErrnoError error;
+      delete buffer;
+      ::fclose(file);
+      return error;
+    }
 
-  if (ferror(file)) {
-    ErrnoError error;
-    // NOTE: We ignore the error from fclose(). This is because
-    // users calling this function are interested in the return value
-    // of read(). Also an unsuccessful fclose() does not affect the
-    // read.
-    fclose(file);
-    return error;
-  }
+    result.append(buffer, read);
 
-  fclose(file);
+    if (read != BUFSIZ) {
+      assert(feof(file));
+      break;
+    }
+  };
+
+  ::fclose(file);
+  delete buffer;
   return result;
 }
 #endif // __sun || __WINDOWS__
