@@ -54,6 +54,8 @@ Deprecations:
   * [MESOS-5029] - Deprecated the ExecutorInfo.source field in favor of
     ExecutorInfo.labels.
 
+  * [MESOS-3781] - Deprecated flags with keyword 'slave' in favor of 'agent'.
+
 Additional API Changes:
   * [MESOS-4580] - Returning `202` (Accepted) for /reserve and related endpoints.
 
