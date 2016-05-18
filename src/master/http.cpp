@@ -1286,15 +1286,20 @@ string Master::Http::QUOTA_HELP()
 {
   return HELP(
     TLDR(
-        "Sets quota for a role."),
+        "Gets or updates quota for roles."),
     DESCRIPTION(
-        "Returns 200 OK when the quota has been changed successfully.",
+        "Returns 200 OK when the quota was queried or updated successfully.",
         "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found.",
+        "GET: Returns the currently set quotas as JSON.",
+        "",
         "POST: Validates the request body as JSON",
-        " and sets quota for a role."),
+        " and sets quota for a role.",
+        "",
+        "DELETE: Validates the request body as JSON",
+        " and removes quota for a role."),
     AUTHENTICATION(true),
     AUTHORIZATION(
         "Using this endpoint to set a quota for a certain role requires that",
