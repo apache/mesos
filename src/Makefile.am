@@ -1229,11 +1229,6 @@ mesos_executor_SOURCES = launcher/executor.cpp
 mesos_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_executor_LDADD = libmesos.la $(LDADD)
 
-pkglibexec_PROGRAMS += mesos-http-executor
-mesos_http_executor_SOURCES = launcher/http_command_executor.cpp
-mesos_http_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_http_executor_LDADD = libmesos.la $(LDADD)
-
 pkglibexec_PROGRAMS += mesos-containerizer
 mesos_containerizer_SOURCES = slave/containerizer/mesos/main.cpp
 mesos_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
