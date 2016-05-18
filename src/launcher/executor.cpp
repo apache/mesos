@@ -101,10 +101,10 @@ namespace mesos {
 namespace v1 {
 namespace internal {
 
-class HttpCommandExecutor: public ProtobufProcess<HttpCommandExecutor>
+class CommandExecutor: public ProtobufProcess<CommandExecutor>
 {
 public:
-  HttpCommandExecutor(
+  CommandExecutor(
       const Option<char**>& _override,
       const string& _healthCheckDir,
       const Option<string>& _rootfs,
@@ -136,7 +136,7 @@ public:
       executorId(_executorId),
       task(None()) {}
 
-  virtual ~HttpCommandExecutor() = default;
+  virtual ~CommandExecutor() = default;
 
   void connected()
   {
@@ -220,7 +220,7 @@ protected:
     // send unversioned `TaskHealthStatus` messages. This needs to be revisited
     // as part of MESOS-5103.
     install<TaskHealthStatus>(
-        &HttpCommandExecutor::taskHealthUpdated,
+        &CommandExecutor::taskHealthUpdated,
         &TaskHealthStatus::task_id,
         &TaskHealthStatus::healthy,
         &TaskHealthStatus::kill_task);
@@ -1046,8 +1046,8 @@ int main(int argc, char** argv)
     shutdownGracePeriod = parse.get();
   }
 
-  Owned<mesos::v1::internal::HttpCommandExecutor> executor(
-      new mesos::v1::internal::HttpCommandExecutor(
+  Owned<mesos::v1::internal::CommandExecutor> executor(
+      new mesos::v1::internal::CommandExecutor(
           override,
           path,
           flags.rootfs,
