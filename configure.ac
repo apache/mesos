@@ -577,7 +577,6 @@ case "${target_os}" in
   linux*)
     OS_NAME=linux
     LIBS="$LIBS -lrt"
-    LIBS="$LIBS -lelf" # For stout/elf.hpp.
     ;;
   darwin*)
     OS_NAME=darwin
@@ -1285,11 +1284,19 @@ if test x"$enable_nvidia_gpu_support" = "xyes"; then
     LDFLAGS="-L${with_nvml_lib} $LDFLAGS"
   fi
 
-  AC_CHECK_HEADERS([elf.h], [],
+  AC_CHECK_HEADERS([gelf.h], [],
                    [AC_MSG_ERROR([Cannot find the libelf headers
 -------------------------------------------------------------------
 The libelf headers are required to build Mesos with Nvidia
 GPU support. Make sure these headers are installed on the system.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_LIB([elf], [elf_begin], [],
+               [AC_MSG_ERROR([Cannot find libelf
+-------------------------------------------------------------------
+The libelf library is required to build Mesos with Nvidia GPU
+support. Make sure this library is installed on the system.
 -------------------------------------------------------------------
   ])])
 
