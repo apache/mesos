@@ -52,6 +52,9 @@ We categorize the changes as follows:
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>CD <a href="#0-29-x-quota-authorization">Quota Authorization</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
   </td>
@@ -162,7 +165,14 @@ We categorize the changes as follows:
 <a name="0-29-x-credentials"></a>
 * Mesos 0.29 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
 
-* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate agent. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
+<a name="0-29-x-quota-authorization"></a>
+* Mesos 0.29 deprecates `SET_QUOTA_WITH_ROLE` and `DESTROY_QUOTA_WITH_PRINCIPAL` actions with `UPDATE_QUOTA_WITH_ROLE`, as well as the `SetQuota` and `RemoveQuota` ACLs with `UpdateQuota` ACL, to control which principal(s) is authorized to set, remove and (in future releases) update quota for role(s). A new `GET_QUOTA_WITH_ROLE` action and `get_quotas` ACL are introduced to control which principal(s) can query quota status for given role(s). This affects `--acls` flag for local authorizer in the following way:
+  * It is not allowed to specify `update_quotas` and any of `set_quotas` or `remove_quotas` at the same time. Local authorizor will error out in such case;
+  * If `set_quotas` or `remove_quotas` were set previously, operator should upgrade binary first, after which the deprecated ACLs are still reinforced;
+  * After upgrade is verified, operator should replace deprecated values for `set_quotas` and `remove_quotas` with compatible values for `update_quotas`;
+  * If desired, operator can use `get_quotas` after upgrade to control which principal(s) is allowed to query quota status for given role(s).
+
+* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
 
 * Mesos 0.29 changes the HTTP status code of the following endpoints from `200 OK` to `202 Accepted`:
   * `/reserve`

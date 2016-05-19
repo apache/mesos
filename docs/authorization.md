@@ -121,13 +121,13 @@ entries, each representing an authorizable action:
 |`register_frameworks`|Framework principal.|Resource [roles](roles.md) of the framework.|(Re-)registering of frameworks.|
 |`run_tasks`|Framework principal.|UNIX user to launch the task as.|Launching tasks/executors by a framework.|
 |`teardown_frameworks`|Operator username.|Principals whose frameworks can be shutdown by the operator.|Tearing down frameworks.|
-|`set_quotas`|Operator username.|Resource role whose quota will be set.|Setting quotas for roles.|
-|`remove_quotas`|Operator username.|Principals whose quotas can be destroyed by the operator.|Destroying quotas.|
 |`reserve_resources`|Framework principal or Operator username.|Resource role of the reservation.|[Reserving](reservation.md) resources.|
 |`unreserve_resources`|Framework principal or Operator username.|Principals whose resources can be unreserved by the operator.|[Unreserving](reservation.md) resources.|
 |`create_volumes`|Framework principal or Operator username.|Resource role of the volume.|Creating [volumes](persistent-volumes.md).|
 |`destroy_volumes`|Framework principal or Operator username.|Principals whose volumes can be destroyed by the operator.|Destroying [volumes](persistent-volumes.md).|
-|`update_weights`|Operator username.|Roles whose weights can be updated by the operator.|Updating weights.|
+|`get_quotas`|Operator username.|Resource role whose quota status will be queried.|Querying [quota](quota.md) status for roles.|
+|`update_quotas`|Operator username.|Resource role whose quota will be updated.|Modifying [quotas](quota.md) for roles.|
+|`update_weights`|Operator username.|Resource roles whose weights can be updated by the operator.|Updating weights.|
 
 ### Examples
 
@@ -249,7 +249,7 @@ user.
 ```
 
 Principals `foo` and `bar` can run tasks as the agent operating system user
-`alice` and no other user. No other principals can run tasks.
+`alice` and no other user. No other principal can run tasks.
 
 ```json
 {
@@ -412,7 +412,7 @@ any role.
 
 The principal `foo` can unreserve resources reserved by itself and by the
 principal `bar`. The principal `bar`, however, can only unreserve its own
-resources. No other principals can unreserve resources.
+resources. No other principal can unreserve resources.
 
 ```json
 {
@@ -496,7 +496,7 @@ The principal `foo` can create persistent volumes only for roles `prod` and
 
 The principal `foo` can destroy volumes created by itself and by the principal
 `bar`. The principal `bar`, however, can only destroy its own volumes. No other
-principals can destroy volumes.
+principal can destroy volumes.
 
 ```json
 {
@@ -522,13 +522,14 @@ principals can destroy volumes.
 }
 ```
 
-The principal `ops` can set quota for any role. The principal `foo`, however,
-can only set quota for `foo-role`. No other principals can set quota.
+The principal `ops` can query quota status for any role. The principal `foo`,
+however, can only query quota status for `foo-role`. No other principal can
+query quota status.
 
 ```json
 {
   "permissive": false,
-  "set_quotas": [
+  "get_quotas": [
                   {
                     "principals": {
                       "values": ["ops"]
@@ -549,19 +550,19 @@ can only set quota for `foo-role`. No other principals can set quota.
 }
 ```
 
-The principal `ops` can remove quota which was set by any principal. The
-principal `foo`, however, can only remove quota which was set by itself. No
-other principals can remove quota.
+The principal `ops` can update quota information (set or remove) for any role.
+The principal `foo`, however, can only update quota for `foo-role`. No other
+principal can update quota.
 
 ```json
 {
   "permissive": false,
-  "remove_quotas": [
+  "update_quotas": [
                      {
                        "principals": {
                          "values": ["ops"]
                        },
-                       "quota_principals": {
+                       "roles": {
                          "type": "ANY"
                        }
                      },
@@ -569,8 +570,8 @@ other principals can remove quota.
                        "principals": {
                          "values": ["foo"]
                        },
-                       "quota_principals": {
-                         "values": ["foo"]
+                       "roles": {
+                         "values": ["foo-role"]
                        }
                      }
                    ]
