@@ -339,6 +339,7 @@ AM_CONDITIONAL([ENABLE_STATIC_LIBPROCESS], [false])
 case "${target_os}" in
   linux*)
     LIBS="$LIBS -lrt" # For clock_gettime() in stout/stopwatch.hpp.
+    LIBS="$LIBS -lelf" # For stout/elf.hpp.
     OS_NAME=linux # Used below for OS_LINUX.
     ;;
   darwin*)
