@@ -125,7 +125,7 @@ inline Try<std::string> read(const std::string& path)
       // NOTE: ferror() will not modify errno if the stream
       // is valid, which is the case here since it is open.
       ErrnoError error;
-      delete buffer;
+      delete[] buffer;
       ::fclose(file);
       return error;
     }
@@ -139,7 +139,7 @@ inline Try<std::string> read(const std::string& path)
   };
 
   ::fclose(file);
-  delete buffer;
+  delete[] buffer;
   return result;
 }
 #endif // __sun || __WINDOWS__
