@@ -941,6 +941,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 MESOS_LINUX_FILES =							\
   linux/cgroups.cpp							\
   linux/fs.cpp								\
+  linux/ldcache.cpp							\
   linux/perf.cpp							\
   linux/systemd.cpp							\
   slave/containerizer/mesos/linux_launcher.cpp				\
@@ -960,6 +961,7 @@ MESOS_LINUX_FILES =							\
 MESOS_LINUX_FILES +=							\
   linux/cgroups.hpp							\
   linux/fs.hpp								\
+  linux/ldcache.hpp							\
   linux/ns.hpp								\
   linux/perf.hpp							\
   linux/sched.hpp							\
@@ -2047,6 +2049,7 @@ mesos_tests_DEPENDENCIES =					\
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
+  tests/ldcache_tests.cpp				 	\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
@@ -2069,6 +2072,7 @@ endif
 
 if ENABLE_NVIDIA_GPU_SUPPORT
 mesos_tests_SOURCES +=						\
+  tests/ldcache_tests.cpp					\
   tests/containerizer/nvidia_gpu_isolator_tests.cpp
 endif
 

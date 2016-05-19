@@ -1285,6 +1285,14 @@ if test x"$enable_nvidia_gpu_support" = "xyes"; then
     LDFLAGS="-L${with_nvml_lib} $LDFLAGS"
   fi
 
+  AC_CHECK_HEADERS([elf.h], [],
+                   [AC_MSG_ERROR([Cannot find the libelf headers
+-------------------------------------------------------------------
+The libelf headers are required to build Mesos with Nvidia
+GPU support. Make sure these headers are installed on the system.
+-------------------------------------------------------------------
+  ])])
+
   AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
                    [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
 -------------------------------------------------------------------
