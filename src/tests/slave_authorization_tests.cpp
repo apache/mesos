@@ -178,7 +178,10 @@ INSTANTIATE_TEST_CASE_P(
     Endpoint,
     SlaveEndpointTest,
     ::testing::Values(
-        "monitor/statistics", "monitor/statistics.json", "flags"));
+        "monitor/statistics",
+        "monitor/statistics.json",
+        "flags",
+        "containers"));
 
 
 // Tests that an agent endpoint handler forms

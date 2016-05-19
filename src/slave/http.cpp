@@ -744,13 +744,50 @@ string Slave::Http::CONTAINERS_HELP()
           "    }",
           "}]",
           "```"),
-      AUTHENTICATION(true));
+      AUTHENTICATION(true),
+      AUTHORIZATION(
+          "The request principal should be authorized to query this endpoint.",
+          "See the authorization documentation for details."));
 }
 
 
 Future<Response> Slave::Http::containers(
     const Request& request,
-    const Option<string>& /* principal */) const
+    const Option<string>& principal) const
+{
+  // TODO(a10gupta): Remove check for enabled
+  // authorization as part of MESOS-5346.
+  if (request.method != "GET" && slave->authorizer.isSome()) {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
+  Try<string> endpoint = extractEndpoint(request.url);
+  if (endpoint.isError()) {
+    return Failure("Failed to extract endpoint: " + endpoint.error());
+  }
+
+  const PID<Slave> pid = slave->self();
+
+  // NOTE: We should not leak the slave instance because the its
+  // lifetime is not guaranteed. See MESOS-5293 for details.
+  const Slave* localSlave = slave;
+
+  return authorizeEndpoint(principal, endpoint.get(), request.method)
+    .then(defer(
+        pid,
+        [pid, localSlave, request](bool authorized) -> Future<Response> {
+          if (!authorized) {
+            return Forbidden();
+          }
+
+          return _containers(request, localSlave);
+        }));
+}
+
+
+Future<Response> Slave::Http::_containers(
+    const Request& request,
+    const Slave* slave)
 {
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
   list<Future<ContainerStatus>> statusFutures;

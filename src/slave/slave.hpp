@@ -458,7 +458,7 @@ private:
     // /slave/containers
     process::Future<process::http::Response> containers(
         const process::http::Request& request,
-        const Option<std::string>& /* principal */) const;
+        const Option<std::string>& principal) const;
 
     static std::string EXECUTOR_HELP();
     static std::string FLAGS_HELP();
@@ -478,6 +478,11 @@ private:
     static process::http::Response _statistics(
         const ResourceUsage& usage,
         const process::http::Request& request);
+
+    // Continuation for `/containers` endpoint
+    static process::Future<process::http::Response> _containers(
+        const process::http::Request& request,
+        const Slave* slave);
 
     // Helper routines for endpoint authorization.
     Try<std::string> extractEndpoint(const process::http::URL& url) const;
