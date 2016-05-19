@@ -577,6 +577,7 @@ case "${target_os}" in
   linux*)
     OS_NAME=linux
     LIBS="$LIBS -lrt"
+    LIBS="$LIBS -lelf" # For stout/elf.hpp.
     ;;
   darwin*)
     OS_NAME=darwin
