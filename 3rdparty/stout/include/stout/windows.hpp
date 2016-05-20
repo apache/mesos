@@ -28,6 +28,7 @@
 #include <WS2tcpip.h>
 #include <Winsock2.h>
 #include <mswsock.h>
+#include <winioctl.h>
 #include <Windows.h>
 
 #include <memory>

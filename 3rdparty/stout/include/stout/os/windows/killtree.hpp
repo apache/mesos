@@ -15,6 +15,8 @@
 
 #include <stdlib.h>
 
+#include <stout/os.hpp>
+
 #include <stout/os/pstree.hpp>
 
 namespace os {

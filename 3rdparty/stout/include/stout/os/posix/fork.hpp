@@ -30,6 +30,7 @@
 #include <string>
 
 #include <stout/abort.hpp>
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
