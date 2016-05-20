@@ -50,6 +50,11 @@
 #include <stout/bytes.hpp>
 #include <stout/error.hpp>
 #include <stout/ip.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows/net.hpp>
+#else
+#include <stout/posix/net.hpp>
+#endif // __WINDOWS__
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
@@ -270,17 +275,6 @@ inline Try<std::string> getHostname(const IP& ip)
   }
 
   return std::string(hostname);
-}
-
-
-// Returns a `Try` of the result of attempting to set the `hostname`.
-inline Try<Nothing> setHostname(const std::string& hostname)
-{
-  if (sethostname(hostname.c_str(), hostname.size()) != 0) {
-    return ErrnoError();
-  }
-
-  return Nothing();
 }
 
 
