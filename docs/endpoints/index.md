@@ -48,7 +48,6 @@ For example, http://master.com:5050/files/browse
 * [/machine/up](master/machine/up.md)
 * [/maintenance/schedule](master/maintenance/schedule.md)
 * [/maintenance/status](master/maintenance/status.md)
-* [/observe](master/observe.md)
 * [/quota](master/quota.md)
 * [/redirect](master/redirect.md)
 * [/reserve](master/reserve.md)
