@@ -54,7 +54,6 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
-#include "master/repairer.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -121,7 +120,6 @@ private:
   process::Owned<mesos::state::Storage> storage;
   process::Owned<mesos::state::protobuf::State> state;
   process::Owned<master::Registrar> registrar;
-  process::Owned<master::Repairer> repairer;
 
   Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 

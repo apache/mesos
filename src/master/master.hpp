@@ -98,7 +98,6 @@ class WhitelistWatcher;
 
 namespace master {
 
-class Repairer;
 class SlaveObserver;
 
 struct BoundedRateLimiter;
@@ -370,7 +369,6 @@ class Master : public ProtobufProcess<Master>
 public:
   Master(mesos::master::allocator::Allocator* allocator,
          Registrar* registrar,
-         Repairer* repairer,
          Files* files,
          mesos::master::contender::MasterContender* contender,
          mesos::master::detector::MasterDetector* detector,
@@ -1112,11 +1110,6 @@ private:
     process::Future<process::http::Response> health(
         const process::http::Request& request) const;
 
-    // /master/observe
-    process::Future<process::http::Response> observe(
-        const process::http::Request& request,
-        const Option<std::string>& principal) const;
-
     // /master/redirect
     process::Future<process::http::Response> redirect(
         const process::http::Request& request) const;
@@ -1195,7 +1188,6 @@ private:
     static std::string FLAGS_HELP();
     static std::string FRAMEWORKS_HELP();
     static std::string HEALTH_HELP();
-    static std::string OBSERVE_HELP();
     static std::string REDIRECT_HELP();
     static std::string ROLES_HELP();
     static std::string TEARDOWN_HELP();
@@ -1295,7 +1287,6 @@ private:
   mesos::master::allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
-  Repairer* repairer;
   Files* files;
 
   mesos::master::contender::MasterContender* contender;

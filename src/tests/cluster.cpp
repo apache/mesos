@@ -70,7 +70,6 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
-#include "master/repairer.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
@@ -244,7 +243,6 @@ Try<process::Owned<Master>> Master::start(
   master->state.reset(new mesos::state::protobuf::State(master->storage.get()));
   master->registrar.reset(new master::Registrar(
       flags, master->state.get(), master::DEFAULT_HTTP_AUTHENTICATION_REALM));
-  master->repairer.reset(new master::Repairer());
 
   if (slaveRemovalLimiter.isNone() && flags.agent_removal_rate_limit.isSome()) {
     // Parse the flag value.
@@ -284,7 +282,6 @@ Try<process::Owned<Master>> Master::start(
   master->master.reset(new master::Master(
       allocator.getOrElse(master->allocator.get()),
       master->registrar.get(),
-      master->repairer.get(),
       &master->files,
       master->contender.get(),
       master->detector.get(),

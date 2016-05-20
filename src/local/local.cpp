@@ -58,7 +58,6 @@
 
 #include "master/master.hpp"
 #include "master/registrar.hpp"
-#include "master/repairer.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
@@ -93,7 +92,6 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
 using mesos::internal::master::Registrar;
-using mesos::internal::master::Repairer;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -129,7 +127,6 @@ static Log* log = NULL;
 static mesos::state::Storage* storage = NULL;
 static mesos::state::protobuf::State* state = NULL;
 static Registrar* registrar = NULL;
-static Repairer* repairer = NULL;
 static Master* master = NULL;
 static map<Containerizer*, Slave*> slaves;
 static StandaloneMasterDetector* detector = NULL;
@@ -229,7 +226,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     state = new mesos::state::protobuf::State(storage);
     registrar =
       new Registrar(flags, state, master::DEFAULT_HTTP_AUTHENTICATION_REALM);
-    repairer = new Repairer();
 
     contender = new StandaloneMasterContender();
     detector = new StandaloneMasterDetector();
@@ -324,7 +320,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     master = new Master(
         _allocator,
         registrar,
-        repairer,
         files,
         contender,
         detector,
@@ -498,9 +493,6 @@ void shutdown()
 
     delete registrar;
     registrar = NULL;
-
-    delete repairer;
-    repairer = NULL;
 
     delete state;
     state = NULL;

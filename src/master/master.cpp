@@ -286,7 +286,6 @@ private:
 Master::Master(
     Allocator* _allocator,
     Registrar* _registrar,
-    Repairer* _repairer,
     Files* _files,
     MasterContender* _contender,
     MasterDetector* _detector,
@@ -298,7 +297,6 @@ Master::Master(
     http(this),
     allocator(_allocator),
     registrar(_registrar),
-    repairer(_repairer),
     files(_files),
     contender(_contender),
     detector(_detector),
@@ -990,14 +988,6 @@ void Master::initialize()
         Http::HEALTH_HELP(),
         [this](const process::http::Request& request) {
           return http.health(request);
-        });
-  route("/observe",
-        DEFAULT_HTTP_AUTHENTICATION_REALM,
-        Http::OBSERVE_HELP(),
-        [this](const process::http::Request& request,
-               const Option<string>& principal) {
-          Http::log(request);
-          return http.observe(request, principal);
         });
   route("/redirect",
         Http::REDIRECT_HELP(),

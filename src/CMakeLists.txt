@@ -214,7 +214,6 @@ set(MASTER_SRC
   master/quota_handler.cpp
   master/registry.hpp
   master/registrar.cpp
-  master/repairer.cpp
   master/validation.cpp
   master/weights.cpp
   master/weights_handler.cpp

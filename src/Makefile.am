@@ -716,7 +716,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/quota.cpp							\
   master/quota_handler.cpp						\
   master/registrar.cpp							\
-  master/repairer.cpp							\
   master/validation.cpp							\
   master/weights.cpp							\
   master/weights_handler.cpp						\
@@ -839,7 +838,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/quota.hpp							\
   master/registrar.hpp							\
   master/registry.hpp							\
-  master/repairer.hpp							\
   master/validation.hpp							\
   master/weights.hpp							\
   master/allocator/mesos/allocator.hpp					\
@@ -1985,7 +1983,6 @@ mesos_tests_SOURCES =						\
   tests/rate_limiting_tests.cpp					\
   tests/reconciliation_tests.cpp				\
   tests/registrar_tests.cpp					\
-  tests/repair_tests.cpp					\
   tests/reservation_endpoints_tests.cpp				\
   tests/reservation_tests.cpp					\
   tests/resource_offers_tests.cpp				\

@@ -67,7 +67,6 @@
 
 #include "master/master.hpp"
 #include "master/registrar.hpp"
-#include "master/repairer.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
@@ -369,7 +368,6 @@ int main(int argc, char** argv)
     new mesos::state::protobuf::State(storage);
   Registrar* registrar =
     new Registrar(flags, state, DEFAULT_HTTP_AUTHENTICATION_REALM);
-  Repairer* repairer = new Repairer();
 
   Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
 
@@ -517,7 +515,6 @@ int main(int argc, char** argv)
     new Master(
       allocator.get(),
       registrar,
-      repairer,
       &files,
       contender,
       detector,
@@ -538,7 +535,6 @@ int main(int argc, char** argv)
   delete allocator.get();
 
   delete registrar;
-  delete repairer;
   delete state;
   delete storage;
   delete log;
