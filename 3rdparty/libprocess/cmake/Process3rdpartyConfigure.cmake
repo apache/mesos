@@ -125,8 +125,45 @@ endif (NOT WIN32)
 include(StoutConfigure)
 include(ProcessConfigure)
 
-# Define target for AGENT.
-##########################
+# DEFINE MESOS BUILD TARGETS.
+#############################
+
+# Define target for agent.
 set(
   AGENT_TARGET mesos-agent
   CACHE STRING "Target we use to refer to agent executable")
+
+# Define target for containerizer.
+set(
+  MESOS_CONTAINERIZER mesos-containerizer
+  CACHE STRING "Target for containerizer")
+
+# Define target for executor.
+set(
+  MESOS_EXECUTOR mesos-executor
+  CACHE STRING "Target for executor")
+
+# Define target for fetcher.
+set(
+  MESOS_FETCHER mesos-fetcher
+  CACHE STRING "Target for fetcher")
+
+# Define target for health-check.
+set(
+  MESOS_HEALTH_CHECK mesos-health-check
+  CACHE STRING "Target for healt-check")
+
+# Define target for health-master.
+set(
+  MESOS_MASTER mesos-master
+  CACHE STRING "Target for master")
+
+# Define target for usage.
+set(
+  MESOS_USAGE mesos-usage
+  CACHE STRING "Target for usage")
+
+# Define target for docker.
+set(
+  MESOS_DOCKER_EXECUTOR mesos-docker-executor
+  CACHE STRING "Target for docker executor")
