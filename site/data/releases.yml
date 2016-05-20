@@ -1,0 +1,150 @@
+---
+# * When releasing a new version, we need to append an item to `news` and
+#   `versions` below.
+# * When publishing a new blog post, we need to append an item to `news` below.
+latest_stable:
+  version: 0.28.1
+  jira_version: 12335359
+news:
+## * If the news is used to announce a release version, the item structure is
+##   - title: (required)
+##     date: (required)
+##     target_version: (required)
+##     blog: (optional)
+## * If the news is used for others, the item structure is
+##   - title: (required)
+##     date: (required)
+##     blog: (required)
+  - title: Mesos 0.28.1 is released!
+    date: April 13, 2016
+    target_version: 0.28.1
+  - title: Mesos 0.26.1 and more are released!
+    date: April 12, 2016
+    blog: mesos-0-26-1-and-more-released
+    target_version: 0.26.1
+  - title: Mesos 0.28.0 is released!
+    date: March 7, 2016
+    blog: mesos-0-28-0-released
+    target_version: 0.28.0
+  - title: Mesos 0.27.2 is released!
+    date: March 7, 2016
+    blog: mesos-0-27-2-released
+    target_version: 0.27.2
+  - title: Mesos 0.27.1 is released!
+    date: February 22, 2016
+    blog: mesos-0-27-1-released
+    target_version: 0.27.1
+  - title: MesosCon 2016 CFP is now open!
+    date: February 12, 2016
+    blog: mesoscon-2016-cfp-is-now-open
+  - title: Mesos 0.27.0 is released!
+    date: January 31, 2016
+    blog: mesos-0-27-0-released
+    target_version: 0.27.0
+  - title: Mesos 0.26.0 is released!
+    date: December 16, 2015
+    blog: mesos-0-26-0-released
+    target_version: 0.26.0
+  - title: Mesos 0.25.0 is released!
+    date: October 10, 2015
+    blog: mesos-0-25-0-released
+    target_version: 0.25.0
+  - title: Announcing the #MesosCon Europe Hackathon!
+    date: September 30, 2015
+    blog: announcing-mesoscon-eu-2015-hackathon
+    target_version: 0.25.0
+  - title: Mesos 0.24.1 is released!
+    date: September 24, 2015
+    blog: mesos-0-24-1-and-more-released
+    target_version: 0.24.1
+  - title: Mesos 0.24.0 is released!
+    date: September 21, 2015
+    blog: mesos-0-24-0-released
+    target_version: 0.24.0
+  - title: MesosCon Europe Schedule and Diversity Scholarship
+    date: September 17, 2015
+    blog: mesoscon-europe-2015-schedule-announce
+  - title: MesosCon goes Europe
+    date: August 5, 2015
+    blog: mesoscon-goes-europe
+  - title: Mesos 0.23.0 is released!
+    date: July 22, 2015
+    blog: mesos-0-23-0-released
+    target_version: 0.23.0
+versions:
+## `versions` field is the definition of release versions. For a version item,
+## its structure should match:
+## - version: The Mesos release version number.
+##   jira_version: We can get the value of this field after we created the
+##                 ReleaseNote in https://issues.apache.org/jira/. For example,
+##                 after we create the ReleaseNote for 0.28.1, we get the link:
+##                 https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12335359.
+##                 At here, 12335359 is the jira_version of 0.28.1.
+  - version: 0.28.1
+    jira_version: 12335359
+  - version:  0.28.0
+    jira_version: 12334661
+  - version:  0.27.2
+    jira_version: 12334913
+  - version:  0.27.1
+    jira_version: 12334748
+  - version:  0.27.0
+    jira_version: 12334043
+  - version:  0.26.1
+    jira_version: 12334931
+  - version:  0.26.0
+    jira_version: 12333528
+  - version:  0.25.1
+    jira_version: 12334932
+  - version:  0.25.0
+    jira_version: 12329852
+  - version:  0.24.2
+    jira_version: 12334933
+  - version:  0.24.1
+    jira_version: 12333552
+  - version:  0.24.0
+    jira_version: 12329851
+  - version:  0.23.1
+    jira_version: 12333553
+  - version:  0.23.0
+    jira_version: 12328728
+  - version:  0.22.2
+    jira_version: 12333645
+  - version:  0.22.1
+    jira_version: 12329855
+  - version:  0.22.0
+    jira_version: 12328650
+  - version:  0.21.2
+    jira_version: 12333646
+  - version:  0.21.1
+    jira_version: 12329076
+  - version:  0.21.0
+    jira_version: 12327045
+  - version:  0.20.0
+    jira_version: 12326835
+  - version:  0.19.1
+    jira_version: 12327173
+  - version:  0.19.0
+    jira_version: 12326253
+  - version:  0.18.2
+    jira_version: 12326851
+  - version:  0.18.1
+    jira_version: 12326752
+  - version:  0.18.0
+    jira_version: 12326140
+  - version:  0.17.0
+    jira_version: 12325669
+  - version:  0.16.0
+    jira_version: 12325295
+  - version:  0.15.0
+    jira_version: 12324901
+  - version:  0.14.2
+    jira_version: 12325324
+  - version:  0.14.1
+    jira_version: 12324994
+  - version:  0.14.0
+    jira_version: 12311242
+  - version:  0.13.0
+    jira_version: 12311242
+  - version:  0.12.1
+    jira_version: 12324794

@@ -1,0 +1,86 @@
+---
+title: Apache Mesos
+---
+
+<div class="container-fluid homepage jumbotron">
+  <h1>
+    Program against your datacenter like it’s a single pool of resources
+  </h1>
+  <p class="lead">
+    Apache Mesos abstracts CPU, memory, storage, and other
+    compute resources away from machines (physical or virtual), enabling
+    fault-tolerant and elastic distributed systems to easily be built and run
+    effectively.
+  </p>
+
+  <p>
+    <a href="downloads/"><span class="glyphicon glyphicon-download"></span>
+    Download Mesos <%= data.releases.latest_stable.version %></a>
+    or learn how to <a href="gettingstarted/">get started</a>
+  </p>
+</div>
+
+<!-- lowersection -->
+<div class="row">
+  <div class="col-md-7">
+    <h3>What is Mesos?</h3>
+      <h4>A distributed systems kernel</h4>
+      <p>
+        Mesos is built using the same principles as the Linux kernel, only at a
+        different level of abstraction. The Mesos kernel runs on every machine
+        and provides applications (e.g., Hadoop, Spark, Kafka, Elastic Search)
+        with API’s for resource management and scheduling across entire
+        datacenter and cloud environments.
+      </p>
+
+    <h3>Project Features</h3>
+    <ul>
+     <li>Scalability to 10,000s of nodes</li>
+     <li>Fault-tolerant replicated master and slaves using ZooKeeper</li>
+     <li>Support for Docker containers</li>
+     <li>Native isolation between tasks with Linux Containers</li>
+     <li>Multi-resource scheduling (memory, CPU, disk, and ports)</li>
+     <li>Java, Python and C++ APIs for developing new parallel applications</li>
+     <li>Web UI for viewing cluster state</li>
+    </ul>
+  </div>
+  <div class="col-md-5">
+    <h3>News</h3>
+      <ul>
+      <% data.releases.news.each do |item| %>
+      <% if item.target_version %>
+        <li>
+          <em><%= item.date %></em> - <%= item.title %>
+          See the
+          <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=<%= item.target_version %>">
+            CHANGELOG
+          </a>
+          <% if item.blog %>
+          and <a href="/blog/<%= item.blog %>/">blog post</a> for details
+          <% end %>
+          .
+        </li>
+      <% else %>
+        <li>
+          <em><%= item.date %></em> - <%= item.title %>
+          See the <a href="/blog/<%= item.blog %>/">blog post</a> for details.
+        </li>
+      <% end %>
+      <% end %>
+      </ul>
+
+    <h3>Follow Us</h3>
+    <span class="social">
+      <a href="https://twitter.com/ApacheMesos"
+         class="twitter-follow-button"
+         data-show-count="false" data-size="large">Follow @ApacheMesos</a>
+      <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+      <a href="https://twitter.com/intent/tweet?button_hashtag=mesos"
+         class="twitter-hashtag-button"
+         data-size="large"
+         data-related="ApacheMesos">Tweet #mesos</a>
+      <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+    </span>
+ </div>
+</div>
+<!-- /lowersection -->

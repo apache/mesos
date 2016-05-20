@@ -1,0 +1,50 @@
+---
+title: Apache Mesos | Downloads
+breadcrumb: Downloads
+---
+
+<div class="row-fluid">
+  <div class="col-md-4">
+    <h4>Previous Releases</h4>
+
+    <ul>
+      <% data.releases.versions.each do |item| %>
+      <li>
+        <a href="http://archive.apache.org/dist/mesos/<%= item.version %>/">
+          <%= item.version %>
+        </a>
+        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=<%= item.jira_version %>">
+          Release Notes
+        </a>)
+      </li>
+      <% end %>
+    </ul>
+  </div>
+
+  <div class="col-md-8">
+    <h1>Download Mesos</h1>
+      <p>Download the most recent stable release:
+	      <a href="http://www.apache.org/dyn/closer.cgi/mesos/<%= data.releases.latest_stable.version %>/mesos-<%= data.releases.latest_stable.version %>.tar.gz">
+          <%= data.releases.latest_stable.version %>
+        </a>
+        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=<%= data.releases.latest_stable.jira_version %>">
+          Release Notes
+        </a>)
+      </p>
+
+      <h4>Getting the code via source control</h4>
+      <p>The codebase can also be downloaded from the Apache git repository at:
+        <code>https://git-wip-us.apache.org/repos/asf/mesos.git</code>.
+        A read-only git repository is also mirrored on
+        <a href="https://github.com/apache/mesos/tree/master">on Github</a>.
+        (Note: we use <a href="http://reviews.apache.org">Review Board</a> for
+        patches, not pull requests on Github)
+      </p>
+
+      <p>Once you have downloaded Mesos, follow the
+        <a href="/gettingstarted/">getting started instructions</a>,
+        and take a look at the rest of the
+        <a href="/documentation/">Mesos documentation</a>.
+      </p>
+  </div>
+</div>
