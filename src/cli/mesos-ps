@@ -129,6 +129,8 @@ def time(task, statistics):
     if executor_id == '': executor_id = task['id']
 
     cpus_time_secs = None
+    cpus_system_time_secs = None
+    cpus_user_time_secs = None
     for entry in statistics:
         if (entry['framework_id'] == framework_id and
             entry['executor_id'] == executor_id):
