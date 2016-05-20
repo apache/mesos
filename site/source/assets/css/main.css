@@ -128,14 +128,6 @@ img {
   background-color:#000;
 }
 
-@media (min-width: 992px) {
-  .navbar .nav li a {
-    height:120px;
-    line-height:120px;
-    padding:0 15px 0;
-  }
-}
-
 .container .logo {
 	display: block;
 	float: left;
