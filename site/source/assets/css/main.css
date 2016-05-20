@@ -8,7 +8,7 @@ body {
 
 ul.breadcrumb {
 	margin: auto;
-	width: 940px;
+	max-width: 940px;
 }
 
 pre {
@@ -20,13 +20,12 @@ pre code {
     white-space: pre;
 }
 
-/* Custom container */
-.container > hr {
-  margin: 20px 0;
+img {
+  max-width:100%;
 }
 
 .container {
-	width: 940px;
+  max-width: 940px;
 }
 
 /* Main marketing message and sign up button */
@@ -36,7 +35,7 @@ pre code {
 	padding-right: 0;
 }
 .homepage.jumbotron h1 {
-	padding: 50px 0 10px 0;
+  padding: 0 0 10px 0;
   font-size: 30px;
   line-height: 1;
 }
@@ -44,7 +43,6 @@ pre code {
   font-size: 18px;
   line-height: 1.25;
 	margin-bottom: 50px;
-	padding-right: 65px;
 }
 
 .homepage-featured {
@@ -93,18 +91,49 @@ pre code {
 
 /* Customize the navbar links to be fill the entire space of the .navbar */
 .navbar {
-	position: relative;
+  background: #004561;
+  min-height:120px;
   z-index: 0;
 }
 
-.navbar .navbar-inner {
-  padding: 0;
-	background: #004561;
-	height: 120px;
+.navbar-brand {
+  min-height:120px;
 }
 
-.navbar .nav, .navbar .nav a {
-	margin: 0;
+.navbar .nav li a {
+  color: #FFF;
+}
+
+.navbar .nav li a:hover {
+  color: #CCC;
+  background: none;
+}
+
+.navbar-header {
+  height:120px;
+}
+
+.navbar-toggle {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-top:0;
+}
+
+.navbar-default .navbar-toggle .icon-bar {
+  background-color:#FFF;
+}
+
+.navbar-default .navbar-toggle:focus .icon-bar {
+  background-color:#000;
+}
+
+@media (min-width: 992px) {
+  .navbar .nav li a {
+    height:120px;
+    line-height:120px;
+    padding:0 15px 0;
+  }
 }
 
 .container .logo {

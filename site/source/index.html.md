@@ -3,12 +3,10 @@ title: Apache Mesos
 ---
 
 <div class="container-fluid homepage jumbotron">
-	<div class="row">
-    <h1>Program against your datacenter like it’s a single pool of resources</h1>
-    <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
+  <h1>Program against your datacenter like it’s a single pool of resources</h1>
+  <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
 
-		<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.28.1</a> or learn how to <a href="gettingstarted/">get started</a></p>
-	</div>
+  <p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.28.1</a> or learn how to <a href="gettingstarted/">get started</a></p>
 </div>
 
 <!-- lowersection -->
