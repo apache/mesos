@@ -500,7 +500,7 @@ inline Option<std::string> getenv(const std::string& key)
     return None();
   }
 
-  std::unique_ptr<char> environment(new char[buffer_size]);
+  std::unique_ptr<char[]> environment(new char[buffer_size]);
 
   DWORD value_size =
     ::GetEnvironmentVariable(key.c_str(), environment.get(), buffer_size);
