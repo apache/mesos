@@ -17,8 +17,8 @@ files within the source folder.
 		# First generate the help endpoint documentation. Running
 		# `make check` is needed to generate the latest version of
 		# the master and slave binaries.
-                make check -jN GTEST_FILTER=""
-		../support/generate-help-site.py
+		make check -jN GTEST_FILTER=""
+		../support/generate-endpoint-help.py
 		rake
 
 The doxygen and javadoc pages must be generated _after_ running `rake`.
@@ -38,6 +38,10 @@ To live edit the site run `rake dev` and then open a browser window to
 http://localhost:4567/ . Any change you make to the sources dir will
 be shown on the local dev site immediately. Errors will be shown in the
 console you launched `rake dev` within.
+
+There is also a Dockerfile to simplify local website development. Please see
+[support/site-docker/README.md](../support/site-docker/README.md) for
+instructions.
 
 
 ## Publishing the Site
