@@ -34,8 +34,8 @@
 
 namespace mesos {
 
-class Resources;
 class Attributes;
+class Resources;
 
 namespace internal {
 
