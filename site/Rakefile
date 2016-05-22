@@ -71,8 +71,12 @@ end
 
 desc "Generate javadoc from the Java source files in the codebase"
 task :javadoc do
+  proto_java_folder = "../build/src/java/generated"
+  if File.directory?(proto_java_folder)
+    raise "Please make sure Java proto files are generated in #{proto_java_folder} folder."
+  end
   # TODO: add version to the path. Uses 'current' for now.
-  system("javadoc -d publish/api/latest/java -sourcepath ../src/java/src org.apache.mesos")
+  system("javadoc -d publish/api/latest/java -sourcepath ../src/java/src:#{proto_java_folder} org.apache.mesos")
 end
 
 desc "Generate doxygen from the C++ source files in the codebase"
