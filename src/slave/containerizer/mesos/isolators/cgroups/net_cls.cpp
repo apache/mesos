@@ -471,20 +471,6 @@ Future<Nothing> CgroupsNetClsIsolatorProcess::update(
 }
 
 
-// The net_cls handles aren't treated as resources. Further, they have
-// fixed values and hence don't have a notion of usage. We are
-// therefore returning an empty 'ResourceStatistics' object.
-Future<ResourceStatistics> CgroupsNetClsIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
-  }
-
-  return ResourceStatistics();
-}
-
-
 Future<ContainerStatus> CgroupsNetClsIsolatorProcess::status(
     const ContainerID& containerId)
 {

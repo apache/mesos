@@ -493,36 +493,6 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
 }
 
 
-Future<Nothing> DockerVolumeIsolatorProcess::isolate(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  return Nothing();
-}
-
-
-Future<ContainerLimitation> DockerVolumeIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> DockerVolumeIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  return Nothing();
-}
-
-
-Future<ResourceStatistics> DockerVolumeIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  return ResourceStatistics();
-}
-
-
 Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {

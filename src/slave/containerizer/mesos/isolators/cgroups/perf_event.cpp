@@ -279,23 +279,6 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::isolate(
 }
 
 
-Future<ContainerLimitation> CgroupsPerfEventIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  // No resources are limited.
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> CgroupsPerfEventIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  // Nothing to update.
-  return Nothing();
-}
-
-
 Future<ResourceStatistics> CgroupsPerfEventIsolatorProcess::usage(
     const ContainerID& containerId)
 {

@@ -64,17 +64,12 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
   return new MesosIsolator(process);
 }
 
-
-Future<Nothing> SharedFilesystemIsolatorProcess::recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
-{
-  // There is nothing to recover because we do not keep any state and
-  // do not monitor filesystem usage or perform any action on cleanup.
-  return Nothing();
-}
-
-
+// We only need to implement the `prepare()` function in this
+// isolator. There is nothing to recover because we do not keep any
+// state and do not monitor filesystem usage or perform any action on
+// cleanup. Cleanup of mounts is done automatically done by the kernel
+// when the mount namespace is destroyed after the last process
+// terminates.
 Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
@@ -213,55 +208,6 @@ Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
   }
 
   return launchInfo;
-}
-
-
-Future<Nothing> SharedFilesystemIsolatorProcess::isolate(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  // No-op, isolation happens when unsharing the mount namespace.
-
-  return Nothing();
-}
-
-
-Future<ContainerLimitation> SharedFilesystemIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  // No-op, for now.
-
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> SharedFilesystemIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  // No-op, nothing enforced.
-
-  return Nothing();
-}
-
-
-Future<ResourceStatistics> SharedFilesystemIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  // No-op, no usage gathered.
-
-  return ResourceStatistics();
-}
-
-
-Future<Nothing> SharedFilesystemIsolatorProcess::cleanup(
-    const ContainerID& containerId)
-{
-  // Cleanup of mounts is done automatically done by the kernel when
-  // the mount namespace is destroyed after the last process
-  // terminates.
-
-  return Nothing();
 }
 
 } // namespace slave {

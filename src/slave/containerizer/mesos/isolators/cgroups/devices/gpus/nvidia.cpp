@@ -437,19 +437,6 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::isolate(
 }
 
 
-Future<ContainerLimitation> CgroupsNvidiaGpuIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
-  }
-
-  CHECK_NOTNULL(infos[containerId]);
-
-  return Future<ContainerLimitation>();
-}
-
-
 Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)

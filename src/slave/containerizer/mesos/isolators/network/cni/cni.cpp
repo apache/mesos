@@ -1036,27 +1036,6 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 }
 
 
-Future<ContainerLimitation> NetworkCniIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> NetworkCniIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  return Nothing();
-}
-
-
-Future<ResourceStatistics> NetworkCniIsolatorProcess::usage(
-    const ContainerID& containerId) {
-  return ResourceStatistics();
-}
-
-
 Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     const ContainerID& containerId)
 {

@@ -81,31 +81,44 @@ public:
 
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans) = 0;
+      const hashset<ContainerID>& orphans)
+  {
+    return Nothing();
+  }
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig) = 0;
+      const mesos::slave::ContainerConfig& containerConfig)
+  {
+    return None();
+  }
 
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
-      pid_t pid) = 0;
+      pid_t pid)
+  {
+    return Nothing();
+  }
 
   virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return process::Future<mesos::slave::ContainerLimitation>();
+  }
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources) = 0;
+      const Resources& resources)
+  {
+    return Nothing();
+  }
 
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return ResourceStatistics();
+  }
 
-  // A method to query the isolator processes about the run-time state
-  // of isolator specific properties associated with a container.
-  // Unlike other methods in this class we are not making this pure
-  // virtual, since isolators do not necessarily need to provide the
-  // status of isolated containers.
   virtual process::Future<ContainerStatus> status(
       const ContainerID& containerId)
   {
@@ -113,7 +126,10 @@ public:
   };
 
   virtual process::Future<Nothing> cleanup(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return Nothing();
+  }
 };
 
 } // namespace slave {

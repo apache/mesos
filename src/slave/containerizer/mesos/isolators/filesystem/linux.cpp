@@ -459,23 +459,6 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
 }
 
 
-Future<Nothing> LinuxFilesystemIsolatorProcess::isolate(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  // No-op, isolation happens when unsharing the mount namespace.
-  return Nothing();
-}
-
-
-Future<ContainerLimitation> LinuxFilesystemIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  // No-op.
-  return Future<ContainerLimitation>();
-}
-
-
 Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
@@ -625,14 +608,6 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
   info->resources = resources;
 
   return Nothing();
-}
-
-
-Future<ResourceStatistics> LinuxFilesystemIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  // No-op, no usage gathered.
-  return ResourceStatistics();
 }
 
 

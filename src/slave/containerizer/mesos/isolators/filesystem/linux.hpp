@@ -54,19 +54,9 @@ public:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
-  virtual process::Future<Nothing> isolate(
-      const ContainerID& containerId,
-      pid_t pid);
-
-  virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId);
-
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resources);
-
-  virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
 
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);

@@ -210,28 +210,6 @@ Future<Nothing> NamespacesPidIsolatorProcess::isolate(
 }
 
 
-Future<ContainerLimitation> NamespacesPidIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> NamespacesPidIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  return Nothing();
-}
-
-
-Future<ResourceStatistics> NamespacesPidIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  return ResourceStatistics();
-}
-
-
 // An old glibc might not have this symbol.
 #ifndef MNT_DETACH
 #define MNT_DETACH 2

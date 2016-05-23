@@ -373,43 +373,6 @@ Option<string> DockerRuntimeIsolatorProcess::getWorkingDirectory(
   return containerConfig.docker().manifest().config().workingdir();
 }
 
-
-Future<Nothing> DockerRuntimeIsolatorProcess::isolate(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  return Nothing();
-}
-
-
-Future<ContainerLimitation> DockerRuntimeIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  return Future<ContainerLimitation>();
-}
-
-
-Future<Nothing> DockerRuntimeIsolatorProcess::update(
-    const ContainerID& containerId,
-    const Resources& resources)
-{
-  return Nothing();
-}
-
-
-Future<ResourceStatistics> DockerRuntimeIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  return ResourceStatistics();
-}
-
-
-Future<Nothing> DockerRuntimeIsolatorProcess::cleanup(
-    const ContainerID& containerId)
-{
-  return Nothing();
-}
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

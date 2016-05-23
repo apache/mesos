@@ -47,7 +47,10 @@ public:
   // the launcher.
   virtual process::Future<Nothing> recover(
       const std::list<ContainerState>& states,
-      const hashset<ContainerID>& orphans) = 0;
+      const hashset<ContainerID>& orphans)
+  {
+    return Nothing();
+  }
 
   // Prepare for isolation of the executor. Any steps that require
   // execution in the containerized context (e.g. inside a network
@@ -57,27 +60,42 @@ public:
   // ignored; only the command value is used.
   virtual process::Future<Option<ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const ContainerConfig& containerConfig) = 0;
+      const ContainerConfig& containerConfig)
+  {
+    return None();
+  }
 
   // Isolate the executor.
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
-      pid_t pid) = 0;
+      pid_t pid)
+  {
+    return Nothing();
+  }
 
   // Watch the containerized executor and report if any resource
   // constraint impacts the container, e.g., the kernel killing some
   // processes.
   virtual process::Future<ContainerLimitation> watch(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return process::Future<ContainerLimitation>();
+  }
 
   // Update the resources allocated to the container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources) = 0;
+      const Resources& resources)
+  {
+    return Nothing();
+  }
 
   // Gather resource usage statistics for the container.
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return ResourceStatistics();
+  }
 
   // Get the run-time status of isolator specific properties
   // associated with the container.
@@ -90,7 +108,10 @@ public:
   // Clean up a terminated container. This is called after the
   // executor and all processes in the container have terminated.
   virtual process::Future<Nothing> cleanup(
-      const ContainerID& containerId) = 0;
+      const ContainerID& containerId)
+  {
+    return Nothing();
+  }
 };
 
 } // namespace slave {

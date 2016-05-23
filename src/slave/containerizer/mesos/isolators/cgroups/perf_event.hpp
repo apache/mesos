@@ -51,13 +51,6 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId);
-
-  virtual process::Future<Nothing> update(
-      const ContainerID& containerId,
-      const Resources& resources);
-
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 

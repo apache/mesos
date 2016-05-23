@@ -100,23 +100,6 @@ Future<Option<ContainerLaunchInfo>> PosixFilesystemIsolatorProcess::prepare(
 }
 
 
-Future<Nothing> PosixFilesystemIsolatorProcess::isolate(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  // No-op.
-  return Nothing();
-}
-
-
-Future<ContainerLimitation> PosixFilesystemIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  // No-op.
-  return Future<ContainerLimitation>();
-}
-
-
 Future<Nothing> PosixFilesystemIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
@@ -264,14 +247,6 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
   info->resources = resources;
 
   return Nothing();
-}
-
-
-Future<ResourceStatistics> PosixFilesystemIsolatorProcess::usage(
-    const ContainerID& containerId)
-{
-  // No-op, no usage gathered.
-  return ResourceStatistics();
 }
 
 

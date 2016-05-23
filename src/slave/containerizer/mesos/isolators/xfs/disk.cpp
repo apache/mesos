@@ -288,15 +288,6 @@ Future<Nothing> XfsDiskIsolatorProcess::isolate(
 }
 
 
-Future<ContainerLimitation> XfsDiskIsolatorProcess::watch(
-    const ContainerID& containerId)
-{
-  // We have nothing to do here, since the XFS quota is enforcing
-  // the limitation.
-  return Future<ContainerLimitation>();
-}
-
-
 Future<Nothing> XfsDiskIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
