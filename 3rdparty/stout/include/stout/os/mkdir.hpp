@@ -42,13 +42,13 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
     }
   } else {
     std::vector<std::string> tokens =
-      strings::tokenize(directory, os::DIRECTORY_SEPARATOR);
+      strings::tokenize(directory, stringify(os::PATH_SEPARATOR));
 
     std::string path = "";
 
     // We got an absolute path, so keep the leading slash.
-    if (directory.find_first_of(os::DIRECTORY_SEPARATOR) == 0) {
-      path = os::DIRECTORY_SEPARATOR;
+    if (directory.find_first_of(stringify(os::PATH_SEPARATOR)) == 0) {
+      path = os::PATH_SEPARATOR;
     }
 
     foreach (const std::string& token, tokens) {
@@ -57,7 +57,7 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
         return ErrnoError();
       }
 
-      path += os::DIRECTORY_SEPARATOR;
+      path += os::PATH_SEPARATOR;
     }
   }
 

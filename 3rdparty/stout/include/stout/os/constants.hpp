@@ -17,7 +17,14 @@
 
 namespace os {
 
-const std::string DIRECTORY_SEPARATOR = "/";
+constexpr char WINDOWS_PATH_SEPARATOR = '\\';
+constexpr char POSIX_PATH_SEPARATOR = '/';
+
+#ifndef __WINDOWS__
+constexpr char PATH_SEPARATOR = POSIX_PATH_SEPARATOR;
+#else
+constexpr char PATH_SEPARATOR = WINDOWS_PATH_SEPARATOR;
+#endif // __WINDOWS__
 
 } // namespace os {
 
