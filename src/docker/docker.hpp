@@ -120,8 +120,8 @@ public:
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources = None(),
       const Option<std::map<std::string, std::string>>& env = None(),
-      const process::Subprocess::IO& stdout = process::Subprocess::PIPE(),
-      const process::Subprocess::IO& stderr = process::Subprocess::PIPE())
+      const process::Subprocess::IO& _stdout = process::Subprocess::PIPE(),
+      const process::Subprocess::IO& _stderr = process::Subprocess::PIPE())
     const;
 
   // Returns the current docker version.
