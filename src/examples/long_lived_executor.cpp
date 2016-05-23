@@ -202,7 +202,7 @@ protected:
     std::thread thread([=]() {
       os::sleep(Seconds(random() % 10));
 
-      update(task, TaskState::TASK_FINISHED);
+      process::dispatch(self(), &Self::update, task, TaskState::TASK_FINISHED);
     });
 
     thread.detach();
