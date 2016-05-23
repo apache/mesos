@@ -19,6 +19,9 @@
 #include <process/future.hpp>
 
 #include <stout/nothing.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
 
 namespace process {
 namespace io {
@@ -78,6 +81,10 @@ Future<size_t> read(int fd, void* data, size_t size);
  *     or made non-blocking.
  */
 Future<std::string> read(int fd);
+#ifdef __WINDOWS__
+// Version of this function compatible with Windows `HANDLE`.
+Future<std::string> read(HANDLE fd);
+#endif // __WINDOWS__
 
 
 /**
@@ -119,6 +126,10 @@ Future<Nothing> write(int fd, const std::string& data);
  *     set to close-on-exec, or made non-blocking.
  */
 Future<Nothing> redirect(int from, Option<int> to, size_t chunk = 4096);
+#ifdef __WINDOWS__
+// Version of this function compatible with Windows `HANDLE`.
+Future<Nothing> redirect(HANDLE from, Option<int> to, size_t chunk = 4096);
+#endif // __WINDOWS__
 
 
 /**
