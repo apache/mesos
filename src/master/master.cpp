@@ -4746,7 +4746,8 @@ void Master::reregisterSlave(
     CHECK(slave->active)
       << "Unexpected connected but deactivated agent " << *slave;
 
-    // Inform the slave of the new framework pids for its tasks.
+    // Inform the agent of the master's version of its checkpointed
+    // resources and the new framework pids for its tasks.
     __reregisterSlave(slave, tasks);
 
     return;
