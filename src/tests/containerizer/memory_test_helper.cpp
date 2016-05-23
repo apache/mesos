@@ -35,6 +35,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/fsync.hpp>
 #include <stout/os/pagesize.hpp>
 
 #include "tests/flags.hpp"
@@ -167,13 +168,10 @@ static Try<Nothing> increasePageCache(const vector<string>& tokens)
     }
 
     // Use fsync to make sure data is written to disk.
-    if (fsync(fd.get()) == -1) {
-      // Save the error message because os::close below might
-      // overwrite the errno.
-      const string message = os::strerror(errno);
-
+    Try<Nothing> fsync = os::fsync(fd.get());
+    if (fsync.isError()) {
       os::close(fd.get());
-      return Error("Failed to fsync: " + message);
+      return Error("Failed to fsync: " + fsync.error());
     }
   }
 
