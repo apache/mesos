@@ -119,7 +119,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::appc_simple_discovery_uri_prefix,
       "appc_simple_discovery_uri_prefix",
       "URI prefix to be used for simple discovery of appc images,\n"
-      "e.g., 'http://', 'https://', 'hdfs://<hostname>:9000/user/abc/cde'.",
+      "e.g., `http://`, `https://`, `hdfs://<hostname>:9000/user/abc/cde`.",
       "http://");
 
   add(&Flags::appc_store_dir,

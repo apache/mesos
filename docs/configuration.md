@@ -911,6 +911,17 @@ Example:
 </tr>
 <tr>
   <td>
+    --appc_simple_discovery_uri_prefix=VALUE
+  </td>
+  <td>
+URI prefix to be used for simple discovery of appc images,
+e.g., <code>http://</code>, <code>https://</code>,
+<code>hdfs://<hostname>:9000/user/abc/cde</code>.
+(default: http://)
+  </td>
+</tr>
+<tr>
+  <td>
     --appc_store_dir=VALUE
   </td>
   <td>
