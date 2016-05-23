@@ -22,6 +22,7 @@
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/os.hpp>
 #include <stout/net.hpp>
 
@@ -225,78 +226,107 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
         (rootDir.isError() ? rootDir.error() : "No such file or directory"));
   }
 
-  LOG(INFO) << "Making '" << rootDir.get() << "' a shared mount";
-
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Error("Failed to get mount table: " + table.error());
   }
 
+  // Trying to find the mount entry that contains the CNI network
+  // information root directory. We achieve that by doing a reverse
+  // traverse of the mount table to find the first entry whose target
+  // is a prefix of the CNI network information root directory.
   Option<fs::MountInfoTable::Entry> rootDirMount;
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    if (entry.target == rootDir.get()) {
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table->entries)) {
+    if (strings::startsWith(rootDir.get(), entry.target)) {
       rootDirMount = entry;
       break;
     }
   }
 
-  // Do a self bind mount if needed. If the mount already exists, make
-  // sure it is a shared mount of its own peer group.
+  // It's unlikely that we cannot find 'rootDirMount' because '/' is
+  // always mounted and will be the 'rootDirMount' if no other mounts
+  // found in between.
   if (rootDirMount.isNone()) {
-    Try<string> mount = os::shell(
-        "mount --bind %s %s && "
-        "mount --make-slave %s && "
-        "mount --make-shared %s",
-        rootDir.get().c_str(),
-        rootDir.get().c_str(),
-        rootDir.get().c_str(),
-        rootDir.get().c_str());
+    return Error(
+        "Cannot find the mount containing CNI network information"
+        " root directory");
+  }
 
-    if (mount.isError()) {
-      return Error(
-          "Failed to self bind mount '" + rootDir.get() +
-          "' and make it a shared mount: " + mount.error());
-    }
+  // If 'rootDirMount' is a shared mount in its own peer group, then
+  // we don't need to do anything. Otherwise, we need to do a self
+  // bind mount of CNI network information root directory to make sure
+  // it's a shared mount in its own peer group.
+  bool bindMountNeeded = false;
+
+  if (rootDirMount->shared().isNone()) {
+    bindMountNeeded = true;
   } else {
-    if (rootDirMount.get().shared().isNone()) {
-      // This is the case where the CNI network information root directory
-      // mount is not a shared mount yet (possibly due to agent crash while
-      // preparing the directory mount). It's safe to re-do the following.
+    foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+      // Skip 'rootDirMount' and any mount underneath it. Also, we
+      // skip those mounts whose targets are not the parent of the CNI
+      // network information root directory because even if they are
+      // in the same peer group as the CNI network information root
+      // directory mount, it won't affect it.
+      if (entry.id != rootDirMount->id &&
+          !strings::startsWith(entry.target, rootDir.get()) &&
+          entry.shared() == rootDirMount->shared() &&
+          strings::startsWith(rootDir.get(), entry.target)) {
+        bindMountNeeded = true;
+        break;
+      }
+    }
+  }
+
+  if (bindMountNeeded) {
+    if (rootDirMount->target != rootDir.get()) {
+      // This is the case where the CNI network information root
+      // directory mount does not exist in the mount table (e.g., a
+      // new host running Mesos agent for the first time).
+      LOG(INFO) << "Bind mounting '" << rootDir.get()
+                << "' and making it a shared mount";
+
+      // NOTE: Instead of using fs::mount to perform the bind mount,
+      // we use the shell command here because the syscall 'mount'
+      // does not update the mount table (i.e., /etc/mtab). In other
+      // words, the mount will not be visible if the operator types
+      // command 'mount'. Since this mount will still be presented
+      // after all containers and the slave are stopped, it's better
+      // to make it visible. It's OK to use the blocking os::shell
+      // here because 'create' will only be invoked during
+      // initialization.
       Try<string> mount = os::shell(
-          "mount --make-slave %s && "
+          "mount --bind %s %s && "
+          "mount --make-private %s && "
           "mount --make-shared %s",
-          rootDir.get().c_str(),
-          rootDir.get().c_str());
+          rootDir->c_str(),
+          rootDir->c_str(),
+          rootDir->c_str(),
+          rootDir->c_str());
 
       if (mount.isError()) {
         return Error(
-            "Failed to self bind mount '" + rootDir.get() +
+            "Failed to bind mount '" + rootDir.get() +
             "' and make it a shared mount: " + mount.error());
       }
     } else {
-      // We need to make sure that the shared mount is in its own peer
-      // group. To check that, we need to get the parent mount.
-      foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-        if (entry.id == rootDirMount.get().parent) {
-          // If the CNI network information root directory mount and its
-          // parent mount are in the same peer group, we need to re-do the
-          // following commands so that they are in different peer groups.
-          if (entry.shared() == rootDirMount.get().shared()) {
-            Try<string> mount = os::shell(
-                "mount --make-slave %s && "
-                "mount --make-shared %s",
-                rootDir.get().c_str(),
-                rootDir.get().c_str());
+      // This is the case where the CNI network information root
+      // directory mount is in the mount table, but it's not a shared
+      // mount in its own peer group (possibly due to agent crash
+      // while preparing the CNI network information root directory
+      // mount). It's safe to re-do the following.
+      LOG(INFO) << "Making '" << rootDir.get() << "' a shared mount";
 
-            if (mount.isError()) {
-              return Error(
-                  "Failed to self bind mount '" + rootDir.get() +
-                  "' and make it a shared mount: " + mount.error());
-            }
-          }
+      Try<string> mount = os::shell(
+          "mount --make-private %s && "
+          "mount --make-shared %s",
+          rootDir->c_str(),
+          rootDir->c_str());
 
-          break;
-        }
+      if (mount.isError()) {
+        return Error(
+            "Failed to make '" + rootDir.get() +
+            "' a shared mount: " + mount.error());
       }
     }
   }
