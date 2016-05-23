@@ -15,12 +15,17 @@
 
 #include <io.h>
 
+#include <stout/result.hpp>
 #include <stout/windows.hpp> // For order-dependent networking headers.
 
 #include <stout/os/socket.hpp>
 
 
 namespace os {
+
+// Forward declaration for an OS-agnostic `read`.
+inline Result<std::string> read(int fd, size_t size);
+
 
 inline ssize_t read(int fd, void* data, size_t size)
 {
@@ -29,6 +34,23 @@ inline ssize_t read(int fd, void* data, size_t size)
   }
 
   return ::_read(fd, data, size);
+}
+
+
+inline ssize_t read(HANDLE handle, void* data, size_t size)
+{
+  return ::os::read(
+      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY),
+      data,
+      size);
+}
+
+
+inline Result<std::string> read(HANDLE handle, size_t size)
+{
+  return ::os::read(
+      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY),
+      size);
 }
 
 } // namespace os {

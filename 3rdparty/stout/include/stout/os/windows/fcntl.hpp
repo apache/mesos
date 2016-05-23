@@ -17,6 +17,7 @@
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/os/socket.hpp>
 
@@ -65,6 +66,13 @@ inline Try<Nothing> nonblock(int fd)
   }
 
   return Nothing();
+}
+
+
+inline Try<Nothing> nonblock(HANDLE handle)
+{
+  return nonblock(
+      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY));
 }
 
 
