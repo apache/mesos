@@ -84,6 +84,7 @@ layout: documentation
 * [SmartProcure](https://smartprocure.us)
 * [Squarespace](http://squarespace.com)
 * [TellApart](http://www.tellapart.com/)
+* [Teralytics](http://www.teralytics.net/)
 * [The Factory](http://www.thefactory.com)
 * [Time Warner Cable](http://www.timewarnercable.com)
 * [Twitter](http://www.twitter.com)
