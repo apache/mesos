@@ -126,7 +126,14 @@ inline Try<long> mtime(const std::string& path)
     return ErrnoError("Error invoking stat for '" + path + "'");
   }
 
-  return s.st_mtime;
+  // To be safe, we assert that `st_mtime` is represented as `__int64`. To
+  // conform to the POSIX, we also cast `st_mtime` to `long`; we choose to make
+  // this conversion explicit because we expect the truncation to not cause
+  // information loss.
+  static_assert(
+      std::is_same<__int64, __time64_t>::value,
+      "Mesos assumes `__time64_t` is represented as `__int64`");
+  return static_cast<long>(s.st_mtime);
 }
 
 
