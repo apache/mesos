@@ -14,6 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef __WINDOWS__
+#include <process/windows/winsock.hpp>
+#endif // __WINDOWS__
+
 #include <stout/none.hpp>
 #include <stout/subcommand.hpp>
 
@@ -29,6 +33,11 @@ using namespace mesos::internal::slave;
 
 int main(int argc, char** argv)
 {
+#ifdef __WINDOWS__
+  // Initialize the Windows socket stack.
+  process::Winsock winsock;
+#endif
+
 #ifdef __linux__
   return Subcommand::dispatch(
       None(),
