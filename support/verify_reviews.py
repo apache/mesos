@@ -138,8 +138,9 @@ def verify_review(review_request):
         # verifications can be run in parallel for various configurations.
         configuration = ("export "
                          "OS='ubuntu:14.04' "
-                         "CONFIGURATION='--verbose' "
+                         "BUILDTOOL='autotools' "
                          "COMPILER='gcc' "
+                         "CONFIGURATION='--verbose' "
                          "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
 
         command = "%s; ./support/docker_build.sh" % configuration
