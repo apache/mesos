@@ -17,14 +17,8 @@ include(ProcessTestsConfigure)
 
 # BUILD THE PROCESS LIBRARY.
 ############################
-if (NOT WIN32)
-  # TODO(hausdorff): add support for building the process library properly.
-  add_subdirectory(src)
-endif (NOT WIN32)
+add_subdirectory(src)
 
 # PROCESS TESTING INFRASTRUCTURE.
 #################################
-if (NOT WIN32)
-  # TODO(hausdorff): add support for building the process lib tests properly.
-  add_subdirectory(src/tests)
-endif (NOT WIN32)
+add_subdirectory(src/tests)

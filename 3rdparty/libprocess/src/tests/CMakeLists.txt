@@ -18,21 +18,15 @@
 ################
 set(PROCESS_TESTS_SRC
   ${PROCESS_TESTS_SRC}
+  main.cpp
   collect_tests.cpp
   decoder_tests.cpp
   encoder_tests.cpp
   future_tests.cpp
-  http_tests.cpp
-  io_tests.cpp
   limiter_tests.cpp
-  main.cpp
   mutex_tests.cpp
-  metrics_tests.cpp
   owned_tests.cpp
-  process_tests.cpp
   queue_tests.cpp
-  reap_tests.cpp
-  sequence_tests.cpp
   shared_tests.cpp
   statistics_tests.cpp
   subprocess_tests.cpp
@@ -40,6 +34,19 @@ set(PROCESS_TESTS_SRC
   timeseries_tests.cpp
   time_tests.cpp
   )
+
+if (NOT WIN32)
+  set(PROCESS_TESTS_SRC
+    ${PROCESS_TESTS_SRC}
+    http_tests.cpp
+    io_tests.cpp
+    metrics_tests.cpp
+    process_tests.cpp
+    reap_tests.cpp
+    sequence_tests.cpp
+    )
+endif (NOT WIN32)
+
 
 # INCLUDE DIRECTIVES FOR PROCESS TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
