@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <gmock/gmock.h>
+
 #include <stout/ip.hpp>
 
 #include "slave/containerizer/fetcher.hpp"
@@ -36,9 +38,13 @@ using mesos::master::detector::MasterDetector;
 using process::Future;
 using process::Owned;
 
+using slave::Slave;
+
 using std::set;
 using std::string;
 using std::vector;
+
+using testing::AtMost;
 
 namespace mesos {
 namespace internal {
@@ -399,6 +405,102 @@ TEST_F(CniIsolatorTest, ROOT_FailedPlugin)
   AWAIT_READY(statusFailed);
   EXPECT_EQ(task.task_id(), statusFailed->task_id());
   EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test launches a command task which has checkpoint enabled, and
+// agent is terminated when the task is running, after agent is restarted,
+// kill the task and then verify we can receive TASK_KILLED for the task.
+TEST_F(CniIsolatorTest, ROOT_SlaveRecovery)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  // Make sure the container join the mock CNI network.
+  container->add_network_infos()->set_name("__MESOS_TEST__");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
+
+  // Stop the slave after TASK_RUNNING is received.
+  slave.get()->terminate();
+
+  // Restart the slave.
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Kill the task.
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(task.task_id(), statusKilled->task_id());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   driver.stop();
   driver.join();
