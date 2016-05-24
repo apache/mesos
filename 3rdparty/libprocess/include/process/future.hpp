@@ -110,7 +110,7 @@ public:
   // reference to 'that' being incremented.
   Future<T>& operator=(const Future<T>& that);
 
-  // Comparision operators useful for using futures in collections.
+  // Comparison operators useful for using futures in collections.
   bool operator==(const Future<T>& that) const;
   bool operator!=(const Future<T>& that) const;
   bool operator<(const Future<T>& that) const;
