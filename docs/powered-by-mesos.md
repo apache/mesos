@@ -24,6 +24,7 @@ layout: documentation
 * [CERN](http://cern.ch)
 * [Cisco](http://www.cisco.com)
 * [CloudPhysics](http://cloudphysics.com)
+* [CMCRC](http://www.cmcrc.com)
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)
 * [Coursera](https://www.coursera.org)
