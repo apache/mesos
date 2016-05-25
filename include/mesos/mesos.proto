@@ -1573,6 +1573,11 @@ message Image {
   // the type.
   optional Appc appc = 2;
   optional Docker docker = 3;
+
+  // With this flag set to false, the mesos containerizer will pull
+  // the docker/appc image from the registry even if the image is
+  // already downloaded on the agent.
+  optional bool cached = 4 [default = true];
 }
 
 
