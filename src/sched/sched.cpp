@@ -1350,6 +1350,14 @@ protected:
       return;
     }
 
+    if (!savedOffers.contains(offerId)) {
+      LOG(WARNING) << "Attempting to decline an unknown offer " << offerId;
+    }
+
+    // Remove the offer. We do not need to save any PIDs
+    // when declining an offer.
+    savedOffers.erase(offerId);
+
     Call call;
 
     CHECK(framework.has_id());
