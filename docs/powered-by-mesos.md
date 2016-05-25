@@ -52,6 +52,7 @@ layout: documentation
 * [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
 * [Linkernetworks](http://www.linkernetworks.com)
+* [Livespotting Media](http://www.livespottingmedia.com)
 * [Localsensor](http://www.localsensor.com)
 * [Magine TV](https://magine.com)
 * [Medallia](http://www.medallia.com)
