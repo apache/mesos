@@ -161,6 +161,73 @@ Try<ImageManifest> parse(const JSON::Object& json)
     return Error("Protobuf parse failed: " + manifest.error());
   }
 
+  Result<JSON::Object> config = json.find<JSON::Object>("config");
+  if (config.isError()) {
+    return Error(
+        "Failed to parse 'config' as a JSON object: " + config.error());
+  }
+
+  if (config.isSome()) {
+    // Parse `Labels` as JSON value first in case it is JSON null.
+    Result<JSON::Value> value = config->find<JSON::Value>("Labels");
+    if (value.isError()) {
+      return Error(
+          "Failed to parse 'Labels' as a JSON value: " + value.error());
+    }
+
+    if (value.isSome() && !value.get().is<JSON::Null>()) {
+      const JSON::Object labels = value.get().as<JSON::Object>();
+
+      foreachpair (const string& key,
+                   const JSON::Value& value,
+                   labels.values) {
+        if (!value.is<JSON::String>()) {
+          return Error(
+              "The value of label key '" + key + "' is not a JSON string");
+        }
+
+        Label* label = manifest->mutable_config()->add_labels();
+        label->set_key(key);
+        label->set_value(value.as<JSON::String>().value);
+      }
+    }
+  }
+
+  // Parse docker labels in `container_config` in case they are
+  // different from the labels parsed above.
+  config = json.find<JSON::Object>("container_config");
+  if (config.isError()) {
+    return Error(
+        "Failed to parse 'container_config' as a JSON object: " +
+        config.error());
+  }
+
+  if (config.isSome()) {
+    // Parse `Labels` as JSON value first in case it is JSON null.
+    Result<JSON::Value> value = config->find<JSON::Value>("Labels");
+    if (value.isError()) {
+      return Error(
+          "Failed to parse 'Labels' as a JSON value: " + value.error());
+    }
+
+    if (value.isSome() && !value.get().is<JSON::Null>()) {
+      const JSON::Object labels = value.get().as<JSON::Object>();
+
+      foreachpair (const string& key,
+                   const JSON::Value& value,
+                   labels.values) {
+        if (!value.is<JSON::String>()) {
+          return Error(
+              "The value of label key '" + key + "' is not a JSON string");
+        }
+
+        Label* label = manifest->mutable_container_config()->add_labels();
+        label->set_key(key);
+        label->set_value(value.as<JSON::String>().value);
+      }
+    }
+  }
+
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
     return Error("Docker v1 image manifest validation failed: " +
