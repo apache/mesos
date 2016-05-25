@@ -84,10 +84,13 @@ public:
    * Retrieve Image based on image reference if it is among the Images
    * stored in memory.
    *
-   * @param reference  the reference of the Docker image to retrieve
+   * @param reference the reference of the Docker image to retrieve
+   * @param cached the flag whether pull Docker image forcelly from remote
+   *               registry or local repo.
    */
   process::Future<Option<Image>> get(
-      const ::docker::spec::ImageReference& reference);
+      const ::docker::spec::ImageReference& reference,
+      bool cached);
 
 private:
   explicit MetadataManager(process::Owned<MetadataManagerProcess> process);

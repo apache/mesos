@@ -62,7 +62,9 @@ public:
       const spec::ImageReference& reference,
       const vector<string>& layerIds);
 
-  Future<Option<Image>> get(const spec::ImageReference& reference);
+  Future<Option<Image>> get(
+      const spec::ImageReference& reference,
+      bool cached);
 
   // TODO(chenlily): Implement removal of unreferenced images.
 
@@ -120,9 +122,14 @@ Future<Image> MetadataManager::put(
 
 
 Future<Option<Image>> MetadataManager::get(
-    const spec::ImageReference& reference)
+    const spec::ImageReference& reference,
+    bool cached)
 {
-  return dispatch(process.get(), &MetadataManagerProcess::get, reference);
+  return dispatch(
+      process.get(),
+      &MetadataManagerProcess::get,
+      reference,
+      cached);
 }
 
 
@@ -152,13 +159,19 @@ Future<Image> MetadataManagerProcess::put(
 
 
 Future<Option<Image>> MetadataManagerProcess::get(
-    const spec::ImageReference& reference)
+    const spec::ImageReference& reference,
+    bool cached)
 {
   const string imageReference = stringify(reference);
 
   VLOG(1) << "Looking for image '" << imageReference << "'";
 
   if (!storedImages.contains(imageReference)) {
+    return None();
+  }
+
+  if (!cached) {
+    VLOG(1) << "Ignored cached image '" << imageReference << "'";
     return None();
   }
 

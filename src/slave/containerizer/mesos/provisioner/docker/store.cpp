@@ -185,7 +185,7 @@ Future<ImageInfo> StoreProcess::get(const mesos::Image& image)
                    "': " + reference.error());
   }
 
-  return metadataManager->get(reference.get())
+  return metadataManager->get(reference.get(), image.cached())
     .then(defer(self(), &Self::_get, reference.get(), lambda::_1))
     .then(defer(self(), &Self::__get, lambda::_1));
 }
