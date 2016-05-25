@@ -371,19 +371,6 @@ inline Option<std::string> getenv(const std::string& key)
 }
 
 
-inline Try<bool> access(const std::string& path, int how)
-{
-  if (::access(path.c_str(), how) < 0) {
-    if (errno == EACCES) {
-      return false;
-    } else {
-      return ErrnoError();
-    }
-  }
-  return true;
-}
-
-
 // Creates a tar 'archive' with gzip compression, of the given 'path'.
 inline Try<Nothing> tar(const std::string& path, const std::string& archive)
 {

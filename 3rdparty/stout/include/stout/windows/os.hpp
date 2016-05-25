@@ -522,16 +522,6 @@ inline tm* gmtime_r(const time_t* timep, tm* result)
 }
 
 
-inline Try<bool> access(const std::string& fileName, int how)
-{
-  if (::_access(fileName.c_str(), how) != 0) {
-    return ErrnoError("os::access: Call to `_access` failed for path '" +
-                      fileName + "'");
-  }
-
-  return true;
-}
-
 inline Result<PROCESSENTRY32> process_entry(pid_t pid)
 {
   // Get a snapshot of the processes in the system. NOTE: We should not check

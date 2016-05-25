@@ -43,6 +43,7 @@
 #include <stout/unreachable.hpp>
 #include <stout/version.hpp>
 
+#include <stout/os/access.hpp>
 #include <stout/os/bootid.hpp>
 #include <stout/os/chdir.hpp>
 #include <stout/os/chroot.hpp>

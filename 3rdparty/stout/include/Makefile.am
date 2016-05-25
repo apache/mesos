@@ -57,6 +57,7 @@ nobase_include_HEADERS =			\
   stout/numify.hpp				\
   stout/option.hpp				\
   stout/os.hpp					\
+  stout/os/access.hpp				\
   stout/os/bootid.hpp				\
   stout/os/chdir.hpp				\
   stout/os/chroot.hpp				\
