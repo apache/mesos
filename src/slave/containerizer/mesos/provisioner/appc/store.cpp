@@ -64,13 +64,19 @@ public:
   Future<ImageInfo> get(const Image& image);
 
 private:
-  Future<vector<string>> fetchImage(const Image::Appc& appc);
+  Future<vector<string>> fetchImage(
+      const Image::Appc& appc,
+      bool cached);
 
-  Future<vector<string>> fetchDependencies(const string& imageId);
+  Future<vector<string>> fetchDependencies(
+      const string& imageId,
+      bool cached);
 
   Future<string> _fetchImage(const Image::Appc& appc);
 
-  Future<vector<string>> __fetchImage(const string& imageId);
+  Future<vector<string>> __fetchImage(
+      const string& imageId,
+      bool cached);
 
   // Absolute path to the root directory of the store as defined by
   // --appc_store_dir.
@@ -188,7 +194,7 @@ Future<ImageInfo> StoreProcess::get(const Image& image)
     return Failure("Failed to create staging directory: " + staging.error());
   }
 
-  return fetchImage(appc)
+  return fetchImage(appc, image.cached())
     .then(defer(self(), [=](const vector<string>& imageIds) -> ImageInfo {
       vector<string> rootfses;
 
@@ -207,20 +213,22 @@ Future<ImageInfo> StoreProcess::get(const Image& image)
 
 // Fetches the image into the 'staging' directory, and recursively
 // fetches the image's dependencies in a depth first order.
-Future<vector<string>> StoreProcess::fetchImage(const Image::Appc& appc)
+Future<vector<string>> StoreProcess::fetchImage(
+    const Image::Appc& appc,
+    bool cached)
 {
   Option<string> imageId = appc.has_id() ? appc.id() : cache->find(appc);
-  if (imageId.isSome()) {
+  if (cached && imageId.isSome()) {
     if (os::exists(paths::getImagePath(rootDir, imageId.get()))) {
       VLOG(1) << "Image '" << appc.name() << "' is found in cache with "
               << "image id '" << imageId.get() << "'";
 
-      return __fetchImage(imageId.get());
+      return __fetchImage(imageId.get(), cached);
     }
   }
 
   return _fetchImage(appc)
-    .then(defer(self(), &Self::__fetchImage, lambda::_1));
+    .then(defer(self(), &Self::__fetchImage, lambda::_1, cached));
 }
 
 
@@ -290,9 +298,11 @@ Future<string> StoreProcess::_fetchImage(const Image::Appc& appc)
 }
 
 
-Future<vector<string>> StoreProcess::__fetchImage(const string& imageId)
+Future<vector<string>> StoreProcess::__fetchImage(
+    const string& imageId,
+    bool cached)
 {
-  return fetchDependencies(imageId)
+  return fetchDependencies(imageId, cached)
     .then([imageId](vector<string> imageIds) -> vector<string> {
       imageIds.emplace_back(imageId);
 
@@ -301,7 +311,9 @@ Future<vector<string>> StoreProcess::__fetchImage(const string& imageId)
 }
 
 
-Future<vector<string>> StoreProcess::fetchDependencies(const string& imageId)
+Future<vector<string>> StoreProcess::fetchDependencies(
+    const string& imageId,
+    bool cached)
 {
   const string imagePath = paths::getImagePath(rootDir, imageId);
 
@@ -341,7 +353,7 @@ Future<vector<string>> StoreProcess::fetchDependencies(const string& imageId)
   // Do a depth first search.
   list<Future<vector<string>>> futures;
   foreach (const Image::Appc& appc, dependencies) {
-    futures.emplace_back(fetchImage(appc));
+    futures.emplace_back(fetchImage(appc, cached));
   }
 
   return collect(futures)
