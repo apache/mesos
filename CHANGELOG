@@ -8,6 +8,7 @@ All Issues:
   * [MESOS-4869] - /usr/libexec/mesos/mesos-health-check using/leaking a lot of memory.
   * [MESOS-5018] - FrameworkInfo Capability enum does not support upgrades.
   * [MESOS-5021] - Memory leak in subprocess when 'environment' argument is provided.
+  * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.                 
 
 
 Release Notes - Mesos - Version 0.27.2
