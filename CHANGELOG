@@ -107,6 +107,7 @@ All Issues:
   * [MESOS-5253] - Isolator cleanup should not be invoked if they are not prepared yet.
   * [MESOS-5282] - Destroy container while provisioning volume images may lead to a race.
   * [MESOS-5312] - Env `MESOS_SANDBOX` is not set properly for command tasks that changes rootfs.
+  * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
 
 ** Improvement
   * [MESOS-5307] - Sandbox mounts should not be in the host mount namespace.
@@ -392,6 +393,7 @@ All Issues:
   * [MESOS-4869] - /usr/libexec/mesos/mesos-health-check using/leaking a lot of memory.
   * [MESOS-5018] - FrameworkInfo Capability enum does not support upgrades.
   * [MESOS-5021] - Memory leak in subprocess when 'environment' argument is provided.
+  * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
 
 
 Release Notes - Mesos - Version 0.27.2
@@ -643,6 +645,7 @@ Release Notes - Mesos - Version 0.26.2
 All Issues:
 ** Bug
   * [MESOS-4705] - Linux 'perf' parsing logic may fail when OS distribution has perf backports.
+  * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
 
 
 Release Notes - Mesos - Version 0.26.1
