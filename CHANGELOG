@@ -107,6 +107,7 @@ All Issues:
   * [MESOS-5253] - Isolator cleanup should not be invoked if they are not prepared yet.
   * [MESOS-5282] - Destroy container while provisioning volume images may lead to a race.
   * [MESOS-5312] - Env `MESOS_SANDBOX` is not set properly for command tasks that changes rootfs.
+  * [MESOS-4885] - Unzip should force overwrite.
   * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
   * [MESOS-5380] - Killing a queued task can cause the corresponding command executor to never terminate.
 
