@@ -17,6 +17,16 @@
 package docker.spec.v1;
 
 /**
+ * The Label of a docker image, used for adding custom metadata.
+ * https://docs.docker.com/engine/userguide/labels-custom-metadata
+ */
+message Label {
+  optional string key = 1;
+  optional string value = 2;
+}
+
+
+/**
  * Protobuf for the Docker v1 image manifest JSON schema:
  * https://github.com/docker/docker/blob/master/image/spec/v1.md
  */
@@ -49,6 +59,11 @@ message ImageManifest {
 
     // Name of the image as it was passed by the operator.
     optional string Image = 8;
+
+    // NOTE: We cannot use 'Labels' here becasue otherwise,
+    // json->protobuf parsing will fail. 'labels' is manually
+    // set during parsing.
+    repeated Label labels = 9;
 
     // TODO(gilbert): Create a message including string-message
     // pair to match ExposedPoarts' map (map[nat.Port]struct{}).
