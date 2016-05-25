@@ -197,7 +197,10 @@ TEST_F(DockerSpecTest, ParseV1ImageManifest)
           "Tty": false,
           "Domainname": "",
           "Image": "cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54",
-          "Labels": null,
+          "Labels": {
+            "com.nvidia.cuda.version": "7.5",
+            "com.nvidia.volumes.needed": "nvidia_driver"
+          },
           "ExposedPorts": null
         },
         "container_config": {
@@ -230,7 +233,10 @@ TEST_F(DockerSpecTest, ParseV1ImageManifest)
           "Tty": false,
           "Domainname": "",
           "Image": "cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54",
-          "Labels": null,
+          "Labels": {
+            "com.nvidia.caffe.version": "0.14",
+            "com.nvidia.digits.version": "3.0"
+          },
           "ExposedPorts": null
         },
         "architecture": "amd64",
@@ -280,7 +286,39 @@ TEST_F(DockerSpecTest, ParseV1ImageManifest)
       "#(nop) CMD [\"sh\"]",
       manifest.get().container_config().cmd(2));
 
+  EXPECT_EQ(
+      "com.nvidia.caffe.version",
+      manifest.get().container_config().labels(0).key());
+
+  EXPECT_EQ(
+      "0.14",
+      manifest.get().container_config().labels(0).value());
+
+  EXPECT_EQ(
+      "com.nvidia.digits.version",
+      manifest.get().container_config().labels(1).key());
+
+  EXPECT_EQ(
+      "3.0",
+      manifest.get().container_config().labels(1).value());
+
   EXPECT_EQ("sh", manifest.get().config().cmd(0));
+
+  EXPECT_EQ(
+      "com.nvidia.cuda.version",
+      manifest.get().config().labels(0).key());
+
+  EXPECT_EQ(
+      "7.5",
+      manifest.get().config().labels(0).value());
+
+  EXPECT_EQ(
+      "com.nvidia.volumes.needed",
+      manifest.get().config().labels(1).key());
+
+  EXPECT_EQ(
+      "nvidia_driver",
+      manifest.get().config().labels(1).value());
 
   EXPECT_EQ("1.8.2", manifest.get().docker_version());
   EXPECT_EQ("amd64", manifest.get().architecture());
