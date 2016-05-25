@@ -181,17 +181,14 @@ Update the wiki entry, [Mesos Release Planning](https://cwiki.apache.org/conflue
 
 2. Update the [Getting Started](getting-started.md) guide to use the latest release link.
 
-3. See our [website README](https://github.com/apache/mesos/blob/master/site/README.md/) for details on how to build the website.
-   Note that we need to generate the doxygen and javadoc pages when building it.
-
-4. Check out the website from svn and update it with the new version of the website pages just generated.
+3. Check out the website from svn.
 
         $ svn co https://svn.apache.org/repos/asf/mesos/site mesos-site
-        $ rm -r mesos-site/publish && cp -r <path-to-mesos-source>/site/publish mesos-site/
 
+   See our [website README](https://github.com/apache/mesos/blob/master/site/README.md/) for details on how to build the website.
    See the general [Apache project website guide](https://www.apache.org/dev/project-site.html) for details on how to publish the website.
 
-5. Write a blog post announcing the new release and its features and major bug fixes. Include a link to the updated website.
+4. Write a blog post announcing the new release and its features and major bug fixes. Include a link to the updated website.
 
 ## Remove old releases from svn
 

@@ -2,7 +2,7 @@ require 'rubygems'
 require 'rake/clean'
 require 'fileutils'
 
-task :default => [:update_docs, :build, :clean]
+task :default => [:update_docs, :doxygen, :javadoc, :build, :clean]
 
 CLEAN.include("**/.DS_Store")
 
@@ -72,18 +72,25 @@ end
 desc "Generate javadoc from the Java source files in the codebase"
 task :javadoc do
   proto_java_folder = "../build/src/java/generated"
-  if File.directory?(proto_java_folder)
+  if not File.directory?(proto_java_folder)
     raise "Please make sure Java proto files are generated in #{proto_java_folder} folder."
   end
   # TODO: add version to the path. Uses 'current' for now.
-  system("javadoc -d publish/api/latest/java -sourcepath ../src/java/src:#{proto_java_folder} org.apache.mesos")
+  system("javadoc -d source/api/latest/java -sourcepath ../src/java/src:#{proto_java_folder} org.apache.mesos")
 end
 
 desc "Generate doxygen from the C++ source files in the codebase"
 task :doxygen do
-  FileUtils.rm_rf(Dir.glob("publish/api/latest/c++"))
-  FileUtils.mkdir_p("publish/api/latest")
-  system("doxygen ../Doxyfile && mv doxygen/html publish/api/latest/c++ && rm -rf doxygen")
+  FileUtils.rm_rf(Dir.glob("source/api/latest/c++"))
+  FileUtils.mkdir_p("source/api/latest")
+  system("doxygen ../Doxyfile && mv doxygen/html source/api/latest/c++ && rm -rf doxygen")
+end
+
+desc "Clean up generated documents"
+task :clean_docs do
+  FileUtils.rm_rf(Dir.glob("source/api"))
+  FileUtils.rm_rf(Dir.glob("source/documentation"))
+  FileUtils.rm_rf(Dir.glob("source/assets/img/documentation"))
 end
 
 desc "Run the site in development mode. Preview available at http://localhost:4567/"

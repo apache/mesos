@@ -1,61 +1,82 @@
 # Apache Mesos website generator
-This will generate the site available at http://mesos.apache.org. The content
-within the publish folder will be the actual deployed site.
+This will generate the site available at http://mesos.apache.org. We use docker
+to simplify our generation and development workflows.
 
 
-## Setup
+## Build the docker image
 
-		gem install bundler
-		bundle install
+Under the root of your local Mesos git repository, run the following command
+to build the docker image.
 
+```
+docker build -t mesos/website site
+```
 
 ## Generating the site
-Running `rake` will download the latest Apache Mesos documentation contained
-in the `docs` folder, integrate them into the site, and generate all other
-files within the source folder.
 
-		# First generate the help endpoint documentation. Running
-		# `make check` is needed to generate the latest version of
-		# the master and slave binaries.
-		make check -jN GTEST_FILTER=""
-		../support/generate-endpoint-help.py
-		rake
+Before we start the docker container, we need to generate the help endpoint
+documentation. Running `make` is needed to generate the latest version of
+the master and agent binaries.
 
-The doxygen and javadoc pages must be generated _after_ running `rake`.
+```
+make -jN
+../support/generate-endpoint-help.py
+```
 
-### Generating doxygen pages
-Doxygen pages can be generated using:
+To build and run the website inside a docker container please substitute
+*<path-to-mesos-source>* with the actual location of Mesos source code tree
+and *<path-to-mesos-website-svn-source>* with the actual location of Mesos
+website svn source code tree in the command below and run it.
 
-		rake doxygen
+```
+sudo docker run -it --rm \
+    -p 4567:4567 \
+    -v <path-to-mesos-source>:/mesos \
+    -v <path-to-mesos-website-svn-source>/publish:/mesos/site/publish \
+    mesos/website
+```
 
-### Generating javadoc pages
-Javadoc pages can be generated using:
+If you don't intend to update the svn source code of the Mesos website, you
+could run the command below under the root of Mesos source code instead.
 
-		rake javadoc
+```
+sudo docker run -it --rm \
+    -p 4567:4567 \
+    -v `pwd`:/mesos \
+    mesos/website
+```
+
+This will start a container, generate the website from your local Mesos git
+repository, and make it available:
+ - On Linux, the site will be available at http://localhost:4567.
+ - On OS X, run `docker-machine ls` to find the IP address of your
+   boot-to-docker VM; the site will be available at that IP, port 4567.
+
+If you are running the container on a remote machine and need to tunnel it to
+localhost, you can run the following command to make the site available locally:
+
+```
+ssh -NT -L 4567:localhost:4567 <remote-machine>
+```
+
+The generation includes `doxygen` and `javadoc` as well. We could check out them
+under `/api/latest/c++/index.html` and `/api/latest/java/index.html` endpoints
+once the generation finishs.
 
 ## Development
-To live edit the site run `rake dev` and then open a browser window to
-http://localhost:4567/ . Any change you make to the sources dir will
-be shown on the local dev site immediately. Errors will be shown in the
-console you launched `rake dev` within.
 
-There is also a Dockerfile to simplify local website development. Please see
-[support/site-docker/README.md](../support/site-docker/README.md) for
-instructions.
-
+Any changes to the `site/source` directory will cause middleman to reload and
+regenerate the website, so you can just edit, save, refresh. When you are done
+with the webserver, hit Ctrl-C in the docker terminal to kill the middleman
+webserver, clean up generation documents under the `site/source` directory and
+destroy/remove the container.
 
 ## Publishing the Site
-The website uses svnpubsub. The publish folder contains the websites content
+
+Because we mount the `publish` folder under Mesos website svn source code into
+the docker container we launched above, all website contents would be ready
+under the `publish` folder when the generation finishs.
+
+The website uses svnpubsub. The `publish` folder contains the websites content
 and when committed to the svn repository it will be automatically deployed to
 the live site.
-
-
-## Other available tasks
-
-		rake build        # Build the website from source
-		rake clean        # Remove any temporary products
-		rake clobber      # Remove any generated file
-		rake dev          # Run the site in development mode
-		rake update_docs  # Update the latest docs from the Apache Mesos codebase
-		rake doxygen			# Update doxygen from C++ source files
-		rake javadoc			# Update javadocs from java source files
