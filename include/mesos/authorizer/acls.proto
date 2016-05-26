@@ -245,8 +245,6 @@ message ACLs {
   repeated ACL.UnreserveResources unreserve_resources = 6;
   repeated ACL.CreateVolume create_volumes = 7;
   repeated ACL.DestroyVolume destroy_volumes = 8;
-  repeated ACL.GetQuota get_quotas = 14;
-  repeated ACL.UpdateQuota update_quotas = 15;
 
   // TODO(zhitao): Remove the following two fields at the end
   // of the deprecation cycle which started with 0.29.
@@ -256,6 +254,8 @@ message ACLs {
   repeated ACL.TeardownFramework teardown_frameworks = 11;
   repeated ACL.UpdateWeights update_weights = 12;
   repeated ACL.GetEndpoint get_endpoints = 13;
+  repeated ACL.GetQuota get_quotas = 14;
+  repeated ACL.UpdateQuota update_quotas = 15;
   repeated ACL.ViewFramework view_frameworks = 16;
   repeated ACL.ViewTask view_tasks = 17;
   repeated ACL.ViewExecutor view_executors = 18;
