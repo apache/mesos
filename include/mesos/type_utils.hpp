@@ -64,6 +64,7 @@ bool operator==(
     const ResourceStatistics& right);
 
 bool operator==(const SlaveInfo& left, const SlaveInfo& right);
+bool operator==(const Task& left, const Task& right);
 bool operator==(const TaskStatus& left, const TaskStatus& right);
 bool operator==(const URL& left, const URL& right);
 bool operator==(const Volume& left, const Volume& right);

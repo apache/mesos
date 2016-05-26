@@ -36,11 +36,9 @@ namespace mesos {
 
 class Attributes;
 class Resources;
-
-namespace internal {
-
 class Task;
 
+namespace internal {
 
 // Serializes a protobuf message for transmission
 // based on the HTTP content type.
@@ -95,7 +93,9 @@ void json(JSON::ObjectWriter* writer, const CommandInfo& command);
 void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo);
 void json(JSON::ArrayWriter* writer, const Labels& labels);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
+void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
+
 
 const process::http::authorization::AuthorizationCallbacks
   createAuthorizationCallbacks(Authorizer* authorizer);

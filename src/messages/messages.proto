@@ -23,52 +23,6 @@ package mesos.internal;
 // "mesos.executor" package includes messages that the executor handles).
 
 
-// TODO(bmahler): Add executor_uuid here, and send it to the master. This will
-// allow us to expose executor work directories for tasks in the webui when
-// looking from the master level. Currently only the slave knows which run the
-// task belongs to.
-/**
- * Describes a task, similar to `TaskInfo`.
- *
- * `Task` is used in some of the Mesos messages found below.
- * `Task` is used instead of `TaskInfo` if:
- *   1) we need additional IDs, such as a specific
- *      framework, executor, or agent; or
- *   2) we do not need the additional data, such as the command run by the
- *      task or the health checks.  These additional fields may be large and
- *      unnecessary for some Mesos messages.
- *
- * `Task` is generally constructed from a `TaskInfo`.  See protobuf::createTask.
- */
-message Task {
-  required string name = 1;
-  required TaskID task_id = 2;
-  required FrameworkID framework_id = 3;
-  optional ExecutorID executor_id = 4;
-  required SlaveID slave_id = 5;
-  required TaskState state = 6; // Latest state of the task.
-  repeated Resource resources = 7;
-  repeated TaskStatus statuses = 8;
-
-  // These fields correspond to the state and uuid of the latest
-  // status update forwarded to the master.
-  // NOTE: Either both the fields must be set or both must be unset.
-  optional TaskState status_update_state = 9;
-  optional bytes status_update_uuid = 10;
-
-  optional Labels labels = 11;
-
-  // Service discovery information for the task. It is not interpreted
-  // or acted upon by Mesos. It is up to a service discovery system
-  // to use this information as needed and to handle tasks without
-  // service discovery information.
-  optional DiscoveryInfo discovery = 12;
-
-  // Container information for the task.
-  optional ContainerInfo container = 13;
-}
-
-
 // TODO(vinod): Create a new UUID message type.
 /**
  * Describes a task's status.

@@ -372,30 +372,6 @@ JSON::Object model(const ExecutorInfo& executorInfo)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Task& task)
-{
-  writer->field("id", task.task_id().value());
-  writer->field("name", task.name());
-  writer->field("framework_id", task.framework_id().value());
-  writer->field("executor_id", task.executor_id().value());
-  writer->field("slave_id", task.slave_id().value());
-  writer->field("state", TaskState_Name(task.state()));
-  writer->field("resources", Resources(task.resources()));
-  writer->field("statuses", task.statuses());
-
-  if (task.has_labels()) {
-    writer->field("labels", task.labels());
-  }
-
-  if (task.has_discovery()) {
-    writer->field("discovery", JSON::Protobuf(task.discovery()));
-  }
-
-  if (task.has_container()) {
-    writer->field("container", JSON::Protobuf(task.container()));
-  }
-}
-
 }  // namespace internal {
 
 void json(JSON::ObjectWriter* writer, const Attributes& attributes)
@@ -538,6 +514,31 @@ void json(JSON::ObjectWriter* writer, const Resources& resources)
   json(writer, scalars);
   json(writer, ranges);
   json(writer, sets);
+}
+
+
+void json(JSON::ObjectWriter* writer, const Task& task)
+{
+  writer->field("id", task.task_id().value());
+  writer->field("name", task.name());
+  writer->field("framework_id", task.framework_id().value());
+  writer->field("executor_id", task.executor_id().value());
+  writer->field("slave_id", task.slave_id().value());
+  writer->field("state", TaskState_Name(task.state()));
+  writer->field("resources", Resources(task.resources()));
+  writer->field("statuses", task.statuses());
+
+  if (task.has_labels()) {
+    writer->field("labels", task.labels());
+  }
+
+  if (task.has_discovery()) {
+    writer->field("discovery", JSON::Protobuf(task.discovery()));
+  }
+
+  if (task.has_container()) {
+    writer->field("container", JSON::Protobuf(task.container()));
+  }
 }
 
 
