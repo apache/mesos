@@ -186,8 +186,9 @@ message ACL {
     // Subjects: Operator username.
     required Entity principals = 1;
 
-    // Objects: The list of roles in which frameworks can be viewed.
-    optional Entity user = 2;
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // frameworks can be viewed.
+    optional Entity users = 2;
   }
 
   // Which principals are authorized to view task information for tasks
@@ -198,7 +199,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // tasks can be viewed.
-    optional Entity user = 2;
+    optional Entity users = 2;
   }
 
   // Which principals are authorized to view executor information for executors
@@ -209,7 +210,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // executors can be viewed.
-    optional Entity user = 2;
+    optional Entity users = 2;
   }
 }
 
