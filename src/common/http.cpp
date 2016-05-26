@@ -283,6 +283,10 @@ JSON::Object model(const Task& task)
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
 
+  if (task.has_user()) {
+    object.values["user"] = task.user();
+  }
+
   {
     JSON::Array array;
     array.values.reserve(task.statuses().size()); // MESOS-2353.
@@ -527,6 +531,10 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   writer->field("state", TaskState_Name(task.state()));
   writer->field("resources", Resources(task.resources()));
   writer->field("statuses", task.statuses());
+
+  if (task.has_user()) {
+    writer->field("user", task.user());
+  }
 
   if (task.has_labels()) {
     writer->field("labels", task.labels());

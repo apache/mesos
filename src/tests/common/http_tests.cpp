@@ -86,6 +86,7 @@ TEST(HTTPTest, ModelTask)
   taskInfo.mutable_task_id()->CopyFrom(taskId);
   taskInfo.mutable_slave_id()->CopyFrom(slaveId);
   taskInfo.mutable_command()->set_value("echo hello");
+  taskInfo.mutable_command()->set_user("user1");
   taskInfo.mutable_discovery()->CopyFrom(discovery);
 
   Task task = createTask(taskInfo, state, frameworkId);
@@ -138,7 +139,8 @@ TEST(HTTPTest, ModelTask)
       "     ]"
       "   },"
       "   \"visibility\":\"CLUSTER\""
-      " }"
+      " },"
+      " \"user\":\"user1\""
       "}");
 
   ASSERT_SOME(expected);

@@ -180,6 +180,13 @@ Task createTask(
     t.mutable_container()->CopyFrom(task.container());
   }
 
+  // Copy `user` if set.
+  if (task.has_command() && task.command().has_user()) {
+    t.set_user(task.command().user());
+  } else if (task.has_executor() && task.executor().command().has_user()) {
+    t.set_user(task.executor().command().user());
+  }
+
   return t;
 }
 

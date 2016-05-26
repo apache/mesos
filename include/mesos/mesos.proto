@@ -1344,6 +1344,9 @@ message Task {
 
   // Container information for the task.
   optional ContainerInfo container = 13;
+
+  // Specific user under which task is running.
+  optional string user = 14;
 }
 
 
