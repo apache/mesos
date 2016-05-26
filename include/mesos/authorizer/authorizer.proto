@@ -37,6 +37,10 @@ message Subject {
 // be run as. If the value is not set, the object is unknown.
 message Object {
   optional string value = 1;
+  optional FrameworkInfo framework_info = 2;
+  optional Task task = 3;
+  optional TaskInfo task_info = 4;
+  optional ExecutorInfo executor_info = 5;
 }
 
 
@@ -66,6 +70,17 @@ enum Action {
 
   UPDATE_WEIGHTS_WITH_ROLE = 10;
   GET_ENDPOINT_WITH_PATH = 11;
+
+  // `VIEW_FRAMEWORK` will have an object with a `FrameworkInfo` set.
+  VIEW_FRAMEWORK = 14;
+
+  // `VIEW_TASK` will have an object with (`Task` or `TaskInfo`) and
+  // `FrameworkInfo` set.
+  VIEW_TASK = 15;
+
+  // `VIEW_EXECUTOR` will have an object with `ExecutorInfo` and
+  // `FrameworkInfo` set.
+  VIEW_EXECUTOR = 16;
 }
 
 

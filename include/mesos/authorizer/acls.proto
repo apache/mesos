@@ -179,6 +179,38 @@ message ACL {
     // Objects: The list of paths that can be retrieved.
     optional Entity paths = 2;
   }
+
+  // Which principals are authorized to view framework information for
+  // frameworks running as the given users.
+  message ViewFramework {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of roles in which frameworks can be viewed.
+    optional Entity user = 2;
+  }
+
+  // Which principals are authorized to view task information for tasks
+  // running as the given users.
+  message ViewTask {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // tasks can be viewed.
+    optional Entity user = 2;
+  }
+
+  // Which principals are authorized to view executor information for executors
+  // running as the given users.
+  message ViewExecutor {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // executors can be viewed.
+    optional Entity user = 2;
+  }
 }
 
 
@@ -223,4 +255,7 @@ message ACLs {
   repeated ACL.TeardownFramework teardown_frameworks = 11;
   repeated ACL.UpdateWeights update_weights = 12;
   repeated ACL.GetEndpoint get_endpoints = 13;
+  repeated ACL.ViewFramework view_frameworks = 16;
+  repeated ACL.ViewTask view_tasks = 17;
+  repeated ACL.ViewExecutor view_executors = 18;
 }

@@ -273,6 +273,10 @@ public:
 
         return authorized(request, acls_);
         break;
+      // TODO(joerg84): Add logic for the `VIEW_*` actions.
+      case authorization::VIEW_FRAMEWORK:
+      case authorization::VIEW_TASK:
+      case authorization::VIEW_EXECUTOR:
       case authorization::UNKNOWN:
         LOG(WARNING) << "Authorization request for action '" << request.action()
                      << "' is not defined and therefore not authorized";
