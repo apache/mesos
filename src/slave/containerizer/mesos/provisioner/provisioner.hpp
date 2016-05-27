@@ -128,7 +128,7 @@ public:
 private:
   process::Future<ProvisionInfo> _provision(
       const ContainerID& containerId,
-      const ImageInfo& layers);
+      const ImageInfo& imageInfo);
 
   process::Future<bool> _destroy(const ContainerID& containerId);
 
