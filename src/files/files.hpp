@@ -66,7 +66,10 @@ public:
   // (directory or file) at the specified name.
   process::Future<Nothing> attach(
       const std::string& path,
-      const std::string& name);
+      const std::string& name,
+      const Option<lambda::function<
+          process::Future<bool>(const Option<std::string>&)>>&
+              authorized = None());
 
   // Removes the specified name.
   void detach(const std::string& name);

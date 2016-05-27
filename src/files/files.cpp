@@ -63,6 +63,7 @@ using process::TLDR;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
@@ -83,7 +84,12 @@ public:
   FilesProcess(const Option<string>& _authenticationRealm);
 
   // Files implementation.
-  Future<Nothing> attach(const string& path, const string& name);
+  Future<Nothing> attach(
+      const string& path,
+      const string& name,
+      const Option<lambda::function<Future<bool>(const Option<string>&)>>&
+          authorized);
+
   void detach(const string& name);
 
 protected:
@@ -97,6 +103,8 @@ private:
   // out of the chroot.
   Result<string> resolve(const string& path);
 
+  Future<bool> authorize(string requestedPath, const Option<string>& principal);
+
   // HTTP endpoints.
 
   // Returns a file listing for a directory.
@@ -108,11 +116,21 @@ private:
       const Request& request,
       const Option<string>& principal);
 
+  Future<Response> _browse(
+      const string& path,
+      const Option<string>& jsonp);
+
   // Reads data from a file at a given offset and for a given length.
   // See the jquery pailer for the expected behavior.
   Future<Response> read(
       const Request& request,
       const Option<string>& principal);
+
+  Future<Response> _read(
+      off_t offset,
+      ssize_t length,
+      const string& path,
+      const Option<string>& jsonp);
 
   // Returns the raw file contents for a given path.
   // Requests have the following parameters:
@@ -120,6 +138,8 @@ private:
   Future<Response> download(
       const Request& request,
       const Option<string>& principal);
+
+  Future<Response> _download(const string& path);
 
   // Returns the internal virtual path mapping.
   Future<Response> debug(
@@ -132,6 +152,12 @@ private:
   const static string DEBUG_HELP;
 
   hashmap<string, string> paths;
+
+  // Set of authorization functions. They will be called whenever
+  // access to the path used as key is requested, and will pass
+  // as parameter the principal returned by the HTTP authenticator.
+  hashmap<string, lambda::function<Future<bool>(const Option<string>&)>>
+      authorizations;
 
   // The authentication realm, if any, into which this process'
   // endpoints will be installed.
@@ -214,7 +240,11 @@ void FilesProcess::initialize()
 }
 
 
-Future<Nothing> FilesProcess::attach(const string& path, const string& name)
+Future<Nothing> FilesProcess::attach(
+    const string& path,
+    const string& name,
+    const Option<lambda::function<Future<bool>(const Option<string>&)>>&
+        authorized)
 {
   Result<string> result = os::realpath(path);
 
@@ -240,6 +270,10 @@ Future<Nothing> FilesProcess::attach(const string& path, const string& name)
   // TODO(bmahler): Do we want to always wipe out the previous path?
   paths[cleanedName] = result.get();
 
+  if (authorized.isSome()) {
+    authorizations[cleanedName] = authorized.get();
+  }
+
   return Nothing();
 }
 
@@ -247,6 +281,7 @@ Future<Nothing> FilesProcess::attach(const string& path, const string& name)
 void FilesProcess::detach(const string& name)
 {
   paths.erase(name);
+  authorizations.erase(name);
 }
 
 
@@ -263,9 +298,29 @@ const string FilesProcess::BROWSE_HELP = HELP(
     AUTHENTICATION(true));
 
 
+Future<bool> FilesProcess::authorize(
+    string requestedPath,
+    const Option<string>& principal)
+{
+  if (authorizations.count(requestedPath) > 0) {
+    return authorizations[requestedPath](principal);
+  }
+
+  do {
+    requestedPath = Path(requestedPath).dirname();
+
+    if (authorizations.count(requestedPath) > 0) {
+      return authorizations[requestedPath](principal);
+    }
+  } while (Path(requestedPath).dirname() != requestedPath);
+
+  // requestedPath does not require authorization.
+  return true;
+}
+
 Future<Response> FilesProcess::browse(
     const Request& request,
-    const Option<string>& /* principal */)
+    const Option<string>& principal)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -273,7 +328,25 @@ Future<Response> FilesProcess::browse(
     return BadRequest("Expecting 'path=value' in query.\n");
   }
 
-  Result<string> resolvedPath = resolve(path.get());
+  string requestedPath = path.get();
+  Option<string> jsonp = request.url.query.get("jsonp");
+
+  return authorize(requestedPath, principal)
+    .then([this, path, jsonp](bool authorized) -> Future<Response> {
+      if (authorized) {
+        return _browse(path.get(), jsonp);
+      }
+
+      return Forbidden();
+    });
+}
+
+
+Future<Response> FilesProcess::_browse(
+    const string& path,
+    const Option<string>& jsonp)
+{
+  Result<string> resolvedPath = resolve(path);
 
   if (resolvedPath.isError()) {
     return InternalServerError(resolvedPath.error() + ".\n");
@@ -295,7 +368,7 @@ Future<Response> FilesProcess::browse(
         continue;
       }
 
-      files[fullPath] = jsonFileInfo(path::join(path.get(), entry), s);
+      files[fullPath] = jsonFileInfo(path::join(path, entry), s);
     }
   }
 
@@ -304,12 +377,12 @@ Future<Response> FilesProcess::browse(
     listing.values.push_back(file);
   }
 
-  return OK(listing, request.url.query.get("jsonp"));
+  return OK(listing, jsonp);
 }
 
 
 // TODO(benh): Remove 'const &' from size after fixing libprocess.
-Future<Response> _read(int fd,
+Future<Response> __read(int fd,
                        const size_t& size,
                        off_t offset,
                        const boost::shared_array<char>& data,
@@ -341,7 +414,7 @@ const string FilesProcess::READ_HELP = HELP(
 
 Future<Response> FilesProcess::read(
     const Request& request,
-    const Option<string>& /* principal */)
+    const Option<string>& principal)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -374,7 +447,28 @@ Future<Response> FilesProcess::read(
     length = result.get();
   }
 
-  Result<string> resolvedPath = resolve(path.get());
+  string requestedPath = path.get();
+  Option<string> jsonp = request.url.query.get("jsonp");
+
+  return authorize(requestedPath, principal)
+    .then([this, offset, length, path, jsonp](bool authorized)
+        -> Future<Response> {
+      if (authorized) {
+        return _read(offset, length, path.get(), jsonp);
+      }
+
+      return Forbidden();
+    });
+}
+
+
+Future<Response> FilesProcess::_read(
+    off_t offset,
+    ssize_t length,
+    const string& path,
+    const Option<string>& jsonp)
+{
+  Result<string> resolvedPath = resolve(path);
 
   if (resolvedPath.isError()) {
     return BadRequest(resolvedPath.error() + ".\n");
@@ -430,7 +524,7 @@ Future<Response> FilesProcess::read(
     JSON::Object object;
     object.values["offset"] = size;
     object.values["data"] = "";
-    return OK(object, request.url.query.get("jsonp"));
+    return OK(object, jsonp);
   }
 
   // Seek to the offset we want to read from.
@@ -459,12 +553,12 @@ Future<Response> FilesProcess::read(
 
   return io::read(fd.get(), data.get(), static_cast<size_t>(length))
     .then(lambda::bind(
-        _read,
+        __read,
         fd.get(),
         lambda::_1,
         offset,
         data,
-        request.url.query.get("jsonp")))
+        jsonp))
     .onAny(lambda::bind(&os::close, fd.get()));
 }
 
@@ -484,7 +578,7 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
 
 Future<Response> FilesProcess::download(
     const Request& request,
-    const Option<string>& /* principal */)
+    const Option<string>& principal)
 {
   Option<string> path = request.url.query.get("path");
 
@@ -492,7 +586,22 @@ Future<Response> FilesProcess::download(
     return BadRequest("Expecting 'path=value' in query.\n");
   }
 
-  Result<string> resolvedPath = resolve(path.get());
+  string requestedPath = path.get();
+
+  return authorize(requestedPath, principal)
+    .then([this, path](bool authorized) -> Future<Response> {
+      if (authorized) {
+        return _download(path.get());
+      }
+
+      return Forbidden();
+    });
+}
+
+
+Future<Response> FilesProcess::_download(const string& path)
+{
+  Result<string> resolvedPath = resolve(path);
 
   if (resolvedPath.isError()) {
     return BadRequest(resolvedPath.error() + ".\n");
@@ -628,9 +737,13 @@ Files::~Files()
 }
 
 
-Future<Nothing> Files::attach(const string& path, const string& name)
+Future<Nothing> Files::attach(
+    const string& path,
+    const string& name,
+    const Option<lambda::function<Future<bool>(const Option<string>&)>>&
+        authorized)
 {
-  return dispatch(process, &FilesProcess::attach, path, name);
+  return dispatch(process, &FilesProcess::attach, path, name, authorized);
 }
 
 
