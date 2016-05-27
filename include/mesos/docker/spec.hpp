@@ -34,6 +34,10 @@
 namespace docker {
 namespace spec {
 
+// The prefix of whiteout files in a docker image.
+constexpr char WHITEOUT_PREFIX[] = ".wh.";
+
+
 /**
  * Parse the docker image reference. Docker expects the image
  * reference to be in the following format:
