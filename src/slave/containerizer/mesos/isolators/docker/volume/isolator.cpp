@@ -301,8 +301,14 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
       continue;
     }
 
-    const string& driver = _volume.source().docker_volume().driver();
     const string& name = _volume.source().docker_volume().name();
+
+    if (!_volume.source().docker_volume().has_driver()) {
+      return Failure("The volume driver is not specified for volume '" +
+                     name + "' with container " + stringify(containerId));
+    }
+
+    const string& driver = _volume.source().docker_volume().driver();
 
     DockerVolume volume;
     volume.set_driver(driver);

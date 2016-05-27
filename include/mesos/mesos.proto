@@ -1675,7 +1675,7 @@ message Volume {
 
     message DockerVolume {
       // Driver of the volume, it can be flocker, convoy, raxrey etc.
-      required string driver = 1;
+      optional string driver = 1;
 
       // Name of the volume.
       required string name = 2;
