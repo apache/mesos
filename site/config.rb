@@ -36,7 +36,7 @@ activate :blog do |blog|
   blog.prefix = "blog"
   blog.sources = "{year}-{month}-{day}-{title}"
   blog.default_extension = ".md"
-  blog.layout = "post", 
+  blog.layout = "post",
   blog.permalink = ":title"
 end
 
