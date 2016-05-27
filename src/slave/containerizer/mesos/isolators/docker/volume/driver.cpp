@@ -36,8 +36,8 @@ using std::vector;
 
 using process::Failure;
 using process::Future;
-using process::NO_SETSID;
 using process::MONITOR;
+using process::NO_SETSID;
 using process::Owned;
 using process::Subprocess;
 
