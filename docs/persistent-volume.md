@@ -88,8 +88,8 @@ an `Offer::Operation` message via the `acceptOffers` API.
 volume information. We need to specify the following:
 
 1. The ID for the persistent volume; this must be unique per role on each agent.
-1. The non-nested relative path within the container to mount the volume.
-1. The permissions for the volume. Currently, `"RW"` is the only possible value.
+2. The non-nested relative path within the container to mount the volume.
+3. The permissions for the volume. Currently, `"RW"` is the only possible value.
 
         {
           "type" : Offer::Operation::CREATE,
