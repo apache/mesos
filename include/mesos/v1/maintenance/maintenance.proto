@@ -1,0 +1,84 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/v1/mesos.proto";
+import "mesos/v1/master/allocator.proto";
+
+package mesos.v1.maintenance;
+
+option java_package = "org.apache.mesos.v1.maintenance";
+option java_outer_classname = "Protos";
+
+// This is an illustration of a maintenance `Schedule`:
+//
+//                                              This is a `Window`.
+// Machine ^                                           |
+//     ... |                                           v
+//      12 |                                  +----------------+
+//      11 |                                  |                |
+//      10 |                                  +----------------+
+//       9 |                       +----------------+
+//       8 |                       |                |
+//       7 |                       +----------------+
+//       6 |           +----------------+
+//       5 |           |                |
+//       4 |           +----------------+
+//       3 |   +-----------+
+//       2 |   |           |
+//       1 |   +-----------+
+//         |
+//         +-----------------------------------------------------~~~~->
+//                          Downtime for maintenance
+
+
+/**
+ * A set of machines scheduled to go into maintenance
+ * in the same `unavailability`.
+ */
+message Window {
+  // Machines affected by this maintenance window.
+  repeated MachineID machine_ids = 1;
+
+  // Interval during which this set of machines is expected to be down.
+  required Unavailability unavailability = 2;
+}
+
+
+/**
+ * A list of maintenance windows.
+ * For example, this may represent a rolling restart of agents.
+ */
+message Schedule {
+  repeated Window windows = 1;
+}
+
+
+/**
+ * Represents the maintenance status of each machine in the cluster.
+ * The lists correspond to the `MachineInfo.Mode` enumeration.
+ */
+message ClusterStatus {
+  message DrainingMachine {
+    required MachineID id = 1;
+
+    // A list of the most recent responses to inverse offers from frameworks
+    // running on this draining machine.
+    repeated master.InverseOfferStatus statuses = 2;
+  }
+
+  repeated DrainingMachine draining_machines = 1;
+  repeated MachineID down_machines = 2;
+}
