@@ -32,6 +32,7 @@
 #include <process/pid.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/none.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
@@ -418,13 +419,13 @@ TEST_F(CreateOperationValidationTest, PersistentVolumes)
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume);
 
-  EXPECT_NONE(operation::validate(create, Resources()));
+  EXPECT_NONE(operation::validate(create, Resources(), None()));
 
   Resource cpus = Resources::parse("cpus", "2", "*").get();
 
   create.add_volumes()->CopyFrom(cpus);
 
-  EXPECT_SOME(operation::validate(create, Resources()));
+  EXPECT_SOME(operation::validate(create, Resources(), None()));
 }
 
 
@@ -436,16 +437,46 @@ TEST_F(CreateOperationValidationTest, DuplicatedPersistenceID)
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume1);
 
-  EXPECT_NONE(operation::validate(create, Resources()));
+  EXPECT_NONE(operation::validate(create, Resources(), None()));
 
   Resource volume2 = Resources::parse("disk", "64", "role1").get();
   volume2.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
 
-  EXPECT_SOME(operation::validate(create, volume1));
+  EXPECT_SOME(operation::validate(create, volume1, None()));
 
   create.add_volumes()->CopyFrom(volume2);
 
-  EXPECT_SOME(operation::validate(create, Resources()));
+  EXPECT_SOME(operation::validate(create, Resources(), None()));
+}
+
+
+// This test confirms that Create operations will be invalidated if they contain
+// a principal in `DiskInfo` that does not match the principal of the framework
+// or operator performing the operation.
+TEST_F(CreateOperationValidationTest, NonMatchingPrincipal)
+{
+  // An operation with an incorrect principal in `DiskInfo.Persistence`.
+  {
+    Resource volume = Resources::parse("disk", "128", "role1").get();
+    volume.mutable_disk()->CopyFrom(
+        createDiskInfo("id1", "path1", None(), None(), None(), "principal"));
+
+    Offer::Operation::Create create;
+    create.add_volumes()->CopyFrom(volume);
+
+    EXPECT_SOME(operation::validate(create, Resources(), "other-principal"));
+  }
+
+  // An operation without a principal in `DiskInfo.Persistence`.
+  {
+    Resource volume = Resources::parse("disk", "128", "role1").get();
+    volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+    Offer::Operation::Create create;
+    create.add_volumes()->CopyFrom(volume);
+
+    EXPECT_SOME(operation::validate(create, Resources(), "principal"));
+  }
 }
 
 
