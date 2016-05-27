@@ -63,7 +63,8 @@ static Resources SHARD_INITIAL_RESOURCES(const string& role)
 static Resource SHARD_PERSISTENT_VOLUME(
     const string& role,
     const string& persistenceId,
-    const string& containerPath)
+    const string& containerPath,
+    const string& principal)
 {
   Volume volume;
   volume.set_container_path(containerPath);
@@ -71,6 +72,7 @@ static Resource SHARD_PERSISTENT_VOLUME(
 
   Resource::DiskInfo info;
   info.mutable_persistence()->set_id(persistenceId);
+  info.mutable_persistence()->set_principal(principal);
   info.mutable_volume()->CopyFrom(volume);
 
   Resource resource = Resources::parse("disk", "8", role).get();
@@ -168,7 +170,8 @@ public:
               Resource volume = SHARD_PERSISTENT_VOLUME(
                   frameworkInfo.role(),
                   UUID::random().toString(),
-                  "volume");
+                  "volume",
+                  frameworkInfo.principal());
 
               Try<Resources> resources = shard.resources.apply(CREATE(volume));
               CHECK_SOME(resources);
