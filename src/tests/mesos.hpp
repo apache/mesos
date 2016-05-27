@@ -518,12 +518,17 @@ inline Resource::DiskInfo createDiskInfo(
     const Option<std::string>& containerPath,
     const Option<Volume::Mode>& mode = None(),
     const Option<std::string>& hostPath = None(),
-    const Option<Resource::DiskInfo::Source>& source = None())
+    const Option<Resource::DiskInfo::Source>& source = None(),
+    const Option<std::string>& principal = None())
 {
   Resource::DiskInfo info;
 
   if (persistenceId.isSome()) {
     info.mutable_persistence()->set_id(persistenceId.get());
+  }
+
+  if (principal.isSome()) {
+    info.mutable_persistence()->set_principal(principal.get());
   }
 
   if (containerPath.isSome()) {
@@ -597,7 +602,8 @@ inline Resource createPersistentVolume(
     const std::string& persistenceId,
     const std::string& containerPath,
     const Option<std::string>& reservationPrincipal = None(),
-    const Option<Resource::DiskInfo::Source>& source = None())
+    const Option<Resource::DiskInfo::Source>& source = None(),
+    const Option<std::string>& creatorPrincipal = None())
 {
   Resource volume = Resources::parse(
       "disk",
@@ -605,7 +611,13 @@ inline Resource createPersistentVolume(
       role).get();
 
   volume.mutable_disk()->CopyFrom(
-      createDiskInfo(persistenceId, containerPath, None(), None(), source));
+      createDiskInfo(
+          persistenceId,
+          containerPath,
+          None(),
+          None(),
+          source,
+          creatorPrincipal));
 
   if (reservationPrincipal.isSome()) {
     volume.mutable_reservation()->set_principal(reservationPrincipal.get());
@@ -621,7 +633,8 @@ inline Resource createPersistentVolume(
     Resource volume,
     const std::string& persistenceId,
     const std::string& containerPath,
-    const Option<std::string>& reservationPrincipal = None())
+    const Option<std::string>& reservationPrincipal = None(),
+    const Option<std::string>& creatorPrincipal = None())
 {
   Option<Resource::DiskInfo::Source> source = None();
   if (volume.has_disk() && volume.disk().has_source()) {
@@ -629,7 +642,13 @@ inline Resource createPersistentVolume(
   }
 
   volume.mutable_disk()->CopyFrom(
-      createDiskInfo(persistenceId, containerPath, None(), None(), source));
+      createDiskInfo(
+          persistenceId,
+          containerPath,
+          None(),
+          None(),
+          source,
+          creatorPrincipal));
 
   if (reservationPrincipal.isSome()) {
     volume.mutable_reservation()->set_principal(reservationPrincipal.get());
