@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 
 #include "master/constants.hpp"
@@ -135,7 +136,10 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> createResponse = process::http::post(
       master.get()->pid,
@@ -273,6 +277,8 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
       frameworkInfo.role(),
       "id1",
       "path1",
+      DEFAULT_CREDENTIAL.principal(),
+      None(),
       DEFAULT_CREDENTIAL.principal());
 
   response = process::http::post(
@@ -381,6 +387,8 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
       "role2",
       "id1",
       "path1",
+      DEFAULT_CREDENTIAL.principal(),
+      None(),
       DEFAULT_CREDENTIAL.principal());
 
   response = process::http::post(
@@ -439,6 +447,8 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
       frameworkInfo.role(),
       "id1",
       "path1",
+      DEFAULT_CREDENTIAL.principal(),
+      None(),
       DEFAULT_CREDENTIAL.principal());
 
   response = process::http::post(
@@ -486,7 +496,10 @@ TEST_F(PersistentVolumeEndpointsTest, VolumeExceedsReservedSize)
       Megabytes(1025),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> createResponse = process::http::post(
       master.get()->pid,
@@ -525,7 +538,10 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> createResponse = process::http::post(
       master.get()->pid,
@@ -540,7 +556,10 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       Megabytes(64),
       "role1",
       "id2",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> destroyResponse = process::http::post(
       master.get()->pid,
@@ -555,7 +574,10 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       Megabytes(64),
       "role2",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   destroyResponse = process::http::post(
       master.get()->pid,
@@ -570,7 +592,10 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       Megabytes(128),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   destroyResponse = process::http::post(
       master.get()->pid,
@@ -587,7 +612,10 @@ TEST_F(PersistentVolumeEndpointsTest, DeleteNonExistentVolume)
       Megabytes(64),
       "role1",
       "id1",
-      "path2");
+      "path2",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   destroyResponse = process::http::post(
       master.get()->pid,
@@ -628,7 +656,10 @@ TEST_F(PersistentVolumeEndpointsTest, NoHeader)
       Megabytes(64),
       frameworkInfo.role(),
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -683,7 +714,10 @@ TEST_F(PersistentVolumeEndpointsTest, BadCredentials)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   process::http::Headers headers = createBasicAuthHeaders(credential);
   string body = createRequestBody(slaveId.get(), "volumes", volume);
@@ -755,7 +789,10 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Future<Response> createResponse = process::http::post(
       master.get()->pid,
@@ -870,13 +907,19 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateACLMultipleRoles)
       Megabytes(64),
       AUTHORIZED_ROLE_1,
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Resources volume2 = createPersistentVolume(
       Megabytes(64),
       AUTHORIZED_ROLE_2,
       "id2",
-      "path2");
+      "path2",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Resources volumesMultipleRoles = volume1 + volume2;
 
@@ -900,24 +943,24 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   TestAllocator<> allocator;
   ACLs acls;
 
-  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL_2`
   // cannot create persistent volumes.
   mesos::ACL::CreateVolume* cannotCreate = acls.add_create_volumes();
   cannotCreate->mutable_principals()->add_values(
-      DEFAULT_CREDENTIAL.principal());
+      DEFAULT_CREDENTIAL_2.principal());
   cannotCreate->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
-  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL_2`
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
   // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* canCreate = acls.add_create_volumes();
-  canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+  canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   canCreate->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
-  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL_2`
   // cannot destroy persistent volumes.
   mesos::ACL::DestroyVolume* cannotDestroy = acls.add_destroy_volumes();
   cannotDestroy->mutable_principals()->add_values(
-      DEFAULT_CREDENTIAL.principal());
+      DEFAULT_CREDENTIAL_2.principal());
   cannotDestroy->mutable_creator_principals()->set_type(
       mesos::ACL::Entity::NONE);
 
@@ -944,29 +987,45 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  // The failed creation attempt.
+  {
+    Resources volume = createPersistentVolume(
+        Megabytes(64),
+        "role1",
+        "id1",
+        "path1",
+        None(),
+        None(),
+        DEFAULT_CREDENTIAL_2.principal());
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "create-volumes",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
+        createRequestBody(slaveId.get(), "volumes", volume));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+  }
+
   Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
-
-  // The failed creation attempt.
-  Future<Response> createResponse = process::http::post(
-      master.get()->pid,
-      "create-volumes",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(slaveId.get(), "volumes", volume));
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, createResponse);
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   // The successful creation attempt.
-  createResponse = process::http::post(
-      master.get()->pid,
-      "create-volumes",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
-      createRequestBody(slaveId.get(), "volumes", volume));
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "create-volumes",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, createResponse);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  }
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
@@ -997,7 +1056,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   Future<Response> destroyResponse = process::http::post(
       master.get()->pid,
       "destroy-volumes",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
       createRequestBody(slaveId.get(), "volumes", volume));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, destroyResponse);
@@ -1058,13 +1117,19 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateACLMultipleRoles)
       Megabytes(64),
       AUTHORIZED_ROLE,
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Resources volume2 = createPersistentVolume(
       Megabytes(64),
       UNAUTHORIZED_ROLE,
       "id2",
-      "path2");
+      "path2",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   Resources volumesMultipleRoles = volume1 + volume2;
 
@@ -1141,7 +1206,10 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   // The failed creation attempt.
   Future<Response> createResponse = process::http::post(
@@ -1243,7 +1311,10 @@ TEST_F(PersistentVolumeEndpointsTest, NoAuthentication)
       Megabytes(64),
       TEST_ROLE,
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   // Make a request to create a volume with no authentication header.
   {
@@ -1296,7 +1367,10 @@ TEST_F(PersistentVolumeEndpointsTest, NoSlaveId)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body =
@@ -1361,7 +1435,10 @@ TEST_F(PersistentVolumeEndpointsTest, NoVolumes)
       Megabytes(64),
       "role1",
       "id1",
-      "path1");
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
 
   response = process::http::post(
       master.get()->pid,
@@ -1421,6 +1498,8 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       frameworkInfo.role(),
       "id1",
       "path1",
+      DEFAULT_CREDENTIAL.principal(),
+      None(),
       DEFAULT_CREDENTIAL.principal());
 
   response = process::http::post(
@@ -1503,6 +1582,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   ASSERT_TRUE(slaveArray.values[0].is<JSON::Object>());
   JSON::Object slaveObject = slaveArray.values[0].as<JSON::Object>();
 
+  // TODO(greggomann): Use `DEFAULT_CREDENTIAL.principal()` instead of the
+  // hard-coded principals below. See MESOS-5469.
+
   Try<JSON::Value> expectedReserved = JSON::parse(
       R"~(
       {
@@ -1552,7 +1634,8 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             },
             "disk": {
               "persistence": {
-                "id": "id1"
+                "id": "id1",
+                "principal": "test-principal"
               },
               "volume": {
                 "mode": "RW",
@@ -1600,7 +1683,8 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
         {
           "disk": {
             "persistence": {
-              "id": "id1"
+              "id": "id1",
+              "principal": "test-principal"
             },
             "volume": {
               "container_path": "path1",
