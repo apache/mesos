@@ -45,8 +45,10 @@
 #include <stout/jsonify.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/representation.hpp>
@@ -663,7 +665,7 @@ Future<Response> Master::Http::createVolumes(
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
 
   Option<Error> validate = validation::operation::validate(
-      operation.create(), slave->checkpointedResources);
+      operation.create(), slave->checkpointedResources, principal);
 
   if (validate.isSome()) {
     return BadRequest("Invalid CREATE operation: " + validate.get().message);

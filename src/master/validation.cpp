@@ -794,7 +794,8 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve)
 
 Option<Error> validate(
     const Offer::Operation::Create& create,
-    const Resources& checkpointedResources)
+    const Resources& checkpointedResources,
+    const Option<string>& principal)
 {
   Option<Error> error = resource::validate(create.volumes());
   if (error.isSome()) {
@@ -811,6 +812,27 @@ Option<Error> validate(
 
   if (error.isSome()) {
     return error;
+  }
+
+  // Ensure that the provided principals match. If `principal` is `None`, then
+  // we allow `volume.disk().persistence().principal()` to take any value.
+  foreach (const Resource& volume, create.volumes()) {
+    if (principal.isSome()) {
+      if (!volume.disk().persistence().has_principal()) {
+        return Error(
+            "Create volume operation has been attempted by principal '" +
+            principal.get() + "', but there is a volume in the operation with "
+            "no principal set in 'DiskInfo.Persistence'");
+      }
+
+      if (volume.disk().persistence().principal() != principal.get()) {
+        return Error(
+            "Create volume operation has been attempted by principal '" +
+            principal.get() + "', but there is a volume in the operation with "
+            "principal '" + volume.disk().persistence().principal() +
+            "' set in 'DiskInfo.Persistence'");
+      }
+    }
   }
 
   return None();

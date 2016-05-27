@@ -3737,9 +3737,13 @@ void Master::_accept(
           continue;
         }
 
+        Option<string> principal = framework->info.has_principal() ?
+          framework->info.principal() :
+          Option<string>::none();
+
         // Make sure this create operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.create(), slave->checkpointedResources);
+            operation.create(), slave->checkpointedResources, principal);
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);
