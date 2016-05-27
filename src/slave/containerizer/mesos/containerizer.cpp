@@ -1186,6 +1186,9 @@ Future<bool> MesosContainerizerProcess::__launch(
     launchFlags.pipe_write = pipes[1];
     launchFlags.commands = commands;
 
+    VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
+            << launchFlags << "'";
+
     // Fork the child using launcher.
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;
