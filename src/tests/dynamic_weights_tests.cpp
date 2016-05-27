@@ -443,7 +443,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   // can update weight for `ROLE1` and `ROLE2`.
   ACLs acls;
   acls.set_permissive(false); // Restrictive.
-  mesos::ACL::UpdateWeights* acl = acls.add_update_weights();
+  mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
   acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   acl->mutable_roles()->add_values(ROLE1);
   acl->mutable_roles()->add_values(ROLE2);
@@ -481,7 +481,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   // for `ROLE1` and `ROLE2`.
   ACLs acls;
   acls.set_permissive(false); // Restrictive.
-  mesos::ACL::UpdateWeights* acl = acls.add_update_weights();
+  mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
   acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl->mutable_roles()->add_values(ROLE1);
   acl->mutable_roles()->add_values(ROLE2);
