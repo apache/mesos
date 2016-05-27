@@ -944,6 +944,17 @@ void Master::initialize()
       &AuthenticateMessage::pid);
 
   // Setup HTTP routes.
+  route("/api/v1",
+        // TODO(benh): Is this authentication realm sufficient or do
+        // we need some kind of hybrid if we expect both schedulers
+        // and operators/tooling to use this endpoint?
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
+        Http::API_HELP(),
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
+          Http::log(request);
+          return http.api(request, principal);
+        });
   route("/api/v1/scheduler",
         DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
         Http::SCHEDULER_HELP(),

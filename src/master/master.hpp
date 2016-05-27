@@ -42,6 +42,8 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <mesos/v1/master.hpp>
+
 #include <process/limiter.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -1081,6 +1083,11 @@ private:
     // desired request handler to get consistent request logging.
     static void log(const process::http::Request& request);
 
+    // /api/v1
+    process::Future<process::http::Response> api(
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
+
     // /api/v1/scheduler
     process::Future<process::http::Response> scheduler(
         const process::http::Request& request,
@@ -1184,6 +1191,7 @@ private:
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
+    static std::string API_HELP();
     static std::string SCHEDULER_HELP();
     static std::string FLAGS_HELP();
     static std::string FRAMEWORKS_HELP();
@@ -1207,9 +1215,7 @@ private:
     static std::string WEIGHTS_HELP();
 
   private:
-    // Continuations.
-    process::Future<process::http::Response> _flags(
-        const process::http::Request& request) const;
+    JSON::Object _flags() const;
 
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;
@@ -1252,6 +1258,11 @@ private:
         const Option<std::string>& principal,
         const std::string& endpoint,
         const std::string& method) const;
+
+    // v1 master API handlers.
+    process::Future<v1::master::Response> getFlags(
+        const v1::master::Call& call,
+        const Option<std::string>& principal) const;
 
     Master* master;
 

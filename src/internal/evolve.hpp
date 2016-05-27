@@ -25,6 +25,8 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <mesos/v1/master.hpp>
+
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
@@ -32,6 +34,7 @@
 #include <mesos/v1/scheduler/scheduler.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/json.hpp>
 
 #include "messages/messages.hpp"
 
@@ -98,6 +101,19 @@ v1::executor::Event evolve(const KillTaskMessage& message);
 v1::executor::Event evolve(const RunTaskMessage& message);
 v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
 v1::executor::Event evolve(const ShutdownExecutorMessage& message);
+
+
+// Before the v1 API we had REST endpoints that returned JSON. The JSON was not
+// specified in any formal way, i.e., there were no protobufs which captured the
+// structure. As part of the v1 API we introduced the Call/Response protobufs
+// (see v1/master.proto and v1/agent.proto). This evolve variant transforms a
+// JSON object that would have been returned from a particular REST endpoint to
+// a `Response` protobuf suitable for returning from the new v1 API endpoints.
+
+// Declaration of helper functions for evolving JSON objects used in master's
+// REST endpoints pre v1 API.
+template <v1::master::Response::Type T>
+v1::master::Response evolve(const JSON::Object& object);
 
 } // namespace internal {
 } // namespace mesos {

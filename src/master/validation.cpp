@@ -50,6 +50,164 @@ static bool invalidCharacter(char c)
 }
 
 
+namespace master {
+namespace call {
+
+Option<Error> validate(
+    const mesos::v1::master::Call& call,
+    const Option<string>& principal)
+{
+  if (!call.IsInitialized()) {
+    return Error("Not initialized: " + call.InitializationErrorString());
+  }
+
+  if (!call.has_type()) {
+    return Error("Expecting 'type' to be present");
+  }
+
+  switch (call.type()) {
+    case v1::master::Call::UNKNOWN:
+      return None();
+
+    case v1::master::Call::GET_HEALTH:
+      return None();
+
+    case v1::master::Call::GET_FLAGS:
+      return None();
+
+    case v1::master::Call::GET_VERSION:
+      return None();
+
+    case v1::master::Call::GET_METRICS:
+      if (!call.has_get_metrics()) {
+        return Error("Expecting 'get_metrics' to be present");
+      }
+      return None();
+
+    case v1::master::Call::GET_LOGGING_LEVEL:
+      return None();
+
+    case v1::master::Call::SET_LOGGING_LEVEL:
+      if (!call.has_set_logging_level()) {
+        return Error("Expecting 'set_logging_level' to be present");
+      }
+      return None();
+
+    case v1::master::Call::LIST_FILES:
+      if (!call.has_list_files()) {
+        return Error("Expecting 'list_files' to be present");
+      }
+      return None();
+
+    case v1::master::Call::READ_FILE:
+      if (!call.has_read_file()) {
+        return Error("Expecting 'read_file' to be present");
+      }
+      return None();
+
+    case v1::master::Call::GET_STATE:
+      return None();
+
+    case v1::master::Call::GET_STATE_SUMMARY:
+      return None();
+
+    case v1::master::Call::GET_AGENTS:
+      return None();
+
+    case v1::master::Call::GET_FRAMEWORKS:
+      return None();
+
+    case v1::master::Call::GET_TASKS:
+      if (!call.has_get_tasks()) {
+        return Error("Expecting 'get_tasks' to be present");
+      }
+      return None();
+
+    case v1::master::Call::GET_ROLES:
+      return None();
+
+    case v1::master::Call::GET_WEIGHTS:
+      return None();
+
+    case v1::master::Call::UPDATE_WEIGHTS:
+      return None();
+
+    case v1::master::Call::GET_LEADING_MASTER:
+      return None();
+
+    case v1::master::Call::RESERVE_RESOURCES:
+      if (!call.has_reserve_resources()) {
+        return Error("Expecting 'reserve_resources' to be present");
+      }
+      return None();
+
+    case v1::master::Call::UNRESERVE_RESOURCES:
+      if (!call.has_unreserve_resources()) {
+        return Error("Expecting 'unreserve_resources' to be present");
+      }
+      return None();
+
+    case v1::master::Call::CREATE_VOLUMES:
+      if (!call.has_create_volumes()) {
+        return Error("Expecting 'create_volumes' to be present");
+      }
+      return None();
+
+    case v1::master::Call::DESTROY_VOLUMES:
+      if (!call.has_destroy_volumes()) {
+        return Error("Expecting 'destroy_volumes' to be present");
+      }
+      return None();
+
+    case v1::master::Call::GET_MAINTENANCE_STATUS:
+      return None();
+
+    case v1::master::Call::GET_MAINTENANCE_SCHEDULE:
+      return None();
+
+    case v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE:
+      if (!call.has_update_maintenance_schedule()) {
+        return Error("Expecting 'update_maintenance_schedule' to be present");
+      }
+      return None();
+
+    case v1::master::Call::START_MAINTENANCE:
+      if (!call.has_start_maintenance()) {
+        return Error("Expecting 'start_maintenance' to be present");
+      }
+      return None();
+
+    case v1::master::Call::STOP_MAINTENANCE:
+      if (!call.has_stop_maintenance()) {
+        return Error("Expecting 'stop_maintenance' to be present");
+      }
+      return None();
+
+    case v1::master::Call::GET_QUOTA:
+      return None();
+
+    case v1::master::Call::SET_QUOTA:
+      if (!call.has_set_quota()) {
+        return Error("Expecting 'set_quota' to be present");
+      }
+      return None();
+
+    case v1::master::Call::REMOVE_QUOTA:
+      if (!call.has_remove_quota()) {
+        return Error("Expecting 'remove_quota' to be present");
+      }
+      return None();
+
+    case v1::master::Call::SUBSCRIBE:
+      return None();
+  }
+
+  UNREACHABLE();
+}
+
+} // namespace call {
+} // namespace master {
+
 namespace scheduler {
 namespace call {
 
