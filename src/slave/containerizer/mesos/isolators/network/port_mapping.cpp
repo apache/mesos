@@ -3923,8 +3923,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // the host.
   script << "mount --make-rslave " << bindMountRoot << "\n";
 
-  // Disable IPv6 as IPv6 packets won't be forwarded anyway.
-  script << "echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6\n";
+  // Disable IPv6 when IPv6 module is loaded as IPv6 packets won't be
+  // forwarded anyway.
+  script << "test -f /proc/sys/net/ipv6/conf/all/disable_ipv6 &&"
+         << " echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6\n";
 
   // Configure lo and eth0.
   script << "ip link set " << lo << " address " << hostMAC
