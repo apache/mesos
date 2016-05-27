@@ -24,7 +24,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -5376,6 +5375,38 @@ double Slave::_executor_directory_max_allowed_age_secs()
 }
 
 
+Future<bool> Slave::authorizeSandboxAccess(
+    const Option<std::string>& principal,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::ACCESS_SANDBOX);
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  if (frameworks.contains(frameworkId)) {
+    Framework* framework = frameworks.get(frameworkId).get();
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(
+        framework->info);
+
+    if (framework->executors.contains(executorId)) {
+      request.mutable_object()->mutable_executor_info()->CopyFrom(
+          framework->executors.get(executorId).get()->info);
+    }
+  }
+
+  return authorizer.get()->authorized(request);
+}
+
+
 void Slave::sendExecutorTerminatedStatusUpdate(
     const TaskID& taskId,
     const Future<containerizer::Termination>& termination,
@@ -5635,7 +5666,20 @@ Executor* Framework::launchExecutor(
             << " with resources " << executorInfo.resources()
             << " in work directory '" << directory << "'";
 
-  slave->files->attach(executor->directory, executor->directory)
+  ExecutorID executorId = executorInfo.executor_id();
+  FrameworkID frameworkId = id();
+
+  auto authorize =
+    [this, executorId, frameworkId](const Option<string>& principal) {
+      return dispatch(
+          slave,
+          &Slave::authorizeSandboxAccess,
+          principal,
+          frameworkId,
+          executorId);
+    };
+
+  slave->files->attach(executor->directory, executor->directory, authorize)
     .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
 
   // Tell the containerizer to launch the executor.
@@ -5824,8 +5868,21 @@ void Framework::recoverExecutor(const ExecutorState& state)
     executor->recoverTask(taskState);
   }
 
+  ExecutorID executorId = state.id;
+  FrameworkID frameworkId = id();
+
+  auto authorize =
+    [this, executorId, frameworkId](const Option<string>& principal) {
+      return dispatch(
+          slave,
+          &Slave::authorizeSandboxAccess,
+          principal,
+          frameworkId,
+          executorId);
+    };
+
   // Expose the executor's files.
-  slave->files->attach(executor->directory, executor->directory)
+  slave->files->attach(executor->directory, executor->directory, authorize)
     .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
 
   // Add the executor to the framework.

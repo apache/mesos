@@ -419,6 +419,11 @@ private:
   // exited.
   void _shutdownExecutor(Framework* framework, Executor* executor);
 
+  Future<bool> authorizeSandboxAccess(
+      const Option<std::string>& principal,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).
   class Http

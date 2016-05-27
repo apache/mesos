@@ -81,6 +81,10 @@ enum Action {
   // `VIEW_EXECUTOR` will have an object with `ExecutorInfo` and
   // `FrameworkInfo` set.
   VIEW_EXECUTOR = 16;
+
+  // This action will have a `FrameworkInfo` and `ExecutorInfo` set,
+  // allowing both as objects in order to perform authorization.
+  ACCESS_SANDBOX = 17;
 }
 
 

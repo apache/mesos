@@ -273,6 +273,37 @@ public:
 
         return authorized(request, acls_);
         break;
+      case authorization::ACCESS_SANDBOX: {
+        authorization::Request realRequest;
+        realRequest.set_action(authorization::ACCESS_SANDBOX);
+
+        if (request.subject().has_value()) {
+          realRequest.mutable_subject()->set_value(request.subject().value());
+        }
+
+        authorization::Object* object = realRequest.mutable_object();
+
+        if (request.object().has_executor_info() &&
+            request.object().executor_info().has_command() &&
+            request.object().executor_info().command().has_user()) {
+          object->set_value(request.object().executor_info().command().user());
+        } else if (request.object().has_framework_info() &&
+                   request.object().framework_info().has_user()) {
+          object->set_value(request.object().framework_info().user());
+        }
+
+        foreach (const ACL::AccessSandbox& acl, acls.access_sandboxes()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return authorized(realRequest, acls_);
+        break;
+      }
+
       // TODO(joerg84): Add logic for the `VIEW_*` actions.
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:

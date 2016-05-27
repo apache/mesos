@@ -212,6 +212,17 @@ message ACL {
     // executors can be viewed.
     optional Entity users = 2;
   }
+
+  // Which principals are authorized to access the sandboxes of executors
+  // running as the given users.
+  message AccessSandbox {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // executors/tasks sandboxes can be accessed.
+    optional Entity users = 2;
+  }
 }
 
 
@@ -259,4 +270,5 @@ message ACLs {
   repeated ACL.ViewFramework view_frameworks = 16;
   repeated ACL.ViewTask view_tasks = 17;
   repeated ACL.ViewExecutor view_executors = 18;
+  repeated ACL.AccessSandbox access_sandboxes = 19;
 }
