@@ -4,47 +4,48 @@ Blog
 <% wrap_layout :layout do %>
 <div class="row">
 
-<div class="col-md-3">
-	<div class="meta">
-		<span class="author">
-			<% if current_page.data.post_author.gravatar %>
-			  <img src="http://www.gravatar.com/avatar/<%= current_page.data.post_author.gravatar %>?s=80" class="author_gravatar">
-			<% end %>
-			<span class="author_contact">
-			  <p><strong><%= current_page.data.post_author.display_name %></strong></p>
-			  <p><a href="http://twitter.com/<%= current_page.data.post_author.twitter %>">@<%= current_page.data.post_author.twitter %></a></p>
-			</span>
-		</span>
-		<p><em>Posted <%= current_article.date.strftime("%B %e, %Y")  %></em></p>
-	</div>
-	
-	<div class="share">
-		<span class="social-share-button"><a href="https://twitter.com/share" class="twitter-share-button" data-via="apachemesos">Tweet</a></span>
-		
-		<span><script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></span>
+  <div class="col-md-3">
+    <div class="meta">
+      <span class="author">
+        <% if current_page.data.post_author.gravatar %>
+          <img src="http://www.gravatar.com/avatar/<%= current_page.data.post_author.gravatar %>?s=80"
+               class="author_gravatar">
+        <% end %>
+        <span class="author_contact">
+          <p><strong><%= current_page.data.post_author.display_name %></strong></p>
+          <p><a href="http://twitter.com/<%= current_page.data.post_author.twitter %>">@<%= current_page.data.post_author.twitter %></a></p>
+        </span>
+      </span>
+      <p><em>Posted <%= current_article.date.strftime("%B %e, %Y")  %></em></p>
+    </div>
 
-		<span><div class="g-plusone" data-size="medium"></div></span>
+    <div class="share">
+      <span class="social-share-button"><a href="https://twitter.com/share" class="twitter-share-button" data-via="apachemesos">Tweet</a></span>
 
-		<!-- Place this tag after the last +1 button tag. -->
-		<script type="text/javascript">
-		  (function() {
-		    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
-		    po.src = 'https://apis.google.com/js/plusone.js';
-		    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
-		  })();
-		</script>
-		
-		<script src="//platform.linkedin.com/in.js" type="text/javascript">
-		 lang: en_US
-		</script>
-		<script type="IN/Share" data-counter="right"></script>
-	</div>
-</div>
+      <span><script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></span>
 
-<div class="post col-md-9">
-	<h1><%= current_page.data.title %></h1>
-	
-	<%= yield %>
-</div>
+      <span><div class="g-plusone" data-size="medium"></div></span>
+
+      <!-- Place this tag after the last +1 button tag. -->
+      <script type="text/javascript">
+        (function() {
+        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+        po.src = 'https://apis.google.com/js/plusone.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+      </script>
+
+      <script src="//platform.linkedin.com/in.js" type="text/javascript">
+       lang: en_US
+      </script>
+      <script type="IN/Share" data-counter="right"></script>
+    </div>
+  </div>
+
+  <div class="post col-md-9">
+    <h1><%= current_page.data.title %></h1>
+
+    <%= yield %>
+  </div>
 </div>
 <% end %>
