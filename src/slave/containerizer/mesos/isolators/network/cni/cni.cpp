@@ -1062,15 +1062,28 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     networkInfo->clear_ip_addresses();
 
     if (containerNetwork.cniNetworkInfo->has_ip4()) {
-      mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
-      ip->set_protocol(mesos::NetworkInfo::IPv4);
-      ip->set_ip_address(containerNetwork.cniNetworkInfo->ip4().ip());
+      // Remove prefix length from IP address.
+      Try<net::IPNetwork> ip = net::IPNetwork::parse(
+          containerNetwork.cniNetworkInfo->ip4().ip(), AF_INET);
+
+      if (ip.isError()) {
+        return Failure(
+            "Unable to parse the IP address " +
+            containerNetwork.cniNetworkInfo->ip4().ip() +
+            " for the container: " + ip.error());
+      }
+
+      mesos::NetworkInfo::IPAddress* ipAddress =
+        networkInfo->add_ip_addresses();
+      ipAddress->set_protocol(mesos::NetworkInfo::IPv4);
+      ipAddress->set_ip_address(stringify(ip->address()));
     }
 
     if (containerNetwork.cniNetworkInfo->has_ip6()) {
       mesos::NetworkInfo::IPAddress* ip = networkInfo->add_ip_addresses();
       ip->set_protocol(mesos::NetworkInfo::IPv6);
       ip->set_ip_address(containerNetwork.cniNetworkInfo->ip6().ip());
+      // TODO(djosborne): Perform subnet strip on ipv6 addresses.
     }
   }
 
