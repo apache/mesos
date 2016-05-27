@@ -113,12 +113,17 @@ def main():
     if options.file is None:
         usage('Missing --file', parser)
 
+    # Get master info.
+    try:
+      master = resolve(options.master)
+    except Exception as e:
+      fatal('Failed to get the master: %s' % str(e))
+
     # Get the master's state.
     try:
-        state = json.loads(http.get(resolve(options.master),
-                                    '/master/state'))
-    except:
-        fatal('Failed to get the master state')
+        state = json.loads(http.get(master, '/master/state'))
+    except Exception as e:
+        fatal('Failed to get the master state: %s' % str(e))
 
     # Build a dict from slave ID to slaves.
     slaves = {}

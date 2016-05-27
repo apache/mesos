@@ -47,12 +47,17 @@ def main():
     if options.master is None:
         usage('Missing --master', parser)
 
-  # Get the master's state.
+    # Get master info.
     try:
-        state = json.loads(http.get(resolve(options.master),
-                                    '/master/state'))
-    except:
-        fatal('Failed to get the master state')
+      master = resolve(options.master)
+    except Exception as e:
+      fatal('Failed to get the master: %s' % str(e))
+
+    # Get the master's state.
+    try:
+        state = json.loads(http.get(master, '/master/state'))
+    except Exception as e:
+        fatal('Failed to get the master state: %s' % str(e))
 
     # all slaves that the master is aware of
     slaves = set(slave['hostname'] for slave in state['slaves'])
