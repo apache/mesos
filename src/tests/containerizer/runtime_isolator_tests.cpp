@@ -252,7 +252,6 @@ TEST_F(DockerRuntimeIsolatorTest,
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
-  flags.docker_registry = "https://registry-1.docker.io";
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Owned<MasterDetector> detector = master.get()->createDetector();

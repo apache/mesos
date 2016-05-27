@@ -408,7 +408,6 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
-  flags.docker_registry = "https://registry-1.docker.io";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -487,7 +486,6 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_Normalize)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
-  flags.docker_registry = "https://registry-1.docker.io";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
