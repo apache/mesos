@@ -119,8 +119,15 @@ receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
 
 We can reserve 8 CPUs and 4096 MB of RAM by sending the following
 `Offer::Operation` message. `Offer::Operation::Reserve` has a `resources` field
-which we specify with the resources to be reserved. We need to explicitly set
-the `role` and `principal` fields with the framework's role and principal.
+which we specify with the resources to be reserved. We must explicitly set the
+resources' `role` field with the framework's role. The required value of the
+`principal` field depends on whether or not the framework provided a principal
+when it registered with the master. If a principal was provided, then the
+resources' `principal` field must be equal to the framework's principal. If no
+principal was provided during registration, then the resources' `principal`
+field can take any value, or can be left unset. Note that the `principal` field
+determines the "reserver principal" when [authorization](authorization.md) is
+enabled, even if authentication is disabled.
 
         {
           "type": Offer::Operation::RESERVE,
@@ -261,10 +268,17 @@ Suppose we want to reserve 8 CPUs and 4096 MB of RAM for the `ads` role on a
 slave with id=`<slave_id>` (note that it is up to the user to find the ID of the
 slave that hosts the desired resources; the request will fail if sufficient
 unreserved resources cannot be found on the slave). In this case, the principal
-included in the request will be the principal of an authorized operator rather
-than the principal of a framework registered under the `ads` role. We send an
-HTTP POST request to the master's [/reserve](endpoints/master/reserve.md)
-endpoint like so:
+that must be included in the `reservation` field of the reserved resources
+depends on the status of HTTP authentication on the master. If HTTP
+authentication is enabled, then the principal in the reservation should match
+the authenticated principal provided in the request's HTTP headers. If HTTP
+authentication is disabled, then the principal in the reservation can take any
+value, or can be left unset. Note that the `principal` field determines the
+"reserver principal" when [authorization](authorization.md) is enabled, even if
+HTTP authentication is disabled.
+
+We send an HTTP POST request to the master's
+[/reserve](endpoints/master/reserve.md) endpoint like so:
 
         $ curl -i \
           -u <operator_principal>:<password> \

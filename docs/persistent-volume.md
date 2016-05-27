@@ -90,6 +90,13 @@ volume information. We need to specify the following:
 1. The ID for the persistent volume; this must be unique per role on each agent.
 2. The non-nested relative path within the container to mount the volume.
 3. The permissions for the volume. Currently, `"RW"` is the only possible value.
+4. If the framework provided a principal when registering with the master, then
+   the `disk.persistence.principal` field must be set to that principal. If the
+   framework did not provide a principal when registering, then the
+   `disk.persistence.principal` field can take any value, or can be left unset.
+   Note that the `principal` field determines the "creator principal" when
+   [authorization](authorization.md) is enabled, even if authentication is
+   disabled.
 
         {
           "type" : Offer::Operation::CREATE,
@@ -105,7 +112,8 @@ volume information. We need to specify the following:
                 },
                 "disk": {
                   "persistence": {
-                    "id" : <persistent_volume_id>
+                    "id" : <persistent_volume_id>,
+                    "principal" : <framework_principal>
                   },
                   "volume" : {
                     "container_path" : <container_path>,
@@ -251,7 +259,15 @@ by operators and administrative tools.
 To use this endpoint, the operator should first ensure that a reservation for
 the necessary resources has been made on the appropriate agent (e.g., by using
 the [/reserve](endpoints/master/reserve.md) HTTP endpoint or by configuring a
-static reservation).
+static reservation). The information that must be included in a request to this
+endpoint is similar to that of the `CREATE` offer operation. One difference is
+the required value of the `disk.persistence.principal` field: when HTTP
+authentication is enabled on the master, the field must be set to the same
+principal that is provided in the request's HTTP headers. When HTTP
+authentication is disabled, the `disk.persistence.principal` field can take any
+value, or can be left unset. Note that the `principal` field determines the
+"creator principal" when [authorization](authorization.md) is enabled, even if
+HTTP authentication is disabled.
 
 To create a 512MB persistent volume for the `ads` role on a dynamically reserved
 disk resource, we can send an HTTP POST request to the master's
@@ -271,7 +287,8 @@ disk resource, we can send an HTTP POST request to the master's
              },
              "disk": {
                "persistence": {
-                 "id" : <persistence_id>
+                 "id" : <persistence_id>,
+                 "principal" : <operator_principal>
                },
                "volume": {
                  "mode": "RW",
