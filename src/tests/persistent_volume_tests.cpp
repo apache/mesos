@@ -30,6 +30,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/fs.hpp>
+#include <stout/none.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
@@ -301,13 +302,15 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
       getDiskResource(Megabytes(2048), 1),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   Resource volume2 = createPersistentVolume(
       getDiskResource(Megabytes(2048), 2),
       "id2",
       "path2",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   string volume1Path = slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir, volume1);
@@ -452,7 +455,8 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   driver.acceptOffers(
       {offer.id()},
@@ -514,7 +518,8 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
@@ -581,7 +586,8 @@ TEST_P(PersistentVolumeTest, MasterFailover)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
@@ -676,7 +682,8 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -766,7 +773,8 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   // Create a task which writes a file in the persistent volume.
   Resources taskResources = Resources::parse("cpus:1;mem:128").get() + volume;
@@ -930,7 +938,8 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   // Create a task which tests for the existence of
   // the persistent volume directory.
@@ -1080,7 +1089,8 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
-      None());
+      None(),
+      frameworkInfo.principal());
 
   Future<CheckpointResourcesMessage> checkpointResources1 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
@@ -1203,7 +1213,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   // Create a scheduler/framework.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1227,6 +1237,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
       getDiskResource(Megabytes(2048)),
       "id1",
       "path1",
+      None(),
       None());
 
   Future<CheckpointResourcesMessage> checkpointResources1 =
@@ -1294,6 +1305,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   driver.join();
 }
 
+// TODO(greggomann): Change the names of `driver1` and `driver2` below.
 
 // This test verifies that `create` and `destroy` operations fail as expected
 // when authorization fails and no principal is supplied.
@@ -1316,6 +1328,11 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   mesos::ACL::CreateVolume* create2 = acls.add_create_volumes();
   create2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   create2->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+
+  // This ACL declares that no principal can destroy persistent volumes.
+  mesos::ACL::DestroyVolume* destroy = acls.add_destroy_volumes();
+  destroy->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  destroy->mutable_creator_principals()->set_type(mesos::ACL::Entity::NONE);
 
   // We use this filter so that resources will not
   // be filtered for 5 seconds (the default).
@@ -1372,32 +1389,35 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
 
   Offer offer = offers.get()[0];
 
-  Resource volume = createPersistentVolume(
-      getDiskResource(Megabytes(2048)),
-      "id1",
-      "path1",
-      None());
+  {
+    Resource volume = createPersistentVolume(
+        getDiskResource(Megabytes(2048)),
+        "id1",
+        "path1",
+        None(),
+        None());
 
-  // Attempt to create the persistent volume using `acceptOffers`.
-  driver1.acceptOffers(
-      {offer.id()},
-      {CREATE(volume)},
-      filters);
+    // Attempt to create the persistent volume using `acceptOffers`.
+    driver1.acceptOffers(
+        {offer.id()},
+        {CREATE(volume)},
+        filters);
 
-  // Expect another offer.
-  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
-    .WillOnce(FutureArg<1>(&offers));
+    // Expect another offer.
+    EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+      .WillOnce(FutureArg<1>(&offers));
 
-  Clock::settle();
-  Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+    Clock::advance(masterFlags.allocation_interval);
 
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+    AWAIT_READY(offers);
+    EXPECT_FALSE(offers.get().empty());
 
-  offer = offers.get()[0];
+    offer = offers.get()[0];
 
-  // Check that the persistent volume is not contained in this offer.
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+    // Check that the persistent volume is not contained in this offer.
+    EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  }
 
   // Decline the offer and suppress so the second
   // framework will receive the offer instead.
@@ -1424,6 +1444,13 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   EXPECT_FALSE(offers.get().empty());
 
   offer = offers.get()[0];
+
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(2048)),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo2.principal());
 
   // Create the persistent volume using `acceptOffers`.
   driver2.acceptOffers(
@@ -1484,6 +1511,9 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   EXPECT_FALSE(offers.get().empty());
 
   // Check that the persistent volume is still contained in this offer.
+  // TODO(greggomann): In addition to checking that the volume is contained in
+  // the offer, we should also confirm that the Destroy operation failed for the
+  // correct reason. See MESOS-5470.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
 
   driver1.stop();
@@ -1512,9 +1542,14 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   // This ACL declares that all other principals
   // cannot create any persistent volumes.
-  mesos::ACL::CreateVolume* create = acls.add_create_volumes();
-  create->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  create->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  mesos::ACL::CreateVolume* create2 = acls.add_create_volumes();
+  create2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  create2->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+
+  // This ACL declares that no principal can destroy persistent volumes.
+  mesos::ACL::DestroyVolume* destroy = acls.add_destroy_volumes();
+  destroy->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  destroy->mutable_creator_principals()->set_type(mesos::ACL::Entity::NONE);
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -1571,32 +1606,35 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   Offer offer = offers.get()[0];
 
-  Resource volume = createPersistentVolume(
-      getDiskResource(Megabytes(2048)),
-      "id1",
-      "path1",
-      None());
+  {
+    Resource volume = createPersistentVolume(
+        getDiskResource(Megabytes(2048)),
+        "id1",
+        "path1",
+        None(),
+        frameworkInfo1.principal());
 
-  // Attempt to create a persistent volume using `acceptOffers`.
-  driver1.acceptOffers(
-      {offer.id()},
-      {CREATE(volume)},
-      filters);
+    // Attempt to create a persistent volume using `acceptOffers`.
+    driver1.acceptOffers(
+        {offer.id()},
+        {CREATE(volume)},
+        filters);
 
-  // Expect another offer.
-  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
-    .WillOnce(FutureArg<1>(&offers));
+    // Expect another offer.
+    EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+      .WillOnce(FutureArg<1>(&offers));
 
-  Clock::settle();
-  Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+    Clock::advance(masterFlags.allocation_interval);
 
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+    AWAIT_READY(offers);
+    EXPECT_FALSE(offers.get().empty());
 
-  offer = offers.get()[0];
+    offer = offers.get()[0];
 
-  // Check that the persistent volume is not contained in this offer.
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+    // Check that the persistent volume is not contained in this offer.
+    EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  }
 
   // Decline the offer and suppress so the second
   // framework will receive the offer instead.
@@ -1623,6 +1661,13 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   EXPECT_FALSE(offers.get().empty());
 
   offer = offers.get()[0];
+
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(2048)),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo2.principal());
 
   // Create a persistent volume using `acceptOffers`.
   driver2.acceptOffers(
@@ -1683,6 +1728,9 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   EXPECT_FALSE(offers.get().empty());
 
   // Check that the persistent volume is still contained in this offer.
+  // TODO(greggomann): In addition to checking that the volume is contained in
+  // the offer, we should also confirm that the Destroy operation failed for the
+  // correct reason. See MESOS-5470.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
 
   driver1.stop();
