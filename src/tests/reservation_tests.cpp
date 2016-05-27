@@ -1132,8 +1132,13 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
       createReservationInfo(frameworkInfo.principal()));
 
   Resource volume = reservedDisk;
-  volume.mutable_disk()->CopyFrom(
-      createDiskInfo("persistence_id", "container_path"));
+  volume.mutable_disk()->CopyFrom(createDiskInfo(
+      "persistence_id",
+      "container_path",
+      None(),
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal()));
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;

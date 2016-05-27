@@ -1502,7 +1502,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
     Megabytes(64),
     "role1",
     "id1",
-    "path1");
+    "path1",
+    None(),
+    None(),
+    frameworkInfo.principal());
 
   TaskInfo task;
   task.set_name("");
@@ -1659,7 +1662,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
     Megabytes(64),
     "role1",
     "id1",
-    "path1");
+    "path1",
+    None(),
+    None(),
+    frameworkInfo.principal());
 
   TaskInfo task;
   task.set_name("");
@@ -1818,7 +1824,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
     Megabytes(64),
     "role1",
     "id1",
-    "path1");
+    "path1",
+    None(),
+    None(),
+    frameworkInfo.principal());
 
   TaskInfo task;
   task.set_name("");

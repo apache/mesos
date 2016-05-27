@@ -30,6 +30,7 @@
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/try.hpp>
 
 #include "master/master.hpp"
 
@@ -260,6 +261,10 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
   slaveFlags.enforce_container_disk_quota = true;
   slaveFlags.resources = "cpus:2;mem:128;disk(role1):128";
 
+  Try<Resources> initialResources =
+    Resources::parse(slaveFlags.resources.get());
+  CHECK_SOME(initialResources);
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
@@ -292,7 +297,10 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
       Megabytes(1),
       "role1",
       "id1",
-      "volume_path");
+      "volume_path",
+      None(),
+      None(),
+      frameworkInfo.principal());
 
   // We intentionally request a sandbox that is much bugger (16MB) than
   // the file the task writes (2MB) to the persistent volume (1MB). This

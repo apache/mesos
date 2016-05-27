@@ -159,6 +159,8 @@ TEST_F(RoleTest, ImplicitRoleRegister)
       frameworkInfo.role(),
       "id1",
       "path1",
+      frameworkInfo.principal(),
+      None(),
       frameworkInfo.principal());
 
   // The expectation for the next offer.
