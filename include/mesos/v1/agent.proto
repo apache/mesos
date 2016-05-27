@@ -1,0 +1,166 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/v1/mesos.proto";
+
+package mesos.v1.agent;
+
+option java_package = "org.apache.mesos.v1.agent";
+option java_outer_classname = "Protos";
+
+/**
+ * Calls that can be sent to the v1 agent API.
+ *
+ * A call is described using the standard protocol buffer "union"
+ * trick, see
+ * https://developers.google.com/protocol-buffers/docs/techniques#union.
+ */
+message Call {
+   // If a call of type `Call::FOO` requires additional parameters they can be
+   // included in the corresponding `Call::Foo` message. Similarly, if a call
+   // receives a synchronous response it will be returned as a `Response`
+   // message of type `Response::FOO`.
+   enum Type {
+    UNKNOWN = 0;
+
+    GET_HEALTH = 1;
+    GET_FLAGS = 2;
+    GET_VERSION = 3;
+    GET_METRICS = 4;
+
+    GET_LOGGING_LEVEL = 5;
+    SET_LOGGING_LEVEL = 6;
+
+    LIST_FILES = 7;
+    READ_FILE = 8;
+
+    GET_STATE = 9;
+
+    GET_RESOURCE_STATISTICS = 10;
+
+    GET_CONTAINERS = 11;
+  }
+
+  message GetMetrics {
+    optional string timeout = 1;
+  }
+
+  message SetLoggingLevel {
+    required uint32 level = 1;
+    required DurationInfo duration = 2;
+  }
+
+  message ListFiles {
+    required string path = 1;
+  }
+
+  message ReadFile {
+    required string path = 1;
+    optional string offset = 2;
+    optional string length = 3;
+  }
+
+  optional Type type = 1;
+
+  optional GetMetrics get_metrics = 2;
+  optional SetLoggingLevel set_logging_level = 3;
+  optional ListFiles list_files = 4;
+  optional ReadFile read_file = 5;
+}
+
+
+/**
+ * Synchronous responses for all calls made to the v1 agent API.
+ */
+message Response {
+  // Each of the responses of type `FOO` corresponds to `Foo` message below.
+  enum Type {
+    UNKNOWN = 0;
+
+    GET_HEALTH = 1;
+    GET_FLAGS = 2;
+    GET_VERSION = 3;
+    GET_METRICS = 4;
+
+    GET_LOGGING_LEVEL = 5;
+
+    LIST_FILES = 6;
+    GET_FILE_CONTENTS = 7;
+
+    GET_STATE = 8;
+
+    GET_RESOURCE_STATISTICS = 9;
+
+    GET_CONTAINERS = 10;
+  }
+
+  message GetHealth {
+    required bool healthy = 1;
+  }
+
+  message GetFlags {
+    repeated Flag flags = 1;
+  }
+
+  message GetVersion {
+    required VersionInfo version_info = 1;
+  }
+
+  message GetMetrics {
+    repeated Metric metrics = 1;
+  }
+
+  message GetLoggingLevel {
+    required uint32 level = 1;
+  }
+
+  message ListFiles {
+    repeated string files = 1;
+  }
+
+  message GetFileContents {
+    repeated bytes data = 1;
+  }
+
+  message GetState {
+    // TODO(vinod): Fill in the fields.
+  }
+
+  message GetResourceStatistics {
+    required ResourceStatistics resource_statistics = 1;
+  }
+
+  message GetContainers {
+    message Container {
+      // TODO(vinod): Fill in the fields.
+    }
+
+    repeated Container containers = 1;
+  }
+
+  optional Type type = 1;
+
+  optional GetHealth get_health = 2;
+  optional GetFlags get_flags = 3;
+  optional GetVersion get_version = 4;
+  optional GetMetrics get_metrics = 5;
+  optional GetLoggingLevel get_logging_level = 6;
+  optional ListFiles list_files = 7;
+  optional GetFileContents get_file_contents = 8;
+  optional GetState get_state = 9;
+  optional GetResourceStatistics get_resource_statistics = 10;
+  optional GetContainers get_containers = 11;
+}
