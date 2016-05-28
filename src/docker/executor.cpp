@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 
+#include <map>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -27,9 +28,12 @@
 #include <process/reap.hpp>
 #include <process/owned.hpp>
 
+#include <stout/error.hpp>
 #include <stout/flags.hpp>
-#include <stout/protobuf.hpp>
+#include <stout/json.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
+#include <stout/try.hpp>
 
 #include "common/status_utils.hpp"
 
@@ -49,6 +53,7 @@ using namespace process;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::map;
 using std::string;
 using std::vector;
 
@@ -73,7 +78,8 @@ public:
       const string& sandboxDirectory,
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
-      const string& healthCheckDir)
+      const string& healthCheckDir,
+      const map<string, string>& taskEnvironment)
     : killed(false),
       killedByHealthCheck(false),
       terminated(false),
@@ -84,6 +90,7 @@ public:
       sandboxDirectory(sandboxDirectory),
       mappedDirectory(mappedDirectory),
       shutdownGracePeriod(shutdownGracePeriod),
+      taskEnvironment(taskEnvironment),
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -153,7 +160,7 @@ public:
         sandboxDirectory,
         mappedDirectory,
         task.resources() + task.executor().resources(),
-        None(),
+        taskEnvironment,
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO));
 
@@ -495,6 +502,8 @@ private:
   string sandboxDirectory;
   string mappedDirectory;
   Duration shutdownGracePeriod;
+  map<string, string> taskEnvironment;
+
   Option<KillPolicy> killPolicy;
   Option<Future<Nothing>> run;
   Future<Nothing> stop;
@@ -514,7 +523,8 @@ public:
       const string& sandboxDirectory,
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
-      const string& healthCheckDir)
+      const string& healthCheckDir,
+      const map<string, string>& taskEnvironment)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
         docker,
@@ -522,7 +532,8 @@ public:
         sandboxDirectory,
         mappedDirectory,
         shutdownGracePeriod,
-        healthCheckDir));
+        healthCheckDir,
+        taskEnvironment));
 
     spawn(process.get());
   }
@@ -650,6 +661,36 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  map<string, string> taskEnvironment;
+  if (flags.task_environment.isSome()) {
+    // Parse the string as JSON.
+    Try<JSON::Object> json =
+      JSON::parse<JSON::Object>(flags.task_environment.get());
+
+    if (json.isError()) {
+      cerr << flags.usage("Failed to parse --task_environment: " + json.error())
+           << endl;
+      return EXIT_FAILURE;
+    }
+
+    // Convert from JSON to map.
+    foreachpair (
+        const std::string& key,
+        const JSON::Value& value,
+        json->values) {
+      if (!value.is<JSON::String>()) {
+        cerr << flags.usage(
+            "Value of key '" + key +
+            "' in --task_environment is not a string")
+             << endl;
+        return EXIT_FAILURE;
+      }
+
+      // Save the parsed and validated key/value.
+      taskEnvironment[key] = value.as<JSON::String>().value;
+    }
+  }
+
   // Get executor shutdown grace period from the environment.
   //
   // NOTE: We avoided introducing a docker executor flag for this
@@ -702,7 +743,8 @@ int main(int argc, char** argv)
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),
       shutdownGracePeriod,
-      flags.launcher_dir.get());
+      flags.launcher_dir.get(),
+      taskEnvironment);
 
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
