@@ -1197,14 +1197,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   container->state = Container::RUNNING;
 
   // Prepare environment variables for the executor.
-  map<string, string> environment = executorEnvironment(
-      container->executor,
-      container->directory,
-      container->slaveId,
-      container->slavePid,
-      container->checkpoint,
-      flags,
-      false);
+  map<string, string> environment = container->environment;
 
   // Include any enviroment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,
