@@ -315,13 +315,22 @@ DockerContainerizerProcess::Container::create(
       Container::name(slaveId, stringify(id)),
       containerWorkdir);
 
+    // Override the command with the docker command executor.
     CommandInfo newCommandInfo;
-    // TODO(tnachen): Pass flags directly into docker run.
-    newCommandInfo.set_value(
-      path::join(flags.launcher_dir, "mesos-docker-executor") +
-      " " + stringify(dockerExecutorFlags));
+    newCommandInfo.set_shell(false);
 
-    newCommandInfo.set_shell(true);
+    newCommandInfo.set_value(
+        path::join(flags.launcher_dir, "mesos-docker-executor"));
+
+    // Stringify the flags as arguments.
+    // This minimizes the need for escaping flag values.
+    foreachvalue (const flags::Flag& flag, dockerExecutorFlags) {
+      Option<string> value = flag.stringify(dockerExecutorFlags);
+      if (value.isSome()) {
+        newCommandInfo.add_arguments(
+            "--" + flag.effective_name().value + "=" + value.get());
+      }
+    }
 
     if (taskInfo->has_command()) {
       newCommandInfo.mutable_uris()->CopyFrom(taskInfo->command().uris());
