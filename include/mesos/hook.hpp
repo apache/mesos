@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <process/future.hpp>
+
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/result.hpp>
@@ -84,9 +86,42 @@ public:
     return None();
   }
 
+  // This environment decorator is called from within the slave after
+  // receiving a run task request from the master but before the docker
+  // containerizer launches the task. A module implementing the hook can
+  // inspect the arguments and return a `Failure` if the task should be
+  // rejected with a `TASK_FAILED`.
+  // The hook can return a set of environment variables. For command tasks
+  // the environment variables will become part of the task's environment.
+  // For custom executors, the environment variables will be part of the
+  // custom executor's environment.
+  //
+  // NOTE: The order of hooks matters for environment variables.
+  // If there is a conflict, the hook loaded last will take priority.
+  //
+  // NOTE: Unlike `slaveExecutorEnvironmentDecorator`, environment variables
+  // returned from this hook *will* overwrite environment variables inside
+  // the `ExecutorInfo`.
+  //
+  // NOTE: This hook is designed to be an asynchronous replacement for
+  // `slavePreLaunchDockerHook`. This hook is called first.
+  virtual process::Future<Option<Environment>>
+    slavePreLaunchDockerEnvironmentDecorator(
+        const Option<TaskInfo>& taskInfo,
+        const ExecutorInfo& executorInfo,
+        const std::string& name,
+        const std::string& sandboxDirectory,
+        const std::string& mappedDirectory,
+        const Option<std::map<std::string, std::string>>& env)
+  {
+    return None();
+  }
+
   // This hook is called from within slave before docker is launched.
   // A typical module implementing the hook will perform some settings
   // as required.
+  //
+  // NOTE: Superceded by `slavePreLaunchDockerEnvironmentDecorator`.
   virtual Try<Nothing> slavePreLaunchDockerHook(
       const ContainerInfo& containerInfo,
       const CommandInfo& commandInfo,

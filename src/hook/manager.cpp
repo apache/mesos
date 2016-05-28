@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -21,6 +22,9 @@
 #include <mesos/hook.hpp>
 
 #include <mesos/module/hook.hpp>
+
+#include <process/collect.hpp>
+#include <process/future.hpp>
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
@@ -32,9 +36,13 @@
 #include "hook/manager.hpp"
 #include "module/manager.hpp"
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
+
+using process::collect;
+using process::Future;
 
 using mesos::modules::ModuleManager;
 
@@ -197,6 +205,55 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
 
     return executorInfo.command().environment();
   }
+}
+
+
+Future<map<string, string>>
+  HookManager::slavePreLaunchDockerEnvironmentDecorator(
+      const Option<TaskInfo>& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const string& containerName,
+      const string& sandboxDirectory,
+      const string& mappedDirectory,
+      const Option<map<string, string>>& env)
+{
+  // We execute these hooks according to their ordering so any conflicting
+  // environment variables can be deterministically resolved
+  // (the last hook takes priority).
+  list<Future<Option<Environment>>> futures;
+
+  foreach (const string& name, availableHooks.keys()) {
+    Hook* hook = availableHooks[name];
+
+    // Chain together each hook.
+    futures.push_back(
+        hook->slavePreLaunchDockerEnvironmentDecorator(
+            taskInfo,
+            executorInfo,
+            containerName,
+            sandboxDirectory,
+            mappedDirectory,
+            env));
+  }
+
+  return collect(futures)
+    .then([](const list<Option<Environment>>& results)
+        -> Future<map<string, string>> {
+      // Combine all the Environments.
+      map<string, string> environment;
+
+      foreach (const Option<Environment>& result, results) {
+        if (result.isNone()) {
+          continue;
+        }
+
+        foreach (const Environment::Variable& variable, result->variables()) {
+          environment[variable.name()] = variable.value();
+        }
+      }
+
+      return environment;
+    });
 }
 
 

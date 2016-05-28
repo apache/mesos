@@ -22,6 +22,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/hook.hpp>
 
+#include <process/future.hpp>
+
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -53,6 +55,15 @@ public:
 
   static Environment slaveExecutorEnvironmentDecorator(
       ExecutorInfo executorInfo);
+
+  static process::Future<std::map<std::string, std::string>>
+    slavePreLaunchDockerEnvironmentDecorator(
+        const Option<TaskInfo>& taskInfo,
+        const ExecutorInfo& executorInfo,
+        const std::string& containerName,
+        const std::string& sandboxDirectory,
+        const std::string& mappedDirectory,
+        const Option<std::map<std::string, std::string>>& env);
 
   static void slavePreLaunchDockerHook(
       const ContainerInfo& containerInfo,
