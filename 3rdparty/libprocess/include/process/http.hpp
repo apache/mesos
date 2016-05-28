@@ -521,6 +521,9 @@ struct OK : Response
 
   explicit OK(const std::string& body) : Response(body, Status::OK) {}
 
+  explicit OK(const std::string& body, const std::string& contentType)
+    : Response(body, Status::OK, contentType) {}
+
   OK(const JSON::Value& value, const Option<std::string>& jsonp = None());
 
   OK(JSON::Proxy&& value, const Option<std::string>& jsonp = None());
