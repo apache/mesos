@@ -25,6 +25,8 @@
 
 #include <mesos/executor/executor.hpp>
 
+#include <mesos/v1/agent.hpp>
+
 #include <mesos/v1/executor/executor.hpp>
 
 #include <mesos/attributes.hpp>
@@ -193,6 +195,131 @@ void Slave::Http::log(const Request& request)
             << (forwardedFor.isSome()
                 ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
                 : "");
+}
+
+
+string Slave::Http::API_HELP()
+{
+  return HELP(
+    TLDR(
+        "Endpoint for API calls against the agent."),
+    DESCRIPTION(
+        "Returns 200 OK if the call is successful"),
+    AUTHENTICATION(false));
+}
+
+
+Future<Response> Slave::Http::api(
+    const Request& request,
+    const Option<string>& principal) const
+{
+  // TODO(anand): Add metrics for rejected requests.
+
+  if (slave->state == Slave::RECOVERING) {
+    return ServiceUnavailable("Agent has not finished recovery");
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed({"POST"}, request.method);
+  }
+
+  v1::agent::Call call;
+
+  Option<string> contentType = request.headers.get("Content-Type");
+  if (contentType.isNone()) {
+    return BadRequest("Expecting 'Content-Type' to be present");
+  }
+
+  if (contentType.get() == APPLICATION_PROTOBUF) {
+    if (!call.ParseFromString(request.body)) {
+      return BadRequest("Failed to parse body into Call protobuf");
+    }
+  } else if (contentType.get() == APPLICATION_JSON) {
+    Try<JSON::Value> value = JSON::parse(request.body);
+    if (value.isError()) {
+      return BadRequest("Failed to parse body into JSON: " + value.error());
+    }
+
+    Try<v1::agent::Call> parse =
+      ::protobuf::parse<v1::agent::Call>(value.get());
+
+    if (parse.isError()) {
+      return BadRequest("Failed to convert JSON into Call protobuf: " +
+                        parse.error());
+    }
+
+    call = parse.get();
+  } else {
+    return UnsupportedMediaType(
+        string("Expecting 'Content-Type' of ") +
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+  }
+
+  Option<Error> error = validation::agent::call::validate(call);
+
+  if (error.isSome()) {
+    return BadRequest("Failed to validate v1::agent::Call: " +
+                      error.get().message);
+  }
+
+  // This lambda serializes a `v1::agent::Response` into an `http::Response`.
+  auto serializer = [request](const v1::agent::Response& response_)
+                    -> Response {
+    ContentType responseContentType;
+    if (request.acceptsMediaType(APPLICATION_JSON)) {
+      responseContentType = ContentType::JSON;
+    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+      responseContentType = ContentType::PROTOBUF;
+    } else {
+      return NotAcceptable(
+          string("Expecting 'Accept' to allow ") +
+          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+    }
+
+    // TODO(vinod): Support JSONP requests?
+    return OK(serialize(responseContentType, response_),
+              stringify(responseContentType));
+  };
+
+  switch (call.type()) {
+    case v1::agent::Call::UNKNOWN:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_HEALTH:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_FLAGS:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_VERSION:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_METRICS:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_LOGGING_LEVEL:
+      return NotImplemented();
+
+    case v1::agent::Call::SET_LOGGING_LEVEL:
+      return NotImplemented();
+
+    case v1::agent::Call::LIST_FILES:
+      return NotImplemented();
+
+    case v1::agent::Call::READ_FILE:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_STATE:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_RESOURCE_STATISTICS:
+      return NotImplemented();
+
+    case v1::agent::Call::GET_CONTAINERS:
+      return NotImplemented();
+  }
+
+  UNREACHABLE();
 }
 
 

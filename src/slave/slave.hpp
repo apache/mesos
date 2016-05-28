@@ -436,7 +436,12 @@ private:
     // desired request handler to get consistent request logging.
     static void log(const process::http::Request& request);
 
-    // /slave/api/v1/executor
+    // /api/v1
+    process::Future<process::http::Response> api(
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
+
+    // /api/v1/executor
     process::Future<process::http::Response> executor(
         const process::http::Request& request) const;
 
@@ -465,6 +470,7 @@ private:
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
+    static std::string API_HELP();
     static std::string EXECUTOR_HELP();
     static std::string FLAGS_HELP();
     static std::string HEALTH_HELP();

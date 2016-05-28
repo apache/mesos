@@ -702,6 +702,18 @@ void Slave::initialize()
       &PingSlaveMessage::connected);
 
 
+  route("/api/v1",
+        // TODO(benh): Is this authentication realm sufficient or do
+        // we need some kind of hybrid if we expect both executors
+        // and operators/tooling to use this endpoint?
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
+        Http::API_HELP(),
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
+          Http::log(request);
+          return http.api(request, principal);
+        });
+
   route("/api/v1/executor",
         Http::EXECUTOR_HELP(),
         [this](const process::http::Request& request) {

@@ -19,6 +19,8 @@
 
 #include <mesos/executor/executor.hpp>
 
+#include <mesos/v1/agent.hpp>
+
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 
@@ -26,6 +28,19 @@ namespace mesos {
 namespace internal {
 namespace slave {
 namespace validation {
+
+namespace agent {
+namespace call {
+
+// Validates that a agent:Call is well-formed.
+// TODO(bmahler): Add unit tests.
+Option<Error> validate(
+    const mesos::v1::agent::Call& call,
+    const Option<std::string>& principal = None());
+
+} // namespace call {
+} // namespace agent {
+
 namespace executor {
 namespace call {
 
