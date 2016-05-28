@@ -34,6 +34,7 @@
 #include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/os.hpp>
 
 #include "common/status_utils.hpp"
@@ -200,10 +201,16 @@ DockerContainerizer::~DockerContainerizer()
 }
 
 
+// Constructs the flags for the `mesos-docker-executor`.
+// Custom docker executors will also be invoked with these flags.
+//
+// NOTE: `taskEnvironment` is currently used to propagate environment variables
+// from a hook: `slavePreLaunchDockerEnvironmentDecorator`.
 docker::Flags dockerFlags(
   const Flags& flags,
   const string& name,
-  const string& directory)
+  const string& directory,
+  const Option<map<string, string>>& taskEnvironment)
 {
   docker::Flags dockerFlags;
   dockerFlags.container = name;
@@ -212,6 +219,10 @@ docker::Flags dockerFlags(
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.docker_socket = flags.docker_socket;
   dockerFlags.launcher_dir = flags.launcher_dir;
+
+  if (taskEnvironment.isSome()) {
+    dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));
+  }
 
   // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
@@ -310,10 +321,14 @@ DockerContainerizerProcess::Container::create(
 
     newContainerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
+    // NOTE: We do not set the optional `taskEnvironment` here as
+    // this field is currently used to propagate environment variables
+    // from a hook. This hook is called after `Container::create`.
     docker::Flags dockerExecutorFlags = dockerFlags(
       flags,
       Container::name(slaveId, stringify(id)),
-      containerWorkdir);
+      containerWorkdir,
+      None());
 
     // Override the command with the docker command executor.
     CommandInfo newCommandInfo;
@@ -1029,7 +1044,46 @@ Future<bool> DockerContainerizerProcess::launch(
 
   Future<Nothing> f = Nothing();
 
-  // TODO(josephw): Add a hook here.
+  if (HookManager::hooksAvailable()) {
+    f = HookManager::slavePreLaunchDockerEnvironmentDecorator(
+        taskInfo,
+        executorInfo,
+        container.get()->name(),
+        container.get()->directory,
+        flags.sandbox_directory,
+        container.get()->environment)
+      .then([this, taskInfo, containerId](
+          const map<string, string>& environment) -> Future<Nothing> {
+        if (!containers_.contains(containerId)) {
+          return Failure("Container is already destroyed");
+        }
+
+        Container* container = containers_[containerId];
+
+        if (taskInfo.isSome()) {
+          // The built-in command executors explicitly support passing
+          // environment variables from a hook into a task.
+          container->taskEnvironment = environment;
+
+          // For dockerized command executors, the flags have already been
+          // serialized into the command, albeit without these environment
+          // variables. Append the last flag to the overridden command.
+          if (container->launchesExecutorContainer) {
+            container->command.add_arguments(
+                "--task_environment=" + string(jsonify(environment)));
+          }
+        } else {
+          // For custom executors, the environment variables from a hook
+          // are passed directly into the executor.  It is up to the custom
+          // executor whether individual tasks should inherit these variables.
+          foreachpair (const string& key, const string& value, environment) {
+            container->environment[key] = value;
+          }
+        }
+
+        return Nothing();
+      });
+  }
 
   return f.then(defer(
       self(),
@@ -1269,7 +1323,11 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
         subprocessInfo.out,
         subprocessInfo.err,
         SETSID,
-        dockerFlags(flags, container->name(), container->directory),
+        dockerFlags(
+            flags,
+            container->name(),
+            container->directory,
+            container->taskEnvironment),
         environment,
         None(),
         parentHooks,

@@ -443,6 +443,10 @@ private:
     CommandInfo command;
     std::map<std::string, std::string> environment;
 
+    // Environment variables that the command executor should pass
+    // onto a docker-ized task. This is set by a hook.
+    Option<std::map<std::string, std::string>> taskEnvironment;
+
     // The sandbox directory for the container. This holds the
     // symlinked path if symlinked boolean is true.
     std::string directory;
