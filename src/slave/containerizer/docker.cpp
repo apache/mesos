@@ -1018,17 +1018,45 @@ Future<bool> DockerContainerizerProcess::launch(
               << "' and framework '" << executorInfo.framework_id() << "'";
   }
 
+  Future<Nothing> f = Nothing();
+
+  // TODO(josephw): Add a hook here.
+
+  return f.then(defer(
+      self(),
+      &Self::_launch,
+      containerId,
+      taskInfo,
+      executorInfo,
+      directory,
+      slaveId));
+}
+
+
+Future<bool> DockerContainerizerProcess::_launch(
+    const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const SlaveID& slaveId)
+{
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
+
+  Container* container = containers_[containerId];
+
   if (HookManager::hooksAvailable()) {
     HookManager::slavePreLaunchDockerHook(
-        container.get()->container,
-        container.get()->command,
+        container->container,
+        container->command,
         taskInfo,
         executorInfo,
-        container.get()->name(),
-        container.get()->directory,
+        container->name(),
+        container->directory,
         flags.sandbox_directory,
-        container.get()->resources,
-        container.get()->environment);
+        container->resources,
+        container->environment);
   }
 
   if (taskInfo.isSome() && flags.docker_mesos_image.isNone()) {
@@ -1038,7 +1066,7 @@ Future<bool> DockerContainerizerProcess::launch(
     // where 'update' can be called before mesos-docker-executor
     // creates the Docker container for the task. See more details in
     // the comments of r33174.
-    return container.get()->launch = fetch(containerId, slaveId)
+    return container->launch = fetch(containerId, slaveId)
       .then(defer(self(), [=]() {
         return pull(containerId);
       }))
@@ -1057,12 +1085,12 @@ Future<bool> DockerContainerizerProcess::launch(
       }));
   }
 
-  string containerName = container.get()->name();
+  string containerName = container->name();
 
-  if (container.get()->executorName().isSome()) {
+  if (container->executorName().isSome()) {
     // Launch the container with the executor name as we expect the
     // executor will launch the docker container.
-    containerName = container.get()->executorName().get();
+    containerName = container->executorName().get();
   }
 
   // Launching task or executor by launching a separate docker
@@ -1070,7 +1098,7 @@ Future<bool> DockerContainerizerProcess::launch(
   // We need to do so for launching a task because as the slave is
   // running in a container (via docker_mesos_image flag) we want the
   // executor to keep running when the slave container dies.
-  return container.get()->launch = fetch(containerId, slaveId)
+  return container->launch = fetch(containerId, slaveId)
     .then(defer(self(), [=]() {
       return pull(containerId);
     }))

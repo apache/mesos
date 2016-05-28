@@ -177,6 +177,13 @@ private:
       const ContainerID& containerId,
       pid_t pid);
 
+  process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const Option<TaskInfo>& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const SlaveID& slaveId);
+
   process::Future<Nothing> _recover(
       const Option<state::SlaveState>& state,
       const std::list<Docker::Container>& containers);
