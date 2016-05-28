@@ -25,8 +25,8 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <mesos/v1/agent.hpp>
 #include <mesos/v1/master.hpp>
-
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
@@ -114,6 +114,12 @@ v1::executor::Event evolve(const ShutdownExecutorMessage& message);
 // REST endpoints pre v1 API.
 template <v1::master::Response::Type T>
 v1::master::Response evolve(const JSON::Object& object);
+
+
+// Declaration of helper functions for evolving JSON objects used in agent's
+// REST endpoints pre v1 API.
+template <v1::agent::Response::Type T>
+v1::agent::Response evolve(const JSON::Object& object);
 
 } // namespace internal {
 } // namespace mesos {

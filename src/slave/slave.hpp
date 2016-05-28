@@ -479,9 +479,7 @@ private:
     static std::string CONTAINERS_HELP();
 
   private:
-    // Continuations.
-    process::Future<process::http::Response> _flags(
-        const process::http::Request& request) const;
+    JSON::Object _flags() const;
 
     // Make continuation for `statistics` `static` as it might
     // execute when the invoking `Http` is already destructed.
@@ -507,6 +505,11 @@ private:
         const Option<std::string>& principal,
         const std::string& endpoint,
         const std::string& method) const;
+
+    // v1 agent API handlers.
+    process::Future<v1::agent::Response> getFlags(
+        const v1::agent::Call& call,
+        const Option<std::string>& principal) const;
 
     Slave* slave;
 

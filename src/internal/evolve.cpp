@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <mesos/v1/agent.hpp>
 #include <mesos/v1/master.hpp>
 
 #include <process/pid.hpp>
@@ -398,6 +399,35 @@ v1::master::Response evolve<v1::master::Response::GET_FLAGS>(
   response.set_type(v1::master::Response::GET_FLAGS);
 
   v1::master::Response::GetFlags* getFlags = response.mutable_get_flags();
+
+  Result<JSON::Object> flags = object.at<JSON::Object>("flags");
+  CHECK_SOME(flags) << "Failed to find 'flags' key in the JSON object";
+
+  foreachpair (const string& key,
+               const JSON::Value& value,
+               flags.get().values) {
+    v1::Flag* flag = getFlags->add_flags();
+    flag->set_name(key);
+
+    CHECK(value.is<JSON::String>())
+      << "Flag '" + key + "' value is not a string";
+
+    flag->set_value(value.as<JSON::String>().value);
+  }
+
+  return response;
+}
+
+
+// TODO(vinod): Consolidate master and agent flags evolution.
+template<>
+v1::agent::Response evolve<v1::agent::Response::GET_FLAGS>(
+    const JSON::Object& object)
+{
+  v1::agent::Response response;
+  response.set_type(v1::agent::Response::GET_FLAGS);
+
+  v1::agent::Response::GetFlags* getFlags = response.mutable_get_flags();
 
   Result<JSON::Object> flags = object.at<JSON::Object>("flags");
   CHECK_SOME(flags) << "Failed to find 'flags' key in the JSON object";

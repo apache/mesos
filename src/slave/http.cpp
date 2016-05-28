@@ -281,6 +281,8 @@ Future<Response> Slave::Http::api(
               stringify(responseContentType));
   };
 
+  LOG(INFO) << "Processing call " << call.type();
+
   switch (call.type()) {
     case v1::agent::Call::UNKNOWN:
       return NotImplemented();
@@ -289,7 +291,8 @@ Future<Response> Slave::Http::api(
       return NotImplemented();
 
     case v1::agent::Call::GET_FLAGS:
-      return NotImplemented();
+      return getFlags(call, principal)
+        .then(serializer);
 
     case v1::agent::Call::GET_VERSION:
       return NotImplemented();
@@ -506,12 +509,12 @@ Future<Response> Slave::Http::flags(
             return Forbidden();
           }
 
-          return _flags(request);
+          return OK(_flags(), request.url.query.get("jsonp"));
         }));
 }
 
 
-Future<Response> Slave::Http::_flags(const Request& request) const
+JSON::Object Slave::Http::_flags() const
 {
   JSON::Object object;
 
@@ -526,7 +529,17 @@ Future<Response> Slave::Http::_flags(const Request& request) const
     object.values["flags"] = std::move(flags);
   }
 
-  return OK(object, request.url.query.get("jsonp"));
+  return object;
+}
+
+
+Future<v1::agent::Response> Slave::Http::getFlags(
+    const v1::agent::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::agent::Call::GET_FLAGS, call.type());
+
+  return evolve<v1::agent::Response::GET_FLAGS>(_flags());
 }
 
 

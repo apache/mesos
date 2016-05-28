@@ -19,18 +19,28 @@
 #include <mesos/http.hpp>
 
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/jsonify.hpp>
+#include <stout/nothing.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include "common/http.hpp"
 
+#include "master/detector/standalone.hpp"
+
+#include "slave/slave.hpp"
+
 #include "tests/mesos.hpp"
+
+using mesos::master::detector::StandaloneMasterDetector;
+
+using mesos::internal::slave::Slave;
 
 using process::Failure;
 using process::Future;
@@ -38,7 +48,6 @@ using process::Owned;
 
 using process::http::OK;
 using process::http::Response;
-
 
 using testing::_;
 using testing::AtMost;
@@ -105,6 +114,70 @@ TEST_P(MasterAPITest, GetFlags)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::master::Response::GET_FLAGS, v1Response.get().type());
+}
+
+
+class AgentAPITest
+  : public MesosTest,
+    public WithParamInterface<ContentType>
+{
+public:
+  // Helper function to post a request to "/api/v1" agent endpoint and return
+  // the response.
+  Future<v1::agent::Response> post(
+      const process::PID<slave::Slave>& pid,
+      const v1::agent::Call& call,
+      const ContentType& contentType)
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    return process::http::post(
+        pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType))
+      .then([contentType](const Response& response)
+            -> Future<v1::agent::Response> {
+        if (response.status != OK().status) {
+          return Failure("Unexpected response status " + response.status);
+        }
+        return deserialize<v1::agent::Response>(contentType, response.body);
+      });
+  }
+};
+
+
+// These tests are parameterized by the content type of the HTTP request.
+INSTANTIATE_TEST_CASE_P(
+    ContentType,
+    AgentAPITest,
+    ::testing::Values(ContentType::PROTOBUF, ContentType::JSON));
+
+
+TEST_P(AgentAPITest, GetFlags)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Wait until the agent has finished recovery.
+  AWAIT_READY(__recover);
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_FLAGS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_FLAGS, v1Response.get().type());
 }
 
 } // namespace tests {
