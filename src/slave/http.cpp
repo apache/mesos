@@ -366,8 +366,6 @@ Future<Response> Slave::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  const Flags slaveFlags = slave->flags;
-
   Try<string> endpoint = extractEndpoint(request.url);
   if (endpoint.isError()) {
     return Failure("Failed to extract endpoint: " + endpoint.error());
@@ -376,26 +374,24 @@ Future<Response> Slave::Http::flags(
   return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
         slave->self(),
-        [request, slaveFlags](bool authorized) -> Future<Response> {
+        [this, request](bool authorized) -> Future<Response> {
           if (!authorized) {
             return Forbidden();
           }
 
-          return _flags(request, slaveFlags);
+          return _flags(request);
         }));
 }
 
 
-Future<Response> Slave::Http::_flags(
-  const Request& request,
-  const Flags& slaveFlags)
+Future<Response> Slave::Http::_flags(const Request& request) const
 {
   JSON::Object object;
 
   {
     JSON::Object flags;
-    foreachvalue (const flags::Flag& flag, slaveFlags) {
-      Option<string> value = flag.stringify(slaveFlags);
+    foreachvalue (const flags::Flag& flag, slave->flags) {
+      Option<string> value = flag.stringify(slave->flags);
       if (value.isSome()) {
         flags.values[flag.effective_name().value] = value.get();
       }
@@ -648,9 +644,6 @@ Future<Response> Slave::Http::statistics(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  const PID<Slave> pid = slave->self();
-  Shared<RateLimiter> limiter = statisticsLimiter;
-
   Try<string> endpoint = extractEndpoint(request.url);
   if (endpoint.isError()) {
     return Failure("Failed to extract endpoint: " + endpoint.error());
@@ -658,15 +651,16 @@ Future<Response> Slave::Http::statistics(
 
   return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
-        pid,
-        [pid, limiter, request](bool authorized) -> Future<Response> {
+        slave->self(),
+        [this, request](bool authorized) -> Future<Response> {
           if (!authorized) {
             return Forbidden();
           }
 
-          return limiter->acquire()
-            .then(defer(pid, &Slave::usage))
-            .then(defer(pid, [request](const ResourceUsage& usage) {
+          return statisticsLimiter->acquire()
+            .then(defer(slave->self(), &Slave::usage))
+            .then(defer(slave->self(),
+                  [this, request](const ResourceUsage& usage) {
               return _statistics(usage, request);
             }));
         }))
@@ -681,7 +675,7 @@ Future<Response> Slave::Http::statistics(
 
 Response Slave::Http::_statistics(
     const ResourceUsage& usage,
-    const Request& request)
+    const Request& request) const
 {
   JSON::Array result;
 
@@ -766,28 +760,20 @@ Future<Response> Slave::Http::containers(
     return Failure("Failed to extract endpoint: " + endpoint.error());
   }
 
-  const PID<Slave> pid = slave->self();
-
-  // NOTE: We should not leak the slave instance because the its
-  // lifetime is not guaranteed. See MESOS-5293 for details.
-  const Slave* localSlave = slave;
-
   return authorizeEndpoint(principal, endpoint.get(), request.method)
     .then(defer(
-        pid,
-        [pid, localSlave, request](bool authorized) -> Future<Response> {
+        slave->self(),
+        [this, request](bool authorized) -> Future<Response> {
           if (!authorized) {
             return Forbidden();
           }
 
-          return _containers(request, localSlave);
+          return _containers(request);
         }));
 }
 
 
-Future<Response> Slave::Http::_containers(
-    const Request& request,
-    const Slave* slave)
+Future<Response> Slave::Http::_containers(const Request& request) const
 {
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
   list<Future<ContainerStatus>> statusFutures;

@@ -474,20 +474,18 @@ private:
 
   private:
     // Continuations.
-    static process::Future<process::http::Response> _flags(
-        const process::http::Request& request,
-        const Flags& flags);
+    process::Future<process::http::Response> _flags(
+        const process::http::Request& request) const;
 
     // Make continuation for `statistics` `static` as it might
     // execute when the invoking `Http` is already destructed.
-    static process::http::Response _statistics(
+    process::http::Response _statistics(
         const ResourceUsage& usage,
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // Continuation for `/containers` endpoint
-    static process::Future<process::http::Response> _containers(
-        const process::http::Request& request,
-        const Slave* slave);
+    process::Future<process::http::Response> _containers(
+        const process::http::Request& request) const;
 
     // Helper routines for endpoint authorization.
     Try<std::string> extractEndpoint(const process::http::URL& url) const;
@@ -556,6 +554,8 @@ private:
       const process::Future<Resources>& oversubscribable);
 
   const Flags flags;
+
+  const Http http;
 
   SlaveInfo info;
 

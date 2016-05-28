@@ -149,6 +149,7 @@ Slave::Slave(const std::string& id,
   : ProcessBase(id),
     state(RECOVERING),
     flags(_flags),
+    http(this),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),
     containerizer(_containerizer),
@@ -700,12 +701,10 @@ void Slave::initialize()
       &Slave::ping,
       &PingSlaveMessage::connected);
 
-  // Setup HTTP routes.
-  Http http = Http(this);
 
   route("/api/v1/executor",
         Http::EXECUTOR_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.executor(request);
         });
@@ -715,7 +714,7 @@ void Slave::initialize()
   route("/state.json",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           Http::log(request);
           return http.state(request, principal);
@@ -723,7 +722,7 @@ void Slave::initialize()
   route("/state",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           Http::log(request);
           return http.state(request, principal);
@@ -731,20 +730,20 @@ void Slave::initialize()
   route("/flags",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::FLAGS_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           Http::log(request);
           return http.flags(request, principal);
         });
   route("/health",
         Http::HEALTH_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           return http.health(request);
         });
   route("/monitor/statistics",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           return http.statistics(request, principal);
         });
@@ -753,14 +752,14 @@ void Slave::initialize()
   route("/monitor/statistics.json",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           return http.statistics(request, principal);
         });
   route("/containers",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::CONTAINERS_HELP(),
-        [http](const process::http::Request& request,
+        [this](const process::http::Request& request,
                const Option<string>& principal) {
           return http.containers(request, principal);
         });
