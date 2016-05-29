@@ -117,6 +117,26 @@ TEST_P(MasterAPITest, GetFlags)
 }
 
 
+TEST_P(MasterAPITest, GetHealth)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_HEALTH);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_HEALTH, v1Response.get().type());
+  ASSERT_TRUE(v1Response.get().get_health().healthy());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>

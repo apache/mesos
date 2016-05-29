@@ -1260,7 +1260,12 @@ private:
         const std::string& method) const;
 
     // v1 master API handlers.
+
     process::Future<v1::master::Response> getFlags(
+        const v1::master::Call& call,
+        const Option<std::string>& principal) const;
+
+    process::Future<v1::master::Response> getHealth(
         const v1::master::Call& call,
         const Option<std::string>& principal) const;
 

@@ -438,7 +438,8 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case v1::master::Call::GET_HEALTH:
-      return NotImplemented();
+      return getHealth(call, principal)
+        .then(serializer);
 
     case v1::master::Call::GET_FLAGS:
       return getFlags(call, principal)
@@ -1144,6 +1145,20 @@ string Master::Http::HEALTH_HELP()
 Future<Response> Master::Http::health(const Request& request) const
 {
   return OK();
+}
+
+
+Future<v1::master::Response> Master::Http::getHealth(
+    const v1::master::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::master::Call::GET_HEALTH, call.type());
+
+  v1::master::Response response;
+  response.set_type(v1::master::Response::GET_HEALTH);
+  response.mutable_get_health()->set_healthy(true);
+
+  return response;
 }
 
 
