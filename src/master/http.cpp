@@ -76,6 +76,8 @@
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
 
+#include "version/version.hpp"
+
 using google::protobuf::RepeatedPtrField;
 
 using process::AUTHENTICATION;
@@ -446,7 +448,8 @@ Future<Response> Master::Http::api(
         .then(serializer);
 
     case v1::master::Call::GET_VERSION:
-      return NotImplemented();
+      return getVersion(call, principal)
+        .then(serializer);
 
     case v1::master::Call::GET_METRICS:
       return NotImplemented();
@@ -1159,6 +1162,16 @@ Future<v1::master::Response> Master::Http::getHealth(
   response.mutable_get_health()->set_healthy(true);
 
   return response;
+}
+
+
+Future<v1::master::Response> Master::Http::getVersion(
+    const v1::master::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::master::Call::GET_VERSION, call.type());
+
+  return evolve<v1::master::Response::GET_VERSION>(version());
 }
 
 

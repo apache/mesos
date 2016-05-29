@@ -120,11 +120,6 @@ using std::string;
 using std::vector;
 
 
-void version()
-{
-  cout << "mesos" << " " << MESOS_VERSION << endl;
-}
-
 
 int main(int argc, char** argv)
 {
@@ -189,7 +184,7 @@ int main(int argc, char** argv)
   }
 
   if (flags.version) {
-    version();
+    cout << "mesos" << " " << MESOS_VERSION << endl;
     return EXIT_SUCCESS;
   }
 

@@ -23,8 +23,6 @@
 
 #include <stout/json.hpp>
 
-#include "common/build.hpp"
-
 #include "version/version.hpp"
 
 using namespace process;
@@ -78,26 +76,7 @@ void VersionProcess::initialize()
 
 Future<http::Response> VersionProcess::version(const http::Request& request)
 {
-  JSON::Object object;
-  object.values["version"] = MESOS_VERSION;
-
-  if (build::GIT_SHA.isSome()) {
-    object.values["git_sha"] = build::GIT_SHA.get();
-  }
-
-  if (build::GIT_BRANCH.isSome()) {
-    object.values["git_branch"] = build::GIT_BRANCH.get();
-  }
-
-  if (build::GIT_TAG.isSome()) {
-    object.values["git_tag"] = build::GIT_TAG.get();
-  }
-
-  object.values["build_date"] = build::DATE;
-  object.values["build_time"] = build::TIME;
-  object.values["build_user"] = build::USER;
-
-  return OK(object, request.url.query.get("jsonp"));
+  return OK(internal::version(), request.url.query.get("jsonp"));
 }
 
 }  // namespace internal {

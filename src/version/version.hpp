@@ -23,8 +23,36 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
+#include "common/build.hpp"
+
 namespace mesos {
 namespace internal {
+
+// Helper function to return Mesos version.
+inline JSON::Object version()
+{
+  JSON::Object object;
+  object.values["version"] = MESOS_VERSION;
+
+  if (build::GIT_SHA.isSome()) {
+    object.values["git_sha"] = build::GIT_SHA.get();
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    object.values["git_branch"] = build::GIT_BRANCH.get();
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    object.values["git_tag"] = build::GIT_TAG.get();
+  }
+
+  object.values["build_date"] = build::DATE;
+  object.values["build_time"] = build::TIME;
+  object.values["build_user"] = build::USER;
+
+  return object;
+}
+
 
 class VersionProcess : public process::Process<VersionProcess>
 {
