@@ -60,6 +60,8 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
+#include "version/version.hpp"
+
 using process::AUTHENTICATION;
 using process::AUTHORIZATION;
 using process::Clock;
@@ -296,7 +298,8 @@ Future<Response> Slave::Http::api(
         .then(serializer);
 
     case v1::agent::Call::GET_VERSION:
-      return NotImplemented();
+      return getVersion(call, principal)
+        .then(serializer);
 
     case v1::agent::Call::GET_METRICS:
       return NotImplemented();
@@ -573,6 +576,16 @@ Future<v1::agent::Response> Slave::Http::getHealth(
   response.mutable_get_health()->set_healthy(true);
 
   return response;
+}
+
+
+Future<v1::agent::Response> Slave::Http::getVersion(
+    const v1::agent::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::agent::Call::GET_VERSION, call.type());
+
+  return evolve<v1::agent::Response::GET_VERSION>(version());
 }
 
 

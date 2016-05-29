@@ -465,5 +465,23 @@ v1::master::Response evolve<v1::master::Response::GET_VERSION>(
   return response;
 }
 
+
+// TODO(vinod): Consolidate master and agent version evolution.
+template<>
+v1::agent::Response evolve<v1::agent::Response::GET_VERSION>(
+    const JSON::Object& object)
+{
+  v1::agent::Response response;
+  response.set_type(v1::agent::Response::GET_VERSION);
+
+  Try<v1::VersionInfo> version = protobuf::parse<v1::VersionInfo>(object);
+  CHECK_SOME(version);
+
+  response.mutable_get_version()->mutable_version_info()->CopyFrom(
+      version.get());
+
+  return response;
+}
+
 } // namespace internal {
 } // namespace mesos {
