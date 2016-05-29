@@ -273,6 +273,17 @@ public:
 
         return authorized(request, acls_);
         break;
+      case authorization::ACCESS_MESOS_LOG:
+        foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.logs();
+
+          acls_.push_back(acl_);
+        }
+
+        return authorized(request, acls_);
+        break;
       case authorization::ACCESS_SANDBOX: {
         authorization::Request realRequest;
         realRequest.set_action(authorization::ACCESS_SANDBOX);
@@ -303,7 +314,6 @@ public:
         return authorized(realRequest, acls_);
         break;
       }
-
       // TODO(joerg84): Add logic for the `VIEW_*` actions.
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
@@ -502,6 +512,13 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
       (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0)) {
     return Error("acls.update_quotas cannot be used "
                  "together with deprecated set_quotas/remove_quotas!");
+  }
+
+
+  foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
+    if (acl.logs().type() == ACL::Entity::SOME) {
+      return Error("acls.access_mesos_logs type must be either NONE or ANY");
+    }
   }
 
   return None();

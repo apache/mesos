@@ -223,6 +223,16 @@ message ACL {
     // executors/tasks sandboxes can be accessed.
     optional Entity users = 2;
   }
+
+  // Which principals are authorized to access the Mesos logs.
+  message AccessMesosLog {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    optional Entity logs = 2;
+  }
 }
 
 
@@ -271,4 +281,5 @@ message ACLs {
   repeated ACL.ViewTask view_tasks = 17;
   repeated ACL.ViewExecutor view_executors = 18;
   repeated ACL.AccessSandbox access_sandboxes = 19;
+  repeated ACL.AccessMesosLog access_mesos_logs = 20;
 }

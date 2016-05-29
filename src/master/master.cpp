@@ -1156,10 +1156,14 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
+  auto authorize = [this](const Option<string>& principal) {
+    return authorizeLogAccess(principal);
+  };
+
   // Expose the log file for the webui. Fall back to 'log_dir' if
   // an explicit file was not specified.
   if (flags.external_log_file.isSome()) {
-    files->attach(flags.external_log_file.get(), "/master/log")
+    files->attach(flags.external_log_file.get(), "/master/log", authorize)
       .onAny(defer(self(),
                    &Self::fileAttached,
                    lambda::_1,
@@ -1171,7 +1175,7 @@ void Master::initialize()
     if (log.isError()) {
       LOG(ERROR) << "Master log file cannot be found: " << log.error();
     } else {
-      files->attach(log.get(), "/master/log")
+      files->attach(log.get(), "/master/log", authorize)
         .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
     }
   }
@@ -1403,6 +1407,23 @@ void Master::_exited(Framework* framework)
         &Master::frameworkFailoverTimeout,
         framework->id(),
         framework->reregisteredTime);
+}
+
+
+Future<bool> Master::authorizeLogAccess(const Option<std::string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::ACCESS_MESOS_LOG);
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  return authorizer.get()->authorized(request);
 }
 
 

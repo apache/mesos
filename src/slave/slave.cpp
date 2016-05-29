@@ -776,10 +776,14 @@ void Slave::initialize()
           return http.containers(request, principal);
         });
 
+  auto authorize = [this](const Option<string>& principal) {
+    return authorizeLogAccess(principal);
+  };
+
   // Expose the log file for the webui. Fall back to 'log_dir' if
   // an explicit file was not specified.
   if (flags.external_log_file.isSome()) {
-    files->attach(flags.external_log_file.get(), "/slave/log")
+    files->attach(flags.external_log_file.get(), "/slave/log", authorize)
       .onAny(defer(self(),
                    &Self::fileAttached,
                    lambda::_1,
@@ -791,7 +795,7 @@ void Slave::initialize()
     if (log.isError()) {
       LOG(ERROR) << "Agent log file cannot be found: " << log.error();
     } else {
-      files->attach(log.get(), "/slave/log")
+      files->attach(log.get(), "/slave/log", authorize)
         .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
     }
   }
@@ -5383,6 +5387,23 @@ double Slave::_executors_terminating()
 double Slave::_executor_directory_max_allowed_age_secs()
 {
   return executorDirectoryMaxAllowedAge.secs();
+}
+
+
+Future<bool> Slave::authorizeLogAccess(const Option<std::string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::ACCESS_MESOS_LOG);
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  return authorizer.get()->authorized(request);
 }
 
 

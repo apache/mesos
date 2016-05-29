@@ -917,6 +917,9 @@ private:
     return leader.isSome() && leader.get() == info_;
   }
 
+  process::Future<bool> authorizeLogAccess(
+      const Option<std::string>& principal);
+
   /**
    * Returns whether the given role is on the whitelist.
    *

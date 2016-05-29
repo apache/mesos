@@ -419,6 +419,9 @@ private:
   // exited.
   void _shutdownExecutor(Framework* framework, Executor* executor);
 
+  process::Future<bool> authorizeLogAccess(
+      const Option<std::string>& principal);
+
   Future<bool> authorizeSandboxAccess(
       const Option<std::string>& principal,
       const FrameworkID& frameworkId,
