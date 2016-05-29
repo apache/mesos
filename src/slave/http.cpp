@@ -288,7 +288,8 @@ Future<Response> Slave::Http::api(
       return NotImplemented();
 
     case v1::agent::Call::GET_HEALTH:
-      return NotImplemented();
+      return getHealth(call, principal)
+        .then(serializer);
 
     case v1::agent::Call::GET_FLAGS:
       return getFlags(call, principal)
@@ -558,6 +559,20 @@ string Slave::Http::HEALTH_HELP()
 Future<Response> Slave::Http::health(const Request& request) const
 {
   return OK();
+}
+
+
+Future<v1::agent::Response> Slave::Http::getHealth(
+    const v1::agent::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::agent::Call::GET_HEALTH, call.type());
+
+  v1::agent::Response response;
+  response.set_type(v1::agent::Response::GET_HEALTH);
+  response.mutable_get_health()->set_healthy(true);
+
+  return response;
 }
 
 

@@ -200,6 +200,32 @@ TEST_P(AgentAPITest, GetFlags)
   ASSERT_EQ(v1::agent::Response::GET_FLAGS, v1Response.get().type());
 }
 
+
+TEST_P(AgentAPITest, GetHealth)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Wait until the agent has finished recovery.
+  AWAIT_READY(__recover);
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_HEALTH);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_HEALTH, v1Response.get().type());
+  ASSERT_TRUE(v1Response.get().get_health().healthy());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

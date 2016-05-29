@@ -507,7 +507,12 @@ private:
         const std::string& method) const;
 
     // v1 agent API handlers.
+
     process::Future<v1::agent::Response> getFlags(
+        const v1::agent::Call& call,
+        const Option<std::string>& principal) const;
+
+    process::Future<v1::agent::Response> getHealth(
         const v1::agent::Call& call,
         const Option<std::string>& principal) const;
 
