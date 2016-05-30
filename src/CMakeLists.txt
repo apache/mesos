@@ -39,8 +39,13 @@ PROTOC_TO_INCLUDE_DIR(QUOTA            mesos/quota/quota)
 PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(STATE            mesos/state/state)
 PROTOC_TO_INCLUDE_DIR(URI              mesos/uri/uri)
+PROTOC_TO_INCLUDE_DIR(V1_AGENT         mesos/v1/agent)
+PROTOC_TO_INCLUDE_DIR(V1_ALLOCATOR     mesos/v1/master/allocator)
 PROTOC_TO_INCLUDE_DIR(V1_EXECUTOR      mesos/v1/executor/executor)
+PROTOC_TO_INCLUDE_DIR(V1_MAINTENANCE   mesos/v1/maintenance/maintenance)
+PROTOC_TO_INCLUDE_DIR(V1_MASTER        mesos/v1/master)
 PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
+PROTOC_TO_INCLUDE_DIR(V1_QUOTA         mesos/v1/quota/quota)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
 
 PROTOC_TO_SRC_DIR(REGISTRY                      master/registry)
@@ -81,8 +86,13 @@ set(MESOS_PROTOBUF_SRC
   ${SCHEDULER_PROTO_CC}
   ${STATE_PROTO_CC}
   ${URI_PROTO_CC}
+  ${V1_AGENT_PROTO_CC}
+  ${V1_ALLOCATOR_PROTO_CC}
   ${V1_EXECUTOR_PROTO_CC}
+  ${V1_MAINTENANCE_PROTO_CC}
+  ${V1_MASTER_PROTO_CC}
   ${V1_MESOS_PROTO_CC}
+  ${V1_QUOTA_PROTO_CC}
   ${V1_SCHEDULER_PROTO_CC}
   )
 
