@@ -175,7 +175,10 @@ TEST_P(MasterAPITest, GetLoggingLevel)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::master::Response::GET_LOGGING_LEVEL, v1Response.get().type());
-  ASSERT_EQ(v1Response.get().get_logging_level().level(), FLAGS_v);
+  ASSERT_LE(0, FLAGS_v);
+  ASSERT_EQ(
+      v1Response.get().get_logging_level().level(),
+      static_cast<uint32_t>(FLAGS_v));
 }
 
 
@@ -319,7 +322,10 @@ TEST_P(AgentAPITest, GetLoggingLevel)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::agent::Response::GET_LOGGING_LEVEL, v1Response.get().type());
-  ASSERT_EQ(v1Response.get().get_logging_level().level(), FLAGS_v);
+  ASSERT_LE(0, FLAGS_v);
+  ASSERT_EQ(
+      v1Response.get().get_logging_level().level(),
+      static_cast<uint32_t>(FLAGS_v));
 }
 
 } // namespace tests {
