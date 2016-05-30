@@ -67,7 +67,9 @@ public:
       } else if (unit == "weeks") {
         return Duration(value.get(), WEEKS);
       } else {
-        return Error("Unknown duration unit '" + unit + "'");
+        return Error(
+            "Unknown duration unit '" + unit + "'; supported units are"
+            " 'ns', 'us', 'ms', 'secs', 'mins', 'hrs', 'days', and 'weeks'");
       }
     }
     return Error("Invalid duration '" + s + "'");
