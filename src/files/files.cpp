@@ -128,7 +128,7 @@ private:
 
   Future<Response> _read(
       off_t offset,
-      ssize_t length,
+      Option<size_t> length,
       const string& path,
       const Option<string>& jsonp);
 
@@ -434,7 +434,7 @@ Future<Response> FilesProcess::read(
     offset = result.get();
   }
 
-  ssize_t length = -1;
+  Option<size_t> length;
 
   if (request.url.query.get("length").isSome()) {
     Try<ssize_t> result = numify<ssize_t>(
@@ -444,7 +444,19 @@ Future<Response> FilesProcess::read(
       return BadRequest("Failed to parse length: " + result.error() + ".\n");
     }
 
-    length = result.get();
+    // TODO(tomxing): The pailer in the webui sends `length=-1` at first to
+    // determine the length of the file, so we allow a length of -1.
+    // Setting `length=-1` has the same effect as not providing a length: we
+    // read to the end of the file, up to the maximum read length.
+    // Will change this logic in MESOS-5334.
+    if (result.get() < -1) {
+      return BadRequest(
+        strings::format("Negative length provided: %d.\n", result.get()).get());
+    }
+
+    if (result.get() > -1){
+      length = result.get();
+    }
   }
 
   string requestedPath = path.get();
@@ -464,7 +476,7 @@ Future<Response> FilesProcess::read(
 
 Future<Response> FilesProcess::_read(
     off_t offset,
-    ssize_t length,
+    Option<size_t> length,
     const string& path,
     const Option<string>& jsonp)
 {
@@ -511,12 +523,12 @@ Future<Response> FilesProcess::_read(
     offset = size;
   }
 
-  if (length == -1) {
+  if (length.isNone()) {
     length = size - offset;
   }
 
   // Cap the read length at 16 pages.
-  length = std::min<ssize_t>(length, os::pagesize() * 16);
+  length = std::min<size_t>(length.get(), os::pagesize() * 16);
 
   if (offset >= size) {
     os::close(fd.get());
@@ -549,9 +561,9 @@ Future<Response> FilesProcess::_read(
   }
 
   // Read 'length' bytes (or to EOF).
-  boost::shared_array<char> data(new char[length]);
+  boost::shared_array<char> data(new char[length.get()]);
 
-  return io::read(fd.get(), data.get(), static_cast<size_t>(length))
+  return io::read(fd.get(), data.get(), length.get())
     .then(lambda::bind(
         __read,
         fd.get(),

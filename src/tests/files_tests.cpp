@@ -197,6 +197,37 @@ TEST_F(FilesTest, ReadTest)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
+  // TODO(tomxing): The pailer in the webui will send length=-1 at first to
+  // determine the length of the file, so we need to accept a length of -1.
+  // Setting `length=-1` has the same effect as not providing a length: we
+  // read to the end of the file, up to the maximum read length.
+  // Will change or remove this test case in MESOS-5334.
+  // Read a valid file with length set as -1.
+  response = process::http::get(
+    upid,
+    "read",
+    "path=/myname&length=-1&offset=0");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  // Read a valid file with negative length(not -1).
+  response = process::http::get(upid, "read", "path=/myname&length=-2");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(
+    "Negative length provided: -2.\n",
+    response);
+
+  // Read a valid file with positive length.
+  expected.values["offset"] = 0;
+  expected.values["data"] = "bo";
+
+  response = process::http::get(upid, "read", "path=/myname&offset=0&length=2");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
   // Missing file.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       NotFound().status,
