@@ -74,6 +74,7 @@ public:
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;
   Option<Modules> modules;
+  Option<std::string> modulesDir;
   std::string authenticators;
   std::string allocator;
   Option<std::string> hooks;

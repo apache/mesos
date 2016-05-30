@@ -47,7 +47,7 @@ public:
         DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
     // This help message for --modules flag is the same for
-    // {master,slave,tests,sched}/flags.hpp and should always be kept
+    // {master,slave,sched,tests}/flags.[ch]pp and should always be kept in
     // in sync.
     // TODO(karya): Remove the JSON example and add reference to the
     // doc file explaining the --modules flag.
@@ -93,6 +93,16 @@ public:
         "  ]\n"
         "}");
 
+    // This help message for --modules_dir flag is the same for
+    // {master,slave,sched,tests}/flags.[ch]pp and should always be kept in
+    // sync.
+    add(&Flags::modulesDir,
+        "modules_dir",
+        "Directory path of the module manifest files.\n"
+        "The manifest files are processed in alphabetical order.\n"
+        "(See --modules for more information on module manifest files)\n"
+        "Cannot be used in conjunction with --modules.\n");
+
     add(&Flags::authenticatee,
         "authenticatee",
         "Authenticatee implementation to use when authenticating against the\n"
@@ -103,6 +113,7 @@ public:
 
   Duration registration_backoff_factor;
   Option<Modules> modules;
+  Option<std::string> modulesDir;
   std::string authenticatee;
 };
 

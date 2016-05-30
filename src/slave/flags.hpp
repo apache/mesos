@@ -136,6 +136,7 @@ public:
   Duration container_disk_watch_interval;
   bool enforce_container_disk_quota;
   Option<Modules> modules;
+  Option<std::string> modulesDir;
   std::string authenticatee;
   std::string authorizer;
   std::string http_authenticators;
