@@ -16,12 +16,16 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/module/hook.hpp>
 #include <mesos/module/isolator.hpp>
 #include <mesos/module/module.hpp>
 
 #include <mesos/slave/isolator.hpp>
 
 #include <stout/dynamiclibrary.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
 
 #include "common/parse.hpp"
 #include "examples/test_module.hpp"
@@ -190,6 +194,40 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
   EXPECT_EQ(1089, module.get()->foo('A', 1024));
   EXPECT_EQ(5, module.get()->bar(0.5, 10.8));
   EXPECT_EQ(-1, module.get()->baz(5, 10));
+}
+
+
+// Test that we can load module manifests from modules-dir.
+TEST_F(ModuleTest, ModulesDirTest)
+{
+  string modulesDir = path::join(os::getcwd(), "modules_dir");
+  ASSERT_SOME(os::mkdir(modulesDir));
+
+  // Create a JSON file for the example module.
+  EXPECT_SOME(os::write(
+      path::join(modulesDir, "default_module.json"),
+      stringify(JSON::protobuf(defaultModules))));
+
+  // Let's also create another JSON file for the example module.
+  EXPECT_SOME(os::write(
+      path::join(modulesDir, "dup_default_module.json"),
+      stringify(JSON::protobuf(defaultModules))));
+
+  // Create a JSON for the 'TestHook' module.
+  Modules extraModules = getModules("testhook", "org_apache_mesos_TestHook");
+
+  EXPECT_SOME(os::write(
+      path::join(modulesDir, "extra_module.json"),
+      stringify(JSON::protobuf(extraModules))));
+
+  // Now load modules using the modules directory.
+  EXPECT_SOME(ModuleManager::load(modulesDir));
+
+  EXPECT_TRUE(ModuleManager::contains<TestModule>(DEFAULT_MODULE_NAME));
+  EXPECT_TRUE(ModuleManager::contains<Hook>("org_apache_mesos_TestHook"));
+
+  // Perform cleanup.
+  EXPECT_SOME(os::rmdir(modulesDir));
 }
 
 
