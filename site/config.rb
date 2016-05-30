@@ -40,6 +40,7 @@ activate :blog do |blog|
   blog.permalink = ":title"
 end
 
+page "/index.html", :layout => "basic"
 page "/documentation/*", :layout => "documentation"
 proxy "/documentation/index.html", "/documentation/latest.html", :layout => "documentation"
 proxy "/gettingstarted/index.html", "/documentation/latest/getting-started.html", :layout => "documentation"
