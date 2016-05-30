@@ -29,18 +29,27 @@ scripting languages without forcing those dependencies into the project.
 Finally, modules provide an easy way for third parties to easily extend Mesos
 without having to know all the internal details.
 
+## Where can Mesos modules be used?
+Modules can be specified for master, agent and tests. Modules can also be used
+with schedulers that link against libmesos. Currently, modules can not be
+used with executors.
 
 ## <a name="Invoking"></a>Invoking Mesos modules
+There are two ways to specify a list of modules to be loaded and be available to
+the internal subsystems.
 
-The command-line flag `--modules` is available for Mesos master, agent, and
-tests to specify a list of modules to be loaded and be available to the internal
-subsystems.
-
-Use `--modules=filepath` to specify the list of modules via a
-file containing a JSON-formatted string. 'filepath' can be
-of the form 'file:///path/to/file' or '/path/to/file'.
+* `--modules=filepath` to specify the list of modules via a manifest file
+  containing a JSON-formatted string. 'filepath' can be of the form
+  'file:///path/to/file' or '/path/to/file'.
 
 Use `--modules="{...}"` to specify the list of modules inline.
+
+* `--modules_dir=dirpath`to specify a directory name that contains several
+  module manifest files. Each file must contain a valid JSON-formatted
+  string containing module description. The module manifest files are processed
+  in alphabetical order.
+
+NOTE: Only one of `--modules` or `--modules_dir` flag can be used at time.
 
 
 ### Example JSON strings:
