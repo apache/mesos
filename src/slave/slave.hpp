@@ -520,6 +520,10 @@ private:
         const v1::agent::Call& call,
         const Option<std::string>& principal) const;
 
+    process::Future<v1::agent::Response> getLoggingLevel(
+        const v1::agent::Call& call,
+        const Option<std::string>& principal) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.

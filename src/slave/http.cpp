@@ -305,7 +305,8 @@ Future<Response> Slave::Http::api(
       return NotImplemented();
 
     case v1::agent::Call::GET_LOGGING_LEVEL:
-      return NotImplemented();
+      return getLoggingLevel(call, principal)
+        .then(serializer);
 
     case v1::agent::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
@@ -586,6 +587,20 @@ Future<v1::agent::Response> Slave::Http::getVersion(
   CHECK_EQ(v1::agent::Call::GET_VERSION, call.type());
 
   return evolve<v1::agent::Response::GET_VERSION>(version());
+}
+
+
+Future<v1::agent::Response> Slave::Http::getLoggingLevel(
+    const v1::agent::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::agent::Call::GET_LOGGING_LEVEL, call.type());
+
+  v1::agent::Response response;
+  response.set_type(v1::agent::Response::GET_LOGGING_LEVEL);
+  response.mutable_get_logging_level()->set_level(FLAGS_v);
+
+  return response;
 }
 
 
