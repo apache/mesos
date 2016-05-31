@@ -682,6 +682,34 @@ TEST(FlagsTest, MissingRequiredFlag)
 }
 
 
+// This test confirms that loading flags when a required flag is missing will
+// result in an error.
+TEST(FlagsTest, MissingRequiredFlag)
+{
+  TestFlags flags;
+
+  // A required flag which must be set and has no default value.
+  string requiredFlag;
+  flags.add(
+      &requiredFlag,
+      "required_flag",
+      "This flag is required and has no default value.");
+
+  int argc = 2;
+  char* argv[argc];
+
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "--name1=name";
+
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
+  EXPECT_ERROR(load);
+
+  EXPECT_EQ(
+      "Flag 'required_flag' is required, but it was not provided",
+      load.error());
+}
+
+
 TEST(FlagsTest, Validate)
 {
   // To provide validation functions.
