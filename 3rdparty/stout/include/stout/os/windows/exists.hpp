@@ -59,24 +59,14 @@ inline bool exists(pid_t pid)
 {
   HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 
-  // NOTE: `GetExitCode` will gracefully deal with the case that `handle` is
-  // `NULL`.
-  DWORD exitCode = 0;
-  BOOL exitCodeExists = GetExitCodeProcess(handle, &exitCode);
+  bool has_handle = false;
 
-  // `CloseHandle`, on the other hand, will throw an exception in the
-  // VS debugger if you pass it a broken handle. (cf. "Return value"
-  // section of the documentation[1].)
-  //
-  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211(v=vs.85).aspx
   if (handle != NULL) {
+    has_handle = true;
     CloseHandle(handle);
   }
 
-  // NOTE: Windows quirk, the exit code returned by the process can
-  // be the same number as `STILL_ACTIVE`, in which case this
-  // function will mis-report that the process still exists.
-  return exitCodeExists && (exitCode == STILL_ACTIVE);
+  return has_handle;
 }
 
 
