@@ -446,6 +446,16 @@ inline Option<std::string> which(const std::string& command)
   return None();
 }
 
+
+// Create pipes for interprocess communication.
+inline Try<Nothing> pipe(int pipe_fd[2])
+{
+  if (::pipe(pipe_fd) == -1) {
+    return ErrnoError();
+  }
+  return Nothing();
+}
+
 } // namespace os {
 
 #endif // __STOUT_POSIX_OS_HPP__
