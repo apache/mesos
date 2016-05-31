@@ -55,8 +55,11 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::work_dir,
       "work_dir",
-      "Directory path to store the persistent information stored in the \n"
-      "Registry. (example: `/var/lib/mesos/master`)");
+      "Path of the master work directory. This is where the persistent\n"
+      "information of the cluster will be stored. Note that locations like\n"
+      "`/tmp` which are cleaned automatically are not suitable for the work\n"
+      "directory when running in production, since long-running masters could\n"
+      "lose data when cleanup occurs. (Example: `/var/lib/mesos/master`)");
 
   // TODO(bmahler): Consider removing `in_memory` as it was only
   // used before `replicated_log` was implemented.
