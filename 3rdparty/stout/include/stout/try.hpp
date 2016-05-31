@@ -52,13 +52,15 @@ public:
 
   Try(const E& error) : error_(error) {}
 
-  // TODO(bmahler): Add move constructor.
+  Try(T&& t)
+    : data(Some(std::move(t))) {}
 
   // We don't need to implement these because we are leveraging
   // Option<T>.
   Try(const Try& that) = default;
   ~Try() = default;
   Try& operator=(const Try& that) = default;
+  Try& operator=(Try&& that) = default;
 
   // 'isSome' and 'isError' are mutually exclusive. They correspond
   // to the underlying state of the Option.
