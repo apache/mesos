@@ -162,6 +162,15 @@ message ACL {
     required Entity quota_principals = 2;
   }
 
+  // Which principals are authorized to get weights for the given roles.
+  message GetWeight {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of roles whose weights can be seen.
+    optional Entity roles = 2;
+  }
+
   // Which principals are authorized to update weights for the given roles.
   message UpdateWeight {
     // Subjects: Operator username.
@@ -282,4 +291,5 @@ message ACLs {
   repeated ACL.ViewExecutor view_executors = 18;
   repeated ACL.AccessSandbox access_sandboxes = 19;
   repeated ACL.AccessMesosLog access_mesos_logs = 20;
+  repeated ACL.GetWeight get_weights = 21;
 }

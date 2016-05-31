@@ -236,7 +236,7 @@ Future<http::Response> Master::QuotaHandler::status(
         master->self(),
         [=](const list<bool>& authorizedRolesCollected)
             -> Future<http::Response> {
-          return _status(request, quotaInfos, authorizedRolesCollected);
+      return _status(request, quotaInfos, authorizedRolesCollected);
     }));
 }
 
@@ -345,12 +345,11 @@ Future<http::Response> Master::QuotaHandler::set(
     .then(defer(
         master->self(),
         [=](const list<bool>& authorizeResults) -> Future<http::Response> {
-          foreach (const bool& authorized, authorizeResults) {
-            if (!authorized) {
-              return Forbidden();
-            }
-          }
-
+      foreach (bool authorized, authorizeResults) {
+        if (!authorized) {
+          return Forbidden();
+        }
+      }
       return _set(quotaInfo, forced);
     }));
 }
@@ -464,12 +463,11 @@ Future<http::Response> Master::QuotaHandler::remove(
     .then(defer(
         master->self(),
         [=](const list<bool>& authorizeResults) -> Future<http::Response> {
-          foreach (const bool& authorized, authorizeResults) {
-            if (!authorized) {
-              return Forbidden();
-            }
-          }
-
+      foreach (bool authorized, authorizeResults) {
+        if (!authorized) {
+          return Forbidden();
+        }
+      }
       return _remove(role);
     }));
 }

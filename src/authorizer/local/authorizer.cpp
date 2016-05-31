@@ -203,7 +203,8 @@ public:
       case authorization::UPDATE_QUOTA_WITH_ROLE:
       case authorization::SET_QUOTA_WITH_ROLE:
       case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
-      case authorization::UPDATE_WEIGHTS_WITH_ROLE:
+      case authorization::GET_WEIGHT_WITH_ROLE:
+      case authorization::UPDATE_WEIGHT_WITH_ROLE:
       case authorization::GET_ENDPOINT_WITH_PATH: {
         // Construct object.
         if (object.value != NULL) {
@@ -588,7 +589,18 @@ private:
 
         return acls_;
         break;
-      case authorization::UPDATE_WEIGHTS_WITH_ROLE:
+      case authorization::GET_WEIGHT_WITH_ROLE:
+        foreach (const ACL::GetWeight& acl, acls.get_weights()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.roles();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
+      case authorization::UPDATE_WEIGHT_WITH_ROLE:
         foreach (const ACL::UpdateWeight& acl, acls.update_weights()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();

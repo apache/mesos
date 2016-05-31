@@ -84,6 +84,7 @@ protected:
 
   void checkWithGetRequest(
       const PID<Master>& master,
+      const Credential& credential,
       const Option<string>& _weights = None())
   {
     Future<Response> response = process::http::request(
@@ -92,7 +93,7 @@ protected:
             "GET",
             false,
             "weights",
-            createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
+            createBasicAuthHeaders(credential)));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response.get().body;
@@ -113,6 +114,12 @@ protected:
 
     if (_weights.isNone()) {
       EXPECT_EQ(0u, weights.size());
+    } else if (_weights == GET_WEIGHTS1) {
+      EXPECT_EQ(1u, weights.size());
+      EXPECT_EQ(2.0, weights["role1"]);
+    } else if (_weights == GET_WEIGHTS2) {
+      EXPECT_EQ(1u, weights.size());
+      EXPECT_EQ(4.0, weights["role2"]);
     } else if (_weights == UPDATED_WEIGHTS1) {
       EXPECT_EQ(2u, weights.size());
       EXPECT_EQ(2.0, weights["role1"]);
@@ -130,6 +137,8 @@ protected:
 protected:
   const string ROLE1 = "role1";
   const string ROLE2 = "role2";
+  const string GET_WEIGHTS1 = "role1=2.0";
+  const string GET_WEIGHTS2 = "role2=4.0";
   const string UPDATED_WEIGHTS1 = "role1=2.0,role2=4.0";
   const string UPDATED_WEIGHTS2 = "role1=1.0,role3=2.5";
 };
@@ -161,7 +170,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Tests whether an update weights request with an invalid field fails.
   // In this case, the correct field name should be 'role'.
@@ -183,7 +192,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -208,7 +217,7 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -233,7 +242,7 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -258,7 +267,7 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -282,7 +291,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1)
     << response1.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Send an empty role (only a space) update request.
   RepeatedPtrField<WeightInfo> infos = createWeightInfos(" =2.0");
@@ -298,7 +307,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2)
     << response2.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -327,7 +336,7 @@ TEST_F(DynamicWeightsTest, UnknownRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -342,7 +351,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS1.
   RepeatedPtrField<WeightInfo> infos = createWeightInfos(UPDATED_WEIGHTS1);
@@ -358,7 +367,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
 
 
@@ -389,7 +398,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
     << response1.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
   // The absence of credentials leads to authentication failure as well.
   infos = createWeightInfos(UPDATED_WEIGHTS1);
@@ -405,7 +414,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
     << response2.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -436,8 +445,8 @@ TEST_F(DynamicWeightsTest, UnauthenticatedQueryWeightRequest)
 }
 
 
-// Checks that an authorized principal can update weight with implicit roles.
-TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
+// Checks that an authorized principal can get weights.
+TEST_F(DynamicWeightsTest, AuthorizedGetWeightsRequest)
 {
   // Setup ACLs so that the default principal (DEFAULT_CREDENTIAL.principal())
   // can update weight for `ROLE1` and `ROLE2`.
@@ -447,6 +456,16 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   acl->mutable_roles()->add_values(ROLE1);
   acl->mutable_roles()->add_values(ROLE2);
+
+  // Setup ACLs so that default principal can only see ROLE1's weights and
+  // default principal 2 can only see ROLE2's weights.
+  mesos::ACL::GetWeight* getACL1 = acls.add_get_weights();
+  getACL1->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  getACL1->mutable_roles()->add_values(ROLE1);
+
+  mesos::ACL::GetWeight* getACL2 = acls.add_get_weights();
+  getACL2->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+  getACL2->mutable_roles()->add_values(ROLE2);
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
@@ -468,7 +487,51 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, GET_WEIGHTS1);
+
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL_2, GET_WEIGHTS2);
+}
+
+
+// Checks that an authorized principal can update weight with implicit roles.
+TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
+{
+  // Setup ACLs so that the default principal (DEFAULT_CREDENTIAL.principal())
+  // can update weight for `ROLE1` and `ROLE2`.
+  ACLs acls;
+  acls.set_permissive(false); // Restrictive.
+  mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_roles()->add_values(ROLE1);
+  acl->mutable_roles()->add_values(ROLE2);
+
+  // Ensure the get weights check pass under restrictive mode.
+  mesos::ACL::GetWeight* getAcl = acls.add_get_weights();
+  getAcl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  getAcl->mutable_roles()->add_values(ROLE1);
+  getAcl->mutable_roles()->add_values(ROLE2);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Send a weight update request for the specified roles in UPDATED_WEIGHTS1.
+  RepeatedPtrField<WeightInfo> infos = createWeightInfos(UPDATED_WEIGHTS1);
+  Future<Response> response = process::http::request(
+      process::http::createRequest(
+          master.get()->pid,
+          "PUT",
+          false,
+          "weights",
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+          strings::format("%s", JSON::protobuf(infos)).get()));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
 
 
@@ -485,6 +548,11 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl->mutable_roles()->add_values(ROLE1);
   acl->mutable_roles()->add_values(ROLE2);
+
+  // Ensure the get weights pass under restrictive mode.
+  mesos::ACL::GetWeight* getAcl = acls.add_get_weights();
+  getAcl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  getAcl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // Disable authentication and set acls.
   master::Flags masterFlags = CreateMasterFlags();
@@ -508,7 +576,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
 
 
@@ -540,7 +608,7 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
     << response.get().body;
 
-  checkWithGetRequest(master.get()->pid);
+  checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
 
 
@@ -556,7 +624,10 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
   // Tests whether the weights replicated log is initialized with the
   // `--weights` flag when bootstrapping the cluster.
   {
-    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
+    checkWithGetRequest(
+        master.get()->pid,
+        DEFAULT_CREDENTIAL,
+        UPDATED_WEIGHTS1);
 
     // Stop the master
     master->reset();
@@ -566,7 +637,10 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS1);
+    checkWithGetRequest(
+        master.get()->pid,
+        DEFAULT_CREDENTIAL,
+        UPDATED_WEIGHTS1);
   }
 
   // Tests whether the weights replicated log can be updated with
@@ -586,7 +660,10 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response.get().body;
 
-    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(
+        master.get()->pid,
+        DEFAULT_CREDENTIAL,
+        UPDATED_WEIGHTS2);
 
     // Stop the master
     master->reset();
@@ -596,7 +673,10 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(
+        master.get()->pid,
+        DEFAULT_CREDENTIAL,
+        UPDATED_WEIGHTS2);
   }
 
   // Tests whether the `--weights` flag is ignored and use the registry value
@@ -611,7 +691,10 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
     master = StartMaster(masterFlags);
     ASSERT_SOME(master);
 
-    checkWithGetRequest(master.get()->pid, UPDATED_WEIGHTS2);
+    checkWithGetRequest(
+        master.get()->pid,
+        DEFAULT_CREDENTIAL,
+        UPDATED_WEIGHTS2);
   }
 }
 

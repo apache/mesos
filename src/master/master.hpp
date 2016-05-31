@@ -1052,16 +1052,26 @@ private:
     }
 
     process::Future<process::http::Response> get(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> update(
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
   private:
-    process::Future<bool> authorize(
+    process::Future<bool> authorizeGetWeight(
+        const Option<std::string>& principal,
+        const std::string& role) const;
+
+    process::Future<bool> authorizeUpdateWeights(
         const Option<std::string>& principal,
         const std::vector<std::string>& roles) const;
+
+    process::Future<process::http::Response> _get(
+        const process::http::Request& request,
+        const std::vector<WeightInfo>& weightInfos,
+        const std::list<bool>& authorized) const;
 
     process::Future<process::http::Response> _update(
         const std::vector<WeightInfo>& updateWeightInfos) const;

@@ -24,3 +24,9 @@ and updates the weights for the specified roles.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+Getting weight information for a certain role requires that the
+current principal is authorized to get weights for the target role,
+otherwise the entry for the target role could be silently filtered.
+See the authorization documentation for details.

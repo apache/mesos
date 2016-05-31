@@ -1683,7 +1683,12 @@ string Master::Http::WEIGHTS_HELP()
         "found.",
         "PUT: Validates the request body as JSON",
         "and updates the weights for the specified roles."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Getting weight information for a certain role requires that the",
+        "current principal is authorized to get weights for the target role,",
+        "otherwise the entry for the target role could be silently filtered.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -1699,7 +1704,7 @@ Future<Response> Master::Http::weights(
   // TODO(Yongqiao Wang): `/roles` endpoint also shows the weights information,
   // consider erasing the duplicated information later.
   if (request.method == "GET") {
-    return weightsHandler.get(request);
+    return weightsHandler.get(request, principal);
   }
 
   // Dispatch based on HTTP method to separate `WeightsHandler`.

@@ -66,7 +66,7 @@ enum Action {
   SET_QUOTA_WITH_ROLE = 8;  // [deprecated = true];
   DESTROY_QUOTA_WITH_PRINCIPAL = 9;  // [deprecated = true];
 
-  UPDATE_WEIGHTS_WITH_ROLE = 10;
+  UPDATE_WEIGHT_WITH_ROLE = 10;
   GET_ENDPOINT_WITH_PATH = 11;
   GET_QUOTA_WITH_ROLE = 12;
   UPDATE_QUOTA_WITH_ROLE = 13;
@@ -89,6 +89,8 @@ enum Action {
   // This action will not fill in any object fields, since the object
   // is the master/agent log itself.
   ACCESS_MESOS_LOG = 18;
+
+  GET_WEIGHT_WITH_ROLE = 19;
 }
 
 
