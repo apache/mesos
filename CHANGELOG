@@ -42,6 +42,12 @@ This release contains the following new features:
     has been added to isolate disk resources more efficiently. Please refer to
     docs/mesos-containerizer.md for more details.
 
+  * [MESOS-4355] - **Experimental** support for Docker volume plugin. We added a
+    new isolator 'docker/volume' which allows users to use external volumes in
+    Mesos containerizer. Currently, the isolator interacts with the Docker
+    volume plugins using a tool called 'dvdcli'. By speaking the Docker volume
+    plugin API, most of the Docker volume plugins are supported.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
