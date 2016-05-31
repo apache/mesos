@@ -133,7 +133,18 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  Try<Nothing> close = os::close(flags.pipe_write.get());
+  int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
+
+// NOTE: On windows we need to pass `HANDLE`s between processes, as
+// file descriptors are not unique across processes. Here we convert
+// back from from the `HANDLE`s we receive to fds that can be used in
+// os-agnostic code.
+#ifdef __WINDOWS__
+  pipe[0] = os::handle_to_fd(pipe[0], _O_RDONLY | _O_TEXT);
+  pipe[1] = os::handle_to_fd(pipe[1], _O_TEXT);
+#endif // __WINDOWS__
+
+  Try<Nothing> close = os::close(pipe[1]);
   if (close.isError()) {
     cerr << "Failed to close pipe[1]: " << close.error() << endl;
     return 1;
@@ -142,8 +153,8 @@ int MesosContainerizerLaunch::execute()
   // Do a blocking read on the pipe until the parent signals us to continue.
   char dummy;
   ssize_t length;
-  while ((length = ::read(
-              flags.pipe_read.get(),
+  while ((length = os::read(
+              pipe[0],
               &dummy,
               sizeof(dummy))) == -1 &&
           errno == EINTR);
@@ -155,7 +166,7 @@ int MesosContainerizerLaunch::execute()
      return 1;
   }
 
-  close = os::close(flags.pipe_read.get());
+  close = os::close(pipe[0]);
   if (close.isError()) {
     cerr << "Failed to close pipe[0]: " << close.error() << endl;
     return 1;
