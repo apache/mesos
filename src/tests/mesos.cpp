@@ -670,11 +670,25 @@ MockDockerContainerizerProcess::~MockDockerContainerizerProcess() {}
 
 MockAuthorizer::MockAuthorizer()
 {
+  // Implementation of the ObjectApprover interface authorizing all objects.
+  class ObjectApproverAll : public ObjectApprover
+  {
+  public:
+    virtual Try<bool> approved(
+        const ObjectApprover::Object& object) const noexcept override
+    {
+      return true;
+    }
+  };
+
   // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
   // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
   // for more details.
   EXPECT_CALL(*this, authorized(_))
     .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, getObjectApprover(_, _))
+    .WillRepeatedly(Return(Owned<ObjectApprover>(new ObjectApproverAll())));
 }
 
 

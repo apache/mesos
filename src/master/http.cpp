@@ -161,6 +161,94 @@ struct Full : Representation<T>
 };
 
 
+static bool approveViewFrameworkInfo(
+    const Owned<ObjectApprover>& frameworksApprover,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = frameworksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during FrameworkInfo authorization: "
+                 << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+static bool approveViewTaskInfo(
+    const Owned<ObjectApprover>& tasksApprover,
+    const TaskInfo& taskInfo,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.task_info = &taskInfo;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = tasksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during TaskInfo authorization: " << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+static bool approveViewTask(
+    const Owned<ObjectApprover>& tasksApprover,
+    const Task& task,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.task = &task;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = tasksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during Task authorization: " << approved.error();
+     // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+static bool approveViewExecutorInfo(
+    const Owned<ObjectApprover>& executorsApprover,
+    const ExecutorInfo& executorInfo,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.executor_info = &executorInfo;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = executorsApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during ExecutorInfo authorization: "
+             << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+// Implementation of the ObjectApprover interface authorizing all objects.
+class ObjectApproverAll : public ObjectApprover
+{
+public:
+  virtual Try<bool> approved(
+      const ObjectApprover::Object& object) const noexcept override
+  {
+    return true;
+  }
+};
+
+
 static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
 {
   const Slave& slave = summary;

@@ -65,6 +65,10 @@ public:
   virtual process::Future<bool> authorized(
       const authorization::Request& request);
 
+  virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
+      const authorization::Subject& subject,
+      const authorization::Action& action);
+
 private:
   LocalAuthorizer(const ACLs& acls);
 

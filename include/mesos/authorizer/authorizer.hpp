@@ -33,6 +33,52 @@ namespace mesos {
 class ACLs;
 
 /**
+ * This interface represents a function object returned by the
+ * authorizer which can be used locally (and synchronously) to
+ * check whether a specific object is authorized.
+ */
+class ObjectApprover
+{
+public:
+  // This object has a 1:1 relationship with `authorization::Object`.
+  // We need to ensure that the fields in this object are in sync
+  // with the fields in `authorization::Object`.
+  struct Object
+  {
+    Object()
+      : value(NULL),
+        framework_info(NULL),
+        task(NULL),
+        task_info(NULL),
+        executor_info(NULL) {}
+
+    Object(const authorization::Object& object)
+      : value(object.has_value() ? &object.value() : NULL),
+        framework_info(
+            object.has_framework_info() ? &object.framework_info() : NULL),
+        task(object.has_task() ? &object.task() : NULL),
+        task_info(object.has_task_info() ? &object.task_info() : NULL),
+        executor_info(
+            object.has_executor_info() ? &object.executor_info() : NULL) {}
+
+    const std::string* value;
+    const FrameworkInfo* framework_info;
+    const Task* task;
+    const TaskInfo* task_info;
+    const ExecutorInfo* executor_info;
+  };
+
+  /**
+   * NOTE: As this function can be used synchronously by actors
+   * it is essential that it does not block!
+   */
+  virtual Try<bool> approved(const Object& object) const noexcept = 0;
+
+  virtual ~ObjectApprover() = default;
+};
+
+
+/**
  * This interface is used to enable an identity service or any other
  * back end to check authorization policies for a set of predefined
  * actions.
@@ -93,6 +139,22 @@ public:
    */
   virtual process::Future<bool> authorized(
       const authorization::Request& request) = 0;
+
+  /**
+   * Creates an `ObjectApprover` which can synchronously check authorization on
+   * an object.
+   *
+   * @param subject `authorization::Subject` subject for which the
+   *     `ObjectApprover` should be created.
+   *
+   * @param action `authorization::Action` action for which the
+   *     `ObjectApprover` should be created.
+   *
+   * @return An `ObjectApprover` for the given `subject` and `action`.
+   */
+  virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
+      const authorization::Subject& subject,
+      const authorization::Action& action) = 0;
 
 protected:
   Authorizer() {}
