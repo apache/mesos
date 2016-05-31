@@ -90,6 +90,7 @@ struct Flag
   lambda::function<Try<Nothing>(FlagsBase*, const std::string&)> load;
   lambda::function<Option<std::string>(const FlagsBase&)> stringify;
   lambda::function<Option<Error>(const FlagsBase&)> validate;
+  bool required;
 
   // This is the name of the flag that the user loads. If the loading is
   // implicit this defaults to the `name`.
