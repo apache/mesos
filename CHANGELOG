@@ -1,6 +1,13 @@
-Release Notes - Mesos - Version 0.29.0 (WIP)
+Release Notes - Mesos - Version 1.0.0
 --------------------------------------------
 This release contains the following new features:
+
+  * Scheduler and Executor v1 HTTP APIs are now considered stable.
+
+  * [MESOS-4791] - *Experiemental* support for v1 Master and Agent APIs. These
+    APIs let operators and services (monitoring, load balancers) send HTTP
+    requests to "/api/v1" endpoint on master or agent. These APIs look similar
+    to the v1 Scheduler and Executor APIs.
 
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
     because machine failures or forcible terminations may occur. Currently, the
