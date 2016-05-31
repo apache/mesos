@@ -379,8 +379,11 @@ masters i.e., <code>quorum > (number of masters)/2</code>.
     --work_dir=VALUE
   </td>
   <td>
-Directory path to store the persistent information stored in the
-Registry. (example: <code>/var/lib/mesos/master</code>)
+Path of the master work directory. This is where the persistent
+information of the cluster will be stored. Note that locations like
+<code>/tmp</code> which are cleaned automatically are not suitable for the work
+directory when running in production, since long-running masters could
+lose data when cleanup occurs. (Example: <code>/var/lib/mesos/master</code>)
   </td>
 </tr>
 <tr>
@@ -865,6 +868,19 @@ May be one of:
   <code>zk://host1:port1,host2:port2,.../path</code>
   <code>zk://username:password@host1:port1,host2:port2,.../path</code>
   <code>file:///path/to/file</code> (where file contains one of the above)
+  </td>
+</tr>
+<tr>
+  <td>
+    --work_dir=VALUE
+  </td>
+  <td>
+Path of the agent work directory. This is where executor sandboxes
+will be placed, as well as the agent's checkpointed state in case of
+failover. Note that locations like <code>/tmp</code> which are cleaned
+automatically are not suitable for the work directory when running in
+production, since long-running agents could lose data when cleanup
+occurs. (Example: <code>/var/lib/mesos/agent</code>)
   </td>
 </tr>
 </table>
@@ -1702,15 +1718,6 @@ the agent is launched as a systemd unit.
   <td>
 The path to the systemd system run time directory.
 (default: /run/systemd/system)
-  </td>
-</tr>
-<tr>
-  <td>
-    --work_dir=VALUE
-  </td>
-  <td>
-Directory path to place framework work directories
-(default: /tmp/mesos)
   </td>
 </tr>
 </table>
