@@ -848,8 +848,7 @@ Future<Response> Slave::Http::statistics(
             }));
         }))
     .repair([](const Future<Response>& future) {
-      LOG(WARNING) << "Could not collect statistics: "
-                   << (future.isFailed() ? future.failure() : "discarded");
+      LOG(WARNING) << "Could not collect statistics: " << future.failure();
 
       return InternalServerError();
     });
@@ -1036,9 +1035,9 @@ Future<Response> Slave::Http::_containers(const Request& request) const
       })
       .repair([](const Future<Response>& future) {
         LOG(WARNING) << "Could not collect container status and statistics: "
-                     << (future.isFailed() ? future.failure() : "discarded");
+                     << future.failure();
 
-        return process::http::InternalServerError();
+        return InternalServerError();
       });
 }
 
