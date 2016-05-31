@@ -29,7 +29,6 @@ namespace Shell {
   // `name` is the command name, `arg0` is the first argument received
   // by the callee, usually the command name and `arg1` is the second
   // command argument received by the callee.
-
   constexpr const char* name = "cmd.exe";
   constexpr const char* arg0 = "cmd";
   constexpr const char* arg1 = "/c";
@@ -94,6 +93,7 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   return stdoutstr.str();
 }
 
+
 // Executes a command by calling "cmd /c <command>", and returns
 // after the command has been completed. Returns 0 if succeeds, and
 // return -1 on error
@@ -103,10 +103,31 @@ inline int system(const std::string& command)
       _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str(), NULL);
 }
 
+
 template<typename... T>
 inline int execlp(const char* file, T... t)
 {
   exit(::_spawnlp(_P_WAIT, file, t...));
+}
+
+
+// Concatenates multiple command-line arguments and escapes the values.
+// If `arg` is not specified (or takes the value `0`), the function will
+// scan `argv` until a `NULL` is encountered.
+inline std::string stringify_args(char** argv, unsigned long argc = 0)
+{
+  std::string arg_line = "";
+  unsigned long index = 0;
+  while ((argc == 0 || index < argc) && argv[index] != NULL) {
+    // TODO(dpravat): (MESOS-5522) Format these args for all cases.
+    // Specifically, we need to:
+    //   (1) Add double quotes around arguments that contain special
+    //       characters, like spaces and tabs.
+    //   (2) Escape any existing double quotes and backslashes.
+    arg_line = strings::join(" ", arg_line, argv[index++]);
+  }
+
+  return arg_line;
 }
 
 } // namespace os {
