@@ -2593,65 +2593,126 @@ struct TaskComparator
 
 Future<Response> Master::Http::tasks(
     const Request& request,
-    const Option<string>& /*principal*/) const
+    const Option<string>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
     return redirect(request);
   }
 
-  // Get list options (limit and offset).
-  Result<int> result = numify<int>(request.url.query.get("limit"));
-  size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
-
-  result = numify<int>(request.url.query.get("offset"));
-  size_t offset = result.isSome() ? result.get() : 0;
-
-  // TODO(nnielsen): Currently, formatting errors in offset and/or limit
-  // will silently be ignored. This could be reported to the user instead.
-
-  // Construct framework list with both active and completed frameworks.
-  vector<const Framework*> frameworks;
-  foreachvalue (Framework* framework, master->frameworks.registered) {
-    frameworks.push_back(framework);
-  }
-  foreach (const std::shared_ptr<Framework>& framework,
-           master->frameworks.completed) {
-    frameworks.push_back(framework.get());
-  }
-
-  // Construct task list with both running and finished tasks.
-  vector<const Task*> tasks;
-  foreach (const Framework* framework, frameworks) {
-    foreachvalue (Task* task, framework->tasks) {
-      CHECK_NOTNULL(task);
-      tasks.push_back(task);
+  // Retrieve Approvers for authorizing frameworks and tasks.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> tasksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
+  if (master->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
     }
-    foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
-      tasks.push_back(task.get());
-    }
-  }
 
-  // Sort tasks by task status timestamp. Default order is descending.
-  // The earliest timestamp is chosen for comparison when multiple are present.
-  Option<string> order = request.url.query.get("order");
-  if (order.isSome() && (order.get() == "asc")) {
-    sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
+    frameworksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    tasksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_TASK);
+
+    executorsApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
   } else {
-    sort(tasks.begin(), tasks.end(), TaskComparator::descending);
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
-    writer->field("tasks", [&tasks, limit, offset](JSON::ArrayWriter* writer) {
-      size_t end = std::min(offset + limit, tasks.size());
-      for (size_t i = offset; i < end; i++) {
-        const Task* task = tasks[i];
-        writer->element(*task);
-      }
-    });
-  };
+  return collect(frameworksApprover, tasksApprover, executorsApprover)
+    .then([=](const tuple<Owned<ObjectApprover>,
+                          Owned<ObjectApprover>,
+                          Owned<ObjectApprover>>& approvers) -> Response {
+      // Get approver from tuple.
+      Owned<ObjectApprover> frameworksApprover;
+      Owned<ObjectApprover> tasksApprover;
+      Owned<ObjectApprover> executorsApprover;
+      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
 
-  return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+      // Get list options (limit and offset).
+      Result<int> result = numify<int>(request.url.query.get("limit"));
+      size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
+
+      result = numify<int>(request.url.query.get("offset"));
+      size_t offset = result.isSome() ? result.get() : 0;
+
+      // TODO(nnielsen): Currently, formatting errors in offset and/or limit
+      // will silently be ignored. This could be reported to the user instead.
+
+      // Construct framework list with both active and completed frameworks.
+      vector<const Framework*> frameworks;
+      foreachvalue (Framework* framework, master->frameworks.registered) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework);
+      }
+      foreach (const std::shared_ptr<Framework>& framework,
+               master->frameworks.completed) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework.get());
+      }
+
+      // Construct task list with both running and finished tasks.
+      vector<const Task*> tasks;
+      foreach (const Framework* framework, frameworks) {
+        foreachvalue (Task* task, framework->tasks) {
+          CHECK_NOTNULL(task);
+          // Skip unauthorized tasks.
+          if (!approveViewTask(tasksApprover, *task, framework->info)) {
+            continue;
+          }
+
+          tasks.push_back(task);
+        }
+        foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
+          // Skip unauthorized tasks.
+          if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+            continue;
+          }
+
+          tasks.push_back(task.get());
+        }
+      }
+
+      // Sort tasks by task status timestamp. Default order is descending.
+      // The earliest timestamp is chosen for comparison when
+      // multiple are present.
+      Option<string> order = request.url.query.get("order");
+      if (order.isSome() && (order.get() == "asc")) {
+        sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
+      } else {
+        sort(tasks.begin(), tasks.end(), TaskComparator::descending);
+      }
+
+      auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
+        writer->field("tasks",
+                      [&tasks, limit, offset](JSON::ArrayWriter* writer) {
+          size_t end = std::min(offset + limit, tasks.size());
+          for (size_t i = offset; i < end; i++) {
+            const Task* task = tasks[i];
+            writer->element(*task);
+          }
+        });
+      };
+
+      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+  })
+  .repair([](const Future<Response>& response) {
+    LOG(WARNING) << "Authorization failed: " << response.failure();
+    return InternalServerError(response.failure());
+  });
 }
 
 
