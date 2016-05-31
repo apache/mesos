@@ -14,24 +14,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __USAGE_HPP__
-#define __USAGE_HPP__
+#include "slave/paths.hpp"
 
-#ifndef __WINDOWS__
-#include <unistd.h> // For pid_t.
-#endif // __WINDOWS__
+#include "slave/containerizer/mesos/isolators/filesystem/windows.hpp"
 
-#include "mesos/mesos.hpp"
+using namespace process;
+
+using mesos::slave::Isolator;
 
 namespace mesos {
 namespace internal {
+namespace slave {
 
-// Collects resource usage of a process tree rooted at 'pid'. Only
-// collects the 'mem_*' values if 'mem' is true and the 'cpus_*'
-// values if 'cpus' is true.
-Try<ResourceStatistics> usage(pid_t pid, bool mem = true, bool cpus = true);
+WindowsFilesystemIsolatorProcess::WindowsFilesystemIsolatorProcess(
+    const Flags& _flags)
+  : PosixFilesystemIsolatorProcess(_flags) {}
 
+Try<Isolator*> WindowsFilesystemIsolatorProcess::create(const Flags& flags)
+{
+  process::Owned<MesosIsolatorProcess> process(
+      new WindowsFilesystemIsolatorProcess(flags));
+
+  return new MesosIsolator(process);
+}
+
+} // namespace slave {
 } // namespace internal {
 } // namespace mesos {
-
-#endif // __USAGE_HPP__

@@ -164,10 +164,9 @@ public:
     return usage.get();
   }
 
-private:
+protected:
   PosixCpuIsolatorProcess() {}
 };
-
 
 class PosixMemIsolatorProcess : public PosixIsolatorProcess
 {
@@ -198,7 +197,7 @@ public:
     return usage.get();
   }
 
-private:
+protected:
   PosixMemIsolatorProcess() {}
 };
 

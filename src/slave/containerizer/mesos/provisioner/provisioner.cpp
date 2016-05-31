@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <fts.h>
+#endif // __WINDOWS__
 
 #include <mesos/type_utils.hpp>
 
@@ -333,6 +335,7 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
     return ProvisionInfo{rootfs, imageInfo.dockerManifest};
   }
 
+#ifndef __WINDOWS__
   char* _rootfs[] = {const_cast<char*>(rootfs.c_str()), nullptr};
 
   FTS* tree = ::fts_open(_rootfs, FTS_NOCHDIR | FTS_PHYSICAL, nullptr);
@@ -391,6 +394,9 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
   }
 
   return ProvisionInfo{rootfs, imageInfo.dockerManifest};
+#else
+  return ProvisionInfo{ rootfs, imageInfo.dockerManifest };
+#endif // __WINDOWS__
 }
 
 

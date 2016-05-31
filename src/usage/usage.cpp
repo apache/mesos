@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <unistd.h> // For pid_t.
+#endif // __WINDOWS__
 
 #include <deque>
 
@@ -22,6 +24,8 @@
 
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
+
+#include <stout/os/pstree.hpp>
 
 #include "usage/usage.hpp"
 

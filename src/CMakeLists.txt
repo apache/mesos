@@ -163,6 +163,12 @@ set(LINUX_SRC
   slave/containerizer/mesos/provisioner/backends/overlay.cpp
   )
 
+set(WIN32_SRC
+  ${WIN32_SRC}
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp
+  slave/containerizer/mesos/isolators/filesystem/windows.cpp
+  )
+
 set(DOCKER_SRC
   docker/docker.hpp
   docker/docker.cpp
@@ -391,6 +397,11 @@ endif (NOT WIN32)
 if (LINUX)
   set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
 endif (LINUX)
+
+# Include source for Windows build.
+if (WIN32)
+  set(MESOS_SRC ${MESOS_SRC} ${WIN32_SRC})
+endif (WIN32)
 
 add_definitions(-DUSE_STATIC_LIB -DBUILD_DATE=0 -DBUILD_TIME=0 -DBUILD_USER="frank" -DBUILD_FLAGS="" -DBUILD_JAVA_JVM_LIBRARY="")
 

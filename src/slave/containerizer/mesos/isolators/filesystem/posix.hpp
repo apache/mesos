@@ -49,7 +49,7 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
-private:
+protected:
   PosixFilesystemIsolatorProcess(const Flags& flags);
 
   const Flags flags;
