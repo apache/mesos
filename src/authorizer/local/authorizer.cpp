@@ -296,19 +296,25 @@ public:
         break;
     }
 
+    return approved(acls_, aclSubject, aclObject);
+  }
+
+private:
+  bool approved(
+      const vector<GenericACL>& acls,
+      const ACL::Entity& subject,
+      const ACL::Entity& object) const
+  {
     // Authorize subject/object.
-    foreach (const GenericACL& acl, acls_) {
-      if (matches(aclSubject, acl.subjects) &&
-          matches(aclObject, acl.objects)) {
-        return allows(aclSubject, acl.subjects) &&
-               allows(aclObject, acl.objects);
+    foreach (const GenericACL& acl, acls) {
+      if (matches(subject, acl.subjects) && matches(object, acl.objects)) {
+        return allows(subject, acl.subjects) && allows(object, acl.objects);
       }
     }
 
     return permissive_; // None of the ACLs match.
   }
 
-private:
   const vector<GenericACL> acls_;
   const authorization::Subject subject_;
   const authorization::Action action_;
