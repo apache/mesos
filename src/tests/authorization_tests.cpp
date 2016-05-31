@@ -68,29 +68,93 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsUser)
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
-  // Principals "foo" and "bar" can run as "guest".
+  // Principal "foo" can run as "guest", using TaskInfo.command.user,
+  // TaskInfo.ExecutorInfo.command.user, or FrameworkInfo.user.
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("guest");
+
+    TaskInfo taskInfo;
+    CommandInfo* commandInfo = taskInfo.mutable_command();
+    commandInfo->set_user("guest");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
-    request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("guest");
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("guest");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_executor()->mutable_command()->set_user("guest");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "foo" can run as "root" since the ACLs are permissive.
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("root");
+
+    TaskInfo taskInfo;
+    CommandInfo* commandInfo = taskInfo.mutable_command();
+    commandInfo->set_user("root");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "foo" can run as "root" since the ACLs are permissive.
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("root");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_executor()->mutable_command()->set_user("root");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -114,9 +178,44 @@ TYPED_TEST(AuthorizationTest, NoPrincipalRunAsUser)
   // Principal "foo" cannot run as "root".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("root");
+
+    TaskInfo taskInfo;
+    CommandInfo* commandInfo = taskInfo.mutable_command();
+    commandInfo->set_user("root");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("root");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_executor()->mutable_command()->set_user("root");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -126,6 +225,7 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
 {
   // A principal "foo" can run as any user.
   ACLs acls;
+  acls.set_permissive(false); // Restrictive.
 
   {
     mesos::ACL::RunTask* acl = acls.add_run_tasks();
@@ -141,17 +241,27 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
   // Principal "foo" can run as "user1" and "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");;
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -161,6 +271,7 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsAnyUser)
 {
   // Any principal can run as any user.
   ACLs acls;
+  acls.set_permissive(false); // Restrictive.
 
   {
     mesos::ACL::RunTask* acl = acls.add_run_tasks();
@@ -176,33 +287,53 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsAnyUser)
   // Principals "foo" and "bar" can run as "user1" and "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -238,48 +369,78 @@ TYPED_TEST(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
   // Principals "foo" and "bar" can run as "user1" and "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "baz" cannot run as "user1".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("baz");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   // Principal "baz" cannot run as "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("baz");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -311,34 +472,54 @@ TYPED_TEST(AuthorizationTest, SomePrincipalOnlySomeUser)
   // Principal "foo" can run as "user1".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "foo" cannot run as "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   // Principal "bar" can run as "user1" and "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user2");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -364,27 +545,101 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
   // Principal "foo" can run as "user1".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user1");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user1");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "foo" cannot run as "user2".
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("user2");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_command()->set_user("user2");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("foo");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_executor()->mutable_command()->set_user("user2");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   // Principal "bar" cannot run as "user2" since no ACL is set.
   {
     authorization::Request request;
-    request.set_action(authorization::RUN_TASK_WITH_USER);
+
+    request.set_action(authorization::RUN_TASK);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("user2");
+
+    TaskInfo taskInfo;
+    CommandInfo* commandInfo = taskInfo.mutable_command();
+    commandInfo->set_user("user2");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("bar");
+
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_user("user2");
+
+    request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+
+    request.set_action(authorization::RUN_TASK);
+    request.mutable_subject()->set_value("bar");
+
+    TaskInfo taskInfo;
+    taskInfo.mutable_executor()->mutable_command()->set_user("user2");
+
+    request.mutable_object()->mutable_task_info()->CopyFrom(taskInfo);
+
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }

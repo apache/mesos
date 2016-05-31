@@ -3061,25 +3061,23 @@ Future<bool> Master::authorizeTask(
   }
 
   // Authorize the task.
-  string user = framework->info.user(); // Default user.
-  if (task.has_command() && task.command().has_user()) {
-    user = task.command().user();
-  } else if (task.has_executor() && task.executor().command().has_user()) {
-    user = task.executor().command().user();
-  }
-
-  LOG(INFO)
-    << "Authorizing framework principal '" << framework->info.principal()
-    << "' to launch task " << task.task_id() << " as user '" << user << "'";
-
   authorization::Request request;
-  request.set_action(authorization::RUN_TASK_WITH_USER);
 
   if (framework->info.has_principal()) {
     request.mutable_subject()->set_value(framework->info.principal());
   }
 
-  request.mutable_object()->set_value(user);
+  request.set_action(authorization::RUN_TASK);
+
+  authorization::Object* object = request.mutable_object();
+
+  object->mutable_task_info()->CopyFrom(task);
+  object->mutable_framework_info()->CopyFrom(framework->info);
+
+  LOG(INFO)
+    << "Authorizing framework principal '"
+    << (framework->info.has_principal() ? framework->info.principal() : "ANY")
+    << "' to launch task " << task.task_id();
 
   return authorizer.get()->authorized(request);
 }

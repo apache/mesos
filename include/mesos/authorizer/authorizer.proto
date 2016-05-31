@@ -57,7 +57,10 @@ enum Action {
 
   // Actions named *_WITH_foo may set a foo in `Object.value`.
   REGISTER_FRAMEWORK_WITH_ROLE = 1;
-  RUN_TASK_WITH_USER = 2;
+
+  // `RUN_TASK` will have an object with `FrameworkInfo` and `TaskInfo` set.
+  RUN_TASK = 2;
+
   TEARDOWN_FRAMEWORK_WITH_PRINCIPAL = 3;
   RESERVE_RESOURCES_WITH_ROLE = 4;
   UNRESERVE_RESOURCES_WITH_PRINCIPAL = 5;

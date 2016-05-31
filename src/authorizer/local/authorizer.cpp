@@ -197,7 +197,6 @@ public:
         // All actions using `object.value` for authorization.
         case authorization::REGISTER_FRAMEWORK_WITH_ROLE:
         case authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL:
-        case authorization::RUN_TASK_WITH_USER:
         case authorization::RESERVE_RESOURCES_WITH_ROLE:
         case authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL:
         case authorization::CREATE_VOLUME_WITH_ROLE:
@@ -215,6 +214,22 @@ public:
           aclObject.add_values(*(object->value));
           aclObject.set_type(mesos::ACL::Entity::SOME);
 
+          break;
+        }
+        case authorization::RUN_TASK: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->task_info && object->task_info->has_command() &&
+              object->task_info->command().has_user()) {
+            aclObject.add_values(object->task_info->command().user());
+          } else if (object->task_info && object->task_info->has_executor() &&
+              object->task_info->executor().command().has_user()) {
+            aclObject.add_values(
+                object->task_info->executor().command().user());
+          } else if (object->framework_info) {
+            aclObject.add_values(object->framework_info->user());
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
           break;
         }
         case authorization::ACCESS_MESOS_LOG: {
@@ -446,7 +461,7 @@ private:
 
         return acls_;
         break;
-      case authorization::RUN_TASK_WITH_USER:
+      case authorization::RUN_TASK:
         foreach (const ACL::RunTask& acl, acls.run_tasks()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
