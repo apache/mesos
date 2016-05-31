@@ -668,7 +668,7 @@ inline int random()
 // Every process started by the `pid` process which is part of the job
 // object becomes part of the job object. The job name should match
 // the name used in `kill_job`.
-inline Try<Nothing> create_job(pid_t pid)
+inline Try<HANDLE> create_job(pid_t pid)
 {
   Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
   if (alpha_pid.isError()) {
@@ -692,16 +692,26 @@ inline Try<Nothing> create_job(pid_t pid)
     return WindowsError("os::create_job: Call to `CreateJobObject` failed");
   }
 
-  SharedHandle safe_job_handle(job_handle, ::CloseHandle);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { { 0 }, 0 };
+
+  jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  // The job object will be terminated when the job handle closes. This allows
+  // the job tree to be terminated in case of errors by closing the handle.
+  ::SetInformationJobObject(
+      job_handle,
+      JobObjectExtendedLimitInformation,
+      &jeli,
+      sizeof(jeli));
 
   if (::AssignProcessToJobObject(
-          safe_job_handle.get_handle(),
+          job_handle,
           safe_process_handle.get_handle()) == 0) {
     return WindowsError(
         "os::create_job: Call to `AssignProcessToJobObject` failed");
   };
 
-  return Nothing();
+  return job_handle;
 }
 
 
