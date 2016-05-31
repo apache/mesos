@@ -215,7 +215,7 @@ private:
   bool process(const Future<Response>& future, const Request& request);
 
   // Handles stream based responses.
-  void stream(const Request& request, const Future<string>& chunk);
+  void stream(const Owned<Request>& request, const Future<string>& chunk);
 
   Socket socket; // Wrap the socket to keep it from getting closed.
 
@@ -1282,8 +1282,14 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
     pipe = reader;
 
+    // Avoid copying the request for each chunk read on the pipe.
+    //
+    // TODO(bmahler): Make request a process::Owned or
+    // process::Shared from the point where it is decoded.
+    Owned<Request> request_(new Request(request));
+
     reader.read()
-      .onAny(defer(self(), &Self::stream, request, lambda::_1));
+      .onAny(defer(self(), &Self::stream, request_, lambda::_1));
 
     return false; // Streaming, don't process next response (yet)!
   } else {
@@ -1295,10 +1301,11 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
 
 void HttpProxy::stream(
-    const Request& request,
+    const Owned<Request>& request,
     const Future<string>& chunk)
 {
   CHECK_SOME(pipe);
+  CHECK_NOTNULL(request.get());
 
   http::Pipe::Reader reader = pipe.get();
 
@@ -1324,16 +1331,16 @@ void HttpProxy::stream(
     // Always persist the connection when streaming is not finished.
     socket_manager->send(
         new DataEncoder(socket, out.str()),
-        finished ? request.keepAlive : true);
+        finished ? request->keepAlive : true);
   } else if (chunk.isFailed()) {
     VLOG(1) << "Failed to read from stream: " << chunk.failure();
     // TODO(bmahler): Have to close connection if headers were sent!
-    socket_manager->send(InternalServerError(), request, socket);
+    socket_manager->send(InternalServerError(), *request, socket);
     finished = true;
   } else {
     VLOG(1) << "Failed to read from stream: discarded";
     // TODO(bmahler): Have to close connection if headers were sent!
-    socket_manager->send(InternalServerError(), request, socket);
+    socket_manager->send(InternalServerError(), *request, socket);
     finished = true;
   }
 
