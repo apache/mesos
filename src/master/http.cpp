@@ -653,7 +653,8 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case v1::master::Call::GET_LEADING_MASTER:
-      return NotImplemented();
+      return getLeadingMaster(call, principal)
+        .then(serializer);
 
     case v1::master::Call::RESERVE_RESOURCES:
       return NotImplemented();
@@ -1346,6 +1347,25 @@ Future<v1::master::Response> Master::Http::getLoggingLevel(
   v1::master::Response response;
   response.set_type(v1::master::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
+
+  return response;
+}
+
+
+Future<v1::master::Response> Master::Http::getLeadingMaster(
+    const v1::master::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(v1::master::Call::GET_LEADING_MASTER, call.type());
+
+  v1::master::Response response;
+  response.set_type(v1::master::Response::GET_LEADING_MASTER);
+
+  // It is guaranteed that this master has been elected as the leader.
+  CHECK(master->elected());
+
+  response.mutable_get_leading_master()->mutable_master_info()->CopyFrom(
+    evolve(master->info()));
 
   return response;
 }

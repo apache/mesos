@@ -182,6 +182,27 @@ TEST_P(MasterAPITest, GetLoggingLevel)
 }
 
 
+TEST_P(MasterAPITest, GetLeadingMaster)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_LEADING_MASTER);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_LEADING_MASTER, v1Response->type());
+  ASSERT_EQ(master.get()->getMasterInfo().ip(),
+            v1Response->get_leading_master().master_info().ip());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>

@@ -143,6 +143,12 @@ v1::TaskStatus evolve(const TaskStatus& status)
 }
 
 
+v1::MasterInfo evolve(const MasterInfo& masterInfo)
+{
+  return evolve<v1::MasterInfo>(masterInfo);
+}
+
+
 v1::scheduler::Call evolve(const scheduler::Call& call)
 {
   return evolve<v1::scheduler::Call>(call);
