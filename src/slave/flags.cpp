@@ -181,7 +181,12 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::work_dir,
       "work_dir",
-      "Directory path to place framework work directories\n", "/tmp/mesos");
+      "Path of the agent work directory. This is where executor sandboxes\n"
+      "will be placed, as well as the agent's checkpointed state in case of\n"
+      "failover. Note that locations like `/tmp` which are cleaned\n"
+      "automatically are not suitable for the work directory when running in\n"
+      "production, since long-running agents could lose data when cleanup\n"
+      "occurs. (Example: `/var/lib/mesos/agent`)");
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
       "launcher_dir",

@@ -342,6 +342,25 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   for (int i = 0; i < flags.num_slaves; i++) {
     slave::Flags flags;
+
+    if (os::getenv("MESOS_WORK_DIR").isNone()) {
+      const string workDir = "/tmp/mesos/local/agents";
+      Try<Nothing> mkdir = os::mkdir(workDir);
+      if (mkdir.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to create the root work directory for local agents '"
+          << workDir << "': " << mkdir.error();
+      }
+
+      flags.work_dir = path::join(workDir, stringify(i));
+      Try<Nothing> directory = os::mkdir(flags.work_dir);
+      if (directory.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to create work directory for local agent '"
+          << flags.work_dir << "': " << directory.error();
+      }
+    }
+
     Try<flags::Warnings> load = flags.load("MESOS_");
 
     if (load.isError()) {

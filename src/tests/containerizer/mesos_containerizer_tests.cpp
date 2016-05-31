@@ -111,6 +111,11 @@ public:
     slave::Flags flags;
     flags.launcher_dir = getLauncherDir();
 
+    string directory = "./work_dir";
+    Try<Nothing> mkdir = os::mkdir(directory);
+    CHECK_SOME(mkdir) << "Failed to create work directory";
+    flags.work_dir = directory;
+
     Try<Launcher*> launcher = PosixLauncher::create(flags);
     if (launcher.isError()) {
       return Error(launcher.error());
@@ -395,6 +400,11 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
+
+  string workDirectory = "./work_dir";
+  Try<Nothing> mkdir = os::mkdir(workDirectory);
+  CHECK_SOME(mkdir) << "Failed to create work directory";
+  flags.work_dir = workDirectory;
 
   Fetcher fetcher;
 
