@@ -23,8 +23,7 @@ option java_outer_classname = "Protos";
 
 
 // A `Subject` is the entity which desires to execute an `Action` on
-// an `Object`. The `Subject` is described by its `value`. When
-// `value` is not set the subject is unknown.
+// an `Object`. The `Subject` is described by its `value`.
 message Subject {
   optional string value = 1;
 }
@@ -34,7 +33,7 @@ message Subject {
 // `Action`. An `Object` is described by its value and the action in
 // the request, e.g. when registering frameworks, the value represents
 // a role, while when running a task it is the user name the task will
-// be run as. If the value is not set, the object is unknown.
+// be run as.
 message Object {
   optional string value = 1;
   optional FrameworkInfo framework_info = 2;
@@ -97,10 +96,12 @@ enum Action {
 // A `Request` is a <subject, action, object> tuple which can be read
 // as "Can `subject` perform `action` with `object`?".
 message Request {
-  required Subject subject = 1;
+  // An unset `subject` means "unspecified".
+  optional Subject subject = 1;
 
   // Enum fields should be optional, see: MESOS-4997.
   optional Action action = 2;
 
-  required Object object = 3;
+  // An unset `object` means "unspecified".
+  optional Object object = 3;
 }
