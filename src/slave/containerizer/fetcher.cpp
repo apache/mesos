@@ -211,12 +211,8 @@ Result<string> Fetcher::uriToLocalPath(
     fileUri = true;
   }
 
-  const bool isRelativePath =
 #ifndef __WINDOWS__
-    !strings::startsWith(path, "/");
-#else
-    static_cast<bool>(::PathIsRelative(path.c_str()));
-#endif // __WINDOWS__
+  const bool isRelativePath = !strings::startsWith(path, "/");
 
   if (isRelativePath) {
     if (fileUri) {
@@ -234,6 +230,7 @@ Result<string> Fetcher::uriToLocalPath(
                 << "making it: '" << path << "'";
     }
   }
+#endif // __WINDOWS__
 
   return path;
 }

@@ -15,7 +15,11 @@
 // limitations under the License.
 
 #include <errno.h>
+
+#ifndef __WINDOWS__
 #include <poll.h>
+#endif // __WINDOWS__
+
 #include <signal.h>
 #include <stdio.h>
 
@@ -40,6 +44,8 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
+
+#include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"
 
@@ -343,6 +349,11 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
                   << "' of framework " << framework.id;
 
         Option<string> user = None();
+
+        // NOTE: `chown` has no meaningful interpretation on Windows. This is
+        // safe to `#ifdef` out because we don't compile the user flag on
+        // Windows, so this should always be `None`.
+#ifndef __WINDOWS__
         if (flags.switch_user) {
           // The command (either in form of task or executor command)
           // can define a specific user to run as. If present, this
@@ -354,6 +365,7 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
             user = framework.info.get().user();
           }
         }
+#endif // __WINDOWS__
 
         // Re-create the sandbox for this container.
         const string directory = paths::createExecutorDirectory(
@@ -626,7 +638,11 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
   // Invoke the protobuf::read asynchronously.
   // TODO(tillt): Consider moving protobuf::read into libprocess and
   // making it work fully asynchronously.
+#ifndef __WINDOWS__
   Result<containerizer::Termination>(*read)(int, bool, bool) =
+#else
+  Result<containerizer::Termination>(*read)(HANDLE, bool, bool) =
+#endif // __WINDOWS__
     &::protobuf::read<containerizer::Termination>;
 
   Future<Result<containerizer::Termination>> future = async(
@@ -812,7 +828,11 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
                    "' failed: " + invoked.error());
   }
 
+#ifndef __WINDOWS__
   Result<ResourceStatistics>(*read)(int, bool, bool) =
+#else
+  Result<ResourceStatistics>(*read)(HANDLE, bool, bool) =
+#endif // __WINDOWS__
     &::protobuf::read<ResourceStatistics>;
 
   Future<Result<ResourceStatistics>> future = async(
@@ -950,7 +970,11 @@ Future<hashset<ContainerID>> ExternalContainerizerProcess::containers()
     return Failure("Containers failed: " + invoked.error());
   }
 
+#ifndef __WINDOWS__
   Result<containerizer::Containers>(*read)(int, bool, bool) =
+#else
+  Result<containerizer::Containers>(*read)(HANDLE, bool, bool) =
+#endif // __WINDOWS__
     &::protobuf::read<containerizer::Containers>;
 
   Future<Result<containerizer::Containers>> future = async(
@@ -1075,6 +1099,10 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   VLOG_IF(2, sandbox.isSome() &&
       sandbox.get().user.isSome()) << "user: " << sandbox.get().user.get();
 
+  // NOTE: `chown` has no meaningful interpretation on Windows. This is safe to
+  // `#ifdef` out because we don't compile the user flag on Windows, so this
+  // should always be `None`.
+#ifndef __WINDOWS__
   // Re/establish the sandbox conditions for the containerizer.
   if (sandbox.isSome() && sandbox.get().user.isSome()) {
     Try<Nothing> chown = os::chown(
@@ -1084,6 +1112,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
       return Error("Failed to chown work directory: " + chown.error());
     }
   }
+#endif // __WINDOWS__
 
   // Fork exec of external process. Run a chdir and a setsid within
   // the child-context.
@@ -1130,6 +1159,10 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
         err.error());
   }
 
+  // NOTE: `chown` has no meaningful interpretation on Windows. This is safe to
+  // `#ifdef` out because we don't compile the user flag on Windows, so this
+  // should always be `None`.
+#ifndef __WINDOWS__
   if (sandbox.isSome() && sandbox.get().user.isSome()) {
     Try<Nothing> chown = os::chown(
         sandbox.get().user.get(),
@@ -1141,6 +1174,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
           chown.error());
     }
   }
+#endif // __WINDOWS__
 
   // TODO(tillt): Consider adding an overload to io::redirect
   // that accepts a file path as 'to' for further reducing code.

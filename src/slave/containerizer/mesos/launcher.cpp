@@ -164,6 +164,12 @@ Future<Nothing> _destroy(const Future<Option<int>>& future)
   }
 }
 
+
+Try<Launcher*> WindowsLauncher::create(const Flags& flags)
+{
+  return new WindowsLauncher();
+}
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
