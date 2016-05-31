@@ -31,7 +31,9 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#ifndef __WINDOWS__
 #include <stout/os/signals.hpp>
+#endif // __WINDOWS__
 
 #include "logging/logging.hpp"
 
@@ -78,6 +80,7 @@ string argv0;
 // allocate any memory or grab locks. And according to
 // https://code.google.com/p/google-glog/issues/detail?id=161
 // it should work in 'most' cases in signal handlers.
+#ifndef __WINDOWS__
 inline void handler(int signal, siginfo_t *siginfo, void *context)
 {
   if (signal == SIGTERM) {
@@ -98,7 +101,7 @@ inline void handler(int signal, siginfo_t *siginfo, void *context)
     RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
   }
 }
-
+#endif // __WINDOWS__
 
 google::LogSeverity getLogSeverity(const string& logging_level)
 {
@@ -196,9 +199,17 @@ void initialize(
     (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");
 
   if (installFailureSignalHandler) {
+    // glog on Windows does not support `InstallFailureSignalHandler`.
+#ifndef __WINDOWS__
     // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
     // by default.
     google::InstallFailureSignalHandler();
+
+    // The code below sets the SIGTERM signal handler to the `handle` function
+    // declared above. While this is useful on POSIX systems, SIGTERM is
+    // generated and handled differently on Windows[1], so this code would
+    // not work.
+    // [1] https://msdn.microsoft.com/en-us/library/xdkz3x12.aspx
 
     // Set up our custom signal handlers.
     struct sigaction action;
@@ -217,6 +228,7 @@ void initialize(
     if (sigaction(SIGTERM, &action, NULL) < 0) {
       PLOG(FATAL) << "Failed to set sigaction";
     }
+#endif // __WINDOWS__
   }
 
   initialized->done();
