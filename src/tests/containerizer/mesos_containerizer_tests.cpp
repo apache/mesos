@@ -173,7 +173,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
@@ -222,7 +222,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
@@ -284,7 +284,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
@@ -346,7 +346,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   // Ensure that LIBPROCESS_IP has been passed despite the explicit
   // specification of the environment. If so, then touch the test file.
@@ -416,7 +416,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   string errMsg = "this is stderr";
   string outMsg = "this is stdout";
@@ -603,7 +603,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   TaskInfo taskInfo;
   CommandInfo commandInfo;
@@ -671,7 +671,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   TaskInfo taskInfo;
   CommandInfo commandInfo;
@@ -776,7 +776,7 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   TaskInfo taskInfo;
   CommandInfo commandInfo;
@@ -968,7 +968,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
   ContainerID containerId;
-  containerId.set_value("test_container");
+  containerId.set_value(UUID::random().toString());
 
   TaskInfo taskInfo;
   CommandInfo commandInfo;
