@@ -24,6 +24,14 @@
 
 inline std::string WSTRINGIFY(int status)
 {
+#ifdef __WINDOWS__
+  // On Windows the exit codes are not standardized. The behaviour should
+  // be defined to improve the diagnostic based on logs.
+  // TODO(dpravat): MESOS-5417 tracks this improvement.
+  LOG(WARNING) << "`WSTRINGIFY` has been called, but it is not implemented.";
+
+  return "";
+#else
   std::string message;
   if (WIFEXITED(status)) {
     message += "exited with status ";
@@ -33,6 +41,7 @@ inline std::string WSTRINGIFY(int status)
     message += strsignal(WTERMSIG(status));
   }
   return message;
+#endif // __WINDOWS__
 }
 
 #endif // __STATUS_UTILS_HPP__
