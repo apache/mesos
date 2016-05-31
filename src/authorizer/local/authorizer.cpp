@@ -765,6 +765,24 @@ LocalAuthorizer::~LocalAuthorizer()
 process::Future<bool> LocalAuthorizer::authorized(
   const authorization::Request& request)
 {
+  // Request sanity checks.
+  // A set `subject` should always come with a set `value`.
+  CHECK(
+    !request.has_subject() ||
+    (request.has_subject() && request.subject().has_value()));
+
+  // A set `action` is mandatory.
+  CHECK(request.has_action());
+
+  // A set `object` should always come with at least one set union
+  // style value.
+  CHECK(
+    !request.has_object() ||
+    (request.has_object() &&
+     (request.object().has_value() || request.object().has_framework_info() ||
+      request.object().has_task() || request.object().has_task_info() ||
+      request.object().has_executor_info())));
+
   typedef Future<bool> (LocalAuthorizerProcess::*F)(
       const authorization::Request&);
 
