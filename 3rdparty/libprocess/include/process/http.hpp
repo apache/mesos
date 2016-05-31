@@ -370,7 +370,7 @@ public:
     // Returns false if the data could not be written because
     // either end of the pipe was already closed. Note that an
     // empty write has no effect.
-    bool write(const std::string& s);
+    bool write(std::string s);
 
     // Closing the write-end of the pipe will send end-of-file
     // to the reader. Returns false if the write-end of the pipe

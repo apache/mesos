@@ -453,7 +453,7 @@ bool Pipe::Reader::close()
 }
 
 
-bool Pipe::Writer::write(const string& s)
+bool Pipe::Writer::write(string s)
 {
   bool written = false;
   Owned<Promise<string>> read;
@@ -464,7 +464,7 @@ bool Pipe::Writer::write(const string& s)
       // Don't bother surfacing empty writes to the readers.
       if (!s.empty()) {
         if (data->reads.empty()) {
-          data->writes.push(s);
+          data->writes.push(std::move(s));
         } else {
           read = data->reads.front();
           data->reads.pop();
@@ -477,7 +477,7 @@ bool Pipe::Writer::write(const string& s)
   // NOTE: We set the promise outside the critical section to avoid
   // triggering callbacks that try to reacquire the lock.
   if (read.get() != NULL) {
-    read->set(s);
+    read->set(std::move(s));
   }
 
   return written;
