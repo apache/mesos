@@ -61,7 +61,10 @@ public:
   Result(T&& _t)
     : data(Some(std::move(_t))) {}
 
-  template <typename U>
+  template <
+      typename U,
+      typename = typename std::enable_if<
+          std::is_constructible<T, const U&>::value>::type>
   Result(const U& u)
     : data(Some(u)) {}
 
