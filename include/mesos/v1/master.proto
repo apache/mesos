@@ -126,12 +126,12 @@ message Call {
 
   message CreateVolumes {
     required AgentID agent_id = 1;
-    repeated Resource volumess = 2;
+    repeated Resource volumes = 2;
   }
 
   message DestroyVolumes {
     required AgentID agent_id = 1;
-    repeated Resource volumess = 2;
+    repeated Resource volumes = 2;
   }
 
   message UpdateMaintenanceSchedule {
@@ -315,7 +315,7 @@ message Response {
   optional GetRoles get_roles = 14;
   optional GetWeights get_weights = 15;
   optional GetLeadingMaster get_leading_master = 16;
-  optional GetMaintenanceStatus get_maintenance_tatus = 17;
+  optional GetMaintenanceStatus get_maintenance_status = 17;
   optional GetMaintenanceSchedule get_maintenance_schedule = 18;
   optional GetQuota get_quota = 19;
 }
