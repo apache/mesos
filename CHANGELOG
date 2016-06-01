@@ -154,6 +154,386 @@ Binary API Changes:
     other strings.
   * [MESOS-5230] - Slave/Agent Rename Phase I: Rename '/include/mesos/slave' folder
 
+** Bug
+    * [MESOS-1495] - Create separate local data file to manage releases
+    * [MESOS-1575] - master sets failover timeout to 0 when framework requests a high value
+    * [MESOS-1865] - Redirect to the leader master when current master is not a leader
+    * [MESOS-2198] - Document that TaskIDs should not be reused
+    * [MESOS-2201] - ReplicaTest.Restore fails with leveldb greater than v1.7.
+    * [MESOS-2331] - MasterSlaveReconciliationTest.ReconcileRace is flaky
+    * [MESOS-2858] - FetcherCacheHttpTest.HttpMixed is flaky.
+    * [MESOS-3085] - Make failed on Ubuntu 14.04 ppc64le
+    * [MESOS-3319] - Mesos will not build when configured with gperftools enabled
+    * [MESOS-3402] - mesos-execute does not support credentials
+    * [MESOS-3573] - Mesos does not kill orphaned docker containers
+    * [MESOS-3739] - Mesos does not set Content-Type for 400 Bad Request
+    * [MESOS-3881] - Implement `stout/os/pstree.hpp` on Windows
+    * [MESOS-3902] - The Location header when non-leading master redirects to leading master is incomplete.
+    * [MESOS-3923] - Implement AuthN handling in Master for the Scheduler endpoint
+    * [MESOS-3976] - C++ HTTP Scheduler Library does not work with SSL enabled
+    * [MESOS-4269] - Minor typo in src/linux/cgroups.cpp
+    * [MESOS-4387] - Added a new test cases for reviveOffers in allocator test
+    * [MESOS-4434] - Install 3rdparty package boost, glog, protobuf and picojson when installing Mesos
+    * [MESOS-4447] - Renamed reserved() API to reservations()
+    * [MESOS-4462] - Port `gmtime_r`
+    * [MESOS-4465] - Implement pagesize facilities in Windows
+    * [MESOS-4466] - Implement `waitpid` in Windows
+    * [MESOS-4470] - Implement `uname` in Windows
+    * [MESOS-4471] - Implement process querying/counting in Windows
+    * [MESOS-4580] - Consider returning `202` (Accepted) for /reserve and related endpoints
+    * [MESOS-4633] - Tests will dereference stack allocated agent objects upon assertion/expectation failure.
+    * [MESOS-4634] - Tests will dereference stack allocated master objects upon assertion/expectation failure.
+    * [MESOS-4658] - process::Connection can lead to process::wait deadlock
+    * [MESOS-4662] - PortMapping network isolator should not assume BIND_MOUNT_ROOT is a realpath.
+    * [MESOS-4673] - Agent fails to shutdown after re-registering period timed-out.
+    * [MESOS-4680] - HTTP requests to non leading mesos-master redirect to top level page
+    * [MESOS-4684] - Create base docker image for test suite.
+    * [MESOS-4705] - Linux 'perf' parsing logic may fail when OS distribution has perf backports.
+    * [MESOS-4744] - mesos-execute should allow setting role
+    * [MESOS-4807] - IOTest.BufferedRead writes to the current directory
+    * [MESOS-4810] - ProvisionerDockerPullerTest.ROOT_INTERNET_CURL_ShellCommand fails.
+    * [MESOS-4827] - Destroy Docker container crashes Mesos slave
+    * [MESOS-4875] - overlayfs does not work when lauching tasks
+    * [MESOS-4876] - bind backend does not work when launching tasks
+    * [MESOS-4885] - Unzip should force overwrite
+    * [MESOS-4911] - Executor driver does not respect executor shutdown grace period.
+    * [MESOS-4912] - LinuxFilesystemIsolatorTest.ROOT_MultipleContainers fails.
+    * [MESOS-4922] - Setup proper /etc/hostname, /etc/hosts and /etc/resolv.conf for containers in network/cni isolator.
+    * [MESOS-4924] - MAC OS build failed
+    * [MESOS-4942] - Docker runtime isolator tests may cause disk issue.
+    * [MESOS-4950] - Implement reconnect funtionality in the scheduler library.
+    * [MESOS-4954] - URI fetcher error message if plugin is not found is mis-leading.
+    * [MESOS-4957] - Typo in Mesos portal
+    * [MESOS-4961] - ContainerLoggerTest.LOGROTATE_RotateInSandbox is flaky
+    * [MESOS-4963] - Incorrect CXXFLAGS with GCC 6
+    * [MESOS-4978] - Update mesos-execute with Appc changes.
+    * [MESOS-4981] - Framework (re-)register metric counters broken for calls made via scheduler driver
+    * [MESOS-4984] - MasterTest.SlavesEndpointTwoSlaves is flaky
+    * [MESOS-5000] - MasterTest.MasterLost is flaky
+    * [MESOS-5005] - Enforce that DiskInfo principal is equal to framework/operator principal
+    * [MESOS-5010] - Installation of mesos python package is incomplete
+    * [MESOS-5012] - Protobuf change for external storage.
+    * [MESOS-5013] - Add docker volume driver isolator for Mesos containerizer.
+    * [MESOS-5018] - FrameworkInfo Capability enum does not support upgrades.
+    * [MESOS-5031] - Authorization Action enum does not support upgrades.
+    * [MESOS-5060] - Requesting /files/read.json with a negative length value causes subsequent /files requests to 404.
+    * [MESOS-5063] - SSLTest.HTTPSPost and SSLTest.HTTPSGet tests fail
+    * [MESOS-5064] - Remove default value for the agent `work_dir`
+    * [MESOS-5082] - Fix a bug in the Nvidia GPU device isolator that exposes a discrepancy between clang and gcc in 'using' declarations
+    * [MESOS-5083] - Implement Docker Volume Isolator
+    * [MESOS-5104] - Add checkpoint and recover logic in dvd isolator
+    * [MESOS-5113] - `network/cni` isolator crashes when launched without the --network_cni_plugins_dir flag
+    * [MESOS-5114] - Flags::parse does not handle empty string correctly.
+    * [MESOS-5115] - Grant access to /dev/nvidiactl and /dev/nvidia-uvm in the Nvidia GPU isolator.
+    * [MESOS-5121] - pivot_root is not available on PowerPC
+    * [MESOS-5125] - Commit message hook iterates over words, rather than lines.
+    * [MESOS-5126] - Commit message hook iterates over the commented lines.
+    * [MESOS-5127] - Reset `LIBPROCESS_IP` in `network\cni` isolator.
+    * [MESOS-5128] - PersistentVolumeTest.AccessPersistentVolume is flaky
+    * [MESOS-5131] - Slave allows the resource estimator to send non-revocable resources.
+    * [MESOS-5132] - Commit message hook lints the diff in verbose mode.
+    * [MESOS-5138] - Fix Nvidia GPU test build for namespace change of MasterDetector
+    * [MESOS-5142] - Add agent flags for HTTP authorization.
+    * [MESOS-5146] - MasterAllocatorTest/1.RebalancedForUpdatedWeights is flaky.
+    * [MESOS-5153] - Sandboxes contents should be protected from unauthorized users
+    * [MESOS-5162] - Commit message hook behaves incorrectly when a message includes a "*".
+    * [MESOS-5166] - ExamplesTest.DynamicReservationFramework is slow
+    * [MESOS-5181] - Master should reject calls from the scheduler driver if the scheduler is not connected.
+    * [MESOS-5184] - Mesos does not validate role info when framework registered with specified role
+    * [MESOS-5199] - The mesos-execute prints confusing message when launching tasks.
+    * [MESOS-5225] - Command executor can not start when joining a CNI network
+    * [MESOS-5226] - The image-less task launched by mesos-execute can not join CNI network
+    * [MESOS-5230] - Slave/Agent Rename Phase I: Rename '/include/mesos/slave' folder
+    * [MESOS-5233] - python packages installation is broken
+    * [MESOS-5237] - The windows version of `os::access` has differing behavior than the POSIX version.
+    * [MESOS-5238] - CHECK failure in AppcProvisionerIntegrationTest.ROOT_SimpleLinuxImageTest
+    * [MESOS-5239] - Persistent volume DockerContainerizer support assumes proper mount propagation setup on the host.
+    * [MESOS-5240] - Command executor may escalate after the task is reaped.
+    * [MESOS-5244] - Compilation failure on Ubuntu 16.04
+    * [MESOS-5253] - Isolator cleanup should not be invoked if they are not prepared yet.
+    * [MESOS-5263] - pivot_root is not available on ARM
+    * [MESOS-5266] - add test cases for docker volume driver
+    * [MESOS-5277] - Need to add REMOVE semantics to the copy backend
+    * [MESOS-5282] - Destroy container while provisioning volume images may lead to a race.
+    * [MESOS-5287] - boto is no longer a Mesos dependency.
+    * [MESOS-5293] - Endpoint handlers for master and agent are implemented surprisingly differently.
+    * [MESOS-5304] - /metrics/snapshot endpoint help disappeared on agent.
+    * [MESOS-5308] - ROOT_XFS_QuotaTest.NoCheckpointRecovery failed.
+    * [MESOS-5311] - Calling `make install` fails if `include/mesos/slave/agent` already exists.
+    * [MESOS-5312] - Env `MESOS_SANDBOX` is not set properly for command tasks that changes rootfs.
+    * [MESOS-5318] - Make `os::close` always catch structured exceptions on Windows
+    * [MESOS-5326] - Error symbolic link of include/slave
+    * [MESOS-5330] - Agent should backoff before connecting to the master
+    * [MESOS-5340] - libevent builds may prevent new connections
+    * [MESOS-5354] - Update "driver" as optional for DockerVolume.
+    * [MESOS-5380] - Killing a queued task can cause the corresponding command executor to never terminate.
+    * [MESOS-5381] - Network portmapping isolator disable IPv6 failed
+    * [MESOS-5382] - Implement os::fsync
+    * [MESOS-5383] - Implement os::setHostname
+    * [MESOS-5386] - Add `HANDLE` overloads for functions that take a file descriptor
+    * [MESOS-5390] - v1 Executor Protos not included in maven jar
+    * [MESOS-5397] - Slave/Agent Rename Phase 1: Update terms in the website
+    * [MESOS-5403] - Introduce ObjectApprover Interface to Authorizer.
+    * [MESOS-5405] - Make fields in authorization::Request protobuf optional.
+    * [MESOS-5407] - Slave/Agent rename: diagrams in docs
+    * [MESOS-5408] - Delete the /observe HTTP endpoint
+    * [MESOS-5413] - `network/cni` isolator should skip the bind mounting of the CNI network information root directory if possible
+    * [MESOS-5414] - configure failed on ubuntu and centos
+    * [MESOS-5421] - Mesos Docker executor taskHealthUpdated removes information about job ipAddresses
+    * [MESOS-5422] - Website README.md is out of dated
+    * [MESOS-5423] - Updating the website section in release-guide is out of dated
+    * [MESOS-5429] - Enhance error message for mesos-ps
+    * [MESOS-5432] - Javadoc in project website didn't include the generated protobuf
+    * [MESOS-5434] - Incomplete bootstrap 3.3.6 upgrade in webui
+    * [MESOS-5437] - AppC  appc_simple_discovery_uri_prefix is lost in configuration.md
+    * [MESOS-5438] - Add more verbose log for mesos-cat, mesos-tail or mesos-scp
+    * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer
+    * [MESOS-5453] - CNI should not store subnet of address in NetworkInfo
+    * [MESOS-5477] - Implement GET_HEALTH Call in v1 master API.
+    * [MESOS-5478] - Implement GET_HEALTH Call in v1 agent API.
+    * [MESOS-5479] - Implement GET_VERSION Call in v1 master API.
+    * [MESOS-5480] - Implement GET_VERSION Call in v1 agent API.
+
+** Documentation
+    * [MESOS-4381] - Improve upgrade compatibility documentation.
+    * [MESOS-4689] - Design doc for v1 Operator API
+    * [MESOS-4726] - Document scheduler driver calls in framework development guide.
+    * [MESOS-4750] - Document: Mesos Executor expects all SSL_* environment variables to be set
+    * [MESOS-4785] - Reorganize ACL subject/object descriptions.
+    * [MESOS-4787] - HTTP endpoint docs should use shorter paths
+    * [MESOS-5215] - Update the documentation for '/reserve' and '/create-volumes'
+
+** Epic
+    * [MESOS-1478] - Slave to Agent rename (Phase I).
+    * [MESOS-2297] - Add authentication support for HTTP API
+    * [MESOS-2948] - Generalize authorizer interface in order to allow for arbitrary Subjects, Actions and Objects
+    * [MESOS-4189] - Dynamic weights
+    * [MESOS-4843] - Authorize Master Operator Endpoints
+    * [MESOS-4847] - Agent HTTP Authentication
+    * [MESOS-4931] - Authorization based filtering for endpoints.
+    * [MESOS-5150] - Authorize Agent HTTP Endpoints
+
+** Improvement
+    * [MESOS-1571] - Signal escalation timeout is not configurable.
+    * [MESOS-2154] - Port CFS quota support to Docker Containerizer
+    * [MESOS-2281] - Deprecate plain text Credential format.
+    * [MESOS-2372] - Test script for verifying compatibility between Mesos components
+    * [MESOS-2720] - Publish the schema for operator endpoints
+    * [MESOS-3367] - Mesos fetcher does not extract archives for URI with parameters
+    * [MESOS-3690] - Make Apache Mesos' website mobile friendly
+    * [MESOS-3774] - Migrate Future tests from process_tests.cpp to future_tests.cpp
+    * [MESOS-3775] - MasterAllocatorTest.SlaveLost is slow.
+    * [MESOS-4090] - Create light-weight executor only and scheduler only mesos eggs
+    * [MESOS-4126] - Construct the error string in `MethodNotAllowed`.
+    * [MESOS-4160] - Log recover tests are slow.
+    * [MESOS-4164] - MasterTest.RecoverResources is slow.
+    * [MESOS-4165] - MasterTest.MasterInfoOnReElection is slow.
+    * [MESOS-4166] - MasterTest.LaunchCombinedOfferTest is slow.
+    * [MESOS-4167] - MasterTest.OfferTimeout is slow.
+    * [MESOS-4170] - OversubscriptionTest.UpdateAllocatorOnSchedulerFailover is slow.
+    * [MESOS-4171] - OversubscriptionTest.RemoveCapabilitiesOnSchedulerFailover is slow.
+    * [MESOS-4174] - HookTest.VerifySlaveLaunchExecutorHook is slow.
+    * [MESOS-4175] - ContentType/SchedulerTest.Decline is slow.
+    * [MESOS-4309] - Update documentation to cover HTTP authentication.
+    * [MESOS-4353] - Limit the number of processes created by libprocess
+    * [MESOS-4369] - Enhance DockerExecuter to support Docker's user-defined networks
+    * [MESOS-4386] - Deprecate 'authenticate' master flag in favor of 'authenticate_frameworks' flag
+    * [MESOS-4576] - Introduce a stout helper for "which"
+    * [MESOS-4610] - MasterContender/MasterDetector should be loadable as modules
+    * [MESOS-4612] - Update vendored ZooKeeper to 3.4.8
+    * [MESOS-4678] - Upgrade vendored Protobuf to 2.6.1
+    * [MESOS-4720] - Add allocator metrics for total vs offered/allocated resources.
+    * [MESOS-4721] - Expose allocation algorithm latency via a metric.
+    * [MESOS-4722] - Add allocator metric for number of active offer filters
+    * [MESOS-4723] - Add allocator metric for currently satisfied quotas
+    * [MESOS-4724] - Add allocator metric for currrent dominant shares of frameworks and roles
+    * [MESOS-4735] - CommandInfo.URI should allow specifying target filename
+    * [MESOS-4790] - Revert external linkage of symbols in master/constants.hpp
+    * [MESOS-4801] - Updated `createFrameworkInfo` for hierarchical_allocator_tests.cpp.
+    * [MESOS-4802] - Update leveldb patch file to suport PowerPC LE
+    * [MESOS-4803] - Update vendored libev to 4.22
+    * [MESOS-4805] - Update ry-http-parser-1c3624a to nodejs/http-parser 2.6.1
+    * [MESOS-4839] - Move placement new processes into the freezer cgroup into a parent hook.
+    * [MESOS-4868] - PersistentVolumeTests do not need to set up ACLs.
+    * [MESOS-4879] - Update glog patch to support PowerPC LE
+    * [MESOS-4886] - Support mesos containerizer force_pull_image option.
+    * [MESOS-4891] - Add a '/containers' endpoint to the agent to list all the active containers.
+    * [MESOS-4897] - Update test cases to support PowerPC LE
+    * [MESOS-4902] - Add authentication to libprocess endpoints
+    * [MESOS-4908] - Tasks cannot be killed forcefully.
+    * [MESOS-4909] - Introduce kill policy for tasks.
+    * [MESOS-4910] - Deprecate the --docker_stop_timeout agent flag.
+    * [MESOS-4914] - ProcessorManager delegate should be an Option<string>, not just a string.
+    * [MESOS-4926] - Add a list parser for comma separated integers in flags.
+    * [MESOS-4927] - The flag parser for `hashmap<string, string>` should live in stout, not mesos.
+    * [MESOS-4928] - Remove all '.get().' calls on Option / Try variables in the resources abstraction.
+    * [MESOS-4949] - Executor shutdown grace period should be configurable.
+    * [MESOS-4951] - Enable actors to pass an authentication realm to libprocess
+    * [MESOS-4956] - Add authentication to /files endpoints
+    * [MESOS-5001] - Prefix allocator metrics with "mesos/" to better support custom allocator metrics.
+    * [MESOS-5002] - Reflecting the Tachyon => Alluxio rename in the documentation.
+    * [MESOS-5014] - Call and Event Type enums in scheduler.proto should be optional
+    * [MESOS-5015] - Call and Event Type enums in executor.proto should be optional
+    * [MESOS-5020] - Drop `404 Not Found` and `307 Temporary Redirect` in the scheduler library.
+    * [MESOS-5029] - Add labels to ExecutorInfo
+    * [MESOS-5030] - Expose TaskInfo's metadata to ResourceUsage struct
+    * [MESOS-5044] - Temporary directories created by environment->mkdtemp cleanup can be problematic.
+    * [MESOS-5049] - Refactore subproces setup functions.
+    * [MESOS-5062] - Update the long-lived-framework example to run on test clusters
+    * [MESOS-5069] - Upgrade http-parser to v2.6.2
+    * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters
+    * [MESOS-5101] - Add CMake build to docker_build.sh
+    * [MESOS-5117] - Enhance mesos-execute for specifying CNI networks
+    * [MESOS-5124] - TASK_KILLING is not supported by mesos-execute.
+    * [MESOS-5155] - Consolidate authorization actions for quota.
+    * [MESOS-5168] - Benchmark overhead of authorization based filtering.
+    * [MESOS-5169] - Introduce new Authorizer Actions for Authorized based filtering of endpoints.
+    * [MESOS-5170] - Adapt json creation for authorization based endpoint filtering.
+    * [MESOS-5179] - Enhance the error message for Duration flag.
+    * [MESOS-5212] - Allow any principal in ReservationInfo when HTTP authentication is off
+    * [MESOS-5214] - Populate FrameworkInfo.principal for authenticated frameworks
+    * [MESOS-5271] - Add alias support for Flags
+    * [MESOS-5273] - Need support for Authorization information via HELP.
+    * [MESOS-5286] - Add authorization to libprocess HTTP endpoints
+    * [MESOS-5296] - Split Resource and Inverse offer protobufs for V1 API
+    * [MESOS-5302] - Consider adding an Executor Shim/Adapter for the new/old API
+    * [MESOS-5307] - Sandbox mounts should not be in the host mount namespace.
+    * [MESOS-5316] - Authenticate the agent's '/containers' endpoint.
+    * [MESOS-5317] - Authorize the agent's '/containers' endpoint.
+    * [MESOS-5331] - Some cleanup in filesystem_isolator_tests.cpp
+    * [MESOS-5335] - Add authorization to GET /weights.
+    * [MESOS-5336] - Add authorization to GET /quota.
+    * [MESOS-5337] - Add Master Flag to enable fine-grained filtering of HTTP endpoints.
+    * [MESOS-5338] - Add `user` to `Task` protobuf message.
+    * [MESOS-5339] - Create Tests for testing fine-grained HTTP endpoint filtering.
+    * [MESOS-5347] - Enhance the log message when launching mesos containerizer.
+    * [MESOS-5350] - Add asynchronous hook for validating docker containerizer tasks
+    * [MESOS-5356] - Add Windows support for StopWatch
+    * [MESOS-5360] - Set death signal for dvdcli subprocess in docker volume isolator.
+    * [MESOS-5370] - Add deprecation support for Flags
+    * [MESOS-5372] - Add random() to os:: namespace
+    * [MESOS-5373] - Remove `Zookeeper's` NTDDI_VERSION define
+    * [MESOS-5374] - Add support for Console Ctrl handling in `slave.cpp`
+    * [MESOS-5375] - Implement stout/os/windows/kill.hpp
+    * [MESOS-5398] - Rewrite os::read() to be friendlier to reading binary files
+    * [MESOS-5399] - Add utility for parsing ld.so.cache on linux.
+    * [MESOS-5400] - Add preliminary support for parsing ELF files in stout.
+    * [MESOS-5404] - Allow `Task` to be authorized.
+    * [MESOS-5420] - Implement os::exists for processes
+    * [MESOS-5424] - Update the style of code under website folder to match other exist source code
+    * [MESOS-5430] - Design the improvement of the home page of mesos.apache.org
+    * [MESOS-5431] - Update the website generation and development workflows with docker.
+    * [MESOS-5435] - Add default implementations to all Isolator virtual functions
+    * [MESOS-5457] - Create a small testing doc for the v1 Scheduler/Executor API
+    * [MESOS-5459] - Update RUN_TASK_WITH_USER to use additional metadata
+    * [MESOS-5519] - Refresh Mesos project website homepage
+
+** Story
+    * [MESOS-1923] - Add basic auth security to mesos-master web port (web/rest api)
+
+** Task
+    * [MESOS-338] - Mesos 1.0
+    * [MESOS-2257] - Version the Operator/Admin API
+    * [MESOS-2408] - Slave should reclaim storage for destroyed persistent volumes.
+    * [MESOS-2950] - Implement current mesos Authorizer in terms of generalized Authorizer interface
+    * [MESOS-3063] - Add an example framework using dynamic reservation
+    * [MESOS-3214] - Replace boost foreach with range-based for
+    * [MESOS-3368] - Add device support in cgroups abstraction
+    * [MESOS-3443] - Windows: Port protobuf_tests.hpp
+    * [MESOS-3558] - Implement  HTTPCommandExecutor that uses the Executor Library
+    * [MESOS-3559] - Make the Command Scheduler use the HTTP Scheduler Library
+    * [MESOS-3618] - Port slave/containerizer/fetcher.cpp
+    * [MESOS-3619] - Port slave/containerizer/isolator.cpp to Windows
+    * [MESOS-3620] - Create slave/containerizer/isolators/filesystem/windows.cpp
+    * [MESOS-3623] - Port slave/containerizer/mesos/containerizer.cpp to Windows
+    * [MESOS-3624] - Port slave/containerizer/mesos/launch.cpp to Windows
+    * [MESOS-3637] - Port process/process.hpp to Windows
+    * [MESOS-3639] - Implement stout/os/windows/killtree.hpp
+    * [MESOS-3641] - Implement stout/os/windows/read.hpp and write.hpp
+    * [MESOS-3683] - Port slave/containerizer/isolator.hpp to Windows
+    * [MESOS-3779] - Slave/Agent Rename Phase I - Update terms in Web UI.
+    * [MESOS-3781] - Replace Master/Slave Terminology Phase I - Rename flag names and deprecate old ones
+    * [MESOS-3782] - Slave/Agent Rename Phase I - Add duplicate binaries (or create symlinks)
+    * [MESOS-3783] - Replace Master/Slave Terminology Phase I - Update documentation
+    * [MESOS-3784] - Replace Master/Slave Terminology Phase I - Update mesos-cli
+    * [MESOS-3854] - Finalize design for generalized Authorizer interface
+    * [MESOS-3945] - Add operator documentation for /weight endpoint
+    * [MESOS-4033] - Add a commit hook for non-ascii characters.
+    * [MESOS-4112] - Clean up libprocess gtest macros
+    * [MESOS-4214] - Introduce HTTP endpoint /weights for updating weight
+    * [MESOS-4316] - Support get non-default weights by /weights
+    * [MESOS-4459] - Implement AuthN handling on the scheduler library
+    * [MESOS-4623] - Add a stub Nvidia GPU isolator.
+    * [MESOS-4624] - Add allocation metrics for "gpus" resources.
+    * [MESOS-4625] - Implement Nvidia GPU isolation w/o filesystem isolation enabled.
+    * [MESOS-4629] - Implement fault tolerance tests for the HTTP Scheduler API.
+    * [MESOS-4704] - Enable zlib on Windows.
+    * [MESOS-4758] - Add a 'name' field into NetworkInfo.
+    * [MESOS-4759] - Add network/cni isolator for Mesos containerizer.
+    * [MESOS-4761] - Add agent flags to allow operators to specify CNI plugin and config directories.
+    * [MESOS-4764] - The network/cni isolator should report assigned IP address.
+    * [MESOS-4771] - Document the network/cni isolator.
+    * [MESOS-4788] - Mesos UI should show the role and principal of a framework
+    * [MESOS-4797] - Add a couple of registrar tests for /weights endpoint
+    * [MESOS-4813] - Implement base tests for unified container using local puller.
+    * [MESOS-4818] - Add end to end testing for Appc images.
+    * [MESOS-4840] - Remove internal usage of deprecated ShutdownFramework ACL
+    * [MESOS-4844] - Add authentication to master endpoints
+    * [MESOS-4849] - Add agent flags for HTTP authentication
+    * [MESOS-4850] - Add authentication to agent endpoints /state and /flags
+    * [MESOS-4858] - Make changes to executor v1 library around managing connections.
+    * [MESOS-4860] - Add a script to install the Nvidia GDK on a host.
+    * [MESOS-4861] - Add configure flags to build with Nvidia GPU support.
+    * [MESOS-4863] - Add Nvidia GPU isolator tests.
+    * [MESOS-4864] - Add flag to specify available Nvidia GPUs on an agent's command line.
+    * [MESOS-4865] - Add GPUs as an explicit resource.
+    * [MESOS-4881] - Rescind all outstanding offers after changing some weights.
+    * [MESOS-4887] - Design doc for Slave/Agent rename
+    * [MESOS-4889] - Implement runtime isolator tests.
+    * [MESOS-4906] - Upgrade to clang-format-3.8.
+    * [MESOS-4932] - Propose Design for Authorization based filtering for endpoints.
+    * [MESOS-4933] - Registrar HTTP Authentication.
+    * [MESOS-4934] - Enable HELP to include authentication status of endpoint.
+    * [MESOS-4939] - Support specifying per-container docker registry.
+    * [MESOS-4944] - Improve overlay backend so that it's writable
+    * [MESOS-4962] - Support for Mesos releases
+    * [MESOS-4982] - Update example long running to use v1 API.
+    * [MESOS-4993] - FetcherTest.ExtractZipFile assumes `unzip` is installed
+    * [MESOS-5050] - Design Linux capability support for Mesos containerizer
+    * [MESOS-5055] - Slave/Agent Rename Phase I - Update strings in the log message and standard output
+    * [MESOS-5057] - Slave/Agent Rename Phase I - Update strings in error messages and other strings
+    * [MESOS-5065] - Support docker private registry default docker config.
+    * [MESOS-5108] - Design a short-term solution for a typed error handling mechanism.
+    * [MESOS-5109] - Capture the error code in `ErrnoError` and `WindowsError`.
+    * [MESOS-5110] - Introduce an additional template parameter to `Try` for typed error.
+    * [MESOS-5111] - Update `network::connect` to use the typed error state of `Try`.
+    * [MESOS-5112] - Introduce `WindowsSocketError`.
+    * [MESOS-5130] - Enable `newtork/cni` isolator in `MesosContainerizer` as the default `network` isolator.
+    * [MESOS-5135] - Update existing documentation to Include references to GPUs as a first class resource.
+    * [MESOS-5136] - Update the default JSON representation of a Resource to include GPUs
+    * [MESOS-5137] - Remove 'dashboard.js' from the webui.
+    * [MESOS-5152] - Add authentication to agent's /monitor/statistics endpoint
+    * [MESOS-5157] - Update webui for GPU metrics
+    * [MESOS-5159] - Add test to verify error when requesting fractional GPUs
+    * [MESOS-5164] - Add authorization to agent's /monitor/statistics endpoint.
+    * [MESOS-5167] - Add tests for `network/cni` isolator
+    * [MESOS-5171] - Expose state/state.hpp to public headers
+    * [MESOS-5173] - Allow master/agent to take multiple modules manifest files
+    * [MESOS-5178] - Add logic to validate for non-fractional GPU requests in the master
+    * [MESOS-5197] - Log executor commands w/o verbose logs enabled
+    * [MESOS-5209] - Add a slave hook that runs after the fetching is done.
+    * [MESOS-5249] - Update CMake files to reflect reorganized 3rdparty
+    * [MESOS-5250] - Move 3rdparty/libprocess/3rdparty/* to 3rdparty/
+    * [MESOS-5272] - Support docker image labels.
+    * [MESOS-5297] - Add authorization to the master's "/flags" endpoint.
+    * [MESOS-5365] - Introduce a timeout for docker volume driver mount/unmount operation.
+    * [MESOS-5394] - Rename isolator name 'xfs/disk' and 'posix/disk' to 'disk/xfs' and 'disk/du'
+    * [MESOS-5474] - Implement GET_FLAGS Call in v1 master API.
+    * [MESOS-5475] - Implement GET_FLAGS Call in v1 agent API.
+    * [MESOS-5485] - Implement GET_LOGGING_LEVEL Call in v1 master API.
+    * [MESOS-5497] - Implement GET_LEADING_MASTER Call in v1 master API.
+    * [MESOS-5512] - Implement GET_LOGGING_LEVEL Call in v1 agent API.
+
 
 Release Notes - Mesos - Version 0.28.2
 --------------------------------------
