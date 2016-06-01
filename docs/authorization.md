@@ -128,6 +128,9 @@ entries, each representing an authorizable action:
 |`get_quotas`|Operator username.|Resource role whose quota status will be queried.|Querying [quota](quota.md) status for roles.|
 |`update_quotas`|Operator username.|Resource role whose quota will be updated.|Modifying [quotas](quota.md) for roles.|
 |`update_weights`|Operator username.|Resource roles whose weights can be updated by the operator.|Updating weights.|
+|`view_framework`|UNIX user of whom executors can be viewed.|`Framework_Info` which can be viewed.|Filtering http endpoints.|
+|`view_executor`|UNIX user of whom executors can be viewed.|`Executor_Info` and `Framework_Info` which can be viewed.|Filtering http endpoints.|
+|`view_task`|UNIX user of whom tasks can be viewed.|(`Task` or `Task_Info`) and `Framework_Info` which can be viewed.|Filtering http endpoints.|
 
 ### Examples
 
@@ -581,7 +584,7 @@ principal can update quota.
 ## Implementing an Authorizer
 
 In case you plan to implement your own authorizer [module](modules.md), the
-authorization interface consists of two parts:
+authorization interface consists of three parts:
 
 First, the `authorization::Request` protobuf message represents a request to be
 authorized. It follows the
@@ -613,12 +616,17 @@ message Subject {
 
 message Object {
   optional string value = 1;
+  optional FrameworkInfo framework_info = 2;
+  optional Task task = 3;
+  optional TaskInfo task_info = 4;
+  optional ExecutorInfo executor_info = 5;
 }
 ```
 
+`Object` has several optional fields of which also several can be set (e.g., the `view_executors` action expects the `executor_info` and `framework_info` to be set).
 The `value` field for both `Subject` and `Object` is optional; if it isn't set,
 then the `Subject` or `Object` will only match an ACL with ANY or NONE in the
-corresponding location. This allows users to construct the following requests:
+corresponding location (for actions expecting `value` to be set). This allows users to construct the following requests:
 _Can everybody perform action **A** on object **O**?_, or _Can principal **Z**
 execute action **X** on all objects?_.
 
@@ -626,3 +634,23 @@ The `action` field of the `Request` message is an enum. It is kept optional —
 even though a valid action is necessary for every request — to allow for
 backwards compatibility when adding new fields (see
 [MESOS-4997](https://issues.apache.org/jira/browse/MESOS-4997) for details).
+
+Third, the `ObjectApprover` interface. In order to support efficient authorization of large objects and multiple objects a user can request an `ObjectApprover` via `Future<Owned<ObjectApprover>> getObjectApprover(const authorization::Subject& subject, const authorization::Action& action)`.
+The resulting `ObjectApprover` provides `Try<bool> approved(const ObjectApprover::Object& object)` to synchronously check whether objects are
+authorized. The `ObjectApprover::Object` follows the structure of the `Request::Object` above.
+
+```cpp
+struct Object
+{
+  const std::string* value;
+  const FrameworkInfo* framework_info;
+  const Task* task;
+  const TaskInfo* task_info;
+  const ExecutorInfo* executor_info;
+};
+```
+
+As the fields take pointer to each entity the `ObjectApprover::Object` does not require the entity to be copied.
+
+NOTE: As the `ObjectApprover` is run synchronously in a different actor process
+`ObjectApprover.approved()` call must not block!
