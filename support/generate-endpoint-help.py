@@ -34,12 +34,14 @@ AGENT_PORT = 5051
 MASTER_COMMAND = [
   'mesos-master.sh',
   '--ip=%s' % (HOST_IP),
-  '--registry=in_memory'
+  '--registry=in_memory',
+  '--work_dir=/tmp/mesos'
 ]
 
 AGENT_COMMAND = [
   'mesos-agent.sh',
-  '--master=%s:%s' % (HOST_IP, MASTER_PORT)
+  '--master=%s:%s' % (HOST_IP, MASTER_PORT),
+  '--work_dir=/tmp/mesos'
 ]
 
 
