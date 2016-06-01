@@ -72,7 +72,8 @@ public:
    * NOTE: As this function can be used synchronously by actors
    * it is essential that it does not block!
    */
-  virtual Try<bool> approved(const Object& object) const noexcept = 0;
+  virtual Try<bool> approved(
+      const Option<Object>& object) const noexcept = 0;
 
   virtual ~ObjectApprover() = default;
 };
@@ -153,7 +154,7 @@ public:
    * @return An `ObjectApprover` for the given `subject` and `action`.
    */
   virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
-      const authorization::Subject& subject,
+      const Option<authorization::Subject>& subject,
       const authorization::Action& action) = 0;
 
 protected:

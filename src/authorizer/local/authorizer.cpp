@@ -168,7 +168,7 @@ class LocalAuthorizerObjectApprover : public ObjectApprover
 public:
   LocalAuthorizerObjectApprover(
       const vector<GenericACL>& acls,
-      const authorization::Subject& subject,
+      const Option<authorization::Subject>& subject,
       const authorization::Action& action,
       const bool permissive)
     : acls_(acls),
@@ -177,11 +177,11 @@ public:
       permissive_(permissive) {}
 
   virtual Try<bool> approved(
-      const ObjectApprover::Object& object) const noexcept override {
+      const Option<ObjectApprover::Object>& object) const noexcept override {
     // Construct subject.
     ACL::Entity aclSubject;
-    if (subject_.has_value()) {
-      aclSubject.add_values(subject_.value());
+    if (subject_.isSome()) {
+      aclSubject.add_values(subject_->value());
       aclSubject.set_type(mesos::ACL::Entity::SOME);
     } else {
       aclSubject.set_type(mesos::ACL::Entity::ANY);
@@ -189,112 +189,114 @@ public:
 
     // Construct object.
     ACL::Entity aclObject;
-    switch (action_) {
-      // All actions using `object.value` for authorization.
-      // Missing `object.value` implies 'ANY'.
-      case authorization::REGISTER_FRAMEWORK_WITH_ROLE:
-      case authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL:
-      case authorization::RUN_TASK_WITH_USER:
-      case authorization::RESERVE_RESOURCES_WITH_ROLE:
-      case authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL:
-      case authorization::CREATE_VOLUME_WITH_ROLE:
-      case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
-      case authorization::GET_QUOTA_WITH_ROLE:
-      case authorization::UPDATE_QUOTA_WITH_ROLE:
-      case authorization::SET_QUOTA_WITH_ROLE:
-      case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
-      case authorization::GET_WEIGHT_WITH_ROLE:
-      case authorization::UPDATE_WEIGHT_WITH_ROLE:
-      case authorization::GET_ENDPOINT_WITH_PATH: {
-        // Construct object.
-        if (object.value != NULL) {
-          aclObject.add_values(*(object.value));
+
+    if (object.isNone()) {
+      aclObject.set_type(mesos::ACL::Entity::ANY);
+    } else {
+      switch (action_) {
+        // All actions using `object.value` for authorization.
+        case authorization::REGISTER_FRAMEWORK_WITH_ROLE:
+        case authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL:
+        case authorization::RUN_TASK_WITH_USER:
+        case authorization::RESERVE_RESOURCES_WITH_ROLE:
+        case authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL:
+        case authorization::CREATE_VOLUME_WITH_ROLE:
+        case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
+        case authorization::GET_QUOTA_WITH_ROLE:
+        case authorization::UPDATE_QUOTA_WITH_ROLE:
+        case authorization::SET_QUOTA_WITH_ROLE:
+        case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
+        case authorization::GET_WEIGHT_WITH_ROLE:
+        case authorization::UPDATE_WEIGHT_WITH_ROLE:
+        case authorization::GET_ENDPOINT_WITH_PATH: {
+          // Check object has the required types set.
+          CHECK_NOTNULL(object->value);
+
+          aclObject.add_values(*(object->value));
           aclObject.set_type(mesos::ACL::Entity::SOME);
-        } else {
+
+          break;
+        }
+        case authorization::ACCESS_MESOS_LOG: {
           aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          break;
         }
+        case authorization::ACCESS_SANDBOX: {
+          // Check object has the required types set.
+          CHECK_NOTNULL(object->executor_info);
+          CHECK_NOTNULL(object->framework_info);
 
-        break;
-      }
-      case authorization::ACCESS_MESOS_LOG: {
-        aclObject.set_type(mesos::ACL::Entity::ANY);
-
-        break;
-      }
-      case authorization::ACCESS_SANDBOX: {
-        // Check object has the required types set.
-        CHECK_NOTNULL(object.executor_info);
-        CHECK_NOTNULL(object.framework_info);
-
-        if (object.executor_info->command().has_user()) {
-          aclObject.add_values(object.executor_info->command().user());
-          aclObject.set_type(mesos::ACL::Entity::SOME);
-        } else {
-          aclObject.add_values(object.framework_info->user());
-          aclObject.set_type(mesos::ACL::Entity::SOME);
-        }
-
-        break;
-      }
-      case authorization::VIEW_FRAMEWORK: {
-        // Check object has the required types set.
-        CHECK_NOTNULL(object.framework_info);
-
-        aclObject.add_values(object.framework_info->user());
-        aclObject.set_type(mesos::ACL::Entity::SOME);
-
-        break;
-      }
-      case authorization::VIEW_TASK: {
-        CHECK(object.task != NULL || object.task_info != NULL);
-        CHECK_NOTNULL(object.framework_info);
-
-        // First we consider either whether `Task` or `TaskInfo`
-        // have `user` set. As fallback we use `FrameworkInfo.user`.
-        Option<string> taskUser = None();
-        if (object.task != NULL && object.task->has_user()) {
-          taskUser = object.task->user();
-        } else if (object.task_info != NULL) {
-          // Within TaskInfo the user can be either set in `command`
-          // or `executor.command`.
-          if (object.task_info->has_command() &&
-              object.task_info->command().has_user()) {
-            taskUser = object.task_info->command().user();
-          } else if (object.task_info->has_executor() &&
-                     object.task_info->executor().command().has_user()) {
-            taskUser = object.task_info->executor().command().user();
+          if (object->executor_info->command().has_user()) {
+            aclObject.add_values(object->executor_info->command().user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          } else {
+            aclObject.add_values(object->framework_info->user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
           }
+
+          break;
         }
+        case authorization::VIEW_FRAMEWORK: {
+          // Check object has the required types set.
+          CHECK_NOTNULL(object->framework_info);
 
-        // In case there is no `user` set on task level we fallback
-        // to the `FrameworkInfo.user`.
-        if (taskUser.isNone()) {
-          taskUser = object.framework_info->user();
-        }
-        aclObject.add_values(taskUser.get());
-        aclObject.set_type(mesos::ACL::Entity::SOME);
-
-        break;
-      }
-      case authorization::VIEW_EXECUTOR: {
-        CHECK_NOTNULL(object.executor_info);
-        CHECK_NOTNULL(object.framework_info);
-
-        if (object.executor_info->command().has_user()) {
-          aclObject.add_values(object.executor_info->command().user());
+          aclObject.add_values(object->framework_info->user());
           aclObject.set_type(mesos::ACL::Entity::SOME);
-        } else {
-          aclObject.add_values(object.framework_info->user());
-          aclObject.set_type(mesos::ACL::Entity::SOME);
-        }
 
-        break;
+          break;
+        }
+        case authorization::VIEW_TASK: {
+          CHECK(object->task != NULL || object->task_info != NULL);
+          CHECK_NOTNULL(object->framework_info);
+
+          // First we consider either whether `Task` or `TaskInfo`
+          // have `user` set. As fallback we use `FrameworkInfo.user`.
+          Option<string> taskUser = None();
+          if (object->task != NULL && object->task->has_user()) {
+            taskUser = object->task->user();
+          } else if (object->task_info != NULL) {
+            // Within TaskInfo the user can be either set in `command`
+            // or `executor.command`.
+            if (object->task_info->has_command() &&
+                object->task_info->command().has_user()) {
+              taskUser = object->task_info->command().user();
+            } else if (object->task_info->has_executor() &&
+                       object->task_info->executor().command().has_user()) {
+              taskUser = object->task_info->executor().command().user();
+            }
+          }
+
+          // In case there is no `user` set on task level we fallback
+          // to the `FrameworkInfo.user`.
+          if (taskUser.isNone()) {
+            taskUser = object->framework_info->user();
+          }
+          aclObject.add_values(taskUser.get());
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+
+          break;
+        }
+        case authorization::VIEW_EXECUTOR: {
+          CHECK_NOTNULL(object->executor_info);
+          CHECK_NOTNULL(object->framework_info);
+
+          if (object->executor_info->command().has_user()) {
+            aclObject.add_values(object->executor_info->command().user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          } else {
+            aclObject.add_values(object->framework_info->user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          }
+
+          break;
+        }
+        case authorization::UNKNOWN:
+          LOG(WARNING) << "Authorization for action '" << action_
+                       << "' is not defined and therefore not authorized";
+          return false;
+          break;
       }
-      case authorization::UNKNOWN:
-        LOG(WARNING) << "Authorization for action '" << action_
-                     << "' is not defined and therefore not authorized";
-        return false;
-        break;
     }
 
     return approved(acls_, aclSubject, aclObject);
@@ -317,7 +319,7 @@ private:
   }
 
   const vector<GenericACL> acls_;
-  const authorization::Subject subject_;
+  const Option<authorization::Subject> subject_;
   const authorization::Action action_;
   const bool permissive_;
 };
@@ -368,7 +370,11 @@ public:
   {
     return getObjectApprover(request.subject(), request.action())
       .then([=](const Owned<ObjectApprover>& objectApprover) -> Future<bool> {
-        ObjectApprover::Object object(request.object());
+        Option<ObjectApprover::Object> object = None();
+        if (request.has_object()) {
+          object = ObjectApprover::Object(request.object());
+        }
+
         Try<bool> result = objectApprover->approved(object);
         if (result.isError()) {
           return Failure(result.error());
@@ -378,7 +384,7 @@ public:
   }
 
   Future<Owned<ObjectApprover>> getObjectApprover(
-      const authorization::Subject& subject,
+      const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
     // Implementation of the ObjectApprover interface denying all objects.
@@ -386,7 +392,7 @@ public:
     {
     public:
       virtual Try<bool> approved(
-          const ObjectApprover::Object& object) const noexcept override
+          const Option<ObjectApprover::Object>& object) const noexcept override
       {
         return false;
       }
@@ -794,7 +800,7 @@ process::Future<bool> LocalAuthorizer::authorized(
 
 
 Future<Owned<ObjectApprover>> LocalAuthorizer::getObjectApprover(
-      const authorization::Subject& subject,
+      const Option<authorization::Subject>& subject,
       const authorization::Action& action)
 {
   return dispatch(

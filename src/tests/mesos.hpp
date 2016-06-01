@@ -1716,7 +1716,7 @@ public:
 
   MOCK_METHOD2(
       getObjectApprover, process::Future<process::Owned<ObjectApprover>>(
-          const authorization::Subject& subject,
+          const Option<authorization::Subject>& subject,
           const authorization::Action& action));
 };
 

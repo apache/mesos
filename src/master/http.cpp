@@ -170,7 +170,7 @@ class AcceptingObjectApprover : public ObjectApprover
 {
 public:
   virtual Try<bool> approved(
-      const ObjectApprover::Object& object) const noexcept override
+      const Option<ObjectApprover::Object>& object) const noexcept override
   {
     return true;
   }

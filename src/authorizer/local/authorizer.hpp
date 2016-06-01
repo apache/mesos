@@ -66,7 +66,7 @@ public:
       const authorization::Request& request);
 
   virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
-      const authorization::Subject& subject,
+      const Option<authorization::Subject>& subject,
       const authorization::Action& action);
 
 private:
