@@ -87,9 +87,12 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
 #ifdef __WINDOWS__
 // NOTE: Ordinarily this would go in a Windows-specific header; we put it here
 // to avoid complex forward declarations.
-inline Try<Nothing> write(HANDLE handle, const google::protobuf::Message& message)
+inline Try<Nothing> write(
+    HANDLE handle,
+    const google::protobuf::Message& message)
 {
-  return write(_open_osfhandle(reinterpret_cast<intptr_t>(handle), O_WRONLY), message);
+  return write(
+      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_WRONLY), message);
 }
 #endif // __WINDOWS__
 
@@ -317,7 +320,10 @@ Result<T> read(int fd, bool ignorePartial = false, bool undoFailed = false)
 // NOTE: Ordinarily this would go in a Windows-specific header; we put it here
 // to avoid complex forward declarations.
 template <typename T>
-Result<T> read(HANDLE handle, bool ignorePartial = false, bool undoFailed = false)
+Result<T> read(
+    HANDLE handle,
+    bool ignorePartial = false,
+    bool undoFailed = false)
 {
   return read<T>(
       _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY),
