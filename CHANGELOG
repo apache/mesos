@@ -6,7 +6,7 @@ This release contains the following new features:
 
   * [MESOS-4791] - *Experiemental* support for v1 Master and Agent APIs. These
     APIs let operators and services (monitoring, load balancers) send HTTP
-    requests to "/api/v1" endpoint on master or agent. These APIs look similar
+    requests to '/api/v1' endpoint on master or agent. These APIs look similar
     to the v1 Scheduler and Executor APIs.
 
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
@@ -63,6 +63,16 @@ This release contains the following new features:
     container to different types of IP networks by invoking network drivers
     called CNI plugins.
 
+  * [MESOS-1478] - Phase I of the Slave to Agent rename is complete. To support
+    the rename, new duplicate flags (e.g., --agent_reregister_timeout), new
+    binaries (e.g., mesos-agent) and WebUI sandbox links have been added. All
+    the logging output has been updated to use the term 'agent' now. Flags,
+    binaries and scripts with 'slave' keyword have been deprecated (see
+    "Deprecations section below").
+
+  * [MESOS-4312] - *Experimental support* for building and running mesos on
+    IBM PowerPC platform.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
@@ -76,6 +86,10 @@ Deprecations:
     ExecutorInfo.labels.
 
   * [MESOS-3781] - Deprecated flags with keyword 'slave' in favor of 'agent'.
+
+  * [MESOS-3779] - Deprecated sandbox links with 'slave' keyword in the WebUI.
+
+  * [MESOS-3784] - Deprecated `slave` subcommand for mesos-cli.
 
   * [MESOS-5155] - Deprecated `SET_QUOTA_WITH_ROLE` and
     `DESTROY_QUOTA_WITH_PRINCIPAL` authorization actions together with the
