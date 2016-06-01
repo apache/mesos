@@ -48,6 +48,14 @@ This release contains the following new features:
     volume plugins using a tool called 'dvdcli'. By speaking the Docker volume
     plugin API, most of the Docker volume plugins are supported.
 
+  * [MESOS-4641] - **Experimental** A new network isolator, the
+    `network/cni` isolator, has been introduced in the `MesosContainerizer`. The
+    `network/cni` isolator implements the Container Network Interface (CNI)
+    specification proposed by CoreOS.  With CNI the `network/cni` isolator is
+    able to allocate a network namespace to Mesos containers and attach the
+    container to different types of IP networks by invoking network drivers
+    called CNI plugins.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
