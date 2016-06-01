@@ -27,6 +27,20 @@ This release contains the following new features:
     container to different types of IP networks by invoking network drivers
     called CNI plugins.
 
+  * [MESOS-2948, MESOS-5403] - The authorizer interface has been refactored in
+    order to decouple the ACLs definition language from the interface.
+    It additionally includes the option of retrieving `ObjectApprover`. An
+    `ObjectApprover` can be used to synchronously check authorizations for a
+    given object and is hence useful when authorizing a large number of objects
+    and/or large objects (which need to be copied using request based
+    authorization). NOTE: This is a **breaking change** for authorizer modules.
+
+  * [MESOS-4931] - Authorization based HTTP endpoint filtering enables operators
+    to restrict what part of the cluster state a user is authorized to see.
+    Consider for example the `/state` master endpoint: an operator can now
+    authorize users to only see a subset of the running frameworks, tasks, or
+    executors.
+
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
     because machine failures or forcible terminations may occur. Currently, the
     only available kill policy is how long to wait between graceful and forcible
