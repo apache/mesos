@@ -9,6 +9,24 @@ This release contains the following new features:
     requests to '/api/v1' endpoint on master or agent. These APIs look similar
     to the v1 Scheduler and Executor APIs.
 
+  * [MESOS-4828] - **Experimental** support for a new `disk/xfs' isolator
+    has been added to isolate disk resources more efficiently. Please refer to
+    docs/mesos-containerizer.md for more details.
+
+  * [MESOS-4355] - **Experimental** support for Docker volume plugin. We added a
+    new isolator 'docker/volume' which allows users to use external volumes in
+    Mesos containerizer. Currently, the isolator interacts with the Docker
+    volume plugins using a tool called 'dvdcli'. By speaking the Docker volume
+    plugin API, most of the Docker volume plugins are supported.
+
+  * [MESOS-4641] - **Experimental** A new network isolator, the
+    `network/cni` isolator, has been introduced in the `MesosContainerizer`. The
+    `network/cni` isolator implements the Container Network Interface (CNI)
+    specification proposed by CoreOS.  With CNI the `network/cni` isolator is
+    able to allocate a network namespace to Mesos containers and attach the
+    container to different types of IP networks by invoking network drivers
+    called CNI plugins.
+
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
     because machine failures or forcible terminations may occur. Currently, the
     only available kill policy is how long to wait between graceful and forcible
@@ -39,29 +57,14 @@ This release contains the following new features:
     terminations may occur. Together with kill policies this gives frameworks
     flexibility around how to clean up tasks and executors.
 
+  * [MESOS-3094] - **Experimental** support for launching mesos tasks on
+    Windows. Note that there are no isolation guarantees provided yet.
+
   * [MESOS-4090] - The `mesos.native` python module has been split into two,
     `mesos.executor` and `mesos.scheduler`. This change also removes
     un-necessary 3rd party dependencies from `mesos.executor` and
     `mesos.scheduler`. `mesos.native` still exists, combining both modules for
     backwards compatibility with existing code.
-
-  * [MESOS-4828] - **Experimental** support for a new `disk/xfs' isolator
-    has been added to isolate disk resources more efficiently. Please refer to
-    docs/mesos-containerizer.md for more details.
-
-  * [MESOS-4355] - **Experimental** support for Docker volume plugin. We added a
-    new isolator 'docker/volume' which allows users to use external volumes in
-    Mesos containerizer. Currently, the isolator interacts with the Docker
-    volume plugins using a tool called 'dvdcli'. By speaking the Docker volume
-    plugin API, most of the Docker volume plugins are supported.
-
-  * [MESOS-4641] - **Experimental** A new network isolator, the
-    `network/cni` isolator, has been introduced in the `MesosContainerizer`. The
-    `network/cni` isolator implements the Container Network Interface (CNI)
-    specification proposed by CoreOS.  With CNI the `network/cni` isolator is
-    able to allocate a network namespace to Mesos containers and attach the
-    container to different types of IP networks by invoking network drivers
-    called CNI plugins.
 
   * [MESOS-1478] - Phase I of the Slave to Agent rename is complete. To support
     the rename, new duplicate flags (e.g., --agent_reregister_timeout), new
@@ -70,8 +73,11 @@ This release contains the following new features:
     binaries and scripts with 'slave' keyword have been deprecated (see
     "Deprecations section below").
 
-  * [MESOS-4312] - *Experimental support* for building and running mesos on
+  * [MESOS-4312] - **Experimental** support for building and running mesos on
     IBM PowerPC platform.
+
+  * [MESOS-4189] - Weights for resource roles can now be configured dynamically
+    via the new '/weights' endpoint on the master.
 
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
