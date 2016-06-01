@@ -850,7 +850,7 @@ TYPED_TEST(AuthorizationTest, Reserve)
     authorization::Request request;
     request.set_action(authorization::RESERVE_RESOURCES_WITH_ROLE);
     request.mutable_subject()->set_value("foo");
-    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("bar");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
