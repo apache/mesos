@@ -57,6 +57,7 @@
 using namespace process;
 
 using process::AUTHENTICATION;
+using process::AUTHORIZATION;
 using process::DESCRIPTION;
 using process::HELP;
 using process::TLDR;
@@ -295,7 +296,16 @@ const string FilesProcess::BROWSE_HELP = HELP(
         "Query parameters:",
         "",
         ">        path=VALUE          The path of directory to browse."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Browsing files requires that the request principal is ",
+        "authorized to do so for the target virtual file path.",
+        "",
+        "Authorizers may categorize different virtual paths into",
+        "different ACLs, e.g. logs in one and task sandboxes in",
+        "another.",
+        "",
+        "See authorization documentation for details."));
 
 
 Future<bool> FilesProcess::authorize(
@@ -409,7 +419,16 @@ const string FilesProcess::READ_HELP = HELP(
         ">        offset=VALUE        Value added to base address to obtain "
         "a second address",
         ">        length=VALUE        Length of file to read."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Reading files requires that the request principal is ",
+        "authorized to do so for the target virtual file path.",
+        "",
+        "Authorizers may categorize different virtual paths into",
+        "different ACLs, e.g. logs in one and task sandboxes in",
+        "another.",
+        "",
+        "See authorization documentation for details."));
 
 
 Future<Response> FilesProcess::read(
@@ -585,7 +604,16 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
         "Query parameters:",
         "",
         ">        path=VALUE          The path of directory to browse."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Downloading files requires that the request principal is ",
+        "authorized to do so for the target virtual file path.",
+        "",
+        "Authorizers may categorize different virtual paths into",
+        "different ACLs, e.g. logs in one and task sandboxes in",
+        "another.",
+        "",
+        "See authorization documentation for details."));
 
 
 Future<Response> FilesProcess::download(

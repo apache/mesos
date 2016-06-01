@@ -131,6 +131,8 @@ entries, each representing an authorizable action:
 |`view_framework`|UNIX user of whom executors can be viewed.|`Framework_Info` which can be viewed.|Filtering http endpoints.|
 |`view_executor`|UNIX user of whom executors can be viewed.|`Executor_Info` and `Framework_Info` which can be viewed.|Filtering http endpoints.|
 |`view_task`|UNIX user of whom tasks can be viewed.|(`Task` or `Task_Info`) and `Framework_Info` which can be viewed.|Filtering http endpoints.|
+|`access_sandboxes`|Operator username.|Operating system user whose executor/task sandboxes can be accessed.|Access task sandboxes.|
+|`access_mesos_logs`|Operator username.|Implicitly given. A user should only use types ANY and NONE to allow/deny access to the log.|Access Mesos logs.|
 
 ### Examples
 
