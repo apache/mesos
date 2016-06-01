@@ -154,6 +154,8 @@ Binary API Changes:
     other strings.
   * [MESOS-5230] - Slave/Agent Rename Phase I: Rename '/include/mesos/slave' folder
 
+All Issues:
+
 ** Bug
     * [MESOS-1495] - Create separate local data file to manage releases
     * [MESOS-1575] - master sets failover timeout to 0 when framework requests a high value
