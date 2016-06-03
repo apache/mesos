@@ -2083,7 +2083,12 @@ mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
-mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
+
+# We use "-isystem" instead of "-I" to add googlemock to the include
+# search path. This disables compiler warnings inside googlemock
+# headers since we can't easily fix them.
+mesos_tests_CPPFLAGS += -isystem ../$(GMOCK)/include
+
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
