@@ -17,7 +17,7 @@
 
 // For 'timeval'.
 #ifndef __WINDOWS__
-#include <time.h>
+#include <sys/time.h>
 #endif // __WINDOWS__
 
 #include <iomanip>
