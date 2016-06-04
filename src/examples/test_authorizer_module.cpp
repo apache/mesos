@@ -41,7 +41,7 @@ static Authorizer* createLocalAuthorizer(const Parameters& parameters)
 {
   Try<Authorizer*> local = mesos::internal::LocalAuthorizer::create(parameters);
   if (local.isError()) {
-    return NULL;
+    return nullptr;
   }
 
   return local.get();
@@ -56,5 +56,5 @@ mesos::modules::Module<Authorizer> org_apache_mesos_TestLocalAuthorizer(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test Authorizer module.",
-    NULL,
+    nullptr,
     createLocalAuthorizer);

@@ -420,12 +420,12 @@ Future<Response> Slave::Http::executor(const Request& request) const
   // We consolidate the framework/executor lookup logic here because
   // it is common for all the call handlers.
   Framework* framework = slave->getFramework(call.framework_id());
-  if (framework == NULL) {
+  if (framework == nullptr) {
     return BadRequest("Framework cannot be found");
   }
 
   Executor* executor = framework->getExecutor(call.executor_id());
-  if (executor == NULL) {
+  if (executor == nullptr) {
     return BadRequest("Executor cannot be found");
   }
 

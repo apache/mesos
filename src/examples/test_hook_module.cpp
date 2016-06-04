@@ -367,5 +367,5 @@ mesos::modules::Module<Hook> org_apache_mesos_TestHook(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test Hook module.",
-    NULL,
+    nullptr,
     createHook);

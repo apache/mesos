@@ -79,7 +79,7 @@ Try<Netlink<struct rtnl_qdisc>> encodeDiscipline(
     const Discipline<Config>& discipline)
 {
   struct rtnl_qdisc* q = rtnl_qdisc_alloc();
-  if (q == NULL) {
+  if (q == nullptr) {
     return Error("Failed to allocate a libnl qdisc");
   }
 
@@ -124,7 +124,7 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
   }
 
   // Dump all the queueing discipline from kernel.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_qdisc_alloc_cache(socket.get().get(), &c);
   if (error != 0) {
     return Error(
@@ -137,7 +137,7 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
   std::vector<Netlink<struct rtnl_qdisc>> results;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
-       o != NULL; o = nl_cache_get_next(o)) {
+       o != nullptr; o = nl_cache_get_next(o)) {
     if (rtnl_tc_get_ifindex(TC_CAST(o)) == rtnl_link_get_ifindex(link.get())) {
       // NOTE: We increment the reference counter here because 'cache'
       // will be freed when this function finishes and we want this

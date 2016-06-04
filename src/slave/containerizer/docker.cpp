@@ -540,7 +540,7 @@ Try<Nothing> DockerContainerizerProcess::updatePersistentVolumes(
               << "' for persistent volume " << resource
               << " of container " << containerId;
 
-    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
+    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
     if (mount.isError()) {
       return Error(
           "Failed to mount persistent volume from '" +

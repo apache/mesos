@@ -142,10 +142,10 @@ class RegistrarTestBase : public TemporaryDirectoryTest
 {
 public:
   RegistrarTestBase()
-    : log(NULL),
-      storage(NULL),
-      state(NULL),
-      replica2(NULL) {}
+    : log(nullptr),
+      storage(nullptr),
+      state(nullptr),
+      replica2(nullptr) {}
 
 protected:
   virtual void SetUp()

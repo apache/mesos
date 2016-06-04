@@ -44,7 +44,7 @@ inline ::testing::AssertionResult AssertZKGet(
     const std::string& path)
 {
   std::string result;
-  int code = zk->get(path, false, &result, NULL);
+  int code = zk->get(path, false, &result, nullptr);
   if (code == ZOK) {
     if (expected == result) {
       return ::testing::AssertionSuccess();

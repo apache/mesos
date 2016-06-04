@@ -40,7 +40,7 @@ namespace mesos { namespace python {
  * Python type object for MesosExecutorDriverImpl.
  */
 PyTypeObject MesosExecutorDriverImplType = {
-  PyObject_HEAD_INIT(NULL)
+  PyObject_HEAD_INIT(nullptr)
   0,                                               /* ob_size */
   "_mesos.MesosExecutorDriverImpl",                /* tp_name */
   sizeof(MesosExecutorDriverImpl),                 /* tp_basicsize */
@@ -121,7 +121,7 @@ PyMethodDef MesosExecutorDriverImpl_methods[] = {
     METH_VARARGS,
     "Send a FrameworkMessage to an agent"
   },
-  { NULL }  /* Sentinel */
+  { nullptr }  /* Sentinel */
 };
 
 
@@ -135,10 +135,10 @@ PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
 {
   MesosExecutorDriverImpl *self;
   self = (MesosExecutorDriverImpl *) type->tp_alloc(type, 0);
-  if (self != NULL) {
-    self->driver = NULL;
-    self->proxyExecutor = NULL;
-    self->pythonExecutor = NULL;
+  if (self != nullptr) {
+    self->driver = nullptr;
+    self->proxyExecutor = nullptr;
+    self->pythonExecutor = nullptr;
   }
   return (PyObject*) self;
 }
@@ -151,27 +151,27 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
                                  PyObject *args,
                                  PyObject *kwds)
 {
-  PyObject *pythonExecutor = NULL;
+  PyObject *pythonExecutor = nullptr;
 
   if (!PyArg_ParseTuple(args, "O", &pythonExecutor)) {
     return -1;
   }
 
-  if (pythonExecutor != NULL) {
+  if (pythonExecutor != nullptr) {
     PyObject* tmp = self->pythonExecutor;
     Py_INCREF(pythonExecutor);
     self->pythonExecutor = pythonExecutor;
     Py_XDECREF(tmp);
   }
 
-  if (self->driver != NULL) {
+  if (self->driver != nullptr) {
     delete self->driver;
-    self->driver = NULL;
+    self->driver = nullptr;
   }
 
-  if (self->proxyExecutor != NULL) {
+  if (self->proxyExecutor != nullptr) {
     delete self->proxyExecutor;
-    self->proxyExecutor = NULL;
+    self->proxyExecutor = nullptr;
   }
 
   self->proxyExecutor = new ProxyExecutor(self);
@@ -186,7 +186,7 @@ int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
  */
 void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
 {
-  if (self->driver != NULL) {
+  if (self->driver != nullptr) {
     // We need to wrap the driver destructor in an "allow threads"
     // macro since the MesosExecutorDriver destructor waits for the
     // ExecutorProcess to terminate and there might be a thread that
@@ -196,12 +196,12 @@ void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
     Py_BEGIN_ALLOW_THREADS
     delete self->driver;
     Py_END_ALLOW_THREADS
-    self->driver = NULL;
+    self->driver = nullptr;
   }
 
-  if (self->proxyExecutor != NULL) {
+  if (self->proxyExecutor != nullptr) {
     delete self->proxyExecutor;
-    self->proxyExecutor = NULL;
+    self->proxyExecutor = nullptr;
   }
 
   MesosExecutorDriverImpl_clear(self);
@@ -235,9 +235,9 @@ int MesosExecutorDriverImpl_clear(MesosExecutorDriverImpl* self)
 
 PyObject* MesosExecutorDriverImpl_start(MesosExecutorDriverImpl* self)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   Status status = self->driver->start();
@@ -247,9 +247,9 @@ PyObject* MesosExecutorDriverImpl_start(MesosExecutorDriverImpl* self)
 
 PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   Status status = self->driver->stop();
@@ -259,9 +259,9 @@ PyObject* MesosExecutorDriverImpl_stop(MesosExecutorDriverImpl* self)
 
 PyObject* MesosExecutorDriverImpl_abort(MesosExecutorDriverImpl* self)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   Status status = self->driver->abort();
@@ -271,9 +271,9 @@ PyObject* MesosExecutorDriverImpl_abort(MesosExecutorDriverImpl* self)
 
 PyObject* MesosExecutorDriverImpl_join(MesosExecutorDriverImpl* self)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   Status status;
@@ -286,9 +286,9 @@ PyObject* MesosExecutorDriverImpl_join(MesosExecutorDriverImpl* self)
 
 PyObject* MesosExecutorDriverImpl_run(MesosExecutorDriverImpl* self)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   Status status;
@@ -303,20 +303,20 @@ PyObject* MesosExecutorDriverImpl_sendStatusUpdate(
     MesosExecutorDriverImpl* self,
     PyObject* args)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
-  PyObject* statusObj = NULL;
+  PyObject* statusObj = nullptr;
   TaskStatus taskStatus;
   if (!PyArg_ParseTuple(args, "O", &statusObj)) {
-    return NULL;
+    return nullptr;
   }
   if (!readPythonProtobuf(statusObj, &taskStatus)) {
     PyErr_Format(PyExc_Exception,
                  "Could not deserialize Python TaskStatus");
-    return NULL;
+    return nullptr;
   }
 
   Status status = self->driver->sendStatusUpdate(taskStatus);
@@ -328,15 +328,15 @@ PyObject* MesosExecutorDriverImpl_sendFrameworkMessage(
     MesosExecutorDriverImpl* self,
     PyObject* args)
 {
-  if (self->driver == NULL) {
-    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is NULL");
-    return NULL;
+  if (self->driver == nullptr) {
+    PyErr_Format(PyExc_Exception, "MesosExecutorDriverImpl.driver is nullptr");
+    return nullptr;
   }
 
   const char* data;
   int length;
   if (!PyArg_ParseTuple(args, "s#", &data, &length)) {
-    return NULL;
+    return nullptr;
   }
 
   Status status = self->driver->sendFrameworkMessage(string(data, length));

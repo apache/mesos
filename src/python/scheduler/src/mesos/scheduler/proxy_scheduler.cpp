@@ -41,17 +41,17 @@ void ProxyScheduler::registered(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* fid = NULL;
-  PyObject* minfo = NULL;
-  PyObject* res = NULL;
+  PyObject* fid = nullptr;
+  PyObject* minfo = nullptr;
+  PyObject* res = nullptr;
 
   fid = createPythonProtobuf(frameworkId, "FrameworkID");
-  if (fid == NULL) {
+  if (fid == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   minfo = createPythonProtobuf(masterInfo, "MasterInfo");
-  if (minfo == NULL) {
+  if (minfo == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -61,7 +61,7 @@ void ProxyScheduler::registered(SchedulerDriver* driver,
                             impl,
                             fid,
                             minfo);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's registered" << endl;
     goto cleanup;
   }
@@ -82,11 +82,11 @@ void ProxyScheduler::reregistered(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* minfo = NULL;
-  PyObject* res = NULL;
+  PyObject* minfo = nullptr;
+  PyObject* res = nullptr;
 
   minfo = createPythonProtobuf(masterInfo, "MasterInfo");
-  if (minfo == NULL) {
+  if (minfo == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -95,7 +95,7 @@ void ProxyScheduler::reregistered(SchedulerDriver* driver,
                             (char*) "OO",
                             impl,
                             minfo);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's reregistered" << endl;
     goto cleanup;
   }
@@ -114,13 +114,13 @@ void ProxyScheduler::disconnected(SchedulerDriver* driver)
 {
   InterpreterLock lock;
 
-  PyObject* res = NULL;
+  PyObject* res = nullptr;
 
   res = PyObject_CallMethod(impl->pythonScheduler,
                             (char*) "disconnected",
                             (char*) "O",
                             impl);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's disconnected" << endl;
     goto cleanup;
   }
@@ -139,16 +139,16 @@ void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* list = NULL;
-  PyObject* res = NULL;
+  PyObject* list = nullptr;
+  PyObject* res = nullptr;
 
   list = PyList_New(offers.size());
-  if (list == NULL) {
+  if (list == nullptr) {
     goto cleanup;
   }
   for (size_t i = 0; i < offers.size(); i++) {
     PyObject* offer = createPythonProtobuf(offers[i], "Offer");
-    if (offer == NULL) {
+    if (offer == nullptr) {
       goto cleanup;
     }
     PyList_SetItem(list, i, offer); // Steals the reference to offer.
@@ -160,7 +160,7 @@ void ProxyScheduler::resourceOffers(SchedulerDriver* driver,
                             impl,
                             list);
 
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's resourceOffer" << endl;
     goto cleanup;
   }
@@ -180,11 +180,11 @@ void ProxyScheduler::offerRescinded(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* oid = NULL;
-  PyObject* res = NULL;
+  PyObject* oid = nullptr;
+  PyObject* res = nullptr;
 
   oid = createPythonProtobuf(offerId, "OfferID");
-  if (oid == NULL) {
+  if (oid == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -193,7 +193,7 @@ void ProxyScheduler::offerRescinded(SchedulerDriver* driver,
                             (char*) "OO",
                             impl,
                             oid);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's offerRescinded" << endl;
     goto cleanup;
   }
@@ -213,11 +213,11 @@ void ProxyScheduler::statusUpdate(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* stat = NULL;
-  PyObject* res = NULL;
+  PyObject* stat = nullptr;
+  PyObject* res = nullptr;
 
   stat = createPythonProtobuf(status, "TaskStatus");
-  if (stat == NULL) {
+  if (stat == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -226,7 +226,7 @@ void ProxyScheduler::statusUpdate(SchedulerDriver* driver,
                             (char*) "OO",
                             impl,
                             stat);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's statusUpdate" << endl;
     goto cleanup;
   }
@@ -248,17 +248,17 @@ void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* eid = NULL;
-  PyObject* sid = NULL;
-  PyObject* res = NULL;
+  PyObject* eid = nullptr;
+  PyObject* sid = nullptr;
+  PyObject* res = nullptr;
 
   eid = createPythonProtobuf(executorId, "ExecutorID");
-  if (eid == NULL) {
+  if (eid == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
   sid = createPythonProtobuf(slaveId, "SlaveID");
-  if (sid == NULL) {
+  if (sid == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -270,7 +270,7 @@ void ProxyScheduler::frameworkMessage(SchedulerDriver* driver,
                             sid,
                             data.data(),
                             data.length());
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's frameworkMessage" << endl;
     goto cleanup;
   }
@@ -290,11 +290,11 @@ void ProxyScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
 {
   InterpreterLock lock;
 
-  PyObject* sid = NULL;
-  PyObject* res = NULL;
+  PyObject* sid = nullptr;
+  PyObject* res = nullptr;
 
   sid = createPythonProtobuf(slaveId, "SlaveID");
-  if (sid == NULL) {
+  if (sid == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -303,7 +303,7 @@ void ProxyScheduler::slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
                             (char*) "OO",
                             impl,
                             sid);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's slaveLost" << endl;
     goto cleanup;
   }
@@ -325,14 +325,14 @@ void ProxyScheduler::executorLost(SchedulerDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* executorIdObj = NULL;
-  PyObject* slaveIdObj = NULL;
-  PyObject* res = NULL;
+  PyObject* executorIdObj = nullptr;
+  PyObject* slaveIdObj = nullptr;
+  PyObject* res = nullptr;
 
   executorIdObj = createPythonProtobuf(executorId, "ExecutorID");
   slaveIdObj = createPythonProtobuf(slaveId, "SlaveID");
 
-  if (executorIdObj == NULL || slaveIdObj == NULL) {
+  if (executorIdObj == nullptr || slaveIdObj == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -343,7 +343,7 @@ void ProxyScheduler::executorLost(SchedulerDriver* driver,
                             executorIdObj,
                             slaveIdObj,
                             status);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's executorLost" << endl;
     goto cleanup;
   }
@@ -368,7 +368,7 @@ void ProxyScheduler::error(SchedulerDriver* driver, const string& message)
                                       impl,
                                       message.data(),
                                       message.length());
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call scheduler's error" << endl;
     goto cleanup;
   }

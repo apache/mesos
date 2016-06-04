@@ -298,14 +298,14 @@ int MesosContainerizerLaunch::execute()
   if (command.get().shell()) {
     // Execute the command using shell.
     os::execlp(os::Shell::name, os::Shell::arg0,
-               os::Shell::arg1, command.get().value().c_str(), (char*) NULL);
+               os::Shell::arg1, command.get().value().c_str(), (char*) nullptr);
   } else {
     // Use execvp to launch the command.
     char** argv = new char*[command.get().arguments().size() + 1];
     for (int i = 0; i < command.get().arguments().size(); i++) {
       argv[i] = strdup(command.get().arguments(i).c_str());
     }
-    argv[command.get().arguments().size()] = NULL;
+    argv[command.get().arguments().size()] = nullptr;
 
     execvp(command.get().value().c_str(), argv);
   }

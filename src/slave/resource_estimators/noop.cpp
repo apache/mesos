@@ -40,7 +40,7 @@ public:
 
 NoopResourceEstimator::~NoopResourceEstimator()
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     terminate(process.get());
     wait(process.get());
   }
@@ -50,7 +50,7 @@ NoopResourceEstimator::~NoopResourceEstimator()
 Try<Nothing> NoopResourceEstimator::initialize(
     const lambda::function<Future<ResourceUsage>()>& usage)
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     return Error("Noop resource estimator has already been initialized");
   }
 
@@ -63,7 +63,7 @@ Try<Nothing> NoopResourceEstimator::initialize(
 
 Future<Resources> NoopResourceEstimator::oversubscribable()
 {
-  if (process.get() == NULL) {
+  if (process.get() == nullptr) {
     return Failure("Noop resource estimator is not initialized");
   }
 

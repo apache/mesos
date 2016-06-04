@@ -161,13 +161,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
   if (future->isFailed()) {
     jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
     env->ThrowNew(clazz, future->failure().c_str());
-    return NULL;
+    return nullptr;
   } else if (future->isDiscarded()) {
     // TODO(benh): Consider throwing an ExecutionException since we
     // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
-    return NULL;
+    return nullptr;
   }
 
   CHECK_READY(*future);
@@ -210,13 +210,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
-      return NULL;
+      return nullptr;
     } else if (future->isDiscarded()) {
       // TODO(benh): Consider throwing an ExecutionException since we
       // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
-      return NULL;
+      return nullptr;
     }
 
     CHECK_READY(*future);
@@ -237,7 +237,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
   clazz = env->FindClass("java/util/concurrent/TimeoutException");
   env->ThrowNew(clazz, "Failed to wait for future within timeout");
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -472,13 +472,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
   if (future->isFailed()) {
     jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
     env->ThrowNew(clazz, future->failure().c_str());
-    return NULL;
+    return nullptr;
   } else if (future->isDiscarded()) {
     // TODO(benh): Consider throwing an ExecutionException since we
     // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
-    return NULL;
+    return nullptr;
   }
 
   CHECK_READY(*future);
@@ -498,7 +498,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
     return jvariable;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -525,13 +525,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
-      return NULL;
+      return nullptr;
     } else if (future->isDiscarded()) {
       // TODO(benh): Consider throwing an ExecutionException since we
       // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
-      return NULL;
+      return nullptr;
     }
 
     CHECK_READY(*future);
@@ -551,13 +551,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
       return jvariable;
     }
 
-    return NULL;
+    return nullptr;
   }
 
   clazz = env->FindClass("java/util/concurrent/TimeoutException");
   env->ThrowNew(clazz, "Failed to wait for future within timeout");
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -791,13 +791,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
   if (future->isFailed()) {
     jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
     env->ThrowNew(clazz, future->failure().c_str());
-    return NULL;
+    return nullptr;
   } else if (future->isDiscarded()) {
     // TODO(benh): Consider throwing an ExecutionException since we
     // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
-    return NULL;
+    return nullptr;
   }
 
   CHECK_READY(*future);
@@ -837,13 +837,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
-      return NULL;
+      return nullptr;
     } else if (future->isDiscarded()) {
       // TODO(benh): Consider throwing an ExecutionException since we
       // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
-      return NULL;
+      return nullptr;
     }
 
     CHECK_READY(*future);
@@ -862,7 +862,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
   clazz = env->FindClass("java/util/concurrent/TimeoutException");
   env->ThrowNew(clazz, "Failed to wait for future within timeout");
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -1090,13 +1090,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
   if (future->isFailed()) {
     jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
     env->ThrowNew(clazz, future->failure().c_str());
-    return NULL;
+    return nullptr;
   } else if (future->isDiscarded()) {
     // TODO(benh): Consider throwing an ExecutionException since we
     // never return true for 'isCancelled'.
     jclass clazz = env->FindClass("java/util/concurrent/CancellationException");
     env->ThrowNew(clazz, "Future was discarded");
-    return NULL;
+    return nullptr;
   }
 
   CHECK_READY(*future);
@@ -1146,13 +1146,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
     if (future->isFailed()) {
       clazz = env->FindClass("java/util/concurrent/ExecutionException");
       env->ThrowNew(clazz, future->failure().c_str());
-      return NULL;
+      return nullptr;
     } else if (future->isDiscarded()) {
       // TODO(benh): Consider throwing an ExecutionException since we
       // never return true for 'isCancelled'.
       clazz = env->FindClass("java/util/concurrent/CancellationException");
       env->ThrowNew(clazz, "Future was discarded");
-      return NULL;
+      return nullptr;
     }
 
     CHECK_READY(*future);
@@ -1181,7 +1181,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
   clazz = env->FindClass("java/util/concurrent/TimeoutException");
   env->ThrowNew(clazz, "Failed to wait for future within timeout");
 
-  return NULL;
+  return nullptr;
 }
 
 

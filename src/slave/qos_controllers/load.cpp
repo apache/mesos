@@ -127,7 +127,7 @@ private:
 
 LoadQoSController::~LoadQoSController()
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     terminate(process.get());
     wait(process.get());
   }
@@ -137,7 +137,7 @@ LoadQoSController::~LoadQoSController()
 Try<Nothing> LoadQoSController::initialize(
   const lambda::function<Future<ResourceUsage>()>& usage)
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     return Error("Load QoS Controller has already been initialized");
   }
 
@@ -156,7 +156,7 @@ Try<Nothing> LoadQoSController::initialize(
 
 process::Future<list<QoSCorrection>> LoadQoSController::corrections()
 {
-  if (process.get() == NULL) {
+  if (process.get() == nullptr) {
     return Failure("Load QoS Controller is not initialized");
   }
 
@@ -183,7 +183,7 @@ static QoSController* create(const Parameters& parameters)
       if (thresholdParam.isError()) {
         LOG(ERROR) << "Failed to parse 5 min load threshold: "
                    << thresholdParam.error();
-        return NULL;
+        return nullptr;
       }
 
       loadThreshold5Min = thresholdParam.get();
@@ -193,7 +193,7 @@ static QoSController* create(const Parameters& parameters)
       if (thresholdParam.isError()) {
         LOG(ERROR) << "Failed to parse 15 min load threshold: "
                    << thresholdParam.error();
-        return NULL;
+        return nullptr;
       }
 
       loadThreshold15Min = thresholdParam.get();
@@ -202,7 +202,7 @@ static QoSController* create(const Parameters& parameters)
 
   if (loadThreshold5Min.isNone() && loadThreshold15Min.isNone()) {
     LOG(ERROR) << "No load thresholds are configured for LoadQoSController";
-    return NULL;
+    return nullptr;
   }
 
   return new mesos::internal::slave::LoadQoSController(
@@ -216,5 +216,5 @@ Module<QoSController> org_apache_mesos_LoadQoSController(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "System Load QoS Controller Module.",
-    NULL,
+    nullptr,
     create);

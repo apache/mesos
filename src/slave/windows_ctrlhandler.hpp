@@ -23,7 +23,7 @@ namespace internal {
 // Not using extern as this is used only by the executable. The signal handler
 // should be configured once. Calling it multiple time or from multiple thread
 // has undefined behavior.
-std::function<void(int, int)>* signaledWrapper = NULL;
+std::function<void(int, int)>* signaledWrapper = nullptr;
 
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 {
@@ -34,7 +34,7 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
   case CTRL_BREAK_EVENT:
   case CTRL_LOGOFF_EVENT:
   case CTRL_SHUTDOWN_EVENT: {
-    if (signaledWrapper != NULL) {
+    if (signaledWrapper != nullptr) {
       (*signaledWrapper)(SIGUSR1, 0);
       return TRUE;
     }
@@ -48,12 +48,12 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 
 int installCtrlHandler(const std::function<void(int, int)>* signal)
 {
-  if (signal != NULL) {
+  if (signal != nullptr) {
     signaledWrapper = new std::function<void(int, int)>(*signal);
     return SetConsoleCtrlHandler(CtrlHandler, TRUE);
   } else {
     delete signaledWrapper;
-    signaledWrapper = NULL;
+    signaledWrapper = nullptr;
     return SetConsoleCtrlHandler(CtrlHandler, FALSE);
   }
 }

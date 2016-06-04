@@ -48,7 +48,7 @@ static Isolator* createCpuIsolator(const Parameters& parameters)
   Flags flags;
   Try<Isolator*> result = PosixCpuIsolatorProcess::create(flags);
   if (result.isError()) {
-    return NULL;
+    return nullptr;
   }
   return result.get();
 }
@@ -59,7 +59,7 @@ static Isolator* createMemIsolator(const Parameters& parameters)
   Flags flags;
   Try<Isolator*> result = PosixMemIsolatorProcess::create(flags);
   if (result.isError()) {
-    return NULL;
+    return nullptr;
   }
   return result.get();
 }
@@ -83,5 +83,5 @@ mesos::modules::Module<Isolator> org_apache_mesos_TestMemIsolator(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test Memory Isolator module.",
-    NULL, // Do not perform any compatibility check.
+    nullptr, // Do not perform any compatibility check.
     createMemIsolator);

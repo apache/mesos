@@ -774,7 +774,7 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
-  if (process != NULL) {
+  if (process != nullptr) {
     stop();
   }
 }
@@ -794,12 +794,12 @@ void Mesos::reconnect()
 
 void Mesos::stop()
 {
-  if (process != NULL) {
+  if (process != nullptr) {
     terminate(process);
     wait(process);
 
     delete process;
-    process = NULL;
+    process = nullptr;
   }
 }
 

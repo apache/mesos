@@ -61,5 +61,5 @@ mesos::modules::Module<Anonymous> org_apache_mesos_TestAnonymous(
   "Apache Mesos",
   "modules@mesos.apache.org",
   "Test anonymous module.",
-  NULL,
+  nullptr,
   createAnonymous);

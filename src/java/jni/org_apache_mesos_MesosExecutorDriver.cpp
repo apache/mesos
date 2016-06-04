@@ -33,7 +33,7 @@ class JNIExecutor : public Executor
 {
 public:
   JNIExecutor(JNIEnv* _env, jweak _jdriver)
-    : jvm(NULL), env(_env), jdriver(_jdriver)
+    : jvm(nullptr), env(_env), jdriver(_jdriver)
   {
     env->GetJavaVM(&jvm);
   }
@@ -63,7 +63,7 @@ void JNIExecutor::registered(ExecutorDriver* driver,
                             const FrameworkInfo& frameworkInfo,
                             const SlaveInfo& slaveInfo)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -104,7 +104,7 @@ void JNIExecutor::registered(ExecutorDriver* driver,
 void JNIExecutor::reregistered(ExecutorDriver* driver,
                                const SlaveInfo& slaveInfo)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -139,7 +139,7 @@ void JNIExecutor::reregistered(ExecutorDriver* driver,
 
 void JNIExecutor::disconnected(ExecutorDriver* driver)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -171,7 +171,7 @@ void JNIExecutor::disconnected(ExecutorDriver* driver)
 
 void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& desc)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -206,7 +206,7 @@ void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& desc)
 
 void JNIExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -241,7 +241,7 @@ void JNIExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
 
 void JNIExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -278,7 +278,7 @@ void JNIExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
 
 void JNIExecutor::shutdown(ExecutorDriver* driver)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -310,7 +310,7 @@ void JNIExecutor::shutdown(ExecutorDriver* driver)
 
 void JNIExecutor::error(ExecutorDriver* driver, const string& message)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jdriver);
 
@@ -518,7 +518,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFramewor
   (JNIEnv* env, jobject thiz, jbyteArray jdata)
 {
   // Construct a C++ string from the Java byte array.
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   string temp((char*) data, (size_t) length);

@@ -58,9 +58,9 @@ public:
 
   virtual ~LogrotateLoggerProcess()
   {
-    if (buffer != NULL) {
+    if (buffer != nullptr) {
       delete[] buffer;
-      buffer = NULL;
+      buffer = nullptr;
     }
 
     if (leading.isSome()) {

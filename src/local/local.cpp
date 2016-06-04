@@ -122,31 +122,31 @@ namespace mesos {
 namespace internal {
 namespace local {
 
-static Allocator* allocator = NULL;
-static Log* log = NULL;
-static mesos::state::Storage* storage = NULL;
-static mesos::state::protobuf::State* state = NULL;
-static Registrar* registrar = NULL;
-static Master* master = NULL;
+static Allocator* allocator = nullptr;
+static Log* log = nullptr;
+static mesos::state::Storage* storage = nullptr;
+static mesos::state::protobuf::State* state = nullptr;
+static Registrar* registrar = nullptr;
+static Master* master = nullptr;
 static map<Containerizer*, Slave*> slaves;
-static StandaloneMasterDetector* detector = NULL;
-static MasterContender* contender = NULL;
+static StandaloneMasterDetector* detector = nullptr;
+static MasterContender* contender = nullptr;
 static Option<Authorizer*> authorizer_ = None();
-static Files* files = NULL;
-static vector<GarbageCollector*>* garbageCollectors = NULL;
-static vector<StatusUpdateManager*>* statusUpdateManagers = NULL;
-static vector<Fetcher*>* fetchers = NULL;
-static vector<ResourceEstimator*>* resourceEstimators = NULL;
-static vector<QoSController*>* qosControllers = NULL;
+static Files* files = nullptr;
+static vector<GarbageCollector*>* garbageCollectors = nullptr;
+static vector<StatusUpdateManager*>* statusUpdateManagers = nullptr;
+static vector<Fetcher*>* fetchers = nullptr;
+static vector<ResourceEstimator*>* resourceEstimators = nullptr;
+static vector<QoSController*>* qosControllers = nullptr;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
 {
-  if (master != NULL) {
+  if (master != nullptr) {
     LOG(FATAL) << "Can only launch one local cluster at a time (for now)";
   }
 
-  if (_allocator == NULL) {
+  if (_allocator == nullptr) {
     // Create a default allocator.
     Try<Allocator*> defaultAllocator = HierarchicalDRFAllocator::create();
     if (defaultAllocator.isError()) {
@@ -163,7 +163,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.
-    allocator = NULL;
+    allocator = nullptr;
   }
 
   files = new Files();
@@ -439,12 +439,12 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
 void shutdown()
 {
-  if (master != NULL) {
+  if (master != nullptr) {
     process::terminate(master->self());
     process::wait(master->self());
     delete master;
     delete allocator;
-    master = NULL;
+    master = nullptr;
 
     // TODO(benh): Ugh! Because the isolator calls back into the slave
     // (not the best design) we can't delete the slave until we have
@@ -467,60 +467,60 @@ void shutdown()
     }
 
     delete detector;
-    detector = NULL;
+    detector = nullptr;
 
     delete contender;
-    contender = NULL;
+    contender = nullptr;
 
     delete files;
-    files = NULL;
+    files = nullptr;
 
     foreach (GarbageCollector* gc, *garbageCollectors) {
       delete gc;
     }
 
     delete garbageCollectors;
-    garbageCollectors = NULL;
+    garbageCollectors = nullptr;
 
     foreach (StatusUpdateManager* statusUpdateManager, *statusUpdateManagers) {
       delete statusUpdateManager;
     }
 
     delete statusUpdateManagers;
-    statusUpdateManagers = NULL;
+    statusUpdateManagers = nullptr;
 
     foreach (Fetcher* fetcher, *fetchers) {
       delete fetcher;
     }
 
     delete fetchers;
-    fetchers = NULL;
+    fetchers = nullptr;
 
     foreach (ResourceEstimator* estimator, *resourceEstimators) {
       delete estimator;
     }
 
     delete resourceEstimators;
-    resourceEstimators = NULL;
+    resourceEstimators = nullptr;
 
     foreach (QoSController* controller, *qosControllers) {
       delete controller;
     }
 
     delete qosControllers;
-    qosControllers = NULL;
+    qosControllers = nullptr;
 
     delete registrar;
-    registrar = NULL;
+    registrar = nullptr;
 
     delete state;
-    state = NULL;
+    state = nullptr;
 
     delete storage;
-    storage = NULL;
+    storage = nullptr;
 
     delete log;
-    log = NULL;
+    log = nullptr;
   }
 }
 

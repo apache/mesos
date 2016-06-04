@@ -58,8 +58,8 @@ template <>
 string construct(JNIEnv* env, jobject jobj)
 {
   jstring js = (jstring) jobj;
-  const char* s = env->GetStringUTFChars(js, NULL);
-  CHECK(s != NULL) << "Out of memory!";
+  const char* s = env->GetStringUTFChars(js, nullptr);
+  CHECK(s != nullptr) << "Out of memory!";
   string result(s);
   env->ReleaseStringUTFChars(js, s);
   return result;
@@ -124,7 +124,7 @@ FrameworkInfo construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const FrameworkInfo& framework = parse<FrameworkInfo>(data, length);
@@ -145,7 +145,7 @@ Credential construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const Credential& credential = parse<Credential>(data, length);
@@ -166,7 +166,7 @@ Filters construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const Filters& filters = parse<Filters>(data, length);
@@ -187,7 +187,7 @@ FrameworkID construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const FrameworkID& frameworkId = parse<FrameworkID>(data, length);
@@ -208,7 +208,7 @@ ExecutorID construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const ExecutorID& executorId = parse<ExecutorID>(data, length);
@@ -229,7 +229,7 @@ TaskID construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const TaskID& taskId = parse<TaskID>(data, length);
@@ -250,7 +250,7 @@ SlaveID construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const SlaveID& slaveId = parse<SlaveID>(data, length);
@@ -271,7 +271,7 @@ OfferID construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const OfferID& offerId = parse<OfferID>(data, length);
@@ -306,7 +306,7 @@ TaskInfo construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const TaskInfo& task = parse<TaskInfo>(data, length);
@@ -327,7 +327,7 @@ TaskStatus construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const TaskStatus& status = parse<TaskStatus>(data, length);
@@ -348,7 +348,7 @@ ExecutorInfo construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const ExecutorInfo& executor = parse<ExecutorInfo>(data, length);
@@ -369,7 +369,7 @@ Request construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const Request& request = parse<Request>(data, length);
@@ -390,7 +390,7 @@ Offer::Operation construct(JNIEnv* env, jobject jobj)
 
   jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
 
-  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   const Offer::Operation& operation = parse<Offer::Operation>(data, length);

@@ -848,7 +848,7 @@ Future<Response> Master::Http::scheduler(
   // common for all the call handlers.
   Framework* framework = master->getFramework(call.framework_id());
 
-  if (framework == NULL) {
+  if (framework == nullptr) {
     return BadRequest("Framework cannot be found");
   }
 
@@ -1017,7 +1017,7 @@ Future<Response> Master::Http::createVolumes(
   slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == NULL) {
+  if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
   }
 
@@ -1127,7 +1127,7 @@ Future<Response> Master::Http::destroyVolumes(
   slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == NULL) {
+  if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
   }
 
@@ -1500,7 +1500,7 @@ Future<Response> Master::Http::reserve(
   slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == NULL) {
+  if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
   }
 
@@ -2510,7 +2510,7 @@ Future<Response> Master::Http::teardown(
 
   Framework* framework = master->getFramework(id);
 
-  if (framework == NULL) {
+  if (framework == nullptr) {
     return BadRequest("No framework found with specified ID");
   }
 
@@ -2544,7 +2544,7 @@ Future<Response> Master::Http::_teardown(const FrameworkID& id) const
 {
   Framework* framework = master->getFramework(id);
 
-  if (framework == NULL) {
+  if (framework == nullptr) {
     return BadRequest("No framework found with ID " + stringify(id));
   }
 
@@ -3273,7 +3273,7 @@ Future<Response> Master::Http::unreserve(
   slaveId.set_value(value.get());
 
   Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == NULL) {
+  if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
   }
 
@@ -3329,7 +3329,7 @@ Future<Response> Master::Http::_operation(
     const Offer::Operation& operation) const
 {
   Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == NULL) {
+  if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
   }
 

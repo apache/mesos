@@ -232,7 +232,7 @@ bool MountTable::Entry::hasOption(const string& option) const
   mntent.mnt_opts = const_cast<char*>(opts.c_str());
   mntent.mnt_freq = freq;
   mntent.mnt_passno = passno;
-  return ::hasmntopt(&mntent, option.c_str()) != NULL;
+  return ::hasmntopt(&mntent, option.c_str()) != nullptr;
 }
 
 
@@ -241,7 +241,7 @@ Try<MountTable> MountTable::read(const string& path)
   MountTable table;
 
   FILE* file = ::setmntent(path.c_str(), "r");
-  if (file == NULL) {
+  if (file == nullptr) {
     return Error("Failed to open '" + path + "'");
   }
 
@@ -252,8 +252,8 @@ Try<MountTable> MountTable::read(const string& path)
     char strBuffer[PATH_MAX];
     struct mntent* mntent =
       ::getmntent_r(file, &mntentBuffer, strBuffer, sizeof(strBuffer));
-    if (mntent == NULL) {
-      // NULL means the end of enties.
+    if (mntent == nullptr) {
+      // nullptr means the end of enties.
       break;
     }
 
@@ -272,8 +272,8 @@ Try<MountTable> MountTable::read(const string& path)
 
     synchronized (mutex) {
       struct mntent* mntent = ::getmntent(file);
-      if (mntent == NULL) {
-        // NULL means the end of enties.
+      if (mntent == nullptr) {
+        // nullptr means the end of enties.
         break;
       }
 
@@ -311,8 +311,8 @@ Try<FileSystemTable> FileSystemTable::read()
 
     while (true) {
       struct fstab* fstab = ::getfsent();
-      if (fstab == NULL) {
-        break; // NULL means the end of enties.
+      if (fstab == nullptr) {
+        break; // nullptr means the end of enties.
       }
 
       FileSystemTable::Entry entry(
@@ -347,9 +347,9 @@ Try<Nothing> mount(const Option<string>& source,
   //           unsigned long mountflags,
   //           const void *data);
   if (::mount(
-        (source.isSome() ? source.get().c_str() : NULL),
+        (source.isSome() ? source.get().c_str() : nullptr),
         target.c_str(),
-        (type.isSome() ? type.get().c_str() : NULL),
+        (type.isSome() ? type.get().c_str() : nullptr),
         flags,
         data) < 0) {
     return ErrnoError();
@@ -370,7 +370,7 @@ Try<Nothing> mount(const Option<string>& source,
       target,
       type,
       flags,
-      options.isSome() ? options.get().c_str() : NULL);
+      options.isSome() ? options.get().c_str() : nullptr);
 }
 
 
@@ -599,14 +599,16 @@ Try<Nothing> createStandardDevices(const string& root)
 Try<Nothing> enter(const string& root)
 {
   // Recursively mark current mounts as slaves to prevent propagation.
-  Try<Nothing> mount = fs::mount(None(), "/", None(), MS_REC | MS_SLAVE, NULL);
+  Try<Nothing> mount =
+    fs::mount(None(), "/", None(), MS_REC | MS_SLAVE, nullptr);
+
   if (mount.isError()) {
     return Error("Failed to make slave mounts: " + mount.error());
   }
 
   // Bind mount 'root' itself. This is because pivot_root requires
   // 'root' to be not on the same filesystem as process' current root.
-  mount = fs::mount(root, root, None(), MS_REC | MS_BIND, NULL);
+  mount = fs::mount(root, root, None(), MS_REC | MS_BIND, nullptr);
   if (mount.isError()) {
     return Error("Failed to bind mount root itself: " + mount.error());
   }

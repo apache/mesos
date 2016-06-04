@@ -37,7 +37,7 @@ static Allocator* createDRFAllocator(const Parameters& parameters)
 {
   Try<Allocator*> allocator = HierarchicalDRFAllocator::create();
   if (allocator.isError()) {
-    return NULL;
+    return nullptr;
   }
 
   return allocator.get();
@@ -52,5 +52,5 @@ mesos::modules::Module<Allocator> org_apache_mesos_TestDRFAllocator(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test DRFAllocator module.",
-    NULL,
+    nullptr,
     createDRFAllocator);

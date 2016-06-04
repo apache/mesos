@@ -95,7 +95,7 @@ public:
     if (strings::contains(test->test_case_name(), pattern) ||
         strings::contains(test->name(), pattern)) {
       return true;
-    } else if (test->type_param() != NULL &&
+    } else if (test->type_param() != nullptr &&
                strings::contains(test->type_param(), pattern)) {
       return true;
     }
@@ -782,7 +782,7 @@ void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
   char** environ = os::raw::environment();
-  for (int i = 0; environ[i] != NULL; i++) {
+  for (int i = 0; environ[i] != nullptr; i++) {
     string variable = environ[i];
     if (variable.find("MESOS_") == 0) {
       string key;
@@ -866,7 +866,7 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
   const ::testing::TestInfo* const testInfo =
     ::testing::UnitTest::GetInstance()->current_test_info();
 
-  if (testInfo == NULL) {
+  if (testInfo == nullptr) {
     return Error("Failed to determine the current test information");
   }
 

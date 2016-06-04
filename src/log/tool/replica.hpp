@@ -49,7 +49,7 @@ public:
   };
 
   virtual std::string name() const { return "replica"; }
-  virtual Try<Nothing> execute(int argc = 0, char** argv = NULL);
+  virtual Try<Nothing> execute(int argc = 0, char** argv = nullptr);
 
   // Users can change the default configuration by setting this flags.
   Flags flags;

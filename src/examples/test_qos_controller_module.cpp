@@ -35,7 +35,7 @@ static QoSController* createQoSController(const Parameters& parameters)
 {
   Try<QoSController*> result = NoopQoSController::create(None());
   if (result.isError()) {
-    return NULL;
+    return nullptr;
   }
   return result.get();
 }
@@ -50,5 +50,5 @@ mesos::modules::Module<QoSController>
       "Apache Mesos",
       "modules@mesos.apache.org",
       "Test Noop QoS Controller module.",
-      NULL,
+      nullptr,
       createQoSController);

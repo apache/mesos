@@ -56,7 +56,7 @@ inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
 
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
@@ -64,7 +64,7 @@ inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
 
   Netlink<struct nl_cache> cache(c);
   struct rtnl_link* l = rtnl_link_get_by_name(cache.get(), link.c_str());
-  if (l == NULL) {
+  if (l == nullptr) {
     return None();
   }
 
@@ -83,7 +83,7 @@ inline Result<Netlink<struct rtnl_link>> get(int index)
 
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
@@ -91,7 +91,7 @@ inline Result<Netlink<struct rtnl_link>> get(int index)
 
   Netlink<struct nl_cache> cache(c);
   struct rtnl_link* l = rtnl_link_get(cache.get(), index);
-  if (l == NULL) {
+  if (l == nullptr) {
     return None();
   }
 

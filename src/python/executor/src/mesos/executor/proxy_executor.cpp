@@ -42,18 +42,18 @@ void ProxyExecutor::registered(ExecutorDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* executorInfoObj = NULL;
-  PyObject* frameworkInfoObj = NULL;
-  PyObject* slaveInfoObj = NULL;
-  PyObject* res = NULL;
+  PyObject* executorInfoObj = nullptr;
+  PyObject* frameworkInfoObj = nullptr;
+  PyObject* slaveInfoObj = nullptr;
+  PyObject* res = nullptr;
 
   executorInfoObj = createPythonProtobuf(executorInfo, "ExecutorInfo");
   frameworkInfoObj = createPythonProtobuf(frameworkInfo, "FrameworkInfo");
   slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
 
-  if (executorInfoObj == NULL ||
-      frameworkInfoObj == NULL ||
-      slaveInfoObj == NULL) {
+  if (executorInfoObj == nullptr ||
+      frameworkInfoObj == nullptr ||
+      slaveInfoObj == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -64,7 +64,7 @@ void ProxyExecutor::registered(ExecutorDriver* driver,
                             executorInfoObj,
                             frameworkInfoObj,
                             slaveInfoObj);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor registered" << endl;
     goto cleanup;
   }
@@ -86,12 +86,12 @@ void ProxyExecutor::reregistered(ExecutorDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* slaveInfoObj = NULL;
-  PyObject* res = NULL;
+  PyObject* slaveInfoObj = nullptr;
+  PyObject* res = nullptr;
 
   slaveInfoObj = createPythonProtobuf(slaveInfo, "SlaveInfo");
 
-  if (slaveInfoObj == NULL) {
+  if (slaveInfoObj == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -100,7 +100,7 @@ void ProxyExecutor::reregistered(ExecutorDriver* driver,
                             (char*) "OO",
                             impl,
                             slaveInfoObj);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor re-registered" << endl;
     goto cleanup;
   }
@@ -122,7 +122,7 @@ void ProxyExecutor::disconnected(ExecutorDriver* driver)
                             (char*) "disconnected",
                             (char*) "O",
                             impl);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's disconnected" << endl;
     goto cleanup;
   }
@@ -140,11 +140,11 @@ void ProxyExecutor::launchTask(ExecutorDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* taskObj = NULL;
-  PyObject* res = NULL;
+  PyObject* taskObj = nullptr;
+  PyObject* res = nullptr;
 
   taskObj = createPythonProtobuf(task, "TaskInfo");
-  if (taskObj == NULL) {
+  if (taskObj == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -153,7 +153,7 @@ void ProxyExecutor::launchTask(ExecutorDriver* driver,
                             (char*) "OO",
                             impl,
                             taskObj);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's launchTask" << endl;
     goto cleanup;
   }
@@ -173,11 +173,11 @@ void ProxyExecutor::killTask(ExecutorDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* taskIdObj = NULL;
-  PyObject* res = NULL;
+  PyObject* taskIdObj = nullptr;
+  PyObject* res = nullptr;
 
   taskIdObj = createPythonProtobuf(taskId, "TaskID");
-  if (taskIdObj == NULL) {
+  if (taskIdObj == nullptr) {
     goto cleanup; // createPythonProtobuf will have set an exception.
   }
 
@@ -186,7 +186,7 @@ void ProxyExecutor::killTask(ExecutorDriver* driver,
                             (char*) "OO",
                             impl,
                             taskIdObj);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's killTask" << endl;
     goto cleanup;
   }
@@ -206,7 +206,7 @@ void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
 {
   InterpreterLock lock;
 
-  PyObject* res = NULL;
+  PyObject* res = nullptr;
 
   res = PyObject_CallMethod(impl->pythonExecutor,
                             (char*) "frameworkMessage",
@@ -214,7 +214,7 @@ void ProxyExecutor::frameworkMessage(ExecutorDriver* driver,
                             impl,
                             data.data(),
                             data.length());
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's frameworkMessage" << endl;
     goto cleanup;
   }
@@ -235,7 +235,7 @@ void ProxyExecutor::shutdown(ExecutorDriver* driver)
                                       (char*) "shutdown",
                                       (char*) "O",
                                       impl);
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's shutdown" << endl;
     goto cleanup;
   }
@@ -257,7 +257,7 @@ void ProxyExecutor::error(ExecutorDriver* driver, const string& message)
                                       impl,
                                       message.data(),
                                       message.length());
-  if (res == NULL) {
+  if (res == nullptr) {
     cerr << "Failed to call executor's error" << endl;
     goto cleanup;
   }

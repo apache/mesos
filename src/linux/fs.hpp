@@ -310,14 +310,14 @@ struct FileSystemTable {
 // Mount a file system.
 // @param   source    Specify the file system (often a device name but
 //                    it can also be a directory for a bind mount).
-//                    If None(), NULL will be passed as a dummy
+//                    If None(), nullptr will be passed as a dummy
 //                    argument to mount(), i.e., it is not used for
 //                    the specified mount operation. For example, you
 //                    can mount a filesystem specified in /etc/fstab
 //                    by just specifying the target.
 // @param   target    Directory to be attached to.
 // @param   type      File system type (listed in /proc/filesystems).
-//                    If None(), NULL will be passed as a dummy
+//                    If None(), nullptr will be passed as a dummy
 //                    argument to mount(), i.e., it is not used for
 //                    the specified mount operation. For example, it
 //                    should be None() for a bind mount as it will

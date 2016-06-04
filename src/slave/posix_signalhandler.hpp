@@ -21,11 +21,11 @@ namespace internal {
 // Not using extern as this is used only by the executable. The signal handler
 // should be configured once. Calling it multiple time or from multiple thread
 // has undefined behavior.
-std::function<void(int, int)>* signaledWrapper = NULL;
+std::function<void(int, int)>* signaledWrapper = nullptr;
 
 void signalHandler(int sig, siginfo_t* siginfo, void* context)
 {
-  if (signaledWrapper != NULL) {
+  if (signaledWrapper != nullptr) {
      (*signaledWrapper)(sig, siginfo->si_uid);
   }
 }
@@ -47,7 +47,7 @@ int configureSignal(const std::function<void(int, int)>* signal)
 
   action.sa_sigaction = signalHandler;
 
-  return sigaction(SIGUSR1, &action, NULL);
+  return sigaction(SIGUSR1, &action, nullptr);
 }
 
 } // namespace internal {

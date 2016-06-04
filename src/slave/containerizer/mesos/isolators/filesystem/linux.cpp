@@ -595,7 +595,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
                 << "' for persistent volume " << resource
                 << " of container " << containerId;
 
-      Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
+      Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
       if (mount.isError()) {
         return Failure(
             "Failed to mount persistent volume from '" +

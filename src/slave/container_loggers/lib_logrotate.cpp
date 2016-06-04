@@ -267,7 +267,7 @@ org_apache_mesos_LogrotateContainerLogger(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Logrotate Container Logger module.",
-    NULL,
+    nullptr,
     [](const Parameters& parameters) -> ContainerLogger* {
       // Convert `parameters` into a map.
       std::map<std::string, std::string> values;
@@ -281,7 +281,7 @@ org_apache_mesos_LogrotateContainerLogger(
 
       if (load.isError()) {
         LOG(ERROR) << "Failed to parse parameters: " << load.error();
-        return NULL;
+        return nullptr;
       }
 
       // Log any flag warnings.

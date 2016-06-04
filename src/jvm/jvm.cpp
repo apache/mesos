@@ -35,7 +35,7 @@
 #include "jvm/java/lang.hpp"
 
 // Static storage and initialization.
-Jvm* Jvm::instance = NULL;
+Jvm* Jvm::instance = nullptr;
 
 Try<Jvm*> Jvm::create(
     const std::vector<std::string>& _options,
@@ -43,7 +43,7 @@ Try<Jvm*> Jvm::create(
     bool exceptions)
 {
   // TODO(benh): Make this thread-safe.
-  if (instance != NULL) {
+  if (instance != nullptr) {
     return Error("Java Virtual Machine already created");
   }
 
@@ -72,8 +72,8 @@ Try<Jvm*> Jvm::create(
   vmArgs.nOptions = options.size();
   vmArgs.options = opts;
 
-  JavaVM* jvm = NULL;
-  JNIEnv* env = NULL;
+  JavaVM* jvm = nullptr;
+  JNIEnv* env = nullptr;
   Option<std::string> libJvmPath = os::getenv("JAVA_JVM_LIBRARY");
 
   if (libJvmPath.isNone()) {
@@ -115,13 +115,13 @@ Try<Jvm*> Jvm::create(
 
 bool Jvm::created()
 {
-  return instance != NULL;
+  return instance != nullptr;
 }
 
 
 Jvm* Jvm::get()
 {
-  if (instance == NULL) {
+  if (instance == nullptr) {
     create();
   }
   return CHECK_NOTNULL(instance);
@@ -242,7 +242,7 @@ Jvm::Field::Field(const Class& _clazz, const jfieldID _id)
 
 
 Jvm::Env::Env(bool daemon)
-  : env(NULL), detach(false)
+  : env(nullptr), detach(false)
 {
   JavaVM* jvm = Jvm::get()->jvm;
 
@@ -252,9 +252,9 @@ Jvm::Env::Env(bool daemon)
   // If we're not attached, attach now.
   if (result == JNI_EDETACHED) {
     if (daemon) {
-      jvm->AttachCurrentThreadAsDaemon(JNIENV_CAST(&env), NULL);
+      jvm->AttachCurrentThreadAsDaemon(JNIENV_CAST(&env), nullptr);
     } else {
-      jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+      jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
     }
     detach = true;
   }
@@ -546,7 +546,7 @@ jobject Jvm::newGlobalRef(const jobject object)
 void Jvm::deleteGlobalRef(const jobject object)
 {
   Env env;
-  if (object != NULL) {
+  if (object != nullptr) {
     env->DeleteGlobalRef(object);
   }
 }

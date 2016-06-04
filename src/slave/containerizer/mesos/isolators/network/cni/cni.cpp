@@ -673,7 +673,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     return Failure("Failed to create the bind mount point: " + touch.error());
   }
 
-  Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
+  Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
   if (mount.isError()) {
     return Failure(
         "Failed to mount the network namespace handle from '" +
@@ -1400,7 +1400,7 @@ int NetworkCniIsolatorSetup::execute()
       "/",
       None(),
       MS_SLAVE | MS_REC,
-      NULL);
+      nullptr);
 
   if (mount.isError()) {
     cerr << "Failed to mark `/` as a SLAVE mount: " << mount.error() << endl;
@@ -1435,7 +1435,7 @@ int NetworkCniIsolatorSetup::execute()
         file,
         None(),
         MS_BIND,
-        NULL);
+        nullptr);
 
     if (mount.isError()) {
       cerr << "Failed to bind mount from '" << source << "' to '"
@@ -1461,7 +1461,7 @@ int NetworkCniIsolatorSetup::execute()
           target,
           None(),
           MS_BIND,
-          NULL);
+          nullptr);
 
       if (mount.isError()) {
         cerr << "Failed to bind mount from '" << source << "' to '"

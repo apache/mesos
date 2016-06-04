@@ -783,12 +783,12 @@ Try<SlaveID> getSlaveId(Master* master, const OfferID& offerId)
 {
   // Try as an offer.
   Offer* offer = getOffer(master, offerId);
-  if (offer != NULL) {
+  if (offer != nullptr) {
     return offer->slave_id();
   }
 
   InverseOffer* inverseOffer = getInverseOffer(master, offerId);
-  if (inverseOffer != NULL) {
+  if (inverseOffer != nullptr) {
     return inverseOffer->slave_id();
   }
 
@@ -800,12 +800,12 @@ Try<FrameworkID> getFrameworkId(Master* master, const OfferID& offerId)
 {
   // Try as an offer.
   Offer* offer = getOffer(master, offerId);
-  if (offer != NULL) {
+  if (offer != nullptr) {
     return offer->framework_id();
   }
 
   InverseOffer* inverseOffer = getInverseOffer(master, offerId);
-  if (inverseOffer != NULL) {
+  if (inverseOffer != nullptr) {
     return inverseOffer->framework_id();
   }
 
@@ -819,7 +819,7 @@ Option<Error> validateOfferIds(
 {
   foreach (const OfferID& offerId, offerIds) {
     Offer* offer = getOffer(master, offerId);
-    if (offer == NULL) {
+    if (offer == nullptr) {
       return Error("Offer " + stringify(offerId) + " is no longer valid");
     }
   }
@@ -834,7 +834,7 @@ Option<Error> validateInverseOfferIds(
 {
   foreach (const OfferID& offerId, offerIds) {
     InverseOffer* inverseOffer = getInverseOffer(master, offerId);
-    if (inverseOffer == NULL) {
+    if (inverseOffer == nullptr) {
       return Error(
           "Inverse offer " + stringify(offerId) + " is no longer valid");
     }
@@ -900,7 +900,7 @@ Option<Error> validateSlave(
     Slave* slave = getSlave(master, offerSlaveId.get());
 
     // This is not possible because the offer should've been removed.
-    CHECK(slave != NULL)
+    CHECK(slave != nullptr)
       << "Offer " << offerId
       << " outlived agent " << offerSlaveId.get();
 

@@ -411,15 +411,15 @@ protected:
     for (int i = 0; i < command.arguments().size(); i++) {
       argv[i] = (char*) command.arguments(i).c_str();
     }
-    argv[command.arguments().size()] = NULL;
+    argv[command.arguments().size()] = nullptr;
 
     // Prepare the command log message.
     string commandString;
     if (override.isSome()) {
       char** argv = override.get();
-      // argv is guaranteed to be NULL terminated and we rely on
+      // argv is guaranteed to be nullptr terminated and we rely on
       // that fact to print command to be executed.
-      for (int i = 0; argv[i] != NULL; i++) {
+      for (int i = 0; argv[i] != nullptr; i++) {
         commandString += string(argv[i]) + " ";
       }
     } else if (command.shell()) {
@@ -528,7 +528,7 @@ protected:
               "sh",
               "-c",
               command.value().c_str(),
-              (char*) NULL);
+              (char*) nullptr);
         } else {
           execvp(command.value().c_str(), argv);
         }

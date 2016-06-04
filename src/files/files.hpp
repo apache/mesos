@@ -134,16 +134,16 @@ inline JSON::Object jsonFileInfo(const std::string& path,
       permissions.others.w ? 'w' : '-',
       permissions.others.x ? 'x' : '-').get();
 
-  // NOTE: `getpwuid` and `getgrgid` return `NULL` on Windows.
+  // NOTE: `getpwuid` and `getgrgid` return `nullptr` on Windows.
   passwd* p = getpwuid(s.st_uid);
-  if (p != NULL) {
+  if (p != nullptr) {
     file.values["uid"] = p->pw_name;
   } else {
     file.values["uid"] = stringify(s.st_uid);
   }
 
   struct group* g = getgrgid(s.st_gid);
-  if (g != NULL) {
+  if (g != nullptr) {
     file.values["gid"] = g->gr_name;
   } else {
     file.values["gid"] = stringify(s.st_gid);

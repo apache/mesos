@@ -69,7 +69,7 @@ private:
 
     ~Data()
     {
-      if (object != NULL) {
+      if (object != nullptr) {
         cleanup(object);
       }
     }
@@ -94,7 +94,7 @@ inline Try<Netlink<struct nl_sock>> socket(int protocol = NETLINK_ROUTE)
   }
 
   struct nl_sock* s = nl_socket_alloc();
-  if (s == NULL) {
+  if (s == nullptr) {
     return Error("Failed to allocate netlink socket");
   }
 

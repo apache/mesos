@@ -73,7 +73,7 @@ namespace internal {
 namespace tests {
 
 #ifdef MESOS_HAS_JAVA
-ZooKeeperTestServer* MesosZooKeeperTest::server = NULL;
+ZooKeeperTestServer* MesosZooKeeperTest::server = nullptr;
 Option<zookeeper::URL> MesosZooKeeperTest::url;
 #endif // MESOS_HAS_JAVA
 

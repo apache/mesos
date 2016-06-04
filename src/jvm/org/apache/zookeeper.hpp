@@ -101,7 +101,7 @@ public:
 
     // We need to "bind" the 'sessionTracker' Variable after we assign
     // 'object' above so that '*this' is a Jvm::Object instance that
-    // doesn't point to a NULL jobject.
+    // doesn't point to a nullptr jobject.
     sessionTracker.bind(*this);
   }
 

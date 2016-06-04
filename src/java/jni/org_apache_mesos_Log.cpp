@@ -158,7 +158,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
     entries.discard();
     clazz = env->FindClass("java/util/concurrent/TimeoutException");
     env->ThrowNew(clazz, "Timed out while attempting to read");
-    return NULL;
+    return nullptr;
   } else if (!entries.isReady()) {
     // Failed to read the log.
     clazz = env->FindClass("org/apache/mesos/Log$OperationFailedException");
@@ -167,7 +167,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
         (entries.isFailed()
          ? entries.failure().c_str()
          : "Discarded future"));
-    return NULL;
+    return nullptr;
   }
 
   // List entries = new ArrayList();
@@ -294,7 +294,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   Log::Writer* writer = (Log::Writer*) env->GetLongField(thiz, __writer);
 
-  jbyte* temp = env->GetByteArrayElements(jdata, NULL);
+  jbyte* temp = env->GetByteArrayElements(jdata, nullptr);
   jsize length = env->GetArrayLength(jdata);
 
   std::string data((char*) temp, (size_t) length);
@@ -314,7 +314,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
     env->ReleaseByteArrayElements(jdata, temp, 0);
     clazz = env->FindClass("java/util/concurrent/TimeoutException");
     env->ThrowNew(clazz, "Timed out while attempting to append");
-    return NULL;
+    return nullptr;
   } else if (!position.isReady()) {
     // Failed to append the log.
     env->ReleaseByteArrayElements(jdata, temp, 0);
@@ -324,7 +324,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
         (position.isFailed()
          ? position.failure().c_str()
          : "Discarded future"));
-    return NULL;
+    return nullptr;
   } else if (position.get().isNone()) {
     // Lost exclusive write promise.
     env->ReleaseByteArrayElements(jdata, temp, 0);
@@ -332,7 +332,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
     env->ThrowNew(
         clazz,
         "Exclusive write promise lost");
-    return NULL;
+    return nullptr;
   }
 
   env->ReleaseByteArrayElements(jdata, temp, 0);
@@ -379,7 +379,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
     position.discard();
     clazz = env->FindClass("java/util/concurrent/TimeoutException");
     env->ThrowNew(clazz, "Timed out while attempting to truncate");
-    return NULL;
+    return nullptr;
   } else if (!position.isReady()) {
     // Failed to truncate the log.
     clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
@@ -388,14 +388,14 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
         (position.isFailed()
          ? position.failure().c_str()
          : "Discarded future"));
-    return NULL;
+    return nullptr;
   } else if (position.get().isNone()) {
     // Lost exclusive write promise.
     clazz = env->FindClass("org/apache/mesos/Log$WriterFailedException");
     env->ThrowNew(
         clazz,
         "Exclusive write promise lost");
-    return NULL;
+    return nullptr;
   }
 
   jobject jposition = convert<Log::Position>(env, position.get().get());
@@ -615,12 +615,12 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
   std::string znode = construct<std::string>(env, jznode);
 
   // Create the C++ Log.
-  Log* log = NULL;
+  Log* log = nullptr;
 
-  if (jscheme != NULL && jcredentials != NULL) {
+  if (jscheme != nullptr && jcredentials != nullptr) {
     std::string scheme = construct<std::string>(env, jscheme);
 
-    jbyte* temp = env->GetByteArrayElements(jcredentials, NULL);
+    jbyte* temp = env->GetByteArrayElements(jcredentials, nullptr);
     jsize length = env->GetArrayLength(jcredentials);
 
     std::string credentials((char*) temp, (size_t) length);
@@ -634,7 +634,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_initialize__ILjava_lang_String_
     log = new Log(quorum, path, servers, seconds, znode);
   }
 
-  CHECK(log != NULL);
+  CHECK(log != nullptr);
 
   // Initialize the __log variable.
   clazz = env->GetObjectClass(thiz);

@@ -100,7 +100,7 @@ inline Try<Nothing> attach(
   // because libnl has a refcount issue for rtnl_act. Clean this up
   // once the bug is fixed in libnl.
   struct rtnl_act* act = rtnl_act_alloc();
-  if (act == NULL) {
+  if (act == nullptr) {
     return Error("Failed to allocate a libnl action (rtnl_act)");
   }
 
@@ -168,7 +168,7 @@ inline Try<Nothing> attach(
     // 'act' because libnl has a refcount issue for rtnl_act. Clean
     // this up once libnl fixes the bug.
     struct rtnl_act* act = rtnl_act_alloc();
-    if (act == NULL) {
+    if (act == nullptr) {
       return Error("Failed to allocate a libnl action (rtnl_act)");
     }
 
@@ -251,19 +251,19 @@ inline Try<Nothing> attach(
 {
   const action::Redirect* redirect =
     dynamic_cast<const action::Redirect*>(action.get());
-  if (redirect != NULL) {
+  if (redirect != nullptr) {
     return attach(cls, *redirect);
   }
 
   const action::Mirror* mirror =
     dynamic_cast<const action::Mirror*>(action.get());
-  if (mirror != NULL) {
+  if (mirror != nullptr) {
     return attach(cls, *mirror);
   }
 
   const action::Terminal* terminal =
     dynamic_cast<const action::Terminal*>(action.get());
-  if (terminal != NULL) {
+  if (terminal != nullptr) {
     return attach(cls, *terminal);
   }
 
@@ -293,7 +293,7 @@ Result<U32Handle> generateU32Handle(
 
   // Dump all the libnl filters (i.e., rtnl_cls) attached to the given
   // parent on the link.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_cls_alloc_cache(
       socket.get().get(),
       rtnl_link_get_ifindex(link.get()),
@@ -315,7 +315,7 @@ Result<U32Handle> generateU32Handle(
   hashmap<uint32_t, hashset<uint32_t>> nodes;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
-       o != NULL; o = nl_cache_get_next(o)) {
+       o != nullptr; o = nl_cache_get_next(o)) {
     struct rtnl_cls* cls = (struct rtnl_cls*) o;
 
     // Only look at u32 filters. For other type of filters, their
@@ -359,7 +359,7 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
     const Filter<Classifier>& filter)
 {
   struct rtnl_cls* c = rtnl_cls_alloc();
-  if (c == NULL) {
+  if (c == nullptr) {
     return Error("Failed to allocate a libnl filter (rtnl_cls)");
   }
 
@@ -496,7 +496,7 @@ inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
 
   // Dump all the libnl filters (i.e., rtnl_cls) attached to the given
   // parent on the link.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_cls_alloc_cache(
       socket.get().get(),
       rtnl_link_get_ifindex(link.get()),
@@ -514,7 +514,7 @@ inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
   std::vector<Netlink<struct rtnl_cls>> results;
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
-       o != NULL; o = nl_cache_get_next(o)) {
+       o != nullptr; o = nl_cache_get_next(o)) {
     // NOTE: We increment the reference counter here because 'cache'
     // will be freed when this function finishes and we want this
     // object's life to be longer than this function.

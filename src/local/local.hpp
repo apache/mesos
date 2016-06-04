@@ -38,7 +38,7 @@ namespace local {
 // Launch a local cluster with the given flags.
 process::PID<master::Master> launch(
     const Flags& flags,
-    mesos::master::allocator::Allocator* _allocator = NULL);
+    mesos::master::allocator::Allocator* _allocator = nullptr);
 
 void shutdown();
 

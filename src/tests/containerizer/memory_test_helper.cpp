@@ -86,7 +86,7 @@ static Try<void*> allocateRSS(const Bytes& size)
   }
 #endif
 
-  void* rss = NULL;
+  void* rss = nullptr;
   if (posix_memalign(&rss, os::pagesize(), size.bytes()) != 0) {
     return ErrnoError("Failed to increase RSS memory, posix_memalign");
   }
@@ -230,7 +230,7 @@ void MemoryTestHelper::cleanup()
     // it's stuck, but we don't care about its status. Any error
     // should have been logged in the subprocess directly.
     ::kill(s.get().pid(), SIGKILL);
-    ::waitpid(s.get().pid(), NULL, 0);
+    ::waitpid(s.get().pid(), nullptr, 0);
     s = None();
   }
 }

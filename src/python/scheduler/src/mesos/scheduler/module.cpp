@@ -50,7 +50,7 @@ using std::vector;
  * The Python module object for mesos_pb2 (which contains the protobuf
  * classes generated for Python).
  */
-PyObject* mesos::python::mesos_pb2 = NULL;
+PyObject* mesos::python::mesos_pb2 = nullptr;
 
 
 namespace {
@@ -59,7 +59,7 @@ namespace {
  * Method list for our Python module.
  */
 PyMethodDef MODULE_METHODS[] = {
-  {NULL, NULL, 0, NULL}        /* Sentinel */
+  {nullptr, nullptr, 0, nullptr}        /* Sentinel */
 };
 
 } // namespace {
@@ -75,7 +75,7 @@ PyMODINIT_FUNC init_scheduler()
 
   // Import the mesos_pb2 module (on which we depend for protobuf classes)
   mesos_pb2 = PyImport_ImportModule("mesos.interface.mesos_pb2");
-  if (mesos_pb2 == NULL)
+  if (mesos_pb2 == nullptr)
     return;
 
   // Initialize our Python types.

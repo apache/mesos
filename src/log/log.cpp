@@ -70,7 +70,7 @@ LogProcess::LogProcess(
     replica(new Replica(path)),
     network(new Network(pids + (UPID) replica->pid())),
     autoInitialize(_autoInitialize),
-    group(NULL) {}
+    group(nullptr) {}
 
 
 LogProcess::LogProcess(
@@ -96,7 +96,7 @@ LogProcess::LogProcess(
 
 void LogProcess::initialize()
 {
-  if (group != NULL) {
+  if (group != nullptr) {
     // Need to add our replica to the ZooKeeper group!
     LOG(INFO) << "Attempting to join replica to ZooKeeper group";
 
@@ -435,7 +435,7 @@ LogWriterProcess::LogWriterProcess(Log* log)
     quorum(log->process->quorum),
     network(log->process->network),
     recovering(dispatch(log->process, &LogProcess::recover)),
-    coordinator(NULL),
+    coordinator(nullptr),
     error(None()) {}
 
 
@@ -547,7 +547,7 @@ Future<Option<Log::Position> > LogWriterProcess::append(const string& bytes)
 {
   LOG(INFO) << "Attempting to append " << bytes.size() << " bytes to the log";
 
-  if (coordinator == NULL) {
+  if (coordinator == nullptr) {
     return Failure("No election has been performed");
   }
 
@@ -566,7 +566,7 @@ Future<Option<Log::Position> > LogWriterProcess::truncate(
 {
   LOG(INFO) << "Attempting to truncate the log to " << to.value;
 
-  if (coordinator == NULL) {
+  if (coordinator == nullptr) {
     return Failure("No election has been performed");
   }
 

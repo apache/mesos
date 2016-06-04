@@ -129,7 +129,7 @@ struct Slave
       connected(true),
       active(true),
       checkpointedResources(_checkpointedResources),
-      observer(NULL)
+      observer(nullptr)
   {
     CHECK(_info.has_id());
 
@@ -158,7 +158,7 @@ struct Slave
     if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
       return tasks[frameworkId][taskId];
     }
-    return NULL;
+    return nullptr;
   }
 
   void addTask(Task* task)
@@ -1405,12 +1405,12 @@ private:
 
       Slave* get(const SlaveID& slaveId) const
       {
-        return ids.get(slaveId).getOrElse(NULL);
+        return ids.get(slaveId).getOrElse(nullptr);
       }
 
       Slave* get(const process::UPID& pid) const
       {
-        return pids.get(pid).getOrElse(NULL);
+        return pids.get(pid).getOrElse(nullptr);
       }
 
       void put(Slave* slave)
@@ -1860,7 +1860,7 @@ struct Framework
       return tasks[taskId];
     }
 
-    return NULL;
+    return nullptr;
   }
 
   void addTask(Task* task)

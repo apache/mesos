@@ -28,7 +28,7 @@ namespace contender {
 
 StandaloneMasterContender::~StandaloneMasterContender()
 {
-  if (promise != NULL) {
+  if (promise != nullptr) {
     promise->set(Nothing()); // Leadership lost.
     delete promise;
   }
@@ -50,7 +50,7 @@ Future<Future<Nothing>> StandaloneMasterContender::contend()
     return Failure("Initialize the contender first");
   }
 
-  if (promise != NULL) {
+  if (promise != nullptr) {
     LOG(INFO) << "Withdrawing the previous membership before recontending";
     promise->set(Nothing());
     delete promise;

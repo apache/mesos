@@ -390,7 +390,7 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(
       statistics[sample->cgroup].GetDescriptor()->FindFieldByName(
           sample->event);
 
-    if (field == NULL) {
+    if (field == nullptr) {
       return Error("Unexpected event '" + sample->event + "'"
                    " in perf output at line: " + line);
     }

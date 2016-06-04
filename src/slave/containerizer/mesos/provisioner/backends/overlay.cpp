@@ -179,7 +179,7 @@ Future<Nothing> OverlayBackendProcess::provision(
       rootfs,
       None(),
       MS_SLAVE,
-      NULL);
+      nullptr);
 
   if (mount.isError()) {
     return Failure(
@@ -192,7 +192,7 @@ Future<Nothing> OverlayBackendProcess::provision(
       rootfs,
       None(),
       MS_SHARED,
-      NULL);
+      nullptr);
 
   if (mount.isError()) {
     return Failure(

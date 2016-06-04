@@ -103,7 +103,7 @@ static TestModule* create(const mesos::Parameters& parameters)
     delete testModule;
     // TODO(karya): make the return type Try<TestModule*> to pass the
     // error message as well.
-    return NULL;
+    return nullptr;
   }
   return testModule;
 }

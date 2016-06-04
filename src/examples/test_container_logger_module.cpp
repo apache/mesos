@@ -41,12 +41,12 @@ org_apache_mesos_TestSandboxContainerLogger(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test Sandbox Container Logger module.",
-    NULL,
+    nullptr,
     [](const Parameters& paramters) -> ContainerLogger* {
       Try<ContainerLogger*> result = SandboxContainerLogger::create(None());
 
       if (result.isError()) {
-        return NULL;
+        return nullptr;
       }
 
       return result.get();

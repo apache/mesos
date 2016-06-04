@@ -244,33 +244,33 @@ public:
   class Object
   {
   public:
-    Object() : object(NULL) {}
+    Object() : object(nullptr) {}
 
     explicit Object(jobject _object)
       : object(Jvm::get()->newGlobalRef(_object)) {}
 
     Object(const Object& that)
-      : object(NULL)
+      : object(nullptr)
     {
-      if (that.object != NULL) {
+      if (that.object != nullptr) {
         object = Jvm::get()->newGlobalRef(that.object);
       }
     }
 
     ~Object()
     {
-      if (object != NULL) {
+      if (object != nullptr) {
         Jvm::get()->deleteGlobalRef(object);
       }
     }
 
     Object& operator=(const Object& that)
     {
-      if (object != NULL) {
+      if (object != nullptr) {
         Jvm::get()->deleteGlobalRef(object);
-        object = NULL;
+        object = nullptr;
       }
-      if (that.object != NULL) {
+      if (that.object != nullptr) {
         object = Jvm::get()->newGlobalRef(that.object);
       }
       return *this;
@@ -299,14 +299,14 @@ public:
       : clazz(_clazz)
     {
       // Check that T extends Object.
-      { T* t = NULL; Object* o = t; (void) o; }
+      { T* t = nullptr; Object* o = t; (void) o; }
     }
 
     Variable(const Class& _clazz, const Object& _object)
       : clazz(_clazz), object(_object)
     {
       // Check that T extends Object.
-      { T* t = NULL; Object* o = t; (void) o; }
+      { T* t = nullptr; Object* o = t; (void) o; }
     }
 
     // TODO(benh): Implement cast operator (like in StaticVariable).
@@ -317,7 +317,7 @@ public:
     {
       // Check that U extends Object (but not necessarily T since U
       // might be 'Null').
-      { U* u = NULL; Object* o = u; (void) o; }
+      { U* u = nullptr; Object* o = u; (void) o; }
 
       // Note that we actually look up the field lazily (upon first
       // assignment operator) so that we don't possibly create the JVM
@@ -351,7 +351,7 @@ public:
       : clazz(_clazz)
     {
       // Check that T extends Object.
-      { T* t = NULL; Object* o = t; (void) o; }
+      { T* t = nullptr; Object* o = t; (void) o; }
     }
 
     operator T() const

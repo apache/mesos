@@ -931,7 +931,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyTracedProcess)
   ASSERT_SOME(assign);
 
   // Attach to the child process.
-  ASSERT_EQ(0, ptrace(PT_ATTACH, pid, NULL, NULL));
+  ASSERT_EQ(0, ptrace(PT_ATTACH, pid, nullptr, nullptr));
 
   // Wait until the process is in traced state ('t' or 'T').
   Duration elapsed = Duration::zero();

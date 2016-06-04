@@ -69,7 +69,7 @@ int MesosContainerizerMount::execute()
         flags.path.get(),
         None(),
         MS_SLAVE | MS_REC,
-        NULL);
+        nullptr);
 
     if (mount.isError()) {
       cerr << "Failed to mark rslave with path '" << flags.path.get() << "': "

@@ -38,8 +38,8 @@ namespace internal {
 namespace tests {
 
 ZooKeeperTestServer::ZooKeeperTestServer()
-  : zooKeeperServer(NULL),
-    connectionFactory(NULL),
+  : zooKeeperServer(nullptr),
+    connectionFactory(nullptr),
     port(0),
     started(false)
 {
@@ -112,11 +112,11 @@ std::string ZooKeeperTestServer::connectString() const
 
 void ZooKeeperTestServer::shutdownNetwork()
 {
-  if (connectionFactory != NULL && started) {
+  if (connectionFactory != nullptr && started) {
     LOG(INFO) << "Shutting down ZooKeeperTestServer on port " << port;
     connectionFactory->shutdown();
     delete connectionFactory;
-    connectionFactory = NULL;
+    connectionFactory = nullptr;
     started = false;
   }
 }

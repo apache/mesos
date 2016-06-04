@@ -42,7 +42,7 @@ public:
 
 NoopQoSController::~NoopQoSController()
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     terminate(process.get());
     wait(process.get());
   }
@@ -52,7 +52,7 @@ NoopQoSController::~NoopQoSController()
 Try<Nothing> NoopQoSController::initialize(
     const lambda::function<Future<ResourceUsage>()>& usage)
 {
-  if (process.get() != NULL) {
+  if (process.get() != nullptr) {
     return Error("Noop QoS Controller has already been initialized");
   }
 

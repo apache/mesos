@@ -322,7 +322,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   // Write the status update to disk and enqueue it to send it to the master.
   // Create/Get the status update stream for this task.
   StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
-  if (stream == NULL) {
+  if (stream == nullptr) {
     stream = createStatusUpdateStream(
         taskId, frameworkId, slaveId, checkpoint, executorId, containerId);
   }
@@ -397,7 +397,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
 
   // This might happen if we haven't completed recovery yet or if the
   // acknowledgement is for a stream that has been cleaned up.
-  if (stream == NULL) {
+  if (stream == nullptr) {
     return Failure(
         "Cannot find the status update stream for task " + stringify(taskId) +
         " of framework " + stringify(frameworkId));
@@ -510,11 +510,11 @@ StatusUpdateStream* StatusUpdateManagerProcess::getStatusUpdateStream(
     const FrameworkID& frameworkId)
 {
   if (!streams.contains(frameworkId)) {
-    return NULL;
+    return nullptr;
   }
 
   if (!streams[frameworkId].contains(taskId)) {
-    return NULL;
+    return nullptr;
   }
 
   return streams[frameworkId][taskId];

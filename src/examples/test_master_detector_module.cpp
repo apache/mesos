@@ -37,7 +37,7 @@ mesos::modules::Module<MasterDetector> org_apache_mesos_TestMasterDetector(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test MasterDetector module.",
-    NULL,
+    nullptr,
     [](const Parameters& parameters) -> MasterDetector* {
       return new StandaloneMasterDetector();
     });

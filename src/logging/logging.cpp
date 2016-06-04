@@ -225,7 +225,7 @@ void initialize(
     // We also do not want SIGTERM to dump a stacktrace, as this
     // can imply that we crashed, when we were in fact terminated
     // by user request.
-    if (sigaction(SIGTERM, &action, NULL) < 0) {
+    if (sigaction(SIGTERM, &action, nullptr) < 0) {
       PLOG(FATAL) << "Failed to set sigaction";
     }
 #endif // __WINDOWS__

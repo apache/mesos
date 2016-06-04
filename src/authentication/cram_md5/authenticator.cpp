@@ -62,11 +62,11 @@ public:
     : ProcessBase(ID::generate("crammd5_authenticator_session")),
       status(READY),
       pid(_pid),
-      connection(NULL) {}
+      connection(nullptr) {}
 
   virtual ~CRAMMD5AuthenticatorSessionProcess()
   {
-    if (connection != NULL) {
+    if (connection != nullptr) {
       sasl_dispose(&connection);
     }
   }
@@ -84,7 +84,7 @@ public:
 
     callbacks[0].id = SASL_CB_GETOPT;
     callbacks[0].proc = (int(*)()) &getopt;
-    callbacks[0].context = NULL;
+    callbacks[0].context = nullptr;
 
     callbacks[1].id = SASL_CB_CANON_USER;
     callbacks[1].proc = (int(*)()) &canonicalize;
@@ -92,18 +92,19 @@ public:
     callbacks[1].context = &principal;
 
     callbacks[2].id = SASL_CB_LIST_END;
-    callbacks[2].proc = NULL;
-    callbacks[2].context = NULL;
+    callbacks[2].proc = nullptr;
+    callbacks[2].context = nullptr;
 
     LOG(INFO) << "Creating new server SASL connection";
 
     int result = sasl_server_new(
         "mesos",    // Registered name of service.
-        NULL,       // Server's FQDN; NULL uses gethostname().
-        NULL,       // The user realm used for password lookups;
-                    // NULL means default to FQDN.
+        nullptr,    // Server's FQDN; nullptr uses gethostname().
+        nullptr,    // The user realm used for password lookups;
+                    // nullptr means default to FQDN.
                     // NOTE: This does not affect Kerberos.
-        NULL, NULL, // IP address information strings.
+        nullptr,    // IP address information string.
+        nullptr,    // IP address information string.
         callbacks,  // Callbacks supported only for this connection.
         0,          // Security flags (security layers are enabled
                     // using security properties, separately).
@@ -111,7 +112,7 @@ public:
 
     if (result != SASL_OK) {
       string error = "Failed to create server SASL connection: ";
-      error += sasl_errstring(result, NULL, NULL);
+      error += sasl_errstring(result, nullptr, nullptr);
       LOG(ERROR) << error;
       AuthenticationErrorMessage message;
       message.set_error(error);
@@ -122,13 +123,13 @@ public:
     }
 
     // Get the list of mechanisms.
-    const char* output = NULL;
+    const char* output = nullptr;
     unsigned length = 0;
     int count = 0;
 
     result = sasl_listmech(
         connection,  // The context for this connection.
-        NULL,        // Not supported.
+        nullptr,     // Not supported.
         "",          // What to prepend to the output string.
         ",",         // What to separate mechanisms with.
         "",          // What to append to the output string.
@@ -138,7 +139,7 @@ public:
 
     if (result != SASL_OK) {
       string error = "Failed to get list of mechanisms: ";
-      LOG(WARNING) << error << sasl_errstring(result, NULL, NULL);
+      LOG(WARNING) << error << sasl_errstring(result, nullptr, nullptr);
       AuthenticationErrorMessage message;
       error += sasl_errdetail(connection);
       message.set_error(error);
@@ -203,13 +204,13 @@ public:
     LOG(INFO) << "Received SASL authentication start";
 
     // Start the server.
-    const char* output = NULL;
+    const char* output = nullptr;
     unsigned length = 0;
 
     int result = sasl_server_start(
         connection,
         mechanism.c_str(),
-        data.length() == 0 ? NULL : data.data(),
+        data.length() == 0 ? nullptr : data.data(),
         data.length(),
         &output,
         &length);
@@ -230,12 +231,12 @@ public:
 
     LOG(INFO) << "Received SASL authentication step";
 
-    const char* output = NULL;
+    const char* output = nullptr;
     unsigned length = 0;
 
     int result = sasl_server_step(
         connection,
-        data.length() == 0 ? NULL : data.data(),
+        data.length() == 0 ? nullptr : data.data(),
         data.length(),
         &output,
         &length);
@@ -269,7 +270,7 @@ private:
       found = true;
     }
 
-    if (found && length != NULL) {
+    if (found && length != nullptr) {
       *length = strlen(*result);
     }
 
@@ -317,7 +318,7 @@ private:
       LOG(INFO) << "Authentication success";
       // Note that we're not using SASL_SUCCESS_DATA which means that
       // we should not have any data to send when we get a SASL_OK.
-      CHECK(output == NULL);
+      CHECK(output == nullptr);
       send(pid, AuthenticationCompletedMessage());
       status = COMPLETED;
       promise.set(principal);
@@ -329,13 +330,13 @@ private:
       status = STEPPING;
     } else if (result == SASL_NOUSER || result == SASL_BADAUTH) {
       LOG(WARNING) << "Authentication failure: "
-                   << sasl_errstring(result, NULL, NULL);
+                   << sasl_errstring(result, nullptr, nullptr);
       send(pid, AuthenticationFailedMessage());
       status = FAILED;
       promise.set(Option<string>::none());
     } else {
       LOG(ERROR) << "Authentication error: "
-                 << sasl_errstring(result, NULL, NULL);
+                 << sasl_errstring(result, nullptr, nullptr);
       AuthenticationErrorMessage message;
       string error(sasl_errdetail(connection));
       message.set_error(error);
@@ -475,12 +476,12 @@ Try<Authenticator*> CRAMMD5Authenticator::create()
 }
 
 
-CRAMMD5Authenticator::CRAMMD5Authenticator() : process(NULL) {}
+CRAMMD5Authenticator::CRAMMD5Authenticator() : process(nullptr) {}
 
 
 CRAMMD5Authenticator::~CRAMMD5Authenticator()
 {
-  if (process != NULL) {
+  if (process != nullptr) {
     terminate(process);
     wait(process);
     delete process;
@@ -498,7 +499,7 @@ Try<Nothing> CRAMMD5Authenticator::initialize(
   // object, we make this a static pointer.
   static Option<Error>* error = new Option<Error>();
 
-  if (process != NULL) {
+  if (process != nullptr) {
     return Error("Authenticator initialized already");
   }
 
@@ -517,12 +518,12 @@ Try<Nothing> CRAMMD5Authenticator::initialize(
   if (!initialize->once()) {
     LOG(INFO) << "Initializing server SASL";
 
-    int result = sasl_server_init(NULL, "mesos");
+    int result = sasl_server_init(nullptr, "mesos");
 
     if (result != SASL_OK) {
       *error = Error(
           string("Failed to initialize SASL: ") +
-          sasl_errstring(result, NULL, NULL));
+          sasl_errstring(result, nullptr, nullptr));
     } else {
       result = sasl_auxprop_add_plugin(
           InMemoryAuxiliaryPropertyPlugin::name(),
@@ -531,7 +532,7 @@ Try<Nothing> CRAMMD5Authenticator::initialize(
       if (result != SASL_OK) {
         *error = Error(
             string("Failed to add in-memory auxiliary property plugin: ") +
-            sasl_errstring(result, NULL, NULL));
+            sasl_errstring(result, nullptr, nullptr));
       }
     }
 
@@ -552,7 +553,7 @@ Try<Nothing> CRAMMD5Authenticator::initialize(
 Future<Option<string>> CRAMMD5Authenticator::authenticate(
     const UPID& pid)
 {
-  if (process == NULL) {
+  if (process == nullptr) {
     return Failure("Authenticator not initialized");
   }
   return dispatch(

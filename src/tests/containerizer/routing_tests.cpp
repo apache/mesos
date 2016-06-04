@@ -303,7 +303,7 @@ TEST_F(RoutingVethTest, ROOT_LinkCreatePid)
   // Stack used in the child process.
   unsigned long long stack[32];
 
-  pid_t pid = ::clone(child, &stack[31], CLONE_NEWNET | SIGCHLD, NULL);
+  pid_t pid = ::clone(child, &stack[31], CLONE_NEWNET | SIGCHLD, nullptr);
   ASSERT_NE(-1, pid);
 
   // In parent process.

@@ -36,7 +36,7 @@ namespace socket {
 static Option<net::IP> IP(nl_addr* _ip)
 {
   Option<net::IP> result;
-  if (_ip != NULL && nl_addr_get_len(_ip) != 0) {
+  if (_ip != nullptr && nl_addr_get_len(_ip) != 0) {
     struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(_ip);
     result = net::IP(*addr);
   }
@@ -52,7 +52,7 @@ Try<vector<Info>> infos(int family, int states)
     return Error(socket.error());
   }
 
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = idiagnl_msg_alloc_cache(socket.get().get(), family, states, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
@@ -62,7 +62,7 @@ Try<vector<Info>> infos(int family, int states)
 
   vector<Info> results;
   for (struct nl_object* o = nl_cache_get_first(cache.get());
-       o != NULL; o = nl_cache_get_next(o)) {
+       o != nullptr; o = nl_cache_get_next(o)) {
     struct idiagnl_msg* msg = (struct idiagnl_msg*)o;
 
     // For 'state', libnl-idiag only returns the number of left

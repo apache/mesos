@@ -897,17 +897,17 @@ Try<vector<string>> get(const string& hierarchy, const string& cgroup)
          : "No such file or directory"));
   }
 
-  char* paths[] = { const_cast<char*>(destAbsPath.get().c_str()), NULL };
+  char* paths[] = { const_cast<char*>(destAbsPath.get().c_str()), nullptr };
 
-  FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
-  if (tree == NULL) {
+  FTS* tree = fts_open(paths, FTS_NOCHDIR, nullptr);
+  if (tree == nullptr) {
     return ErrnoError("Failed to start traversing file system");
   }
 
   vector<string> cgroups;
 
   FTSENT* node;
-  while ((node = fts_read(tree)) != NULL) {
+  while ((node = fts_read(tree)) != nullptr) {
     // Use post-order walk here. fts_level is the depth of the traversal,
     // numbered from -1 to N, where the file/dir was found. The traversal root
     // itself is numbered 0. fts_info includes flags for the current node.

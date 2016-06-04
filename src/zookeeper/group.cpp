@@ -96,8 +96,8 @@ GroupProcess::GroupProcess(
     acl(_auth.isSome()
         ? EVERYONE_READ_CREATOR_ALL
         : ZOO_OPEN_ACL_UNSAFE),
-    watcher(NULL),
-    zk(NULL),
+    watcher(nullptr),
+    zk(nullptr),
     state(DISCONNECTED),
     retrying(false)
 {}
@@ -116,8 +116,8 @@ GroupProcess::GroupProcess(
     acl(url.authentication.isSome()
         ? EVERYONE_READ_CREATOR_ALL
         : ZOO_OPEN_ACL_UNSAFE),
-    watcher(NULL),
-    zk(NULL),
+    watcher(nullptr),
+    zk(nullptr),
     state(DISCONNECTED),
     retrying(false)
 {}
@@ -424,7 +424,7 @@ Try<bool> GroupProcess::create()
 
   LOG(INFO) << "Trying to create path '" << znode << "' in ZooKeeper";
 
-  int code = zk->create(znode, "", acl, 0, NULL, true);
+  int code = zk->create(znode, "", acl, 0, nullptr, true);
 
   // We fail all non-retryable return codes except ZNONODEEXISTS (
   // since that means the path we were trying to create exists). Note
@@ -700,7 +700,7 @@ Result<Option<string>> GroupProcess::doData(
   // Get data associated with ephemeral node.
   string result;
 
-  int code = zk->get(path, false, &result, NULL);
+  int code = zk->get(path, false, &result, nullptr);
 
   if (code == ZNONODE) {
     return Option<string>::none();
@@ -978,8 +978,8 @@ void GroupProcess::abort(const string& message)
   // ephemeral ZNodes as necessary.
   delete CHECK_NOTNULL(zk);
   delete CHECK_NOTNULL(watcher);
-  zk = NULL;
-  watcher = NULL;
+  zk = nullptr;
+  watcher = nullptr;
 }
 
 

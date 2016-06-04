@@ -58,7 +58,7 @@ Flags::Flags()
 }
 
 
-static Flags* systemd_flags = NULL;
+static Flags* systemd_flags = nullptr;
 
 
 const Flags& flags()
@@ -259,7 +259,7 @@ bool exists()
 
 bool enabled()
 {
-  return systemd_flags != NULL && flags().enabled && exists();
+  return systemd_flags != nullptr && flags().enabled && exists();
 }
 
 

@@ -127,7 +127,7 @@ static string encode(uint64_t position, bool adjust = true)
 
 
 LevelDBStorage::LevelDBStorage()
-  : db(NULL), first(None())
+  : db(nullptr), first(None())
 {
   // Nothing to see here.
 }
@@ -176,7 +176,7 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
   stopwatch.start(); // Restart the stopwatch.
 
   // TODO(benh): Conditionally compact to avoid long recovery times?
-  db->CompactRange(NULL, NULL);
+  db->CompactRange(nullptr, nullptr);
 
   LOG(INFO) << "Compacted db in " << stopwatch.elapsed();
 

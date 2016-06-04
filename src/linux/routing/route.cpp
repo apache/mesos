@@ -53,7 +53,7 @@ Try<vector<Rule>> table()
   }
 
   // Dump all the routes (for IPv4) from kernel.
-  struct nl_cache* c = NULL;
+  struct nl_cache* c = nullptr;
   int error = rtnl_route_alloc_cache(socket.get().get(), AF_INET, 0, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
@@ -65,7 +65,7 @@ Try<vector<Rule>> table()
 
   // Scan the routes and look for entries in the main routing table.
   for (struct nl_object* o = nl_cache_get_first(cache.get());
-       o != NULL; o = nl_cache_get_next(o)) {
+       o != nullptr; o = nl_cache_get_next(o)) {
     struct rtnl_route* route = (struct rtnl_route*) o;
 
     // TODO(jieyu): Currently, we assume each route in the routing
@@ -77,7 +77,7 @@ Try<vector<Rule>> table()
       // Get the destination IP network if exists.
       Option<net::IPNetwork> destination;
       struct nl_addr* dst = rtnl_route_get_dst(route);
-      if (dst != NULL && nl_addr_get_len(dst) != 0) {
+      if (dst != nullptr && nl_addr_get_len(dst) != 0) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(dst);
         Try<net::IPNetwork> network = net::IPNetwork::create(
             net::IP(*addr),
@@ -96,7 +96,7 @@ Try<vector<Rule>> table()
       Option<net::IP> gateway;
       struct rtnl_nexthop* hop = rtnl_route_nexthop_n(route, 0);
       struct nl_addr* gw = rtnl_route_nh_get_gateway(CHECK_NOTNULL(hop));
-      if (gw != NULL && nl_addr_get_len(gw) != 0) {
+      if (gw != nullptr && nl_addr_get_len(gw) != 0) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(gw);
         gateway = net::IP(*addr);
       }

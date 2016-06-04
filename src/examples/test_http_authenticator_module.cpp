@@ -43,7 +43,7 @@ static Authenticator* createHttpAuthenticator(const Parameters& parameters)
     LOG(ERROR) << "Failed to create basic HTTP authenticator: "
                << authenticator.error();
 
-    return NULL;
+    return nullptr;
   }
 
   return authenticator.get();
@@ -59,5 +59,5 @@ org_apache_mesos_TestHttpBasicAuthenticator(
     "Apache Mesos",
     "modules@mesos.apache.org",
     "Test HTTP Authenticator module.",
-    NULL,
+    nullptr,
     createHttpAuthenticator);

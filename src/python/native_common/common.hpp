@@ -66,8 +66,8 @@ bool readPythonProtobuf(PyObject* obj, T* t)
   }
   PyObject* res = PyObject_CallMethod(obj,
                                       (char*) "SerializeToString",
-                                      (char*) NULL);
-  if (res == NULL) {
+                                      (char*) nullptr);
+  if (res == nullptr) {
     std::cerr << "Failed to call Python object's SerializeToString "
          << "(perhaps it is not a protobuf?)" << std::endl;
     PyErr_Print();
@@ -95,31 +95,31 @@ bool readPythonProtobuf(PyObject* obj, T* t)
  * Convert a C++ protocol buffer object into a Python one by serializing
  * it to a string and deserializing the result back in Python. Returns the
  * resulting PyObject* on success or raises a Python exception and returns
- * NULL on failure.
+ * nullptr on failure.
  */
 template <typename T>
 PyObject* createPythonProtobuf(const T& t, const char* typeName)
 {
   PyObject* dict = PyModule_GetDict(mesos_pb2);
-  if (dict == NULL) {
+  if (dict == nullptr) {
     PyErr_Format(PyExc_Exception, "PyModule_GetDict failed");
-    return NULL;
+    return nullptr;
   }
 
   PyObject* type = PyDict_GetItemString(dict, typeName);
-  if (type == NULL) {
+  if (type == nullptr) {
     PyErr_Format(PyExc_Exception, "Could not resolve mesos_pb2.%s", typeName);
-    return NULL;
+    return nullptr;
   }
   if (!PyType_Check(type)) {
     PyErr_Format(PyExc_Exception, "mesos_pb2.%s is not a type", typeName);
-    return NULL;
+    return nullptr;
   }
 
   std::string str;
   if (!t.SerializeToString(&str)) {
     PyErr_Format(PyExc_Exception, "C++ %s SerializeToString failed", typeName);
-    return NULL;
+    return nullptr;
   }
 
   // Propagates any exception that might happen in FromString.

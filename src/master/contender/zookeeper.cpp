@@ -112,7 +112,7 @@ ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
     Owned<Group> _group)
   : ProcessBase(ID::generate("zookeeper-master-contender")),
     group(_group),
-    contender(NULL) {}
+    contender(nullptr) {}
 
 
 ZooKeeperMasterContenderProcess::~ZooKeeperMasterContenderProcess()
@@ -137,7 +137,7 @@ Future<Future<Nothing>> ZooKeeperMasterContenderProcess::contend()
     return candidacy.get();
   }
 
-  if (contender != NULL) {
+  if (contender != nullptr) {
     LOG(INFO) << "Withdrawing the previous membership before recontending";
     delete contender;
   }

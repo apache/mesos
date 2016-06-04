@@ -262,15 +262,15 @@ public:
           break;
         }
         case authorization::VIEW_TASK: {
-          CHECK(object->task != NULL || object->task_info != NULL);
+          CHECK(object->task != nullptr || object->task_info != nullptr);
           CHECK_NOTNULL(object->framework_info);
 
           // First we consider either whether `Task` or `TaskInfo`
           // have `user` set. As fallback we use `FrameworkInfo.user`.
           Option<string> taskUser = None();
-          if (object->task != NULL && object->task->has_user()) {
+          if (object->task != nullptr && object->task->has_user()) {
             taskUser = object->task->user();
-          } else if (object->task_info != NULL) {
+          } else if (object->task_info != nullptr) {
             // Within TaskInfo the user can be either set in `command`
             // or `executor.command`.
             if (object->task_info->has_command() &&
@@ -775,7 +775,7 @@ LocalAuthorizer::LocalAuthorizer(const ACLs& acls)
 
 LocalAuthorizer::~LocalAuthorizer()
 {
-  if (process != NULL) {
+  if (process != nullptr) {
     terminate(process);
     wait(process);
     delete process;

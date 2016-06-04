@@ -38,7 +38,7 @@ static ResourceEstimator* createResourceEstimator(const Parameters& parameters)
   Try<ResourceEstimator*> result =
     NoopResourceEstimator::create(None());
   if (result.isError()) {
-    return NULL;
+    return nullptr;
   }
   return result.get();
 }
@@ -53,5 +53,5 @@ mesos::modules::Module<ResourceEstimator>
       "Apache Mesos",
       "modules@mesos.apache.org",
       "Test Noop Resource Estimator module.",
-      NULL,
+      nullptr,
       createResourceEstimator);

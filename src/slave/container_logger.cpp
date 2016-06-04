@@ -34,7 +34,7 @@ namespace slave {
 
 Try<ContainerLogger*> ContainerLogger::create(const Option<string>& type)
 {
-  ContainerLogger* logger = NULL;
+  ContainerLogger* logger = nullptr;
 
   if (type.isNone()) {
     logger = new internal::slave::SandboxContainerLogger();

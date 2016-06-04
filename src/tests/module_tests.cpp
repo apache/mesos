@@ -112,7 +112,7 @@ protected:
 
 
 DynamicLibrary ModuleTest::dynamicLibrary;
-ModuleBase* ModuleTest::moduleBase = NULL;
+ModuleBase* ModuleTest::moduleBase = nullptr;
 
 
 Modules getModules(
