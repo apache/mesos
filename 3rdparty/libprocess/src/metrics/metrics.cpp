@@ -41,7 +41,7 @@ namespace process {
 namespace metrics {
 
 
-static internal::MetricsProcess* metrics_process = NULL;
+static internal::MetricsProcess* metrics_process = nullptr;
 
 
 void initialize(const Option<string>& authenticationRealm)

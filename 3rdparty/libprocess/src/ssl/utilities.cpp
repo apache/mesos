@@ -32,13 +32,13 @@ Try<EVP_PKEY*> generate_private_rsa_key(int bits, unsigned long _exponent)
 {
   // Allocate the in-memory structure for the private key.
   EVP_PKEY* private_key = EVP_PKEY_new();
-  if (private_key == NULL) {
+  if (private_key == nullptr) {
     return Error("Failed to allocate key: EVP_PKEY_new");
   }
 
   // Allocate space for the exponent.
   BIGNUM* exponent = BN_new();
-  if (exponent == NULL) {
+  if (exponent == nullptr) {
     EVP_PKEY_free(private_key);
     return Error("Failed to allocate exponent: BN_new");
   }
@@ -52,18 +52,18 @@ Try<EVP_PKEY*> generate_private_rsa_key(int bits, unsigned long _exponent)
 
   // Allocate the in-memory structure for the key pair.
   RSA* rsa = RSA_new();
-  if (rsa == NULL) {
+  if (rsa == nullptr) {
     BN_free(exponent);
     EVP_PKEY_free(private_key);
     return Error("Failed to allocate RSA: RSA_new");
   }
 
   // Generate the RSA key pair.
-  if (RSA_generate_key_ex(rsa, bits, exponent, NULL) != 1) {
+  if (RSA_generate_key_ex(rsa, bits, exponent, nullptr) != 1) {
     RSA_free(rsa);
     BN_free(exponent);
     EVP_PKEY_free(private_key);
-    return Error(ERR_error_string(ERR_get_error(), NULL));
+    return Error(ERR_error_string(ERR_get_error(), nullptr));
   }
 
   // We no longer need the exponent, so let's free it.
@@ -102,7 +102,7 @@ Try<X509*> generate_x509(
     // be that of the parent.
     issuer_name = X509_get_subject_name(parent_certificate.get());
 
-    if (issuer_name.get() == NULL) {
+    if (issuer_name.get() == nullptr) {
       return Error("Failed to get subject name of parent certificate: "
         "X509_get_subject_name");
     }
@@ -110,7 +110,7 @@ Try<X509*> generate_x509(
 
   // Allocate the in-memory structure for the certificate.
   X509* x509 = X509_new();
-  if (x509 == NULL) {
+  if (x509 == nullptr) {
     return Error("Failed to allocate certification: X509_new");
   }
 
@@ -127,9 +127,9 @@ Try<X509*> generate_x509(
   }
 
   // Make this certificate valid for 'days' number of days from now.
-  if (X509_gmtime_adj(X509_get_notBefore(x509), 0) == NULL ||
+  if (X509_gmtime_adj(X509_get_notBefore(x509), 0) == nullptr ||
       X509_gmtime_adj(X509_get_notAfter(x509),
-                      60L * 60L * 24L * days) == NULL) {
+                      60L * 60L * 24L * days) == nullptr) {
     X509_free(x509);
     return Error("Failed to set valid days of certificate: X509_gmtime_adj");
   }
@@ -153,7 +153,7 @@ Try<X509*> generate_x509(
 
   // Grab the subject name of the new certificate.
   X509_NAME* name = X509_get_subject_name(x509);
-  if (name == NULL) {
+  if (name == nullptr) {
     X509_free(x509);
     return Error("Failed to get subject name: X509_get_subject_name");
   }
@@ -221,11 +221,12 @@ Try<Nothing> write_key_file(EVP_PKEY* private_key, const Path& path)
 {
   // We use 'FILE*' here because it is an API requirement by openssl.
   FILE* file = fopen(path.value.c_str(), "wb");
-  if (file == NULL) {
+  if (file == nullptr) {
     return Error("Failed to open file '" + stringify(path) + "' for writing");
   }
 
-  if (PEM_write_PrivateKey(file, private_key, NULL, NULL, 0, NULL, NULL) != 1) {
+  if (PEM_write_PrivateKey(
+          file, private_key, nullptr, nullptr, 0, nullptr, nullptr) != 1) {
     fclose(file);
     return Error("Failed to write private key to file '" + stringify(path) +
       "': PEM_write_PrivateKey");
@@ -241,7 +242,7 @@ Try<Nothing> write_certificate_file(X509* x509, const Path& path)
 {
   // We use 'FILE*' here because it is an API requirement by openssl.
   FILE* file = fopen(path.value.c_str(), "wb");
-  if (file == NULL) {
+  if (file == nullptr) {
     return Error("Failed to open file '" + stringify(path) + "' for writing");
   }
 

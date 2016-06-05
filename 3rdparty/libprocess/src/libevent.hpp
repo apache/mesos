@@ -29,7 +29,7 @@ extern event_base* base;
 extern THREAD_LOCAL bool* _in_event_loop_;
 
 
-#define __in_event_loop__ *(_in_event_loop_ == NULL ?                \
+#define __in_event_loop__ *(_in_event_loop_ == nullptr ?                \
   _in_event_loop_ = new bool(false) : _in_event_loop_)
 
 

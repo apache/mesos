@@ -62,7 +62,7 @@ void pollDiscard(const std::weak_ptr<event>& ev, short events)
     // If `ev` cannot be locked `pollCallback` already ran. If it was locked
     // but not pending, `pollCallback` is scheduled to be executed.
     if (static_cast<bool>(shared) &&
-        event_pending(shared.get(), events, NULL)) {
+        event_pending(shared.get(), events, nullptr)) {
       // `event_active` will trigger the `pollCallback` to be executed.
       event_active(shared.get(), EV_READ, 0);
     }
@@ -91,7 +91,7 @@ Future<short> poll(int fd, short events)
       event_new(base, fd, what, &internal::pollCallback, poll),
       event_free);
 
-  if (poll->ev == NULL) {
+  if (poll->ev == nullptr) {
     LOG(FATAL) << "Failed to poll, event_new";
   }
 
@@ -102,7 +102,7 @@ Future<short> poll(int fd, short events)
   // `ev`.
   std::weak_ptr<event> ev(poll->ev);
 
-  event_add(poll->ev.get(), NULL);
+  event_add(poll->ev.get(), nullptr);
 
   return future
     .onDiscard(lambda::bind(&internal::pollDiscard, ev, what));

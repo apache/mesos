@@ -21,7 +21,7 @@ namespace process {
 class ProcessReference
 {
 public:
-  ProcessReference() : process(NULL) {}
+  ProcessReference() : process(nullptr) {}
 
   ~ProcessReference()
   {
@@ -54,7 +54,7 @@ public:
 
   operator bool() const
   {
-    return process != NULL;
+    return process != nullptr;
   }
 
 private:
@@ -63,7 +63,7 @@ private:
   explicit ProcessReference(ProcessBase* _process)
     : process(_process)
   {
-    if (process != NULL) {
+    if (process != nullptr) {
       process->refs.fetch_add(1);
     }
   }
@@ -72,7 +72,7 @@ private:
   {
     process = that.process;
 
-    if (process != NULL) {
+    if (process != nullptr) {
       // There should be at least one reference to the process, so
       // we don't need to worry about checking if it's exiting or
       // not, since we know we can always create another reference.
@@ -83,7 +83,7 @@ private:
 
   void cleanup()
   {
-    if (process != NULL) {
+    if (process != nullptr) {
       process->refs.fetch_sub(1);
     }
   }

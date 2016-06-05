@@ -71,7 +71,7 @@ private:
 extern THREAD_LOCAL Executor* _executor_;
 
 #define __executor__                                                    \
-  (_executor_ == NULL ? _executor_ = new Executor() : _executor_)
+  (_executor_ == nullptr ? _executor_ = new Executor() : _executor_)
 
 } // namespace process {
 

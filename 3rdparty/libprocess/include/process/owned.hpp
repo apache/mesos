@@ -77,7 +77,7 @@ Owned<T>::Owned() {}
 template <typename T>
 Owned<T>::Owned(T* t)
 {
-  if (t != NULL) {
+  if (t != nullptr) {
     data.reset(new Data(t));
   }
 }
@@ -114,11 +114,11 @@ T* Owned<T>::operator->() const
 template <typename T>
 T* Owned<T>::get() const
 {
-  if (data.get() == NULL) {
-    return NULL;
+  if (data.get() == nullptr) {
+    return nullptr;
   } else {
     // Static cast to avoid ambiguity in Visual Studio compiler.
-    CHECK(data->t != static_cast<T*>(NULL))
+    CHECK(data->t != static_cast<T*>(nullptr))
       << "This owned pointer has already been shared";
 
     return data->t;
@@ -136,7 +136,7 @@ void Owned<T>::reset()
 template <typename T>
 void Owned<T>::reset(T* t)
 {
-  if (t == NULL) {
+  if (t == nullptr) {
     data.reset();
   } else {
     data.reset(new Data(t));
@@ -154,16 +154,16 @@ void Owned<T>::swap(Owned<T>& that)
 template <typename T>
 Shared<T> Owned<T>::share()
 {
-  if (data.get() == NULL) {
+  if (data.get() == nullptr) {
     // The ownership of this pointer has already been lost.
-    return Shared<T>(NULL);
+    return Shared<T>(nullptr);
   }
 
-  // Atomically set the pointer 'data->t' to NULL.
-  T* old = data->t.exchange(NULL);
-  if (old == NULL) {
+  // Atomically set the pointer 'data->t' to `nullptr`.
+  T* old = data->t.exchange(nullptr);
+  if (old == nullptr) {
     // The ownership of this pointer has already been lost.
-    return Shared<T>(NULL);
+    return Shared<T>(nullptr);
   }
 
   data.reset();
@@ -174,16 +174,16 @@ Shared<T> Owned<T>::share()
 template <typename T>
 T* Owned<T>::release()
 {
-  if (data.get() == NULL) {
+  if (data.get() == nullptr) {
     // The ownership of this pointer has already been lost.
-    return NULL;
+    return nullptr;
   }
 
-  // Atomically set the pointer 'data->t' to NULL.
-  T* old = data->t.exchange(NULL);
-  if (old == NULL) {
+  // Atomically set the pointer 'data->t' to `nullptr`.
+  T* old = data->t.exchange(nullptr);
+  if (old == nullptr) {
     // The ownership of this pointer has already been lost.
-    return NULL;
+    return nullptr;
   }
 
   data.reset();

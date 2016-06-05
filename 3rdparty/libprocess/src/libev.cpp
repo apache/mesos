@@ -31,7 +31,7 @@ ev_async shutdown_watcher;
 
 // Define the initial values for all of the declarations made in
 // libev.hpp (since these need to live in the static data space).
-struct ev_loop* loop = NULL;
+struct ev_loop* loop = nullptr;
 
 std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
 
@@ -40,7 +40,7 @@ std::mutex* watchers_mutex = new std::mutex();
 std::queue<lambda::function<void()>>* functions =
   new std::queue<lambda::function<void()>>();
 
-THREAD_LOCAL bool* _in_event_loop_ = NULL;
+THREAD_LOCAL bool* _in_event_loop_ = nullptr;
 
 
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)

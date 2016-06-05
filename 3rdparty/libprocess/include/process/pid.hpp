@@ -134,7 +134,7 @@ struct PID : UPID
   operator PID<Base>() const
   {
     // Only allow upcasts!
-    T* t = NULL;
+    T* t = nullptr;
     Base* base = t;
     (void)base; // Eliminate unused base warning.
     PID<Base> pid;

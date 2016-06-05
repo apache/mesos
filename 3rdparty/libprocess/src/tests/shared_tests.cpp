@@ -47,11 +47,11 @@ TEST(SharedTest, ConstAccess)
 
 TEST(SharedTest, Null)
 {
-  Shared<Foo> shared(NULL);
+  Shared<Foo> shared(nullptr);
   Shared<Foo> shared2(shared);
 
-  EXPECT_TRUE(shared.get() == NULL);
-  EXPECT_TRUE(shared2.get() == NULL);
+  EXPECT_TRUE(shared.get() == nullptr);
+  EXPECT_TRUE(shared2.get() == nullptr);
 }
 
 
@@ -71,7 +71,7 @@ TEST(SharedTest, Reset)
   shared.reset();
 
   EXPECT_FALSE(shared.unique());
-  EXPECT_TRUE(shared.get() == NULL);
+  EXPECT_TRUE(shared.get() == nullptr);
 
   EXPECT_TRUE(shared2.unique());
   EXPECT_EQ(42, shared2->get());
@@ -104,7 +104,7 @@ TEST(SharedTest, Own)
     future = shared2.own();
 
     // A shared pointer will be reset after it called 'own'.
-    EXPECT_TRUE(shared2.get() == NULL);
+    EXPECT_TRUE(shared2.get() == nullptr);
 
     // Do not allow 'own' to be called twice.
     AWAIT_FAILED(shared.own());

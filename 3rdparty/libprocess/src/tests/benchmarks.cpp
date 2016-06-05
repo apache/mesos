@@ -95,7 +95,7 @@ protected:
 private:
   Future<http::Response> run(const http::Request& request)
   {
-    if (duration.get() != NULL) {
+    if (duration.get() != nullptr) {
       return http::BadRequest("A run is already in progress");
     }
 

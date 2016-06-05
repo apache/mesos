@@ -125,7 +125,7 @@ static Try<HANDLE> getHandleFromFileDescriptor(
 static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
 {
   // The `TRUE` in the last field makes this duplicate handle inheritable.
-  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
   const HANDLE handle = ::CreateFile(
       path.c_str(),
       accessFlags,
@@ -133,7 +133,7 @@ static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
       &sa,
       CREATE_NEW,
       FILE_ATTRIBUTE_NORMAL,
-      NULL);
+      nullptr);
 
   if (handle == INVALID_HANDLE_VALUE) {
     return WindowsError("Failed to open '" + path + "'");
@@ -171,7 +171,7 @@ static Try<HANDLE> createOutputFile(const string& path)
 static Try<array<HANDLE, 2>> createPipeHandles()
 {
   // The `TRUE` in the last field makes this duplicate handle inheritable.
-  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
   array<HANDLE, 2> handles{ INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE };
 
   if (!::CreatePipe(&handles[0], &handles[1], &sa, 0)) {

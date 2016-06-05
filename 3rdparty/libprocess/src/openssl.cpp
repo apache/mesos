@@ -44,7 +44,7 @@ namespace network {
 namespace openssl {
 
 // _Global_ OpenSSL context, initialized via 'initialize'.
-static SSL_CTX* ctx = NULL;
+static SSL_CTX* ctx = nullptr;
 
 
 Flags::Flags()
@@ -142,7 +142,7 @@ const Flags& flags()
 
 // Mutexes necessary to support OpenSSL locking on shared data
 // structures. See 'locking_function' for more information.
-static std::mutex* mutexes = NULL;
+static std::mutex* mutexes = nullptr;
 
 
 // Callback needed to perform locking on shared data structures. From
@@ -183,8 +183,8 @@ CRYPTO_dynlock_value* dyn_create_function(const char* /*file*/, int /*line*/)
 {
   CRYPTO_dynlock_value* value = new CRYPTO_dynlock_value();
 
-  if (value == NULL) {
-    return NULL;
+  if (value == nullptr) {
+    return nullptr;
   }
 
   return value;
@@ -333,16 +333,16 @@ void reinitialize()
 
   // Clean up if we had a previous SSL context object. We want to
   // re-initialize this to get rid of any non-default settings.
-  if (ctx != NULL) {
+  if (ctx != nullptr) {
     SSL_CTX_free(ctx);
-    ctx = NULL;
+    ctx = nullptr;
   }
 
   // Replace with `TLS_method` once our minimum OpenSSL version
   // supports it.
   ctx = SSL_CTX_new(SSLv23_method());
   CHECK(ctx) << "Failed to create SSL context: "
-             << ERR_error_string(ERR_get_error(), NULL);
+             << ERR_error_string(ERR_get_error(), nullptr);
 
   // Disable SSL session caching.
   SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
@@ -416,11 +416,11 @@ void reinitialize()
     if (ssl_flags->ca_file.isSome() || ssl_flags->ca_dir.isSome()) {
       const char* ca_file = ssl_flags->ca_file.isSome()
         ? ssl_flags->ca_file.get().c_str()
-        : NULL;
+        : nullptr;
 
       const char* ca_dir = ssl_flags->ca_dir.isSome()
         ? ssl_flags->ca_dir.get().c_str()
-        : NULL;
+        : nullptr;
 
       if (SSL_CTX_load_verify_locations(ctx, ca_file, ca_dir) != 1) {
         unsigned long error = ERR_get_error();
@@ -428,14 +428,14 @@ void reinitialize()
           << "Could not load CA file and/or directory ("
           << stringify(error)  << "): "
           << error_string(error) << " -> "
-          << (ca_file != NULL ? (stringify("FILE: ") + ca_file) : "")
-          << (ca_dir != NULL ? (stringify("DIR: ") + ca_dir) : "");
+          << (ca_file != nullptr ? (stringify("FILE: ") + ca_file) : "")
+          << (ca_dir != nullptr ? (stringify("DIR: ") + ca_dir) : "");
       }
 
-      if (ca_file != NULL) {
+      if (ca_file != nullptr) {
         VLOG(2) << "Using CA file: " << ca_file;
       }
-      if (ca_dir != NULL) {
+      if (ca_dir != nullptr) {
         VLOG(2) << "Using CA dir: " << ca_dir;
       }
     } else {
@@ -458,7 +458,7 @@ void reinitialize()
 
     SSL_CTX_set_verify_depth(ctx, ssl_flags->verification_depth);
   } else {
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
   }
 
   // Set certificate chain.
@@ -554,7 +554,7 @@ Try<Nothing> verify(const SSL* const ssl, const Option<string>& hostname)
   // TODO(jmlvanre): handle this better. How about RAII?
   X509* cert = SSL_get_peer_certificate(ssl);
 
-  if (cert == NULL) {
+  if (cert == nullptr) {
     return ssl_flags->require_cert
       ? Error("Peer did not provide certificate")
       : Try<Nothing>(Nothing());
@@ -579,10 +579,10 @@ Try<Nothing> verify(const SSL* const ssl, const Option<string>& hostname)
     reinterpret_cast<STACK_OF(GENERAL_NAME)*>(X509_get_ext_d2i(
         reinterpret_cast<X509*>(cert),
         NID_subject_alt_name,
-        NULL,
-        NULL));
+        nullptr,
+        nullptr));
 
-  if (san_names != NULL) {
+  if (san_names != nullptr) {
     int san_names_num = sk_GENERAL_NAME_num(san_names);
 
     // Check each name within the extension.
@@ -618,7 +618,7 @@ Try<Nothing> verify(const SSL* const ssl, const Option<string>& hostname)
   // the certificate subject name.
   X509_NAME* name = X509_get_subject_name(cert);
 
-  if (name != NULL) {
+  if (name != nullptr) {
     char text[_POSIX_HOST_NAME_MAX] {};
 
     if (X509_NAME_get_text_by_NID(

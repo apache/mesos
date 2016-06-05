@@ -92,10 +92,10 @@ Option<Time> next(const map<Time, list<Timer>>& timers)
 
     // If the clock is paused and no timers are expired, the
     // timers cannot fire until the clock is advanced, so we
-    // return None() here. Note that we pass NULL to ensure
+    // return None() here. Note that we pass nullptr to ensure
     // that this looks at the global clock, since this can be
     // called from a Process context through Clock::timer.
-    if (Clock::paused() && first > Clock::now(NULL)) {
+    if (Clock::paused() && first > Clock::now(nullptr)) {
       return None();
     }
 
@@ -115,7 +115,7 @@ void tick(const Time& time);
 // it's clear from the callsite that this needs to be called within
 // a 'synchronized' block.
 // TODO(bmahler): Consider taking an optional 'now' to avoid
-// excessive syscalls via Clock::now(NULL).
+// excessive syscalls via Clock::now(nullptr).
 void scheduleTick(const map<Time, list<Timer>>& timers, set<Time>* ticks)
 {
   // Determine when the next 'tick' should fire.
@@ -129,7 +129,7 @@ void scheduleTick(const map<Time, list<Timer>>& timers, set<Time>* ticks)
 
       // The delay can be negative if the timer is expired, this
       // is expected will result in a 'tick' firing immediately.
-      const Duration delay = next.get() - Clock::now(NULL);
+      const Duration delay = next.get() - Clock::now(nullptr);
       EventLoop::delay(delay, lambda::bind(tick, next.get()));
     }
   }
@@ -144,10 +144,10 @@ void tick(const Time& time)
   list<Timer> timedout;
 
   synchronized (timers_mutex) {
-    // We pass NULL to be explicit about the fact that we want the
+    // We pass nullptr to be explicit about the fact that we want the
     // global clock time, even though it's unnecessary ('tick' is
     // called from the event loop, not a Process context).
-    Time now = Clock::now(NULL);
+    Time now = Clock::now(nullptr);
 
     VLOG(3) << "Handling timers up to " << now;
 
@@ -235,7 +235,7 @@ Time Clock::now(ProcessBase* process)
 {
   synchronized (timers_mutex) {
     if (Clock::paused()) {
-      if (process != NULL) {
+      if (process != nullptr) {
         if (clock::currents->count(process) != 0) {
           return (*clock::currents)[process];
         } else {
@@ -270,7 +270,7 @@ Timer Clock::timer(
   // Assumes Clock::now() does Clock::now(__process__).
   Timeout timeout = Timeout::in(duration);
 
-  UPID pid = __process__ != NULL ? __process__->self() : UPID();
+  UPID pid = __process__ != nullptr ? __process__->self() : UPID();
 
   Timer timer(id.fetch_add(1), timeout, pid, thunk);
 

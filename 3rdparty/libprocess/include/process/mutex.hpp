@@ -64,7 +64,7 @@ public:
       }
     }
 
-    if (promise.get() != NULL) {
+    if (promise.get() != nullptr) {
       promise->set(Nothing());
     }
   }

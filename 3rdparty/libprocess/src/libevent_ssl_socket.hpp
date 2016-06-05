@@ -69,7 +69,7 @@ private:
         int _socket,
         evconnlistener* _listener,
         const Option<net::IP>& _ip)
-      : peek_event(NULL),
+      : peek_event(nullptr),
         listener(_listener),
         socket(_socket),
         ip(_ip) {}

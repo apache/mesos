@@ -68,7 +68,7 @@ struct Event
   template <typename T>
   const T& as() const
   {
-    const T* result = NULL;
+    const T* result = nullptr;
     struct AsVisitor : EventVisitor
     {
       explicit AsVisitor(const T** _result) : result(_result) {}
@@ -76,7 +76,7 @@ struct Event
       const T** result;
     } visitor(&result);
     visit(&visitor);
-    if (result == NULL) {
+    if (result == nullptr) {
       ABORT("Attempting to \"cast\" event incorrectly!");
     }
     return *result;
@@ -90,7 +90,7 @@ struct MessageEvent : Event
     : message(_message) {}
 
   MessageEvent(const MessageEvent& that)
-    : message(that.message == NULL ? NULL : new Message(*that.message)) {}
+    : message(that.message == nullptr ? nullptr : new Message(*that.message)) {}
 
   virtual ~MessageEvent()
   {

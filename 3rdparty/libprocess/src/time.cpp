@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& out, const RFC1123& formatter)
   time_t secs = static_cast<time_t>(formatter.time.secs());
 
   tm timeInfo = {};
-  if (os::gmtime_r(&secs, &timeInfo) == NULL) {
+  if (os::gmtime_r(&secs, &timeInfo) == nullptr) {
     PLOG(ERROR)
       << "Failed to convert from 'time_t' to a 'tm' struct "
       << "using os::gmtime_r()";
@@ -84,7 +84,7 @@ std::ostream& operator<<(std::ostream& out, const RFC3339& formatter)
 
   // The RFC 3339 Format.
   tm timeInfo = {};
-  if (os::gmtime_r(&secs, &timeInfo) == NULL) {
+  if (os::gmtime_r(&secs, &timeInfo) == nullptr) {
     PLOG(ERROR)
       << "Failed to convert from 'time_t' to a 'tm' struct "
       << "using os::gmtime_r()";

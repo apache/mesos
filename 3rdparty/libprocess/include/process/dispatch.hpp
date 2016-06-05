@@ -82,9 +82,9 @@ void dispatch(const PID<T>& pid, void (T::*method)())
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
           [=](ProcessBase* process) {
-            assert(process != NULL);
+            assert(process != nullptr);
             T* t = dynamic_cast<T*>(process);
-            assert(t != NULL);
+            assert(t != nullptr);
             (t->*method)();
           }));
 
@@ -118,9 +118,9 @@ void dispatch(const Process<T>* process, void (T::*method)())
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
             [=](ProcessBase* process) {                                 \
-              assert(process != NULL);                                  \
+              assert(process != nullptr);                               \
               T* t = dynamic_cast<T*>(process);                         \
-              assert(t != NULL);                                        \
+              assert(t != nullptr);                                     \
               (t->*method)(ENUM_PARAMS(N, a));                          \
             }));                                                        \
                                                                         \
@@ -163,9 +163,9 @@ Future<R> dispatch(const PID<T>& pid, Future<R> (T::*method)())
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
           [=](ProcessBase* process) {
-            assert(process != NULL);
+            assert(process != nullptr);
             T* t = dynamic_cast<T*>(process);
-            assert(t != NULL);
+            assert(t != nullptr);
             promise->associate((t->*method)());
           }));
 
@@ -201,9 +201,9 @@ Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
             [=](ProcessBase* process) {                                 \
-              assert(process != NULL);                                  \
+              assert(process != nullptr);                               \
               T* t = dynamic_cast<T*>(process);                         \
-              assert(t != NULL);                                        \
+              assert(t != nullptr);                                     \
               promise->associate((t->*method)(ENUM_PARAMS(N, a)));      \
             }));                                                        \
                                                                         \
@@ -250,9 +250,9 @@ Future<R> dispatch(const PID<T>& pid, R (T::*method)())
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
           [=](ProcessBase* process) {
-            assert(process != NULL);
+            assert(process != nullptr);
             T* t = dynamic_cast<T*>(process);
-            assert(t != NULL);
+            assert(t != nullptr);
             promise->set((t->*method)());
           }));
 
@@ -288,9 +288,9 @@ Future<R> dispatch(const Process<T>* process, R (T::*method)())
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
             [=](ProcessBase* process) {                                 \
-              assert(process != NULL);                                  \
+              assert(process != nullptr);                               \
               T* t = dynamic_cast<T*>(process);                         \
-              assert(t != NULL);                                        \
+              assert(t != nullptr);                                     \
               promise->set((t->*method)(ENUM_PARAMS(N, a)));            \
             }));                                                        \
                                                                         \

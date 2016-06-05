@@ -78,7 +78,7 @@ Shared<T>::Shared() {}
 template <typename T>
 Shared<T>::Shared(T* t)
 {
-  if (t != NULL) {
+  if (t != nullptr) {
     data.reset(new Data(t));
   }
 }
@@ -115,8 +115,8 @@ const T* Shared<T>::operator->() const
 template <typename T>
 const T* Shared<T>::get() const
 {
-  if (data.get() == NULL) {
-    return NULL;
+  if (data.get() == nullptr) {
+    return nullptr;
   } else {
     return data->t;
   }
@@ -140,7 +140,7 @@ void Shared<T>::reset()
 template <typename T>
 void Shared<T>::reset(T* t)
 {
-  if (t == NULL) {
+  if (t == nullptr) {
     data.reset();
   } else {
     data.reset(new Data(t));
@@ -162,8 +162,8 @@ Future<Owned<T>> Shared<T>::own()
   // of them is a write, the behavior is undefined. This is similar to
   // boost::shared_ptr. For more details, please refer to the boost
   // shared_ptr document (section "Thread Safety").
-  if (data.get() == NULL) {
-    return Owned<T>(NULL);
+  if (data.get() == nullptr) {
+    return Owned<T>(nullptr);
   }
 
   bool false_value = false;

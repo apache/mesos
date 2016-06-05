@@ -120,11 +120,11 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
 
         CHECK(__in_event_loop__);
 
-        if (_listener != NULL) {
+        if (_listener != nullptr) {
           evconnlistener_free(_listener);
         }
 
-        if (_bev != NULL) {
+        if (_bev != nullptr) {
           SSL* ssl = bufferevent_openssl_get_ssl(_bev);
           // Workaround for SSL shutdown, see http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html // NOLINT
           SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
@@ -166,12 +166,12 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown()
 {
   // Nothing to do if this socket was never initialized.
   synchronized (lock) {
-    if (bev == NULL) {
+    if (bev == nullptr) {
       // If it was not initialized, then there should also be no
       // requests.
-      CHECK(connect_request.get() == NULL);
-      CHECK(recv_request.get() == NULL);
-      CHECK(send_request.get() == NULL);
+      CHECK(connect_request.get() == nullptr);
+      CHECK(recv_request.get() == nullptr);
+      CHECK(send_request.get() == nullptr);
 
       errno = ENOTCONN;
       return ErrnoError();
@@ -201,7 +201,7 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown()
           }
 
           // If there is still a pending receive request then close it.
-          if (request.get() != NULL) {
+          if (request.get() != nullptr) {
             request->promise
               .set(bufferevent_read(self->bev, request->data, request->size));
           }
@@ -225,7 +225,7 @@ void LibeventSSLSocketImpl::recv_callback(bufferevent* /*bev*/, void* arg)
   std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
 
   // Don't call the 'recv_callback' unless the socket is still valid.
-  if (impl != NULL) {
+  if (impl != nullptr) {
     impl->recv_callback();
   }
 }
@@ -257,14 +257,14 @@ void LibeventSSLSocketImpl::recv_callback()
   // f. A new request Socket::recv is called which creates a new request.
   // g. libevent callback is called for the event queued at step b.
   // h. libevent callback finds the length of the buffer as 0 but the request is
-  //    a non-NULL due to step f.
+  //    a non-nullptr due to step f.
   if (buffer_length > 0) {
     synchronized (lock) {
       std::swap(request, recv_request);
     }
   }
 
-  if (request.get() != NULL) {
+  if (request.get() != nullptr) {
     // There is an invariant that if we are executing a
     // 'recv_callback' and we have a request there must be data here
     // because we should not be getting a spurrious receive callback
@@ -291,7 +291,7 @@ void LibeventSSLSocketImpl::send_callback(bufferevent* /*bev*/, void* arg)
   std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
 
   // Don't call the 'send_callback' unless the socket is still valid.
-  if (impl != NULL) {
+  if (impl != nullptr) {
     impl->send_callback();
   }
 }
@@ -309,7 +309,7 @@ void LibeventSSLSocketImpl::send_callback()
     std::swap(request, send_request);
   }
 
-  if (request.get() != NULL) {
+  if (request.get() != nullptr) {
     request->promise.set(request->size);
   }
 }
@@ -330,7 +330,7 @@ void LibeventSSLSocketImpl::event_callback(
   std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
 
   // Don't call the 'event_callback' unless the socket is still valid.
-  if (impl != NULL) {
+  if (impl != nullptr) {
     impl->event_callback(events);
   }
 }
@@ -366,27 +366,27 @@ void LibeventSSLSocketImpl::event_callback(short events)
   if (events & BEV_EVENT_EOF ||
      (events & BEV_EVENT_ERROR && EVUTIL_SOCKET_ERROR() == 0)) {
     // At end of file, close the connection.
-    if (current_recv_request.get() != NULL) {
+    if (current_recv_request.get() != nullptr) {
       current_recv_request->promise.set(0);
     }
 
-    if (current_send_request.get() != NULL) {
+    if (current_send_request.get() != nullptr) {
       current_send_request->promise.set(0);
     }
 
-    if (current_connect_request.get() != NULL) {
+    if (current_connect_request.get() != nullptr) {
       SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(bev));
       SSL_free(ssl);
       bufferevent_free(CHECK_NOTNULL(bev));
-      bev = NULL;
+      bev = nullptr;
       current_connect_request->promise.fail(
           "Failed connect: connection closed");
     }
   } else if (events & BEV_EVENT_CONNECTED) {
     // We should not have receiving or sending request while still
     // connecting.
-    CHECK(current_recv_request.get() == NULL);
-    CHECK(current_send_request.get() == NULL);
+    CHECK(current_recv_request.get() == nullptr);
+    CHECK(current_send_request.get() == nullptr);
     CHECK_NOTNULL(current_connect_request.get());
 
     // If we're connecting, then we've succeeded. Time to do
@@ -401,7 +401,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
       VLOG(1) << "Failed connect, verification error: " << verify.error();
       SSL_free(ssl);
       bufferevent_free(bev);
-      bev = NULL;
+      bev = nullptr;
       current_connect_request->promise.fail(verify.error());
       return;
     }
@@ -415,23 +415,23 @@ void LibeventSSLSocketImpl::event_callback(short events)
     // If there is a valid error, fail any requests and log the error.
     VLOG(1) << "Socket error: " << error_stream.str();
 
-    if (current_recv_request.get() != NULL) {
+    if (current_recv_request.get() != nullptr) {
       current_recv_request->promise.fail(
           "Failed recv, connection error: " +
           error_stream.str());
     }
 
-    if (current_send_request.get() != NULL) {
+    if (current_send_request.get() != nullptr) {
       current_send_request->promise.fail(
           "Failed send, connection error: " +
           error_stream.str());
     }
 
-    if (current_connect_request.get() != NULL) {
+    if (current_connect_request.get() != nullptr) {
       SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(bev));
       SSL_free(ssl);
       bufferevent_free(CHECK_NOTNULL(bev));
-      bev = NULL;
+      bev = nullptr;
       current_connect_request->promise.fail(
           "Failed connect, connection error: " +
           error_stream.str());
@@ -442,12 +442,12 @@ void LibeventSSLSocketImpl::event_callback(short events)
 
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
   : Socket::Impl(_s),
-    bev(NULL),
-    listener(NULL),
-    recv_request(NULL),
-    send_request(NULL),
-    connect_request(NULL),
-    event_loop_handle(NULL),
+    bev(nullptr),
+    listener(nullptr),
+    recv_request(nullptr),
+    send_request(nullptr),
+    connect_request(nullptr),
+    event_loop_handle(nullptr),
     ssl_connect_fd(-1) {}
 
 
@@ -457,27 +457,27 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     Option<string>&& _peer_hostname)
   : Socket::Impl(_s),
     bev(_bev),
-    listener(NULL),
-    recv_request(NULL),
-    send_request(NULL),
-    connect_request(NULL),
-    event_loop_handle(NULL),
+    listener(nullptr),
+    recv_request(nullptr),
+    send_request(nullptr),
+    connect_request(nullptr),
+    event_loop_handle(nullptr),
     peer_hostname(std::move(_peer_hostname)),
     ssl_connect_fd(-1) {}
 
 
 Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
 {
-  if (bev != NULL) {
+  if (bev != nullptr) {
     return Failure("Socket is already connected");
   }
 
-  if (connect_request.get() != NULL) {
+  if (connect_request.get() != nullptr) {
     return Failure("Socket is already connecting");
   }
 
   SSL* ssl = SSL_new(openssl::context());
-  if (ssl == NULL) {
+  if (ssl == nullptr) {
     return Failure("Failed to connect: SSL_new");
   }
 
@@ -497,7 +497,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
   // Construct the bufferevent in the connecting state.
   // We set 'BEV_OPT_DEFER_CALLBACKS' to avoid calling the
   // 'event_callback' before 'bufferevent_socket_connect' returns.
-  CHECK(bev == NULL);
+  CHECK(bev == nullptr);
   bev = bufferevent_openssl_socket_new(
       base,
       ssl_connect_fd,
@@ -505,7 +505,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
       BUFFEREVENT_SSL_CONNECTING,
       BEV_OPT_THREADSAFE | BEV_OPT_DEFER_CALLBACKS);
 
-  if (bev == NULL) {
+  if (bev == nullptr) {
     // We need to free 'ssl' here because the bev won't clean it up
     // for us.
     SSL_free(ssl);
@@ -529,10 +529,10 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
 
   // Assign 'connect_request' under lock, fail on error.
   synchronized (lock) {
-    if (connect_request.get() != NULL) {
+    if (connect_request.get() != nullptr) {
       SSL_free(ssl);
       bufferevent_free(bev);
-      bev = NULL;
+      bev = nullptr;
       return Failure("Socket is already connecting");
     }
     std::swap(request, connect_request);
@@ -567,7 +567,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
             SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(self->bev));
             SSL_free(ssl);
             bufferevent_free(self->bev);
-            self->bev = NULL;
+            self->bev = nullptr;
 
             Owned<ConnectRequest> request;
 
@@ -611,7 +611,7 @@ Future<size_t> LibeventSSLSocketImpl::recv(char* data, size_t size)
       // run_in_event_loop is guaranteed to execute.
       std::shared_ptr<LibeventSSLSocketImpl> self(weak_self.lock());
 
-      if (self != NULL) {
+      if (self != nullptr) {
         run_in_event_loop(
             [self]() {
               CHECK(__in_event_loop__);
@@ -625,7 +625,7 @@ Future<size_t> LibeventSSLSocketImpl::recv(char* data, size_t size)
 
               // Only discard if the request hasn't already been
               // satisfied.
-              if (request.get() != NULL) {
+              if (request.get() != nullptr) {
                 // Discard the promise outside of the object lock as
                 // the callbacks can be expensive.
                 request->promise.discard();
@@ -637,7 +637,7 @@ Future<size_t> LibeventSSLSocketImpl::recv(char* data, size_t size)
 
   // Assign 'recv_request' under lock, fail on error.
   synchronized (lock) {
-    if (recv_request.get() != NULL) {
+    if (recv_request.get() != nullptr) {
       return Failure("Socket is already receiving");
     }
     std::swap(request, recv_request);
@@ -660,7 +660,7 @@ Future<size_t> LibeventSSLSocketImpl::recv(char* data, size_t size)
         // We check to see if 'recv_request' is null. It would be null
         // if a 'discard' happened before this lambda was executed.
         synchronized (self->lock) {
-          recv = self->recv_request.get() != NULL;
+          recv = self->recv_request.get() != nullptr;
         }
 
         // Only try to read existing data from the bufferevent if the
@@ -701,7 +701,7 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
 
   // Assign 'send_request' under lock, fail on error.
   synchronized (lock) {
-    if (send_request.get() != NULL) {
+    if (send_request.get() != nullptr) {
       return Failure("Socket is already sending");
     }
     std::swap(request, send_request);
@@ -745,7 +745,7 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
 
   // Assign 'send_request' under lock, fail on error.
   synchronized (lock) {
-    if (send_request.get() != NULL) {
+    if (send_request.get() != nullptr) {
       return Failure("Socket is already sending");
     }
     std::swap(request, send_request);
@@ -784,11 +784,11 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
 
 Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 {
-  if (listener != NULL) {
+  if (listener != nullptr) {
     return Error("Socket is already listening");
   }
 
-  CHECK(bev == NULL);
+  CHECK(bev == nullptr);
 
   listener = evconnlistener_new(
       base,
@@ -805,7 +805,7 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
         std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
 
-        if (impl != NULL) {
+        if (impl != nullptr) {
           Try<net::IP> ip = net::IP::create(*addr);
           if (ip.isError()) {
             VLOG(2) << "Could not convert sockaddr to net::IP: " << ip.error();
@@ -828,7 +828,7 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
       backlog,
       s);
 
-  if (listener == NULL) {
+  if (listener == nullptr) {
     return Error("Failed to listen on socket");
   }
 
@@ -899,7 +899,7 @@ void LibeventSSLSocketImpl::peek_callback(
   // We call 'event_free()' here because it ensures the event is made
   // non-pending and inactive before it gets deallocated.
   event_free(request->peek_event);
-  request->peek_event = NULL;
+  request->peek_event = nullptr;
 
   if (ssl) {
     accept_SSL_callback(request);
@@ -941,7 +941,7 @@ void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
         EV_READ,
         &LibeventSSLSocketImpl::peek_callback,
         request);
-    event_add(request->peek_event, NULL);
+    event_add(request->peek_event, nullptr);
   } else {
     accept_SSL_callback(request);
   }
@@ -954,7 +954,7 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
 
   // Set up SSL object.
   SSL* ssl = SSL_new(openssl::context());
-  if (ssl == NULL) {
+  if (ssl == nullptr) {
     request->promise.fail("Accept failed, SSL_new");
     delete request;
     return;
@@ -974,7 +974,7 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
       BUFFEREVENT_SSL_ACCEPTING,
       BEV_OPT_THREADSAFE);
 
-  if (bev == NULL) {
+  if (bev == nullptr) {
     request->promise.fail("Accept failed: bufferevent_openssl_socket_new");
     SSL_free(ssl);
     delete request;
@@ -983,8 +983,8 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
 
   bufferevent_setcb(
       bev,
-      NULL,
-      NULL,
+      nullptr,
+      nullptr,
       [](bufferevent* bev, short events, void* arg) {
         // This handles error states or 'BEV_EVENT_CONNECTED' events
         // and satisfies the promise by constructing a new socket if

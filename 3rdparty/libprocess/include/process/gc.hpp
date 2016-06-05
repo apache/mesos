@@ -30,7 +30,7 @@ public:
   void manage(const T* t)
   {
     const ProcessBase* process = t;
-    if (process != NULL) {
+    if (process != nullptr) {
       processes[process->self()] = process;
       link(process->self());
     }

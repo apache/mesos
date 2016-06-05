@@ -244,7 +244,7 @@ _Deferred<F> defer(const UPID& pid, F&& f)
 template <typename F>
 _Deferred<F> defer(F&& f)
 {
-  if (__process__ != NULL) {
+  if (__process__ != nullptr) {
     return defer(__process__->self(), std::forward<F>(f));
   }
 

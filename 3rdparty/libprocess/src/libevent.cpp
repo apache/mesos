@@ -31,7 +31,7 @@
 
 namespace process {
 
-event_base* base = NULL;
+event_base* base = nullptr;
 
 
 static std::mutex* functions_mutex = new std::mutex();
@@ -39,7 +39,7 @@ std::queue<lambda::function<void()>>* functions =
   new std::queue<lambda::function<void()>>();
 
 
-THREAD_LOCAL bool* _in_event_loop_ = NULL;
+THREAD_LOCAL bool* _in_event_loop_ = nullptr;
 
 
 void async_function(evutil_socket_t socket, short which, void* arg)
@@ -77,7 +77,7 @@ void run_in_event_loop(
     // event_self_cbarg instead of re-assigning the event. For now we
     // manually re-assign the event to pass in the pointer to the
     // event itself as the callback argument.
-    event* ev = evtimer_new(base, async_function, NULL);
+    event* ev = evtimer_new(base, async_function, nullptr);
 
     // 'event_assign' is only valid on non-pending AND non-active
     // events. This means we have to assign the callback before
@@ -118,7 +118,7 @@ void EventLoop::run()
 
 void EventLoop::stop()
 {
-  event_base_loopexit(base, NULL);
+  event_base_loopexit(base, nullptr);
 }
 
 
@@ -147,7 +147,7 @@ void EventLoop::delay(
 {
   internal::Delay* delay = new internal::Delay();
   delay->timer = evtimer_new(base, &internal::handle_delay, delay);
-  if (delay->timer == NULL) {
+  if (delay->timer == nullptr) {
     LOG(FATAL) << "Failed to delay, evtimer_new";
   }
 
@@ -170,7 +170,7 @@ double EventLoop::time()
   // libprocess depends on time math, we want to log fatal rather than
   // cause logic errors if the time fails.
   timeval t;
-  if (evutil_gettimeofday(&t, NULL) < 0) {
+  if (evutil_gettimeofday(&t, nullptr) < 0) {
     LOG(FATAL) << "Failed to get time, evutil_gettimeofday";
   }
 
@@ -211,7 +211,7 @@ void EventLoop::initialize()
 
   base = event_base_new_with_config(config);
 
-  if (base == NULL) {
+  if (base == nullptr) {
     LOG(FATAL) << "Failed to initialize, event_base_new";
   }
 

@@ -146,7 +146,7 @@ private:
 
 
 // Global reaper object.
-static ReaperProcess* reaper = NULL;
+static ReaperProcess* reaper = nullptr;
 
 
 Future<Option<int> > reap(pid_t pid)

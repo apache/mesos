@@ -112,7 +112,7 @@ public:
 
   virtual ~MessageEncoder()
   {
-    if (message != NULL) {
+    if (message != nullptr) {
       delete message;
     }
   }
@@ -121,7 +121,7 @@ public:
   {
     std::ostringstream out;
 
-    if (message != NULL) {
+    if (message != nullptr) {
       out << "POST ";
       // Nothing keeps the 'id' component of a PID from being an empty
       // string which would create a malformed path that has two
@@ -188,7 +188,7 @@ public:
     char date[256];
 
     tm tm_;
-    PCHECK(os::gmtime_r(&rawtime, &tm_) != NULL)
+    PCHECK(os::gmtime_r(&rawtime, &tm_) != nullptr)
       << "Failed to convert the current time to a tm struct "
       << "using os::gmtime_r()";
 
