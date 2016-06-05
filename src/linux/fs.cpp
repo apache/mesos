@@ -294,46 +294,6 @@ Try<MountTable> MountTable::read(const string& path)
 }
 
 
-Try<FileSystemTable> FileSystemTable::read()
-{
-  // Mutex for guarding calls into non-reentrant fstab functions. We
-  // use a static local variable to avoid unused variable warnings.
-  static std::mutex mutex;
-
-  FileSystemTable table;
-
-  // Use locks since fstab functions are not thread-safe.
-  synchronized (mutex) {
-    // Open file _PATH_FSTAB (/etc/fstab).
-    if (::setfsent() == 0) {
-      return Error("Failed to open file system table");
-    }
-
-    while (true) {
-      struct fstab* fstab = ::getfsent();
-      if (fstab == nullptr) {
-        break; // nullptr means the end of enties.
-      }
-
-      FileSystemTable::Entry entry(
-          fstab->fs_spec,
-          fstab->fs_file,
-          fstab->fs_vfstype,
-          fstab->fs_mntops,
-          fstab->fs_type,
-          fstab->fs_freq,
-          fstab->fs_passno);
-
-      table.entries.push_back(entry);
-    }
-
-    ::endfsent();
-  }
-
-  return table;
-}
-
-
 Try<Nothing> mount(const Option<string>& source,
                    const string& target,
                    const Option<string>& type,

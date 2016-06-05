@@ -32,7 +32,6 @@
 using std::string;
 
 using mesos::internal::fs::MountTable;
-using mesos::internal::fs::FileSystemTable;
 using mesos::internal::fs::MountInfoTable;
 
 namespace mesos {
@@ -88,25 +87,6 @@ TEST_F(FsTest, MountTableHasOption)
 
   ASSERT_SOME(proc);
   EXPECT_TRUE(proc.get().hasOption(MNTOPT_RW));
-}
-
-
-TEST_F(FsTest, FileSystemTableRead)
-{
-  Try<FileSystemTable> table = FileSystemTable::read();
-
-  ASSERT_SOME(table);
-
-  // NOTE: We do not check for /proc because, it is not always present in
-  // /etc/fstab.
-  Option<FileSystemTable::Entry> root = None();
-  foreach (const FileSystemTable::Entry& entry, table.get().entries) {
-    if (entry.file == "/") {
-      root = entry;
-    }
-  }
-
-  EXPECT_SOME(root);
 }
 
 
