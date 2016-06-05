@@ -20,7 +20,7 @@ The Mesos codebase follows the [Google C++ Style Guide](https://google.github.io
 * We prepend constructor and function arguments with a leading underscore to avoid ambiguity and / or shadowing:
 
 ~~~{.cpp}
-Try(State _state, T* _t = NULL, const std::string& _message = "")
+Try(State _state, T* _t = nullptr, const std::string& _message = "")
   : state(_state), t(_t), message(_message) {}
 ~~~
 

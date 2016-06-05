@@ -49,7 +49,7 @@ static Allocator* createExternalAllocator(const Parameters& parameters)
 {
   Try<Allocator*> allocator = ExternalAllocator::create();
   if (allocator.isError()) {
-    return NULL;
+    return nullptr;
   }
 
   return allocator.get();
@@ -62,7 +62,7 @@ mesos::modules::Module<Allocator> ExternalAllocatorModule(
     "Mesos Contributor",
     "engineer@example.com",
     "External Allocator module.",
-    NULL,
+    nullptr,
     createExternalAllocator);
 ~~~
 
