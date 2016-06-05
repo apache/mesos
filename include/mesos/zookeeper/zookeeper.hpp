@@ -247,7 +247,7 @@ public:
    * \param watch if nonzero, a watch will be set at the server to
    *    notify the client if the node changes.
    * \param result the data returned by the server
-   * \param stat if not NULL, will hold the value of stat for the path
+   * \param stat if not `nullptr`, will hold the value of stat for the path
    *    on return.
    * \return return value of the function call.
    * ZOK operation completed successfully

@@ -46,20 +46,20 @@ public:
   struct Object
   {
     Object()
-      : value(NULL),
-        framework_info(NULL),
-        task(NULL),
-        task_info(NULL),
-        executor_info(NULL) {}
+      : value(nullptr),
+        framework_info(nullptr),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(nullptr) {}
 
     Object(const authorization::Object& object)
-      : value(object.has_value() ? &object.value() : NULL),
+      : value(object.has_value() ? &object.value() : nullptr),
         framework_info(
-            object.has_framework_info() ? &object.framework_info() : NULL),
-        task(object.has_task() ? &object.task() : NULL),
-        task_info(object.has_task_info() ? &object.task_info() : NULL),
+            object.has_framework_info() ? &object.framework_info() : nullptr),
+        task(object.has_task() ? &object.task() : nullptr),
+        task_info(object.has_task_info() ? &object.task_info() : nullptr),
         executor_info(
-            object.has_executor_info() ? &object.executor_info() : NULL) {}
+            object.has_executor_info() ? &object.executor_info() : nullptr) {}
 
     const std::string* value;
     const FrameworkInfo* framework_info;

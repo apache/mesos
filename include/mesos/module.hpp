@@ -81,7 +81,7 @@ struct ModuleBase
   const char* description;
 
   // Callback invoked to check version compatibility.  If this field
-  // is NULL, backwards compatibility is disabled and the module
+  // is `nullptr`, backwards compatibility is disabled and the module
   // version must match the Mesos release version exactly. If the
   // macro is used, Mesos first checks backwards compatibility against
   // its own internal table maintained by Mesos developers, then your
