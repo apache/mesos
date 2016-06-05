@@ -61,7 +61,7 @@ inline bool exists(pid_t pid)
 
   bool has_handle = false;
 
-  if (handle != NULL) {
+  if (handle != nullptr) {
     has_handle = true;
     CloseHandle(handle);
   }

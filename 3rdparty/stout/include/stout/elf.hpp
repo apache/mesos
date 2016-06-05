@@ -84,8 +84,8 @@ public:
       return ErrnoError("Failed to open file");
     }
 
-    file->elf = elf_begin(file->fd, ELF_C_READ, NULL);
-    if (file->elf == NULL) {
+    file->elf = elf_begin(file->fd, ELF_C_READ, nullptr);
+    if (file->elf == nullptr) {
       delete file;
       return Error("elf_begin() failed: " + stringify(elf_errmsg(-1)));
     }
@@ -96,10 +96,10 @@ public:
     }
 
     // Create the mapping from section type to section locations.
-    Elf_Scn* section = NULL;
-    while ((section = elf_nextscn(file->elf, section)) != NULL) {
+    Elf_Scn* section = nullptr;
+    while ((section = elf_nextscn(file->elf, section)) != nullptr) {
       GElf_Shdr section_header;
-      if (gelf_getshdr(section, &section_header) == NULL) {
+      if (gelf_getshdr(section, &section_header) == nullptr) {
         delete file;
         return Error("gelf_getshdr() failed: " + stringify(elf_errmsg(-1)));
       }
@@ -116,9 +116,9 @@ public:
 
   void close()
   {
-    if (elf != NULL) {
+    if (elf != nullptr) {
       elf_end(elf);
-      elf = NULL;
+      elf = nullptr;
     }
 
     if (fd >= 0) {
@@ -165,8 +165,8 @@ public:
     // also have to look for an entry containing a pointer to the
     // dynamic section's string table so we can resolve the strings
     // associated with the provided tag later on.
-    Elf_Data* dynamic_data = elf_getdata(dynamic_section, NULL);
-    if (dynamic_data == NULL) {
+    Elf_Data* dynamic_data = elf_getdata(dynamic_section, nullptr);
+    if (dynamic_data == nullptr) {
       return Error("elf_getdata() failed: " + stringify(elf_errmsg(-1)));
     }
 
@@ -175,7 +175,7 @@ public:
 
     for (size_t i = 0; i < dynamic_data->d_size / sizeof(GElf_Dyn); i++) {
       GElf_Dyn entry;
-      if (gelf_getdyn(dynamic_data, i, &entry) == NULL) {
+      if (gelf_getdyn(dynamic_data, i, &entry) == nullptr) {
           return Error("gelf_getdyn() failed: " + stringify(elf_errmsg(-1)));
       }
 
@@ -198,7 +198,7 @@ public:
 
     // Get a reference to the actual string table so we can index into it.
     Elf_Scn* string_table_section = gelf_offscn(elf, strtab_pointer.get());
-    if (string_table_section == NULL) {
+    if (string_table_section == nullptr) {
       return Error("gelf_offscn() failed: " + stringify(elf_errmsg(-1)));
     }
 
@@ -211,7 +211,7 @@ public:
     std::vector<std::string> strings;
     foreach (uintptr_t offset, strtab_offsets) {
       char* string = elf_strptr(elf, strtab_index, offset);
-      if (string == NULL) {
+      if (string == nullptr) {
         return Error("elf_strptr() failed: " + stringify(elf_errmsg(-1)));
       }
 
@@ -224,7 +224,7 @@ public:
 private:
   explicit File()
     : fd(-1),
-      elf(NULL) {}
+      elf(nullptr) {}
 
   int fd;
   Elf* elf;

@@ -77,14 +77,14 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   FILE* file;
   std::ostringstream stdout;
 
-  if ((file = popen(command.get().c_str(), "r")) == NULL) {
+  if ((file = popen(command.get().c_str(), "r")) == nullptr) {
     return Error("Failed to run '" + command.get() + "'");
   }
 
   char line[1024];
   // NOTE(vinod): Ideally the if and while loops should be interchanged. But
   // we get a broken pipe error if we don't read the output and simply close.
-  while (fgets(line, sizeof(line), file) != NULL) {
+  while (fgets(line, sizeof(line), file) != nullptr) {
     stdout << line;
   }
 
@@ -129,7 +129,7 @@ inline int system(const std::string& command)
   } else if (pid == 0) {
     // In child process.
     ::execlp(
-        Shell::name, Shell::arg0, Shell::arg1, command.c_str(), (char*)NULL);
+        Shell::name, Shell::arg0, Shell::arg1, command.c_str(), (char*)nullptr);
     ::exit(127);
   } else {
     // In parent process.

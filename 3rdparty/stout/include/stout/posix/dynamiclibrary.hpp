@@ -28,11 +28,11 @@
 class DynamicLibrary
 {
 public:
-  DynamicLibrary() : handle_(NULL) { }
+  DynamicLibrary() : handle_(nullptr) { }
 
   virtual ~DynamicLibrary()
   {
-    if (handle_ != NULL) {
+    if (handle_ != nullptr) {
       close();
     }
   }
@@ -40,13 +40,13 @@ public:
   Try<Nothing> open(const std::string& path)
   {
     // Check if we've already opened a library.
-    if (handle_ != NULL) {
+    if (handle_ != nullptr) {
       return Error("Library already opened");
     }
 
     handle_ = dlopen(path.c_str(), RTLD_NOW);
 
-    if (handle_ == NULL) {
+    if (handle_ == nullptr) {
       return Error("Could not load library '" + path + "': " + dlerror());
     }
 
@@ -57,8 +57,8 @@ public:
 
   Try<Nothing> close()
   {
-    if (handle_ == NULL) {
-      return Error("Could not close library; handle was already `NULL`");
+    if (handle_ == nullptr) {
+      return Error("Could not close library; handle was already `nullptr`");
     }
 
     if (dlclose(handle_) != 0) {
@@ -67,7 +67,7 @@ public:
           (path_.isSome() ? path_.get() : "") + "': " + dlerror());
     }
 
-    handle_ = NULL;
+    handle_ = nullptr;
     path_ = None();
 
     return Nothing();
@@ -75,14 +75,14 @@ public:
 
   Try<void*> loadSymbol(const std::string& name)
   {
-    if (handle_ == NULL) {
+    if (handle_ == nullptr) {
       return Error(
-          "Could not get symbol '" + name + "'; library handle was `NULL`");
+          "Could not get symbol '" + name + "'; library handle was `nullptr`");
     }
 
     void* symbol = dlsym(handle_, name.c_str());
 
-    if (symbol == NULL) {
+    if (symbol == nullptr) {
       return Error(
           "Error looking up symbol '" + name + "' in '" +
           (path_.isSome() ? path_.get() : "") + "' : " + dlerror());

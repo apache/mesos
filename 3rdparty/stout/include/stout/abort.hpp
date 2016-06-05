@@ -46,7 +46,7 @@ inline NORETURN void _Abort(const char* prefix, const char* message)
   // http://austingroupbugs.net/view.php?id=692
   while (::write(STDERR_FILENO, prefix, strlen(prefix)) == -1 &&
          errno == EINTR);
-  while (message != NULL &&
+  while (message != nullptr &&
          ::write(STDERR_FILENO, message, strlen(message)) == -1 &&
          errno == EINTR);
 

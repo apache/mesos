@@ -60,7 +60,7 @@ inline Try<Nothing> chown(
     bool recursive = true)
 {
   passwd* passwd;
-  if ((passwd = ::getpwnam(user.c_str())) == NULL) {
+  if ((passwd = ::getpwnam(user.c_str())) == nullptr) {
     return ErrnoError("Failed to get user information for '" + user + "'");
   }
 

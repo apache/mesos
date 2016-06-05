@@ -432,7 +432,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
         const google::protobuf::EnumValueDescriptor* descriptor =
           field->enum_type()->FindValueByName(string.value);
 
-        if (descriptor == NULL) {
+        if (descriptor == nullptr) {
           return Error("Failed to find enum for '" + string.value + "'");
         }
 
@@ -569,7 +569,7 @@ inline Try<Nothing> parse(
     const google::protobuf::FieldDescriptor* field =
       message->GetDescriptor()->FindFieldByName(name);
 
-    if (field != NULL) {
+    if (field != nullptr) {
       Try<Nothing> apply =
         boost::apply_visitor(Parser(message, field), value);
 
@@ -595,7 +595,7 @@ struct Parse
                   "T must be a protobuf message");
 
     const JSON::Object* object = boost::get<JSON::Object>(&value);
-    if (object == NULL) {
+    if (object == nullptr) {
       return Error("Expecting a JSON object");
     }
 
@@ -631,7 +631,7 @@ struct Parse<google::protobuf::RepeatedPtrField<T>>
                   "T must be a protobuf message");
 
     const JSON::Array* array = boost::get<JSON::Array>(&value);
-    if (array == NULL) {
+    if (array == nullptr) {
       return Error("Expecting a JSON array");
     }
 
@@ -759,7 +759,7 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
                   break;
                 case FieldDescriptor::CPPTYPE_STRING:
                   const std::string& s = reflection->GetRepeatedStringReference(
-                      message, field, i, NULL);
+                      message, field, i, nullptr);
                   if (field->type() == FieldDescriptor::TYPE_BYTES) {
                     writer->element(base64::encode(s));
                   } else {
@@ -802,7 +802,7 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
           break;
         case FieldDescriptor::CPPTYPE_STRING:
           const std::string& s = reflection->GetStringReference(
-              message, field, NULL);
+              message, field, nullptr);
           if (field->type() == FieldDescriptor::TYPE_BYTES) {
             writer->field(field->name(), base64::encode(s));
           } else {

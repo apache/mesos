@@ -36,7 +36,7 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
   }
 
   struct passwd passwd;
-  struct passwd* result = NULL;
+  struct passwd* result = nullptr;
 
   int size = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (size == -1) {
@@ -49,8 +49,8 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
 
     if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
       // The usual interpretation of POSIX is that getpwnam_r will
-      // return 0 but set result == NULL if the user is not found.
-      if (result == NULL) {
+      // return 0 but set result == nullptr if the user is not found.
+      if (result == nullptr) {
         delete[] buffer;
         return None();
       }
@@ -92,7 +92,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
   }
 
   struct passwd passwd;
-  struct passwd* result = NULL;
+  struct passwd* result = nullptr;
 
   int size = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (size == -1) {
@@ -105,8 +105,8 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
 
     if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
       // The usual interpretation of POSIX is that getpwnam_r will
-      // return 0 but set result == NULL if the group is not found.
-      if (result == NULL) {
+      // return 0 but set result == nullptr if the group is not found.
+      if (result == nullptr) {
         delete[] buffer;
         return None();
       }
@@ -154,15 +154,15 @@ inline Result<std::string> user(Option<uid_t> uid = None())
   }
 
   struct passwd passwd;
-  struct passwd* result = NULL;
+  struct passwd* result = nullptr;
 
   while (true) {
     char* buffer = new char[size];
 
     if (getpwuid_r(uid.get(), &passwd, buffer, size, &result) == 0) {
-      // getpwuid_r will return 0 but set result == NULL if the uid is
+      // getpwuid_r will return 0 but set result == nullptr if the uid is
       // not found.
-      if (result == NULL) {
+      if (result == nullptr) {
         delete[] buffer;
         return None();
       }

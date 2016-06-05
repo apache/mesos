@@ -235,7 +235,7 @@ inline Try<Nothing> sleep(const Duration& duration)
 inline Try<std::list<std::string>> glob(const std::string& pattern)
 {
   glob_t g;
-  int status = ::glob(pattern.c_str(), GLOB_NOSORT, NULL, &g);
+  int status = ::glob(pattern.c_str(), GLOB_NOSORT, nullptr, &g);
 
   std::list<std::string> result;
 
@@ -363,7 +363,7 @@ inline Option<std::string> getenv(const std::string& key)
 {
   char* value = ::getenv(key.c_str());
 
-  if (value == NULL) {
+  if (value == nullptr) {
     return None();
   }
 

@@ -59,16 +59,16 @@ bool reentrant_advance_dir_stream(DIR* directory);
 // [1] http://www.gnu.org/software/libc/manual/html_node/Opening-a-Directory.html#Opening-a-Directory
 inline DIR* opendir(const char* path)
 {
-  if (path == NULL) {
+  if (path == nullptr) {
     errno = ENOTDIR;
-    return NULL;
+    return nullptr;
   }
 
   const size_t path_size = strlen(path);
 
   if (path_size == 0 || path_size >= MAX_PATH) {
     errno = ENOENT;
-    return NULL;
+    return nullptr;
   }
 
   const char windows_folder_separator = '\\';
@@ -80,18 +80,18 @@ inline DIR* opendir(const char* path)
   // `directory->d_name` for a directory separator and a wildcard.
   DIR* directory = (DIR*) malloc(sizeof(DIR));
 
-  if (directory == NULL) {
+  if (directory == nullptr) {
     errno = ENOMEM;
-    return NULL;
+    return nullptr;
   }
 
   directory->d_name =
     (char*) malloc(path_size + strlen(dir_separator_and_wildcard) + 1);
 
-  if (directory->d_name == NULL) {
+  if (directory->d_name == nullptr) {
     errno = ENOMEM;
     free(directory);
-    return NULL;
+    return nullptr;
   }
 
   // Copy path over and append the appropriate postfix.
@@ -109,7 +109,7 @@ inline DIR* opendir(const char* path)
 
   if (!internal::open_dir_stream(directory)) {
     internal::free_dir(directory);
-    return NULL;
+    return nullptr;
   }
 
   return directory;
@@ -118,10 +118,10 @@ inline DIR* opendir(const char* path)
 
 // Implementation of the standard POSIX function. See documentation[1].
 //
-// On success: returns a pointer to the next directory entry, or `NULL` if
+// On success: returns a pointer to the next directory entry, or `nullptr` if
 // we've reached the end of the stream.
 //
-// On failure: returns `NULL` and sets `errno`.
+// On failure: returns `nullptr` and sets `errno`.
 //
 // NOTE: as with most POSIX implementations of this function, you must reset
 // `errno` before calling `readdir`.
@@ -129,13 +129,13 @@ inline DIR* opendir(const char* path)
 // [1] http://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html#Reading_002fClosing-Directory
 inline struct dirent* readdir(DIR* directory)
 {
-  if (directory == NULL) {
+  if (directory == nullptr) {
     errno = EBADF;
-    return NULL;
+    return nullptr;
   }
 
   if (!internal::reentrant_advance_dir_stream(directory)) {
-    return NULL;
+    return nullptr;
   }
 
   return &directory->curr;
@@ -145,11 +145,11 @@ inline struct dirent* readdir(DIR* directory)
 // Implementation of the standard POSIX function. See documentation[1].
 //
 // On success: return 0 and set `*result` (note that `result` is not the same
-// as `*result`) to point at the next directory entry, or `NULL` if we've
+// as `*result`) to point at the next directory entry, or `nullptr` if we've
 // reached the end of the stream.
 //
 // On failure: return a positive error number and set `*result` (not `result`)
-// to point at `NULL`.
+// to point at `nullptr`.
 //
 // [1] https://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html
 inline int readdir_r(
@@ -157,14 +157,14 @@ inline int readdir_r(
     struct dirent* entry,
     struct dirent** result)
 {
-  if (directory == NULL) {
+  if (directory == nullptr) {
     errno = EBADF;
-    *result = NULL;
+    *result = nullptr;
     return 1;
   }
 
   if (!internal::reentrant_advance_dir_stream(directory)) {
-    *result = NULL;
+    *result = nullptr;
     return 0;
   }
 
@@ -182,7 +182,7 @@ inline int readdir_r(
 // [1] http://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html#Reading_002fClosing-Directory
 inline int closedir(DIR* directory)
 {
-  if (directory == NULL) {
+  if (directory == nullptr) {
     errno = EBADF;
     return -1;
   }
@@ -202,7 +202,7 @@ namespace internal {
 
 inline void free_dir(DIR* directory)
 {
-  if (directory != NULL) {
+  if (directory != nullptr) {
     free(directory->d_name);
   }
 
@@ -212,7 +212,7 @@ inline void free_dir(DIR* directory)
 
 inline bool open_dir_stream(DIR* directory)
 {
-  assert(directory != NULL);
+  assert(directory != nullptr);
 
   directory->handle = FindFirstFile(directory->d_name, &directory->fd);
 
@@ -235,7 +235,7 @@ inline bool open_dir_stream(DIR* directory)
 
 inline bool reentrant_advance_dir_stream(DIR* directory)
 {
-  assert(directory != NULL);
+  assert(directory != nullptr);
 
   if (!FindNextFile(directory->handle, &directory->fd)) {
     return false;

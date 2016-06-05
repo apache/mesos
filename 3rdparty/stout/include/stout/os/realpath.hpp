@@ -26,7 +26,7 @@ namespace os {
 inline Result<std::string> realpath(const std::string& path)
 {
   char temp[PATH_MAX];
-  if (::realpath(path.c_str(), temp) == NULL) {
+  if (::realpath(path.c_str(), temp) == nullptr) {
     if (errno == ENOENT || errno == ENOTDIR) {
       return None();
     }

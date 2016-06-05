@@ -93,7 +93,7 @@ inline Try<Memory> memory()
       "vm.stats.v_free_count",
       &freeCount,
       &length,
-      NULL,
+      nullptr,
       0) != 0) {
     return ErrnoError();
   }
@@ -113,7 +113,7 @@ inline Try<Memory> memory()
   size_t xswdSize = sizeof(xswd);
   int* mibDevice = &(mib[mibSize + 1]);
   for (*mibDevice = 0; ; (*mibDevice)++) {
-      if (::sysctl(mib, 3, &xswd, &xswdSize, NULL, 0) != 0) {
+      if (::sysctl(mib, 3, &xswd, &xswdSize, nullptr, 0) != 0) {
           if (errno == ENOENT) {
               break;
           }

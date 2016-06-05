@@ -105,7 +105,7 @@ inline Try<std::string> read(const std::string& path)
 inline Try<std::string> read(const std::string& path)
 {
   FILE* file = ::fopen(path.c_str(), "r");
-  if (file == NULL) {
+  if (file == nullptr) {
     return ErrnoError("Failed to open file");
   }
 

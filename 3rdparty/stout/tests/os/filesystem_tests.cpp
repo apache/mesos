@@ -389,10 +389,10 @@ TEST_F(FsTest, Close)
       testfile.c_str(),
       FILE_APPEND_DATA,
       0,                     // No sharing mode.
-      NULL,                  // Default security.
+      nullptr,               // Default security.
       OPEN_EXISTING,         // Open only if it exists.
       FILE_ATTRIBUTE_NORMAL, // Open a normal file.
-      NULL);                 // No attribute tempate file.
+      nullptr);              // No attribute tempate file.
   ASSERT_NE(INVALID_HANDLE_VALUE, open_valid_handle);
 
   DWORD bytes_written;
@@ -401,7 +401,7 @@ TEST_F(FsTest, Close)
       test_message1.c_str(), // Data to write.
       test_message1.size(),  // Bytes to write.
       &bytes_written,        // Bytes written.
-      NULL);                 // No overlapped I/O.
+      nullptr);              // No overlapped I/O.
   ASSERT_TRUE(written);
   ASSERT_EQ(test_message1.size(), bytes_written);
 
@@ -412,7 +412,7 @@ TEST_F(FsTest, Close)
       error_message.c_str(), // Data to write.
       error_message.size(),  // Bytes to write.
       &bytes_written,        // Bytes written.
-      NULL);                 // No overlapped I/O.
+      nullptr);              // No overlapped I/O.
   ASSERT_FALSE(written);
   ASSERT_EQ(0, bytes_written);
 

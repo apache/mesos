@@ -40,9 +40,9 @@ struct UUID : boost::uuids::uuid
 public:
   static UUID random()
   {
-    static THREAD_LOCAL boost::uuids::random_generator* generator = NULL;
+    static THREAD_LOCAL boost::uuids::random_generator* generator = nullptr;
 
-    if (generator == NULL) {
+    if (generator == nullptr) {
       generator = new boost::uuids::random_generator();
     }
 

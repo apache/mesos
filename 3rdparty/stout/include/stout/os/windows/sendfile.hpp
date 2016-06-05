@@ -35,9 +35,9 @@ inline Try<ssize_t, SocketError> sendfile(
       0,
       0,
       {static_cast<DWORD>(offset), static_cast<DWORD>(offset >> 32)},
-      NULL};
+      nullptr};
 
-  if (TransmitFile(s, file, length, 0, &from, NULL, 0) == FALSE &&
+  if (TransmitFile(s, file, length, 0, &from, nullptr, 0) == FALSE &&
       (WSAGetLastError() == WSA_IO_PENDING ||
        WSAGetLastError() == ERROR_IO_PENDING)) {
     DWORD sent = 0;

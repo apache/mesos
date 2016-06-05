@@ -312,7 +312,7 @@ template <typename T>
 bool Value::is() const
 {
   const T* t = boost::get<T>(this);
-  return t != NULL;
+  return t != nullptr;
 }
 
 

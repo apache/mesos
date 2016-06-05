@@ -33,16 +33,16 @@ struct group
 
 
 // Dummy implementation of `getgrgid` for POSIX compliance. Per the POSIX
-// specification[1], we are to return `NULL` if an entry matching the GID is
+// specification[1], we are to return `nullptr` if an entry matching the GID is
 // not found. On Windows, we will never find such an entry, so we always return
-// `NULL`. Just to be safe, we also set `errno` to `ENOSYS` which indicates the
-// function is not implemented.
+// `nullptr`. Just to be safe, we also set `errno` to `ENOSYS` which indicates
+// the function is not implemented.
 //
 // [1] http://pubs.opengroup.org/onlinepubs/009695399/functions/getgrgid.html
 inline struct group* getgrgid(gid_t)
 {
   errno = ENOSYS;
-  return NULL;
+  return nullptr;
 }
 
 #endif // __STOUT_INTERNAL_WINDOWS_GRP_HPP__

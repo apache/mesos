@@ -215,7 +215,7 @@ inline Try<Memory> memory()
       "vm.page_free_count",
       &freeCount,
       &length,
-      NULL,
+      nullptr,
       0) != 0) {
     return ErrnoError();
   }
@@ -227,7 +227,7 @@ inline Try<Memory> memory()
         "vm.swapusage",
         &usage,
         &length,
-        NULL,
+        nullptr,
         0) != 0) {
     return ErrnoError();
   }

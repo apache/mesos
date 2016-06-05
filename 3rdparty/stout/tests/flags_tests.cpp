@@ -386,7 +386,7 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
   EXPECT_STREQ("--no-name4", argv[4]);
   EXPECT_STREQ("--name5", argv[5]);
   EXPECT_STREQ("the", argv[6]);
-  EXPECT_EQ(NULL, argv[7]);
+  EXPECT_EQ(nullptr, argv[7]);
 }
 
 

@@ -31,7 +31,7 @@ inline int install(int signal, void(*handler)(int))
   memset(&action, 0, sizeof(action));
   sigemptyset(&action.sa_mask);
   action.sa_handler = handler;
-  return sigaction(signal, &action, NULL);
+  return sigaction(signal, &action, nullptr);
 }
 
 
@@ -42,7 +42,7 @@ inline int reset(int signal)
   memset(&action, 0, sizeof(action));
   sigemptyset(&action.sa_mask);
   action.sa_handler = SIG_DFL;
-  return sigaction(signal, &action, NULL);
+  return sigaction(signal, &action, nullptr);
 }
 
 

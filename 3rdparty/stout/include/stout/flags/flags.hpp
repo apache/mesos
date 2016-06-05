@@ -411,8 +411,8 @@ void FlagsBase::add(
     const T2* t2,
     F validate)
 {
-  // Don't bother adding anything if the pointer is NULL.
-  if (t1 == NULL) {
+  // Don't bother adding anything if the pointer is `nullptr`.
+  if (t1 == nullptr) {
     return;
   }
 
@@ -477,8 +477,8 @@ void FlagsBase::add(
     const std::string& help,
     F validate)
 {
-  // Don't bother adding anything if the pointer is NULL.
-  if (option == NULL) {
+  // Don't bother adding anything if the pointer is `nullptr`.
+  if (option == nullptr) {
     return;
   }
 
@@ -529,13 +529,13 @@ void FlagsBase::add(
     const T2* t2,
     F validate)
 {
-  // Don't bother adding anything if the pointer is NULL.
-  if (t1 == NULL) {
+  // Don't bother adding anything if the pointer is `nullptr`.
+  if (t1 == nullptr) {
     return;
   }
 
   Flags* flags = dynamic_cast<Flags*>(this);
-  if (flags == NULL) {
+  if (flags == nullptr) {
     ABORT("Attempted to add flag '" + name.value +
           "' with incompatible type");
   }
@@ -562,7 +562,7 @@ void FlagsBase::add(
 
   flag.load = [t1](FlagsBase* base, const std::string& value) -> Try<Nothing> {
     Flags* flags = dynamic_cast<Flags*>(base);
-    if (base != NULL) {
+    if (base != nullptr) {
       // NOTE: 'fetch' "retrieves" the value if necessary and then
       // invokes 'parse'. See 'fetch' for more details.
       Try<T1> t = fetch<T1>(value);
@@ -578,7 +578,7 @@ void FlagsBase::add(
 
   flag.stringify = [t1](const FlagsBase& base) -> Option<std::string> {
     const Flags* flags = dynamic_cast<const Flags*>(&base);
-    if (flags != NULL) {
+    if (flags != nullptr) {
       return stringify(flags->*t1);
     }
     return None();
@@ -586,7 +586,7 @@ void FlagsBase::add(
 
   flag.validate = [t1, validate](const FlagsBase& base) -> Option<Error> {
     const Flags* flags = dynamic_cast<const Flags*>(&base);
-    if (flags != NULL) {
+    if (flags != nullptr) {
       return validate(flags->*t1);
     }
     return None();
@@ -613,13 +613,13 @@ void FlagsBase::add(
     const std::string& help,
     F validate)
 {
-  // Don't bother adding anything if the pointer is NULL.
-  if (option == NULL) {
+  // Don't bother adding anything if the pointer is `nullptr`.
+  if (option == nullptr) {
     return;
   }
 
   Flags* flags = dynamic_cast<Flags*>(this);
-  if (flags == NULL) {
+  if (flags == nullptr) {
     ABORT("Attempted to add flag '" + name.value +
           "' with incompatible type");
   }
@@ -638,7 +638,7 @@ void FlagsBase::add(
   flag.load =
     [option](FlagsBase* base, const std::string& value) -> Try<Nothing> {
     Flags* flags = dynamic_cast<Flags*>(base);
-    if (flags != NULL) {
+    if (flags != nullptr) {
       // NOTE: 'fetch' "retrieves" the value if necessary and then
       // invokes 'parse'. See 'fetch' for more details.
       Try<T> t = fetch<T>(value);
@@ -654,7 +654,7 @@ void FlagsBase::add(
 
   flag.stringify = [option](const FlagsBase& base) -> Option<std::string> {
     const Flags* flags = dynamic_cast<const Flags*>(&base);
-    if (flags != NULL) {
+    if (flags != nullptr) {
       if ((flags->*option).isSome()) {
         return stringify((flags->*option).get());
       }
@@ -664,7 +664,7 @@ void FlagsBase::add(
 
   flag.validate = [option, validate](const FlagsBase& base) -> Option<Error> {
     const Flags* flags = dynamic_cast<const Flags*>(&base);
-    if (flags != NULL) {
+    if (flags != nullptr) {
       return validate(flags->*option);
     }
     return None();
@@ -878,7 +878,7 @@ inline Try<Warnings> FlagsBase::load(
     // Now null terminate the array. Note that we'll "leak" the
     // arguments that were processed here but it's not like they would
     // have gotten deleted in normal operations anyway.
-    (*argv)[i++] = NULL;
+    (*argv)[i++] = nullptr;
   }
 
   return result;

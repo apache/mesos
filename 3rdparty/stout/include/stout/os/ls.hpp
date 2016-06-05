@@ -35,14 +35,14 @@ inline Try<std::list<std::string>> ls(const std::string& directory)
 {
   DIR* dir = opendir(directory.c_str());
 
-  if (dir == NULL) {
+  if (dir == nullptr) {
     // Preserve `opendir` error.
     return ErrnoError("Failed to opendir '" + directory + "'");
   }
 
   dirent* temp = (dirent*) malloc(os::dirent_size(dir));
 
-  if (temp == NULL) {
+  if (temp == nullptr) {
     // Preserve `malloc` error.
     ErrnoError error("Failed to allocate directory entries");
     closedir(dir);
@@ -53,7 +53,7 @@ inline Try<std::list<std::string>> ls(const std::string& directory)
   struct dirent* entry;
   int error;
 
-  while ((error = readdir_r(dir, temp, &entry)) == 0 && entry != NULL) {
+  while ((error = readdir_r(dir, temp, &entry)) == 0 && entry != nullptr) {
     if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
       continue;
     }

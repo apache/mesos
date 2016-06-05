@@ -34,7 +34,7 @@ inline Try<Nothing> utime(const std::string& path)
   // NOTE: on Windows, this correctly dispatches to `_utime`, so there is no
   // need to create a function alias in `stout/windows.hpp` as we have done for
   // `stout/os/mkdir.hpp` and friends.
-  if (::utime(path.c_str(), NULL) == -1) {
+  if (::utime(path.c_str(), nullptr) == -1) {
     return ErrnoError();
   }
 

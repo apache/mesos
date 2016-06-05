@@ -254,7 +254,7 @@ inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
     case AF_INET: {
       char buffer[INET_ADDRSTRLEN];
       struct in_addr in = ip.in().get();
-      if (inet_ntop(AF_INET, &in, buffer, sizeof(buffer)) == NULL) {
+      if (inet_ntop(AF_INET, &in, buffer, sizeof(buffer)) == nullptr) {
         // We do not expect inet_ntop to fail because all parameters
         // passed in are valid.
         ABORT("Failed to get human-readable IP for " +
@@ -434,7 +434,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
     return Error("Unsupported family type: " + stringify(family));
   }
 
-  struct ifaddrs* ifaddr = NULL;
+  struct ifaddrs* ifaddr = nullptr;
   if (getifaddrs(&ifaddr) == -1) {
     return ErrnoError();
   }
@@ -442,14 +442,14 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
   // Indicates whether the link device is found or not.
   bool found = false;
 
-  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != NULL && !strcmp(ifa->ifa_name, name.c_str())) {
+  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != nullptr && !strcmp(ifa->ifa_name, name.c_str())) {
       found = true;
 
-      if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == family) {
+      if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == family) {
         IP address = IP::create(*ifa->ifa_addr).get();
 
-        if (ifa->ifa_netmask != NULL &&
+        if (ifa->ifa_netmask != nullptr &&
             ifa->ifa_netmask->sa_family == family) {
           IP netmask = IP::create(*ifa->ifa_netmask).get();
 

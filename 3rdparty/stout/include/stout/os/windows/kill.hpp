@@ -29,7 +29,7 @@ namespace internal {
 inline int kill_process(pid_t pid)
 {
   HANDLE process_handle = ::OpenProcess(PROCESS_TERMINATE, FALSE, pid);
-  if (process_handle == NULL) {
+  if (process_handle == nullptr) {
     LOG(ERROR) << "os::kill_process(): Failed call to OpenProcess";
 
     return KILL_FAIL;

@@ -40,7 +40,7 @@ Note that the library is designed to completely avoid exceptions. See [exception
 
 ## `Option`, `Some`, and `None`
 
-The `Option` type provides a safe alternative to using `NULL`. An `Option` can be constructed explicitly or implicitly:
+The `Option` type provides a safe alternative to using `nullptr`. An `Option` can be constructed explicitly or implicitly:
 
 ~~~{.cpp}
     Option<bool> o(true);

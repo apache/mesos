@@ -27,7 +27,7 @@ inline std::map<std::string, std::string> environment()
 
   std::map<std::string, std::string> result;
 
-  for (size_t index = 0; env[index] != NULL; index++) {
+  for (size_t index = 0; env[index] != nullptr; index++) {
     std::string entry(env[index]);
     size_t position = entry.find_first_of('=');
     if (position == std::string::npos) {

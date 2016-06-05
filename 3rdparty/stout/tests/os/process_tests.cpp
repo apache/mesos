@@ -217,14 +217,14 @@ TEST_F(ProcessTest, Pstree)
 
   // Create new process that "sleeps".
   BOOL created = CreateProcess(
-      NULL,                   // No module name (use command line).
+      nullptr,                // No module name (use command line).
       (LPSTR)command.c_str(),
-      NULL,                   // Process handle not inheritable.
-      NULL,                   // Thread handle not inheritable.
+      nullptr,                // Process handle not inheritable.
+      nullptr,                // Thread handle not inheritable.
       FALSE,                  // Set handle inheritance to FALSE.
       0,                      // No creation flags.
-      NULL,                   // Use parent's environment block.
-      NULL,                   // Use parent's starting directory.
+      nullptr,                // Use parent's environment block.
+      nullptr,                // Use parent's starting directory.
       &si,
       &pi);
   ASSERT_TRUE(created);
@@ -281,6 +281,6 @@ TEST_F(ProcessTest, Pstree)
   EXPECT_EQ(0, kill(child, SIGKILL));
 
   // We have to reap the child for running the tests in repetition.
-  ASSERT_EQ(child, waitpid(child, NULL, 0));
+  ASSERT_EQ(child, waitpid(child, nullptr, 0));
 }
 #endif // __WINDOWS__

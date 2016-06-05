@@ -69,14 +69,14 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   FILE* file;
   std::ostringstream stdoutstr;
 
-  if ((file = _popen(command.get().c_str(), "r")) == NULL) {
+  if ((file = _popen(command.get().c_str(), "r")) == nullptr) {
     return Error("Failed to run '" + command.get() + "'");
   }
 
   char line[1024];
   // NOTE(vinod): Ideally the if and while loops should be interchanged. But
   // we get a broken pipe error if we don't read the output and simply close.
-  while (fgets(line, sizeof(line), file) != NULL) {
+  while (fgets(line, sizeof(line), file) != nullptr) {
     stdoutstr << line;
   }
 
@@ -100,7 +100,7 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 inline int system(const std::string& command)
 {
   return ::_spawnlp(
-      _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str(), NULL);
+      _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str(), nullptr);
 }
 
 
@@ -113,12 +113,12 @@ inline int execlp(const char* file, T... t)
 
 // Concatenates multiple command-line arguments and escapes the values.
 // If `arg` is not specified (or takes the value `0`), the function will
-// scan `argv` until a `NULL` is encountered.
+// scan `argv` until a `nullptr` is encountered.
 inline std::string stringify_args(char** argv, unsigned long argc = 0)
 {
   std::string arg_line = "";
   unsigned long index = 0;
-  while ((argc == 0 || index < argc) && argv[index] != NULL) {
+  while ((argc == 0 || index < argc) && argv[index] != nullptr) {
     // TODO(dpravat): (MESOS-5522) Format these args for all cases.
     // Specifically, we need to:
     //   (1) Add double quotes around arguments that contain special

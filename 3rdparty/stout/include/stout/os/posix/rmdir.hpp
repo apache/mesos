@@ -43,7 +43,7 @@ inline Try<Nothing> rmdir(
       return ErrnoError();
     }
   } else {
-    // NOTE: `fts_open` will not always return `NULL` if the path does not
+    // NOTE: `fts_open` will not always return `nullptr` if the path does not
     // exist. We manually induce an error here to indicate that we can't remove
     // a directory that does not exist.
     if (!os::exists(directory)) {
@@ -51,17 +51,17 @@ inline Try<Nothing> rmdir(
       return ErrnoError();
     }
 
-    char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
+    char* paths[] = {const_cast<char*>(directory.c_str()), nullptr};
 
     // Using `FTS_PHYSICAL` here because we need `FTSENT` for the
     // symbolic link in the directory and not the target it links to.
-    FTS* tree = fts_open(paths, (FTS_NOCHDIR | FTS_PHYSICAL), NULL);
-    if (tree == NULL) {
+    FTS* tree = fts_open(paths, (FTS_NOCHDIR | FTS_PHYSICAL), nullptr);
+    if (tree == nullptr) {
       return ErrnoError();
     }
 
     FTSENT* node;
-    while ((node = fts_read(tree)) != NULL) {
+    while ((node = fts_read(tree)) != nullptr) {
       switch (node->fts_info) {
         case FTS_DP:
           // Don't remove the root of the traversal of `removeRoot`

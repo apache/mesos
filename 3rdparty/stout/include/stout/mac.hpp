@@ -141,7 +141,7 @@ inline Result<MAC> mac(const std::string& name)
 #if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
-  struct ifaddrs* ifaddr = NULL;
+  struct ifaddrs* ifaddr = nullptr;
   if (getifaddrs(&ifaddr) == -1) {
     return ErrnoError();
   }
@@ -149,12 +149,12 @@ inline Result<MAC> mac(const std::string& name)
   // Indicates whether the link device is found or not.
   bool found = false;
 
-  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != NULL && !strcmp(ifa->ifa_name, name.c_str())) {
+  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != nullptr && !strcmp(ifa->ifa_name, name.c_str())) {
       found = true;
 
 # if defined(__linux__)
-     if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_PACKET) {
+     if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == AF_PACKET) {
         struct sockaddr_ll* link = (struct sockaddr_ll*) ifa->ifa_addr;
 
         if (link->sll_halen == 6) {
@@ -172,7 +172,7 @@ inline Result<MAC> mac(const std::string& name)
         }
       }
 # elif defined(__APPLE__)
-      if (ifa->ifa_addr != NULL && ifa->ifa_addr->sa_family == AF_LINK) {
+      if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == AF_LINK) {
         struct sockaddr_dl* link = (struct sockaddr_dl*) ifa->ifa_addr;
 
         if (link->sdl_type == IFT_ETHER && link->sdl_alen == 6) {

@@ -189,14 +189,14 @@ inline Try<std::string> sysctl::string() const
 {
   // First determine the size of the string.
   size_t size = 0;
-  if (::sysctl(name, levels, NULL, &size, NULL, 0) == -1) {
+  if (::sysctl(name, levels, nullptr, &size, nullptr, 0) == -1) {
     return ErrnoError();
   }
 
   // Now read it.
   size_t length = size / sizeof(char);
   char* temp = new char[length];
-  if (::sysctl(name, levels, temp, &size, NULL, 0) == -1) {
+  if (::sysctl(name, levels, temp, &size, nullptr, 0) == -1) {
     Error error = ErrnoError();
     delete[] temp;
     return error;
@@ -219,7 +219,7 @@ inline Try<timeval> sysctl::time() const
 {
   timeval result;
   size_t size = sizeof(result);
-  if (::sysctl(name, levels, &result, &size, NULL, 0) == -1) {
+  if (::sysctl(name, levels, &result, &size, nullptr, 0) == -1) {
     return ErrnoError();
   }
   return result;
@@ -245,7 +245,7 @@ sysctl::Integer::operator Try<T>()
 {
   T i;
   size_t size = sizeof(i);
-  if (::sysctl(name, levels, &i, &size, NULL, 0) == -1) {
+  if (::sysctl(name, levels, &i, &size, nullptr, 0) == -1) {
     return ErrnoError();
   }
   return i;
@@ -267,7 +267,7 @@ sysctl::Table::operator Try<std::vector<T>>()
 {
   size_t size = 0;
   if (length.isNone()) {
-    if (::sysctl(name, levels, NULL, &size, NULL, 0) == -1) {
+    if (::sysctl(name, levels, nullptr, &size, nullptr, 0) == -1) {
       return ErrnoError();
     }
     if (size % sizeof(T) != 0) {
@@ -280,7 +280,7 @@ sysctl::Table::operator Try<std::vector<T>>()
 
   T* ts = new T[length.get()];
   size = length.get() * sizeof(T);
-  if (::sysctl(name, levels, ts, &size, NULL, 0) == -1) {
+  if (::sysctl(name, levels, ts, &size, nullptr, 0) == -1) {
     Error error = ErrnoError();
     delete[] ts;
     return error;

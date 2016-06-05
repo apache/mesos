@@ -59,7 +59,7 @@ inline Try<Nothing> nonblock(int fd)
 
     if (GetFileType(handle) == FILE_TYPE_PIPE) {
       DWORD pipe_mode = PIPE_NOWAIT;
-      if (SetNamedPipeHandleState(handle, &pipe_mode, NULL, NULL)) {
+      if (SetNamedPipeHandleState(handle, &pipe_mode, nullptr, nullptr)) {
         return WindowsError();
       }
     }

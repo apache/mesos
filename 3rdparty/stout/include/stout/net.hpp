@@ -102,7 +102,7 @@ inline Try<Bytes> contentLength(const std::string& url)
   initialize();
 
   CURL* curl = curl_easy_init();
-  if (curl == NULL) {
+  if (curl == nullptr) {
     curl_easy_cleanup(curl);
     return Error("Failed to initialize libcurl");
   }
@@ -149,18 +149,18 @@ inline Try<int> download(const std::string& url, const std::string& path)
 
   CURL* curl = curl_easy_init();
 
-  if (curl == NULL) {
+  if (curl == nullptr) {
     curl_easy_cleanup(curl);
     os::close(fd.get());
     return Error("Failed to initialize libcurl");
   }
 
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, nullptr);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
 
   FILE* file = fdopen(fd.get(), "w");
-  if (file == NULL) {
+  if (file == nullptr) {
     curl_easy_cleanup(curl);
     os::close(fd.get());
     return ErrnoError("Failed to open file handle of '" + path + "'");
@@ -234,9 +234,9 @@ inline Try<std::string> hostname()
 
   // TODO(evelinad): Add AF_UNSPEC when we will support IPv6.
   struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
-  struct addrinfo* result = NULL;
+  struct addrinfo* result = nullptr;
 
-  int error = getaddrinfo(host, NULL, &hints, &result);
+  int error = getaddrinfo(host, nullptr, &hints, &result);
 
   if (error != 0) {
     return Error(gai_strerror(error));
@@ -266,7 +266,7 @@ inline Try<std::string> getHostname(const IP& ip)
 #endif
       hostname,
       MAXHOSTNAMELEN,
-      NULL,
+      nullptr,
       0,
       0);
 
@@ -284,14 +284,14 @@ inline Try<std::set<std::string>> links()
 #if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
-  struct ifaddrs* ifaddr = NULL;
+  struct ifaddrs* ifaddr = nullptr;
   if (getifaddrs(&ifaddr) == -1) {
     return ErrnoError();
   }
 
   std::set<std::string> names;
-  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != NULL) {
+  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != nullptr) {
       names.insert(ifa->ifa_name);
     }
   }
@@ -307,15 +307,15 @@ inline Try<std::set<std::string>> links()
 inline Try<IP> getIP(const std::string& hostname, int family)
 {
   struct addrinfo hints = createAddrInfo(SOCK_STREAM, family, 0);
-  struct addrinfo* result = NULL;
+  struct addrinfo* result = nullptr;
 
-  int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
+  int error = getaddrinfo(hostname.c_str(), nullptr, &hints, &result);
 
   if (error != 0) {
     return Error(gai_strerror(error));
   }
 
-  if (result->ai_addr == NULL) {
+  if (result->ai_addr == nullptr) {
     freeaddrinfo(result);
     return Error("No addresses found");
   }

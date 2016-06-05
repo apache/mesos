@@ -57,7 +57,7 @@ inline Try<ssize_t, SocketError> sendfile(
   // On OS X, sendfile does not need to have SIGPIPE suppressed.
   off_t _length = static_cast<off_t>(length);
 
-  if (::sendfile(fd, s, offset, &_length, NULL, 0) < 0) {
+  if (::sendfile(fd, s, offset, &_length, nullptr, 0) < 0) {
     if (errno == EAGAIN && _length > 0) {
       return _length;
     }
@@ -69,7 +69,7 @@ inline Try<ssize_t, SocketError> sendfile(
   off_t _length = 0;
 
   SUPPRESS (SIGPIPE) {
-      if (::sendfile(fd, s, offset, length, NULL, &_length, 0) < 0) {
+      if (::sendfile(fd, s, offset, length, nullptr, &_length, 0) < 0) {
         if (errno == EAGAIN && length > 0) {
           return _length;
         }

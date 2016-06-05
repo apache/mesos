@@ -196,10 +196,10 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
       absolute_path.c_str(),
       GENERIC_READ,     // Open the file for reading only.
       FILE_SHARE_READ,  // Just reading this file, allow others to do the same.
-      NULL,             // Ignored.
+      nullptr,          // Ignored.
       OPEN_EXISTING,    // Open existing symlink.
-      access_flags,      // Open symlink, not the file it points to.
-      NULL);            // Ignored.
+      access_flags,     // Open symlink, not the file it points to.
+      nullptr);         // Ignored.
 
   if (handle == INVALID_HANDLE_VALUE) {
     return WindowsError(
@@ -246,12 +246,12 @@ inline Try<SymbolicLink> get_symbolic_link_data(const HANDLE handle)
   const BOOL reparse_data_obtained = ::DeviceIoControl(
       handle,                   // Handle to file or directory.
       FSCTL_GET_REPARSE_POINT,  // Gets reparse point data for file/folder.
-      NULL,                     // Ignored.
+      nullptr,                  // Ignored.
       0,                        // Ignored.
       reparse_point_data,
       reparse_point_data_size,
       &ignored,                 // Ignored.
-      NULL);                    // Ignored.
+      nullptr);                 // Ignored.
 
   if (!reparse_data_obtained) {
     return WindowsError(

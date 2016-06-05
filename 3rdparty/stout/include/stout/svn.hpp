@@ -77,7 +77,7 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
 
   // Note that svn_pool_create wraps apr_pool_create_ex, which is
   // thread safe, see: http://goo.gl/NX0hps.
-  apr_pool_t* pool = svn_pool_create(NULL);
+  apr_pool_t* pool = svn_pool_create(nullptr);
 
   // First we need to produce a text delta stream by diffing 'source'
   // against 'target'.
@@ -110,7 +110,7 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   // format based diff. Setup the handler that will consume the text
   // delta and produce the svndiff.
   svn_txdelta_window_handler_t handler;
-  void* baton = NULL;
+  void* baton = nullptr;
   svn_stringbuf_t* diff = svn_stringbuf_create_ensure(1024, pool);
 
 #if SVN_VER_MAJOR >= 1 && SVN_VER_MINOR >= 7
@@ -139,7 +139,7 @@ inline Try<Diff> diff(const std::string& from, const std::string& to)
   // Now feed the text delta to the handler.
   svn_error_t* error = svn_txdelta_send_txstream(delta, handler, baton, pool);
 
-  if (error != NULL) {
+  if (error != nullptr) {
     char buffer[1024];
     std::string message(svn_err_best_message(error, buffer, 1024));
     svn_pool_destroy(pool);
@@ -162,7 +162,7 @@ inline Try<std::string> patch(const std::string& s, const Diff& diff)
 
   // Note that svn_pool_create wraps apr_pool_create_ex, which is
   // thread safe, see: http://goo.gl/NX0hps.
-  apr_pool_t* pool = svn_pool_create(NULL);
+  apr_pool_t* pool = svn_pool_create(nullptr);
 
   // We want to apply the svndiff format diff to the source trying to
   // produce a result. First setup a handler for applying a text delta
@@ -172,15 +172,15 @@ inline Try<std::string> patch(const std::string& s, const Diff& diff)
   source.len = s.length();
 
   svn_txdelta_window_handler_t handler;
-  void* baton = NULL;
+  void* baton = nullptr;
 
   svn_stringbuf_t* patched = svn_stringbuf_create_ensure(s.length(), pool);
 
   svn_txdelta_apply(
       svn_stream_from_string(&source, pool),
       svn_stream_from_stringbuf(patched, pool),
-      NULL,
-      NULL,
+      nullptr,
+      nullptr,
       pool,
       &handler,
       &baton);
@@ -199,7 +199,7 @@ inline Try<std::string> patch(const std::string& s, const Diff& diff)
 
   svn_error_t* error = svn_stream_write(stream, data, &length);
 
-  if (error != NULL) {
+  if (error != nullptr) {
     char buffer[1024];
     std::string message(svn_err_best_message(error, buffer, 1024));
     svn_pool_destroy(pool);

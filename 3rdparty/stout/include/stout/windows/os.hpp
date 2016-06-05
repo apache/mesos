@@ -59,7 +59,7 @@ inline Try<std::string> nodename()
   // Get DNS name of the local computer. First, find the size of the output
   // buffer.
   DWORD size = 0;
-  if (!::GetComputerNameEx(ComputerNameDnsHostname, NULL, &size) &&
+  if (!::GetComputerNameEx(ComputerNameDnsHostname, nullptr, &size) &&
       ::GetLastError() != ERROR_MORE_DATA) {
     return WindowsError(
         "os::internal::nodename: Call to `GetComputerNameEx` failed");
@@ -185,7 +185,7 @@ inline void setenv(
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms683188(v=vs.85).aspx
   if (!overwrite &&
-      ::GetEnvironmentVariable(key.c_str(), NULL, 0) != 0 &&
+      ::GetEnvironmentVariable(key.c_str(), nullptr, 0) != 0 &&
       ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
     return;
   }
@@ -199,9 +199,9 @@ inline void setenv(
 // environment variables.
 inline void unsetenv(const std::string& key)
 {
-  // Per MSDN documentation[1], passing `NULL` as the value will cause
+  // Per MSDN documentation[1], passing `nullptr` as the value will cause
   // `SetEnvironmentVariable` to delete the key from the process's environment.
-  ::SetEnvironmentVariable(key.c_str(), NULL);
+  ::SetEnvironmentVariable(key.c_str(), nullptr);
 }
 
 
@@ -267,7 +267,7 @@ inline Result<pid_t> waitpid(long pid, int* status, int options)
       FALSE,
       static_cast<DWORD>(pid));
 
-  if (process == NULL) {
+  if (process == nullptr) {
     return WindowsError("os::waitpid: Failed to open process for pid '" +
                         stringify(pid) + "'");
   }
@@ -313,7 +313,7 @@ inline Result<pid_t> waitpid(long pid, int* status, int options)
   }
 
   // Attempt to retrieve exit code from child process. Store that exit code in
-  // the `status` variable if it's `NULL`.
+  // the `status` variable if it's `nullptr`.
   DWORD child_exit_code = 0;
   if (!::GetExitCodeProcess(scoped_process.get(), &child_exit_code)) {
     errno = ECHILD;
@@ -322,7 +322,7 @@ inline Result<pid_t> waitpid(long pid, int* status, int options)
         std::to_string(pid) + "', but could not retrieve exit code");
   }
 
-  if (status != NULL) {
+  if (status != nullptr) {
     *status = child_exit_code;
   }
 
@@ -345,12 +345,12 @@ inline std::string hstrerror(int err)
     case WSATRY_AGAIN: {
       format_error = ::FormatMessage(
           FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-          NULL,
+          nullptr,
           err,
           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
           buffer,
           sizeof(buffer),
-          NULL);
+          nullptr);
       break;
     }
     default: {
@@ -495,7 +495,7 @@ inline Try<UTSInfo> uname()
 // variable matching key is found, None() is returned.
 inline Option<std::string> getenv(const std::string& key)
 {
-  DWORD buffer_size = ::GetEnvironmentVariable(key.c_str(), NULL, 0);
+  DWORD buffer_size = ::GetEnvironmentVariable(key.c_str(), nullptr, 0);
   if (buffer_size == 0) {
     return None();
   }
@@ -518,14 +518,14 @@ inline Option<std::string> getenv(const std::string& key)
 
 inline tm* gmtime_r(const time_t* timep, tm* result)
 {
-  return ::gmtime_s(result, timep) == ERROR_SUCCESS ? result : NULL;
+  return ::gmtime_s(result, timep) == ERROR_SUCCESS ? result : nullptr;
 }
 
 
 inline Result<PROCESSENTRY32> process_entry(pid_t pid)
 {
   // Get a snapshot of the processes in the system. NOTE: We should not check
-  // whether the handle is `NULL`, because this API will always return
+  // whether the handle is `nullptr`, because this API will always return
   // `INVALID_HANDLE_VALUE` on error.
   HANDLE snapshot_handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, pid);
   if (snapshot_handle == INVALID_HANDLE_VALUE) {
@@ -686,9 +686,9 @@ inline Try<HANDLE> create_job(pid_t pid)
 
   SharedHandle safe_process_handle(process_handle, ::CloseHandle);
 
-  HANDLE job_handle = ::CreateJobObject(NULL, alpha_pid.get().c_str());
+  HANDLE job_handle = ::CreateJobObject(nullptr, alpha_pid.get().c_str());
 
-  if (job_handle == NULL) {
+  if (job_handle == nullptr) {
     return WindowsError("os::create_job: Call to `CreateJobObject` failed");
   }
 
@@ -732,7 +732,7 @@ inline Try<Nothing> kill_job(pid_t pid)
       FALSE,
       alpha_pid.get().c_str());
 
-  if (job_handle == NULL) {
+  if (job_handle == nullptr) {
     return WindowsError("os::kill_job: Call to `OpenJobObject` failed");
   }
 
@@ -774,7 +774,7 @@ inline Try<Nothing> pipe(int pipe[2])
   SECURITY_ATTRIBUTES securityAttr;
   securityAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
   securityAttr.bInheritHandle = TRUE;
-  securityAttr.lpSecurityDescriptor = NULL;
+  securityAttr.lpSecurityDescriptor = nullptr;
 
   HANDLE read_handle;
   HANDLE write_handle;
