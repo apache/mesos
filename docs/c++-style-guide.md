@@ -294,6 +294,7 @@ Example for `src/common/foo.cpp`:
 
 We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of supported C++11 features is:
 
+* `nullptr`
 * Static assertions.
 * Multiple right angle brackets.
 * Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right. Here are several examples:
