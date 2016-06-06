@@ -534,6 +534,7 @@ Try<Nothing> createStandardDevices(const string& root)
   }
 
   vector<SymLink> symlinks = {
+    {"/proc/self/fd",   path::join(root, "dev", "fd")},
     {"/proc/self/fd/0", path::join(root, "dev", "stdin")},
     {"/proc/self/fd/1", path::join(root, "dev", "stdout")},
     {"/proc/self/fd/2", path::join(root, "dev", "stderr")},
