@@ -384,6 +384,16 @@ volumes:
   reservation (via `Offer::Operation::Reserve`) and create a new persistent
   volume on those newly reserved resources (via `Offer::Operation::Create`).
 
+* Volume IDs must be unique per role on each agent. However, it is strongly
+  recommended that frameworks use globally unique volume IDs, to avoid potential
+  confusion between volumes on different agents that use the same volume
+  ID. Note also that the agent ID where a volume resides might change over
+  time. For example, suppose a volume is created on an agent and then the
+  agent's host machine is rebooted. When the agent registers with Mesos after
+  the reboot, it will be assigned a new AgentID---but it will retain the same
+  volume it had previouly. Hence, frameworks should not assume that using the
+  pair <AgentID, VolumeID> is a stable way to identify a volume in a cluster.
+
 * Attempts to dynamically reserve resources or create persistent volumes might
   fail---for example, because the network message containing the operation did
   not reach the master or because the master rejected the operation.
