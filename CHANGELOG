@@ -537,6 +537,15 @@ All Issues:
     * [MESOS-5512] - Implement GET_LOGGING_LEVEL Call in v1 agent API.
 
 
+Release Notes - Mesos - Version 0.28.3
+--------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+  * [MESOS-5543] - /dev/fd is missing in the Mesos containerizer environment.
+
+
 Release Notes - Mesos - Version 0.28.2
 --------------------------------------
 * This is a bug fix release.
