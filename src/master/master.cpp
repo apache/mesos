@@ -406,7 +406,7 @@ void Master::initialize()
   if (!strings::endsWith(flags.recovery_agent_removal_limit, "%")) {
     EXIT(EXIT_FAILURE)
       << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
-      << " for --recovery_slave_removal_percent_limit: " << "missing '%'";
+      << " for --recovery_agent_removal_percent_limit: " << "missing '%'";
   }
 
   Try<double> limit = numify<double>(
@@ -418,13 +418,13 @@ void Master::initialize()
   if (limit.isError()) {
     EXIT(EXIT_FAILURE)
       << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
-      << " for --recovery_slave_removal_percent_limit: " << limit.error();
+      << " for --recovery_agent_removal_percent_limit: " << limit.error();
   }
 
   if (limit.get() < 0.0 || limit.get() > 100.0) {
     EXIT(EXIT_FAILURE)
       << "Invalid value '" << flags.recovery_agent_removal_limit << "'"
-      << " for --recovery_slave_removal_percent_limit:"
+      << " for --recovery_agent_removal_percent_limit:"
       << " Must be within [0%-100%]";
   }
 
