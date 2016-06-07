@@ -54,8 +54,6 @@ using std::string;
 using std::vector;
 
 
-Nothing _nothing() { return Nothing(); }
-
 template <typename T>
 static Future<T> failure(
     const string& cmd,
