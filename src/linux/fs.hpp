@@ -163,6 +163,14 @@ Try<bool> supported();
 } // namespace overlay {
 
 
+namespace aufs {
+
+// Check if aufs is supported.
+Try<bool> supported();
+
+} // namespace aufs {
+
+
 // TODO(idownes): These different variations of mount information
 // should be consolidated and moved to stout, along with mount and
 // umount.

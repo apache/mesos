@@ -89,6 +89,19 @@ Try<bool> overlay::supported()
 }
 
 
+Try<bool> aufs::supported()
+{
+  Try<bool> aufs = fs::supported("aufs");
+  if (aufs.isError()) {
+    return Error(aufs.error());
+  } else if (aufs.get() == true) {
+    return true;
+  }
+
+  return false;
+}
+
+
 Try<MountInfoTable> MountInfoTable::read(const Option<pid_t>& pid)
 {
   MountInfoTable table;
