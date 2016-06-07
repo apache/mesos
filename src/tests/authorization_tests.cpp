@@ -2102,6 +2102,55 @@ TYPED_TEST(AuthorizationTest, ViewExecutor)
   }
 }
 
+
+// This tests that a missing request.object is allowed for an ACL whose
+// Object is ANY.
+// NOTE: The only usecase for this behavior is currently teardownFramework.
+TYPED_TEST(AuthorizationTest, OptionalObject)
+{
+    // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can tardown `ANY` framework
+    mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_framework_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // No other principal can teardown any framework.
+    mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_framework_principals()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Check that principal "foo" can teardown any framework (i.e., a request with
+  // missing object).
+  {
+    authorization::Request request;
+    request.set_action(authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" cannot teardown any framework (i.e., a request
+  // with missing object).
+  {
+    authorization::Request request;
+    request.set_action(authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
