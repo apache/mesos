@@ -226,34 +226,31 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
 
 
 // This test tests parsing docker version output.
-TEST_F(DockerTest, ROOT_DOCKER_parsing_version)
+TEST_F(DockerTest, ROOT_DOCKER_Version)
 {
-  Owned<Docker> docker1 = Docker::create(
+  Try<Owned<Docker>> docker = Docker::create(
       "echo Docker version 1.7.1, build",
       tests::flags.docker_socket,
-      false).get();
+      false);
+  ASSERT_SOME(docker);
 
-  Future<Version> version1 = docker1->version();
-  AWAIT_READY(version1);
-  EXPECT_EQ(Version::parse("1.7.1").get(), version1.get());
+  AWAIT_EXPECT_EQ(Version(1, 7, 1), docker.get()->version());
 
-  Owned<Docker> docker2 = Docker::create(
+  docker = Docker::create(
       "echo Docker version 1.7.1.fc22, build",
       tests::flags.docker_socket,
-      false).get();
+      false);
+  ASSERT_SOME(docker);
 
-  Future<Version> version2 = docker2->version();
-  AWAIT_READY(version2);
-  EXPECT_EQ(Version::parse("1.7.1").get(), version2.get());
+  AWAIT_EXPECT_EQ(Version(1, 7, 1), docker.get()->version());
 
-  Owned<Docker> docker3 = Docker::create(
+  docker = Docker::create(
       "echo Docker version 1.7.1-fc22, build",
       tests::flags.docker_socket,
-      false).get();
+      false);
+  ASSERT_SOME(docker);
 
-  Future<Version> version3 = docker3->version();
-  AWAIT_READY(version3);
-  EXPECT_EQ(Version::parse("1.7.1").get(), version3.get());
+  AWAIT_EXPECT_EQ(Version(1, 7, 1), docker.get()->version());
 }
 
 
