@@ -147,7 +147,7 @@ Future<Version> Docker::version() const
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Failure(s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   return s.get().status()
@@ -692,7 +692,7 @@ Future<Nothing> Docker::run(
       environment);
 
   if (s.isError()) {
-    return Failure(s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   // We don't call checkError here to avoid printing the stderr
@@ -741,7 +741,7 @@ Future<Nothing> Docker::stop(
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Failure(s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   return s.get().status()
@@ -790,7 +790,7 @@ Future<Nothing> Docker::rm(
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Failure(s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   return checkError(cmd, s.get());
@@ -829,7 +829,7 @@ void Docker::_inspect(
       Subprocess::PIPE());
 
   if (s.isError()) {
-    promise->fail(s.error());
+    promise->fail("Failed to create subprocess '" + cmd + "': " + s.error());
     return;
   }
 
@@ -948,7 +948,7 @@ Future<list<Docker::Container>> Docker::ps(
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Failure(s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   // Start reading from stdout so writing to the pipe won't block
@@ -1119,7 +1119,7 @@ Future<Docker::Image> Docker::pull(
       None());
 
   if (s.isError()) {
-    return Failure("Failed to execute '" + cmd + "': " + s.error());
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
   // Start reading from stdout so writing to the pipe won't block
