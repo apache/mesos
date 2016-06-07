@@ -89,7 +89,7 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   }
 
   Try<string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  ASSERT_SOME(directory);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -331,7 +331,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
   resources = Resources::parse("ports:[9998-9999];ports:[10000-11000]").get();
 
   Try<string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  ASSERT_SOME(directory);
 
   run = docker->run(
       containerInfo,
@@ -365,8 +365,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
       false).get();
 
   Try<string> directory = environment->mkdtemp();
-
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  ASSERT_SOME(directory);
 
   // Assume that pulling the very large image 'lingmann/1gb' will take
   // sufficiently long that we can start it and discard (i.e., cancel
@@ -407,7 +406,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
   commandInfo.set_value("ls /tmp/test_file");
 
   Try<string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  ASSERT_SOME(directory);
 
   const string testFile = path::join(directory.get(), "test_file");
   EXPECT_SOME(os::write(testFile, "data"));
@@ -436,7 +435,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   Try<string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
+  ASSERT_SOME(directory);
 
   const string testFile = path::join(directory.get(), "test_file");
   EXPECT_SOME(os::write(testFile, "data"));
