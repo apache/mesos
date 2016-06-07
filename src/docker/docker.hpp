@@ -148,6 +148,11 @@ public:
       const Duration& timeout = Seconds(0),
       bool remove = false) const;
 
+  // Performs 'docker kill --signal=<signal> CONTAINER'.
+  virtual process::Future<Nothing> kill(
+      const std::string& containerName,
+      int signal) const;
+
   // Performs 'docker rm (-f) CONTAINER'.
   virtual process::Future<Nothing> rm(
       const std::string& containerName,

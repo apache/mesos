@@ -764,6 +764,30 @@ Future<Nothing> Docker::_stop(
 }
 
 
+Future<Nothing> Docker::kill(
+    const string& containerName,
+    int signal) const
+{
+  const string cmd =
+    path + " -H " + socket +
+    " kill --signal=" + stringify(signal) + " " + containerName;
+
+  VLOG(1) << "Running " << cmd;
+
+  Try<Subprocess> s = subprocess(
+      cmd,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
+  }
+
+  return checkError(cmd, s.get());
+}
+
+
 Future<Nothing> Docker::rm(
     const string& containerName,
     bool force) const

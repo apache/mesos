@@ -235,6 +235,60 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
 }
 
 
+// This tests our 'docker kill' wrapper.
+TEST_F(DockerTest, ROOT_DOCKER_kill)
+{
+  const string containerName = NAME_PREFIX + "-test";
+  Resources resources = Resources::parse("cpus:1;mem:512").get();
+
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_value("sleep 120");
+
+  // Start the container, kill it, and expect it to terminate.
+  Future<Option<int>> run = docker->run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources);
+
+  // Note that we cannot issue the kill until we know that the
+  // run has been processed. We check for this by waiting for
+  // a successful 'inspect' result.
+  Future<Docker::Container> inspect =
+    docker->inspect(containerName, Milliseconds(10));
+
+  AWAIT_READY(inspect);
+
+  Future<Nothing> kill = docker->kill(
+      containerName,
+      SIGKILL);
+
+  AWAIT_READY(kill);
+
+  AWAIT_READY(run);
+  ASSERT_SOME(run.get());
+  EXPECT_TRUE(WIFEXITED(run->get())) << run->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(run->get())) << run->get();
+}
+
+
 // This test tests parsing docker version output.
 TEST_F(DockerTest, ROOT_DOCKER_Version)
 {
