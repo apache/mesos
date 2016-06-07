@@ -35,6 +35,12 @@ This release contains the following new features:
     and/or large objects (which need to be copied using request based
     authorization). NOTE: This is a **breaking change** for authorizer modules.
 
+  * [MESOS-5405] - The `subject` and `object` fields in authorization::Request
+    have been changed from required to optional. If either of these fields is
+    not set, the request should only be authorized if any subject/object should
+    be allowed.
+    NOTE: This is a semantic change for authorizer modules.
+
   * [MESOS-4931] - Authorization based HTTP endpoint filtering enables operators
     to restrict what part of the cluster state a user is authorized to see.
     Consider for example the `/state` master endpoint: an operator can now
