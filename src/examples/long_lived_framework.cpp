@@ -177,10 +177,10 @@ protected:
 
       switch (event.type()) {
         case Event::SUBSCRIBED: {
-          LOG(INFO) << "Subscribed with ID '" << framework.id();
-
           framework.mutable_id()->
             CopyFrom(event.subscribed().framework_id());
+
+          LOG(INFO) << "Subscribed with ID '" << framework.id() << "'";
 
           state = SUBSCRIBED;
           break;
