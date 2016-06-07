@@ -61,8 +61,8 @@ static Future<T> failure(
     const string& err)
 {
   return Failure(
-      "Failed to '" + cmd + "': exit status = " +
-      WSTRINGIFY(status) + " stderr = " + err);
+      "Failed to run '" + cmd + "': " + WSTRINGIFY(status) +
+      "; stderr='" + err + "'");
 }
 
 
