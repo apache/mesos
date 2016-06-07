@@ -39,6 +39,8 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "logging/logging.hpp"
 
 using namespace process;
@@ -653,7 +655,10 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 {
   CHECK_EQ(state, READY);
 
-  string path = path::join(znode, zkBasename(membership));
+  string path = path::join(
+      znode,
+      zkBasename(membership),
+      os::POSIX_PATH_SEPARATOR);
 
   LOG(INFO) << "Trying to remove '" << path << "' in ZooKeeper";
 
@@ -693,7 +698,10 @@ Result<Option<string>> GroupProcess::doData(
 {
   CHECK_EQ(state, READY);
 
-  string path = path::join(znode, zkBasename(membership));
+  string path = path::join(
+      znode,
+      zkBasename(membership),
+      os::POSIX_PATH_SEPARATOR);
 
   LOG(INFO) << "Trying to get '" << path << "' in ZooKeeper";
 

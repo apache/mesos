@@ -46,8 +46,11 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
   hashmap<string, Creator> creators;
   creators.put("curl", lambda::bind(&CurlFetcherPlugin::create, flags));
   creators.put("file", lambda::bind(&CopyFetcherPlugin::create, flags));
+#ifndef __WINDOWS__
+  // TODO(dpravat): Enable `Hadoop` and `Docker` plugins. See MESOS-5473.
   creators.put("hadoop", lambda::bind(&HadoopFetcherPlugin::create, flags));
   creators.put("docker", lambda::bind(&DockerFetcherPlugin::create, flags));
+#endif // __WINDOWS__
 
   hashmap<string, Owned<Fetcher::Plugin>> plugins;
 

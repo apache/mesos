@@ -103,6 +103,7 @@ inline void handler(int signal, siginfo_t *siginfo, void *context)
 }
 #endif // __WINDOWS__
 
+
 google::LogSeverity getLogSeverity(const string& logging_level)
 {
   if (logging_level == "INFO") {
@@ -199,7 +200,7 @@ void initialize(
     (flags.log_dir.isSome() ? flags.log_dir.get() : "STDERR");
 
   if (installFailureSignalHandler) {
-    // glog on Windows does not support `InstallFailureSignalHandler`.
+  // glog on Windows does not support `InstallFailureSignalHandler`.
 #ifndef __WINDOWS__
     // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
     // by default.
@@ -212,6 +213,13 @@ void initialize(
     // [1] https://msdn.microsoft.com/en-us/library/xdkz3x12.aspx
 
     // Set up our custom signal handlers.
+    //
+    // NOTE: The code below sets the SIGTERM signal handler to the `handle`
+    // function declared above. While this is useful on POSIX systems, SIGTERM
+    // is generated and handled differently on Windows[1], so this code would
+    // not work.
+    //
+    // [1] https://msdn.microsoft.com/en-us/library/xdkz3x12.aspx
     struct sigaction action;
     action.sa_sigaction = handler;
 

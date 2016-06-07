@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <sys/wait.h>
+#endif // __WINDOWS__
 
 #include <string>
 #include <tuple>

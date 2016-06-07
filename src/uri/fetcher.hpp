@@ -39,9 +39,14 @@ namespace fetcher {
  */
 class Flags :
   public CopyFetcherPlugin::Flags,
+#ifdef __WINDOWS__
+  // TODO(dpravat): Add support for Hadoop and Docker plugins. See MESOS-5473.
+  public CurlFetcherPlugin::Flags {};
+#else
   public CurlFetcherPlugin::Flags,
   public HadoopFetcherPlugin::Flags,
   public DockerFetcherPlugin::Flags {};
+#endif // __WINDOWS__
 
 
 /**

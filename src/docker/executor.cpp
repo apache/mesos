@@ -35,6 +35,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/killtree.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"

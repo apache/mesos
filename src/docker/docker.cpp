@@ -22,6 +22,7 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
 
 #include <process/check.hpp>
@@ -447,8 +448,8 @@ Future<Nothing> Docker::run(
     const string& mappedDirectory,
     const Option<Resources>& resources,
     const Option<map<string, string>>& env,
-    const process::Subprocess::IO& stdout,
-    const process::Subprocess::IO& stderr) const
+    const process::Subprocess::IO& _stdout,
+    const process::Subprocess::IO& _stderr) const
 {
   if (!containerInfo.has_docker()) {
     return Failure("No docker info found in container info");
@@ -686,8 +687,8 @@ Future<Nothing> Docker::run(
       path,
       argv,
       Subprocess::PATH("/dev/null"),
-      stdout,
-      stderr,
+      _stdout,
+      _stderr,
       NO_SETSID,
       None(),
       environment);
