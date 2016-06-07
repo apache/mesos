@@ -298,7 +298,7 @@ const string FilesProcess::BROWSE_HELP = HELP(
         ">        path=VALUE          The path of directory to browse."),
     AUTHENTICATION(true),
     AUTHORIZATION(
-        "Browsing files requires that the request principal is ",
+        "Browsing files requires that the request principal is",
         "authorized to do so for the target virtual file path.",
         "",
         "Authorizers may categorize different virtual paths into",
@@ -421,7 +421,7 @@ const string FilesProcess::READ_HELP = HELP(
         ">        length=VALUE        Length of file to read."),
     AUTHENTICATION(true),
     AUTHORIZATION(
-        "Reading files requires that the request principal is ",
+        "Reading files requires that the request principal is",
         "authorized to do so for the target virtual file path.",
         "",
         "Authorizers may categorize different virtual paths into",
@@ -606,7 +606,7 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
         ">        path=VALUE          The path of directory to browse."),
     AUTHENTICATION(true),
     AUTHORIZATION(
-        "Downloading files requires that the request principal is ",
+        "Downloading files requires that the request principal is",
         "authorized to do so for the target virtual file path.",
         "",
         "Authorizers may categorize different virtual paths into",
