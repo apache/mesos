@@ -31,6 +31,7 @@ website svn source code tree in the command below and run it.
 ```
 sudo docker run -it --rm \
     -p 4567:4567 \
+    -p 35729:35729 \
     -v <path-to-mesos-source>:/mesos \
     -v <path-to-mesos-website-svn-source>/publish:/mesos/site/publish \
     mesos/website
@@ -42,6 +43,7 @@ could run the command below under the root of Mesos source code instead.
 ```
 sudo docker run -it --rm \
     -p 4567:4567 \
+    -p 35729:35729 \
     -v `pwd`:/mesos \
     mesos/website
 ```
@@ -56,7 +58,7 @@ If you are running the container on a remote machine and need to tunnel it to
 localhost, you can run the following command to make the site available locally:
 
 ```
-ssh -NT -L 4567:localhost:4567 <remote-machine>
+ssh -NT -L 4567:localhost:4567 -L 35729:localhost:35729 <remote-machine>
 ```
 
 The generation includes `doxygen` and `javadoc` as well. We could check out them
