@@ -607,9 +607,9 @@ The `authorization::Request` message is defined in authorizer.proto:
 
 ```protoc
 message Request {
-  required Subject subject = 1;
+  optional Subject subject = 1;
   optional Action  action  = 2;
-  required Object  object  = 3;
+  optional Object  object  = 3;
 }
 
 message Subject {
@@ -625,12 +625,15 @@ message Object {
 }
 ```
 
-`Object` has several optional fields of which also several can be set (e.g., the `view_executors` action expects the `executor_info` and `framework_info` to be set).
-The `value` field for both `Subject` and `Object` is optional; if it isn't set,
-then the `Subject` or `Object` will only match an ACL with ANY or NONE in the
-corresponding location (for actions expecting `value` to be set). This allows users to construct the following requests:
+`Subject` or `Object` are optional fiels; if they are not set they
+will only match an ACL with ANY or NONE in the
+corresponding location. This allows users to construct the following requests:
 _Can everybody perform action **A** on object **O**?_, or _Can principal **Z**
 execute action **X** on all objects?_.
+
+`Object` has several optional fields of which, depending on the action,
+one or more fields must be set
+(e.g., the `view_executors` action expects the `executor_info` and `framework_info` to be set).
 
 The `action` field of the `Request` message is an enum. It is kept optional —
 even though a valid action is necessary for every request — to allow for
