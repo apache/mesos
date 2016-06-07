@@ -200,6 +200,57 @@ TEST_F(CopyBackendTest, ROOT_CopyBackend)
   EXPECT_FALSE(os::exists(rootfs));
 }
 
+
+class AufsBackendTest : public MountBackendTest {};
+
+
+// Provision a rootfs using multiple layers with the aufs backend.
+TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackend)
+{
+  string layer1 = path::join(os::getcwd(), "source1");
+  ASSERT_SOME(os::mkdir(layer1));
+  ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
+  ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
+  ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
+
+  string layer2 = path::join(os::getcwd(), "source2");
+  ASSERT_SOME(os::mkdir(layer2));
+  ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
+  ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
+  ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
+
+  string rootfs = path::join(os::getcwd(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains("aufs"));
+
+  AWAIT_READY(backends["aufs"]->provision(
+      {layer1, layer2},
+      rootfs,
+      sandbox.get()));
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir1", "1")));
+  EXPECT_SOME_EQ("1", os::read(path::join(rootfs, "dir1", "1")));
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir2", "2")));
+  EXPECT_SOME_EQ("2", os::read(path::join(rootfs, "dir2", "2")));
+
+  // Last layer should overwrite existing file of earlier layers.
+  EXPECT_TRUE(os::exists(path::join(rootfs, "file")));
+  EXPECT_SOME_EQ("test2", os::read(path::join(rootfs, "file")));
+
+  // Rootfs should be writable.
+  ASSERT_SOME(os::write(path::join(rootfs, "file"), "test3"));
+
+  // Files created in rootfs should shadow the files of lower dirs.
+  EXPECT_SOME_EQ("test3", os::read(path::join(rootfs, "file")));
+  EXPECT_SOME_EQ("test2", os::read(path::join(layer2, "file")));
+
+  AWAIT_READY(backends["aufs"]->destroy(rootfs));
+
+  EXPECT_FALSE(os::exists(rootfs));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

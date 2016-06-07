@@ -517,6 +517,18 @@ public:
 };
 
 
+class AufsFilter : public SupportedFilesystemTestFilter
+{
+public:
+  AufsFilter() : SupportedFilesystemTestFilter("aufs") {}
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return fsSupportError.isSome() && matches(test, "AUFS_");
+  }
+};
+
+
 class OverlayFSFilter : public SupportedFilesystemTestFilter
 {
 public:
@@ -738,6 +750,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 
   vector<Owned<TestFilter> > filters;
 
+  filters.push_back(Owned<TestFilter>(new AufsFilter()));
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
   filters.push_back(Owned<TestFilter>(new CfsFilter()));
   filters.push_back(Owned<TestFilter>(new CgroupsFilter()));
