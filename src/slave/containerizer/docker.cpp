@@ -1221,7 +1221,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     // Start the executor in a Docker container.
     // This executor could either be a custom executor specified by an
     // ExecutorInfo, or the docker executor.
-    Future<Nothing> run = docker->run(
+    Future<Option<int>> run = docker->run(
         container->container,
         container->command,
         containerName,
@@ -1232,23 +1232,42 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         subprocessInfo.out,
         subprocessInfo.err);
 
-    Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
-    // We like to propogate the run failure when run fails so slave can
-    // send this failure back to the scheduler. Otherwise we return
-    // inspect's result or its failure, which should not fail when
-    // the container isn't launched.
-    Future<Docker::Container> inspect =
-      docker->inspect(containerName, slave::DOCKER_INSPECT_DELAY)
-        .onAny([=](Future<Docker::Container> f) {
-            // We cannot associate the promise outside of the callback
-            // because we like to propagate run's failure when
-            // available.
-            promise->associate(f);
-        });
+    // It's possible that 'run' terminates before we're able to
+    // obtain an 'inspect' result. It's also possible that 'run'
+    // fails in such a manner that we will never see the container
+    // via 'inspect'. In these cases we discard the 'inspect' and
+    // propagate a failure back.
 
-    run.onFailed([=](const string& failure) mutable {
-      inspect.discard();
-      promise->fail(failure);
+    auto promise = std::make_shared<Promise<Docker::Container>>();
+
+    Future<Docker::Container> inspect =
+      docker->inspect(containerName, slave::DOCKER_INSPECT_DELAY);
+
+    inspect
+      .onAny([=](Future<Docker::Container> container) {
+        promise->associate(container);
+      });
+
+    run.onAny([=]() mutable {
+      if (!run.isReady()) {
+        inspect.discard();
+        promise->fail(run.isFailed() ? run.failure() : "discarded");
+      } else if (run->isNone()) {
+        inspect.discard();
+        promise->fail("Failed to obtain exit status of container");
+      } else {
+        bool exitedCleanly =
+          WIFEXITED(run->get()) &&
+          WEXITSTATUS(run->get()) == 0;
+
+        if (!exitedCleanly) {
+          inspect.discard();
+          promise->fail("Container " + WSTRINGIFY(run->get()));
+        }
+
+        // TODO(bmahler): Handle the case where the 'run' exits
+        // cleanly but no 'inspect' result is available.
+      }
     });
 
     return promise->future();

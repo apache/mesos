@@ -166,10 +166,13 @@ public:
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO));
 
-    run->onAny(defer(self(), &Self::reaped, driver, lambda::_1));
+    run->onAny(defer(self(), &Self::reaped, lambda::_1));
 
     // Delay sending TASK_RUNNING status update until we receive
-    // inspect output.
+    // inspect output. Note that we store a future that completes
+    // after the sending of the running update. This allows us to
+    // ensure that the terminal update is sent after the running
+    // update (see `reaped()`).
     inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
       .then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
@@ -337,61 +340,84 @@ private:
     }
   }
 
-  void reaped(
-      ExecutorDriver* _driver,
-      const Future<Nothing>& run)
+  void reaped(const Future<Option<int>>& run)
   {
-    // Wait for docker->stop to finish, and best effort wait for the
-    // inspect future to complete with a timeout.
-    stop.onAny(defer(self(), [=](const Future<Nothing>&) {
-      inspect
-        .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
-          inspect.discard();
-          return inspect;
-        })
-        .onAny(defer(self(), [=](const Future<Nothing>&) {
-          CHECK_SOME(driver);
+    terminated = true;
 
-          terminated = true;
+    // In case the stop is stuck, discard it.
+    stop.discard();
 
-          TaskState state;
-          string message;
-          if (!stop.isReady()) {
-            state = TASK_FAILED;
-            message = "Unable to stop docker container, error: " +
-                      (stop.isFailed() ? stop.failure() : "future discarded");
-          } else if (killed) {
-            state = TASK_KILLED;
-          } else if (!run.isReady()) {
-            state = TASK_FAILED;
-            message = "Docker container run error: " +
-                      (run.isFailed() ?
-                       run.failure() : "future discarded");
-          } else {
-            state = TASK_FINISHED;
-          }
+    // We wait for inspect to finish in order to ensure we send
+    // the TASK_RUNNING status update.
+    inspect
+      .onAny(defer(self(), &Self::_reaped, run));
 
-          CHECK_SOME(taskId);
+    // If the inspect takes too long we discard it to ensure we
+    // don't wait forever, however in this case there may be no
+    // TASK_RUNNING update.
+    inspect
+      .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
+        inspect.discard();
+        return inspect;
+      });
+  }
 
-          TaskStatus taskStatus;
-          taskStatus.mutable_task_id()->CopyFrom(taskId.get());
-          taskStatus.set_state(state);
-          taskStatus.set_message(message);
-          if (killed && killedByHealthCheck) {
-            taskStatus.set_healthy(false);
-          }
+  void _reaped(const Future<Option<int>>& run)
+  {
+    TaskState state;
+    string message;
 
-          driver.get()->sendStatusUpdate(taskStatus);
+    if (!run.isReady()) {
+      // TODO(bmahler): Include the run command in the message.
+      state = TASK_FAILED;
+      message = "Failed to run docker container: " +
+          (run.isFailed() ? run.failure() : "discarded");
+    } else if (run->isNone()) {
+      state = TASK_FAILED;
+      message = "Failed to get exit status of container";
+    } else {
+      int status = run->get();
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
 
-          // A hack for now ... but we need to wait until the status update
-          // is sent to the slave before we shut ourselves down.
-          // TODO(tnachen): Remove this hack and also the same hack in the
-          // command executor when we have the new HTTP APIs to wait until
-          // an ack.
-          os::sleep(Seconds(1));
-          driver.get()->stop();
-        }));
-    }));
+      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        state = TASK_FINISHED;
+      } else if (killed) {
+        // Send TASK_KILLED if the task was killed as a result of
+        // kill() or shutdown(). Note that in general there is a
+        // race between signaling the container and it terminating
+        // uncleanly on its own.
+        //
+        // TODO(bmahler): Consider using the exit status to
+        // determine whether the container was terminated via
+        // our signal or terminated on its own.
+        state = TASK_KILLED;
+      } else {
+        state = TASK_FAILED;
+      }
+
+      message = "Container " + WSTRINGIFY(status);
+    }
+
+    CHECK_SOME(taskId);
+
+    TaskStatus taskStatus;
+    taskStatus.mutable_task_id()->CopyFrom(taskId.get());
+    taskStatus.set_state(state);
+    taskStatus.set_message(message);
+    if (killed && killedByHealthCheck) {
+      taskStatus.set_healthy(false);
+    }
+
+    CHECK_SOME(driver);
+    driver.get()->sendStatusUpdate(taskStatus);
+
+    // A hack for now ... but we need to wait until the status update
+    // is sent to the slave before we shut ourselves down.
+    // TODO(tnachen): Remove this hack and also the same hack in the
+    // command executor when we have the new HTTP APIs to wait until
+    // an ack.
+    os::sleep(Seconds(1));
+    driver.get()->stop();
   }
 
   void launchHealthCheck(const string& containerName, const TaskInfo& task)
@@ -508,7 +534,7 @@ private:
   map<string, string> taskEnvironment;
 
   Option<KillPolicy> killPolicy;
-  Option<Future<Nothing>> run;
+  Option<Future<Option<int>>> run;
   Future<Nothing> stop;
   Future<Nothing> inspect;
   Option<ExecutorDriver*> driver;

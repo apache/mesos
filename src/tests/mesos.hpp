@@ -1465,7 +1465,7 @@ public:
 
   MOCK_CONST_METHOD9(
       run,
-      process::Future<Nothing>(
+      process::Future<Option<int>>(
           const mesos::ContainerInfo&,
           const mesos::CommandInfo&,
           const std::string&,
@@ -1501,7 +1501,7 @@ public:
           const std::string&,
           const Option<Duration>&));
 
-  process::Future<Nothing> _run(
+  process::Future<Option<int>> _run(
       const mesos::ContainerInfo& containerInfo,
       const mesos::CommandInfo& commandInfo,
       const std::string& name,

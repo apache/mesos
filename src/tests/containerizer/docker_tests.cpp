@@ -102,7 +102,7 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   commandInfo.set_value("sleep 120");
 
   // Start the container.
-  Future<Nothing> status = docker->run(
+  Future<Option<int>> status = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -133,8 +133,13 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   EXPECT_SOME(inspect.get().pid);
 
   // Stop the container.
-  status = docker->stop(containerName);
+  Future<Nothing> stop = docker->stop(containerName);
+  AWAIT_READY(stop);
+
   AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_TRUE(WIFEXITED(status->get())) << status->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(status->get())) << status->get();
 
   // Now, the container should not appear in the result of ps().
   // But it should appear in the result of ps(true).
@@ -166,8 +171,8 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   EXPECT_NONE(inspect.get().pid);
 
   // Remove the container.
-  status = docker->rm(containerName);
-  AWAIT_READY(status);
+  Future<Nothing> rm = docker->rm(containerName);
+  AWAIT_READY(rm);
 
   // Should not be able to inspect the container.
   inspect = docker->inspect(containerName);
@@ -207,8 +212,13 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   EXPECT_TRUE(found);
 
   // Then do a "rm -f".
-  status = docker->rm(containerName, true);
+  rm = docker->rm(containerName, true);
+  AWAIT_READY(rm);
+
   AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_TRUE(WIFEXITED(status->get())) << status->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(status->get())) << status->get();
 
   // Verify that the container is totally removed, that is we can't
   // find it by ps() or ps(true).
@@ -271,7 +281,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
 
-  Future<Nothing> run = docker->run(
+  Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
       "testContainer",
@@ -317,7 +327,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
   Resources resources =
     Resources::parse("ports:[9998-9999];ports:[10001-11000]").get();
 
-  Future<Nothing> run = docker->run(
+  Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -342,6 +352,9 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
       resources);
 
   AWAIT_READY(run);
+  ASSERT_SOME(run.get());
+  EXPECT_TRUE(WIFEXITED(run->get())) << run->get();
+  EXPECT_EQ(0, WEXITSTATUS(run->get())) << run->get();
 }
 
 
@@ -411,7 +424,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
   const string testFile = path::join(directory.get(), "test_file");
   EXPECT_SOME(os::write(testFile, "data"));
 
-  Future<Nothing> run = docker->run(
+  Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-relative-test",
@@ -419,6 +432,9 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
       directory.get());
 
   AWAIT_READY(run);
+  ASSERT_SOME(run.get());
+  EXPECT_TRUE(WIFEXITED(run->get())) << run->get();
+  EXPECT_EQ(0, WEXITSTATUS(run->get())) << run->get();
 }
 
 
@@ -454,7 +470,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
   commandInfo.set_shell(true);
   commandInfo.set_value("ls /tmp/test_file");
 
-  Future<Nothing> run = docker->run(
+  Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-absolute-test",
@@ -462,6 +478,9 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
       directory.get());
 
   AWAIT_READY(run);
+  ASSERT_SOME(run.get());
+  EXPECT_TRUE(WIFEXITED(run->get())) << run->get();
+  EXPECT_EQ(0, WEXITSTATUS(run->get())) << run->get();
 }
 
 

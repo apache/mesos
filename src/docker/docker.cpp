@@ -438,7 +438,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 }
 
 
-Future<Nothing> Docker::run(
+Future<Option<int>> Docker::run(
     const ContainerInfo& containerInfo,
     const CommandInfo& commandInfo,
     const string& name,
@@ -695,26 +695,18 @@ Future<Nothing> Docker::run(
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
-  // We don't call checkError here to avoid printing the stderr
-  // of the docker container task as docker run with attach forwards
-  // the container's stderr to the client's stderr.
-  return s.get().status()
-    .then(lambda::bind(
-        &Docker::_run,
-        lambda::_1))
+  s->status()
     .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
-}
 
-
-Future<Nothing> Docker::_run(const Option<int>& status)
-{
-  if (status.isNone()) {
-    return Failure("Failed to get exit status");
-  } else if (status.get() != 0) {
-    return Failure("Container exited on error: " + WSTRINGIFY(status.get()));
-  }
-
-  return Nothing();
+  // Ideally we could capture the stderr when docker itself fails,
+  // however due to the stderr redirection used here we cannot.
+  //
+  // TODO(bmahler): Determine a way to redirect stderr while still
+  // capturing the stderr when 'docker run' itself fails. E.g. we
+  // could use 'docker logs' in conjuction with a "detached" form
+  // of 'docker run' to isolate 'docker run' failure messages from
+  // the container stderr.
+  return s->status();
 }
 
 

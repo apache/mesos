@@ -1146,11 +1146,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
       Owned<ContainerLogger>(logger.get()),
       docker);
 
-  Future<string> stoppedContainer;
-  EXPECT_CALL(*mockDocker, stop(_, _, _))
-    .WillOnce(DoAll(FutureArg<0>(&stoppedContainer),
-                    Return(Nothing())));
-
   SlaveID slaveId;
   slaveId.set_value("s1");
   ContainerID containerId;
@@ -1178,16 +1173,15 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
-  Future<Nothing> d1 =
-    docker->run(
-        containerInfo,
-        commandInfo,
-        container1,
-        flags.work_dir,
-        flags.sandbox_directory,
-        resources);
+  docker->run(
+      containerInfo,
+      commandInfo,
+      container1,
+      flags.work_dir,
+      flags.sandbox_directory,
+      resources);
 
-  Future<Nothing> d2 =
+  Future<Option<int>> orphanRun =
     docker->run(
         containerInfo,
         commandInfo,
@@ -1243,7 +1237,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   AWAIT_FAILED(dockerContainerizer.wait(reapedContainerId));
 
-  AWAIT_EQ(inspect.get().id, stoppedContainer);
+  // Expect the orphan to be stopped!
+  AWAIT_READY(orphanRun);
+  ASSERT_SOME(orphanRun.get());
+  EXPECT_TRUE(WIFEXITED(orphanRun->get())) << orphanRun->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(orphanRun->get())) << orphanRun->get();
 }
 
 
@@ -1306,16 +1304,15 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
-  Future<Nothing> d1 =
-    docker->run(
-        containerInfo,
-        commandInfo,
-        container1,
-        flags.work_dir,
-        flags.sandbox_directory,
-        resources);
+  docker->run(
+      containerInfo,
+      commandInfo,
+      container1,
+      flags.work_dir,
+      flags.sandbox_directory,
+      resources);
 
-  Future<Nothing> d2 =
+  Future<Option<int>> orphanRun =
     docker->run(
         containerInfo,
         commandInfo,
@@ -1372,6 +1369,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   // The orphaned container should be correctly cleaned up.
   AWAIT_FAILED(dockerContainerizer.wait(orphanContainerId));
   ASSERT_FALSE(exists(docker, oldSlaveId, orphanContainerId));
+
+  AWAIT_READY(orphanRun);
+  ASSERT_SOME(orphanRun.get());
+  EXPECT_TRUE(WIFEXITED(orphanRun->get())) << orphanRun->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(orphanRun->get())) << orphanRun->get();
 }
 
 
