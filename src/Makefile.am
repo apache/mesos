@@ -187,6 +187,15 @@ LIB_NVIDIA = -lnvidia-ml
 LDADD += -lnvidia-ml
 endif
 
+# TODO(hausdorff): Remove our hard dependency on SASL, as some platforms
+# (namely Windows) will not support it in the forseeable future. As a
+# stop-gap, we conditionally compile the code in libmesos that depends on
+# SASL, by always setting `HAS_AUTHENTICATION` on non-Windows platforms, and
+# never setting it on Windows platforms. This means that non-Windows builds
+# of libmesos will still take a hard dependency on SASL, while Windows builds
+# won't. Currently, the dependency is still assumed throughout the tests,
+# though the plan is to remove this hard dependency as well. See MESOS-5450.
+MESOS_CPPFLAGS += -DHAS_AUTHENTICATION=1
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
