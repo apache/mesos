@@ -302,30 +302,16 @@ private:
     // the grace period if a new one is provided.
 
     // Issue the kill signal if the container is running
-    // and this is the first time we've received the kill.
+    // and we haven't killed it yet.
     if (run.isSome() && !killed) {
-      // Send TASK_KILLING if the framework can handle it.
-      CHECK_SOME(frameworkInfo);
-      CHECK_SOME(taskId);
-      CHECK(taskId.get() == _taskId);
-
-      foreach (const FrameworkInfo::Capability& c,
-               frameworkInfo->capabilities()) {
-        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
-          TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId.get());
-          status.set_state(TASK_KILLING);
-          driver->sendStatusUpdate(status);
-          break;
-        }
-      }
-
-      // The docker daemon might still be in progress starting the
-      // container, therefore we kill both the docker run process
-      // and also ask the daemon to stop the container.
-      run->discard();
-      stop = docker->stop(containerName, gracePeriod);
-      killed = true;
+      // We have to issue the kill after 'docker inspect' has
+      // completed, otherwise we may race with 'docker run'
+      // and docker may not know about the container. Note
+      // that we postpone setting `killed` because we don't
+      // want to send TASK_KILLED without having actually
+      // issued the kill.
+      inspect
+        .onAny(defer(self(), &Self::_killTask, _taskId, gracePeriod));
     }
 
     // Cleanup health check process.
@@ -337,6 +323,42 @@ private:
     if (healthPid != -1) {
       os::killtree(healthPid, SIGKILL);
       healthPid = -1;
+    }
+  }
+
+  void _killTask(const TaskID& taskId_, const Duration& gracePeriod)
+  {
+    CHECK_SOME(driver);
+    CHECK_SOME(frameworkInfo);
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId_, taskId.get());
+
+    if (!terminated && !killed) {
+      // Because we rely on `killed` to determine whether
+      // to send TASK_KILLED, we set `killed` only once the
+      // kill is issued. If we set it earlier we're more
+      // likely to send a TASK_KILLED without having ever
+      // signaled the container. Note that in general it's
+      // a race between signaling and the container
+      // terminating with a non-zero exit status.
+      killed = true;
+
+      // Send TASK_KILLING if the framework can handle it.
+      foreach (const FrameworkInfo::Capability& c,
+               frameworkInfo->capabilities()) {
+        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId.get());
+          status.set_state(TASK_KILLING);
+          driver.get()->sendStatusUpdate(status);
+          break;
+        }
+      }
+
+      // TODO(bmahler): Replace this with 'docker kill' so
+      // that we can adjust the grace period in the case of
+      // a `KillPolicy` override.
+      stop = docker->stop(containerName, gracePeriod);
     }
   }
 
