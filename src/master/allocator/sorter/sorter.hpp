@@ -63,9 +63,11 @@ public:
   virtual void remove(const std::string& client) = 0;
 
   // Readds a client to the sort after deactivate.
+  // It is a no-op if the client is already in the sort.
   virtual void activate(const std::string& client) = 0;
 
   // Removes a client from the sort, so it won't get allocated to.
+  // It is a no-op if the client is already not in the sort.
   virtual void deactivate(const std::string& client) = 0;
 
   // Specify that resources have been allocated to the given client.
