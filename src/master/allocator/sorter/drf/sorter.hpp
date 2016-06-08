@@ -135,7 +135,7 @@ private:
   std::set<Client, DRFComparator>::iterator find(const std::string& name);
 
   // If true, sort() will recalculate all shares.
-  bool dirty;
+  bool dirty = false;
 
   // A set of Clients (names and shares) sorted by share.
   std::set<Client, DRFComparator> clients;
