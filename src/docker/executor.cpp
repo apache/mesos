@@ -333,6 +333,7 @@ private:
     // task that takes 30 minutes to be cleanly killed).
     if (healthPid != -1) {
       os::killtree(healthPid, SIGKILL);
+      healthPid = -1;
     }
   }
 
