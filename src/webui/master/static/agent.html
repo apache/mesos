@@ -153,6 +153,8 @@
           <td>{{framework.name}}</td>
           <td>{{framework.num_tasks | number}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.cpus_total_usage | number}} / {{framework.cpus | number}}</td>
+          <!-- TODO(haosdent): We need to show statistics for gpu once it is provided in monitor endpoint. -->
+          <td>N/A</td>
           <td>{{monitor.frameworks[framework.id].statistics.mem_rss_bytes | dataSize}} / {{framework.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.disk_used_bytes | dataSize}} / {{framework.disk * (1024 * 1024) | dataSize}}</td>
         </tr>

@@ -105,6 +105,8 @@
           <td>{{executor.queued_tasks.length | number}}</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_total_usage | number}} /
               {{executor.resources.cpus | number}}</td>
+          <!-- TODO(haosdent): We need to show statistics for gpu once it is provided in monitor endpoint. -->
+          <td>N/A</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.mem_rss_bytes | dataSize}} /
               {{executor.resources.mem * (1024 * 1024) | dataSize}}</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.data_used_bytes | dataSize}} /
