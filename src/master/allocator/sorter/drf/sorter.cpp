@@ -47,6 +47,8 @@ DRFSorter::DRFSorter(
 
 void DRFSorter::add(const string& name, double weight)
 {
+  CHECK(!contains(name));
+
   Client client(name, 0, 0);
   clients.insert(client);
 
