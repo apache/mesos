@@ -133,10 +133,10 @@ Additional API Changes:
   * [MESOS-4735] - Added 'output_file' field to CommandInfo.URI in Scheduler API
     and v1 Scheduler HTTP API.
 
-  * [MESOS-5014] - Changes Call and Event Type enums in scheduler.proto
+  * [MESOS-5014] - Changed Call and Event Type enums in scheduler.proto
     from required to optional for the purpose of backwards compatibility.
 
-  * [MESOS-5015] - Changes Call and Event Type enums in executor.proto
+  * [MESOS-5015] - Changed Call and Event Type enums in executor.proto
     from required to optional for the purpose of backwards compatibility.
 
   * [MESOS-5029] - Added 'labels' to ExecutorInfo.
