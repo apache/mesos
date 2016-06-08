@@ -16,8 +16,6 @@
 
 // TODO(arojas): Consider removing this file from the public interface.
 
-import "mesos/mesos.proto";
-
 package mesos;
 
 option java_package = "org.apache.mesos";
