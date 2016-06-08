@@ -43,24 +43,35 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
-  0.29.x
+  1.0.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
-      <li>CD <a href="#0-29-x-allocator-metrics">Allocator Metrics</a></li>
-      <li>D <a href="#0-29-x-credentials">--credential(s) (plain text format)</a></li>
+      <li>CD <a href="#1-0-x-allocator-metrics">Allocator Metrics</a></li>
+      <li>C <a href="#1-0-x-persistent-volume">Destruction of persistent volumes</a></li>
+      <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
+      <li>C <a href="#1-0-x-quota-acls">Quota ACLs</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
-      <li>CD <a href="#0-29-x-quota-authorization">Quota Authorization</a></li>
+      <li>D <a href="#1-0-x-docker-timeout-flag">docker_stop_timeout</a></li>
+      <li>D <a href="#1-0-x-credentials-file">credential(s) (plain text format)</a></li>
+      <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+      <li>DC <a href="#1-0-x-executorinfo">ExecutorInfo.source</a></li>
+      <li>N <a href="#1-0-x-v1-commandinfo">CommandInfo.URI output_file</a></li>
+      <li>C <a href="#1-0-x-scheduler-proto">scheduler.proto optional fields</a></li>
+      <li>C <a href="#1-0-x-executor-proto">executor.proto optional fields</a></li>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <li>C <a href="#1-0-x-authorizer">Authorizer</a></li>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <li>C <a href="#1-0-x-status-code">HTTP return codes</a></li>
+    <li>R <a href="#1-0-x-status-code">/observe</a></li>
   </td>
 </tr>
 <tr>
@@ -159,10 +170,62 @@ We categorize the changes as follows:
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
+<a name="1-0-x-allocator-metrics"></a>
 
 * The allocator metric named <code>allocator/event_queue_dispatches</code> is now deprecated. The new name is <code>allocator/mesos/event_queue_dispatches</code> to better support metrics for alternative allocator implementations.
 
+<a name="1-0-x-docker-timeout-flag"></a>
+
+* The --docker_stop_timeout agent flag is deprecated.
+
+<a name="1-0-x-executorinfo"></a>
+
+* The ExecutorInfo.source field is deprecated in favor of ExecutorInfo.labels.
+
+<a name="1-0-x-slave"></a>
+
+Mesos 1.0 deprecates the 'slave' keyword in favor of 'agent' at number of places
+  * Deprecated flags with keyword 'slave' in favor of 'agent'.
+  * Deprecated sandbox links with 'slave' keyword in the WebUI.
+  * Deprecated `slave` subcommand for mesos-cli.
+
+<a name="1-0-x-credentials-file"></a>
+
 * Mesos 1.0 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
+
+<a name="1-0-x-persistent-volume"></a>
+
+* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
+
+<a name="1-0-x-status-code"></a>
+
+* Mesos 1.0 changes the HTTP status code of the following endpoints from `200 OK` to `202 Accepted`:
+  * `/reserve`
+  * `/unreserve`
+  * `/create-volumes`
+  * `/destroy-volumes`
+
+<a name="1-0-x-v1-commandinfo"></a>
+
+*  Added 'output_file' field to CommandInfo.URI in Scheduler API and v1 Scheduler HTTP API.
+
+<a name="1-0-x-scheduler-proto"></a>
+
+* Changed Call and Event Type enums in scheduler.proto from required to optional for the purpose of backwards compatibility.
+
+<a name="1-0-x-executor-proto"></a>
+
+* Changed Call and Event Type enums in executor.proto from required to optional for the purpose of backwards compatibility.
+
+<a name="1-0-x-nonterminal"></a>
+
+* Added non-terminal task metadata to the container resource usage information.
+
+<a name="1-0-x-observe-endpoint"></a>
+
+* Deleted the /observe HTTP endpoint.
+
+<a name="1-0-x-quota-acls"></a>
 
 * Mesos 1.0 deprecates `SET_QUOTA_WITH_ROLE` and `DESTROY_QUOTA_WITH_PRINCIPAL` actions with `UPDATE_QUOTA_WITH_ROLE`, as well as the `SetQuota` and `RemoveQuota` ACLs with `UpdateQuota` ACL, to control which principal(s) is authorized to set, remove and (in future releases) update quota for role(s). A new `GET_QUOTA_WITH_ROLE` action and `get_quotas` ACL are introduced to control which principal(s) can query quota status for given role(s). This affects `--acls` flag for local authorizer in the following way:
   * It is not allowed to specify `update_quotas` and any of `set_quotas` or `remove_quotas` at the same time. Local authorizor will error out in such case;
@@ -170,13 +233,12 @@ We categorize the changes as follows:
   * After upgrade is verified, operator should replace deprecated values for `set_quotas` and `remove_quotas` with compatible values for `update_quotas`;
   * If desired, operator can use `get_quotas` after upgrade to control which principal(s) is allowed to query quota status for given role(s).
 
-* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
+<a name="1-0-x-authorizer"></a>
 
-* Mesos 1.0 changes the HTTP status code of the following endpoints from `200 OK` to `202 Accepted`:
-  * `/reserve`
-  * `/unreserve`
-  * `/create-volumes`
-  * `/destroy-volumes`
+* Mesos 1.0 contains a number of authorizer changes especially effecting authorizer modules:
+  * The authorizer interface has been refactored in order to decouple the ACLs definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request based authorization). NOTE: This is a **breaking change** for authorizer modules.
+  * Authorization based HTTP endpoint filtering enables operators to restrict what part of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
+  * Fields (i.e, `subject` and `object`) in authorization::Request protobuf are changed to optional. If these fields are not set, the request should be allowed only for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
 
 In order to upgrade a running cluster:
 
@@ -186,7 +248,6 @@ In order to upgrade a running cluster:
 4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
 5. Restart the schedulers.
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
-
 
 ## Upgrading from 0.27.x to 0.28.x ##
 
