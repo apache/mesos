@@ -259,7 +259,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   // Create isolators for the MesosContainerizer.
   //
-  // The order of elements in the creation vecot is used to express
+  // The order of elements in the creation vector is used to express
   // ordering dependencies between isolators. Currently, the `create`
   // and `prepare` calls for each isolator are run serially in the
   // order in which they appear in this list, while the `cleanup` call
