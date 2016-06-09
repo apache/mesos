@@ -274,6 +274,11 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+
   Clock::resume();
 
   // We now complete the partition on the slave side as well. This
@@ -388,6 +393,10 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
   shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
@@ -537,6 +546,11 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
   shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
