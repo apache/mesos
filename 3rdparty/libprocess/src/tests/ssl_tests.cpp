@@ -12,18 +12,28 @@
 
 #include <stdio.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/network.hpp>
 #include <process/socket.hpp>
 #include <process/subprocess.hpp>
 
 #include <process/ssl/gtest.hpp>
 #include <process/ssl/utilities.hpp>
 
+#include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/try.hpp>
 
 #include "openssl.hpp"
 
