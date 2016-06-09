@@ -129,16 +129,12 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update2));
 
-  vector<TaskStatus> statuses;
-
   TaskStatus status;
   status.mutable_task_id()->CopyFrom(taskId);
   status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_KILLED);
+  status.set_state(TASK_STAGING); // Dummy value.
 
-  statuses.push_back(status);
-
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({status});
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
@@ -207,20 +203,16 @@ TEST_F(ReconciliationTest, TaskStateMatch)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
 
-  vector<TaskStatus> statuses;
-
   TaskStatus status;
   status.mutable_task_id()->CopyFrom(taskId);
   status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_RUNNING);
-
-  statuses.push_back(status);
+  status.set_state(TASK_STAGING); // Dummy value.
 
   Future<TaskStatus> update2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update2));
 
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({status});
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
@@ -257,17 +249,13 @@ TEST_F(ReconciliationTest, UnknownSlave)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update));
 
-  vector<TaskStatus> statuses;
-
   // Create a task status with a random slave id (and task id).
   TaskStatus status;
   status.mutable_task_id()->set_value(UUID::random().toString());
   status.mutable_slave_id()->set_value(UUID::random().toString());
-  status.set_state(TASK_RUNNING);
+  status.set_state(TASK_STAGING); // Dummy value.
 
-  statuses.push_back(status);
-
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({status});
 
   // Framework should receive TASK_LOST because the slave is unknown.
   AWAIT_READY(update);
@@ -316,17 +304,13 @@ TEST_F(ReconciliationTest, UnknownTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update));
 
-  vector<TaskStatus> statuses;
-
   // Create a task status with a random task id.
   TaskStatus status;
   status.mutable_task_id()->set_value(UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_RUNNING);
+  status.set_state(TASK_STAGING); // Dummy value.
 
-  statuses.push_back(status);
-
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({status});
 
   // Framework should receive TASK_LOST for an unknown task.
   AWAIT_READY(update);
@@ -361,8 +345,6 @@ TEST_F(ReconciliationTest, UnknownKillTask)
   Future<TaskStatus> update;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update));
-
-  vector<TaskStatus> statuses;
 
   // Create a task status with a random task id.
   TaskID taskId;
@@ -443,22 +425,18 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   // Slave will be in 'reregistering' state here.
   AWAIT_READY(_reregisterSlave);
 
-  vector<TaskStatus> statuses;
-
-  // Create a task status with a random task id.
-  TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
-  status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_RUNNING);
-
-  statuses.push_back(status);
-
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
 
   Clock::pause();
 
-  driver.reconcileTasks(statuses);
+  // Create a task status with a random task id.
+  TaskStatus status;
+  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  driver.reconcileTasks({status});
 
   // Make sure the master received the reconcile call.
   AWAIT_READY(reconcileCall);
@@ -524,8 +502,7 @@ TEST_F(ReconciliationTest, ImplicitNonTerminalTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update2));
 
-  vector<TaskStatus> statuses;
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({});
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
@@ -599,8 +576,7 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
 
   // When making an implicit reconciliation request, the master
   // should not send back terminal tasks.
-  vector<TaskStatus> statuses;
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({});
 
   // Make sure the master received the reconcile call.
   AWAIT_READY(reconcileCall);
@@ -673,8 +649,7 @@ TEST_F(ReconciliationTest, PendingTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update));
 
-  vector<TaskStatus> statuses;
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({});
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_STAGING, update.get().state());
@@ -688,10 +663,9 @@ TEST_F(ReconciliationTest, PendingTask)
   TaskStatus status;
   status.mutable_task_id()->CopyFrom(task.task_id());
   status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_STAGING);
-  statuses.push_back(status);
+  status.set_state(TASK_STAGING); // Dummy value.
 
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({status});
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_STAGING, update2.get().state());
@@ -769,8 +743,7 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  vector<TaskStatus> statuses;
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({});
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_FINISHED, update2.get().state());
@@ -884,8 +857,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
     .WillOnce(FutureArg<1>(&update));
 
   // Reconcile the state of the task.
-  vector<TaskStatus> statuses;
-  driver.reconcileTasks(statuses);
+  driver.reconcileTasks({});
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
