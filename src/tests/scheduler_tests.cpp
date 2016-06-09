@@ -139,9 +139,6 @@ TEST_P(SchedulerTest, Subscribe)
 
   ASSERT_EQ(master::DEFAULT_HEARTBEAT_INTERVAL.secs(),
             subscribed->heartbeat_interval_seconds());
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -230,12 +227,6 @@ TEST_P(SchedulerTest, SchedulerFailover)
   AWAIT_READY(subscribed);
 
   EXPECT_EQ(frameworkId, subscribed.get().framework_id());
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(*scheduler2, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -440,9 +431,6 @@ TEST_P(SchedulerTest, TaskRunning)
 
   EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -568,9 +556,6 @@ TEST_P(SchedulerTest, ReconcileTask)
     .Times(AtMost(1));
 
   EXPECT_CALL(*executor, disconnected(_))
-    .Times(AtMost(1));
-
-  EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
 }
 
@@ -715,9 +700,6 @@ TEST_P(SchedulerTest, KillTask)
 
   EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -844,9 +826,6 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   // Executor termination results in a 'FAILURE' event.
   AWAIT_READY(failure);
   EXPECT_EQ(executorId, devolve(failure->executor_id()));
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -950,6 +929,10 @@ TEST_P(SchedulerTest, Teardown)
   EXPECT_CALL(*executor, shutdown(_))
     .WillOnce(FutureSatisfy(&shutdown));
 
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected));
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -959,9 +942,7 @@ TEST_P(SchedulerTest, Teardown)
   }
 
   AWAIT_READY(shutdown);
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
+  AWAIT_READY(disconnected);
 }
 
 
@@ -1054,9 +1035,6 @@ TEST_P(SchedulerTest, Decline)
   AWAIT_READY(offers2);
   ASSERT_EQ(1, offers2->offers().size());
   ASSERT_EQ(offer.resources(), offers2->offers(0).resources());
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -1153,9 +1131,6 @@ TEST_P(SchedulerTest, Revive)
   AWAIT_READY(offers2);
   EXPECT_NE(0, offers2->offers().size());
   ASSERT_EQ(offer.resources(), offers2->offers(0).resources());
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -1269,9 +1244,6 @@ TEST_P(SchedulerTest, Suppress)
 
   EXPECT_NE(0, offers2->offers().size());
   ASSERT_EQ(offer.resources(), offers2->offers(0).resources());
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -1396,9 +1368,6 @@ TEST_P(SchedulerTest, Message)
 
   EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
@@ -1457,9 +1426,6 @@ TEST_P(SchedulerTest, Request)
   }
 
   AWAIT_READY(requestResources);
-
-  EXPECT_CALL(*scheduler, disconnected(_))
-    .Times(AtMost(1));
 }
 
 
