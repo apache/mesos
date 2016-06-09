@@ -138,6 +138,7 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update2.get().reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -193,7 +194,6 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
-
   EXPECT_TRUE(update.get().has_slave_id());
 
   const TaskID taskId = update.get().task_id();
@@ -216,6 +216,7 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update2.get().reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -260,6 +261,7 @@ TEST_F(ReconciliationTest, UnknownSlave)
   // Framework should receive TASK_LOST because the slave is unknown.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
 
   driver.stop();
   driver.join();
@@ -315,6 +317,7 @@ TEST_F(ReconciliationTest, UnknownTask)
   // Framework should receive TASK_LOST for an unknown task.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
 
   driver.stop();
   driver.join();
@@ -355,6 +358,7 @@ TEST_F(ReconciliationTest, UnknownKillTask)
   // Framework should receive TASK_LOST for unknown task.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
 
   driver.stop();
   driver.join();
@@ -506,6 +510,7 @@ TEST_F(ReconciliationTest, ImplicitNonTerminalTask)
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_RUNNING, update2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update2.get().reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -653,6 +658,7 @@ TEST_F(ReconciliationTest, PendingTask)
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_STAGING, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
   EXPECT_TRUE(update.get().has_slave_id());
 
   // Now send an explicit reconciliation request for this task.
@@ -669,6 +675,7 @@ TEST_F(ReconciliationTest, PendingTask)
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_STAGING, update2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update2.get().reason());
   EXPECT_TRUE(update2.get().has_slave_id());
 
   driver.stop();
@@ -747,6 +754,7 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 
   AWAIT_READY(update2);
   EXPECT_EQ(TASK_FINISHED, update2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update2.get().reason());
   EXPECT_TRUE(update2.get().has_slave_id());
 
   driver.stop();
@@ -861,6 +869,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
