@@ -69,6 +69,7 @@
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/devices.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
@@ -267,6 +268,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   //   (1) The filesystem isolator must be the first isolator so
   //       that the runtime isolators have a consistent view of
   //       the prepared filesystem (e.g. volume mounts).
+  //
+  //   (2) The Nvidia GPU isolator must come after the cgroups
+  //       devices isolator, as it relies on the 'devices' cgroup
+  //       being set up.
 
   const vector<pair<string, lambda::function<Try<Isolator*>(const Flags&)>>>
     creators = {
@@ -300,14 +305,15 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __WINDOWS__
 #ifdef __linux__
     {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
+    {"cgroups/devices", &CgroupsDevicesIsolatorProcess::create},
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
     {"cgroups/net_cls", &CgroupsNetClsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
-    {"cgroups/devices/gpus/nvidia", &CgroupsNvidiaGpuIsolatorProcess::create},
-#endif
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
+#ifdef ENABLE_NVIDIA_GPU_SUPPORT
+    {"gpu/nvidia", &CgroupsNvidiaGpuIsolatorProcess::create},
+#endif
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__
