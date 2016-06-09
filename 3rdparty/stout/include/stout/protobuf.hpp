@@ -178,6 +178,33 @@ inline Try<Nothing> append(
 }
 
 
+template <typename T>
+Try<T> deserialize(const std::string& value)
+{
+  T t;
+  (void) static_cast<google::protobuf::Message*>(&t);
+
+  google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
+  if (!t.ParseFromZeroCopyStream(&stream)) {
+    return Error("Failed to deserialize " + t.GetDescriptor()->full_name());
+  }
+  return t;
+}
+
+
+template <typename T>
+Try<std::string> serialize(const T& t)
+{
+  (void) static_cast<const google::protobuf::Message*>(&t);
+
+  std::string value;
+  if (!t.SerializeToString(&value)) {
+    return Error("Failed to serialize " + t.GetDescriptor()->full_name());
+  }
+  return value;
+}
+
+
 namespace internal {
 
 // Reads a single message of type T from the file by first reading the
