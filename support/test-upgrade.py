@@ -43,7 +43,7 @@ class Process:
             self.process.kill()
 
 
-# Class representing a agent process.
+# Class representing an agent process.
 class Agent(Process):
 
     def __init__(self, path, work_dir, credfile):

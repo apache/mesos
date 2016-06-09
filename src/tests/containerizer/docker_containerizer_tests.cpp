@@ -287,8 +287,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
 // This test verifies that a custom executor can be launched and
 // registered with the slave with docker bridge network enabled.
-// We're assuming that the custom executor is registering it's public
-// ip instead of 0.0.0.0 or equivelent to the slave as that's the
+// We're assuming that the custom executor is registering its public
+// ip instead of 0.0.0.0 or equivalent to the slave as that's the
 // default behavior for libprocess.
 //
 // Currently this test fails on ubuntu and centos since the slave is
@@ -2627,7 +2627,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 // inside the image mesosphere/test-executor does not properly set the
 // executor PID that is uses during registration, so when the new
 // slave recovers it can't reconnect and instead destroys that
-// container. In particular, it uses '0' for it's IP which we properly
+// container. In particular, it uses '0' for its IP which we properly
 // parse and can even properly use for sending other messages, but the
 // current implementation of 'UPID::operator bool()' fails if the IP
 // component of a PID is '0'.

@@ -708,7 +708,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   Clock::advance(slaveFlags.executor_shutdown_grace_period);
   Clock::resume();
 
-  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // Wait on the agent to terminate so that it wipes out its latest symlink.
   // This way when we launch a new agent it will register with a new agent id.
   wait(slave.get()->pid);
 
@@ -722,7 +722,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   AWAIT_READY(shutdownMessage);
 
-  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // Wait on the agent to terminate so that it wipes out its latest symlink.
   // This way when we launch a new agent it will register with a new agent id.
   wait(slave.get()->pid);
 

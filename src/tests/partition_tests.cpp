@@ -156,7 +156,7 @@ TEST_F(PartitionTest, PartitionedSlave)
 // partitioned slave, thus sending its tasks to LOST. At this point,
 // when the partition is removed, the slave will attempt to
 // re-register with its running tasks. We've already notified
-// frameworks that these tasks were LOST, so we have to have the slave
+// frameworks that these tasks were LOST, so we have to have the
 // slave shut down.
 TEST_F(PartitionTest, PartitionedSlaveReregistration)
 {

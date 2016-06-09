@@ -1701,7 +1701,7 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
 }
 
 
-// Ensures that the number of registered slaves resported by
+// Ensures that the number of registered slaves reported by
 // /master/slaves coincides with the actual number of registered
 // slaves.
 TEST_F(MasterTest, SlavesEndpointTwoSlaves)

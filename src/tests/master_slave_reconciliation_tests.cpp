@@ -74,7 +74,7 @@ class MasterSlaveReconciliationTest : public MesosTest {};
 
 // This test verifies that a re-registering slave sends the terminal
 // unacknowledged tasks for a terminal executor. This is required
-// for the master to correctly reconcile it's view with the slave's
+// for the master to correctly reconcile its view with the slave's
 // view of tasks. This test drops a terminal update to the master
 // and then forces the slave to re-register.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
@@ -362,7 +362,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Neither the master nor the slave should not send a TASK_LOST
+  // Neither the master nor the slave should send a TASK_LOST
   // as part of the reconciliation. We check this by calling
   // Clock::settle() to flush all pending events.
   Clock::pause();

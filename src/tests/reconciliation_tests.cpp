@@ -328,7 +328,7 @@ TEST_F(ReconciliationTest, UnknownTask)
 
   driver.reconcileTasks(statuses);
 
-  // Framework should receive TASK_LOST for unknown task.
+  // Framework should receive TASK_LOST for an unknown task.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
 
@@ -380,7 +380,7 @@ TEST_F(ReconciliationTest, UnknownKillTask)
 
 
 // This test verifies that reconciliation of a task that belongs to a
-// slave that is a transitional state doesn't result in an update.
+// slave that is in a transitional state doesn't result in an update.
 TEST_F(ReconciliationTest, SlaveInTransition)
 {
   master::Flags masterFlags = CreateMasterFlags();

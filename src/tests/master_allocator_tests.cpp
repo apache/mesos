@@ -626,7 +626,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
-  // After we stop framework 1, all of it's resources should
+  // After we stop framework 1, all of its resources should
   // have been returned, but framework 2 should still have a
   // task with 1 cpu and 256 mem, leaving 2 cpus and 768 mem.
   Future<Nothing> resourceOffers;
