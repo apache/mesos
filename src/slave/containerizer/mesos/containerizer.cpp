@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <set>
+#include <utility>
+
 #include <mesos/module/isolator.hpp>
 
 #include <mesos/slave/container_logger.hpp>
@@ -111,6 +114,8 @@
 
 using std::list;
 using std::map;
+using std::pair;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -251,8 +256,19 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create provisioner: " + provisioner.error());
   }
 
-  // Create the isolators for the MesosContainerizer.
-  const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
+  // Create isolators for the MesosContainerizer.
+  //
+  // The order of elements in the creation vecot is used to express
+  // ordering dependencies between isolators. Currently, the `create`
+  // and `prepare` calls for each isolator are run serially in the
+  // order in which they appear in this list, while the `cleanup` call
+  // is serialized in reverse order. The current dependencies are:
+  //
+  //   (1) The filesystem isolator must be the first isolator so
+  //       that the runtime isolators have a consistent view of
+  //       the prepared filesystem (e.g. volume mounts).
+
+  const vector<pair<string, lambda::function<Try<Isolator*>(const Flags&)>>>
     creators = {
     // Filesystem isolators.
 #ifndef __WINDOWS__
@@ -303,29 +319,34 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   vector<Owned<Isolator>> isolators;
 
-  foreach (const string& type, strings::tokenize(flags_.isolation, ",")) {
-    Try<Isolator*> isolator = [&creators, &type, &flags_]() -> Try<Isolator*> {
-      if (creators.contains(type)) {
-        return creators.at(type)(flags_);
-      } else if (ModuleManager::contains<Isolator>(type)) {
-        return ModuleManager::create<Isolator>(type);
+  const vector<string> tokens = strings::tokenize(flags_.isolation, ",");
+  const set<string> isolations(tokens.begin(), tokens.end());
+
+  if (isolations.size() != tokens.size()) {
+    return Error("Duplicate entries found in --isolation flag"
+                 " '" + stringify(tokens) + "'");
+  }
+
+  foreach (const auto& creator, creators) {
+    if (isolations.count(creator.first) > 0) {
+      Try<Isolator*> isolator = creator.second(flags_);
+      if (isolator.isError()) {
+        return Error("Failed to create isolator '" + creator.first + "': " +
+                     isolator.error());
       }
-      return Error("Unknown or unsupported isolator");
-    }();
-
-    if (isolator.isError()) {
-      return Error(
-          "Could not create isolator '" + type + "': " + isolator.error());
+      isolators.emplace_back(isolator.get());
+    } else if (ModuleManager::contains<Isolator>(creator.first)) {
+      Try<Isolator*> isolator = ModuleManager::create<Isolator>(creator.first);
+      if (isolator.isError()) {
+        return Error("Could not create isolator '" + creator.first + "': " +
+                     isolator.error());
+      }
+      isolators.emplace_back(isolator.get());
     }
+  }
 
-    // NOTE: The filesystem isolator must be the first isolator used
-    // so that the runtime isolators can have a consistent view on the
-    // prepared filesystem (e.g., any volume mounts are performed).
-    if (strings::contains(type, "filesystem/")) {
-      isolators.insert(isolators.begin(), Owned<Isolator>(isolator.get()));
-    } else {
-      isolators.push_back(Owned<Isolator>(isolator.get()));
-    }
+  if (isolations.empty()) {
+    return Error("Unknown --isolation entries '" + stringify(isolations) + "'");
   }
 
   return new MesosContainerizer(
