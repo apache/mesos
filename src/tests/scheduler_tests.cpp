@@ -137,6 +137,9 @@ TEST_P(SchedulerTest, Subscribe)
 
   AWAIT_READY(subscribed);
 
+  ASSERT_EQ(master::DEFAULT_HEARTBEAT_INTERVAL.secs(),
+            subscribed->heartbeat_interval_seconds());
+
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
 }

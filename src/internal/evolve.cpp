@@ -25,6 +25,8 @@
 
 #include "internal/evolve.hpp"
 
+#include "master/constants.hpp"
+
 using std::string;
 
 using process::UPID;
@@ -169,6 +171,11 @@ v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message)
   v1::scheduler::Event::Subscribed* subscribed = event.mutable_subscribed();
   subscribed->mutable_framework_id()->CopyFrom(evolve(message.framework_id()));
 
+  // TODO(anand): The master should pass the heartbeat interval as an argument
+  // to `evolve()`.
+  subscribed->set_heartbeat_interval_seconds(
+      master::DEFAULT_HEARTBEAT_INTERVAL.secs());
+
   return event;
 }
 
@@ -180,6 +187,11 @@ v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message)
 
   v1::scheduler::Event::Subscribed* subscribed = event.mutable_subscribed();
   subscribed->mutable_framework_id()->CopyFrom(evolve(message.framework_id()));
+
+  // TODO(anand): The master should pass the heartbeat interval as an argument
+  // to `evolve()`.
+  subscribed->set_heartbeat_interval_seconds(
+      master::DEFAULT_HEARTBEAT_INTERVAL.secs());
 
   return event;
 }
