@@ -1463,7 +1463,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
       allocation.get().resources.get(agent2.id()).get(),
       offerFilter);
 
-  // Total cluster resources: cpus=1, mem=512.
+  // Total cluster resources: cpus=2, mem=1024.
   // QUOTA_ROLE share = 0.5 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
   //   framework1 share = 1
   // NO_QUOTA_ROLE share = 0
