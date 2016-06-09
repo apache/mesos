@@ -264,49 +264,37 @@ Future<Response> Slave::Http::api(
                       error.get().message);
   }
 
-  // This lambda serializes a `v1::agent::Response` into an `http::Response`.
-  auto serializer = [request](const v1::agent::Response& response_)
-                    -> Response {
-    ContentType responseContentType;
-    if (request.acceptsMediaType(APPLICATION_JSON)) {
-      responseContentType = ContentType::JSON;
-    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-      responseContentType = ContentType::PROTOBUF;
-    } else {
-      return NotAcceptable(
-          string("Expecting 'Accept' to allow ") +
-          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
-    }
-
-    // TODO(vinod): Support JSONP requests?
-    return OK(serialize(responseContentType, response_),
-              stringify(responseContentType));
-  };
-
   LOG(INFO) << "Processing call " << call.type();
+
+  ContentType responseContentType;
+  if (request.acceptsMediaType(APPLICATION_JSON)) {
+    responseContentType = ContentType::JSON;
+  } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+    responseContentType = ContentType::PROTOBUF;
+  } else {
+    return NotAcceptable(
+        string("Expecting 'Accept' to allow ") +
+        "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+  }
 
   switch (call.type()) {
     case v1::agent::Call::UNKNOWN:
       return NotImplemented();
 
     case v1::agent::Call::GET_HEALTH:
-      return getHealth(call, principal)
-        .then(serializer);
+      return getHealth(call, principal, responseContentType);
 
     case v1::agent::Call::GET_FLAGS:
-      return getFlags(call, principal)
-        .then(serializer);
+      return getFlags(call, principal, responseContentType);
 
     case v1::agent::Call::GET_VERSION:
-      return getVersion(call, principal)
-        .then(serializer);
+      return getVersion(call, principal, responseContentType);
 
     case v1::agent::Call::GET_METRICS:
       return NotImplemented();
 
     case v1::agent::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, principal)
-        .then(serializer);
+      return getLoggingLevel(call, principal, responseContentType);
 
     case v1::agent::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
@@ -538,13 +526,18 @@ JSON::Object Slave::Http::_flags() const
 }
 
 
-Future<v1::agent::Response> Slave::Http::getFlags(
+Future<Response> Slave::Http::getFlags(
     const v1::agent::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_FLAGS, call.type());
 
-  return evolve<v1::agent::Response::GET_FLAGS>(_flags());
+  v1::agent::Response response =
+    evolve<v1::agent::Response::GET_FLAGS>(_flags());
+
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
@@ -566,9 +559,10 @@ Future<Response> Slave::Http::health(const Request& request) const
 }
 
 
-Future<v1::agent::Response> Slave::Http::getHealth(
+Future<Response> Slave::Http::getHealth(
     const v1::agent::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_HEALTH, call.type());
 
@@ -576,23 +570,30 @@ Future<v1::agent::Response> Slave::Http::getHealth(
   response.set_type(v1::agent::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return response;
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
-Future<v1::agent::Response> Slave::Http::getVersion(
+Future<Response> Slave::Http::getVersion(
     const v1::agent::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_VERSION, call.type());
 
-  return evolve<v1::agent::Response::GET_VERSION>(version());
+  v1::agent::Response response =
+    evolve<v1::agent::Response::GET_VERSION>(version());
+
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
-Future<v1::agent::Response> Slave::Http::getLoggingLevel(
+Future<Response> Slave::Http::getLoggingLevel(
     const v1::agent::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -600,7 +601,8 @@ Future<v1::agent::Response> Slave::Http::getLoggingLevel(
   response.set_type(v1::agent::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return response;
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 

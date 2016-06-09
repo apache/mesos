@@ -511,21 +511,25 @@ private:
 
     // v1 agent API handlers.
 
-    process::Future<v1::agent::Response> getFlags(
+    process::Future<process::http::Response> getFlags(
         const v1::agent::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::agent::Response> getHealth(
+    process::Future<process::http::Response> getHealth(
         const v1::agent::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::agent::Response> getVersion(
+    process::Future<process::http::Response> getVersion(
         const v1::agent::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::agent::Response> getLoggingLevel(
+    process::Future<process::http::Response> getLoggingLevel(
         const v1::agent::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
     Slave* slave;
 
