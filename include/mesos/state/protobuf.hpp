@@ -26,11 +26,10 @@
 
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/some.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "messages/messages.hpp"
 
 namespace mesos {
 namespace state {
@@ -116,7 +115,7 @@ template <typename T>
 process::Future<Variable<T>> State::_fetch(
     const mesos::state::Variable& variable)
 {
-  Try<T> t = messages::deserialize<T>(variable.value());
+  Try<T> t = ::protobuf::deserialize<T>(variable.value());
   if (t.isError()) {
     return process::Failure(t.error());
   }
@@ -129,7 +128,7 @@ template <typename T>
 process::Future<Option<Variable<T>>> State::store(
     const Variable<T>& variable)
 {
-  Try<std::string> value = messages::serialize(variable.t);
+  Try<std::string> value = ::protobuf::serialize(variable.t);
 
   if (value.isError()) {
     return process::Failure(value.error());
