@@ -1,0 +1,65 @@
+---
+title: Apache Mesos | Release Plan
+breadcrumb: Release Plan
+---
+
+<div class="row-fluid">
+  <div class="col-md-12">
+
+    <h1>Mesos release plan</h1>
+
+    <div class="table-responsive">
+      <table class="table table-striped">
+
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Version</th>
+            <th><span class="glyphicon glyphicon-envelope"></span></th>
+            <th>JIRA</th>
+            <th>Features</th>
+            <th>Managers</th>
+          </tr>
+        </thead>
+
+        <% data.release_plan.releases.each do |release| %>
+        <tr>
+          <td><%= release.date %></td>
+          <td><%= release.version %></td>
+
+          <td>
+            <% if release.discussion_link? %>
+            <a href="<%= release.discussion_link %>">
+            <span class="glyphicon glyphicon-envelope"></span>
+            </a>
+            <% end %>
+          </td>
+
+          <td>
+            <a href="https://issues.apache.org/jira/browse/<%= release.jira_issue %>">
+            <%= release.jira_issue %>
+            </a>
+          </td>
+
+          <td>
+            <ul class="list-unstyled">
+              <% (release.features || []).each do |feature| %>
+              <li><%= feature %></li>
+              <% end %>
+            </ul>
+          </td>
+
+          <td>
+            <ul class="list-unstyled">
+              <% (release.managers || []).each do |manager| %>
+              <li><%= manager %></li>
+              <% end %>
+            </ul>
+          </td>
+
+        </tr>
+        <% end %>
+      </table>
+    </div>
+  </div>
+</div>

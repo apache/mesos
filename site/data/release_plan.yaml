@@ -1,0 +1,291 @@
+---
+releases:
+  -
+    date: TBD
+    version: "1.0.0"
+  -
+    date: 6/4/2016
+    features:
+      - "Bug fix"
+    managers:
+      - "Jie Yu"
+    version: "0.28.2"
+  -
+    date: 4/13/2016
+    features:
+      - "Bug fix"
+    managers:
+      - "Jie Yu"
+    version: "0.28.1"
+  -
+    date: 3/17/2016
+    features:
+      - "net_cls cgroups"
+      - "floating point fix"
+      - "reservation labels"
+      - "unified containerizer (*experimental)"
+      - "v1 Executor HTTP API (*experimental)"
+    managers:
+      - "Vinod Kone"
+    version: "0.28.0"
+  -
+    date: 3/7/2016
+    features:
+      - "Bug fix"
+    managers:
+      - "Michael Park"
+    version: "0.27.2"
+  -
+    date: 2/22/2016
+    discussion_link: "http://markmail.org/message/4fp5rz6pycw3bcri"
+    features:
+      - "Bug fix"
+    managers:
+      - "Michael Park"
+      - "Joris Van Remoortere"
+    version: "0.27.1"
+  -
+    date: 1/31/2016
+    discussion_link: "http://markmail.org/message/p5fvfv5rhhr7hfmf"
+    features:
+      - Quota
+      - "Multi-Disk support"
+      - "Implicit roles"
+      - "state.json performance improvement"
+    managers:
+      - "Tim Chen"
+      - "Michael Park"
+      - "Kapil Arya"
+    version: "0.27.0"
+  -
+    date: 4/12/2016
+    discussion_link: "http://markmail.org/search/?q=0.26.1-rc4#query:0.26.1-rc4+page:1+mid:z7zffl4mf3wupbw7+state:results"
+    features:
+      - "Bug fix"
+    managers:
+      - "Michael Park"
+    version: "0.26.1"
+  -
+    date: 12/16/2015
+    features:
+      - "Bug fix"
+    jira_issue: MESOS-3758
+    managers:
+      - "Bernd Mathiske"
+    version: "0.26.0"
+  -
+    date: 4/12/2016
+    discussion_link: "http://markmail.org/search/?q=0.25.1-rc4#query:0.25.1-rc4+page:1+mid:bq3gmzbmpi3x2tpg+state:results"
+    features:
+      - "Bug fix"
+    managers:
+      - "Michael Park"
+    version: "0.25.1"
+  -
+    date: 10/12/2015
+    discussion_link: "http://markmail.org/message/ilpudgplhqugvejb"
+    features:
+      - "Maintenance primitives"
+      - "Networking plug-ability"
+      - "Operator API"
+      - Authorization
+    jira_issue: MESOS-3342
+    managers:
+      - "Niklas Nielsen"
+      - "Michael Park"
+      - "Joris Van Remoortere"
+    version: "0.25.0"
+  -
+    date: 4/12/2016
+    discussion_link: "http://markmail.org/search/?q=0.24.2-rc5#query:0.24.2-rc5+page:1+mid:5uwd3i3hqbypfnbn+state:results"
+    features:
+      - "Bug fix"
+    managers:
+      - "Michael Park"
+    version: "0.24.2"
+  -
+    date: 9/4/2015
+    discussion_link: "http://markmail.org/message/nfixftbrsugfga66"
+    features:
+      - "HTTP Scheduler API"
+    jira_issue: MESOS-2562
+    managers:
+      - "Vinod Kone"
+    version: "0.24.0"
+  -
+    date: 7/22/2015
+    features:
+      - "Per-container network isolation"
+      - SSL
+      - Oversubscription
+      - "Persistent Volumes"
+    jira_issue: MESOS-2561
+    managers:
+      - "Adam B"
+    version: "0.23.0"
+  -
+    date: 5/04/2015
+    discussion_link: "http://markmail.org/message/gvos3xal5rqxtde7"
+    features:
+      - "Bug fix"
+    jira_issue: MESOS-2579
+    managers:
+      - "Adam B"
+    version: "0.22.1"
+  -
+    date: 3/24/2015
+    discussion_link: "http://markmail.org/message/prxzfhpldfxm2bxx"
+    features:
+      - "Disk isolation"
+      - "Task Labels"
+      - "Service Discovery Info"
+    jira_issue: MESOS-2248
+    managers:
+      - "Niklas Nielsen"
+    version: "0.22.0"
+  -
+    date: 12/18/2014
+    discussion_link: "http://markmail.org/message/4m662gmwg6nv3rcc"
+    features:
+      - "Bug fix"
+    managers:
+      - "Tim Chen"
+    version: "0.21.1"
+  -
+    date: 11/13/2014
+    discussion_link: "http://markmail.org/message/omvyu7uwirq6ng7o"
+    features:
+      - "State reconciliation"
+    jira_issue: MESOS-1964
+    managers:
+      - "Ian Downes"
+      - "Ben Mahler"
+    version: "0.21.0"
+  -
+    date: 9/18/2014
+    discussion_link: "http://markmail.org/message/q4vsi5hoyurdb4lw"
+    features:
+      - "Bug fix"
+    managers:
+      - "Adam B"
+      - "Bhuvan Arumugam"
+    version: "0.20.1"
+  -
+    date: 8/18/2014
+    discussion_link: "http://markmail.org/message/b5aub2afd4uzxiar"
+    features:
+      - "Docker support"
+      - "network monitoring"
+      - "framework rate limiting"
+    jira_issue: MESOS-1645
+    managers:
+      - "Jie Yu"
+    version: "0.20.0"
+  -
+    date: 7/14/2014
+    features:
+      - "Bug fix"
+    managers:
+      - "Ben Mahler"
+    version: "0.19.1"
+  -
+    date: 6/4/2014
+    features:
+      - Registrar
+    jira_issue: MESOS-1311
+    managers:
+      - "Ben Mahler"
+    version: "0.19.0"
+  -
+    date: 5/13/2014
+    features:
+      - "Bug fix"
+    managers:
+      - "Niklas Nielsen"
+    version: "0.18.2"
+  -
+    date: 4/28/2014
+    features:
+      - "Bug fix"
+    managers:
+      - "Niklas Nielsen"
+    version: "0.18.1"
+  -
+    date: 4/1/2014
+    features:
+      - "Containerizer and isolator APIs"
+    managers:
+      - "Ian Downes"
+    version: "0.18.0"
+  -
+    date: 2/24/2014
+    features:
+      - "Replicated Log"
+    managers:
+      - "Jie Yu"
+    version: "0.17.0"
+  -
+    date: 1/23/2014
+    features:
+      - "Refactor of leading master election and detection process"
+    managers:
+      - "Yan Xu"
+    version: "0.16.0"
+  -
+    date: 11/25/2013
+    features:
+      - "Authentication support for frameworks"
+    managers:
+      - "Vinod Kone"
+    version: "0.15.0"
+  -
+    date: 11/3/2013
+    features:
+      - "Bug fix"
+    managers:
+      - "Ben Mahler"
+    version: "0.14.2"
+  -
+    date: 10/9/2013
+    features:
+      - "Bug fix"
+    managers:
+      - "Vinod Kone"
+    version: "0.14.1"
+  -
+    date: 10/9/2013
+    features:
+      - "Slave recovery"
+    managers:
+      - "Vinod Kone"
+    version: "0.14.0"
+  -
+    date: 9/1/2013
+    managers:
+      - "Ben Mahler"
+    version: "0.13.0"
+  -
+    date: 7/31/2013
+    managers:
+      - "Ben Mahler"
+    version: "0.12.1"
+  -
+    date: 6/10/2013
+    managers:
+      - "Ben Mahler"
+    version: "0.12.0"
+  -
+    date: 5/28/2013
+    managers:
+      - "Vinod Kone"
+    version: "0.11.0"
+  -
+    date: 12/11/2012
+    managers:
+      - "Benjamin Hindman"
+    version: "0.10.0"
+  -
+    date: 04/19/2012
+    managers:
+      - "Benjamin Hindman"
+    version: "0.9.0"
