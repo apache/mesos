@@ -1282,25 +1282,30 @@ private:
 
     // v1 master API handlers.
 
-    process::Future<v1::master::Response> getFlags(
+    process::Future<process::http::Response> getFlags(
         const v1::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::master::Response> getHealth(
+    process::Future<process::http::Response> getHealth(
         const v1::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::master::Response> getVersion(
+    process::Future<process::http::Response> getVersion(
         const v1::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::master::Response> getLoggingLevel(
+    process::Future<process::http::Response> getLoggingLevel(
         const v1::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
-    process::Future<v1::master::Response> getLeadingMaster(
+    process::Future<process::http::Response> getLeadingMaster(
         const v1::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<std::string>& principal,
+        const ContentType& responseContentType) const;
 
     Master* master;
 

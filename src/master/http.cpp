@@ -577,47 +577,35 @@ Future<Response> Master::Http::api(
 
   LOG(INFO) << "Processing call " << call.type();
 
-  // This lambda serializes a `v1::master::Response` into an `http::Response`.
-  auto serializer = [request](const v1::master::Response& response)
-                      -> Response {
-    ContentType responseContentType;
-    if (request.acceptsMediaType(APPLICATION_JSON)) {
-      responseContentType = ContentType::JSON;
-    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-      responseContentType = ContentType::PROTOBUF;
-    } else {
-      return NotAcceptable(
-          string("Expecting 'Accept' to allow ") +
-          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
-    }
-
-    // TODO(vinod): Support JSONP requests?
-    return OK(serialize(responseContentType, response),
-              stringify(responseContentType));
-  };
+  ContentType responseContentType;
+  if (request.acceptsMediaType(APPLICATION_JSON)) {
+    responseContentType = ContentType::JSON;
+  } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+    responseContentType = ContentType::PROTOBUF;
+  } else {
+    return NotAcceptable(
+        string("Expecting 'Accept' to allow ") +
+        "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+  }
 
   switch (call.type()) {
     case v1::master::Call::UNKNOWN:
       return NotImplemented();
 
     case v1::master::Call::GET_HEALTH:
-      return getHealth(call, principal)
-        .then(serializer);
+      return getHealth(call, principal, responseContentType);
 
     case v1::master::Call::GET_FLAGS:
-      return getFlags(call, principal)
-        .then(serializer);
+      return getFlags(call, principal, responseContentType);
 
     case v1::master::Call::GET_VERSION:
-      return getVersion(call, principal)
-        .then(serializer);
+      return getVersion(call, principal, responseContentType);
 
     case v1::master::Call::GET_METRICS:
       return NotImplemented();
 
     case v1::master::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, principal)
-        .then(serializer);
+      return getLoggingLevel(call, principal, responseContentType);
 
     case v1::master::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
@@ -653,8 +641,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case v1::master::Call::GET_LEADING_MASTER:
-      return getLeadingMaster(call, principal)
-        .then(serializer);
+      return getLeadingMaster(call, principal, responseContentType);
 
     case v1::master::Call::RESERVE_RESOURCES:
       return NotImplemented();
@@ -1294,13 +1281,18 @@ JSON::Object Master::Http::_flags() const
 }
 
 
-Future<v1::master::Response> Master::Http::getFlags(
+Future<Response> Master::Http::getFlags(
     const v1::master::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_FLAGS, call.type());
 
-  return evolve<v1::master::Response::GET_FLAGS>(_flags());
+  v1::master::Response response =
+    evolve<v1::master::Response::GET_FLAGS>(_flags());
+
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
@@ -1322,9 +1314,10 @@ Future<Response> Master::Http::health(const Request& request) const
 }
 
 
-Future<v1::master::Response> Master::Http::getHealth(
+Future<Response> Master::Http::getHealth(
     const v1::master::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_HEALTH, call.type());
 
@@ -1332,23 +1325,30 @@ Future<v1::master::Response> Master::Http::getHealth(
   response.set_type(v1::master::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return response;
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
-Future<v1::master::Response> Master::Http::getVersion(
+Future<Response> Master::Http::getVersion(
     const v1::master::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_VERSION, call.type());
 
-  return evolve<v1::master::Response::GET_VERSION>(version());
+  v1::master::Response response =
+    evolve<v1::master::Response::GET_VERSION>(version());
+
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
-Future<v1::master::Response> Master::Http::getLoggingLevel(
+Future<Response> Master::Http::getLoggingLevel(
     const v1::master::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -1356,13 +1356,15 @@ Future<v1::master::Response> Master::Http::getLoggingLevel(
   response.set_type(v1::master::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return response;
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
-Future<v1::master::Response> Master::Http::getLeadingMaster(
+Future<Response> Master::Http::getLeadingMaster(
     const v1::master::Call& call,
-    const Option<string>& principal) const
+    const Option<string>& principal,
+    const ContentType& responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LEADING_MASTER, call.type());
 
@@ -1375,7 +1377,8 @@ Future<v1::master::Response> Master::Http::getLeadingMaster(
   response.mutable_get_leading_master()->mutable_master_info()->CopyFrom(
     evolve(master->info()));
 
-  return response;
+  return OK(serialize(responseContentType, response),
+            stringify(responseContentType));
 }
 
 
