@@ -147,6 +147,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Anand Mazumdar</td>
+      <td>Mesosphere</td>
+      <td>anandm</td>
+      <td>anand@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Brian McCallister</td>
       <td>Groupon</td>
       <td></td>
