@@ -1097,7 +1097,7 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
   // NOTE: We don't keep an Info struct if the container is on the host network,
   // or if during recovery, we found that the cleanup for this container is not
   // required anymore (e.g., cleanup is done already, but the slave crashed and
-  // didn't realize that it's done.
+  // didn't realize that it's done).
   if (!infos.contains(containerId)) {
     return Nothing();
   }
