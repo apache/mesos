@@ -529,6 +529,10 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
   Future<Nothing> frameworkFailoverTimeout =
     FUTURE_DISPATCH(_, &Master::frameworkFailoverTimeout);
 
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, _))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
   // Simulate framework disconnection.
   ASSERT_TRUE(process::inject::exited(
       frameworkRegisteredMessage.get().to, master.get()->pid));
@@ -548,6 +552,8 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
 
   // Wait until master actually marks the framework as completed.
   AWAIT_READY(frameworkFailoverTimeout);
+
+  AWAIT_READY(sched1Error);
 
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
