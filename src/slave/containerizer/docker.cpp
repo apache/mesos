@@ -1339,6 +1339,16 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     }
 #endif // __linux__
 
+    // Prepare the flags to pass to the mesos docker executor process.
+    docker::Flags launchFlags = dockerFlags(
+        flags,
+        container->name(),
+        container->directory,
+        container->taskEnvironment);
+
+    VLOG(1) << "Launching 'mesos-docker-executor' with flags '"
+            << launchFlags << "'";
+
     // Construct the mesos-docker-executor using the "name" we gave the
     // container (to distinguish it from Docker containers not created
     // by Mesos).
@@ -1349,11 +1359,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
         subprocessInfo.out,
         subprocessInfo.err,
         SETSID,
-        dockerFlags(
-            flags,
-            container->name(),
-            container->directory,
-            container->taskEnvironment),
+        launchFlags,
         environment,
         None(),
         parentHooks,
