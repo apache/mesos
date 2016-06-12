@@ -1869,9 +1869,10 @@ Future<Response> Master::Http::state(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then([=](const tuple<Owned<ObjectApprover>,
-                          Owned<ObjectApprover>,
-                          Owned<ObjectApprover>>& approvers) -> Response {
+    .then(defer(master->self(),
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers) -> Response {
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
         // Get approver from tuple.
         Owned<ObjectApprover> frameworksApprover;
@@ -2018,7 +2019,7 @@ Future<Response> Master::Http::state(
       };
 
       return OK(jsonify(state), request.url.query.get("jsonp"));
-    })
+    }))
     .repair([](const Future<Response>& response) {
       LOG(WARNING) << "Authorization failed: " << response.failure();
       return InternalServerError(response.failure());
@@ -2217,9 +2218,10 @@ Future<Response> Master::Http::stateSummary(
   }
 
   return frameworksApprover
-    .then([=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
-      auto stateSummary = [this, &frameworksApprover](
-          JSON::ObjectWriter* writer) {
+    .then(defer(master->self(),
+        [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
+      auto stateSummary =
+          [this, &frameworksApprover](JSON::ObjectWriter* writer) {
         Owned<ObjectApprover> frameworksApprover_ = frameworksApprover;
 
         writer->field("hostname", master->info().hostname());
@@ -2333,7 +2335,7 @@ Future<Response> Master::Http::stateSummary(
       };
 
       return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
-    })
+    }))
     .repair([](const Future<Response>& response) {
       LOG(WARNING) << "Authorization failed: " << response.failure();
       return InternalServerError(response.failure());
@@ -2661,9 +2663,10 @@ Future<Response> Master::Http::tasks(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then([=](const tuple<Owned<ObjectApprover>,
-                          Owned<ObjectApprover>,
-                          Owned<ObjectApprover>>& approvers) -> Response {
+    .then(defer(master->self(),
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers) -> Response {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
@@ -2744,7 +2747,7 @@ Future<Response> Master::Http::tasks(
       };
 
       return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
-  })
+  }))
   .repair([](const Future<Response>& response) {
     LOG(WARNING) << "Authorization failed: " << response.failure();
     return InternalServerError(response.failure());
