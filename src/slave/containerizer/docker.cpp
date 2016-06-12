@@ -1059,7 +1059,7 @@ Future<bool> DockerContainerizerProcess::launch(
         container.get()->directory,
         flags.sandbox_directory,
         container.get()->environment)
-      .then([this, taskInfo, containerId](
+      .then(defer(self(), [this, taskInfo, containerId](
           const map<string, string>& environment) -> Future<Nothing> {
         if (!containers_.contains(containerId)) {
           return Failure("Container is already destroyed");
@@ -1089,7 +1089,7 @@ Future<bool> DockerContainerizerProcess::launch(
         }
 
         return Nothing();
-      });
+      }));
   }
 
   return f.then(defer(
