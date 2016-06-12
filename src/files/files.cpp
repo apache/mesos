@@ -27,6 +27,7 @@
 
 #include <boost/shared_array.hpp>
 
+#include <process/defer.hpp>
 #include <process/deferred.hpp> // TODO(benh): This is required by Clang.
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -344,13 +345,14 @@ Future<Response> FilesProcess::browse(
   Option<string> jsonp = request.url.query.get("jsonp");
 
   return authorize(requestedPath, principal)
-    .then([this, path, jsonp](bool authorized) -> Future<Response> {
+    .then(defer(self(),
+        [this, path, jsonp](bool authorized) -> Future<Response> {
       if (authorized) {
         return _browse(path.get(), jsonp);
       }
 
       return Forbidden();
-    });
+    }));
 }
 
 
@@ -484,14 +486,15 @@ Future<Response> FilesProcess::read(
   Option<string> jsonp = request.url.query.get("jsonp");
 
   return authorize(requestedPath, principal)
-    .then([this, offset, length, path, jsonp](bool authorized)
-        -> Future<Response> {
+    .then(defer(self(),
+        [this, offset, length, path, jsonp](bool authorized)
+          -> Future<Response> {
       if (authorized) {
         return _read(offset, length, path.get(), jsonp);
       }
 
       return Forbidden();
-    });
+    }));
 }
 
 
@@ -631,13 +634,14 @@ Future<Response> FilesProcess::download(
   string requestedPath = path.get();
 
   return authorize(requestedPath, principal)
-    .then([this, path](bool authorized) -> Future<Response> {
+    .then(defer(self(),
+        [this, path](bool authorized) -> Future<Response> {
       if (authorized) {
         return _download(path.get());
       }
 
       return Forbidden();
-    });
+    }));
 }
 
 
