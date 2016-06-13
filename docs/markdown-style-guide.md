@@ -104,7 +104,7 @@ In order to avoid problems with markdown formatting we should specify tables in 
     </table>
 
 
-## Indendation and Whitespace
+## Indentation and Whitespace
 
 We use no extra indentation in markdown files.
 We have one new line after section headings and two blank lines
