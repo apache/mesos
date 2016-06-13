@@ -145,6 +145,44 @@ string getRegistryHost(const string& registry)
 }
 
 
+Try<hashmap<string, Config::Auth>> parseConfig(
+    const JSON::Object& _config)
+{
+  // This function handles both old and new docker config format,
+  // e.g., '~/.docker/config.json' or '~/.dockercfg'.
+  Result<JSON::Object> auths = _config.find<JSON::Object>("auths");
+  if (auths.isError()) {
+    return Error("Failed to find 'auths' in docker config file: " +
+                 auths.error());
+  }
+
+  const JSON::Object& config = auths.isSome()
+    ? auths.get()
+    : _config;
+
+  hashmap<string, Config::Auth> result;
+
+  foreachpair (const string& key, const JSON::Value& value, config.values) {
+    if (!value.is<JSON::Object>()) {
+      return Error("Invalid JSON object '" + stringify(value) + "'");
+    }
+
+    Try<Config::Auth> auth =
+      protobuf::parse<Config::Auth>(value.as<JSON::Object>());
+
+    if (auth.isError()) {
+      return Error("Protobuf parse failed: " + auth.error());
+    }
+
+    // Assuming no duplicate registry url in docker config file,
+    // if there exists, overwrite it.
+    result[key] = auth.get();
+  }
+
+  return result;
+}
+
+
 namespace v1 {
 
 Option<Error> validate(const ImageManifest& manifest)

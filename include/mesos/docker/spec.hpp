@@ -76,6 +76,14 @@ Try<std::string> getRegistryScheme(const std::string& registry);
 std::string getRegistryHost(const std::string& registry);
 
 
+/**
+ * Returns the hashmap<registry_URL, spec::DockerConfigAuth> by
+ * parsing the docker config file.
+ */
+Try<hashmap<std::string, Config::Auth>> parseConfig(
+    const JSON::Object& _config);
+
+
 namespace v1 {
 
 /**
