@@ -23,6 +23,11 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
+#include <process/dispatch.hpp>
+#include <process/process.hpp>
+#include <process/time.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
@@ -34,6 +39,8 @@ using namespace mesos;
 using namespace mesos::internal;
 
 using std::string;
+
+using process::Clock;
 
 const double CPUS_PER_TASK = 0.1;
 
@@ -112,42 +119,34 @@ public:
 };
 
 
-// This scheduler starts a single executor and task which gradually
-// increases its memory footprint up to a limit.  Depending on the
-// resource limits set for the container, the framework expects the
-// executor to either finish successfully or be OOM-killed.
-class BalloonScheduler : public Scheduler
+// Actor holding the business logic and metrics for the `BalloonScheduler`.
+// See `BalloonScheduler` below for the intended behavior.
+class BalloonSchedulerProcess : public process::Process<BalloonSchedulerProcess>
 {
 public:
-  BalloonScheduler(
+  BalloonSchedulerProcess(
       const ExecutorInfo& _executor,
       const Flags& _flags)
     : executor(_executor),
       flags(_flags),
       taskActive(false),
-      tasksLaunched(0) {}
-
-  virtual ~BalloonScheduler() {}
-
-  virtual void registered(
-      SchedulerDriver*,
-      const FrameworkID& frameworkId,
-      const MasterInfo&)
+      tasksLaunched(0),
+      isRegistered(false)
   {
-    LOG(INFO) << "Registered with framework ID: " << frameworkId;
+    start_time = Clock::now();
   }
 
-  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
+  void registered()
   {
-    LOG(INFO) << "Reregistered";
+    isRegistered = true;
   }
 
-  virtual void disconnected(SchedulerDriver* driver)
+  void disconnected()
   {
-    LOG(INFO) << "Disconnected";
+    isRegistered = false;
   }
 
-  virtual void resourceOffers(
+  void resourceOffers(
       SchedulerDriver* driver,
       const std::vector<Offer>& offers)
   {
@@ -156,8 +155,6 @@ public:
         ";mem:" + stringify(flags.task_memory.megabytes())).get();
 
     static const Resources EXECUTOR_RESOURCES = Resources(executor.resources());
-
-    LOG(INFO) << "Resource offers received";
 
     foreach (const Offer& offer, offers) {
       Resources resources(offer.resources());
@@ -194,22 +191,8 @@ public:
     }
   }
 
-  virtual void offerRescinded(
-      SchedulerDriver* driver,
-      const OfferID& offerId)
+  void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
-    LOG(INFO) << "Offer rescinded";
-  }
-
-  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
-  {
-    LOG(INFO)
-      << "Task " << status.task_id() << " in state "
-      << TaskState_Name(status.state())
-      << ", Source: " << status.source()
-      << ", Reason: " << status.reason()
-      << (status.has_message() ? ", Message: " + status.message() : "");
-
     if (!flags.long_running) {
       if (status.state() == TASK_FAILED &&
           status.reason() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY) {
@@ -238,6 +221,115 @@ public:
       default:
         break;
     }
+  }
+
+private:
+  const ExecutorInfo executor;
+  const Flags flags;
+  bool taskActive;
+  int tasksLaunched;
+
+  process::Time start_time;
+  double _uptime_secs()
+  {
+    return (Clock::now() - start_time).secs();
+  }
+
+  bool isRegistered;
+  double _registered()
+  {
+    return isRegistered ? 1 : 0;
+  }
+
+  // TODO(josephw): Add some metrics here.
+};
+
+
+// This scheduler starts a single executor and task which gradually
+// increases its memory footprint up to a limit.  Depending on the
+// resource limits set for the container, the framework expects the
+// executor to either finish successfully or be OOM-killed.
+class BalloonScheduler : public Scheduler
+{
+public:
+  BalloonScheduler(
+      const ExecutorInfo& _executor,
+      const Flags& _flags)
+    : process(_executor, _flags)
+  {
+    process::spawn(process);
+  }
+
+  virtual ~BalloonScheduler()
+  {
+    process::terminate(process);
+    process::wait(process);
+  }
+
+  virtual void registered(
+      SchedulerDriver*,
+      const FrameworkID& frameworkId,
+      const MasterInfo&)
+  {
+    LOG(INFO) << "Registered with framework ID: " << frameworkId;
+
+    process::dispatch(
+        &process,
+        &BalloonSchedulerProcess::registered);
+  }
+
+  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
+  {
+    LOG(INFO) << "Reregistered";
+
+    process::dispatch(
+        &process,
+        &BalloonSchedulerProcess::registered);
+  }
+
+  virtual void disconnected(SchedulerDriver* driver)
+  {
+    LOG(INFO) << "Disconnected";
+
+    process::dispatch(
+        &process,
+        &BalloonSchedulerProcess::disconnected);
+  }
+
+  virtual void resourceOffers(
+      SchedulerDriver* driver,
+      const std::vector<Offer>& offers)
+  {
+    LOG(INFO) << "Resource offers received";
+
+    process::dispatch(
+        &process,
+        &BalloonSchedulerProcess::resourceOffers,
+        driver,
+        offers);
+  }
+
+  virtual void offerRescinded(
+      SchedulerDriver* driver,
+      const OfferID& offerId)
+  {
+    LOG(INFO) << "Offer rescinded";
+  }
+
+  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
+  {
+    LOG(INFO)
+      << "Task " << status.task_id() << " in state "
+      << TaskState_Name(status.state())
+      << ", Source: " << status.source()
+      << ", Reason: " << status.reason()
+      << (status.has_message() ? ", Message: " + status.message() : "");
+
+    process::dispatch(
+        &process,
+        &BalloonSchedulerProcess::statusUpdate,
+        driver,
+        status);
   }
 
   virtual void frameworkMessage(
@@ -269,10 +361,7 @@ public:
   }
 
 private:
-  const ExecutorInfo executor;
-  const Flags flags;
-  bool taskActive;
-  int tasksLaunched;
+  BalloonSchedulerProcess process;
 };
 
 
