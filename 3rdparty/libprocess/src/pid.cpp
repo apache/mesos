@@ -92,7 +92,7 @@ istream& operator>>(istream& stream, UPID& pid)
     return stream;
   }
 
-  VLOG(2) << "Attempting to parse '" << str << "' into a PID";
+  VLOG(3) << "Attempting to parse '" << str << "' into a PID";
 
   if (str.size() == 0) {
     stream.setstate(ios_base::badbit);
