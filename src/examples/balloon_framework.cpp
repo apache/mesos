@@ -49,35 +49,38 @@ const static size_t EXECUTOR_MEMORY_MB = 64;
 class BalloonScheduler : public Scheduler
 {
 public:
-  BalloonScheduler(const ExecutorInfo& _executor,
-                   size_t _balloonLimit)
+  BalloonScheduler(
+      const ExecutorInfo& _executor,
+      size_t _balloonLimit)
     : executor(_executor),
       balloonLimit(_balloonLimit),
       taskLaunched(false) {}
 
   virtual ~BalloonScheduler() {}
 
-  virtual void registered(SchedulerDriver*,
-                          const FrameworkID&,
-                          const MasterInfo&)
+  virtual void registered(
+      SchedulerDriver*,
+      const FrameworkID& frameworkId,
+      const MasterInfo&)
   {
-    std::cout << "Registered" << std::endl;
+    LOG(INFO) << "Registered with framework ID: " << frameworkId;
   }
 
   virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
   {
-    std::cout << "Reregistered" << std::endl;
+    LOG(INFO) << "Reregistered";
   }
 
   virtual void disconnected(SchedulerDriver* driver)
   {
-    std::cout << "Disconnected" << std::endl;
+    LOG(INFO) << "Disconnected";
   }
 
-  virtual void resourceOffers(SchedulerDriver* driver,
-                              const std::vector<Offer>& offers)
+  virtual void resourceOffers(
+      SchedulerDriver* driver,
+      const std::vector<Offer>& offers)
   {
-    std::cout << "Resource offers received" << std::endl;
+    LOG(INFO) << "Resource offers received";
 
     for (size_t i = 0; i < offers.size(); i++) {
       const Offer& offer = offers[i];
@@ -88,7 +91,7 @@ public:
         assert(mem > EXECUTOR_MEMORY_MB);
 
         std::vector<TaskInfo> tasks;
-        std::cout << "Starting the task" << std::endl;
+        LOG(INFO) << "Starting the task";
 
         TaskInfo task;
         task.set_name("Balloon Task");
@@ -119,20 +122,21 @@ public:
     }
   }
 
-  virtual void offerRescinded(SchedulerDriver* driver,
-                              const OfferID& offerId)
+  virtual void offerRescinded(
+      SchedulerDriver* driver,
+      const OfferID& offerId)
   {
-    std::cout << "Offer rescinded" << std::endl;
+    LOG(INFO) << "Offer rescinded";
   }
 
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
-    std::cout << "Task in state " << status.state() << std::endl;
-    std::cout << "Source: " << status.source() << std::endl;
-    std::cout << "Reason: " << status.reason() << std::endl;
-    if (status.has_message()) {
-      std::cout << "Message: " << status.message() << std::endl;
-    }
+    LOG(INFO)
+      << "Task " << status.task_id() << " in state "
+      << TaskState_Name(status.state())
+      << ", Source: " << status.source()
+      << ", Reason: " << status.reason()
+      << (status.has_message() ? ", Message: " + status.message() : "");
 
     if (protobuf::isTerminalState(status.state())) {
       // NOTE: We expect TASK_FAILED here. The abort here ensures the shell
@@ -145,30 +149,32 @@ public:
     }
   }
 
-  virtual void frameworkMessage(SchedulerDriver* driver,
-                                const ExecutorID& executorId,
-                                const SlaveID& slaveId,
-                                const string& data)
+  virtual void frameworkMessage(
+      SchedulerDriver* driver,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      const string& data)
   {
-    std::cout << "Framework message: " << data << std::endl;
+    LOG(INFO) << "Framework message: " << data;
   }
 
-  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid)
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
   {
-    std::cout << "Agent lost" << std::endl;
+    LOG(INFO) << "Agent lost: " << slaveId;
   }
 
-  virtual void executorLost(SchedulerDriver* driver,
-                            const ExecutorID& executorID,
-                            const SlaveID& slaveID,
-                            int status)
+  virtual void executorLost(
+      SchedulerDriver* driver,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      int status)
   {
-    std::cout << "Executor lost" << std::endl;
+    LOG(INFO) << "Executor '" << executorId << "' lost on agent: " << slaveId;
   }
 
   virtual void error(SchedulerDriver* driver, const string& message)
   {
-    std::cout << "Error message: " << message << std::endl;
+    LOG(INFO) << "Error message: " << message;
   }
 
 private:
