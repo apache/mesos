@@ -24,9 +24,16 @@
 #include <mesos/scheduler.hpp>
 
 #include <process/clock.hpp>
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/http.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
 #include <process/time.hpp>
+
+#include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
@@ -41,6 +48,10 @@ using namespace mesos::internal;
 using std::string;
 
 using process::Clock;
+using process::defer;
+
+using process::metrics::Gauge;
+using process::metrics::Counter;
 
 const double CPUS_PER_TASK = 0.1;
 
@@ -131,7 +142,8 @@ public:
       flags(_flags),
       taskActive(false),
       tasksLaunched(0),
-      isRegistered(false)
+      isRegistered(false),
+      metrics(*this)
   {
     start_time = Clock::now();
   }
@@ -209,14 +221,38 @@ public:
       }
     }
 
-    // TODO(josephw): Add some metrics for some cases below.
+    if (stringify(tasksLaunched - 1) != status.task_id().value()) {
+      // We might receive messages from older tasks. Ignore them.
+      LOG(INFO) << "Ignoring status update from older task "
+                << status.task_id();
+      return;
+    }
+
     switch (status.state()) {
       case TASK_FINISHED:
+        taskActive = false;
+        ++metrics.tasks_finished;
+        break;
       case TASK_FAILED:
+        taskActive = false;
+        if (status.reason() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY) {
+          ++metrics.tasks_oomed;
+          break;
+        }
+
+        // NOTE: Fetching the executor (e.g. `--executor_uri`) may fail
+        // occasionally if the URI is rate limited. This case is common
+        // enough that it makes sense to track this failure metric separately.
+        if (status.reason() == TaskStatus::REASON_CONTAINER_LAUNCH_FAILED) {
+          ++metrics.launch_failures;
+          break;
+        }
       case TASK_KILLED:
       case TASK_LOST:
       case TASK_ERROR:
         taskActive = false;
+
+        ++metrics.abnormal_terminations;
         break;
       default:
         break;
@@ -241,7 +277,46 @@ private:
     return isRegistered ? 1 : 0;
   }
 
-  // TODO(josephw): Add some metrics here.
+  struct Metrics
+  {
+    Metrics(const BalloonSchedulerProcess& _scheduler)
+      : uptime_secs(
+            "balloon_framework/uptime_secs",
+            defer(_scheduler, &BalloonSchedulerProcess::_uptime_secs)),
+        registered(
+            "balloon_framework/registered",
+            defer(_scheduler, &BalloonSchedulerProcess::_registered)),
+        tasks_finished("balloon_framework/tasks_finished"),
+        tasks_oomed("balloon_framework/tasks_oomed"),
+        launch_failures("balloon_framework/launch_failures"),
+        abnormal_terminations("balloon_framework/abnormal_terminations")
+    {
+      process::metrics::add(uptime_secs);
+      process::metrics::add(registered);
+      process::metrics::add(tasks_finished);
+      process::metrics::add(tasks_oomed);
+      process::metrics::add(launch_failures);
+      process::metrics::add(abnormal_terminations);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(uptime_secs);
+      process::metrics::remove(registered);
+      process::metrics::remove(tasks_finished);
+      process::metrics::remove(tasks_oomed);
+      process::metrics::remove(launch_failures);
+      process::metrics::remove(abnormal_terminations);
+    }
+
+    process::metrics::Gauge uptime_secs;
+    process::metrics::Gauge registered;
+
+    process::metrics::Counter tasks_finished;
+    process::metrics::Counter tasks_oomed;
+    process::metrics::Counter launch_failures;
+    process::metrics::Counter abnormal_terminations;
+  } metrics;
 };
 
 
