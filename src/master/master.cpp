@@ -4338,8 +4338,8 @@ void Master::acknowledge(
 
   metrics->messages_status_update_acknowledgement++;
 
-  const SlaveID slaveId = acknowledge.slave_id();
-  const TaskID taskId = acknowledge.task_id();
+  const SlaveID& slaveId = acknowledge.slave_id();
+  const TaskID& taskId = acknowledge.task_id();
   const UUID uuid = UUID::fromBytes(acknowledge.uuid());
 
   Slave* slave = slaves.registered.get(slaveId);
@@ -5069,14 +5069,14 @@ void Master::updateSlave(
   // First, rescind any outstanding offers with revocable resources.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.
   foreach (Offer* offer, utils::copy(slave->offers)) {
-    const Resources offered = offer->resources();
+    const Resources& offered = offer->resources();
     if (!offered.revocable().empty()) {
       LOG(INFO) << "Removing offer " << offer->id()
                 << " with revocable resources " << offered
                 << " on agent " << *slave;
 
       allocator->recoverResources(
-          offer->framework_id(), offer->slave_id(), offer->resources(), None());
+          offer->framework_id(), offer->slave_id(), offered, None());
 
       removeOffer(offer, true); // Rescind.
     }
