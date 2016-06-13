@@ -168,7 +168,7 @@ TEST_F(DockerSpecTest, GetRegistrySpec)
 }
 
 
-// This test verifies docker::spec::parseConfig works as expected
+// This test verifies docker::spec::parseAuthConfig works as expected
 // for new docker config file format (e.g., ~/.docker/config.json).
 TEST_F(DockerSpecTest, ParseDockerConfig)
 {
@@ -193,7 +193,7 @@ TEST_F(DockerSpecTest, ParseDockerConfig)
   ASSERT_SOME(config);
 
   Try<hashmap<string, spec::Config::Auth>> map =
-    spec::parseConfig(config.get());
+    spec::parseAuthConfig(config.get());
 
   EXPECT_EQ("bWVzb3M6dGVzdA==",
             map.get()["https://index.docker.io/v1/"].auth());
@@ -206,7 +206,7 @@ TEST_F(DockerSpecTest, ParseDockerConfig)
 }
 
 
-// This test verifies docker::spec::parseConfig works as expected
+// This test verifies docker::spec::parseAuthConfig works as expected
 // for old docker config file format (e.g., ~/.dockercfg).
 TEST_F(DockerSpecTest, ParseDockercfg)
 {
@@ -230,7 +230,7 @@ TEST_F(DockerSpecTest, ParseDockercfg)
   ASSERT_SOME(dockercfg);
 
   Try<hashmap<string, spec::Config::Auth>> map =
-    spec::parseConfig(dockercfg.get());
+    spec::parseAuthConfig(dockercfg.get());
 
   EXPECT_EQ("cXVheTp0ZXN0", map.get()["quay.io"].auth());
   EXPECT_EQ("user@example.com", map.get()["quay.io"].email());
@@ -246,26 +246,26 @@ TEST_F(DockerSpecTest, ParseDockercfg)
 }
 
 
-TEST_F(DockerSpecTest, ParseUrl)
+TEST_F(DockerSpecTest, ParseAuthUrl)
 {
   EXPECT_EQ("registry.example.com",
-            spec::parseUrl("https://registry.example.com/v1/"));
+            spec::parseAuthUrl("https://registry.example.com/v1/"));
   EXPECT_EQ("registry.example.com",
-            spec::parseUrl("http://registry.example.com/v1/"));
+            spec::parseAuthUrl("http://registry.example.com/v1/"));
   EXPECT_EQ("registry.example.com",
-            spec::parseUrl("registry.example.com"));
+            spec::parseAuthUrl("registry.example.com"));
   EXPECT_EQ("registry.example.com",
-            spec::parseUrl("registry.example.com/v1/"));
+            spec::parseAuthUrl("registry.example.com/v1/"));
 
-  EXPECT_EQ("localhost:8000", spec::parseUrl("https://localhost:8000/v1/"));
-  EXPECT_EQ("localhost:8000", spec::parseUrl("http://localhost:8000/v1/"));
-  EXPECT_EQ("localhost:8000", spec::parseUrl("localhost:8000"));
-  EXPECT_EQ("localhost:8000", spec::parseUrl("localhost:8000/v1/"));
+  EXPECT_EQ("localhost:8000", spec::parseAuthUrl("https://localhost:8000/v1/"));
+  EXPECT_EQ("localhost:8000", spec::parseAuthUrl("http://localhost:8000/v1/"));
+  EXPECT_EQ("localhost:8000", spec::parseAuthUrl("localhost:8000"));
+  EXPECT_EQ("localhost:8000", spec::parseAuthUrl("localhost:8000/v1/"));
 
-  EXPECT_EQ("registry.com", spec::parseUrl("https://registry.com/v1/"));
-  EXPECT_EQ("registry.com", spec::parseUrl("http://registry.com/v1/"));
-  EXPECT_EQ("registry.com", spec::parseUrl("registry.com"));
-  EXPECT_EQ("registry.com", spec::parseUrl("registry.com/v1/"));
+  EXPECT_EQ("registry.com", spec::parseAuthUrl("https://registry.com/v1/"));
+  EXPECT_EQ("registry.com", spec::parseAuthUrl("http://registry.com/v1/"));
+  EXPECT_EQ("registry.com", spec::parseAuthUrl("registry.com"));
+  EXPECT_EQ("registry.com", spec::parseAuthUrl("registry.com/v1/"));
 }
 
 

@@ -145,7 +145,7 @@ string getRegistryHost(const string& registry)
 }
 
 
-Try<hashmap<string, Config::Auth>> parseConfig(
+Try<hashmap<string, Config::Auth>> parseAuthConfig(
     const JSON::Object& _config)
 {
   // This function handles both old and new docker config format,
@@ -183,7 +183,7 @@ Try<hashmap<string, Config::Auth>> parseConfig(
 }
 
 
-string parseUrl(const string& _url)
+string parseAuthUrl(const string& _url)
 {
   string url = _url;
   if (strings::startsWith(_url, "http://")) {

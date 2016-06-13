@@ -334,7 +334,7 @@ Try<Owned<Fetcher::Plugin>> DockerFetcherPlugin::create(const Flags& flags)
   hashmap<string, spec::Config::Auth> auths;
   if (flags.docker_config.isSome()) {
     Try<hashmap<string, spec::Config::Auth>> cachedAuths =
-      spec::parseConfig(flags.docker_config.get());
+      spec::parseAuthConfig(flags.docker_config.get());
 
     if (cachedAuths.isError()) {
       return Error("Failed to parse docker config: " + cachedAuths.error());
@@ -683,7 +683,7 @@ Future<string> DockerFetcherPluginProcess::getAuthToken(
     // domain only (e.g., 'quay.io', 'localhost:5000').
     // Please see 'ResolveAuthConfig()' in:
     // https://github.com/docker/docker/blob/master/registry/auth.go
-    if (isDocker || (registry == spec::parseUrl(key))) {
+    if (isDocker || (registry == spec::parseAuthUrl(key))) {
       if (value.has_auth()) {
         auth = value.auth();
         break;
