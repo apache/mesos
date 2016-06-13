@@ -266,11 +266,11 @@ Future<Response> Slave::Http::api(
 
   LOG(INFO) << "Processing call " << call.type();
 
-  ContentType responseContentType;
+  ContentType acceptType;
   if (request.acceptsMediaType(APPLICATION_JSON)) {
-    responseContentType = ContentType::JSON;
+    acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-    responseContentType = ContentType::PROTOBUF;
+    acceptType = ContentType::PROTOBUF;
   } else {
     return NotAcceptable(
         string("Expecting 'Accept' to allow ") +
@@ -282,19 +282,19 @@ Future<Response> Slave::Http::api(
       return NotImplemented();
 
     case v1::agent::Call::GET_HEALTH:
-      return getHealth(call, principal, responseContentType);
+      return getHealth(call, principal, acceptType);
 
     case v1::agent::Call::GET_FLAGS:
-      return getFlags(call, principal, responseContentType);
+      return getFlags(call, principal, acceptType);
 
     case v1::agent::Call::GET_VERSION:
-      return getVersion(call, principal, responseContentType);
+      return getVersion(call, principal, acceptType);
 
     case v1::agent::Call::GET_METRICS:
       return NotImplemented();
 
     case v1::agent::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, principal, responseContentType);
+      return getLoggingLevel(call, principal, acceptType);
 
     case v1::agent::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
@@ -385,15 +385,15 @@ Future<Response> Slave::Http::executor(const Request& request) const
                       error.get().message);
   }
 
-  ContentType responseContentType;
+  ContentType acceptType;
 
   if (call.type() == executor::Call::SUBSCRIBE) {
     // We default to JSON since an empty 'Accept' header
     // results in all media types considered acceptable.
     if (request.acceptsMediaType(APPLICATION_JSON)) {
-      responseContentType = ContentType::JSON;
+      acceptType = ContentType::JSON;
     } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-      responseContentType = ContentType::PROTOBUF;
+      acceptType = ContentType::PROTOBUF;
     } else {
       return NotAcceptable(
           string("Expecting 'Accept' to allow ") +
@@ -426,12 +426,12 @@ Future<Response> Slave::Http::executor(const Request& request) const
     case executor::Call::SUBSCRIBE: {
       Pipe pipe;
       OK ok;
-      ok.headers["Content-Type"] = stringify(responseContentType);
+      ok.headers["Content-Type"] = stringify(acceptType);
 
       ok.type = Response::PIPE;
       ok.reader = pipe.reader();
 
-      HttpConnection http {pipe.writer(), responseContentType};
+      HttpConnection http {pipe.writer(), acceptType};
       slave->subscribe(http, call.subscribe(), framework, executor);
 
       return ok;
@@ -529,15 +529,15 @@ JSON::Object Slave::Http::_flags() const
 Future<Response> Slave::Http::getFlags(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_FLAGS, call.type());
 
   v1::agent::Response response =
     evolve<v1::agent::Response::GET_FLAGS>(_flags());
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
@@ -562,7 +562,7 @@ Future<Response> Slave::Http::health(const Request& request) const
 Future<Response> Slave::Http::getHealth(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_HEALTH, call.type());
 
@@ -570,30 +570,30 @@ Future<Response> Slave::Http::getHealth(
   response.set_type(v1::agent::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
 Future<Response> Slave::Http::getVersion(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_VERSION, call.type());
 
   v1::agent::Response response =
     evolve<v1::agent::Response::GET_VERSION>(version());
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
 Future<Response> Slave::Http::getLoggingLevel(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -601,8 +601,8 @@ Future<Response> Slave::Http::getLoggingLevel(
   response.set_type(v1::agent::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 

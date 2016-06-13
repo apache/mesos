@@ -577,11 +577,11 @@ Future<Response> Master::Http::api(
 
   LOG(INFO) << "Processing call " << call.type();
 
-  ContentType responseContentType;
+  ContentType acceptType;
   if (request.acceptsMediaType(APPLICATION_JSON)) {
-    responseContentType = ContentType::JSON;
+    acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-    responseContentType = ContentType::PROTOBUF;
+    acceptType = ContentType::PROTOBUF;
   } else {
     return NotAcceptable(
         string("Expecting 'Accept' to allow ") +
@@ -593,19 +593,19 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case v1::master::Call::GET_HEALTH:
-      return getHealth(call, principal, responseContentType);
+      return getHealth(call, principal, acceptType);
 
     case v1::master::Call::GET_FLAGS:
-      return getFlags(call, principal, responseContentType);
+      return getFlags(call, principal, acceptType);
 
     case v1::master::Call::GET_VERSION:
-      return getVersion(call, principal, responseContentType);
+      return getVersion(call, principal, acceptType);
 
     case v1::master::Call::GET_METRICS:
       return NotImplemented();
 
     case v1::master::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, principal, responseContentType);
+      return getLoggingLevel(call, principal, acceptType);
 
     case v1::master::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
@@ -641,7 +641,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case v1::master::Call::GET_LEADING_MASTER:
-      return getLeadingMaster(call, principal, responseContentType);
+      return getLeadingMaster(call, principal, acceptType);
 
     case v1::master::Call::RESERVE_RESOURCES:
       return NotImplemented();
@@ -778,12 +778,12 @@ Future<Response> Master::Http::scheduler(
     // We default to JSON 'Content-Type' in the response since an
     // empty 'Accept' header results in all media types considered
     // acceptable.
-    ContentType responseContentType = ContentType::JSON;
+    ContentType acceptType = ContentType::JSON;
 
     if (request.acceptsMediaType(APPLICATION_JSON)) {
-      responseContentType = ContentType::JSON;
+      acceptType = ContentType::JSON;
     } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-      responseContentType = ContentType::PROTOBUF;
+      acceptType = ContentType::PROTOBUF;
     } else {
       return NotAcceptable(
           string("Expecting 'Accept' to allow ") +
@@ -816,7 +816,7 @@ Future<Response> Master::Http::scheduler(
 
     Pipe pipe;
     OK ok;
-    ok.headers["Content-Type"] = stringify(responseContentType);
+    ok.headers["Content-Type"] = stringify(acceptType);
 
     ok.type = Response::PIPE;
     ok.reader = pipe.reader();
@@ -825,7 +825,7 @@ Future<Response> Master::Http::scheduler(
     UUID streamId = UUID::random();
     ok.headers["Mesos-Stream-Id"] = streamId.toString();
 
-    HttpConnection http {pipe.writer(), responseContentType, streamId};
+    HttpConnection http {pipe.writer(), acceptType, streamId};
     master->subscribe(http, call.subscribe());
 
     return ok;
@@ -1284,15 +1284,15 @@ JSON::Object Master::Http::_flags() const
 Future<Response> Master::Http::getFlags(
     const v1::master::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::master::Call::GET_FLAGS, call.type());
 
   v1::master::Response response =
     evolve<v1::master::Response::GET_FLAGS>(_flags());
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
@@ -1317,7 +1317,7 @@ Future<Response> Master::Http::health(const Request& request) const
 Future<Response> Master::Http::getHealth(
     const v1::master::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::master::Call::GET_HEALTH, call.type());
 
@@ -1325,30 +1325,30 @@ Future<Response> Master::Http::getHealth(
   response.set_type(v1::master::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getVersion(
     const v1::master::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::master::Call::GET_VERSION, call.type());
 
   v1::master::Response response =
     evolve<v1::master::Response::GET_VERSION>(version());
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getLoggingLevel(
     const v1::master::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -1356,15 +1356,15 @@ Future<Response> Master::Http::getLoggingLevel(
   response.set_type(v1::master::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getLeadingMaster(
     const v1::master::Call& call,
     const Option<string>& principal,
-    ContentType responseContentType) const
+    ContentType contentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LEADING_MASTER, call.type());
 
@@ -1377,8 +1377,8 @@ Future<Response> Master::Http::getLeadingMaster(
   response.mutable_get_leading_master()->mutable_master_info()->CopyFrom(
     evolve(master->info()));
 
-  return OK(serialize(responseContentType, response),
-            stringify(responseContentType));
+  return OK(serialize(contentType, response),
+            stringify(contentType));
 }
 
 

@@ -1285,27 +1285,27 @@ private:
     process::Future<process::http::Response> getFlags(
         const v1::master::Call& call,
         const Option<std::string>& principal,
-        ContentType responseContentType) const;
+        ContentType contentType) const;
 
     process::Future<process::http::Response> getHealth(
         const v1::master::Call& call,
         const Option<std::string>& principal,
-        ContentType responseContentType) const;
+        ContentType contentType) const;
 
     process::Future<process::http::Response> getVersion(
         const v1::master::Call& call,
         const Option<std::string>& principal,
-        ContentType responseContentType) const;
+        ContentType contentType) const;
 
     process::Future<process::http::Response> getLoggingLevel(
         const v1::master::Call& call,
         const Option<std::string>& principal,
-        ContentType responseContentType) const;
+        ContentType contentType) const;
 
     process::Future<process::http::Response> getLeadingMaster(
         const v1::master::Call& call,
         const Option<std::string>& principal,
-        ContentType responseContentType) const;
+        ContentType contentType) const;
 
     Master* master;
 
