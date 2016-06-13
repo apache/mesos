@@ -36,3 +36,17 @@ message ImageReference {
   // In the format of 'ALGORITHM:HEX'.
   optional string digest = 4;
 }
+
+
+/**
+ * The config structure for docker config file
+ * (e.g., ~/.docker/config.json or ~/.dockercfg).
+ */
+message Config {
+  // The base64 encoded 'auth' and 'email' pair in docker
+  // config file.
+  message Auth {
+    optional string auth = 1;
+    optional string email = 2;
+  }
+}
