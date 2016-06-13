@@ -271,4 +271,4 @@ secondary handle to the net_cls cgroup associated with the container
 by writing to `net_cls.classid`. The cgroups/net_cls isolator exposes
 the assigned net_cls handle to operators by exposing the handle as
 part of the `ContainerStatus` &mdash;associated with any task running within
-the container&mdash; in the agent's `state` endpoint.
+the container&mdash; in the agent's [/state](endpoints/slave/state.md) endpoint.

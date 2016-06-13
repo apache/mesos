@@ -10,11 +10,7 @@ Mesos 0.24.0 added **experimental** support for v1 Scheduler HTTP API.
 
 ## Overview
 
-The scheduler interacts with Mesos via  "/api/v1/scheduler" endpoint hosted by the Mesos master. The fully qualified URL of the endpoint might look like:
-
-	http://masterhost:5050/api/v1/scheduler
-
-Note that we refer to this endpoint with its suffix "/scheduler" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that a scheduler sends to "/scheduler" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
+The scheduler interacts with Mesos via the [/api/v1/scheduler](endpoints/master/api/v1/scheduler.md) master endpoint. Note that we refer to this endpoint with its suffix "/scheduler" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that a scheduler sends to "/scheduler" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
 
 All the subsequent (non-`SUBSCRIBE`) requests to "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. Master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
 
@@ -394,6 +390,7 @@ Sent by the master whenever there are new resources that can be offered to the f
 
 ```
 OFFERS Event (JSON)
+
 <event-length>
 {
   "type"	: "OFFERS",
@@ -416,6 +413,7 @@ Sent by the master when a particular offer is no longer valid (e.g., the agent c
 
 ```
 RESCIND Event (JSON)
+
 <event-length>
 {
   "type"	: "RESCIND",
@@ -514,7 +512,7 @@ Master considers a scheduler disconnected if the persistent subscription connect
 
 If master realizes that the subscription connection is broken, it marks the scheduler as "disconnected" and starts a failover timeout (failover timeout is part of FrameworkInfo). It also drops any pending events in its queue. Additionally, it rejects subsequent non-subscribe HTTP requests to "/scheduler" with "403 Forbidden", until the scheduler subscribes again with "/scheduler". If the scheduler *does not* re-subscribe within the failover timeout, the master considers the scheduler gone forever and shuts down all its executors, thus killing all its tasks. Therefore, all production schedulers are recommended to use a high value (e.g., 4 weeks) for the failover timeout.
 
-NOTE: To force shutdown of a framework before the failover timeout elapses (e.g., during framework development and testing), either the framework can send the `TEARDOWN` call (part of the Scheduler API) or an operator can use the "/master/teardown" endpoint (part of the Operator API).
+NOTE: To force shutdown of a framework before the failover timeout elapses (e.g., during framework development and testing), either the framework can send the `TEARDOWN` call (part of the Scheduler API) or an operator can use the [/teardown](endpoints/master/teardown.md) master endpoint (part of the Operator API).
 
 If the scheduler realizes that its subscription connection to "/scheduler" is broken or the master has changed (e.g., via ZooKeeper), it should resubscribe (using a backoff strategy). This is done by sending a `SUBSCRIBE` request (with framework ID set) on a **new** persistent connection to the "/scheduler" endpoint on the (possibly new) master. It should not send new non-subscribe HTTP requests to "/scheduler" unless it receives a `SUBSCRIBED` event; such requests will result in "403 Forbidden".
 

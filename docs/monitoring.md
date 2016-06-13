@@ -40,12 +40,9 @@ The tables in this document indicate the type of each available metric.
 
 ## Master Nodes
 
-Metrics from the master node are available at the following URL:
-
-    http://<mesos-master-ip>:5050/metrics/snapshot
-
-The response is a JSON object that contains metrics names and values as
-key-value pairs.
+Metrics from each master node are available via the
+[/metrics/snapshot](endpoints/metrics/snapshot.md) master endpoint.  The response
+is a JSON object that contains metrics names and values as key-value pairs.
 
 ### Observability metrics
 
@@ -1104,13 +1101,9 @@ No master is currently elected.
 
 ## Agent Nodes
 
-Metrics from each agent node are available at the following URL:
-
-    http://<mesos-agent>:5051/metrics/snapshot
-
-The response is a JSON object that contains metrics names and values as key-
-value pairs.
-
+Metrics from each agent node are available via the
+[/metrics/snapshot](endpoints/metrics/snapshot.md) agent endpoint.  The response
+is a JSON object that contains metrics names and values as key-value pairs.
 
 ### Observability Metrics
 

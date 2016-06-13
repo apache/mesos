@@ -339,8 +339,9 @@ The previous ACL can be fixed as follows:
 }
 ```
 
-The `ops` principal can teardown any framework using the "/teardown" HTTP
-endpoint. No other principal can teardown any frameworks.
+The `ops` principal can teardown any framework using the
+[/teardown](endpoints/master/teardown.md) HTTP endpoint. No other principal can
+teardown any frameworks.
 
 ```json
 {
