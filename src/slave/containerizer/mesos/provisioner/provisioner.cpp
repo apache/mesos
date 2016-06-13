@@ -403,8 +403,7 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
 Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
-    LOG(INFO) << "Ignoring destroy request for unknown container "
-              << containerId;
+    VLOG(1) << "Ignoring destroy request for unknown container " << containerId;
 
     return false;
   }
