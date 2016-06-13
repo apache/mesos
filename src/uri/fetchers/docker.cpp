@@ -282,26 +282,26 @@ public:
 
 private:
   Future<Nothing> _fetch(
-    const URI& uri,
-    const string& directory,
-    const URI& manifestUri,
-    const http::Response& response);
+      const URI& uri,
+      const string& directory,
+      const URI& manifestUri,
+      const http::Response& response);
 
   Future<Nothing> __fetch(
-    const URI& uri,
-    const string& directory,
-    const Option<string>& authToken,
-    const http::Response& response);
+      const URI& uri,
+      const string& directory,
+      const Option<string>& authToken,
+      const http::Response& response);
 
   Future<Nothing> fetchBlob(
-    const URI& uri,
-    const string& directory,
-    const Option<string>& authToken);
+      const URI& uri,
+      const string& directory,
+      const Option<string>& authToken);
 
   Future<Nothing> _fetchBlob(
-    const URI& uri,
-    const string& directory,
-    const URI& blobUri);
+      const URI& uri,
+      const string& directory,
+      const URI& blobUri);
 
   Future<string> getAuthToken(const http::Response& response);
   http::Headers getAuthHeaderBasic(const Option<string>& credential);
