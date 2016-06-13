@@ -272,6 +272,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   //   (2) The Nvidia GPU isolator must come after the cgroups
   //       devices isolator, as it relies on the 'devices' cgroup
   //       being set up.
+  //
+  // TODO(bmahler): De-centralize the ordering enforcement so that
+  // each isolator is responsible for validating that it is
+  // ordered correctly within the --isolation flag. This gives the
+  // operator control over the isolator ordering. If the operator
+  // specifies an invalid ordering, it will produce an error
+  // during the creation of an isolator and we will inform the
+  // operator to adjust the --isolation flag accordingly.
 
   const vector<pair<string, lambda::function<Try<Isolator*>(const Flags&)>>>
     creators = {
@@ -326,13 +334,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   vector<Owned<Isolator>> isolators;
 
   const vector<string> tokens = strings::tokenize(flags_.isolation, ",");
-  const set<string> isolations(tokens.begin(), tokens.end());
+  set<string> isolations(tokens.begin(), tokens.end());
 
   if (isolations.size() != tokens.size()) {
     return Error("Duplicate entries found in --isolation flag"
                  " '" + stringify(tokens) + "'");
   }
 
+  // Create the first class isolators.
   foreach (const auto& creator, creators) {
     if (isolations.count(creator.first) > 0) {
       Try<Isolator*> isolator = creator.second(flags_);
@@ -341,17 +350,24 @@ Try<MesosContainerizer*> MesosContainerizer::create(
                      isolator.error());
       }
       isolators.emplace_back(isolator.get());
-    } else if (ModuleManager::contains<Isolator>(creator.first)) {
-      Try<Isolator*> isolator = ModuleManager::create<Isolator>(creator.first);
-      if (isolator.isError()) {
-        return Error("Could not create isolator '" + creator.first + "': " +
-                     isolator.error());
-      }
-      isolators.emplace_back(isolator.get());
+      isolations.erase(creator.first);
     }
   }
 
-  if (isolations.empty()) {
+  // Create the module isolators.
+  foreach (const string& isolation, isolations) {
+    if (ModuleManager::contains<Isolator>(isolation)) {
+      Try<Isolator*> isolator = ModuleManager::create<Isolator>(isolation);
+      if (isolator.isError()) {
+        return Error("Failed to create isolator module '" + isolation + "': " +
+                     isolator.error());
+      }
+      isolators.emplace_back(isolator.get());
+      isolations.erase(isolation);
+    }
+  }
+
+  if (!isolations.empty()) {
     return Error("Unknown --isolation entries '" + stringify(isolations) + "'");
   }
 
