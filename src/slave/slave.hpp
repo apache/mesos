@@ -514,22 +514,22 @@ private:
     process::Future<process::http::Response> getFlags(
         const v1::agent::Call& call,
         const Option<std::string>& principal,
-        const ContentType& responseContentType) const;
+        ContentType responseContentType) const;
 
     process::Future<process::http::Response> getHealth(
         const v1::agent::Call& call,
         const Option<std::string>& principal,
-        const ContentType& responseContentType) const;
+        ContentType responseContentType) const;
 
     process::Future<process::http::Response> getVersion(
         const v1::agent::Call& call,
         const Option<std::string>& principal,
-        const ContentType& responseContentType) const;
+        ContentType responseContentType) const;
 
     process::Future<process::http::Response> getLoggingLevel(
         const v1::agent::Call& call,
         const Option<std::string>& principal,
-        const ContentType& responseContentType) const;
+        ContentType responseContentType) const;
 
     Slave* slave;
 

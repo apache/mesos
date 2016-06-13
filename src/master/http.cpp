@@ -1284,7 +1284,7 @@ JSON::Object Master::Http::_flags() const
 Future<Response> Master::Http::getFlags(
     const v1::master::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_FLAGS, call.type());
 
@@ -1317,7 +1317,7 @@ Future<Response> Master::Http::health(const Request& request) const
 Future<Response> Master::Http::getHealth(
     const v1::master::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_HEALTH, call.type());
 
@@ -1333,7 +1333,7 @@ Future<Response> Master::Http::getHealth(
 Future<Response> Master::Http::getVersion(
     const v1::master::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_VERSION, call.type());
 
@@ -1348,7 +1348,7 @@ Future<Response> Master::Http::getVersion(
 Future<Response> Master::Http::getLoggingLevel(
     const v1::master::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -1364,7 +1364,7 @@ Future<Response> Master::Http::getLoggingLevel(
 Future<Response> Master::Http::getLeadingMaster(
     const v1::master::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::master::Call::GET_LEADING_MASTER, call.type());
 

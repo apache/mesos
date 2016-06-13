@@ -529,7 +529,7 @@ JSON::Object Slave::Http::_flags() const
 Future<Response> Slave::Http::getFlags(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_FLAGS, call.type());
 
@@ -562,7 +562,7 @@ Future<Response> Slave::Http::health(const Request& request) const
 Future<Response> Slave::Http::getHealth(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_HEALTH, call.type());
 
@@ -578,7 +578,7 @@ Future<Response> Slave::Http::getHealth(
 Future<Response> Slave::Http::getVersion(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_VERSION, call.type());
 
@@ -593,7 +593,7 @@ Future<Response> Slave::Http::getVersion(
 Future<Response> Slave::Http::getLoggingLevel(
     const v1::agent::Call& call,
     const Option<string>& principal,
-    const ContentType& responseContentType) const
+    ContentType responseContentType) const
 {
   CHECK_EQ(v1::agent::Call::GET_LOGGING_LEVEL, call.type());
 
