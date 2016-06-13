@@ -60,17 +60,18 @@ Three [configuration flags](configuration.md) control the recovery behavior of a
 
 A restarted agent should re-register with master within a timeout (75 seconds by default: see the `--max_agent_ping_timeouts` and `--agent_ping_timeout` [configuration flags](configuration.md)). If the agent takes longer than this timeout to re-register, the master shuts down the agent, which in turn will shutdown any live executors/tasks.  Therefore, it is highly recommended to automate the process of restarting a agent (e.g., using a process supervisor such as [monit](http://mmonit.com/monit/) or `systemd`).
 
-## Known issues with `systemd` and POSIX isolation
+## Known issues with `systemd` and process lifetime
 
-There is a known issue when using `systemd` to launch the `mesos-agent` while also using only `posix` isolation mechanisms that prevents tasks from recovering. The problem is that the default [KillMode](http://www.freedesktop.org/software/systemd/man/systemd.kill.html) for systemd processes is `cgroup` and hence all child processes are killed when the agent stops. Explicitly setting `KillMode` to `process` allows the executors to survive and reconnect.
+There is a known issue when using `systemd` to launch the `mesos-agent`. A description of the problem can be found in [MESOS-3425](https://issues.apache.org/jira/browse/MESOS-3425) and all relevant work can be tracked in the epic [MESOS-3007](https://issues.apache.org/jira/browse/MESOS-3007).
+This problem was fixed in Mesos `0.25.0` for the mesos containerizer when cgroups isolation is enabled. Further fixes for the posix isolators and docker containerizer are available in `0.25.1`, `0.26.1`, `0.27.1`, and `0.28.0`.
 
-The following excerpt of a `systemd` unit configuration file shows how to set the flag:
+It is recommended that you use the default [KillMode](http://www.freedesktop.org/software/systemd/man/systemd.kill.html) for systemd processes, which is `control-group`, which kills all child processes when the agent stops. This ensures that "side-car" processes such as the `fetcher` and `perf` are terminated alongside the agent.
+The systemd patches for Mesos explicitly move executors and their children into a separate systemd slice, dissociating their lifetime from the agent. This ensures the executors survive agent restarts.
+
+The following excerpt of a `systemd` unit configuration file shows how to set the flag explicitly:
 
 ```
 [Service]
 ExecStart=/usr/bin/mesos-agent
-KillMode=process
+KillMode=control-cgroup
 ```
-
-
-> NOTE: There are also known issues with using `systemd` and raw `cgroups` based isolation, for now the suggested non-Posix isolation mechanism is to use Docker containerization.
