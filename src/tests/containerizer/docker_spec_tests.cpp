@@ -246,6 +246,29 @@ TEST_F(DockerSpecTest, ParseDockercfg)
 }
 
 
+TEST_F(DockerSpecTest, ParseUrl)
+{
+  EXPECT_EQ("registry.example.com",
+            spec::parseUrl("https://registry.example.com/v1/"));
+  EXPECT_EQ("registry.example.com",
+            spec::parseUrl("http://registry.example.com/v1/"));
+  EXPECT_EQ("registry.example.com",
+            spec::parseUrl("registry.example.com"));
+  EXPECT_EQ("registry.example.com",
+            spec::parseUrl("registry.example.com/v1/"));
+
+  EXPECT_EQ("localhost:8000", spec::parseUrl("https://localhost:8000/v1/"));
+  EXPECT_EQ("localhost:8000", spec::parseUrl("http://localhost:8000/v1/"));
+  EXPECT_EQ("localhost:8000", spec::parseUrl("localhost:8000"));
+  EXPECT_EQ("localhost:8000", spec::parseUrl("localhost:8000/v1/"));
+
+  EXPECT_EQ("registry.com", spec::parseUrl("https://registry.com/v1/"));
+  EXPECT_EQ("registry.com", spec::parseUrl("http://registry.com/v1/"));
+  EXPECT_EQ("registry.com", spec::parseUrl("registry.com"));
+  EXPECT_EQ("registry.com", spec::parseUrl("registry.com/v1/"));
+}
+
+
 TEST_F(DockerSpecTest, ParseV1ImageManifest)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(
