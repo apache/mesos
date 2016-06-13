@@ -115,7 +115,7 @@ if [[ ${STATUS} -ne 0 ]]; then
 fi
 
 # The main event!
-${BALLOON_FRAMEWORK} 127.0.0.1:5432 1024
+${BALLOON_FRAMEWORK} --master=127.0.0.1:5432 --task_memory_usage_limit=1024MB --task_memory=32MB
 STATUS=${?}
 
 # Make sure the balloon framework "failed".
