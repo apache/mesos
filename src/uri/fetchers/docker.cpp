@@ -304,7 +304,8 @@ private:
     const URI& blobUri);
 
   Future<string> getAuthToken(const http::Response& response);
-  http::Headers getAuthHeader(const Option<string>& authToken);
+  http::Headers getAuthHeaderBasic(const Option<string>& credential);
+  http::Headers getAuthHeaderBearer(const Option<string>& authToken);
 
   URI getManifestUri(const URI& uri);
   URI getBlobUri(const URI& uri);
@@ -606,7 +607,9 @@ Future<string> DockerFetcherPluginProcess::getAuthToken(
     "service=" + attributes.at("service") + "&" +
     "scope=" + attributes.at("scope");
 
-  return curl(uri)
+  Option<string> auth;
+
+  return curl(uri, getAuthHeaderBasic(auth)
     .then([uri](const http::Response& response) -> Future<string> {
       if (response.code != http::Status::OK) {
         return Failure(
@@ -633,7 +636,23 @@ Future<string> DockerFetcherPluginProcess::getAuthToken(
 }
 
 
-http::Headers DockerFetcherPluginProcess::getAuthHeader(
+http::Headers DockerFetcherPluginProcess::getAuthHeaderBasic(
+    const Option<string>& credential)
+{
+  http::Headers headers;
+
+  if (credential.isSome()) {
+    // NOTE: The 'Basic' credential would be attached as a header
+    // when pulling a public image from a registry, if the host
+    // of the image's repository exists in the docker config file.
+    headers["Authorization"] = "Basic " + credential.get();
+  }
+
+  return headers;
+}
+
+
+http::Headers DockerFetcherPluginProcess::getAuthHeaderBearer(
     const Option<string>& authToken)
 {
   http::Headers headers;
