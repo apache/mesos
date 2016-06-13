@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <assert.h>
+#include <glog/logging.h>
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +25,13 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 
 #include <mesos/executor.hpp>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
-#include <stout/numify.hpp>
+#include <stout/error.hpp>
 #include <stout/os.hpp>
 
 #include <stout/os/pagesize.hpp>
@@ -39,45 +42,72 @@ using namespace mesos;
 // The amount of memory in MB each balloon step consumes.
 const static size_t BALLOON_STEP_MB = 64;
 
-
-// This function will increase the memory footprint gradually. The parameter
-// limit specifies the upper limit (in MB) of the memory footprint. The
-// parameter step specifies the step size (in MB).
-static void balloon(size_t limit)
+// This function will increase the memory footprint gradually.
+// `TaskInfo.data` specifies the upper limit (in MB) of the memory
+// footprint. The upper limit can be larger than the amount of memory
+// allocated to this executor. In that case, the isolator (e.g. cgroups)
+// may detect that and destroy the container before the executor can
+// sent a TASK_FINISHED update.
+void run(ExecutorDriver* driver, const TaskInfo& task)
 {
-  size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
+  TaskStatus status;
+  status.mutable_task_id()->MergeFrom(task.task_id());
+  status.set_state(TASK_RUNNING);
+
+  driver->sendStatusUpdate(status);
+
+  // Get the balloon limit (in MB).
+  Try<Bytes> _limit = Bytes::parse(task.data());
+  CHECK(_limit.isSome());
+  const size_t limit = _limit->megabytes();
+
+  const size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
   for (size_t i = 0; i < limit / BALLOON_STEP_MB; i++) {
-    std::cout << "Increasing memory footprint by "
-              << BALLOON_STEP_MB << " MB" << std::endl;
+    LOG(INFO)
+      << "Increasing memory footprint by " << BALLOON_STEP_MB << " MB";
 
     // Allocate page-aligned virtual memory.
     void* buffer = nullptr;
     if (posix_memalign(&buffer, os::pagesize(), chunk) != 0) {
-      perror("Failed to allocate page-aligned memory, posix_memalign");
-      abort();
+      LOG(FATAL) << ErrnoError(
+          "Failed to allocate page-aligned memory, posix_memalign").message;
     }
 
     // We use memset and mlock here to make sure that the memory
     // actually gets paged in and thus accounted for.
     if (memset(buffer, 1, chunk) != buffer) {
-      perror("Failed to fill memory, memset");
-      abort();
+      LOG(FATAL) << ErrnoError("Failed to fill memory, memset").message;
     }
 
     if (mlock(buffer, chunk) != 0) {
-      perror("Failed to lock memory, mlock");
-      abort();
+      LOG(FATAL) << ErrnoError("Failed to lock memory, mlock").message;
     }
 
     // Try not to increase the memory footprint too fast.
     os::sleep(Seconds(1));
   }
+
+  LOG(INFO) << "Finishing task " << task.task_id().value();
+
+  status.set_state(TASK_FINISHED);
+
+  driver->sendStatusUpdate(status);
+
+  // This is a hack to ensure the message is sent to the
+  // slave before we exit the process. Without this, we
+  // may exit before libprocess has sent the data over
+  // the socket. See MESOS-4111.
+  os::sleep(Seconds(1));
+  driver->stop();
 }
 
 
 class BalloonExecutor : public Executor
 {
 public:
+  BalloonExecutor()
+    : launched(false) {}
+
   virtual ~BalloonExecutor() {}
 
   virtual void registered(ExecutorDriver* driver,
@@ -85,70 +115,69 @@ public:
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo)
   {
-    std::cout << "Registered" << std::endl;
+    LOG(INFO) << "Registered";
   }
 
   virtual void reregistered(ExecutorDriver* driver,
                             const SlaveInfo& slaveInfo)
   {
-    std::cout << "Reregistered" << std::endl;
+    LOG(INFO) << "Reregistered";
   }
 
   virtual void disconnected(ExecutorDriver* driver)
   {
-    std::cout << "Disconnected" << std::endl;
+    LOG(INFO) << "Disconnected";
   }
 
   virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
-    std::cout << "Starting task " << task.task_id().value() << std::endl;
+    if (launched) {
+      TaskStatus status;
+      status.mutable_task_id()->MergeFrom(task.task_id());
+      status.set_state(TASK_FAILED);
+      status.set_message(
+          "Attempted to run multiple balloon tasks with the same executor");
 
-    TaskStatus status;
-    status.mutable_task_id()->MergeFrom(task.task_id());
-    status.set_state(TASK_RUNNING);
+      driver->sendStatusUpdate(status);
+      return;
+    }
 
-    driver->sendStatusUpdate(status);
+    LOG(INFO) << "Starting task " << task.task_id().value();
 
-    // Get the balloon limit (in MB).
-    Try<size_t> limit = numify<size_t>(task.data());
-    assert(limit.isSome());
-    size_t balloonLimit = limit.get();
+    // NOTE: The executor driver calls `launchTask` synchronously, which
+    // means that calls such as `driver->sendStatusUpdate()` will not execute
+    // until `launchTask` returns.
+    std::thread thread([=]() {
+      run(driver, task);
+    });
 
-    // Artificially increase the memory usage gradually. The
-    // balloonLimit specifies the upper limit. The balloonLimit can be
-    // larger than the amount of memory allocated to this executor. In
-    // that case, the isolator (e.g. cgroups) should be able to detect
-    // that and the task should not be able to reach TASK_FINISHED
-    // state.
-    balloon(balloonLimit);
+    thread.detach();
 
-    std::cout << "Finishing task " << task.task_id().value() << std::endl;
-
-    status.mutable_task_id()->MergeFrom(task.task_id());
-    status.set_state(TASK_FINISHED);
-
-    driver->sendStatusUpdate(status);
+    launched = true;
   }
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    std::cout << "Kill task " << taskId.value() << std::endl;
+    LOG(INFO) << "Kill task " << taskId.value();
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const std::string& data)
   {
-    std::cout << "Framework message: " << data << std::endl;
+    LOG(INFO) << "Framework message: " << data;
   }
 
   virtual void shutdown(ExecutorDriver* driver)
   {
-    std::cout << "Shutdown" << std::endl;
+    LOG(INFO) << "Shutdown";
   }
 
   virtual void error(ExecutorDriver* driver, const std::string& message)
   {
-    std::cout << "Error message: " << message << std::endl;
+    LOG(INFO) << "Error message: " << message;
   }
+
+private:
+  bool launched;
 };
 
 
