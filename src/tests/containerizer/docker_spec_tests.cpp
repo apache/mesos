@@ -168,6 +168,84 @@ TEST_F(DockerSpecTest, GetRegistrySpec)
 }
 
 
+// This test verifies docker::spec::parseConfig works as expected
+// for new docker config file format (e.g., ~/.docker/config.json).
+TEST_F(DockerSpecTest, ParseDockerConfig)
+{
+  Try<JSON::Object> config = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "auths": {
+          "https://index.docker.io/v1/": {
+            "auth": "bWVzb3M6dGVzdA==",
+            "email": "user@example.com"
+          },
+          "localhost:5000": {
+            "auth": "dW5pZmllZDpjb250YWluZXJpemVy",
+            "email": "user@example.com"
+          }
+        },
+        "HttpHeaders": {
+          "User-Agent": "Docker-Client/1.10.2 (linux)"
+        }
+      })~");
+
+  ASSERT_SOME(config);
+
+  Try<hashmap<string, spec::Config::Auth>> map =
+    spec::parseConfig(config.get());
+
+  EXPECT_EQ("bWVzb3M6dGVzdA==",
+            map.get()["https://index.docker.io/v1/"].auth());
+
+  EXPECT_EQ("user@example.com",
+            map.get()["https://index.docker.io/v1/"].email());
+
+  EXPECT_EQ("dW5pZmllZDpjb250YWluZXJpemVy", map.get()["localhost:5000"].auth());
+  EXPECT_EQ("user@example.com", map.get()["localhost:5000"].email());
+}
+
+
+// This test verifies docker::spec::parseConfig works as expected
+// for old docker config file format (e.g., ~/.dockercfg).
+TEST_F(DockerSpecTest, ParseDockercfg)
+{
+  Try<JSON::Object> dockercfg = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "quay.io": {
+          "auth": "cXVheTp0ZXN0",
+          "email": "user@example.com"
+        },
+        "https://index.docker.io/v1/": {
+          "auth": "cHJpdmF0ZTpyZWdpc3RyeQ==",
+          "email": "user@example.com"
+        },
+        "https://192.168.0.1:5050": {
+          "auth": "aXA6YWRkcmVzcw==",
+          "email": "user@example.com"
+        }
+      })~");
+
+  ASSERT_SOME(dockercfg);
+
+  Try<hashmap<string, spec::Config::Auth>> map =
+    spec::parseConfig(dockercfg.get());
+
+  EXPECT_EQ("cXVheTp0ZXN0", map.get()["quay.io"].auth());
+  EXPECT_EQ("user@example.com", map.get()["quay.io"].email());
+
+  EXPECT_EQ("cHJpdmF0ZTpyZWdpc3RyeQ==",
+            map.get()["https://index.docker.io/v1/"].auth());
+
+  EXPECT_EQ("user@example.com",
+            map.get()["https://index.docker.io/v1/"].email());
+
+  EXPECT_EQ("aXA6YWRkcmVzcw==", map.get()["https://192.168.0.1:5050"].auth());
+  EXPECT_EQ("user@example.com", map.get()["https://192.168.0.1:5050"].email());
+}
+
+
 TEST_F(DockerSpecTest, ParseV1ImageManifest)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(
