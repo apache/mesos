@@ -30,8 +30,6 @@
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
-#include "common/protobuf_utils.hpp"
-
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -212,16 +210,33 @@ public:
       << ", Reason: " << status.reason()
       << (status.has_message() ? ", Message: " + status.message() : "");
 
-    if (protobuf::isTerminalState(status.state())) {
-      // NOTE: We expect TASK_FAILED here. The abort here ensures the shell
-      // script invoking this test, considers the test result as 'PASS'.
-      if (!flags.long_running) {
-        if (status.state() == TASK_FAILED) {
-          driver->abort();
-        } else {
-          driver->stop();
-        }
+    if (!flags.long_running) {
+      if (status.state() == TASK_FAILED &&
+          status.reason() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY) {
+        // NOTE: We expect TASK_FAILED when this scheduler is launched by the
+        // balloon_framework_test.sh shell script. The abort here ensures the
+        // script considers the test result as "PASS".
+        driver->abort();
+      } else if (status.state() == TASK_FAILED ||
+          status.state() == TASK_FINISHED ||
+          status.state() == TASK_KILLED ||
+          status.state() == TASK_LOST ||
+          status.state() == TASK_ERROR) {
+        driver->stop();
       }
+    }
+
+    // TODO(josephw): Add some metrics for some cases below.
+    switch (status.state()) {
+      case TASK_FINISHED:
+      case TASK_FAILED:
+      case TASK_KILLED:
+      case TASK_LOST:
+      case TASK_ERROR:
+        taskActive = false;
+        break;
+      default:
+        break;
     }
   }
 
