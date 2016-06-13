@@ -997,15 +997,15 @@ inline Try<Warnings> FlagsBase::load(
   // order to provide more feedback rather than requiring a user to
   // fix one at a time.
   foreachvalue (const Flag& flag, flags_) {
-    Option<Error> error = flag.validate(*this);
-    if (error.isSome()) {
-      return error.get();
-    }
-
     if (flag.required && flag.loaded_name.isNone()) {
         return Error(
             "Flag '" + flag.name.value +
             "' is required, but it was not provided");
+    }
+
+    Option<Error> error = flag.validate(*this);
+    if (error.isSome()) {
+      return error.get();
     }
   }
 
