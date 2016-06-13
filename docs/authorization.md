@@ -123,8 +123,8 @@ entries, each representing an authorizable action:
 |`teardown_frameworks`|Operator username.|Principals whose frameworks can be shutdown by the operator.|Tearing down frameworks.|
 |`reserve_resources`|Framework principal or Operator username.|Resource role of the reservation.|[Reserving](reservation.md) resources.|
 |`unreserve_resources`|Framework principal or Operator username.|Principals whose resources can be unreserved by the operator.|[Unreserving](reservation.md) resources.|
-|`create_volumes`|Framework principal or Operator username.|Resource role of the volume.|Creating [volumes](persistent-volumes.md).|
-|`destroy_volumes`|Framework principal or Operator username.|Principals whose volumes can be destroyed by the operator.|Destroying [volumes](persistent-volumes.md).|
+|`create_volumes`|Framework principal or Operator username.|Resource role of the volume.|Creating [volumes](persistent-volume.md).|
+|`destroy_volumes`|Framework principal or Operator username.|Principals whose volumes can be destroyed by the operator.|Destroying [volumes](persistent-volume.md).|
 |`get_quotas`|Operator username.|Resource role whose quota status will be queried.|Querying [quota](quota.md) status for roles.|
 |`update_quotas`|Operator username.|Resource role whose quota will be updated.|Modifying [quotas](quota.md) for roles.|
 |`update_weights`|Operator username.|Resource roles whose weights can be updated by the operator.|Updating weights.|

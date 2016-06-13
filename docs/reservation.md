@@ -14,6 +14,7 @@ and authorized __frameworks__ to dynamically reserve resources in the cluster.
 In both types of reservations, resources are reserved for a [__role__](roles.md).
 
 
+<a name="static-reservation"></a>
 ## Static Reservation
 
 An operator can configure a slave with resources reserved for a role.
@@ -40,7 +41,7 @@ __NOTE:__ This feature is supported for backwards compatibility.
 
 ## Dynamic Reservation
 
-As mentioned in [Static Reservation](#static-reservation-since-0140), specifying
+As mentioned in [Static Reservation](#static-reservation), specifying
 the reserved resources via the `--resources` flag makes the reservation static.
 That is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic reservation enables operators and authorized frameworks
@@ -91,6 +92,7 @@ same slave and use the same role.
 
 ### Framework Scheduler API
 
+<a name="offer-operation-reserve"></a>
 #### `Offer::Operation::Reserve`
 
 A framework can reserve resources through the resource offer cycle.  Suppose we
@@ -189,7 +191,7 @@ following reserved resources:
 #### `Offer::Operation::Unreserve`
 
 A framework can unreserve resources through the resource offer cycle.
-In [Offer::Operation::Reserve](#offeroperationreserve), we reserved 8 CPUs
+In [Offer::Operation::Reserve](#offer-operation-reserve), we reserved 8 CPUs
 and 4096 MB of RAM on a particular slave for our `role`. The master will
 continue to only offer these resources to our `role`. Suppose we would like to
 unreserve these resources. First, we receive a resource offer (copy/pasted

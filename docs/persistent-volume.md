@@ -59,6 +59,7 @@ interfaces described above.
 
 ## Framework Scheduler API
 
+<a name="offer-operation-create"></a>
 ### `Offer::Operation::Create`
 
 A framework can create volumes through the resource offer cycle.  Suppose we
@@ -158,7 +159,7 @@ persistent volume:
 ### `Offer::Operation::Destroy`
 
 A framework can destroy persistent volumes through the resource offer cycle. In
-[Offer::Operation::Create](#offeroperationcreate), we created a persistent
+[Offer::Operation::Create](#offer-operation-create), we created a persistent
 volume from 2048 MB of disk resources. The volume will continue to exist until
 it is explicitly destroyed. Suppose we would like to destroy the volume we
 created. First, we receive a resource offer (copy/pasted from above):

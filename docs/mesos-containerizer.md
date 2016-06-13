@@ -77,7 +77,7 @@ specify `--enforce_container_disk_quota` when starting the agent.
 
 The Posix Disk isolator reports disk usage for each sandbox by
 periodically running the `du` command. The disk usage can be retrieved
-from the resource statistics endpoint ([/monitor/statistics](endpoints/monitor/statistics.md)).
+from the resource statistics endpoint ([/monitor/statistics](endpoints/slave/monitor/statistics.md)).
 
 The interval between two `du`s can be controlled by the agent flag
 `--container_disk_watch_interval`. For example,

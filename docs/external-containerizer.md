@@ -110,6 +110,7 @@ While a container is active, a resource limitation was identified
 
 ![Resource Limitation Scheme](images/ec_kill_seqdiag.png?raw=true)
 
+<a name="agent-recovery-overview"></a>
 ## Agent Recovery Overview
 
 * Agent recovers via check pointed state.
@@ -360,6 +361,7 @@ as well as protobuf messages referenced by them, please check:
 
 # Environment
 
+<a name="sandbox"></a>
 ## **Sandbox**
 
 A sandbox environment is formed by `cd` into the work-directory of the
@@ -393,6 +395,7 @@ calls to `launch`.
 
 # Debugging
 
+<a name="enhanced-verbosity-logging"></a>
 ## Enhanced Verbosity Logging
 
 For receiving an increased level of status information from the EC
@@ -463,6 +466,7 @@ Example Hexdump:
     00000228:  3a18 736c 6176 6528 3129 4031 3237 2e30 2e30 2e31 3a35 3534  ::.slave(1)@127.0.0.1:554
     00000240:  3033 4000
 
+<a name="record-io-deserializing-example"></a>
 ## Record-IO De/Serializing Example
 How to send and receive such record-io formatted message
 using Python

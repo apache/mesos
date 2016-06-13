@@ -79,7 +79,7 @@ A given Mesos installation might host multiple versions of the same API i.e., Sc
 *  The API version is only bumped if we need to make a backwards [incompatible](#api-compatibility) API change. We will strive to support a given API version for at least a year.
 *  The deprecation clock for vN-1 API will start as soon as we release “N.0.0” version of Mesos. We will strive to give enough time (e.g., 6 months) for frameworks/operators to upgrade to vN API before we stop supporting vN-1 API.
 
-
+<a name="api-compatibility"></a>
 ### API Compatibility
 
 The API compatibility is determined by the corresponding protobuf guarantees.

@@ -9,7 +9,7 @@ Mesos on Linux provides support for per-container network monitoring and
 isolation. The network isolation prevents a single container from exhausting the
 available network ports, consuming an unfair share of the network bandwidth or
 significantly delaying packet transmission for others. Network statistics for
-each active container are published through the [/monitor/statistics](endpoints/monitor/statistics.md)
+each active container are published through the [/monitor/statistics](endpoints/slave/monitor/statistics.md)
 endpoint on the agent. The network isolation is transparent for the majority of
 tasks running on a agent (those that bind to port 0 and let the kernel allocate
 their port).
@@ -177,7 +177,7 @@ enabled would thus be:
 ## Monitoring container network statistics
 
 Mesos exposes statistics from the Linux network stack for each container network
-on the [/monitor/statistics](endpoints/monitor/statistics.md) agent endpoint.
+on the [/monitor/statistics](endpoints/slave/monitor/statistics.md) agent endpoint.
 
 From the network interface inside the container, we report the following
 counters (since container creation) under the `statistics` key:

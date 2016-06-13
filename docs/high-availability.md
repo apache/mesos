@@ -26,7 +26,7 @@ To put Mesos into high-availability mode:
 
 From now on, the Mesos masters and agents all communicate with ZooKeeper to find out which master is the current leading master. This is in addition to the usual communication between the leading master and the agents.
 
-In addition to ZooKeeper, one can get the location of the leading master by sending an HTTP request to [/redirect](master/redirect.md) endpoint on any master.
+In addition to ZooKeeper, one can get the location of the leading master by sending an HTTP request to [/redirect](endpoints/master/redirect.md) endpoint on any master.
 
 For HTTP endpoints that only work at the leading master, requests made to endpoints at a non-leading master will result in either a `307 Temporary Redirect` (with the location of the leading master) or `503 Service Unavailable` (if the master does not know who the current leader is).
 

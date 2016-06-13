@@ -13,6 +13,7 @@ To use a custom allocator in Mesos, one must:
 
 - [Wrap](#wiring-up-a-custom-allocator) the allocator implementation in a module and load it in the Mesos master.
 
+<a name="writing-a-custom-allocator"></a>
 ## Writing a custom allocator
 
 Allocator modules are implemented in C++, the same language in which Mesos is written. They must subclass the `Allocator` interface defined in `mesos/master/allocator.hpp`. However, your implementation can be a C++ proxy, which delegates calls to an actual allocator written in a language of your choice.
@@ -24,6 +25,7 @@ Additionally, the built-in hierarchical allocator can be extended without the ne
 
 Sorters are implemented in C++ and inherit the `Sorter` class defined in `$MESOS_HOME/src/master/allocator/sorter/sorter.hpp`. The default sorter is `DRFSorter`, which implements fair sharing and can be found in `$MESOS_HOME/src/master/allocator/sorter/drf/sorter.hpp`. This sorter is capable of expressing priorities by specifying weights in `Sorter::add()`. Each client's share is divided by its weight. For example, a role that has a weight of 2 will be offered twice as many resources as a role with weight 1.
 
+<a name="wiring-up-a-custom-allocator"></a>
 ## Wiring up a custom allocator
 
 Once a custom allocator has been written, the next step is to override the built-in implementation with your own. This process consists of several steps:
