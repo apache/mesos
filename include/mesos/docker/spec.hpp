@@ -83,6 +83,11 @@ std::string getRegistryHost(const std::string& registry);
 Try<hashmap<std::string, Config::Auth>> parseConfig(
     const JSON::Object& _config);
 
+/**
+ * Find the host from a docker config auth url.
+ */
+std::string parseUrl(const std::string& _url);
+
 
 namespace v1 {
 

@@ -183,6 +183,21 @@ Try<hashmap<string, Config::Auth>> parseConfig(
 }
 
 
+string parseUrl(const string& _url)
+{
+  string url = _url;
+  if (strings::startsWith(_url, "http://")) {
+    url = strings::remove(_url, "http://", strings::PREFIX);
+  } else if (strings::startsWith(_url, "https://")) {
+    url = strings::remove(_url, "https://", strings::PREFIX);
+  }
+
+  vector<string> parts = strings::split(url, "/", 2);
+
+  return parts[0];
+}
+
+
 namespace v1 {
 
 Option<Error> validate(const ImageManifest& manifest)
