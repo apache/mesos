@@ -146,6 +146,15 @@ Additional API Changes:
 
   * [MESOS-5408] - Deleted the /observe HTTP endpoint.
 
+  * [MESOS-4843, MESOS-5150, MESOS-5286, MESOS-5335, MESOS-5336] - Authorization
+    has been added to the '/metrics/snapshot', '/logging/toggle', '/quota',
+    '/files/browse', '/files/download', '/files/read', '/flags', and
+    '/containers' endpoints. If a Mesos cluster has authorization enabled, these
+    endpoints now require that ACLs be set to authorize principals to access
+    them. Note that the '/metrics/snapshot' and '/files/*' endpoints are used by
+    the web UI, and thus using the web UI in a cluster with authorization
+    enabled will require that ACLs be set appropriately.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
