@@ -58,6 +58,7 @@ We categorize the changes as follows:
       <li>D <a href="#1-0-x-docker-timeout-flag">docker_stop_timeout</a></li>
       <li>D <a href="#1-0-x-credentials-file">credential(s) (plain text format)</a></li>
       <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
+      <li>R <a href="#1-0-x-workdir">work_dir default value</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
@@ -72,6 +73,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <li>C <a href="#1-0-x-status-code">HTTP return codes</a></li>
     <li>R <a href="#1-0-x-status-code">/observe</a></li>
+    <li>C <a href="#1-0-x-endpoint-authorization">Added authorization</a></li>
   </td>
 </tr>
 <tr>
@@ -189,6 +191,10 @@ Mesos 1.0 deprecates the 'slave' keyword in favor of 'agent' at number of places
   * Deprecated sandbox links with 'slave' keyword in the WebUI.
   * Deprecated `slave` subcommand for mesos-cli.
 
+<a name="1-0-x-workdir"></a>
+
+Mesos 1.0 removes the default value for the agent `work_dir`. This flag is now required, and the agent will exit immediately if it is not provided.
+
 <a name="1-0-x-credentials-file"></a>
 
 * Mesos 1.0 deprecates the use of plain text credential files in favor of JSON-formatted credential files.
@@ -239,6 +245,10 @@ Mesos 1.0 deprecates the 'slave' keyword in favor of 'agent' at number of places
   * The authorizer interface has been refactored in order to decouple the ACLs definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request based authorization). NOTE: This is a **breaking change** for authorizer modules.
   * Authorization based HTTP endpoint filtering enables operators to restrict what part of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
   * Fields (i.e, `subject` and `object`) in authorization::Request protobuf are changed to optional. If these fields are not set, the request should be allowed only for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
+
+<a name="1-0-x-endpoint-authorization"></a>
+
+* Mesos provides authorization a number of HTTP endpoints. Note that the some of these endpoints are used by the web UI, and thus using the web UI in a cluster with authorization enabled will require that ACLs be set appropriately. Please refer to the [authorization documentation](authorization.md) for details.
 
 In order to upgrade a running cluster:
 
