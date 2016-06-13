@@ -34,7 +34,13 @@ class DockerFetcherPluginProcess;
 class DockerFetcherPlugin : public Fetcher::Plugin
 {
 public:
-  class Flags : public virtual flags::FlagsBase {};
+  class Flags : public virtual flags::FlagsBase
+  {
+  public:
+    Flags();
+
+    Option<JSON::Object> docker_config;
+  };
 
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 

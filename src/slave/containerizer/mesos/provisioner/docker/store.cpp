@@ -93,7 +93,10 @@ Try<Owned<slave::Store>> Store::create(const Flags& flags)
 {
   // TODO(jieyu): We should inject URI fetcher from top level, instead
   // of creating it here.
-  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  uri::fetcher::Flags _flags;
+  _flags.docker_config = flags.docker_config;
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(_flags);
   if (fetcher.isError()) {
     return Error("Failed to create the URI fetcher: " + fetcher.error());
   }

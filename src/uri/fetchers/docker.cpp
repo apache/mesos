@@ -276,7 +276,9 @@ static Future<int> download(
 class DockerFetcherPluginProcess : public Process<DockerFetcherPluginProcess>
 {
 public:
-  DockerFetcherPluginProcess() {}
+  DockerFetcherPluginProcess(
+      const hashmap<string, spec::Config::Auth>& _auths)
+    : auths(_auths) {}
 
   Future<Nothing> fetch(const URI& uri, const string& directory);
 
@@ -303,21 +305,46 @@ private:
       const string& directory,
       const URI& blobUri);
 
-  Future<string> getAuthToken(const http::Response& response);
+  Future<string> getAuthToken(const http::Response& response, const URI& uri);
   http::Headers getAuthHeaderBasic(const Option<string>& credential);
   http::Headers getAuthHeaderBearer(const Option<string>& authToken);
 
   URI getManifestUri(const URI& uri);
   URI getBlobUri(const URI& uri);
+
+  // This is a lookup table for credentials in docker config file,
+  // keyed by registry URL.
+  // For example, "https://index.docker.io/v1/" -> spec::Config::Auth
+  hashmap<string, spec::Config::Auth> auths;
 };
+
+
+DockerFetcherPlugin::Flags::Flags()
+{
+  add(&Flags::docker_config,
+      "docker_config",
+      "The default docker config file.");
+}
 
 
 Try<Owned<Fetcher::Plugin>> DockerFetcherPlugin::create(const Flags& flags)
 {
   // TODO(jieyu): Make sure curl is available.
 
-  Owned<DockerFetcherPluginProcess> process(
-      new DockerFetcherPluginProcess());
+  hashmap<string, spec::Config::Auth> auths;
+  if (flags.docker_config.isSome()) {
+    Try<hashmap<string, spec::Config::Auth>> cachedAuths =
+      spec::parseConfig(flags.docker_config.get());
+
+    if (cachedAuths.isError()) {
+      return Error("Failed to parse docker config: " + cachedAuths.error());
+    }
+
+    auths = cachedAuths.get();
+  }
+
+  Owned<DockerFetcherPluginProcess> process(new DockerFetcherPluginProcess(
+      hashmap<string, spec::Config::Auth>(auths)));
 
   return Owned<Fetcher::Plugin>(new DockerFetcherPlugin(process));
 }
@@ -405,9 +432,9 @@ Future<Nothing> DockerFetcherPluginProcess::_fetch(
     const http::Response& response)
 {
   if (response.code == http::Status::UNAUTHORIZED) {
-    return getAuthToken(response)
+    return getAuthToken(response, manifestUri)
       .then(defer(self(), [=](const string& authToken) -> Future<Nothing> {
-        return curl(manifestUri, getAuthHeader(authToken))
+        return curl(manifestUri, getAuthHeaderBearer(authToken))
           .then(defer(self(),
                       &Self::__fetch,
                       uri,
@@ -488,7 +515,7 @@ Future<Nothing> DockerFetcherPluginProcess::fetchBlob(
 {
   URI blobUri = getBlobUri(uri);
 
-  return download(blobUri, directory, getAuthHeader(authToken))
+  return download(blobUri, directory, getAuthHeaderBearer(authToken))
     .then(defer(self(), [=](int code) -> Future<Nothing> {
       if (code == http::Status::OK) {
         return Nothing();
@@ -527,7 +554,7 @@ Future<Nothing> DockerFetcherPluginProcess::_fetchBlob(
           "but get '" + response.status + "' instead");
       }
 
-      return getAuthToken(response)
+      return getAuthToken(response, blobUri)
         .then(defer(self(),
                     &Self::fetchBlob,
                     uri,
@@ -547,7 +574,8 @@ Future<Nothing> DockerFetcherPluginProcess::_fetchBlob(
 // See details here:
 // https://docs.docker.com/registry/spec/auth/token/
 Future<string> DockerFetcherPluginProcess::getAuthToken(
-    const http::Response& response)
+    const http::Response& response,
+    const URI& uri)
 {
   // The expected HTTP response here is:
   //
@@ -600,21 +628,75 @@ Future<string> DockerFetcherPluginProcess::getAuthToken(
 
   // TODO(jieyu): Currently, we don't expect the auth server to return
   // a service or a scope that needs encoding.
-  // TODO(jieyu): Getting auth token here might require HTTP
-  // authentication. We need to support that later.
-  string uri =
+  string authServerUri =
     attributes.at("realm") + "?" +
     "service=" + attributes.at("service") + "&" +
     "scope=" + attributes.at("scope");
 
   Option<string> auth;
 
-  return curl(uri, getAuthHeaderBasic(auth)
-    .then([uri](const http::Response& response) -> Future<string> {
+  // TODO(gilbert): Ideally, this should be done after getting
+  // the '401 Unauthorized' response. Then, the workflow should
+  // be:
+  // 1. Send a requst to registry for pulling.
+  // 2. The registry returns '401 Unauthorized' HTTP response.
+  // 3. The registry client makes a request (without a Basic header)
+  //    to the authorization server for a Bearer token.
+  // 4. The authorization servicer returns an unacceptable
+  //    Bearer token.
+  // 5. Re-send a request to registry with the Bearer token attached.
+  // 6. The registry returns '401 Unauthorized' HTTP response.
+  // 7. The registry client makes a request (with a correct Basic
+  //    header attached) to the authorization server for a Bearer
+  //    token.
+  // 8. The authorization servicer returns a corrent Bearer token.
+  // 9. Re-send a request to registry with the right Bearer token
+  //    attached.
+  // 10. The registry authorizes the client, and the docker fetcher
+  //     starts pulling.
+  // The step 3 ~ 6 are exactly what this TODO describes.
+
+  // TODO(gilbert): Currrently, the docker fetcher plugin only
+  // supports Basic Authentication. From Docker 1.11, the docker
+  // engine supports both Basic authentication and OAuth2 for
+  // getting tokens. Ideally, we should support both in docker
+  // fetcher plugin.
+  foreachpair (const string& key, const spec::Config::Auth& value, auths) {
+    // Handle domains including 'docker.io' as a special case,
+    // because the url is set differently for different version
+    // of docker default registry, but all of them should depend
+    // on the same default namespace 'docker.io'. Please see:
+    // https://github.com/docker/docker/blob/master/registry/config.go#L34
+    const bool isDocker =
+      strings::contains(uri.host(), "docker.io") &&
+      strings::contains(key, "docker.io");
+
+    // NOTE: The host field of uri can be either domain or IP
+    // address, which is merged in docker registry puller.
+    const string registry = uri.has_port()
+      ? uri.host() + ":" + stringify(uri.port())
+      : uri.host();
+
+    // Should not use 'http::URL::parse()' here, since many
+    // registry domain recorded in docker config file does
+    // not start with 'https://' or 'http://'. They are pure
+    // domain only (e.g., 'quay.io', 'localhost:5000').
+    // Please see 'ResolveAuthConfig()' in:
+    // https://github.com/docker/docker/blob/master/registry/auth.go
+    if (isDocker || (registry == spec::parseUrl(key))) {
+      if (value.has_auth()) {
+        auth = value.auth();
+        break;
+      }
+    }
+  }
+
+  return curl(authServerUri, getAuthHeaderBasic(auth))
+    .then([authServerUri](const http::Response& response) -> Future<string> {
       if (response.code != http::Status::OK) {
         return Failure(
           "Unexpected HTTP response '" + response.status + "' "
-          "when trying to GET '" + uri + "'");
+          "when trying to GET '" + authServerUri + "'");
       }
 
       CHECK_EQ(response.type, http::Response::BODY);
