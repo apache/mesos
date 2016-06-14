@@ -1087,10 +1087,10 @@ MESOS_NETWORK_ISOLATOR_FILES +=						\
   slave/containerizer/mesos/isolators/network/port_mapping.hpp
 
 MESOS_NVIDIA_GPU_ISOLATOR_FILES =					\
-  slave/containerizer/mesos/isolators/cgroups/devices/gpus/nvidia.cpp
+  slave/containerizer/mesos/isolators/gpu/nvidia.cpp
 
 MESOS_NVIDIA_GPU_ISOLATOR_FILES +=					\
-  slave/containerizer/mesos/isolators/cgroups/devices/gpus/nvidia.hpp
+  slave/containerizer/mesos/isolators/gpu/nvidia.hpp
 
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_FILES)
