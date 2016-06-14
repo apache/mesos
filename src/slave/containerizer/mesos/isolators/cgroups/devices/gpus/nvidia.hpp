@@ -29,6 +29,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "linux/cgroups.hpp"
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
@@ -120,7 +122,9 @@ private:
   CgroupsNvidiaGpuIsolatorProcess(
       const Flags& _flags,
       const std::string& hierarchy,
-      std::list<Gpu> gpus);
+      const std::list<Gpu>& gpus,
+      const cgroups::devices::Entry& ctlDeviceEntry,
+      const cgroups::devices::Entry& uvmDeviceEntry);
 
   const Flags flags;
 
@@ -131,6 +135,9 @@ private:
   hashmap<ContainerID, Info*> infos;
 
   std::list<Gpu> available;
+
+  const cgroups::devices::Entry NVIDIA_CTL_DEVICE_ENTRY;
+  const cgroups::devices::Entry NVIDIA_UVM_DEVICE_ENTRY;
 };
 
 } // namespace slave {
