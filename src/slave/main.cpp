@@ -96,6 +96,32 @@ using std::vector;
 
 int main(int argc, char** argv)
 {
+  // The order of initialization is as follows:
+  // * Windows socket stack.
+  // * Validate flags.
+  // * Log build information.
+  // * Libprocess
+  // * Logging
+  // * Version process
+  // * Firewall rules: should be initialized before initializing HTTP endpoints.
+  // * Modules: Load module libraries and manifests before they
+  //   can be instantiated.
+  // * Anonymous modules: Later components such as Allocators, and master
+  //   contender/detector might depend upon anonymous modules.
+  // * Hooks.
+  // * Systemd support (if it exists).
+  // * Fetcher and Containerizer.
+  // * Master detector.
+  // * Authorizer.
+  // * Garbage collector.
+  // * Status update manager.
+  // * Resource estimator.
+  // * QoS controller.
+  // * `Agent` process.
+  //
+  // TODO(avinash): Add more comments discussing the rationale behind for this
+  // particular component ordering.
+
 #ifdef __WINDOWS__
   // Initialize the Windows socket stack.
   process::Winsock winsock;
@@ -213,6 +239,18 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
   }
 
+  // Log build information.
+  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
+  LOG(INFO) << "Version: " << MESOS_VERSION;
+
+  if (build::GIT_TAG.isSome()) {
+    LOG(INFO) << "Git tag: " << build::GIT_TAG.get();
+  }
+
+  if (build::GIT_SHA.isSome()) {
+    LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
+  }
+
   const string id = process::ID::generate("slave"); // Process ID.
 
   // If `process::initialize()` returns `false`, then it was called before this
@@ -230,8 +268,27 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
-  // Initialize modules. Note that since other subsystems may depend
-  // upon modules, we should initialize modules before anything else.
+  spawn(new VersionProcess(), true);
+
+  if (flags.firewall_rules.isSome()) {
+    vector<Owned<FirewallRule>> rules;
+
+    const Firewall firewall = flags.firewall_rules.get();
+
+    if (firewall.has_disabled_endpoints()) {
+      hashset<string> paths;
+
+      foreach (const string& path, firewall.disabled_endpoints().paths()) {
+        paths.insert(path);
+      }
+
+      rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
+    }
+
+    process::firewall::install(move(rules));
+  }
+
+  // Initialize modules.
   if (flags.modules.isSome() && flags.modulesDir.isSome()) {
     EXIT(EXIT_FAILURE) <<
       flags.usage("Only one of --modules or --modules_dir should be specified");
@@ -251,6 +308,23 @@ int main(int argc, char** argv)
     }
   }
 
+  // Create anonymous modules.
+  foreach (const string& name, ModuleManager::find<Anonymous>()) {
+    Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
+    if (create.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to create anonymous module named '" << name << "'";
+    }
+
+    // We don't bother keeping around the pointer to this anonymous
+    // module, when we exit that will effectively free it's memory.
+    //
+    // TODO(benh): We might want to add explicit finalization (and
+    // maybe explicit initialization too) in order to let the module
+    // do any housekeeping necessary when the slave is cleanly
+    // terminating.
+  }
+
   // Initialize hooks.
   if (flags.hooks.isSome()) {
     Try<Nothing> result = HookManager::initialize(flags.hooks.get());
@@ -258,22 +332,6 @@ int main(int argc, char** argv)
       EXIT(EXIT_FAILURE) << "Error installing hooks: " << result.error();
     }
   }
-
-  spawn(new VersionProcess(), true);
-
-  LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
-
-  LOG(INFO) << "Version: " << MESOS_VERSION;
-
-  if (build::GIT_TAG.isSome()) {
-    LOG(INFO) << "Git tag: " << build::GIT_TAG.get();
-  }
-
-  if (build::GIT_SHA.isSome()) {
-    LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
-  }
-
-  Fetcher fetcher;
 
 #ifdef __linux__
   // Initialize systemd if it exists.
@@ -292,6 +350,8 @@ int main(int argc, char** argv)
     }
   }
 #endif // __linux__
+
+  Fetcher fetcher;
 
   Try<Containerizer*> containerizer =
     Containerizer::create(flags, false, &fetcher);
@@ -343,41 +403,6 @@ int main(int argc, char** argv)
     // break.
     process::http::authorization::setCallbacks(
         createAuthorizationCallbacks(authorizer_.get()));
-  }
-
-  if (flags.firewall_rules.isSome()) {
-    vector<Owned<FirewallRule>> rules;
-
-    const Firewall firewall = flags.firewall_rules.get();
-
-    if (firewall.has_disabled_endpoints()) {
-      hashset<string> paths;
-
-      foreach (const string& path, firewall.disabled_endpoints().paths()) {
-        paths.insert(path);
-      }
-
-      rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
-    }
-
-    process::firewall::install(move(rules));
-  }
-
-  // Create anonymous modules.
-  foreach (const string& name, ModuleManager::find<Anonymous>()) {
-    Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
-    if (create.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Failed to create anonymous module named '" << name << "'";
-    }
-
-    // We don't bother keeping around the pointer to this anonymous
-    // module, when we exit that will effectively free it's memory.
-    //
-    // TODO(benh): We might want to add explicit finalization (and
-    // maybe explicit initialization too) in order to let the module
-    // do any housekeeping necessary when the slave is cleanly
-    // terminating.
   }
 
   Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
