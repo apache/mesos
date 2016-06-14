@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <set>
@@ -122,12 +123,25 @@ CgroupsNvidiaGpuIsolatorProcess::~CgroupsNvidiaGpuIsolatorProcess()
 
 Try<Isolator*> CgroupsNvidiaGpuIsolatorProcess::create(const Flags& flags)
 {
-  // Make sure the `cgroups/devices` isolator is present.
-  vector<string> isolators_ = strings::tokenize(flags.isolation, ",");
-  set<string> isolators = set<string>(isolators_.begin(), isolators_.end());
-  if (isolators.count("cgroups/devices") == 0) {
+  // Make sure the 'cgroups/devices' isolator is present and
+  // precedes the GPU isolator.
+  vector<string> tokens = strings::tokenize(flags.isolation, ",");
+
+  auto gpuIsolator =
+    std::find(tokens.begin(), tokens.end(), "gpu/nvidia");
+  auto devicesIsolator =
+    std::find(tokens.begin(), tokens.end(), "cgroups/devices");
+
+  CHECK(gpuIsolator != tokens.end());
+
+  if (devicesIsolator == tokens.end()) {
     return Error("The 'cgroups/devices' isolator must be enabled in"
                  " order to use the gpu/devices isolator");
+  }
+
+  if (devicesIsolator > gpuIsolator) {
+    return Error("'cgroups/devices' must precede 'gpu/nvidia'"
+                 " in the --isolation flag");
   }
 
   // Initialize NVML.
