@@ -122,10 +122,6 @@ private:
       const std::string& hierarchy,
       std::list<Gpu> gpus);
 
-  process::Future<Nothing> _cleanup(
-      const ContainerID& containerId,
-      const process::Future<Nothing>& future);
-
   const Flags flags;
 
   // The path to the cgroups subsystem hierarchy root.

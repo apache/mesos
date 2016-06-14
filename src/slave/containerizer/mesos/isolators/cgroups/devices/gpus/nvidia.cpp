@@ -417,35 +417,8 @@ Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::cleanup(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  // TODO(klueska): We will need to move this up a level and come up
-  // with a different strategy for cleaning up the cgroups for gpus
-  // once we have a generic device isolator.
-  return cgroups::destroy(hierarchy, info->cgroup, cgroups::DESTROY_TIMEOUT)
-    .onAny(defer(PID<CgroupsNvidiaGpuIsolatorProcess>(this),
-                 &CgroupsNvidiaGpuIsolatorProcess::_cleanup,
-                 containerId,
-                 lambda::_1));
-}
-
-
-Future<Nothing> CgroupsNvidiaGpuIsolatorProcess::_cleanup(
-    const ContainerID& containerId,
-    const Future<Nothing>& future)
-{
-  if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
-  }
-
-  Info* info = CHECK_NOTNULL(infos[containerId]);
-
   // Make any remaining GPUs available.
   available.splice(available.end(), info->allocated);
-
-  if (!future.isReady()) {
-    return Failure(
-        "Failed to clean up container " + stringify(containerId) + ": " +
-        (future.isFailed() ? future.failure() : "discarded"));
-  }
 
   delete info;
   infos.erase(containerId);
