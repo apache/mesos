@@ -30,14 +30,12 @@ SUBDIRS = . stout libprocess
 #  '--srcdir=...' when configuring.
 CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
-if INSTALL_MODULE_DEPENDENCIES
 # The reason we use '/' prefix is to allow ourselves to install these packages
 # in build/3rdparty directory as well. To do that, we can simply call
 #   `make install DESTDIR=/path/to/builddir/ install`
 # Similarly, when doing system-wide installation, we can do:
 #   `make install DESTDIR=${MESOS-PREFIX}/lib/mesos/3rdparty install`
 CONFIGURE_ARGS += --prefix=/
-endif
 
 # Directory where bundled 3rdparty module dependencies are installed.
 pkg3rdpartydir = $(pkglibdir)/3rdparty
