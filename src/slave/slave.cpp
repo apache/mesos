@@ -3959,17 +3959,14 @@ ExecutorInfo Slave::getExecutorInfo(
         // filesystem isolator. Linux filesystem isolator requires slave
         // to have root permission.
         if (flags.switch_user) {
-          Option<string> user;
+          string user;
           if (task.command().has_user()) {
             user = task.command().user();
-          } else if (frameworkInfo.has_user()) {
+          } else {
             user = frameworkInfo.user();
           }
 
-          if (user.isSome()) {
-            executor.mutable_command()->add_arguments(
-                "--user=" + user.get());
-          }
+          executor.mutable_command()->add_arguments("--user=" + user);
         }
 #endif // __WINDOWS__
       }
