@@ -138,9 +138,11 @@ case $BUILDTOOL in
         CONFIGURATION="$CONFIGURATION $element=1"
     done
 
-    # distcheck is not currently supported by our CMake scripts.
-    # See MESOS-5433 for details.
-    append_dockerfile "CMD ./bootstrap && cmake $CONFIGURATION && make -j8 check"
+    # `distcheck` is not currently supported by our CMake scripts.
+    # See MESOS-5433 for details. Also, we run `make` in addition to
+    # `make check` because the latter only compiles stout and libprocess sources
+    # and tests.
+    append_dockerfile "CMD ./bootstrap && cmake $CONFIGURATION && make -j8 check && make -j8"
     ;;
   *)
     echo "Unknown build tool $BUILDTOOL"
