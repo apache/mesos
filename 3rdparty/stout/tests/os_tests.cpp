@@ -663,6 +663,31 @@ TEST_F(OsTest, User)
 
   EXPECT_SOME(os::su(user.get()));
   EXPECT_ERROR(os::su(UUID::random().toString()));
+
+  Try<string> gids_ = os::shell("id -G " + user.get());
+  EXPECT_SOME(gids_);
+
+  Try<vector<string>> tokens =
+    strings::split(strings::trim(gids_.get(), strings::ANY, "\n"), " ");
+
+  ASSERT_SOME(tokens);
+
+  Try<vector<gid_t>> gids = os::getgrouplist(user.get());
+  EXPECT_SOME(gids);
+
+  for (int i = 0; i < gids.get().size(); i++) {
+    EXPECT_EQ(tokens.get()[i], stringify(gids.get()[i]));
+  }
+
+  EXPECT_SOME(os::setgid(gid.get()));
+
+  // 'setgroups' requires root permission.
+  if (user.get() != "root") {
+    return;
+  }
+
+  EXPECT_SOME(os::setgroups(gids.get(), uid.get()));
+  EXPECT_SOME(os::setuid(uid.get()));
 }
 
 
