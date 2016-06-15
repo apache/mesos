@@ -110,7 +110,7 @@ public:
   std::string sandbox_directory;
   Option<ContainerInfo> default_container_info;
 
-  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   Duration docker_stop_timeout;
 
   bool docker_kill_orphans;

@@ -211,7 +211,7 @@ public:
     cout << "Received killTask for task " << taskId.value() << endl;
 
     // Using shutdown grace period as a default is backwards compatible
-    // with the `stop_timeout` flag, deprecated in 0.29.
+    // with the `stop_timeout` flag, deprecated in 1.0.
     Duration gracePeriod = shutdownGracePeriod;
 
     if (killPolicy.isSome() && killPolicy->has_grace_period()) {
@@ -764,7 +764,7 @@ int main(int argc, char** argv)
 
   // If the deprecated flag is set, respect it and choose the bigger value.
   //
-  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   if (flags.stop_timeout.isSome() &&
       flags.stop_timeout.get() > shutdownGracePeriod) {
     shutdownGracePeriod = flags.stop_timeout.get();

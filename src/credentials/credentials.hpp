@@ -55,7 +55,7 @@ inline Result<Credentials> read(const Path& path)
   }
 
   // TODO(nfnt): Remove text format support at the end of the deprecation cycle
-  // which started with version 0.29.
+  // which started with version 1.0.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
   if (!json.isError()) {
     Try<Credentials> credentials = ::protobuf::parse<Credentials>(json.get());
@@ -112,7 +112,7 @@ inline Result<Credential> readCredential(const Path& path)
   }
 
   // TODO(nfnt): Remove text format support at the end of the deprecation cycle
-  // which started with version 0.29.
+  // which started with version 1.0.
   Credential credential;
   const std::vector<std::string>& line = strings::tokenize(read.get(), "\n");
   if (line.size() != 1) {

@@ -57,7 +57,8 @@ struct Metrics
   process::metrics::Gauge event_queue_dispatches;
 
   // TODO(bbannier) This metric is identical to `event_queue_dispatches`, but
-  // uses a name deprecated in 0.29. This metric should be removed with 0.30.
+  // uses a name deprecated in 1.0. This metric should be removed after the
+  // deprecation cycle.
   process::metrics::Gauge event_queue_dispatches_;
 
   // Number of times the allocation algorithm has run.

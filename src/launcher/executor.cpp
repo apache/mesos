@@ -444,7 +444,7 @@ protected:
     // Default grace period is set to 3s for backwards compatibility.
     //
     // TODO(alexr): Replace it with a more meaningful default, e.g.
-    // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
+    // `shutdownGracePeriod` after the deprecation cycle, started in 1.0.
     Duration gracePeriod = Seconds(3);
 
     // Kill policy provided in the `Kill` event takes precedence

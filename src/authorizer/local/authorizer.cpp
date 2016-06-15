@@ -349,7 +349,7 @@ public:
   virtual void initialize()
   {
     // TODO(zhitao): Remove the following log warning at the end of the
-    // deprecation cycle which started with 0.29.
+    // deprecation cycle which started with 1.0.
     if (acls.set_quotas_size() > 0 ||
         acls.remove_quotas_size() > 0) {
       LOG(WARNING) << "SetQuota and RemoveQuota ACLs are deprecacted; "
@@ -535,7 +535,7 @@ private:
         // i.e., `QuotaHandler`, checks `set_quotas`/`remove_quotas`.
         //
         // TODO(zhitao): Remove this special case at the end
-        // of the deprecation cycle which started with 0.29.
+        // of the deprecation cycle which started with 1.0.
         if (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0) {
           CHECK(acls.update_quotas_size() == 0);
 
@@ -561,7 +561,7 @@ private:
         break;
 
       // TODO(zhitao): Remove the following two cases at the end
-      // of the deprecation cycle which started with 0.29.
+      // of the deprecation cycle which started with 1.0.
       case authorization::SET_QUOTA_WITH_ROLE:
         if (acls.update_quotas_size() > 0) {
           CHECK(acls.set_quotas_size() == 0);

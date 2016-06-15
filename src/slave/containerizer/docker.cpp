@@ -226,7 +226,7 @@ docker::Flags dockerFlags(
     dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));
   }
 
-  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
 
   return dockerFlags;
@@ -960,7 +960,7 @@ Future<Nothing> DockerContainerizerProcess::__recover(
     // Check if we're watching an executor for this container ID and
     // if not, rm -f the Docker container.
     if (!containers_.contains(id.get())) {
-      // TODO(alexr): After the deprecation cycle (started in 0.29.0), update
+      // TODO(alexr): After the deprecation cycle (started in 1.0), update
       // this to omit the timeout. Graceful shutdown of the container is not
       // a containerizer responsibility; it is the responsibility of the agent
       // in co-operation with the executor. Once `destroy()` is called, the
@@ -1979,7 +1979,7 @@ void DockerContainerizerProcess::_destroy(
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
   if (killed) {
-    // TODO(alexr): After the deprecation cycle (started in 0.29.0), update
+    // TODO(alexr): After the deprecation cycle (started in 1.0), update
     // this to omit the timeout. Graceful shutdown of the container is not
     // a containerizer responsibility; it is the responsibility of the agent
     // in co-operation with the executor. Once `destroy()` is called, the

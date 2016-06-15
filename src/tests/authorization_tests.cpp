@@ -1316,7 +1316,7 @@ TYPED_TEST(AuthorizationTest, UpdateQuota)
 // This tests that update_quotas and set_quotas/remove_quotas
 // cannot be used together.
 // TODO(zhitao): Remove this test case at the end of the deprecation
-// cycle started with 0.29.
+// cycle started with 1.0.
 TYPED_TEST(AuthorizationTest, ConflictQuotaACLs) {
   {
     ACLs acls;
@@ -1366,7 +1366,7 @@ TYPED_TEST(AuthorizationTest, ConflictQuotaACLs) {
 
 // This tests the authorization of requests to set quotas.
 // TODO(zhitao): Remove this test case at the end of the deprecation
-// cycle started with 0.29.
+// cycle started with 1.0.
 TYPED_TEST(AuthorizationTest, SetQuota)
 {
   ACLs acls;
@@ -1467,7 +1467,7 @@ TYPED_TEST(AuthorizationTest, SetQuota)
 
 // This tests the authorization of requests to remove quotas.
 // TODO(zhitao): Remove this test case at the end of the deprecation
-// cycle started with 0.29.
+// cycle started with 1.0.
 TYPED_TEST(AuthorizationTest, RemoveQuota)
 {
   ACLs acls;

@@ -1332,7 +1332,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 // set_quotas and remove_quotas, while unauthorized principals cannot.
 //
 // TODO(zhitao): Remove this test case at the end of deprecation cycle
-// started with 0.29.
+// started with 1.0.
 TEST_F(MasterQuotaTest, AuthorizeSetAndRemoveQuotaRequests)
 {
   TestAllocator<> allocator;
@@ -1615,7 +1615,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
 // The authorizer will map the absence of a principal to "ANY".
 //
 // TODO(zhitao): Remove this test case at the end of deprecation cycle
-// started with 0.29.
+// started with 1.0.
 TEST_F(MasterQuotaTest, AuthorizeSetRemoveQuotaRequestsWithoutPrincipal)
 {
   // Setup ACLs so that any principal can set quotas for `ROLE1` and remove

@@ -95,11 +95,11 @@ void ModuleManager::initialize()
   //
   // Mesos   kindToVersion    library    modules loadable?
   // 0.18.0      0.18.0       0.18.0          YES
-  // 0.29.0      0.18.0       0.18.0          YES
-  // 0.29.0      0.18.0       0.21.0          YES
+  // 1.0.0       0.18.0       0.18.0          YES
+  // 1.0.0       0.18.0       0.21.0          YES
   // 0.18.0      0.18.0       0.29.0          NO
-  // 0.29.0      0.21.0       0.18.0          NO
-  // 0.29.0      0.29.0       0.18.0          NO
+  // 1.0.0       0.21.0       0.18.0          NO
+  // 1.0.0       1.0.0        0.18.0          NO
 
   // ATTENTION: This mechanism only protects the interfaces of
   // modules, not how they maintain functional compatibility with

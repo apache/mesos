@@ -336,7 +336,7 @@ Future<http::Response> Master::QuotaHandler::set(
   }
 
   // TODO(zhitao): Remove the deprecated action at the end
-  // of the deprecation cycle which started with 0.29.
+  // of the deprecation cycle which started with 1.0.
   list<Future<bool>> authorizeRequests = {
     authorizeSetQuota(principal, quotaInfo.role()),
     authorizeUpdateQuota(principal, quotaInfo.role())};
@@ -454,7 +454,7 @@ Future<http::Response> Master::QuotaHandler::remove(
     : Option<string>::none();
 
   // TODO(zhitao): Remove the deprecated action at the end
-  // of the deprecation cycle which started with 0.29.
+  // of the deprecation cycle which started with 1.0.
   list<Future<bool>> authorizeRequests = {
     authorizeRemoveQuota(principal, quota_principal),
     authorizeUpdateQuota(principal, role)};
@@ -548,7 +548,7 @@ Future<bool> Master::QuotaHandler::authorizeUpdateQuota(
 
 
 // TODO(zhitao): Remove this function at the end of the
-// deprecation cycle which started with 0.29.
+// deprecation cycle which started with 1.0.
 Future<bool> Master::QuotaHandler::authorizeSetQuota(
     const Option<string>& principal,
     const string& role) const
@@ -575,7 +575,7 @@ Future<bool> Master::QuotaHandler::authorizeSetQuota(
 
 
 // TODO(zhitao): Remove this function at the end of the
-// deprecation cycle which started with 0.29.
+// deprecation cycle which started with 1.0.
 Future<bool> Master::QuotaHandler::authorizeRemoveQuota(
     const Option<string>& requestPrincipal,
     const Option<string>& quotaPrincipal) const

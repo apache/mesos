@@ -578,7 +578,7 @@ mesos::internal::slave::Flags::Flags()
       "  ]\n"
       "}");
 
-  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   add(&Flags::docker_stop_timeout,
       "docker_stop_timeout",
       "The time docker daemon waits after stopping a container before\n"
