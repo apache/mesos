@@ -20,6 +20,8 @@
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include <mesos/type_utils.hpp>
 
@@ -125,7 +127,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::appc_store_dir,
       "appc_store_dir",
       "Directory the appc provisioner will store images in.\n",
-      "/tmp/mesos/store/appc");
+      path::join(os::temp(), "mesos", "store", "appc"));
 
   add(&Flags::docker_registry,
       "docker_registry",
@@ -138,7 +140,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::docker_store_dir,
       "docker_store_dir",
       "Directory the Docker provisioner will store images in",
-      "/tmp/mesos/store/docker");
+      path::join(os::temp(), "mesos", "store", "docker"));
 
   add(&Flags::docker_volume_checkpoint_dir,
       "docker_volume_checkpoint_dir",
@@ -177,7 +179,7 @@ mesos::internal::slave::Flags::Flags()
       "fetcher_cache_dir",
       "Parent directory for fetcher cache directories\n"
       "(one subdirectory per agent).",
-      "/tmp/mesos/fetch");
+      path::join(os::temp(), "mesos", "fetch"));
 
   add(&Flags::work_dir,
       "work_dir",
