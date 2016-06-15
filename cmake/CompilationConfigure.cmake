@@ -108,10 +108,15 @@ if (NOT WIN32)
   set(PKG_LIBEXEC_INSTALL_DIR ${LIBEXEC_INSTALL_DIR}/mesos)
   set(LIB_INSTALL_DIR         ${EXEC_INSTALL_PREFIX}/libmesos)
 else (NOT WIN32)
+  # TODO(hausdorff): (MESOS-5455) These are placeholder values. Transition away
+  # from them.
   set(EXEC_INSTALL_PREFIX     "WARNINGDONOTUSEME")
   set(LIBEXEC_INSTALL_DIR     "WARNINGDONOTUSEME")
   set(PKG_LIBEXEC_INSTALL_DIR "WARNINGDONOTUSEME")
   set(LIB_INSTALL_DIR         "WARNINGDONOTUSEME")
+  set(TEST_LIB_EXEC_DIR       "WARNINGDONOTUSEME")
+  set(PKG_MODULE_DIR          "WARNINGDONOTUSEME")
+  set(S_BIN_DIR               "WARNINGDONOTUSEME")
 endif (NOT WIN32)
 
 # Add preprocessor definitions required to build third-party libraries.

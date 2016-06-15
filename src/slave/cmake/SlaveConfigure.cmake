@@ -85,3 +85,61 @@ if (NOT ENABLE_LIBEVENT)
 elseif (ENABLE_LIBEVENT)
   set(AGENT_LIBS ${AGENT_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
+
+
+############################################################
+
+
+set(
+  PROCESS_AGENT_TARGET slave
+  CACHE STRING "Agent target")
+
+
+# COMPILER CONFIGURATION.
+#########################
+if (APPLE)
+  # GTEST on OSX needs its own tr1 tuple.
+  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11)
+endif (APPLE)
+
+# DEFINE PROCESS AGENT LIBRARY DEPENDENCIES. Tells the process library build
+# tests target download/configure/build all third-party libraries before
+# attempting to build.
+###########################################################################
+set(PROCESS_AGENT_DEPENDENCIES
+  ${PROCESS_AGENT_DEPENDENCIES}
+  ${PROCESS_DEPENDENCIES}
+  ${GMOCK_TARGET}
+  )
+
+if (WIN32)
+  set(PROCESS_AGENT_DEPENDENCIES
+    ${PROCESS_AGENT_DEPENDENCIES}
+    )
+endif (WIN32)
+
+# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
+# headers for our third party libs (e.g., -I/path/to/glog on Linux).
+###############################################################################
+set(PROCESS_AGENT_INCLUDE_DIRS
+  ${PROCESS_AGENT_INCLUDE_DIRS}
+  ${AGENT_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIR}
+  src
+  )
+
+if (WIN32)
+  set(PROCESS_AGENT_INCLUDE_DIRS
+    ${PROCESS_AGENT_INCLUDE_DIRS}
+    ${AGENT_INCLUDE_DIRS}
+  )
+endif (WIN32)
+
+# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
+# toolchain where to find our third party libs (e.g., -L/path/to/glog on
+# Linux).
+########################################################################
+set(PROCESS_AGENT_LIB_DIRS
+  ${PROCESS_AGENT_LIB_DIRS}
+  ${AGENT_LIB_DIRS}
+  )
