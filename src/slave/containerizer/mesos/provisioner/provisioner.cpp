@@ -336,6 +336,11 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
   }
 
 #ifndef __WINDOWS__
+  // TODO(hausdorff): The FTS API is not available on some platforms, such as
+  // Windows. We will need to either (1) prove that this is not necessary for
+  // Windows Containers, which use much of the Docker spec themselves, or (2)
+  // make this code compatible with Windows, as we did with other code that
+  // depended on FTS, such as `os::rmdir`. See MESOS-5610.
   char* _rootfs[] = {const_cast<char*>(rootfs.c_str()), nullptr};
 
   FTS* tree = ::fts_open(_rootfs, FTS_NOCHDIR | FTS_PHYSICAL, nullptr);
