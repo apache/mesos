@@ -1123,7 +1123,7 @@ Example:
   "type": "MESOS",
   "volumes": [
     {
-      "host_path": "./.private/tmp",
+      "host_path": ".private/tmp",
       "container_path": "/tmp",
       "mode": "RW"
     }

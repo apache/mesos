@@ -569,7 +569,7 @@ mesos::internal::slave::Flags::Flags()
       "  \"type\": \"MESOS\",\n"
       "  \"volumes\": [\n"
       "    {\n"
-      "      \"host_path\": \"./.private/tmp\",\n"
+      "      \"host_path\": \".private/tmp\",\n"
       "      \"container_path\": \"/tmp\",\n"
       "      \"mode\": \"RW\"\n"
       "    }\n"
