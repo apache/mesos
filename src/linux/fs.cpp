@@ -79,39 +79,6 @@ Try<bool> supported(const std::string& fsname)
 }
 
 
-Try<bool> overlay::supported()
-{
-  Try<bool> overlay = fs::supported("overlay");
-  if (overlay.isError()) {
-    return Error(overlay.error());
-  } else if (overlay.get() == true) {
-    return true;
-  }
-
-  Try<bool> overlayfs = fs::supported("overlayfs");
-  if (overlayfs.isError()) {
-    return Error(overlayfs.error());
-  } else if (overlayfs.get() == true) {
-    return true;
-  }
-
-  return false;
-}
-
-
-Try<bool> aufs::supported()
-{
-  Try<bool> aufs = fs::supported("aufs");
-  if (aufs.isError()) {
-    return Error(aufs.error());
-  } else if (aufs.get() == true) {
-    return true;
-  }
-
-  return false;
-}
-
-
 Try<MountInfoTable> MountInfoTable::read(const Option<pid_t>& pid)
 {
   MountInfoTable table;
