@@ -13,6 +13,7 @@ can selectively enable different isolators.
 It also provides basic support for POSIX systems (e.g., OSX) but
 without any actual isolation, only resource usage reporting.
 
+
 ### Shared Filesystem
 
 The SharedFilesystem isolator can optionally be used on Linux hosts to
@@ -41,6 +42,7 @@ executor's work directory (mode 1777) and simultaneously mount it as
 /tmp inside the container. This is transparent to processes running
 inside the container. Containers will not be able to see the host's
 /tmp or any other container's /tmp.
+
 
 ### Pid Namespace
 
@@ -127,6 +129,7 @@ to display the `fsxattr.projid` field. For example:
 Note that the Posix Disk isolator flags `--enforce_container_disk_quota`,
 `--container_disk_watch_interval` and `--enforce_container_disk_quota` do
 not apply to the XFS Disk isolator.
+
 
 ### Docker Runtime Isolator
 
@@ -273,6 +276,12 @@ the assigned net_cls handle to operators by exposing the handle as
 part of the `ContainerStatus` &mdash;associated with any task running within
 the container&mdash; in the agent's [/state](endpoints/slave/state.md) endpoint.
 
-### Docker Volume support
+
+### The `docker/volume` Isolator
 
 This is described in a [separate document](docker-volume.md).
+
+
+### The `network/cni` Isolator
+
+This is described in a [separate document](cni.md).
