@@ -36,6 +36,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -222,6 +223,54 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
+#ifndef __WINDOWS__
+  // NOTE: If 'flags.user' is set, we will get the uid, gid, and the
+  // supplementary group ids associated with the specified user before
+  // changing the filesystem root. This is because after changing the
+  // filesystem root, the current process might no longer have access
+  // to /etc/passwd and /etc/group on the host.
+  Option<uid_t> uid;
+  Option<gid_t> gid;
+  vector<gid_t> gids;
+
+  // TODO(gilbert): For the case container user exists, support
+  // framework/task/default user -> container user mapping once
+  // user namespace and container capabilities is available for
+  // mesos container.
+
+  if (flags.user.isSome()) {
+    Result<uid_t> _uid = os::getuid(flags.user.get());
+    if (!_uid.isSome()) {
+      cerr << "Failed to get the uid of user '" << flags.user.get() << "': "
+           << (_uid.isError() ? _uid.error() : "not found") << endl;
+      return 1;
+    }
+
+    // No need to change user/groups if the specified user is the same
+    // as that of the current process.
+    if (_uid.get() != os::getuid().get()) {
+      Result<gid_t> _gid = os::getgid(flags.user.get());
+      if (!_gid.isSome()) {
+        cerr << "Failed to get the gid of user '" << flags.user.get() << "': "
+             << (_gid.isError() ? _gid.error() : "not found") << endl;
+        return 1;
+      }
+
+      Try<vector<gid_t>> _gids = os::getgrouplist(flags.user.get());
+      if (_gids.isError()) {
+        cerr << "Failed to get the supplementary gids of user '"
+             << flags.user.get() << "': "
+             << (_gids.isError() ? _gids.error() : "not found") << endl;
+        return 1;
+      }
+
+      uid = _uid.get();
+      gid = _gid.get();
+      gids = _gids.get();
+    }
+  }
+#endif // __WINDOWS__
+
 #ifdef __WINDOWS__
   // Not supported on Windows.
   const Option<std::string> rootfs = None();
@@ -264,14 +313,26 @@ int MesosContainerizerLaunch::execute()
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
   // same privilege as the mesos-agent.
-  // NOTE: The requisite user/group information must be present if
-  // a container root filesystem is used.
 #ifndef __WINDOWS__
-  if (flags.user.isSome()) {
-    Try<Nothing> su = os::su(flags.user.get());
-    if (su.isError()) {
-      cerr << "Failed to change user to '" << flags.user.get() << "': "
-           << su.error() << endl;
+  if (uid.isSome()) {
+    Try<Nothing> setgid = os::setgid(gid.get());
+    if (setgid.isError()) {
+      cerr << "Failed to set gid to " << gid.get()
+           << ": " << setgid.error() << endl;
+      return 1;
+    }
+
+    Try<Nothing> setgroups = os::setgroups(gids, uid);
+    if (setgroups.isError()) {
+      cerr << "Failed to set supplementary gids: "
+           << setgroups.error() << endl;
+      return 1;
+    }
+
+    Try<Nothing> setuid = os::setuid(uid.get());
+    if (setuid.isError()) {
+      cerr << "Failed to set uid to " << uid.get()
+           << ": " << setuid.error() << endl;
       return 1;
     }
   }

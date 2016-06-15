@@ -155,16 +155,56 @@ pid_t launchTaskPosix(
     os::close(_pipes[1]);
 
     if (rootfs.isSome()) {
+      // NOTE: we need to put change user, chdir logics in command
+      // executor because these depend on the new root filesystem.
+      // If the command task does not change root fiesystem, these
+      // will be handled in the containerizer.
 #ifdef __linux__
+      // NOTE: If 'user' is set, we will get the uid, gid, and the
+      // supplementary group ids associated with the specified user
+      // before changing the filesystem root. This is because after
+      // changing the filesystem root, the current process might no
+      // longer have access to /etc/passwd and /etc/group on the
+      // host.
+      Option<uid_t> uid;
+      Option<gid_t> gid;
+      vector<gid_t> gids;
+
+      // TODO(gilbert): For the case container user exists, support
+      // framework/task/default user -> container user mapping once
+      // user namespace and container capabilities is available for
+      // mesos container.
+
       if (user.isSome()) {
-        // This is a work around to fix the problem that after we chroot
-        // os::su call afterwards failed because the linker may not be
-        // able to find the necessary library in the rootfs.
-        // We call os::su before chroot here to force the linker to load
-        // into memory.
-        // We also assume it's safe to su to "root" user since
-        // filesystem/linux.cpp checks for root already.
-        os::su("root");
+        Result<uid_t> _uid = os::getuid(user.get());
+        if (!_uid.isSome()) {
+          cerr << "Failed to get the uid of user '" << user.get() << "': "
+               << (_uid.isError() ? _uid.error() : "not found") << endl;
+          abort();
+        }
+
+        // No need to change user/groups if the specified user is
+        // the same as that of the current process.
+        if (_uid.get() != os::getuid().get()) {
+          Result<gid_t> _gid = os::getgid(user.get());
+          if (!_gid.isSome()) {
+            cerr << "Failed to get the gid of user '" << user.get() << "': "
+                 << (_gid.isError() ? _gid.error() : "not found") << endl;
+            abort();
+          }
+
+          Try<vector<gid_t>> _gids = os::getgrouplist(user.get());
+          if (_gids.isError()) {
+            cerr << "Failed to get the supplementary gids of user '"
+                 << user.get() << "': "
+                 << (_gids.isError() ? _gids.error() : "not found") << endl;
+            abort();
+          }
+
+          uid = _uid.get();
+          gid = _gid.get();
+          gids = _gids.get();
+        }
       }
 
       Try<Nothing> chroot = fs::chroot::enter(rootfs.get());
@@ -172,6 +212,29 @@ pid_t launchTaskPosix(
         cerr << "Failed to enter chroot '" << rootfs.get()
              << "': " << chroot.error() << endl;
         abort();
+      }
+
+      if (uid.isSome()) {
+        Try<Nothing> setgid = os::setgid(gid.get());
+        if (setgid.isError()) {
+          cerr << "Failed to set gid to " << gid.get()
+               << ": " << setgid.error() << endl;
+          abort();
+        }
+
+        Try<Nothing> setgroups = os::setgroups(gids, uid);
+        if (setgroups.isError()) {
+          cerr << "Failed to set supplementary gids: "
+               << setgroups.error() << endl;
+          abort();
+        }
+
+        Try<Nothing> setuid = os::setuid(uid.get());
+        if (setuid.isError()) {
+          cerr << "Failed to set uid to " << uid.get()
+               << ": " << setuid.error() << endl;
+          abort();
+        }
       }
 
       // Determine the current working directory for the executor.
@@ -188,15 +251,6 @@ pid_t launchTaskPosix(
         cerr << "Failed to chdir into current working directory '"
              << cwd << "': " << chdir.error() << endl;
         abort();
-      }
-
-      if (user.isSome()) {
-        Try<Nothing> su = os::su(user.get());
-        if (su.isError()) {
-          cerr << "Failed to change user to '" << user.get() << "': "
-               << su.error() << endl;
-          abort();
-        }
       }
 #else
       cerr << "Rootfs is only supported on Linux" << endl;
