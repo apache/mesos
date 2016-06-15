@@ -114,7 +114,7 @@ configure two flags at agent startup as follows:
 ```{.console}
   sudo Mesos-slave \
     --master=<master IP> \
-    --ip=<Agent IP> \
+    --ip=<agent IP> \
     --work_dir=/var/lib/mesos \
     --isolation=filesystem/linux,docker/volume \
     --docker_volume_checkpoint_dir=<mount info checkpoint path>
@@ -125,7 +125,7 @@ agent startup, and the `docker/volume` isolator has a dependency on
 `filesystem/linux` isolator.
 
 The `--docker_volume_checkpoint_dir` is an optional flag with a default value
-`/var/run/Mesos/isolators/docker/volume`. The `docker/volume` isolator will
+`/var/run/mesos/isolators/docker/volume`. The `docker/volume` isolator will
 checkpoint all Docker volume mount points information under
 `--docker_volume_checkpoint_dir` for recovery. The checkpoint information under
 the default `--docker_volume_checkpoint_dir` will be cleaned up after agent
