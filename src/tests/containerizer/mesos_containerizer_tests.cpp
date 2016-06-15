@@ -925,6 +925,107 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 }
 
 
+// This test verifies that there is no race (or leaked provisioned
+// directories) if the containerizer destroy a container while it
+// is provisioning a volume image in '_launch'.
+TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioningVolumeImage)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Launcher*> launcher_ = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher_);
+
+  TestLauncher* launcher = new TestLauncher(Owned<Launcher>(launcher_.get()));
+
+  MockProvisioner* provisioner = new MockProvisioner();
+
+  Future<Nothing> provision;
+  Promise<ProvisionInfo> promise;
+
+  EXPECT_CALL(*provisioner, provision(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&provision),
+                    Return(promise.future())));
+
+  EXPECT_CALL(*provisioner, destroy(_))
+    .WillOnce(Return(true));
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MesosContainerizerProcess* process = new MesosContainerizerProcess(
+      flags,
+      true,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      Owned<Launcher>(launcher),
+      Owned<Provisioner>(provisioner),
+      vector<Owned<Isolator>>());
+
+  MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+
+  ContainerInfo::MesosInfo mesosInfo;
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  Image::Docker dockerImage;
+  dockerImage.set_name(UUID::random().toString());
+  image.mutable_docker()->CopyFrom(dockerImage);
+
+  Volume* volume = containerInfo.add_volumes();
+  volume->mutable_image()->CopyFrom(image);
+  volume->set_container_path("tmp");
+  volume->set_mode(Volume::RW);
+
+  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  Future<bool> launch = containerizer.launch(
+      containerId,
+      taskInfo,
+      executorInfo,
+      os::getcwd(),
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+
+  AWAIT_READY(provision);
+
+  containerizer.destroy(containerId);
+
+  ASSERT_TRUE(wait.isPending());
+  promise.set(ProvisionInfo{"rootfs", None()});
+
+  AWAIT_FAILED(launch);
+  AWAIT_READY(wait);
+
+  containerizer::Termination termination = wait.get();
+
+  EXPECT_EQ(
+    "Container destroyed while provisioning images",
+    termination.message());
+
+  EXPECT_FALSE(termination.has_status());
+}
+
+
 // This action destroys the container using the real launcher and
 // waits until the destroy is complete.
 ACTION_P(InvokeDestroyAndWait, launcher)
