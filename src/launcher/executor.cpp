@@ -17,7 +17,9 @@
 #include <signal.h>
 #include <stdio.h>
 
+#ifndef __WINDOWS__
 #include <sys/wait.h>
+#endif // __WINDOWS__
 
 #include <iostream>
 #include <list>
@@ -41,6 +43,10 @@
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
+#ifdef __WINDOWS__
+#include <process/windows/winsock.hpp> // WSAStartup code.
+#endif // __WINDOWS__
+
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
@@ -51,6 +57,12 @@
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
+
+#include <stout/os/kill.hpp>
+#include <stout/os/killtree.hpp>
 
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
@@ -62,6 +74,8 @@
 #endif
 
 #include "executor/v0_v1executor.hpp"
+
+#include "launcher/executor.hpp"
 
 #include "logging/logging.hpp"
 
@@ -101,6 +115,7 @@ using mesos::v1::executor::Mesos;
 using mesos::v1::executor::MesosBase;
 using mesos::v1::executor::V0ToV1Adapter;
 
+
 namespace mesos {
 namespace v1 {
 namespace internal {
@@ -138,9 +153,21 @@ public:
       taskCommand(_taskCommand),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      task(None()) {}
+      task(None())
+  {
+#ifdef __WINDOWS__
+    process_handle = INVALID_HANDLE_VALUE;
+#endif
+  }
 
-  virtual ~CommandExecutor() = default;
+  virtual ~CommandExecutor()
+  {
+#ifdef __WINDOWS__
+    if (process_handle != INVALID_HANDLE_VALUE) {
+      ::CloseHandle(process_handle);
+    }
+#endif // __WINDOWS__
+  }
 
   void connected()
   {
@@ -361,51 +388,6 @@ protected:
 
     cout << "Starting task " << task->task_id() << endl;
 
-    // TODO(benh): Clean this up with the new 'Fork' abstraction.
-    // Use pipes to determine which child has successfully changed
-    // session. This is needed as the setsid call can fail from other
-    // processes having the same group id.
-    int pipes[2];
-    if (pipe(pipes) < 0) {
-      perror("Failed to create a pipe");
-      abort();
-    }
-
-    // Set the FD_CLOEXEC flags on these pipes.
-    Try<Nothing> cloexec = os::cloexec(pipes[0]);
-    if (cloexec.isError()) {
-      cerr << "Failed to cloexec(pipe[0]): " << cloexec.error() << endl;
-      abort();
-    }
-
-    cloexec = os::cloexec(pipes[1]);
-    if (cloexec.isError()) {
-      cerr << "Failed to cloexec(pipe[1]): " << cloexec.error() << endl;
-      abort();
-    }
-
-    if (rootfs.isSome()) {
-      // The command executor is responsible for chrooting into the
-      // root filesystem and changing the user before exec-ing the
-      // user process.
-#ifdef __linux__
-      Result<string> user = os::user();
-      if (user.isError()) {
-        cerr << "Failed to get current user: " << user.error() << endl;
-        abort();
-      } else if (user.isNone()) {
-        cerr << "Current username is not found" << endl;
-        abort();
-      } else if (user.get() != "root") {
-        cerr << "The command executor requires root with rootfs" << endl;
-        abort();
-      }
-#else
-      cerr << "Not expecting root volume with non-linux platform." << endl;
-      abort();
-#endif // __linux__
-    }
-
     // Prepare the argv before fork as it's not async signal safe.
     char **argv = new char*[command.arguments().size() + 1];
     for (int i = 0; i < command.arguments().size(); i++) {
@@ -413,147 +395,34 @@ protected:
     }
     argv[command.arguments().size()] = nullptr;
 
-    // Prepare the command log message.
-    string commandString;
-    if (override.isSome()) {
-      char** argv = override.get();
-      // argv is guaranteed to be nullptr terminated and we rely on
-      // that fact to print command to be executed.
-      for (int i = 0; argv[i] != nullptr; i++) {
-        commandString += string(argv[i]) + " ";
-      }
-    } else if (command.shell()) {
-      commandString = "sh -c '" + command.value() + "'";
-    } else {
-      commandString =
-        "[" + command.value() + ", " +
-        strings::join(", ", command.arguments()) + "]";
-    }
-
-    if ((pid = fork()) == -1) {
-      cerr << "Failed to fork to run " << commandString << ": "
-           << os::strerror(errno) << endl;
-      abort();
-    }
-
-    // TODO(jieyu): Make the child process async signal safe.
-    if (pid == 0) {
-      // In child process, we make cleanup easier by putting process
-      // into it's own session.
-      os::close(pipes[0]);
-
-      // NOTE: We setsid() in a loop because setsid() might fail if another
-      // process has the same process group id as the calling process.
-      while ((pid = setsid()) == -1) {
-        perror("Could not put command in its own session, setsid");
-
-        cout << "Forking another process and retrying" << endl;
-
-        if ((pid = fork()) == -1) {
-          perror("Failed to fork to launch command");
-          abort();
-        }
-
-        if (pid > 0) {
-          // In parent process. It is ok to suicide here, because
-          // we're not watching this process.
-          exit(0);
-        }
-      }
-
-      if (write(pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
-        perror("Failed to write PID on pipe");
-        abort();
-      }
-
-      os::close(pipes[1]);
-
-      if (rootfs.isSome()) {
-#ifdef __linux__
-        if (user.isSome()) {
-          // This is a work around to fix the problem that after we chroot
-          // os::su call afterwards failed because the linker may not be
-          // able to find the necessary library in the rootfs.
-          // We call os::su before chroot here to force the linker to load
-          // into memory.
-          // We also assume it's safe to su to "root" user since
-          // filesystem/linux.cpp checks for root already.
-          os::su("root");
-        }
-
-        Try<Nothing> chroot = fs::chroot::enter(rootfs.get());
-        if (chroot.isError()) {
-          cerr << "Failed to enter chroot '" << rootfs.get()
-               << "': " << chroot.error() << endl;;
-          abort();
-        }
-
-        // Determine the current working directory for the executor.
-        string cwd;
-        if (workingDirectory.isSome()) {
-          cwd = workingDirectory.get();
-        } else {
-          CHECK_SOME(sandboxDirectory);
-          cwd = sandboxDirectory.get();
-        }
-
-        Try<Nothing> chdir = os::chdir(cwd);
-        if (chdir.isError()) {
-          cerr << "Failed to chdir into current working directory '"
-               << cwd << "': " << chdir.error() << endl;
-          abort();
-        }
-
-        if (user.isSome()) {
-          Try<Nothing> su = os::su(user.get());
-          if (su.isError()) {
-            cerr << "Failed to change user to '" << user.get() << "': "
-                 << su.error() << endl;
-            abort();
-          }
-        }
+#ifndef __WINDOWS__
+    pid = launchTaskPosix(
+        task.get(),
+        command,
+        user,
+        argv,
+        override,
+        rootfs,
+        sandboxDirectory,
+        workingDirectory);
 #else
-        cerr << "Rootfs is only supported on Linux" << endl;
-        abort();
-#endif // __linux__
-      }
+    // A Windows process is started using the `CREATE_SUSPENDED` flag
+    // and is part of a job object. While the process handle is kept
+    // open the reap function will work.
+    PROCESS_INFORMATION processInformation = launchTaskWindows(
+        task.get(),
+        command,
+        argv,
+        override,
+        rootfs);
 
-      cout << commandString << endl;
-
-      // The child has successfully setsid, now run the command.
-      if (override.isNone()) {
-        if (command.shell()) {
-          execlp(
-              "sh",
-              "sh",
-              "-c",
-              command.value().c_str(),
-              (char*) nullptr);
-        } else {
-          execvp(command.value().c_str(), argv);
-        }
-      } else {
-        char** argv = override.get();
-        execvp(argv[0], argv);
-      }
-
-      perror("Failed to exec");
-      abort();
-    }
+    pid = processInformation.dwProcessId;
+    ::ResumeThread(processInformation.hThread);
+    CloseHandle(processInformation.hThread);
+    process_handle = processInformation.hProcess;
+#endif
 
     delete[] argv;
-
-    // In parent process.
-    os::close(pipes[1]);
-
-    // Get the child's pid via the pipe.
-    if (read(pipes[0], &pid, sizeof(pid)) == -1) {
-      cerr << "Failed to get child PID from pipe, read: "
-           << os::strerror(errno) << endl;
-      abort();
-    }
-
-    os::close(pipes[0]);
 
     cout << "Forked command at " << pid << endl;
 
@@ -703,7 +572,7 @@ private:
 
         // Send SIGTERM directly to process 'pid' as it may not have
         // received signal before os::killtree() failed.
-        ::kill(pid, SIGTERM);
+        os::kill(pid, SIGTERM);
       } else {
         cout << "Sent SIGTERM to the following process trees:\n"
              << stringify(trees.get()) << endl;
@@ -807,7 +676,7 @@ private:
       // Process 'pid' may not have received signal before
       // os::killtree() failed. To make sure process 'pid' is reaped
       // we send SIGKILL directly.
-      ::kill(pid, SIGKILL);
+      os::kill(pid, SIGKILL);
     } else {
       cout << "Killed the following process trees:\n" << stringify(trees.get())
            << endl;
@@ -909,6 +778,9 @@ private:
   Option<Timer> killGracePeriodTimer;
 
   pid_t pid;
+#ifdef __WINDOWS__
+  HANDLE process_handle;
+#endif
   pid_t healthPid;
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
@@ -990,6 +862,10 @@ int main(int argc, char** argv)
   Flags flags;
   FrameworkID frameworkId;
   ExecutorID executorId;
+
+#ifdef __WINDOWS__
+  process::Winsock winsock;
+#endif
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
