@@ -48,7 +48,7 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
 #ifdef __linux__
   creators.put("bind", &BindBackend::create);
 
-  Try<bool> aufsSupported = fs::aufs::supported();
+  Try<bool> aufsSupported = fs::supported("aufs");
   if (aufsSupported.isError()) {
     LOG(WARNING) << "Failed to check aufs availability: '"
                  << aufsSupported.error();
@@ -56,7 +56,7 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
     creators.put("aufs", &AufsBackend::create);
   }
 
-  Try<bool> overlayfsSupported = fs::overlay::supported();
+  Try<bool> overlayfsSupported = fs::supported("overlayfs");
   if (overlayfsSupported.isError()) {
     LOG(WARNING) << "Failed to check overlayfs availability: '"
                  << overlayfsSupported.error();

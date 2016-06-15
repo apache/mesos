@@ -490,10 +490,7 @@ public:
   explicit SupportedFilesystemTestFilter(const string fsname)
   {
 #ifdef __linux__
-    Try<bool> check = (fsname == "overlayfs")
-      ? fs::overlay::supported()
-      : fs::supported(fsname);
-
+    Try<bool> check = fs::supported(fsname);
     if (check.isError()) {
       fsSupportError = check.error();
     } else if (!check.get()) {
