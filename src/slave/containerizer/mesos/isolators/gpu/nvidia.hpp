@@ -77,8 +77,6 @@ class NvidiaGpuIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual ~NvidiaGpuIsolatorProcess();
-
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);

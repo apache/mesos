@@ -341,12 +341,6 @@ AC_ARG_WITH([nvml-include],
                             (required for Nvidia GPU support)]),
             [], [])
 
-AC_ARG_WITH([nvml-lib],
-            AS_HELP_STRING([--with-nvml-lib@<:@=DIR@:>@],
-                           [specify where to locate the Nvidia NVML libraries
-                            (required for Nvidia GPU support)]),
-            [], [])
-
 AC_ARG_WITH([picojson],
             AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
                            [excludes building and using the bundled picojson
@@ -1293,12 +1287,6 @@ if test x"$enable_nvidia_gpu_support" = "xyes"; then
     fi
     CPPFLAGS="-I${with_nvml_include} $CPPFLAGS"
   fi
-  if test -n "`echo $with_nvml_lib`"; then
-    if test "$with_nvml_lib" = "${with_nvml_lib#/}"; then
-      AC_MSG_ERROR([The path passed to --with-nvml-lib must be absolute.])
-    fi
-    LDFLAGS="-L${with_nvml_lib} $LDFLAGS"
-  fi
 
   AC_CHECK_HEADERS([gelf.h], [],
                    [AC_MSG_ERROR([Cannot find the libelf headers
@@ -1322,15 +1310,6 @@ support. Make sure this library is installed on the system.
 The Nvidia NVML headers are required to build Mesos with Nvidia
 GPU support. Make sure these headers are either installed on the
 system or the path passed via --with-nvml-include is correct.
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([nvidia-ml], [nvmlInit], [],
-               [AC_MSG_ERROR([Cannot find the Nvidia NVML libraries
--------------------------------------------------------------------
-The Nvidia NVML libraries are required to build Mesos with Nvidia
-GPU support. Make sure these libraries are either installed on the
-system or the path passed via --with-nvml-lib is correct.
 -------------------------------------------------------------------
   ])])
 
