@@ -98,6 +98,21 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
   Option<string> workingDirectory =
     getWorkingDirectory(containerConfig);
 
+  Option<string> user = getContainerUser(containerConfig);
+  if (user.isSome()) {
+    // TODO(gilbert): Parse the container user from 'user|uid[:group|gid]'
+    // to corresponding user and group. UID and GID should be numerical,
+    // while username and groupname should be non-numerical.
+    // Please see:
+    // https://github.com/docker/docker/blob/master/image/spec/v1.md#container-runconfig-field-descriptions // NOLINT
+
+    // TODO(gilbert): Support container user once container capabilities
+    // land. Currently, we just log a warning instead of a failure, so
+    // images with user defined can still be executable by ROOT.
+    LOG(WARNING) << "Container user '" << user.get() << "' is not "
+                 << "supported yet for container " << containerId;
+  }
+
   Result<CommandInfo> command =
     getLaunchCommand(containerId, containerConfig);
 
@@ -371,6 +386,20 @@ Option<string> DockerRuntimeIsolatorProcess::getWorkingDirectory(
   }
 
   return containerConfig.docker().manifest().config().workingdir();
+}
+
+
+Option<string> DockerRuntimeIsolatorProcess::getContainerUser(
+    const ContainerConfig& containerConfig)
+{
+  // NOTE: In docker manifest, if its container user is none, it may be
+  // set as `"User": ""`.
+  if (!containerConfig.docker().manifest().config().has_user() ||
+      containerConfig.docker().manifest().config().user() == "") {
+    return None();
+  }
+
+  return containerConfig.docker().manifest().config().user();
 }
 
 } // namespace slave {
