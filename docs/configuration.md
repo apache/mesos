@@ -1262,6 +1262,16 @@ Directory the Docker provisioner will store images in (default: /tmp/mesos/store
 </tr>
 <tr>
   <td>
+    --docker_volume_checkpoint_dir=VALUE
+  </td>
+  <td>
+The root directory where we checkpoint the information about docker
+volumes that each container uses.
+(default: /var/run/mesos/isolators/docker/volume)
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]enforce_container_disk_quota
   </td>
   <td>
