@@ -1241,13 +1241,13 @@ Future<bool> MesosContainerizerProcess::__launch(
     }
 
 #ifdef __WINDOWS__
-    if (!executorRootfs.isNone()) {
+    if (executorRootfs.isSome()) {
       return Failure(
           "`chroot` is not supported on Windows, but the executor "
           "specifies a root filesystem.");
     }
 
-    if (!user.isNone()) {
+    if (user.isSome()) {
       return Failure(
           "`su` is not supported on Windows, but the executor "
           "specifies a user.");
