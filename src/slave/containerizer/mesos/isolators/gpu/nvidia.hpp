@@ -17,8 +17,6 @@
 #ifndef __NVIDIA_GPU_ISOLATOR_HPP__
 #define __NVIDIA_GPU_ISOLATOR_HPP__
 
-#include <sys/types.h>
-
 #include <list>
 
 #include <nvidia/gdk/nvml.h>
@@ -105,8 +103,8 @@ private:
   struct Gpu
   {
     nvmlDevice_t handle;
-    dev_t major;
-    dev_t minor;
+    unsigned int major;
+    unsigned int minor;
   };
 
   struct Info

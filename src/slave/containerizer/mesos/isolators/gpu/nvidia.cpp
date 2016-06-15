@@ -65,7 +65,7 @@ namespace internal {
 namespace slave {
 
 // TODO(klueska): Expand this when we support other GPU types.
-static constexpr dev_t NVIDIA_MAJOR_DEVICE = 195;
+static constexpr unsigned int NVIDIA_MAJOR_DEVICE = 195;
 
 
 NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
