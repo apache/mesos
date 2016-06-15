@@ -272,3 +272,7 @@ by writing to `net_cls.classid`. The cgroups/net_cls isolator exposes
 the assigned net_cls handle to operators by exposing the handle as
 part of the `ContainerStatus` &mdash;associated with any task running within
 the container&mdash; in the agent's [/state](endpoints/slave/state.md) endpoint.
+
+### Docker Volume support
+
+This is described in a [separate document](docker-volume.md).

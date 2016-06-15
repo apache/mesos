@@ -5,9 +5,9 @@ layout: documentation
 
 # Docker Volume Support in Mesos Containerizer
 
-Mesos 1.0 adds the Docker volume support for MesosContainerizer (a.k.a., the
-unified containerizer) by introducing a new isolator, called `docker/volume`
-isolator.
+Mesos 1.0 adds Docker volume support to the
+[MesosContainerizer](mesos-containerizer.md) (a.k.a., the unified containerizer)
+by introducing the new `docker/volume` isolator.
 
 This document describes the motivation, overall architecture, configuration
 steps for enabling Docker volume isolator, and required framework changes.
@@ -18,29 +18,31 @@ steps for enabling Docker volume isolator, and required framework changes.
 - [Configuration](#configuration)
   - [Pre-conditions](#pre-conditions)
   - [Configuring Docker Volume Isolator](#configure-Docker-volume-isolator)
-  - [Enabling frameworks for Docker volume support](#enable-frameworks)
+  - [Enabling frameworks to use Docker volumes](#enable-frameworks)
     - [Volume Protobuf](#volume-protobuf)
     - [Examples](#examples)
 - [Limitations](#limitations)
 
 ## <a name="motivation"></a>Motivation
 
-The integration of external storage in Mesos is an attractive feature.
-Currently, the [persistent volume](persistent-volume.md) primitives in Mesos
-allows stateful services to persist their data locally on an agent. However, the
-size of a local disk is limited. For certain applications (e.g., databases),
-external storage is desired as they might require much larger storage. External
-storage support also makes data migration between agents/containers possible.
+The integration of external storage in Mesos is an attractive feature.  The
+Mesos [persistent volume](persistent-volume.md) primitives allow stateful
+services to persist data on an agent's local storage. However, the amount of
+storage capacity that can be directly attached to a single agent is
+limited---certain applications (e.g., databases) would like to access more data
+than can easily be attached to a single node. Using external storage can
+also simplify data migration between agents/containers, and can make backups and
+disaster recovery easier.
 
 The [Docker Volume Driver
 API](https://github.com/Docker/Docker/blob/master/docs/extend/plugins_volume.md)
-defines the interfaces between the container runtime and the external storage
-systems. It has been widely adopted. There are now many different Docker volume
-plugins, including [Convoy plugin](https://github.com/rancher/convoy), [Flocker
-plugin](https://docs.clusterhq.com/en/latest/Docker-integration/), [GlusterFS
-plugin](https://github.com/calavera/Docker-volume-glusterfs), [REX-Ray
-plugin](https://github.com/emccode/rexray) etc. Those plugins usually support a
-variety of external storage systems like Amazon EBS, OpenStack Cinder, etc.
+defines an interface between the container runtime and external storage systems.
+It has been widely adopted. There are Docker volume plugins for a variety of
+storage drivers, such as [Convoy](https://github.com/rancher/convoy),
+[Flocker](https://docs.clusterhq.com/en/latest/Docker-integration/),
+[GlusterFS](https://github.com/calavera/Docker-volume-glusterfs), and
+[REX-Ray](https://github.com/emccode/rexray). Each plugin typically supports a
+variety of external storage systems, such as Amazon EBS, OpenStack Cinder, etc.
 
 Therefore, introducing support for external storage in Mesos through the
 `docker/volume` isolator provides Mesos with tremendous flexibility to
@@ -51,7 +53,8 @@ orchestrate containers on a wide variety of external storage technologies.
 ![Docker Volume Isolator Architecture](images/docker-volume-isolator.png)
 
 The `docker/volume` isolator interacts with Docker volume plugins using
-[dvdcli](https://github.com/emccode/dvdcli), a command line tool from EMC.
+[dvdcli](https://github.com/emccode/dvdcli), an open-source command line tool
+from EMC.
 
 When a new task with Docker volumes is launched, the `docker/volume` isolator
 will invoke [dvdcli](https://github.com/emccode/dvdcli) to mount the
@@ -61,9 +64,9 @@ When the task finishes or is killed, the `docker/volume` isolator will invoke
 [dvdcli](https://github.com/emccode/dvdcli) to unmount the corresponding Docker
 volume.
 
-The detailed workflow for `docker/volume` isolator is as follows:
+The detailed workflow for the `docker/volume` isolator is as follows:
 
-1. A framework specifies external volumes in `ContainerInfo` when launching the
+1. A framework specifies external volumes in `ContainerInfo` when launching a
    task.
 
 2. The master sends the launch task message to the agent.
@@ -75,11 +78,11 @@ The detailed workflow for `docker/volume` isolator is as follows:
 4. The isolator invokes [dvdcli](https://github.com/emccode/dvdcli) to mount the
    corresponding external volume to a mount point on the host.
 
-5. The agent launches the container and bind mount the volume into the
+5. The agent launches the container and bind-mounts the volume into the
    container.
 
-6. The bind mounted volume inside the container will be unmounted from the
-   container automatically when the container finishes as the container is in
+6. The bind-mounted volume inside the container will be unmounted from the
+   container automatically when the container finishes, as the container is in
    its own mount namespace.
 
 7. The agent invokes isolator cleanup which invokes
@@ -88,23 +91,24 @@ The detailed workflow for `docker/volume` isolator is as follows:
 
 ## <a name="configuration"></a>Configuration
 
-To use the `docker/volume` isolator, there are certain actions required by the
-operator and the framework developers. In this section we list the steps
-required by the operator to configure `docker/volume` isolator and the steps
-required by framework developers to specify the Docker volumes.
+To use the `docker/volume` isolator, there are certain actions required by
+operators and framework developers. In this section we list the steps required
+by the operator to configure `docker/volume` isolator and the steps required by
+framework developers to specify the Docker volumes.
 
 ### <a name="pre-conditions"></a>Pre-conditions
 
-- Have `dvdcli` with version
-  [0.1.0](https://github.com/emccode/dvdcli/releases/tag/v0.1.0) installed.
+- Install `dvdcli` version
+  [0.1.0](https://github.com/emccode/dvdcli/releases/tag/v0.1.0).
 
-- Install [Docker volume
+- Install the [Docker volume
   plugin](https://github.com/Docker/Docker/blob/master/docs/extend/plugins.md#volume-plugins)
-on `each agent`.
+on each agent.
 
-- Have Docker volumes created explicitly before used by Mesos. Otherwise volumes
-  will be created by [dvdcli](https://github.com/emccode/dvdcli) implicitly but
-  the volumes may not fit into framework resoure requirement well.
+- Explicitly create the Docker volumes that are going to be accessed by Mesos
+  tasks. If this is not done, volumes will be implicitly created by
+  [dvdcli](https://github.com/emccode/dvdcli) but the volumes may not fit into
+  framework resource requirement well.
 
 ### <a name="configure-Docker-volume-isolator"></a>Configuring Docker Volume Isolator
 
@@ -121,22 +125,22 @@ configure two flags at agent startup as follows:
 ```
 
 The `docker/volume` isolator must be specified in the `--isolation` flag at
-agent startup, and the `docker/volume` isolator has a dependency on
+agent startup; the `docker/volume` isolator has a dependency on the
 `filesystem/linux` isolator.
 
-The `--docker_volume_checkpoint_dir` is an optional flag with a default value
+The `--docker_volume_checkpoint_dir` is an optional flag with a default value of
 `/var/run/mesos/isolators/docker/volume`. The `docker/volume` isolator will
-checkpoint all Docker volume mount points information under
+checkpoint all Docker volume mount point information under
 `--docker_volume_checkpoint_dir` for recovery. The checkpoint information under
 the default `--docker_volume_checkpoint_dir` will be cleaned up after agent
-restart. Therefore, it is recommended to update the
-`--docker_volume_checkpoint_dir` to a directory which can survive agent restart.
+restart. Therefore, it is recommended to set `--docker_volume_checkpoint_dir` to
+a directory which will survive agent restart.
 
-### <a name="enable-frameworks"></a>Enabling frameworks for Docker volume support
+### <a name="enable-frameworks"></a>Enabling frameworks to use Docker volumes
 
 #### <a name="volume-protobuf"></a>Volume Protobuf
 
-The `Volume` protobuf info has been updated to support the Docker volume.
+The `Volume` protobuf message has been updated to support Docker volumes.
 
 ```{.proto}
 message Volume {
@@ -164,14 +168,14 @@ message Volume {
 }
 ```
 
-When requesting Docker volume for a container, the framework developer needs to
+When requesting a Docker volume for a container, the framework developer needs to
 set `Volume` for the container, which includes `mode`, `container_path` and
 `source`.
 
-The `Source` specifies where the volume comes from. Framework developers need to
-specify the `Type`, Docker volume `driver`, `name` and `options`. Only
-`DOCKER_VOLUME` type is supported currently, and we plan to add more types in
-the future.
+The `source` field specifies where the volume comes from. Framework developers need to
+specify the `type`, Docker volume `driver`, `name` and `options`. At present,
+only the `DOCKER_VOLUME` type is supported; we plan to add support for more
+types of volumes in the future.
 
 How to specify `container_path`:
 
@@ -186,7 +190,7 @@ How to specify `container_path`:
    `container_path` as a relative path, the isolator will help create the
    `container_path` as the mount point.
 
-The following table describes the above rules for `container_path`:
+The following table summarizes the above rules for `container_path`:
 
 <table class="table table-striped">
   <tr>
@@ -219,7 +223,7 @@ The following table describes the above rules for `container_path`:
          {
            "container_path" : "/mnt/volume",
            "mode" : "RW",
-           "source": {
+           "source" : {
              "type" : "DOCKER_VOLUME",
              "docker_volume" : {
                "driver" : "rexray",
@@ -261,12 +265,12 @@ The following table describes the above rules for `container_path`:
                "driver" : "rexray",
                "name" : "volume2",
                "driver_options" : {
-                 "parameter":[{
-                   "key": <key>,
-                   "value": <value>
+                 "parameter" : [{
+                   "key" : <key>,
+                   "value" : <value>
                  }, {
-                   "key": <key>,
-                   "value": <value>
+                   "key" : <key>,
+                   "value" : <value>
                  }]
                }
              }
@@ -277,14 +281,14 @@ The following table describes the above rules for `container_path`:
    }
    ```
 
-**NOTE**: The task launch will be failed if one container using multiple Docker
-volumes with same `driver` and `name`.
+**NOTE**: The task launch will be failed if one container uses multiple Docker
+volumes with the same `driver` and `name`.
 
 ## <a name="limitations"></a>Limitations
 
-It is highly recommended not to use the same Docker volume in both
-DockerContainerizer and MesosContainerizer simultaneously, because
-MesosContainerizer has its own reference couting to decide when to unmount the
-Docker volume mount point. Otherwise, it would be problematic if a Docker volume
-is unmounted by MesosContainerizer but the DockerContainerizer is still using
-it.
+Using the same Docker volume in both the
+[DockerContainerizer](docker-containerizer.md) and the MesosContainerizer
+simultaneously is **strongly discouraged**, because the MesosContainerizer has its
+own reference counting to decide when to unmount a Docker volume. Otherwise, it
+would be problematic if a Docker volume is unmounted by MesosContainerizer but
+the DockerContainerizer is still using it.
