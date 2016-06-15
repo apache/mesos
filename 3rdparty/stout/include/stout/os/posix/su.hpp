@@ -85,6 +85,16 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
 }
 
 
+inline Try<Nothing> setuid(uid_t uid)
+{
+  if (::setuid(uid) == -1) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
 inline Result<gid_t> getgid(const Option<std::string>& user = None())
 {
   if (user.isNone()) {
@@ -138,6 +148,16 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
   }
 
   UNREACHABLE();
+}
+
+
+inline Try<Nothing> setgid(gid_t gid)
+{
+  if (::setgid(gid) == -1) {
+    return ErrnoError();
+  }
+
+  return Nothing();
 }
 
 
