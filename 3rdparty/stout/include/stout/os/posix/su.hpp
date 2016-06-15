@@ -22,6 +22,8 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <sys/syscall.h>
+
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -156,6 +158,88 @@ inline Try<Nothing> setgid(gid_t gid)
   if (::setgid(gid) == -1) {
     return ErrnoError();
   }
+
+  return Nothing();
+}
+
+
+inline Try<std::vector<gid_t>> getgrouplist(const std::string& user)
+{
+  // TODO(jieyu): Consider adding a 'gid' parameter and avoid calling
+  // getgid here. In some cases, the primary gid might be known.
+  Result<gid_t> gid = os::getgid(user);
+  if (!gid.isSome()) {
+    return Error("Failed to get the gid of the user: " +
+                 (gid.isError() ? gid.error() : "group not found"));
+  }
+
+#ifdef __APPLE__
+  // TODO(gilbert): Instead of setting 'ngroups' as a large value,
+  // we should figure out a way to probe 'ngroups' on OS X. Currently
+  // neither '_SC_NGROUPS_MAX' nor 'NGROUPS_MAX' is appropriate,
+  // because both are fixed as 16 on Darwin kernel, which is the
+  // cache size.
+  int ngroups = 65536;
+  int gids[ngroups];
+#else
+  int ngroups = NGROUPS_MAX;
+  gid_t gids[ngroups];
+#endif
+  if (::getgrouplist(user.c_str(), gid.get(), gids, &ngroups) == -1) {
+    return ErrnoError();
+  }
+
+  return std::vector<gid_t>(gids, gids + ngroups);
+}
+
+
+inline Try<Nothing> setgroups(
+    const std::vector<gid_t>& gids,
+    const Option<uid_t>& uid = None())
+{
+  int ngroups = static_cast<int>(gids.size());
+  gid_t _gids[ngroups];
+
+  for (int i = 0; i < ngroups; i++) {
+    _gids[i] = gids[i];
+  }
+
+#ifdef __APPLE__
+  // Cannot simply call 'setgroups' here because it only updates
+  // the list of groups in kernel cache, but not the ones in
+  // opendirectoryd. Darwin kernel caches part of the groups in
+  // kernel, and the rest in opendirectoryd.
+  // For more detail please see:
+  // https://github.com/practicalswift/osx/blob/master/src/samba/patches/support-darwin-initgroups-syscall // NOLINT
+  int maxgroups = sysconf(_SC_NGROUPS_MAX);
+  if (maxgroups == -1) {
+    return Error("Failed to get sysconf(_SC_NGROUPS_MAX)");
+  }
+
+  if (ngroups > maxgroups) {
+    ngroups = maxgroups;
+  }
+
+  if (uid.isNone()) {
+    return Error(
+        "The uid of the user who is associated with the group "
+        "list we are setting is missing");
+  }
+
+  // NOTE: By default, the maxgroups on Darwin kernel is fixed
+  // as 16. If we have more than 16 gids to set for a specific
+  // user, then SYS_initgroups would send up to 16 of them to
+  // kernel cache, while the rest would still be performed
+  // correctly by the kernel (asking Directory Service to resolve
+  // the groups membership).
+  if (::syscall(SYS_initgroups, ngroups, _gids, uid.get()) == -1) {
+    return ErrnoError();
+  }
+#else
+  if (::setgroups(ngroups, _gids) == -1) {
+    return ErrnoError();
+  }
+#endif
 
   return Nothing();
 }
