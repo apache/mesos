@@ -501,6 +501,9 @@ PID<GarbageCollector> gc;
 // Global help.
 PID<Help> help;
 
+// Global logging.
+PID<Logging> _logging;
+
 // Per thread process pointer.
 THREAD_LOCAL ProcessBase* __process__ = nullptr;
 
@@ -1034,7 +1037,7 @@ bool initialize(
   metrics::initialize(authenticationRealm);
 
   // Create the global logging process.
-  spawn(new Logging(authenticationRealm), true);
+  _logging = spawn(new Logging(authenticationRealm), true);
 
   // Create the global profiler process.
   spawn(new Profiler(authenticationRealm), true);
@@ -1100,6 +1103,13 @@ Address address()
 {
   process::initialize();
   return __address__;
+}
+
+
+PID<Logging> logging()
+{
+  process::initialize();
+  return _logging;
 }
 
 

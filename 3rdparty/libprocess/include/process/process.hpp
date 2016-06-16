@@ -39,6 +39,7 @@
 namespace process {
 
 // Forward declaration.
+class Logging;
 class Sequence;
 
 namespace firewall {
@@ -482,6 +483,12 @@ std::string absolutePath(const std::string& path);
  * Returns the socket address associated with this instance of the library.
  */
 network::Address address();
+
+
+/**
+ * Return the PID associated with the global logging process.
+ */
+PID<Logging> logging();
 
 
 /**

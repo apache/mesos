@@ -39,6 +39,8 @@ public:
 
   virtual ~Logging() {}
 
+  Future<Nothing> set_level(int level, const Duration& duration);
+
 protected:
   virtual void initialize()
   {
