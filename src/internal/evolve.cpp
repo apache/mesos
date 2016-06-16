@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <mesos/agent/agent.hpp>
+
 #include <mesos/master/master.hpp>
 
 #include <mesos/v1/agent.hpp>
@@ -151,6 +153,12 @@ v1::TaskStatus evolve(const TaskStatus& status)
 v1::MasterInfo evolve(const MasterInfo& masterInfo)
 {
   return evolve<v1::MasterInfo>(masterInfo);
+}
+
+
+v1::agent::Response evolve(const mesos::agent::Response& response)
+{
+  return evolve<v1::agent::Response>(response);
 }
 
 

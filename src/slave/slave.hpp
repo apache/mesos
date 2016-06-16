@@ -30,6 +30,8 @@
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/agent/agent.hpp>
+
 #include <mesos/executor/executor.hpp>
 
 #include <mesos/master/detector.hpp>
@@ -509,25 +511,25 @@ private:
         const std::string& endpoint,
         const std::string& method) const;
 
-    // v1 agent API handlers.
+    // Agent API handlers.
 
     process::Future<process::http::Response> getFlags(
-        const v1::agent::Call& call,
+        const mesos::agent::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getHealth(
-        const v1::agent::Call& call,
+        const mesos::agent::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getVersion(
-        const v1::agent::Call& call,
+        const mesos::agent::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getLoggingLevel(
-        const v1::agent::Call& call,
+        const mesos::agent::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 

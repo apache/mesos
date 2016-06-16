@@ -133,6 +133,12 @@ scheduler::Event devolve(const v1::scheduler::Event& event)
 }
 
 
+mesos::agent::Call devolve(const v1::agent::Call& call)
+{
+  return devolve<mesos::agent::Call>(call);
+}
+
+
 mesos::master::Call devolve(const v1::master::Call& call)
 {
   return devolve<mesos::master::Call>(call);

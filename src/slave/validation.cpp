@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include <mesos/v1/agent.hpp>
+#include <mesos/agent/agent.hpp>
 
 #include <stout/unreachable.hpp>
 
@@ -33,7 +33,7 @@ namespace agent {
 namespace call {
 
 Option<Error> validate(
-    const mesos::v1::agent::Call& call,
+    const mesos::agent::Call& call,
     const Option<string>& principal)
 {
   if (!call.IsInitialized()) {
@@ -45,52 +45,52 @@ Option<Error> validate(
   }
 
   switch (call.type()) {
-    case v1::agent::Call::UNKNOWN:
+    case mesos::agent::Call::UNKNOWN:
       return None();
 
-    case v1::agent::Call::GET_HEALTH:
+    case mesos::agent::Call::GET_HEALTH:
       return None();
 
-    case v1::agent::Call::GET_FLAGS:
+    case mesos::agent::Call::GET_FLAGS:
       return None();
 
-    case v1::agent::Call::GET_VERSION:
+    case mesos::agent::Call::GET_VERSION:
       return None();
 
-    case v1::agent::Call::GET_METRICS:
+    case mesos::agent::Call::GET_METRICS:
       if (!call.has_get_metrics()) {
         return Error("Expecting 'get_metrics' to be present");
       }
       return None();
 
-    case v1::agent::Call::GET_LOGGING_LEVEL:
+    case mesos::agent::Call::GET_LOGGING_LEVEL:
       return None();
 
-    case v1::agent::Call::SET_LOGGING_LEVEL:
+    case mesos::agent::Call::SET_LOGGING_LEVEL:
       if (!call.has_set_logging_level()) {
         return Error("Expecting 'set_logging_level' to be present");
       }
       return None();
 
-    case v1::agent::Call::LIST_FILES:
+    case mesos::agent::Call::LIST_FILES:
       if (!call.has_list_files()) {
         return Error("Expecting 'list_files' to be present");
       }
       return None();
 
-    case v1::agent::Call::READ_FILE:
+    case mesos::agent::Call::READ_FILE:
       if (!call.has_read_file()) {
         return Error("Expecting 'read_file' to be present");
       }
       return None();
 
-    case v1::agent::Call::GET_STATE:
+    case mesos::agent::Call::GET_STATE:
       return None();
 
-    case v1::agent::Call::GET_RESOURCE_STATISTICS:
+    case mesos::agent::Call::GET_RESOURCE_STATISTICS:
       return None();
 
-    case v1::agent::Call::GET_CONTAINERS:
+    case mesos::agent::Call::GET_CONTAINERS:
       return None();
   }
 

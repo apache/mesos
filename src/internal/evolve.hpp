@@ -19,6 +19,8 @@
 
 #include <google/protobuf/message.h>
 
+#include <mesos/agent/agent.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/executor/executor.hpp>
@@ -59,6 +61,8 @@ v1::TaskID evolve(const TaskID& taskId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
 v1::MasterInfo evolve(const MasterInfo& masterInfo);
+
+v1::agent::Response evolve(const mesos::agent::Response& response);
 
 v1::master::Response evolve(const mesos::master::Response& response);
 

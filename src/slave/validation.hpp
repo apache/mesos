@@ -17,9 +17,9 @@
 #ifndef __SLAVE_VALIDATION_HPP__
 #define __SLAVE_VALIDATION_HPP__
 
-#include <mesos/executor/executor.hpp>
+#include <mesos/agent/agent.hpp>
 
-#include <mesos/v1/agent.hpp>
+#include <mesos/executor/executor.hpp>
 
 #include <stout/error.hpp>
 #include <stout/option.hpp>
@@ -35,7 +35,7 @@ namespace call {
 // Validates that a agent:Call is well-formed.
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(
-    const mesos::v1::agent::Call& call,
+    const mesos::agent::Call& call,
     const Option<std::string>& principal = None());
 
 } // namespace call {
