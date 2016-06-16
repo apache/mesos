@@ -253,7 +253,11 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
   infos[containerId] = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  // Grant access to /dev/nvidiactl and /dev/nvida-uvm
+  // Grant access to /dev/nvidiactl and /dev/nvida-uvm.
+  //
+  // This allows standard NVIDIA tools like `nvidia-smi` to be
+  // used within the container even if no GPUs are allocated.
+  // Without these devices, these tools fail abnormally.
   map<string, const cgroups::devices::Entry> entries = {
     { "/dev/nvidiactl", NVIDIA_CTL_DEVICE_ENTRY },
     { "/dev/nvidia-uvm", NVIDIA_UVM_DEVICE_ENTRY },
