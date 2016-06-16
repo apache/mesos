@@ -671,7 +671,7 @@ TEST_F(MasterTest, RecoverResources)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(
-      "cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
+      "cpus:2;gpus:0;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -2470,7 +2470,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
   ASSERT_SOME(master);
 
   string resourcesWithoutEphemeralPorts =
-    "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
+    "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]";
 
   string resourcesWithEphemeralPorts =
     resourcesWithoutEphemeralPorts + ";ephemeral_ports:[30001-30999]";

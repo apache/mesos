@@ -38,6 +38,8 @@
 
 #include "slave/flags.hpp"
 
+#include "slave/containerizer/containerizer.hpp"
+
 #include "slave/containerizer/mesos/isolator.hpp"
 
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
@@ -111,30 +113,49 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
     return Error("Failed to initialize nvml: " + initialize.error());
   }
 
-  // Enumerate all available GPU devices.
-  list<Gpu> gpus;
+  // Grab the full list of resources computed for this containerizer
+  // and filter it down to just the GPU resources.
+  //
+  // TODO(klueska): Calling into the containerizer helper here is
+  // a hack. Consider passing the resources directly into `create`.
+  Try<Resources> resources = Containerizer::resources(flags);
+  if (resources.isError()) {
+    return Error(resources.error());
+  }
+
+  // Figure out the list of GPUs to make available by their index.
+  vector<unsigned int> indices;
 
   if (flags.nvidia_gpu_devices.isSome()) {
-    foreach (unsigned int index, flags.nvidia_gpu_devices.get()) {
-      Try<nvmlDevice_t> handle = nvml::deviceGetHandleByIndex(index);
-      if (handle.isError()) {
-        return Error("Failed to obtain Nvidia device handle for"
-                     " index " + stringify(index) + ": " + handle.error());
-      }
-
-      Try<unsigned int> minor = nvml::deviceGetMinorNumber(handle.get());
-      if (minor.isError()) {
-        return Error("Failed to obtain Nvidia device minor number: " +
-                     minor.error());
-      }
-
-      Gpu gpu;
-      gpu.handle = handle.get();
-      gpu.major = NVIDIA_MAJOR_DEVICE;
-      gpu.minor = minor.get();
-
-      gpus.push_back(gpu);
+    indices = flags.nvidia_gpu_devices.get();
+  } else if (resources->gpus().isSome()) {
+    for (unsigned int i = 0; i < resources->gpus().get(); ++i) {
+      indices.push_back(i);
     }
+  }
+
+  // Build the list of available GPUs using the ids computed above.
+  list<Gpu> gpus;
+
+  foreach (unsigned int index, indices) {
+    Try<nvmlDevice_t> handle = nvml::deviceGetHandleByIndex(index);
+    if (handle.isError()) {
+      return Error("Failed to obtain Nvidia device handle for"
+                   " index " + stringify(index) + ": " + handle.error());
+    }
+
+    Try<unsigned int> minor = nvml::deviceGetMinorNumber(handle.get());
+    if (minor.isError()) {
+      return Error("Failed to obtain Nvidia device minor number: " +
+                   minor.error());
+    }
+
+    Gpu gpu;
+    gpu.handle = handle.get();
+    gpu.major = NVIDIA_MAJOR_DEVICE;
+    gpu.minor = minor.get();
+
+    gpus.push_back(gpu);
   }
 
   // Retrieve the cgroups devices hierarchy.

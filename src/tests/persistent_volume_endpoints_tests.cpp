@@ -1472,7 +1472,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
                     FutureArg<0>(&slaveId)));
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:4;mem:2048;disk:4096";
+  slaveFlags.resources = "cpus:4;gpus:0;mem:2048;disk:4096";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);

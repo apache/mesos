@@ -740,7 +740,8 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   AWAIT_READY(removeSlave);
 
   slave::Flags flags2 = this->CreateSlaveFlags();
-  flags2.resources = string("cpus:3;mem:256;disk:1024;ports:[31000-32000]");
+  flags2.resources = string("cpus:3;gpus:0;mem:256;"
+                            "disk:1024;ports:[31000-32000]");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
@@ -1530,7 +1531,8 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   vector<Owned<cluster::Slave>> slaves;
 
   // Register three agents with the same resources.
-  string agentResources = "cpus:2;mem:1024;disk:4096;ports:[31000-32000]";
+  string agentResources = "cpus:2;gpus:0;mem:1024;"
+                          "disk:4096;ports:[31000-32000]";
   for (int i = 0; i < 3; i++) {
     Future<Nothing> addSlave;
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _))

@@ -1304,7 +1304,7 @@ TEST_F(SlaveTest, StateEndpoint)
   slave::Flags flags = this->CreateSlaveFlags();
 
   flags.hostname = "localhost";
-  flags.resources = "cpus:4;mem:2048;disk:512;ports:[33000-34000]";
+  flags.resources = "cpus:4;gpus:0;mem:2048;disk:512;ports:[33000-34000]";
   flags.attributes = "rack:abc;host:myhost";
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -3572,7 +3572,7 @@ TEST_F(SlaveTest, TotalSlaveResourcesIncludedInUsage)
   StandaloneMasterDetector detector(master.get()->pid);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
+  flags.resources = "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]";
 
   MockSlave slave(flags, &detector, &containerizer);
   spawn(slave);

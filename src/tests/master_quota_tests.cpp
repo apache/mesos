@@ -94,7 +94,7 @@ protected:
     // We reuse default agent resources and expect them to be sufficient.
     defaultAgentResources = Resources::parse(defaultAgentResourcesString).get();
     CHECK(defaultAgentResources.contains(Resources::parse(
-        "cpus:2;mem:1024;disk:1024;ports:[31000-32000]").get()));
+          "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]").get()));
   }
 
   // Sets up the master flags with two roles and a short allocation interval.
