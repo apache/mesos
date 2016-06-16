@@ -3913,6 +3913,17 @@ ExecutorInfo Slave::getExecutorInfo(
           task.command().environment());
     }
 
+    // Add fields which can be relevant (depending on Authorizer) for
+    // authorization.
+
+    if (task.has_labels()) {
+      executor.mutable_labels()->MergeFrom(task.labels());
+    }
+
+    if (task.has_discovery()) {
+      executor.mutable_discovery()->MergeFrom(task.discovery());
+    }
+
     // Adjust the executor shutdown grace period if the kill policy is
     // set. We add a small buffer of time to avoid destroying the
     // container before `TASK_KILLED` is sent by the executor.
