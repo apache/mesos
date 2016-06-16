@@ -1,0 +1,173 @@
+{
+  "permissive": false,
+  "register_frameworks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "run_tasks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "users": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "teardown_frameworks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "framework_principals": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "reserve_resources": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "unreserve_resources": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "reserver_principals": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "create_volumes": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "destroy_volumes": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "creator_principals": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "get_weights": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "update_weights": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "get_endpoints": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "paths": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "get_quotas": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "update_quotas": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "view_frameworks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "users": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "view_tasks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "users": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "view_executors": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "users": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "access_sandboxes": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "users": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "access_mesos_logs": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "logs": {
+        "type": "ANY"
+      }
+    }
+  ]
+}

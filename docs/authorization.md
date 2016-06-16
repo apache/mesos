@@ -96,8 +96,22 @@ or specify the special types `ANY` or `NONE`.
 
 A global field which affects all ACLs can be set. This field is called
 `permissive` and it defines the behavior when no ACL applies to the request
-made. If set to `true` it will allow by default all non matching requests, if
-set to `false` it will reject all non matching requests.
+made. If set to `true` (which is the default) it will allow by default all
+non-matching requests, if set to `false` it will reject all non-matching
+requests.
+
+Note that when setting `permissive` to `false` a number of standard operations
+(e.g., `run_tasks` or `register_frameworks`) will require ACLs in order to work.
+There are two ways to disallow unauthorized uses on specific operations:
+
+1. Leave `permissive` set to `true` and disallow `ANY` principal to perform
+   actions to all objects except the ones explicitly allowed.
+   Consider the [example below](#disallowExample) for details.
+
+2. Set `permissive` to `false` but allow for `ANY` principle to perform the
+   action on `ANY` object. This needs to be done for all actions which should
+   work without being checked against ACLs. A template doing this for all
+   actions can be found in [acls_template.json](../examples/acls_template.json).
 
 More information about the structure of the ACLs can be found in
 [their definition](https://github.com/apache/mesos/blob/master/include/mesos/authorizer/acls.proto)
@@ -321,6 +335,7 @@ though the intention clearly is to allow only `admin` to shut them down:
 }
 ```
 
+<a name="disallowExample"></a>
 The previous ACL can be fixed as follows:
 
 ```json
