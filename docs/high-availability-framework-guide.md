@@ -192,10 +192,10 @@ initial state and several possible terminal states:
   * If a framework attempts to launch a task but does not receive a status
     update for it within a timeout, the framework should perform
     [reconciliation](reconciliation.md). That is, it should ask the master for
-    the current state of the task. The master will reply with `TASK_LOST` for
-    unknown tasks. The framework can then use this to distinguish between tasks
-    that are slow to launch and tasks that the master has never heard about
-    (e.g., because the task launch message was dropped).
+    the current state of the task. The master will reply with `TASK_LOST` status
+    updates for unknown tasks. The framework can then use this to distinguish
+    between tasks that are slow to launch and tasks that the master has never
+    heard about (e.g., because the task launch message was dropped).
 
     * Note that the correctness of this technique depends on the fact that
       messaging between the scheduler and the master is ordered.

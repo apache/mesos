@@ -3,92 +3,86 @@ title: Apache Mesos - Reconciliation
 layout: documentation
 ---
 
-# Reconciliation
+# Task Reconciliation
 
-There's no getting around it, **frameworks on Mesos are distributed systems**.
-
-**Distributed systems must deal with failures** and partitions (the two are
-indistinguishable from a system's perspective).
-
-Concretely, what does this mean for frameworks? Mesos uses an actor-like
-**message passing** programming model, in which messages are delivered
-**at-most-once**. (Exceptions to this include task status updates, most of
-which are delivered at-least-once through the use of acknowledgements).
-**The messages passed between the master and the framework are therefore
-susceptible to be dropped, in the presence of failures**.
-
-When these unreliable messages are dropped, inconsistent state can arise
-between the framework and Mesos.
-
-As a simple example, consider a launch task request sent by a framework.
-There are many ways that failures can lead to the loss of the task, for
-example:
+Messages between framework schedulers and the Mesos master may be dropped due to
+failures and network partitions. This may cause a framework scheduler and the
+master to have different views of the current state of the cluster. For example,
+consider a launch task request sent by a framework.  There are many ways that
+failures can prevent the task launch operation from succeeding, such as:
 
 * Framework fails after persisting its intent to launch the task, but
 before the launch task message was sent.
 * Master fails before receiving the message.
-* Master fails after receiving the message, but before sending it to the
+* Master fails after receiving the message but before sending it to the
 agent.
 
-In these cases, the framework believes the task to be staging, but the
-task is unknown to Mesos. To cope with such situations, **task state must be
-reconciled between the framework and Mesos whenever a failure is detected**.
+In these cases, the framework believes the task to be staging but the task is
+unknown to the master. To cope with such situations, Mesos frameworks should use
+*reconciliation* to ask the master for the current state of their tasks.
 
+## How To Reconcile
 
-## Detecting Failures
+Frameworks can use the scheduler driver's `reconcileTasks` method to send a
+reconciliation request to the master:
 
-It is the responsibility of Mesos (scheduler driver / Master) to ensure
-that the framework is notified when a disconnection, and subsequent
-(re-)registration occurs. At this point, the scheduler should perform
-task state reconciliation.
-
-
-## Task Reconciliation
-
-Mesos provides two forms of reconciliation:
-
-* "Explicit" reconciliation: the scheduler sends some of its non-terminal
-tasks and the master responds with the latest state for each task, if
-possible.
-* "Implicit" reconciliation: the scheduler sends an empty list of tasks
-and the master responds with the latest state for all currently known
-non-terminal tasks.
-
-**Tasks must be reconciled explicitly by the framework after a failure.**
-
-This is because the scheduler driver does not persist any task information.
-In the future, the scheduler driver (or a pure-language mesos library) could
-perform task reconciliation seamlessly under the covers on behalf of the
-framework.
-
-So, for now, let's look at how one needs to implement task state
-reconciliation in a framework scheduler.
-
-
-### API
-
-Frameworks send a list of `TaskStatus` messages to the master:
-
-    // Allows the framework to query the status for non-terminal tasks.
-    // This causes the master to send back the latest task status for
-    // each task in 'statuses', if possible. Tasks that are no longer
-    // known will result in a TASK_LOST update. If statuses is empty,
-    // then the master will send the latest status for each task
-    // currently known.
-    message Reconcile {
-      repeated TaskStatus statuses = 1; // Should be non-terminal only.
-    }
-
+~~~{.cpp}
+// Allows the framework to query the status for non-terminal tasks.
+// This causes the master to send back the latest task status for
+// each task in 'statuses', if possible. Tasks that are no longer
+// known will result in a TASK_LOST update. If statuses is empty,
+// then the master will send the latest status for each task
+// currently known.
+virtual Status reconcileTasks(const std::vector<TaskStatus>& statuses);
+~~~
 
 Currently, the master will only examine two fields in `TaskStatus`:
 
 * `TaskID`: This is required.
-* `SlaveID`: Optional, leads to faster reconciliation in the presence of
-agents that are transitioning between states.
+* `SlaveID`: Optional but recommended. This leads to faster reconciliation in
+the presence of agents that are transitioning between states.
 
-### Algorithm
+Mesos provides two forms of reconciliation:
 
-This technique for explicit reconciliation reconciles all non-terminal tasks,
+* "Explicit" reconciliation: the scheduler sends a list of non-terminal task IDs
+  and the master responds with the latest state for each task, if possible.
+* "Implicit" reconciliation: the scheduler sends an empty list of tasks
+  and the master responds with the latest state for all currently known
+  non-terminal tasks.
+
+Reconciliation results are returned as task status updates (e.g., via the
+scheduler driver's `statusUpdate` callback). Status updates that result from
+reconciliation requests will their `reason` field set to
+`REASON_RECONCILIATION`. Note that most of the other fields in the returned
+`TaskStatus` message will not be set: for example, reconciliation cannot be used
+to retrieve the `labels` or `data` fields associated with a running task.
+
+## When To Reconcile
+
+Framework schedulers should periodically reconcile *all* of their tasks (for
+example, every fifteen minutes). This serves two purposes:
+
+  1. It is necessary to account for dropped messages between the framework and
+     the master; for example, see the task launch scenario described above.
+  2. It is a defensive programming technique to catch bugs in both the framework
+     and the Mesos master.
+
+As an optimization, framework schedulers should reconcile _more frequently_ when
+they have reason to suspect that their local state differs from that of the
+master. For example, after a framework launches a task, it should expect to
+receive a `TASK_RUNNING` status update for the new task fairly promptly. If no
+such update is received, the framework should perform explicit reconciliation
+more quickly than usual.
+
+Similarly, frameworks should initiate reconciliation after both framework
+failovers and master failovers. Note that the scheduler driver notifies
+frameworks when master failover has occurred (via the `reregistered()`
+callback). For more information, see the
+[guide to designing highly available frameworks](high-availability-framework-guide.md).
+
+## Algorithm
+
+This technique for explicit reconciliation reconciles all non-terminal tasks
 until an update is received for each task, using exponential backoff to retry
 tasks that remain unreconciled. Retries are needed because the master temporarily
 may not be able to reply for a particular task. For example, during master
@@ -125,7 +119,7 @@ If another reconciliation should be started while one is in-progress,
 then the previous reconciliation algorithm should stop running.
 
 
-## Offer Reconciliation
+# Offer Reconciliation
 
 Offers are reconciled automatically after a failure:
 
