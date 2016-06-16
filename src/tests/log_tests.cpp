@@ -55,6 +55,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
@@ -2075,6 +2076,34 @@ TEST_F(LogTest, Position)
   ASSERT_EQ(
       position.get().get(),
       log.position(position.get().get().identity()));
+}
+
+
+TEST_F(LogTest, Metrics)
+{
+  // TODO(jieyu): Added a check for the case where the log is not
+  // recovered once MESOS-5626 is resolved. One way to do that is to
+  // create a log without running the initializaiton tool.
+
+  const string path = os::getcwd() + "/.log";
+  initializer.flags.path = path;
+  ASSERT_SOME(initializer.execute());
+
+  Log log(1, path, {}, false, "prefix/");
+
+  // Make sure the log is recovered. If the log is not recovered, the
+  // writer cannot be elected.
+  Log::Writer writer(&log);
+
+  Future<Option<Log::Position>> start = writer.start();
+
+  AWAIT_READY(start);
+  ASSERT_SOME(start.get());
+
+  JSON::Object snapshot = Metrics();
+
+  ASSERT_EQ(1u, snapshot.values.count("prefix/log/recovered"));
+  EXPECT_EQ(1, snapshot.values["prefix/log/recovered"]);
 }
 
 
