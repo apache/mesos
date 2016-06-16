@@ -26,6 +26,8 @@
 #include <process/process.hpp>
 #include <process/shared.hpp>
 
+#include <process/metrics/gauge.hpp>
+
 #include <stout/nothing.hpp>
 
 #include "log/coordinator.hpp"
@@ -44,7 +46,8 @@ public:
       size_t _quorum,
       const std::string& path,
       const std::set<process::UPID>& pids,
-      bool _autoInitialize);
+      bool _autoInitialize,
+      const Option<std::string>& metricsPrefix);
 
   LogProcess(
       size_t _quorum,
@@ -53,7 +56,8 @@ public:
       const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth,
-      bool _autoInitialize);
+      bool _autoInitialize,
+      const Option<std::string>& metricsPrefix);
 
   // Recovers the log by catching up if needed. Returns a shared
   // pointer to the local replica if the recovery succeeds.
@@ -69,6 +73,9 @@ private:
 
   // Continuations.
   void _recover();
+
+  // Return true if the log has finished recovery.
+  double _recovered();
 
   // TODO(benh): Factor this out into "membership renewer".
   void watch(
@@ -92,6 +99,17 @@ private:
   // continually renew the replicas membership (when using ZooKeeper).
   zookeeper::Group* group;
   process::Future<zookeeper::Group::Membership> membership;
+
+  struct Metrics
+  {
+    explicit Metrics(
+        const LogProcess& process,
+        const Option<std::string>& prefix);
+
+    ~Metrics();
+
+    process::metrics::Gauge recovered;
+  } metrics;
 };
 
 

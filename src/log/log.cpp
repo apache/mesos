@@ -28,6 +28,8 @@
 #include <process/process.hpp>
 #include <process/shared.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -64,13 +66,15 @@ LogProcess::LogProcess(
     size_t _quorum,
     const string& path,
     const set<UPID>& pids,
-    bool _autoInitialize)
+    bool _autoInitialize,
+    const Option<string>& metricsPrefix)
   : ProcessBase(ID::generate("log")),
     quorum(_quorum),
     replica(new Replica(path)),
     network(new Network(pids + (UPID) replica->pid())),
     autoInitialize(_autoInitialize),
-    group(nullptr) {}
+    group(nullptr),
+    metrics(*this, metricsPrefix) {}
 
 
 LogProcess::LogProcess(
@@ -80,7 +84,8 @@ LogProcess::LogProcess(
     const Duration& timeout,
     const string& znode,
     const Option<zookeeper::Authentication>& auth,
-    bool _autoInitialize)
+    bool _autoInitialize,
+    const Option<string>& metricsPrefix)
   : ProcessBase(ID::generate("log")),
     quorum(_quorum),
     replica(new Replica(path)),
@@ -91,7 +96,8 @@ LogProcess::LogProcess(
         auth,
         Set<UPID>((UPID) replica->pid()))),
     autoInitialize(_autoInitialize),
-    group(new zookeeper::Group(servers, timeout, znode, auth)) {}
+    group(new zookeeper::Group(servers, timeout, znode, auth)),
+    metrics(*this, metricsPrefix) {}
 
 
 void LogProcess::initialize()
@@ -236,6 +242,12 @@ void LogProcess::_recover()
 }
 
 
+double LogProcess::_recovered()
+{
+  return recovered.future().isReady() ? 1 : 0;
+}
+
+
 void LogProcess::watch(
     const UPID& pid,
     const set<zookeeper::Group::Membership>& memberships)
@@ -265,6 +277,23 @@ void LogProcess::failed(const string& message)
 void LogProcess::discarded()
 {
   LOG(FATAL) << "Not expecting future to get discarded!";
+}
+
+
+LogProcess::Metrics::Metrics(
+    const LogProcess& process,
+    const Option<string>& prefix)
+  : recovered(
+        prefix.getOrElse("") + "log/recovered",
+        defer(process, &LogProcess::_recovered))
+{
+  process::metrics::add(recovered);
+}
+
+
+LogProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(recovered);
 }
 
 
@@ -610,7 +639,8 @@ Log::Log(
     int quorum,
     const string& path,
     const set<UPID>& pids,
-    bool autoInitialize)
+    bool autoInitialize,
+    const Option<string>& metricsPrefix)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -619,10 +649,12 @@ Log::Log(
         quorum,
         path,
         pids,
-        autoInitialize);
+        autoInitialize,
+        metricsPrefix);
 
   spawn(process);
 }
+
 
 Log::Log(
     int quorum,
@@ -631,7 +663,8 @@ Log::Log(
     const Duration& timeout,
     const string& znode,
     const Option<zookeeper::Authentication>& auth,
-    bool autoInitialize)
+    bool autoInitialize,
+    const Option<string>& metricsPrefix)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -643,7 +676,8 @@ Log::Log(
         timeout,
         znode,
         auth,
-        autoInitialize);
+        autoInitialize,
+        metricsPrefix);
 
   spawn(process);
 }
