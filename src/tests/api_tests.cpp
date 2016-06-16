@@ -409,6 +409,46 @@ TEST_P(AgentAPITest, GetVersion)
 }
 
 
+TEST_P(AgentAPITest, GetMetrics)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Wait until the agent has finished recovery.
+  AWAIT_READY(__recover);
+
+  Duration timeout = Seconds(5);
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_METRICS);
+  v1Call.mutable_get_metrics()->mutable_timeout()->set_nanoseconds(
+      timeout.ns());
+
+  ContentType contentType = GetParam();
+
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_METRICS, v1Response.get().type());
+
+  hashmap<string, double> metrics;
+
+  foreach (const v1::Metric& metric,
+           v1Response.get().get_metrics().metrics()) {
+    ASSERT_TRUE(metric.has_value());
+    metrics[metric.name()] = metric.value();
+  }
+
+  // Verifies that the response metrics is not empty.
+  ASSERT_LE(0, metrics.size());
+}
+
+
 TEST_P(AgentAPITest, GetLoggingLevel)
 {
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);

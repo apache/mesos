@@ -296,7 +296,7 @@ Future<Response> Slave::Http::api(
       return getVersion(call, principal, acceptType);
 
     case agent::Call::GET_METRICS:
-      return NotImplemented();
+      return getMetrics(call, principal, acceptType);
 
     case agent::Call::GET_LOGGING_LEVEL:
       return getLoggingLevel(call, principal, acceptType);
@@ -588,6 +588,37 @@ Future<Response> Slave::Http::getVersion(
   return OK(serialize(contentType,
                       evolve<v1::agent::Response::GET_VERSION>(version())),
             stringify(contentType));
+}
+
+
+Future<Response> Slave::Http::getMetrics(
+    const agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(agent::Call::GET_METRICS, call.type());
+  CHECK(call.has_get_metrics());
+
+  Option<Duration> timeout;
+  if (call.get_metrics().has_timeout()) {
+    timeout = Nanoseconds(call.get_metrics().timeout().nanoseconds());
+  }
+
+  return process::metrics::snapshot(timeout)
+      .then([contentType](const hashmap<string, double>& metrics) -> Response {
+        agent::Response response;
+        response.set_type(agent::Response::GET_METRICS);
+        agent::Response::GetMetrics* _getMetrics =
+          response.mutable_get_metrics();
+
+        foreachpair (const string& key, double value, metrics) {
+          Metric* metric = _getMetrics->add_metrics();
+          metric->set_name(key);
+          metric->set_value(value);
+        }
+
+        return OK(serialize(contentType, response), stringify(contentType));
+      });
 }
 
 
