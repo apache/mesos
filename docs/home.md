@@ -82,6 +82,7 @@ layout: documentation
 * [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
 * [Committing](committing.md) guidelines for committing changes.
 * [Committers and Maintainers](committers.md) a listing of project committers and component maintainers; useful when seeking feedback.
+* [Working groups](working-groups.md) a listing of groups working on different components.
 * [Doxygen](/api/latest/c++/) documents the internal Mesos APIs.
 * [Documentation Guide](documentation-guide.md)
   * [C++ Style Guide](c++-style-guide.md)
