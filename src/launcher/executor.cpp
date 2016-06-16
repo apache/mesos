@@ -156,15 +156,15 @@ public:
       task(None())
   {
 #ifdef __WINDOWS__
-    process_handle = INVALID_HANDLE_VALUE;
+    processHandle = INVALID_HANDLE_VALUE;
 #endif
   }
 
   virtual ~CommandExecutor()
   {
 #ifdef __WINDOWS__
-    if (process_handle != INVALID_HANDLE_VALUE) {
-      ::CloseHandle(process_handle);
+    if (processHandle != INVALID_HANDLE_VALUE) {
+      ::CloseHandle(processHandle);
     }
 #endif // __WINDOWS__
   }
@@ -419,7 +419,7 @@ protected:
     pid = processInformation.dwProcessId;
     ::ResumeThread(processInformation.hThread);
     CloseHandle(processInformation.hThread);
-    process_handle = processInformation.hProcess;
+    processHandle = processInformation.hProcess;
 #endif
 
     delete[] argv;
@@ -779,7 +779,7 @@ private:
 
   pid_t pid;
 #ifdef __WINDOWS__
-  HANDLE process_handle;
+  HANDLE processHandle;
 #endif
   pid_t healthPid;
   Duration shutdownGracePeriod;
