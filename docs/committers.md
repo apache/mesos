@@ -188,6 +188,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>joris@apache.org</td>
     </tr>
     <tr>
+      <td>-8</td>
+      <td>Joseph Wu</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>josephwu@apache.org</td>
+    </tr>
+    <tr>
       <td>+1</td>
       <td>Alex R</td>
       <td>Mesosphere</td>
