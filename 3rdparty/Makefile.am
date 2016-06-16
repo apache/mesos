@@ -50,6 +50,7 @@ GTEST = $(GMOCK)/gtest
 HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
+NVML = nvml-$(NVML_VERSION)
 PIP = pip-$(PIP_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
@@ -65,6 +66,7 @@ EXTRA_DIST =		\
   $(HTTP_PARSER).tar.gz	\
   $(LEVELDB).tar.gz	\
   $(LIBEV).tar.gz	\
+  $(NVML).tar.gz	\
   $(PIP).tar.gz		\
   $(PROTOBUF).tar.gz	\
   $(PICOJSON).tar.gz	\
@@ -107,6 +109,7 @@ CLEAN_EXTRACTED =	\
   $(HTTP_PARSER)	\
   $(LEVELDB)		\
   $(LIBEV)		\
+  $(NVML)		\
   $(PIP)		\
   $(PICOJSON)		\
   $(PROTOBUF)		\
@@ -191,6 +194,11 @@ $(LIBEV)/libev.la: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS)
 ALL_LOCAL += $(LIBEV)/libev.la
+endif
+
+if WITH_BUNDLED_NVML
+$(NVML)/nvidia/gdk/nvml.h: $(NVML)-stamp
+ALL_LOCAL += $(NVML)-stamp
 endif
 
 if WITH_BUNDLED_PICOJSON

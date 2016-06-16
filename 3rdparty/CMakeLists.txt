@@ -30,12 +30,14 @@ if (REBUNDLED)
   set(BOOST_URL       ${REBUNDLED_DIR}/boost-${BOOST_VERSION}.tar.gz)
   set(GLOG_URL        ${REBUNDLED_DIR}/glog-${GLOG_VERSION}.tar.gz)
   set(PICOJSON_URL    ${REBUNDLED_DIR}/picojson-${PICOJSON_VERSION}.tar.gz)
+  set(NVML_URL        ${REBUNDLED_DIR}/nvml-${NVML_VERSION}.tar.gz)
   set(HTTP_PARSER_URL ${REBUNDLED_DIR}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
   set(LIBEV_URL       ${REBUNDLED_DIR}/libev-${LIBEV_VERSION}.tar.gz)
 else (REBUNDLED)
   set(BOOST_URL       ${UPSTREAM_URL}/boost-${BOOST_VERSION}.tar.gz)
   set(GLOG_URL        ${UPSTREAM_URL}/glog-${GLOG_VERSION}.tar.gz)
   set(PICOJSON_URL    ${UPSTREAM_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
+  set(NVML_URL        ${UPSTREAM_URREBUNDLED_DIRL}/nvml-${NVML_VERSION}.tar.gz)
   set(HTTP_PARSER_URL ${UPSTREAM_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
   set(LIBEV_URL       ${UPSTREAM_URL}/libev-${LIBEV_VERSION}.tar.gz)
 endif (REBUNDLED)
@@ -169,6 +171,15 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
+  )
+
+ExternalProject_Add(
+  ${NVML_TARGET}
+  PREFIX            ${NVML_CMAKE_ROOT}
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${NVML_URL}
   )
 
 ExternalProject_Add(

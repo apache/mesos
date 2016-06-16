@@ -38,6 +38,7 @@ GMOCK = 3rdparty/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
 PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
+NVML = 3rdparty/nvml-$(NVML_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkgsysconfdir' are not set
@@ -155,6 +156,10 @@ MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 LIB_PROCESS = ../$(LIBPROCESS)/libprocess.la
 else
 LIB_PROCESS = -lprocess
+endif
+
+if WITH_BUNDLED_NVML
+MESOS_CPPFLAGS += -I../$(NVML)
 endif
 
 if WITH_BUNDLED_PICOJSON
