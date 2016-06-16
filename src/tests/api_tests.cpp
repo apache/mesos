@@ -161,6 +161,40 @@ TEST_P(MasterAPITest, GetVersion)
 }
 
 
+TEST_P(MasterAPITest, GetMetrics)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  Duration timeout = Seconds(5);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_METRICS);
+  v1Call.mutable_get_metrics()->mutable_timeout()->set_nanoseconds(
+      timeout.ns());
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_METRICS, v1Response.get().type());
+
+  hashmap<string, double> metrics;
+
+  foreach (const v1::Metric& metric,
+           v1Response.get().get_metrics().metrics()) {
+    ASSERT_TRUE(metric.has_value());
+    metrics[metric.name()] = metric.value();
+  }
+
+  // Verifies that the response metrics is not empty.
+  ASSERT_LE(0, metrics.size());
+}
+
+
 TEST_P(MasterAPITest, GetLoggingLevel)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();

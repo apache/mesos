@@ -608,7 +608,7 @@ Future<Response> Master::Http::api(
       return getVersion(call, principal, acceptType);
 
     case mesos::master::Call::GET_METRICS:
-      return NotImplemented();
+      return getMetrics(call, principal, acceptType);
 
     case mesos::master::Call::GET_LOGGING_LEVEL:
       return getLoggingLevel(call, principal, acceptType);
@@ -1346,6 +1346,37 @@ Future<Response> Master::Http::getVersion(
   return OK(serialize(contentType,
                       evolve<v1::master::Response::GET_VERSION>(version())),
             stringify(contentType));
+}
+
+
+Future<Response> Master::Http::getMetrics(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_METRICS, call.type());
+  CHECK(call.has_get_metrics());
+
+  Option<Duration> timeout;
+  if (call.get_metrics().has_timeout()) {
+    timeout = Nanoseconds(call.get_metrics().timeout().nanoseconds());
+  }
+
+  return process::metrics::snapshot(timeout)
+      .then([contentType](const hashmap<string, double>& metrics) -> Response {
+        mesos::master::Response response;
+        response.set_type(mesos::master::Response::GET_METRICS);
+        mesos::master::Response::GetMetrics* _getMetrics =
+          response.mutable_get_metrics();
+
+        foreachpair (const string& key, double value, metrics) {
+          Metric* metric = _getMetrics->add_metrics();
+          metric->set_name(key);
+          metric->set_value(value);
+        }
+
+        return OK(serialize(contentType, response), stringify(contentType));
+      });
 }
 
 
