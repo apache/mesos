@@ -895,6 +895,27 @@ agent registrar.
 </tr>
 </table>
 
+#### Replicated log
+
+The following metrics provide information about the replicated log underneath
+the registrar, which is the persistent store for masters.
+
+<table class="table table-striped">
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td>
+  <code>registrar/log/recovered</code>
+  </td>
+  <td>
+    Whether the replicated log for the registrar has caught up with the other
+    masters in the cluster. A cluster is operational as long as a quorum of
+    "recovered" masters is available in the cluster.
+  </td>
+  <td>Gauge</td>
+</tr>
+</table>
 
 #### Allocator
 
