@@ -18,6 +18,7 @@
 
 #include <mesos/v1/master/master.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -42,6 +43,7 @@ using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -179,6 +181,58 @@ TEST_P(MasterAPITest, GetLoggingLevel)
   ASSERT_EQ(
       v1Response.get().get_logging_level().level(),
       static_cast<uint32_t>(FLAGS_v));
+}
+
+
+// Test the logging level toggle and revert after specific toggle duration.
+TEST_P(MasterAPITest, SetLoggingLevel)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // We capture the original logging level first; it would be used to verify
+  // the logging level revert works.
+  uint32_t originalLevel = static_cast<uint32_t>(FLAGS_v);
+
+  // Send request to master to toggle the logging level.
+  uint32_t toggleLevel = originalLevel + 1;
+  Duration toggleDuration = Seconds(60);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SET_LOGGING_LEVEL);
+  v1::master::Call_SetLoggingLevel* setLoggingLevel =
+    v1Call.mutable_set_logging_level();
+  setLoggingLevel->set_level(toggleLevel);
+  setLoggingLevel->mutable_duration()->set_nanoseconds(toggleDuration.ns());
+
+  ContentType contentType = GetParam();
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<Nothing> v1Response = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1Response);
+  ASSERT_EQ(toggleLevel, static_cast<uint32_t>(FLAGS_v));
+
+  // Speedup the logging level revert.
+  Clock::pause();
+  Clock::advance(toggleDuration);
+  Clock::settle();
+
+  // Verifies the logging level reverted successfully.
+  ASSERT_EQ(originalLevel, static_cast<uint32_t>(FLAGS_v));
+  Clock::resume();
 }
 
 

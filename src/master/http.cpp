@@ -40,6 +40,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/help.hpp>
+#include <process/logging.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -91,6 +92,7 @@ using process::DESCRIPTION;
 using process::Failure;
 using process::Future;
 using process::HELP;
+using process::Logging;
 using process::TLDR;
 
 using process::http::Accepted;
@@ -612,7 +614,7 @@ Future<Response> Master::Http::api(
       return getLoggingLevel(call, principal, acceptType);
 
     case mesos::master::Call::SET_LOGGING_LEVEL:
-      return NotImplemented();
+      return setLoggingLevel(call, principal, acceptType);
 
     case mesos::master::Call::LIST_FILES:
       return NotImplemented();
@@ -1360,6 +1362,25 @@ Future<Response> Master::Http::getLoggingLevel(
 
   return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
+}
+
+
+Future<Response> Master::Http::setLoggingLevel(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::SET_LOGGING_LEVEL, call.type());
+  CHECK(call.has_set_logging_level());
+
+  uint32_t level = call.set_logging_level().level();
+  Duration duration =
+    Nanoseconds(call.set_logging_level().duration().nanoseconds());
+
+  return dispatch(process::logging(), &Logging::set_level, level, duration)
+      .then([]() -> Response {
+        return OK();
+      });
 }
 
 
