@@ -663,12 +663,28 @@ TEST_F(SlaveTest, GetExecutorInfo)
 
   task.mutable_command()->MergeFrom(command);
 
+  DiscoveryInfo* info = task.mutable_discovery();
+  info->set_visibility(DiscoveryInfo::EXTERNAL);
+  info->set_name("mytask");
+  info->set_environment("mytest");
+  info->set_location("mylocation");
+  info->set_version("v0.1.1");
+
+  Labels* labels = task.mutable_labels();
+  labels->add_labels()->CopyFrom(createLabel("label1", "key1"));
+  labels->add_labels()->CopyFrom(createLabel("label2", "key2"));
+
   const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
   // Now assert that it actually is running mesos-executor without any
   // bleedover from the command we intend on running.
   EXPECT_TRUE(executor.command().shell());
   EXPECT_EQ(0, executor.command().arguments_size());
+  ASSERT_TRUE(executor.has_labels());
+  EXPECT_EQ(2, executor.labels().labels_size());
+  ASSERT_TRUE(executor.has_discovery());
+  ASSERT_TRUE(executor.discovery().has_name());
+  EXPECT_EQ("mytask", executor.discovery().name());
   EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
 }
 

@@ -2103,6 +2103,160 @@ TYPED_TEST(AuthorizationTest, ViewExecutor)
 }
 
 
+// This tests the authorization of sandboxe access.
+TYPED_TEST(AuthorizationTest, SandBoxAccess)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal cannot view any sandboxes.
+    mesos::ACL::AccessSandbox* acl = acls.add_access_sandboxes();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // "bar" principal can see sandboxes running under user "bar".
+    mesos::ACL::AccessSandbox* acl = acls.add_access_sandboxes();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_users()->add_values("bar");
+  }
+
+  {
+    // "ops" principal can see all sandboxes.
+    mesos::ACL::AccessSandbox* acl = acls.add_access_sandboxes();
+    acl->mutable_principals()->add_values("ops");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // No one else can view any sandboxes.
+    mesos::ACL::AccessSandbox* acl = acls.add_access_sandboxes();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Create ExecutorInfo with a user not mentioned in the ACLs in
+  // command as object to be authorized.
+  ExecutorInfo executorInfo;
+  {
+    executorInfo.set_name("Task");
+    executorInfo.mutable_executor_id()->set_value("t");
+    executorInfo.mutable_command()->set_value("echo hello");
+    executorInfo.mutable_command()->set_user("user");
+  }
+
+  // Create ExecutorInfo with user "bar" in command as object to
+  // be authorized.
+  ExecutorInfo executorInfoBar;
+  {
+    executorInfoBar.set_name("Executor");
+    executorInfoBar.mutable_executor_id()->set_value("e");
+    executorInfoBar.mutable_command()->set_value("echo hello");
+    executorInfoBar.mutable_command()->set_user("bar");
+  }
+
+  // Create ExecutorInfo with no user in command as object to
+  // be authorized.
+  ExecutorInfo executorInfoNoUser;
+  {
+    executorInfoNoUser.set_name("Executor");
+    executorInfoNoUser.mutable_executor_id()->set_value("e");
+    executorInfoNoUser.mutable_command()->set_value("echo hello");
+  }
+
+  // Create FrameworkInfo with a generic user as object to authorized.
+  FrameworkInfo frameworkInfo;
+  {
+    frameworkInfo.set_user("user");
+    frameworkInfo.set_name("f");
+  }
+
+  // Create FrameworkInfo with user "bar" as object to authorized.
+  FrameworkInfo frameworkInfoBar;
+  {
+    frameworkInfoBar.set_user("bar");
+    frameworkInfoBar.set_name("f");
+  }
+
+  // Principal "foo" cannot access a sandbox with a request with
+  // ExecutorInfo and FrameworkInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_SANDBOX);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" cannot access a sandbox with a request with
+  // ExecutorInfo and FrameworkInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_SANDBOX);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "ops" can access a sandbox with a request with
+  // ExecutorInfo and FrameworkInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_SANDBOX);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+      frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can access a sandbox with a request with
+  // ExecutorInfo and FrameworkInfo running with user "bar".
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_SANDBOX);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(
+        executorInfoBar);
+
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfoBar);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can access a sandbox with a request with a
+  // ExecutorInfo without user and FrameworkInfo running with user
+  // "bar".
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_SANDBOX);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(
+        executorInfoNoUser);
+
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfoBar);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+}
+
+
 // This tests that a missing request.object is allowed for an ACL whose
 // Object is ANY.
 // NOTE: The only usecase for this behavior is currently teardownFramework.
