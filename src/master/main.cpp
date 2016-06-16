@@ -412,14 +412,16 @@ int main(int argc, char** argv)
           flags.zk_session_timeout,
           path::join(url.get().path, "log_replicas"),
           url.get().authentication,
-          flags.log_auto_initialize);
+          flags.log_auto_initialize,
+          "registrar/");
     } else {
       // Use replicated log without ZooKeeper.
       log = new Log(
           1,
           path::join(flags.work_dir.get(), "replicated_log"),
           set<UPID>(),
-          flags.log_auto_initialize);
+          flags.log_auto_initialize,
+          "registrar/");
     }
     storage = new LogStorage(log);
   } else {

@@ -213,7 +213,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
           1,
           path::join(flags.work_dir.get(), "replicated_log"),
           set<UPID>(),
-          flags.log_auto_initialize);
+          flags.log_auto_initialize,
+          "registrar/");
       storage = new mesos::state::LogStorage(log);
     } else {
       EXIT(EXIT_FAILURE)
