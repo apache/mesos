@@ -23,8 +23,11 @@
 
 #include <mesos/executor/executor.hpp>
 
+#include <mesos/master/master.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <mesos/v1/master.hpp>
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
@@ -51,6 +54,8 @@ scheduler::Call devolve(const v1::scheduler::Call& call);
 scheduler::Event devolve(const v1::scheduler::Event& event);
 
 executor::Call devolve(const v1::executor::Call& call);
+
+mesos::master::Call devolve(const v1::master::Call& call);
 
 // Helper for repeated field devolving to 'T1' from 'T2'.
 template <typename T1, typename T2>

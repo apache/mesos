@@ -42,7 +42,7 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
-#include <mesos/v1/master.hpp>
+#include <mesos/master/master.hpp>
 
 #include <process/limiter.hpp>
 #include <process/http.hpp>
@@ -1280,30 +1280,30 @@ private:
         const std::string& endpoint,
         const std::string& method) const;
 
-    // v1 master API handlers.
+    // Master API handlers.
 
     process::Future<process::http::Response> getFlags(
-        const v1::master::Call& call,
+        const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getHealth(
-        const v1::master::Call& call,
+        const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getVersion(
-        const v1::master::Call& call,
+        const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getLoggingLevel(
-        const v1::master::Call& call,
+        const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getLeadingMaster(
-        const v1::master::Call& call,
+        const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 

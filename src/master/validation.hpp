@@ -24,7 +24,7 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
-#include <mesos/v1/master.hpp>
+#include <mesos/master/master.hpp>
 
 #include <stout/error.hpp>
 #include <stout/option.hpp>
@@ -46,7 +46,7 @@ namespace call {
 // Validates that a master:Call is well-formed.
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(
-    const mesos::v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<std::string>& principal = None());
 
 } // namespace call {

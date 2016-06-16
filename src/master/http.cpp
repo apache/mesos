@@ -33,6 +33,8 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/master/master.hpp>
+
 #include <mesos/v1/master.hpp>
 
 #include <process/collect.hpp>
@@ -533,7 +535,7 @@ Future<Response> Master::Http::api(
     return MethodNotAllowed({"POST"}, request.method);
   }
 
-  v1::master::Call call;
+  v1::master::Call v1Call;
 
   // TODO(anand): Content type values are case-insensitive.
   Option<string> contentType = request.headers.get("Content-Type");
@@ -543,7 +545,7 @@ Future<Response> Master::Http::api(
   }
 
   if (contentType.get() == APPLICATION_PROTOBUF) {
-    if (!call.ParseFromString(request.body)) {
+    if (!v1Call.ParseFromString(request.body)) {
       return BadRequest("Failed to parse body into Call protobuf");
     }
   } else if (contentType.get() == APPLICATION_JSON) {
@@ -561,17 +563,19 @@ Future<Response> Master::Http::api(
                         parse.error());
     }
 
-    call = parse.get();
+    v1Call = parse.get();
   } else {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
         APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
   }
 
+  mesos::master::Call call = devolve(v1Call);
+
   Option<Error> error = validation::master::call::validate(call, principal);
 
   if (error.isSome()) {
-    return BadRequest("Failed to validate v1::master::Call: " +
+    return BadRequest("Failed to validate master::Call: " +
                       error.get().message);
   }
 
@@ -589,97 +593,97 @@ Future<Response> Master::Http::api(
   }
 
   switch (call.type()) {
-    case v1::master::Call::UNKNOWN:
+    case mesos::master::Call::UNKNOWN:
       return NotImplemented();
 
-    case v1::master::Call::GET_HEALTH:
+    case mesos::master::Call::GET_HEALTH:
       return getHealth(call, principal, acceptType);
 
-    case v1::master::Call::GET_FLAGS:
+    case mesos::master::Call::GET_FLAGS:
       return getFlags(call, principal, acceptType);
 
-    case v1::master::Call::GET_VERSION:
+    case mesos::master::Call::GET_VERSION:
       return getVersion(call, principal, acceptType);
 
-    case v1::master::Call::GET_METRICS:
+    case mesos::master::Call::GET_METRICS:
       return NotImplemented();
 
-    case v1::master::Call::GET_LOGGING_LEVEL:
+    case mesos::master::Call::GET_LOGGING_LEVEL:
       return getLoggingLevel(call, principal, acceptType);
 
-    case v1::master::Call::SET_LOGGING_LEVEL:
+    case mesos::master::Call::SET_LOGGING_LEVEL:
       return NotImplemented();
 
-    case v1::master::Call::LIST_FILES:
+    case mesos::master::Call::LIST_FILES:
       return NotImplemented();
 
-    case v1::master::Call::READ_FILE:
+    case mesos::master::Call::READ_FILE:
       return NotImplemented();
 
-    case v1::master::Call::GET_STATE:
+    case mesos::master::Call::GET_STATE:
       return NotImplemented();
 
-    case v1::master::Call::GET_STATE_SUMMARY:
+    case mesos::master::Call::GET_STATE_SUMMARY:
       return NotImplemented();
 
-    case v1::master::Call::GET_AGENTS:
+    case mesos::master::Call::GET_AGENTS:
       return NotImplemented();
 
-    case v1::master::Call::GET_FRAMEWORKS:
+    case mesos::master::Call::GET_FRAMEWORKS:
       return NotImplemented();
 
-    case v1::master::Call::GET_TASKS:
+    case mesos::master::Call::GET_TASKS:
       return NotImplemented();
 
-    case v1::master::Call::GET_ROLES:
+    case mesos::master::Call::GET_ROLES:
       return NotImplemented();
 
-    case v1::master::Call::GET_WEIGHTS:
+    case mesos::master::Call::GET_WEIGHTS:
       return NotImplemented();
 
-    case v1::master::Call::UPDATE_WEIGHTS:
+    case mesos::master::Call::UPDATE_WEIGHTS:
       return NotImplemented();
 
-    case v1::master::Call::GET_LEADING_MASTER:
+    case mesos::master::Call::GET_LEADING_MASTER:
       return getLeadingMaster(call, principal, acceptType);
 
-    case v1::master::Call::RESERVE_RESOURCES:
+    case mesos::master::Call::RESERVE_RESOURCES:
       return NotImplemented();
 
-    case v1::master::Call::UNRESERVE_RESOURCES:
+    case mesos::master::Call::UNRESERVE_RESOURCES:
       return NotImplemented();
 
-    case v1::master::Call::CREATE_VOLUMES:
+    case mesos::master::Call::CREATE_VOLUMES:
       return NotImplemented();
 
-    case v1::master::Call::DESTROY_VOLUMES:
+    case mesos::master::Call::DESTROY_VOLUMES:
       return NotImplemented();
 
-    case v1::master::Call::GET_MAINTENANCE_STATUS:
+    case mesos::master::Call::GET_MAINTENANCE_STATUS:
       return NotImplemented();
 
-    case v1::master::Call::GET_MAINTENANCE_SCHEDULE:
+    case mesos::master::Call::GET_MAINTENANCE_SCHEDULE:
       return NotImplemented();
 
-    case v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE:
+    case mesos::master::Call::UPDATE_MAINTENANCE_SCHEDULE:
       return NotImplemented();
 
-    case v1::master::Call::START_MAINTENANCE:
+    case mesos::master::Call::START_MAINTENANCE:
       return NotImplemented();
 
-    case v1::master::Call::STOP_MAINTENANCE:
+    case mesos::master::Call::STOP_MAINTENANCE:
       return NotImplemented();
 
-    case v1::master::Call::GET_QUOTA:
+    case mesos::master::Call::GET_QUOTA:
       return NotImplemented();
 
-    case v1::master::Call::SET_QUOTA:
+    case mesos::master::Call::SET_QUOTA:
       return NotImplemented();
 
-    case v1::master::Call::REMOVE_QUOTA:
+    case mesos::master::Call::REMOVE_QUOTA:
       return NotImplemented();
 
-    case v1::master::Call::SUBSCRIBE:
+    case mesos::master::Call::SUBSCRIBE:
       return NotImplemented();
   }
 
@@ -1282,16 +1286,14 @@ JSON::Object Master::Http::_flags() const
 
 
 Future<Response> Master::Http::getFlags(
-    const v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
 {
-  CHECK_EQ(v1::master::Call::GET_FLAGS, call.type());
+  CHECK_EQ(mesos::master::Call::GET_FLAGS, call.type());
 
-  v1::master::Response response =
-    evolve<v1::master::Response::GET_FLAGS>(_flags());
-
-  return OK(serialize(contentType, response),
+  return OK(serialize(contentType,
+                      evolve<v1::master::Response::GET_FLAGS>(_flags())),
             stringify(contentType));
 }
 
@@ -1315,69 +1317,69 @@ Future<Response> Master::Http::health(const Request& request) const
 
 
 Future<Response> Master::Http::getHealth(
-    const v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
 {
-  CHECK_EQ(v1::master::Call::GET_HEALTH, call.type());
+  CHECK_EQ(mesos::master::Call::GET_HEALTH, call.type());
 
-  v1::master::Response response;
-  response.set_type(v1::master::Response::GET_HEALTH);
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
   return OK(serialize(contentType, response),
+            stringify(contentType));
+  return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getVersion(
-    const v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
 {
-  CHECK_EQ(v1::master::Call::GET_VERSION, call.type());
+  CHECK_EQ(mesos::master::Call::GET_VERSION, call.type());
 
-  v1::master::Response response =
-    evolve<v1::master::Response::GET_VERSION>(version());
-
-  return OK(serialize(contentType, response),
+  return OK(serialize(contentType,
+                      evolve<v1::master::Response::GET_VERSION>(version())),
             stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getLoggingLevel(
-    const v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
 {
-  CHECK_EQ(v1::master::Call::GET_LOGGING_LEVEL, call.type());
+  CHECK_EQ(mesos::master::Call::GET_LOGGING_LEVEL, call.type());
 
-  v1::master::Response response;
-  response.set_type(v1::master::Response::GET_LOGGING_LEVEL);
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return OK(serialize(contentType, response),
+  return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
 }
 
 
 Future<Response> Master::Http::getLeadingMaster(
-    const v1::master::Call& call,
+    const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
 {
-  CHECK_EQ(v1::master::Call::GET_LEADING_MASTER, call.type());
+  CHECK_EQ(mesos::master::Call::GET_LEADING_MASTER, call.type());
 
-  v1::master::Response response;
-  response.set_type(v1::master::Response::GET_LEADING_MASTER);
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_LEADING_MASTER);
 
   // It is guaranteed that this master has been elected as the leader.
   CHECK(master->elected());
 
   response.mutable_get_leading_master()->mutable_master_info()->CopyFrom(
-    evolve(master->info()));
+    master->info());
 
-  return OK(serialize(contentType, response),
+  return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
 }
 
