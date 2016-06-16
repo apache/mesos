@@ -121,6 +121,9 @@ private:
 
   void discard()
   {
+    // TODO(jieyu): The discard logic here is problematic. It is
+    // likely that this process never terminates after 'discard' has
+    // been called on the returned future. See details in MESOS-5626.
     terminating = true;
     chain.discard();
   }
