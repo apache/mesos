@@ -45,7 +45,7 @@ message Call {
     GET_HEALTH = 1;
     GET_FLAGS = 2;
     GET_VERSION = 3;
-    GET_METRICS = 4;
+    GET_METRICS = 4;                   // See 'GetMetrics' below.
 
     GET_LOGGING_LEVEL = 5;
     SET_LOGGING_LEVEL = 6;             // See 'SetLoggingLevel' below.
@@ -85,8 +85,12 @@ message Call {
     REMOVE_QUOTA = 30;
   }
 
+  // Provides a snapshot of the current metrics tracked by the master.
   message GetMetrics {
-    optional string timeout = 1;
+    // If set, `timeout` would be used to determines the maximum amount of time
+    // the API will take to respond. If the timeout is exceeded, some metrics
+    // may not be included in the response.
+    optional DurationInfo timeout = 1;
   }
 
   // Sets the logging verbosity level for a specified duration. Mesos uses
@@ -192,7 +196,7 @@ message Response {
     GET_HEALTH = 1;
     GET_FLAGS = 2;
     GET_VERSION = 3;
-    GET_METRICS = 4;
+    GET_METRICS = 4;              // See 'GetMetrics' below.
 
     GET_LOGGING_LEVEL = 5;
 
@@ -229,6 +233,8 @@ message Response {
     required VersionInfo version_info = 1;
   }
 
+  // The response for 'Call::GET_METRICS', contains a snapshot of the current
+  // metrics.
   message GetMetrics {
     repeated Metric metrics = 1;
   }
