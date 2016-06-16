@@ -1980,3 +1980,35 @@ message WeightInfo {
   // Related role name.
   optional string role = 2;
 }
+
+
+/**
+ * Version information of a component.
+ */
+message VersionInfo {
+  required string version = 1;
+  required string build_date = 2;
+  required double build_time = 3;
+  required string build_user = 4;
+  optional string git_sha = 5;
+  optional string git_branch = 6;
+  optional string git_tag = 7;
+}
+
+
+/**
+ * Flag consists of a name and optionally its value.
+ */
+message Flag {
+  required string name = 1;
+  optional string value = 2;
+}
+
+
+/**
+ * Metric consists of a name and optionally its value.
+ */
+message Metric {
+  required string name = 1;
+  optional double value = 2;
+}
