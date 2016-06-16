@@ -308,7 +308,6 @@ though the intention clearly is to allow only `admin` to shut them down:
 
 ```json
 {
-  "permissive": false,
   "teardown_frameworks": [
                            {
                              "principals": { "type": "NONE" },
@@ -326,7 +325,6 @@ The previous ACL can be fixed as follows:
 
 ```json
 {
-  "permissive": false,
   "teardown_frameworks": [
                            {
                              "principals": { "type": "admin" },
