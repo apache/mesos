@@ -3018,7 +3018,7 @@ Future<Response> Master::Http::machineDown(
 }
 
 
-// /master/maintenance/start endpoint help.
+// /master/machine/up endpoint help.
 string Master::Http::MACHINE_UP_HELP()
 {
   return HELP(
