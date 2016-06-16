@@ -307,6 +307,10 @@ message TaskInfo {
 The Mesos slave will fill in the rest of the `ExecutorInfo` for you when tasks
 are specified this way.
 
+Note that the agent will derive an `ExecutorInfo` from the `TaskInfo` and
+additionally copy fields (e.g., `Labels`) from `TaskInfo` into the new
+`ExecutorInfo`. This `ExecutorInfo` is only visible on the agent.
+
 ### Creating a custom Framework Executor
 
 If your framework has special requirements, you might want to provide your own
