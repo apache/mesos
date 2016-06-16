@@ -372,7 +372,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
 
       // An absolute path must already exist.
       if (!os::exists(source)) {
-        return Error("Absolute host path does not exist");
+        return Error("Absolute host path '" + source + "' does not exist");
       }
     } else {
       // Path is interpreted as relative to the work directory.
@@ -414,7 +414,8 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
         // want to avoid creating mount points outside the work
         // directory in the host filesystem.
         if (!os::exists(target)) {
-          return Error("Absolute container path does not exist");
+          return Error("Absolute container path '" + target + "' "
+                       "does not exist");
         }
       }
 

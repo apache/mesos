@@ -244,8 +244,8 @@ Try<Nothing> DockerVolumeIsolatorProcess::_recover(
 
     if (volumes.contains(volume)) {
       return Error(
-          "Duplicate docker volume with driver '" + volume.driver() +
-          "' and name '" + volume.name() + "'");
+          "Duplicate docker volume with driver '" + volume.driver() + "' "
+          "and name '" + volume.name() + "'");
     }
 
     volumes.insert(volume);
@@ -357,7 +357,8 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
         target = _volume.container_path();
 
         if (!os::exists(target)) {
-          return Failure("Absolute container path does not exist");
+          return Failure("Absolute container path '" + target + "' "
+                         "does not exist");
         }
       }
     } else {
