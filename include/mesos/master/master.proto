@@ -1,0 +1,344 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/mesos.proto";
+
+import "mesos/maintenance/maintenance.proto";
+
+import "mesos/quota/quota.proto";
+
+package mesos.master;
+
+option java_package = "org.apache.mesos.master";
+option java_outer_classname = "Protos";
+
+/**
+ * Calls that can be sent to the master API.
+ *
+ * A call is described using the standard protocol buffer "union"
+ * trick, see
+ * https://developers.google.com/protocol-buffers/docs/techniques#union.
+ */
+message Call {
+  enum Type {
+   // If a call of type `Call::FOO` requires additional parameters they can be
+   // included in the corresponding `Call::Foo` message. Similarly, if a call
+   // receives a synchronous response it will be returned as a `Response`
+   // message of type `Response::FOO`. Currently all calls except
+   // `Call::SUBSCRIBE` receive synchronous responses; `Call::SUBSCRIBE` returns
+   // a streaming response of `Event`.
+    UNKNOWN = 0;
+
+    GET_HEALTH = 1;
+    GET_FLAGS = 2;
+    GET_VERSION = 3;
+    GET_METRICS = 4;
+
+    GET_LOGGING_LEVEL = 5;
+    SET_LOGGING_LEVEL = 6;
+
+    LIST_FILES = 7;
+    READ_FILE = 8;
+
+    GET_STATE = 9;
+    GET_STATE_SUMMARY = 10;
+
+    GET_AGENTS = 11;
+    GET_FRAMEWORKS = 12;
+    GET_TASKS = 13;
+    GET_ROLES = 14;
+
+    GET_WEIGHTS = 15;
+    UPDATE_WEIGHTS = 16;
+
+    GET_LEADING_MASTER = 17;
+
+    SUBSCRIBE = 18;
+
+    RESERVE_RESOURCES = 19;
+    UNRESERVE_RESOURCES = 20;
+
+    CREATE_VOLUMES = 21;
+    DESTROY_VOLUMES = 22;
+
+    GET_MAINTENANCE_STATUS = 23;
+    GET_MAINTENANCE_SCHEDULE = 24;
+    UPDATE_MAINTENANCE_SCHEDULE = 25;
+    START_MAINTENANCE = 26;
+    STOP_MAINTENANCE = 27;
+
+    GET_QUOTA = 28;
+    SET_QUOTA = 29;
+    REMOVE_QUOTA = 30;
+  }
+
+  message GetMetrics {
+    optional string timeout = 1;
+  }
+
+  message SetLoggingLevel {
+    required uint32 level = 1;
+    required DurationInfo duration = 2;
+  }
+
+  message ListFiles {
+    required string path = 1;
+  }
+
+  message ReadFile {
+    required string path = 1;
+    optional string offset = 2;
+    optional string length = 3;
+  }
+
+  message GetTasks {
+    optional string limit = 1;
+    optional uint32 offset = 2;
+    optional string order = 3;
+  }
+
+  message UpdateWeights {
+    repeated WeightInfo weight_infos = 1;
+  }
+
+  message ReserveResources {
+    required SlaveID agent_id = 1;
+    repeated Resource resources = 2;
+  }
+
+  message UnreserveResources {
+    required SlaveID agent_id = 1;
+    repeated Resource resources = 2;
+  }
+
+  message CreateVolumes {
+    required SlaveID agent_id = 1;
+    repeated Resource volumes = 2;
+  }
+
+  message DestroyVolumes {
+    required SlaveID agent_id = 1;
+    repeated Resource volumes = 2;
+  }
+
+  message UpdateMaintenanceSchedule {
+    required maintenance.Schedule schedule = 1;
+  }
+
+  message StartMaintenance {
+    repeated MachineID machines = 1;
+  }
+
+  message StopMaintenance {
+    repeated MachineID machines = 1;
+  }
+
+  message SetQuota {
+    required quota.QuotaRequest quota_request = 1;
+  }
+
+  message RemoveQuota {
+    required string role = 1;
+  }
+
+  optional Type type = 1;
+
+  optional GetMetrics get_metrics = 2;
+  optional SetLoggingLevel set_logging_level = 3;
+  optional ListFiles list_files = 4;
+  optional ReadFile read_file = 5;
+  optional GetTasks get_tasks = 6;
+  optional ReserveResources reserve_resources = 7;
+  optional UnreserveResources unreserve_resources = 8;
+  optional CreateVolumes create_volumes = 9;
+  optional DestroyVolumes destroy_volumes = 10;
+  optional UpdateMaintenanceSchedule update_maintenance_schedule = 11;
+  optional StartMaintenance start_maintenance = 12;
+  optional StopMaintenance stop_maintenance  = 13;
+  optional SetQuota set_quota = 14;
+  optional RemoveQuota remove_quota = 15;
+}
+
+
+/**
+ * Synchronous responses for all calls (except Call::SUBSCRIBE) made to
+ * the master API.
+ */
+message Response {
+  // Each of the responses of type `FOO` corresponds to `Foo` message below.
+  enum Type {
+    UNKNOWN = 0;
+
+    GET_HEALTH = 1;
+    GET_FLAGS = 2;
+    GET_VERSION = 3;
+    GET_METRICS = 4;
+
+    GET_LOGGING_LEVEL = 5;
+
+    LIST_FILES = 6;
+    GET_FILE_CONTENTS = 7;
+
+    GET_STATE = 8;
+    GET_STATE_SUMMARY = 9;
+
+    GET_AGENTS = 10;
+    GET_FRAMEWORKS = 11;
+    GET_TASKS = 12;
+    GET_ROLES = 13;
+
+    GET_WEIGHTS = 14;
+
+    GET_LEADING_MASTER = 15;
+
+    GET_MAINTENANCE_STATUS = 16;
+    GET_MAINTENANCE_SCHEDULE = 17;
+
+    GET_QUOTA = 18;
+  }
+
+  message GetHealth {
+    required bool healthy = 1;
+  }
+
+  message GetFlags {
+    repeated Flag flags = 1;
+  }
+
+  message GetVersion {
+    required VersionInfo version_info = 1;
+  }
+
+  message GetMetrics {
+    repeated Metric metrics = 1;
+  }
+
+  message GetLoggingLevel {
+    required uint32 level = 1;
+  }
+
+  message ListFiles {
+    repeated string files = 1;
+  }
+
+  message GetFileContents {
+    repeated bytes data = 1;
+  }
+
+  message GetState {
+    // TODO(vinod): Fill in the fields.
+  }
+
+  message GetStateSummary {
+    // TODO(vinod): Fill in the fields.
+  }
+
+  message GetAgents {
+    message Agent {
+      // TODO(vinod): Fill in the fields.
+    }
+
+    repeated Agent agents = 1;
+  }
+
+  message GetFrameworks {
+    message Framework {
+    // TODO(vinod): Fill in the fields.
+    }
+
+    repeated Framework frameworks = 1;
+  }
+
+  message GetTasks {
+    message Task {
+      // TODO(vinod): Fill in the fields.
+    }
+
+    repeated Task tasks = 1;
+  }
+
+  message GetRoles {
+    message Role {
+      // TODO(vinod): Fill in the fields.
+    }
+
+    repeated Role roles = 1;
+  }
+
+  message GetWeights {
+    repeated WeightInfo weight_infos = 1;
+  }
+
+  message GetLeadingMaster {
+    optional MasterInfo master_info = 1;
+  }
+
+  message GetMaintenanceStatus {
+    required maintenance.ClusterStatus status = 1;
+  }
+
+  message GetMaintenanceSchedule {
+    required maintenance.Schedule schedule = 1;
+  }
+
+  message GetQuota {
+    required quota.QuotaStatus status = 1;
+  }
+
+  optional Type type = 1;
+
+  optional GetHealth get_health = 2;
+  optional GetFlags get_flags = 3;
+  optional GetVersion get_version = 4;
+  optional GetMetrics get_metrics = 5;
+  optional GetLoggingLevel get_logging_level = 6;
+  optional ListFiles list_files = 7;
+  optional GetFileContents get_file_contents = 8;
+  optional GetState get_state = 9;
+  optional GetStateSummary get_state_summary = 10;
+  optional GetAgents get_agents = 11;
+  optional GetFrameworks get_frameworks = 12;
+  optional GetTasks get_tasks = 13;
+  optional GetRoles get_roles = 14;
+  optional GetWeights get_weights = 15;
+  optional GetLeadingMaster get_leading_master = 16;
+  optional GetMaintenanceStatus get_maintenance_status = 17;
+  optional GetMaintenanceSchedule get_maintenance_schedule = 18;
+  optional GetQuota get_quota = 19;
+}
+
+
+/**
+ * Streaming response to `Call::SUBSCRIBE` made to the master.
+ */
+message Event {
+  enum Type {
+    UNKNOWN = 0;
+    UPDATE = 1; // See `Update` below.
+
+    // TODO(vinod): Fill in more events.
+  }
+
+  // Status updates forwarded by the master.
+  // See the comments in scheduler.proto for further details.
+  message Update {
+    required TaskStatus status = 1;
+  }
+
+  optional Type type = 1;
+
+  optional Update update = 2;
+}

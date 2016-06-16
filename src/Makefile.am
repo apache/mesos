@@ -217,6 +217,7 @@ DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
 EXECUTOR_PROTO = $(top_srcdir)/include/mesos/executor/executor.proto
 FETCHER_PROTO = $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/maintenance/maintenance.proto
+MASTER_PROTO = $(top_srcdir)/include/mesos/master/master.proto
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 MODULE_PROTO = $(top_srcdir)/include/mesos/module/module.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
@@ -262,6 +263,8 @@ CXX_PROTOS =								\
   ../include/mesos/maintenance/maintenance.pb.h				\
   ../include/mesos/master/allocator.pb.cc				\
   ../include/mesos/master/allocator.pb.h				\
+  ../include/mesos/master/master.pb.cc					\
+  ../include/mesos/master/master.pb.h					\
   ../include/mesos/module/module.pb.cc					\
   ../include/mesos/module/module.pb.h					\
   ../include/mesos/quota/quota.pb.cc					\
@@ -553,10 +556,13 @@ master_HEADERS =							\
   $(top_srcdir)/include/mesos/master/allocator.hpp			\
   $(top_srcdir)/include/mesos/master/allocator.proto			\
   $(top_srcdir)/include/mesos/master/contender.hpp			\
-  $(top_srcdir)/include/mesos/master/detector.hpp
+  $(top_srcdir)/include/mesos/master/detector.hpp			\
+  $(top_srcdir)/include/mesos/master/master.hpp				\
+  $(top_srcdir)/include/mesos/master/master.proto
 
 nodist_master_HEADERS =							\
-  ../include/mesos/master/allocator.pb.h
+  ../include/mesos/master/allocator.pb.h				\
+  ../include/mesos/master/master.pb.h
 
 moduledir = $(pkgincludedir)/module
 
@@ -1231,6 +1237,7 @@ libmesos_la_SOURCES =							\
   $(FETCHER_PROTO)							\
   $(ISOLATOR_PROTO)							\
   $(MAINTENANCE_PROTO)							\
+  $(MASTER_PROTO)							\
   $(MESOS_PROTO)							\
   $(MODULE_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)						\
