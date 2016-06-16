@@ -127,12 +127,12 @@ void MetricsProcess::initialize()
     route("/snapshot",
           authenticationRealm.get(),
           help(),
-          &MetricsProcess::snapshot);
+          &MetricsProcess::_snapshot);
   } else {
     route("/snapshot",
           help(),
           [this](const http::Request& request) {
-            return snapshot(request, None());
+            return _snapshot(request, None());
           });
   }
 }
@@ -178,21 +178,33 @@ Future<Nothing> MetricsProcess::remove(const string& name)
 }
 
 
-Future<http::Response> MetricsProcess::snapshot(
-    const http::Request& request,
-    const Option<string>& /* principal */)
+Future<hashmap<string, double>> MetricsProcess::snapshot(
+    const Option<Duration>& timeout)
 {
-  Future<Nothing> acquire = Nothing();
+  hashmap<string, Future<double>> futures;
+  hashmap<string, Option<Statistics<double>>> statistics;
 
-  if (limiter.isSome()) {
-    acquire = limiter.get()->acquire();
+  foreachkey (const string& metric, metrics) {
+    CHECK_NOTNULL(metrics[metric].get());
+    futures[metric] = metrics[metric]->value();
+    // TODO(dhamon): It would be nice to compute these asynchronously.
+    statistics[metric] = metrics[metric]->statistics();
   }
 
-  return acquire.then(defer(self(), &Self::_snapshot, request));
+  if (timeout.isSome()) {
+    return await(futures.values())
+      .after(timeout.get(), lambda::bind(_snapshotTimeout, futures.values()))
+      .then(lambda::bind(__snapshot, timeout, futures, statistics));
+  } else {
+    return await(futures.values())
+      .then(lambda::bind(__snapshot, timeout, futures, statistics));
+  }
 }
 
 
-Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
+Future<http::Response> MetricsProcess::_snapshot(
+    const http::Request& request,
+    const Option<string>& /* principal */)
 {
   // Parse the 'timeout' parameter.
   Option<Duration> timeout;
@@ -210,29 +222,22 @@ Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
     timeout = duration.get();
   }
 
-  hashmap<string, Future<double> > futures;
-  hashmap<string, Option<Statistics<double> > > statistics;
+  Future<Nothing> acquire = Nothing();
 
-  foreachkey (const string& metric, metrics) {
-    CHECK_NOTNULL(metrics[metric].get());
-    futures[metric] = metrics[metric]->value();
-    // TODO(dhamon): It would be nice to compute these asynchronously.
-    statistics[metric] = metrics[metric]->statistics();
+  if (limiter.isSome()) {
+    acquire = limiter.get()->acquire();
   }
 
-  if (timeout.isSome()) {
-    return await(futures.values())
-      .after(timeout.get(), lambda::bind(_snapshotTimeout, futures.values()))
-      .then(lambda::bind(__snapshot, request, timeout, futures, statistics));
-  } else {
-    return await(futures.values())
-      .then(lambda::bind(__snapshot, request, timeout, futures, statistics));
-  }
+  return acquire.then(defer(self(), &Self::snapshot, timeout))
+      .then([request](const hashmap<string, double>& metrics)
+            -> http::Response {
+        return http::OK(jsonify(metrics), request.url.query.get("jsonp"));
+      });
 }
 
 
-list<Future<double> > MetricsProcess::_snapshotTimeout(
-    const list<Future<double> >& futures)
+list<Future<double>> MetricsProcess::_snapshotTimeout(
+    const list<Future<double>>& futures)
 {
   // Stop waiting for all futures to transition and return a 'ready'
   // list to proceed handling the request.
@@ -240,43 +245,40 @@ list<Future<double> > MetricsProcess::_snapshotTimeout(
 }
 
 
-Future<http::Response> MetricsProcess::__snapshot(
-    const http::Request& request,
+Future<hashmap<string, double>> MetricsProcess::__snapshot(
     const Option<Duration>& timeout,
-    const hashmap<string, Future<double> >& metrics,
-    const hashmap<string, Option<Statistics<double> > >& statistics)
+    const hashmap<string, Future<double>>& metrics,
+    const hashmap<string, Option<Statistics<double>>>& statistics)
 {
-  auto snapshot = [&timeout,
-                   &metrics,
-                   &statistics](JSON::ObjectWriter* writer) {
-    foreachpair (const string& key, const Future<double>& value, metrics) {
-      // TODO(dhamon): Maybe add the failure message for this metric to the
-      // response if value.isFailed().
-      if (value.isPending()) {
-        CHECK_SOME(timeout);
-        VLOG(1) << "Exceeded timeout of " << timeout.get()
-                << " when attempting to get metric '" << key << "'";
-      } else if (value.isReady()) {
-        writer->field(key, value.get());
-      }
+  hashmap<string, double> snapshot;
 
-      Option<Statistics<double> > statistics_ = statistics.get(key).get();
-
-      if (statistics_.isSome()) {
-        writer->field(key + "/count", statistics_.get().count);
-        writer->field(key + "/min", statistics_.get().min);
-        writer->field(key + "/max", statistics_.get().max);
-        writer->field(key + "/p50", statistics_.get().p50);
-        writer->field(key + "/p90", statistics_.get().p90);
-        writer->field(key + "/p95", statistics_.get().p95);
-        writer->field(key + "/p99", statistics_.get().p99);
-        writer->field(key + "/p999", statistics_.get().p999);
-        writer->field(key + "/p9999", statistics_.get().p9999);
-      }
+  foreachpair (const string& key, const Future<double>& value, metrics) {
+    // TODO(dhamon): Maybe add the failure message for this metric to the
+    // response if value.isFailed().
+    if (value.isPending()) {
+      CHECK_SOME(timeout);
+      VLOG(1) << "Exceeded timeout of " << timeout.get()
+              << " when attempting to get metric '" << key << "'";
+    } else if (value.isReady()) {
+      snapshot[key] = value.get();
     }
-  };
 
-  return http::OK(jsonify(snapshot), request.url.query.get("jsonp"));
+    Option<Statistics<double>> statistics_ = statistics.get(key).get();
+
+    if (statistics_.isSome()) {
+      snapshot[key + "/count"] = statistics_.get().count;
+      snapshot[key + "/min"] = statistics_.get().min;
+      snapshot[key + "/max"] = statistics_.get().max;
+      snapshot[key + "/p50"] = statistics_.get().p50;
+      snapshot[key + "/p90"] = statistics_.get().p90;
+      snapshot[key + "/p95"] = statistics_.get().p95;
+      snapshot[key + "/p99"] = statistics_.get().p99;
+      snapshot[key + "/p999"] = statistics_.get().p999;
+      snapshot[key + "/p9999"] = statistics_.get().p9999;
+    }
+  }
+
+  return snapshot;
 }
 
 }  // namespace internal {

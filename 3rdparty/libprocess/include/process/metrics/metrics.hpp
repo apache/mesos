@@ -44,6 +44,9 @@ public:
 
   Future<Nothing> remove(const std::string& name);
 
+  Future<hashmap<std::string, double>> snapshot(
+      const Option<Duration>& timeout);
+
 protected:
   virtual void initialize();
 
@@ -62,20 +65,20 @@ private:
   MetricsProcess(const MetricsProcess&);
   MetricsProcess& operator=(const MetricsProcess&);
 
-  Future<http::Response> snapshot(
+  Future<http::Response> _snapshot(
       const http::Request& request,
       const Option<std::string>& /* principal */);
-  Future<http::Response> _snapshot(const http::Request& request);
-  static std::list<Future<double> > _snapshotTimeout(
-      const std::list<Future<double> >& futures);
-  static Future<http::Response> __snapshot(
-      const http::Request& request,
+
+  static std::list<Future<double>> _snapshotTimeout(
+      const std::list<Future<double>>& futures);
+
+  static Future<hashmap<std::string, double>> __snapshot(
       const Option<Duration>& timeout,
-      const hashmap<std::string, Future<double> >& metrics,
-      const hashmap<std::string, Option<Statistics<double> > >& statistics);
+      const hashmap<std::string, Future<double>>& metrics,
+      const hashmap<std::string, Option<Statistics<double>>>& statistics);
 
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
-  hashmap<std::string, Owned<Metric> > metrics;
+  hashmap<std::string, Owned<Metric>> metrics;
 
   // Used to rate limit the snapshot endpoint.
   Option<Owned<RateLimiter>> limiter;
@@ -109,6 +112,16 @@ inline Future<Nothing> remove(const Metric& metric)
       internal::MetricsProcess::instance(),
       &internal::MetricsProcess::remove,
       metric.name());
+}
+
+
+inline Future<hashmap<std::string, double>> snapshot(
+    const Option<Duration>& timeout)
+{
+  return dispatch(
+      internal::MetricsProcess::instance(),
+      &internal::MetricsProcess::snapshot,
+      timeout);
 }
 
 }  // namespace metrics {
