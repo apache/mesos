@@ -48,7 +48,7 @@ message Call {
     GET_METRICS = 4;
 
     GET_LOGGING_LEVEL = 5;
-    SET_LOGGING_LEVEL = 6;
+    SET_LOGGING_LEVEL = 6;             // See 'SetLoggingLevel' below.
 
     LIST_FILES = 7;
     READ_FILE = 8;
@@ -89,8 +89,15 @@ message Call {
     optional string timeout = 1;
   }
 
+  // Sets the logging verbosity level for a specified duration. Mesos uses
+  // [glog](https://github.com/google/glog) for logging. The library only uses
+  // verbose logging which means nothing will be output unless the verbosity
+  // level is set (by default it's 0, libprocess uses levels 1, 2, and 3).
   message SetLoggingLevel {
+    // The verbosity level.
     required uint32 level = 1;
+    // The duration to keep verbosity level toggled. After this duration, the
+    // verbosity level of log would revert to the original level.
     required DurationInfo duration = 2;
   }
 
