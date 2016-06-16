@@ -361,23 +361,23 @@ must exist between the various versions:
 </tr>
 
 <tr>
-<td>0.29.0 </td> <td> 0.18.0 </td> <td> 0.18.0  </td> <td> yes </td> <td> </td>
+<td>1.0.0 </td> <td> 0.18.0 </td> <td> 0.18.0  </td> <td> yes </td> <td> </td>
 </tr>
 
 <tr>
-<td>0.29.0 </td> <td> 0.18.0 </td> <td> 0.21.0  </td> <td> yes </td> <td> </td>
+<td>1.0.0 </td> <td> 0.18.0 </td> <td> 0.21.0  </td> <td> yes </td> <td> </td>
 </tr>
 
 <tr>
-<td>0.18.0 </td> <td> 0.18.0 </td> <td> 0.29.0  </td> <td> NO </td> <td> Library compiled against a newer Mesos release.                </td>
+<td>0.18.0 </td> <td> 0.18.0 </td> <td> 1.0.0  </td> <td> NO </td> <td> Library compiled against a newer Mesos release.                </td>
 </tr>
 
 <tr>
-<td>0.29.0 </td> <td> 0.21.0 </td> <td> 0.18.0  </td> <td> NO </td> <td> Module/Library older than the kind version supported by Mesos. </td>
+<td>1.0.0 </td> <td> 0.21.0 </td> <td> 0.18.0  </td> <td> NO </td> <td> Module/Library older than the kind version supported by Mesos. </td>
 </tr>
 
 <tr>
-<td>0.29.0 </td> <td> 0.29.0 </td> <td> 0.18.0  </td> <td> NO </td> <td> Module/Library older than the kind version supported by Mesos. </td>
+<td>1.0.0 </td> <td> 1.0.0 </td> <td> 0.18.0  </td> <td> NO </td> <td> Module/Library older than the kind version supported by Mesos. </td>
 </tr>
 </table>
 

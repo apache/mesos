@@ -478,9 +478,9 @@ message ExecutorInfo {
   // executor via JSON on the agent. This allows users to import usage
   // information into a time series database for monitoring.
   //
-  // This field is deprecated since 0.29.0. Please use labels for
+  // This field is deprecated since 1.0. Please use labels for
   // free-form metadata instead.
-  optional string source = 10 [deprecated = true]; // Since 0.29.0.
+  optional string source = 10 [deprecated = true]; // Since 1.0.
 
   optional bytes data = 4;
 
@@ -1590,7 +1590,7 @@ message Volume {
     RO = 2; // read-only.
   }
 
-  // TODO(gyliu513): Make this as `optional` after deprecation cycle of 0.29.
+  // TODO(gyliu513): Make this as `optional` after deprecation cycle of 1.0.
   required Mode mode = 3;
 
   // Path pointing to a directory or file in the container. If the

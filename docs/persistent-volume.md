@@ -477,6 +477,6 @@ Persistent volumes were introduced in Mesos 0.23. Mesos 0.27 introduced HTTP
 endpoints for creating and destroying volumes. Mesos 0.28 introduced support for
 [multiple disk resources](multiple-disk.md), and also enhanced the `/slaves`
 master endpoint to include detailed information about persistent volumes and
-dynamic reservations. Mesos 0.29 changed the semantics of destroying a volume:
+dynamic reservations. Mesos 1.0 changed the semantics of destroying a volume:
 in previous releases, destroying a volume would remove the Mesos-level metadata,
 but would not remove the volume's data from the agent's filesystem.

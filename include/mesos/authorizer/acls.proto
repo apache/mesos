@@ -139,7 +139,7 @@ message ACL {
   // Which principals are authorized to set quotas for given roles.
   //
   // TODO(zhitao): Remove this message at the end of the deprecation cycle
-  // which started with 0.29. It will be fully replaced by `UpdateQuota`.
+  // which started with 1.0. It will be fully replaced by `UpdateQuota`.
   message SetQuota {
     // Subjects: Operator username.
     required Entity principals = 1;
@@ -151,7 +151,7 @@ message ACL {
   // Which principals can remove quotas set by which other principals.
   //
   // TODO(zhitao): Remove this message at the end of the deprecation cycle
-  // which started with 0.29. It will be fully replaced by `UpdateQuota`.
+  // which started with 1.0. It will be fully replaced by `UpdateQuota`.
   message RemoveQuota {
     // Subjects: Operator username.
     required Entity principals = 1;
@@ -275,7 +275,7 @@ message ACLs {
   repeated ACL.DestroyVolume destroy_volumes = 8;
 
   // TODO(zhitao): Remove the following two fields at the end
-  // of the deprecation cycle which started with 0.29.
+  // of the deprecation cycle which started with 1.0.
   repeated ACL.SetQuota set_quotas = 9 [deprecated = true];
   repeated ACL.RemoveQuota remove_quotas = 10 [deprecated = true];
 

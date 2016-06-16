@@ -68,7 +68,7 @@ enum Action {
   DESTROY_VOLUME_WITH_PRINCIPAL = 7;
 
   // TODO(zhitao): Remove the following two actions at the end of
-  // the deprecation cycle which started with 0.29. They will be
+  // the deprecation cycle which started with 1.0. They will be
   // fully replaced by `UPDATE_QUOTA_WITH_ROLE`.
   SET_QUOTA_WITH_ROLE = 8;  // [deprecated = true];
   DESTROY_QUOTA_WITH_PRINCIPAL = 9;  // [deprecated = true];

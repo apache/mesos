@@ -97,7 +97,7 @@ pointing to a `.dockercfg` that contains login information.  The
 Containerizer set the HOME environment variable pointing to the
 sandbox so docker cli will automatically pick up the config file.
 
-Starting from 0.29, we provide an alternative way to specify docker
+Starting from 1.0, we provide an alternative way to specify docker
 config file for pulling images from private registries. We allow
 operators to specify a shared docker config file using an agent flag.
 This docker config file will be used to pull images from private

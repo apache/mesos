@@ -13,7 +13,7 @@ role does not have a weight specified in the `--weights` flag, then the default
 value (1.0) will be used. Weights cannot be changed without updating the flag
 and restarting all Mesos masters.
 
-Mesos 0.29 contains a [/weights](endpoints/master/weights.md) operator endpoint
+Mesos 1.0 contains a [/weights](endpoints/master/weights.md) operator endpoint
 that allows weights to be changed at runtime. The `--weights` command-line flag
 is deprecated.
 
