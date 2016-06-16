@@ -178,7 +178,7 @@ We categorize the changes as follows:
 
 <a name="1-0-x-docker-timeout-flag"></a>
 
-* The --docker_stop_timeout agent flag is deprecated.
+* The `--docker_stop_timeout` agent flag is deprecated.
 
 <a name="1-0-x-executorinfo"></a>
 
@@ -186,14 +186,14 @@ We categorize the changes as follows:
 
 <a name="1-0-x-slave"></a>
 
-Mesos 1.0 deprecates the 'slave' keyword in favor of 'agent' at number of places
+* Mesos 1.0 deprecates the 'slave' keyword in favor of 'agent' in a number of places
   * Deprecated flags with keyword 'slave' in favor of 'agent'.
   * Deprecated sandbox links with 'slave' keyword in the WebUI.
   * Deprecated `slave` subcommand for mesos-cli.
 
 <a name="1-0-x-workdir"></a>
 
-Mesos 1.0 removes the default value for the agent `work_dir`. This flag is now required, and the agent will exit immediately if it is not provided.
+* Mesos 1.0 removes the default value for the agent's `work_dir` command-line flag. This flag is now required; the agent will exit immediately if it is not provided.
 
 <a name="1-0-x-credentials-file"></a>
 
@@ -201,7 +201,7 @@ Mesos 1.0 removes the default value for the agent `work_dir`. This flag is now r
 
 <a name="1-0-x-persistent-volume"></a>
 
-* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate slave. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
+* When a persistent volume is destroyed, Mesos will now remove any data that was stored on the volume from the filesystem of the appropriate agent. In prior versions of Mesos, destroying a volume would not delete data (this was a known missing feature that has now been implemented).
 
 <a name="1-0-x-status-code"></a>
 
@@ -213,7 +213,7 @@ Mesos 1.0 removes the default value for the agent `work_dir`. This flag is now r
 
 <a name="1-0-x-v1-commandinfo"></a>
 
-*  Added 'output_file' field to CommandInfo.URI in Scheduler API and v1 Scheduler HTTP API.
+* Added `output_file` field to CommandInfo.URI in Scheduler API and v1 Scheduler HTTP API.
 
 <a name="1-0-x-scheduler-proto"></a>
 
@@ -233,22 +233,21 @@ Mesos 1.0 removes the default value for the agent `work_dir`. This flag is now r
 
 <a name="1-0-x-quota-acls"></a>
 
-* Mesos 1.0 deprecates `SET_QUOTA_WITH_ROLE` and `DESTROY_QUOTA_WITH_PRINCIPAL` actions with `UPDATE_QUOTA_WITH_ROLE`, as well as the `SetQuota` and `RemoveQuota` ACLs with `UpdateQuota` ACL, to control which principal(s) is authorized to set, remove and (in future releases) update quota for role(s). A new `GET_QUOTA_WITH_ROLE` action and `get_quotas` ACL are introduced to control which principal(s) can query quota status for given role(s). This affects `--acls` flag for local authorizer in the following way:
-  * It is not allowed to specify `update_quotas` and any of `set_quotas` or `remove_quotas` at the same time. Local authorizor will error out in such case;
-  * If `set_quotas` or `remove_quotas` were set previously, operator should upgrade binary first, after which the deprecated ACLs are still reinforced;
-  * After upgrade is verified, operator should replace deprecated values for `set_quotas` and `remove_quotas` with compatible values for `update_quotas`;
-  * If desired, operator can use `get_quotas` after upgrade to control which principal(s) is allowed to query quota status for given role(s).
+* The `SET_QUOTA_WITH_ROLE` and `DESTROY_QUOTA_WITH_PRINCIPAL` actions have been deprecated, as well as the `set_quotas` and `remove_quotas` ACLs. To replace these constructs, a new action `UPDATE_QUOTA_WITH_ROLE` and a new ACL `UpdateQuota` have been introduced. In addition, a new action `GET_QUOTA_WITH_ROLE` and a new ACL `get_quotas` have been added; these control which principals are allowed to query quota information for which roles. These changes affect the `--acls` flag for the local authorizer in the following ways:
+  * The `update_quotas` ACL cannot be used in combination with either the `set_quotas` or `remove_quotas` ACL. The local authorizor will produce an error in such a case;
+  * When upgrading a Mesos cluster that uses the `set_quotas` or `remove_quotas` ACLs, the operator should first upgrade the Mesos binaries. At this point, the deprecated ACLs will still be enforced. After the upgrade has been verified, the operator should replace deprecated values for `set_quotas` and `remove_quotas` with equivalent values for `update_quotas`;
+  * If desired, the operator can use the `get_quotas` ACL after the upgrade to control which principals are allowed to query quota information.
 
 <a name="1-0-x-authorizer"></a>
 
-* Mesos 1.0 contains a number of authorizer changes especially effecting authorizer modules:
-  * The authorizer interface has been refactored in order to decouple the ACLs definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request based authorization). NOTE: This is a **breaking change** for authorizer modules.
-  * Authorization based HTTP endpoint filtering enables operators to restrict what part of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
-  * Fields (i.e, `subject` and `object`) in authorization::Request protobuf are changed to optional. If these fields are not set, the request should be allowed only for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
+* Mesos 1.0 contains a number of authorizer changes that particularly effect custom authorizer modules:
+  * The authorizer interface has been refactored in order to decouple the ACL definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request-based authorization). NOTE: This is a **breaking change** for authorizer modules.
+  * Authorization-based HTTP endpoint filtering enables operators to restrict which parts of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
+  * The ``subject` and `object` fields in the authorization::Request protobuf message have been changed to be optional. If these fields are not set, the request should only be allowed for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
 
 <a name="1-0-x-endpoint-authorization"></a>
 
-* Mesos provides authorization a number of HTTP endpoints. Note that the some of these endpoints are used by the web UI, and thus using the web UI in a cluster with authorization enabled will require that ACLs be set appropriately. Please refer to the [authorization documentation](authorization.md) for details.
+* Mesos 1.0 introduces authorization support for several HTTP endpoints. Note that some of these endpoints are used by the web UI, and thus using the web UI in a cluster with authorization enabled will require that ACLs be set appropriately. Please refer to the [authorization documentation](authorization.md) for details.
 
 In order to upgrade a running cluster:
 
