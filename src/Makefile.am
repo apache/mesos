@@ -879,6 +879,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   hook/manager.hpp							\
   internal/devolve.hpp							\
   internal/evolve.hpp							\
+  launcher/executor.hpp							\
+  launcher/posix/executor.hpp						\
+  launcher/windows/executor.hpp						\
   local/flags.hpp							\
   local/local.hpp							\
   logging/flags.hpp							\
