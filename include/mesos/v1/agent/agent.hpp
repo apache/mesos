@@ -20,7 +20,7 @@
 #include <ostream>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/v1/agent.pb.h>
+#include <mesos/v1/agent/agent.pb.h>
 
 namespace mesos {
 namespace v1 {

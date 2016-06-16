@@ -29,8 +29,9 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
-#include <mesos/v1/agent.hpp>
 #include <mesos/v1/mesos.hpp>
+
+#include <mesos/v1/agent/agent.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
 

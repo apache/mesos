@@ -30,7 +30,7 @@
 
 #include <mesos/executor/executor.hpp>
 
-#include <mesos/v1/agent.hpp>
+#include <mesos/v1/agent/agent.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
 

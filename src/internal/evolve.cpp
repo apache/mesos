@@ -18,7 +18,7 @@
 
 #include <mesos/master/master.hpp>
 
-#include <mesos/v1/agent.hpp>
+#include <mesos/v1/agent/agent.hpp>
 
 #include <mesos/v1/master/master.hpp>
 

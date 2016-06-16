@@ -227,7 +227,7 @@ STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
 ISOLATOR_PROTO = $(top_srcdir)/include/mesos/slave/isolator.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
 URI_PROTO = $(top_srcdir)/include/mesos/uri/uri.proto
-V1_AGENT_PROTO = $(top_srcdir)/include/mesos/v1/agent.proto
+V1_AGENT_PROTO = $(top_srcdir)/include/mesos/v1/agent/agent.proto
 V1_ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/v1/master/allocator.proto
 V1_EXECUTOR_PROTO = $(top_srcdir)/include/mesos/v1/executor/executor.proto
 V1_MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/v1/maintenance/maintenance.proto
@@ -282,10 +282,10 @@ CXX_PROTOS =								\
   ../include/mesos/state/state.pb.h					\
   ../include/mesos/uri/uri.pb.cc					\
   ../include/mesos/uri/uri.pb.h						\
-  ../include/mesos/v1/agent.pb.cc					\
-  ../include/mesos/v1/agent.pb.h					\
   ../include/mesos/v1/mesos.pb.cc					\
   ../include/mesos/v1/mesos.pb.h					\
+  ../include/mesos/v1/agent/agent.pb.cc					\
+  ../include/mesos/v1/agent/agent.pb.h					\
   ../include/mesos/v1/executor/executor.pb.cc				\
   ../include/mesos/v1/executor/executor.pb.h				\
   ../include/mesos/v1/maintenance/maintenance.pb.cc			\
@@ -653,8 +653,6 @@ nodist_uri_HEADERS =							\
 v1dir = $(pkgincludedir)/v1
 
 v1_HEADERS =								\
-  $(top_srcdir)/include/mesos/v1/agent.hpp				\
-  $(top_srcdir)/include/mesos/v1/agent.proto				\
   $(top_srcdir)/include/mesos/v1/attributes.hpp				\
   $(top_srcdir)/include/mesos/v1/executor.hpp				\
   $(top_srcdir)/include/mesos/v1/mesos.hpp				\
@@ -664,8 +662,16 @@ v1_HEADERS =								\
   $(top_srcdir)/include/mesos/v1/values.hpp
 
 nodist_v1_HEADERS =							\
-  ../include/mesos/v1/agent.pb.h					\
   ../include/mesos/v1/mesos.pb.h
+
+v1agentdir = $(pkgincludedir)/v1/agent
+
+v1agent_HEADERS =							\
+  $(top_srcdir)/include/mesos/v1/agent/agent.hpp			\
+  $(top_srcdir)/include/mesos/v1/agent/agent.proto
+
+nodist_v1agent_HEADERS =						\
+  ../include/mesos/v1/agent/agent.pb.h
 
 v1executordir = $(pkgincludedir)/v1/executor
 
