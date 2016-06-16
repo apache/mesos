@@ -5418,26 +5418,46 @@ Future<bool> Slave::authorizeSandboxAccess(
     return true;
   }
 
-  authorization::Request request;
-  request.set_action(authorization::ACCESS_SANDBOX);
+  // Set authorization subject.
+  authorization::Subject subject;
 
   if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
+    subject.set_value(principal.get());
   }
 
-  if (frameworks.contains(frameworkId)) {
-    Framework* framework = frameworks.get(frameworkId).get();
+  Future<Owned<ObjectApprover>> sandboxApprover =
+    authorizer.get()->getObjectApprover(subject, authorization::ACCESS_SANDBOX);
 
-    request.mutable_object()->mutable_framework_info()->CopyFrom(
-        framework->info);
+  return sandboxApprover
+    .then(defer(self(),
+        [this, &frameworkId, &executorId]
+            (const Owned<ObjectApprover>& sandboxApprover)
+            -> Future<bool> {
+        // Construct authorization object.
+        ObjectApprover::Object object;
 
-    if (framework->executors.contains(executorId)) {
-      request.mutable_object()->mutable_executor_info()->CopyFrom(
-          framework->executors.get(executorId).get()->info);
-    }
-  }
+        if (frameworks.contains(frameworkId)) {
+          Framework* framework = frameworks.get(frameworkId).get();
 
-  return authorizer.get()->authorized(request);
+          object.framework_info = &(framework->info);
+
+          if (framework->executors.contains(executorId)) {
+            object.executor_info =
+              &(framework->executors.get(executorId).get()->info);
+          }
+        }
+
+        Try<bool> approved = sandboxApprover.get()->approved(object);
+
+        if (approved.isError()) {
+          return Failure("Error during sandbox authorization: " +
+                         approved.error());
+        }
+        return approved.get();
+    }))
+    .repair([](const Future<bool>) {
+      return Failure("Error during sandbox authorization");
+    });
 }
 
 

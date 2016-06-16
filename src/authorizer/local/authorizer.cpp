@@ -238,14 +238,13 @@ public:
           break;
         }
         case authorization::ACCESS_SANDBOX: {
-          // Check object has the required types set.
-          CHECK_NOTNULL(object->executor_info);
-          CHECK_NOTNULL(object->framework_info);
+          aclObject.set_type(mesos::ACL::Entity::ANY);
 
-          if (object->executor_info->command().has_user()) {
+          if (object->executor_info != NULL &&
+              object->executor_info->command().has_user()) {
             aclObject.add_values(object->executor_info->command().user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
-          } else {
+          } else if (object->framework_info != NULL) {
             aclObject.add_values(object->framework_info->user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
           }
