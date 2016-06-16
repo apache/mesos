@@ -206,6 +206,7 @@ MESOS_CPPFLAGS += -DHAS_AUTHENTICATION=1
 # First, let's define necessary protocol buffer files.
 
 ACLS_PROTO = $(top_srcdir)/include/mesos/authorizer/acls.proto
+AGENT_PROTO = $(top_srcdir)/include/mesos/agent/agent.proto
 ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/master/allocator.proto
 APPC_SPEC_PROTO = $(top_srcdir)/include/mesos/appc/spec.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
@@ -239,6 +240,8 @@ V1_SCHEDULER_PROTO = $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
 CXX_PROTOS =								\
   ../include/mesos/mesos.pb.cc						\
   ../include/mesos/mesos.pb.h						\
+  ../include/mesos/agent/agent.pb.cc					\
+  ../include/mesos/agent/agent.pb.h					\
   ../include/mesos/appc/spec.pb.cc					\
   ../include/mesos/appc/spec.pb.h					\
   ../include/mesos/authentication/authentication.pb.cc			\
@@ -607,6 +610,8 @@ nodist_scheduler_HEADERS =						\
 agentdir = $(pkgincludedir)/agent
 
 agent_HEADERS =								\
+  $(top_srcdir)/include/mesos/agent/agent.hpp				\
+  $(top_srcdir)/include/mesos/agent/agent.proto			\
   $(top_srcdir)/include/mesos/slave/container_logger.hpp		\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
   $(top_srcdir)/include/mesos/slave/isolator.proto			\
@@ -616,6 +621,7 @@ agent_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/resource_estimator.hpp
 
 nodist_agent_HEADERS =							\
+  ../include/mesos/agent/agent.pb.h					\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.h
 
@@ -1225,6 +1231,7 @@ lib_LTLIBRARIES += libmesos.la
 # Include as part of the distribution.
 libmesos_la_SOURCES =							\
   $(ACLS_PROTO)								\
+  $(AGENT_PROTO)								\
   $(ALLOCATOR_PROTO)							\
   $(APPC_SPEC_PROTO)							\
   $(AUTHENTICATION_PROTO)						\
