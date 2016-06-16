@@ -27,10 +27,11 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
-#include <mesos/v1/master.hpp>
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
+
+#include <mesos/v1/master/master.hpp>
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 

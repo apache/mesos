@@ -230,7 +230,7 @@ V1_AGENT_PROTO = $(top_srcdir)/include/mesos/v1/agent.proto
 V1_ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/v1/master/allocator.proto
 V1_EXECUTOR_PROTO = $(top_srcdir)/include/mesos/v1/executor/executor.proto
 V1_MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/v1/maintenance/maintenance.proto
-V1_MASTER_PROTO = $(top_srcdir)/include/mesos/v1/master.proto
+V1_MASTER_PROTO = $(top_srcdir)/include/mesos/v1/master/master.proto
 V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
 V1_QUOTA_PROTO = $(top_srcdir)/include/mesos/v1/quota/quota.proto
 V1_SCHEDULER_PROTO = $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
@@ -281,8 +281,6 @@ CXX_PROTOS =								\
   ../include/mesos/uri/uri.pb.h						\
   ../include/mesos/v1/agent.pb.cc					\
   ../include/mesos/v1/agent.pb.h					\
-  ../include/mesos/v1/master.pb.cc					\
-  ../include/mesos/v1/master.pb.h					\
   ../include/mesos/v1/mesos.pb.cc					\
   ../include/mesos/v1/mesos.pb.h					\
   ../include/mesos/v1/executor/executor.pb.cc				\
@@ -291,6 +289,8 @@ CXX_PROTOS =								\
   ../include/mesos/v1/maintenance/maintenance.pb.h			\
   ../include/mesos/v1/master/allocator.pb.cc				\
   ../include/mesos/v1/master/allocator.pb.h				\
+  ../include/mesos/v1/master/master.pb.cc				\
+  ../include/mesos/v1/master/master.pb.h				\
   ../include/mesos/v1/quota/quota.pb.cc					\
   ../include/mesos/v1/quota/quota.pb.h					\
   ../include/mesos/v1/scheduler/scheduler.pb.cc				\
@@ -651,8 +651,6 @@ v1_HEADERS =								\
   $(top_srcdir)/include/mesos/v1/agent.proto				\
   $(top_srcdir)/include/mesos/v1/attributes.hpp				\
   $(top_srcdir)/include/mesos/v1/executor.hpp				\
-  $(top_srcdir)/include/mesos/v1/master.hpp				\
-  $(top_srcdir)/include/mesos/v1/master.proto				\
   $(top_srcdir)/include/mesos/v1/mesos.hpp				\
   $(top_srcdir)/include/mesos/v1/mesos.proto				\
   $(top_srcdir)/include/mesos/v1/resources.hpp				\
@@ -661,7 +659,6 @@ v1_HEADERS =								\
 
 nodist_v1_HEADERS =							\
   ../include/mesos/v1/agent.pb.h					\
-  ../include/mesos/v1/master.pb.h					\
   ../include/mesos/v1/mesos.pb.h
 
 v1executordir = $(pkgincludedir)/v1/executor
@@ -684,10 +681,13 @@ nodist_v1maintenance_HEADERS =						\
 v1masterdir = $(pkgincludedir)/v1/master
 
 v1master_HEADERS =							\
-  $(top_srcdir)/include/mesos/v1/master/allocator.proto
+  $(top_srcdir)/include/mesos/v1/master/allocator.proto			\
+  $(top_srcdir)/include/mesos/v1/master/master.hpp			\
+  $(top_srcdir)/include/mesos/v1/master/master.proto
 
 nodist_v1master_HEADERS =						\
-  ../include/mesos/v1/master/allocator.pb.h
+  ../include/mesos/v1/master/allocator.pb.h				\
+  ../include/mesos/v1/master/master.pb.h
 
 v1quotadir = $(pkgincludedir)/v1/quota
 

@@ -35,7 +35,7 @@
 
 #include <mesos/master/master.hpp>
 
-#include <mesos/v1/master.hpp>
+#include <mesos/v1/master/master.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>

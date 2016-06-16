@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/v1/master.hpp>
-
 #include <mesos/http.hpp>
+
+#include <mesos/v1/master/master.hpp>
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
