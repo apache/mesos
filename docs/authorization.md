@@ -127,10 +127,11 @@ entries, each representing an authorizable action:
 |`destroy_volumes`|Framework principal or Operator username.|Principals whose volumes can be destroyed by the operator.|Destroying [volumes](persistent-volume.md).|
 |`get_quotas`|Operator username.|Resource role whose quota status will be queried.|Querying [quota](quota.md) status for roles.|
 |`update_quotas`|Operator username.|Resource role whose quota will be updated.|Modifying [quotas](quota.md) for roles.|
-|`update_weights`|Operator username.|Resource roles whose weights can be updated by the operator.|Updating weights.|
-|`view_framework`|UNIX user of whom executors can be viewed.|`Framework_Info` which can be viewed.|Filtering http endpoints.|
-|`view_executor`|UNIX user of whom executors can be viewed.|`Executor_Info` and `Framework_Info` which can be viewed.|Filtering http endpoints.|
-|`view_task`|UNIX user of whom tasks can be viewed.|(`Task` or `Task_Info`) and `Framework_Info` which can be viewed.|Filtering http endpoints.|
+|`get_weights`|Operator username.|Resource roles whose [weights](weights.md) can be viewed by the operator.|Get weights for roles.|
+|`update_weights`|Operator username.|Resource roles whose [weights](weights.md) can be updated by the operator.|Updating weights.|
+|`view_frameworks`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
+|`view_executors`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
+|`view_tasks`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
 |`access_sandboxes`|Operator username.|Operating system user whose executor/task sandboxes can be accessed.|Access task sandboxes.|
 |`access_mesos_logs`|Operator username.|Implicitly given. A user should only use types ANY and NONE to allow/deny access to the log.|Access Mesos logs.|
 
