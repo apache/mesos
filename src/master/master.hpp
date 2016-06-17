@@ -1014,17 +1014,17 @@ private:
         const Option<std::string>& principal,
         const std::string& role) const;
 
-    process::Future<bool> authorizeUpdateQuota(
-        const Option<std::string>& principal,
-        const std::string& role) const;
+    // TODO(mpark): The following functions `authorizeSetQuota` and
+    // `authorizeRemoveQuota` should be replaced with `authorizeUpdateQuota` at
+    // the end of deprecation cycle which started with 1.0.
 
     process::Future<bool> authorizeSetQuota(
         const Option<std::string>& principal,
-        const std::string& role) const;
+        const mesos::quota::QuotaInfo& quotaInfo) const;
 
     process::Future<bool> authorizeRemoveQuota(
-        const Option<std::string>& requestPrincipal,
-        const Option<std::string>& quotaPrincipal) const;
+        const Option<std::string>& principal,
+        const mesos::quota::QuotaInfo& quotaInfo) const;
 
     process::Future<process::http::Response> _status(
         const process::http::Request& request,
