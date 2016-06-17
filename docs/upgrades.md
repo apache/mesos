@@ -233,7 +233,7 @@ We categorize the changes as follows:
 
 <a name="1-0-x-quota-acls"></a>
 
-* The `SET_QUOTA_WITH_ROLE` and `DESTROY_QUOTA_WITH_PRINCIPAL` actions have been deprecated, as well as the `set_quotas` and `remove_quotas` ACLs. To replace these constructs, a new action `UPDATE_QUOTA_WITH_ROLE` and a new ACL `UpdateQuota` have been introduced. In addition, a new action `GET_QUOTA_WITH_ROLE` and a new ACL `get_quotas` have been added; these control which principals are allowed to query quota information for which roles. These changes affect the `--acls` flag for the local authorizer in the following ways:
+* The `SetQuota` and `RemoveQuota` ACLs have been deprecated. To replace these, a new ACL `UpdateQuota` have been introduced. In addition, a new ACL `GetQuota` have been added; these control which principals are allowed to query quota information for which roles. These changes affect the `--acls` flag for the local authorizer in the following ways:
   * The `update_quotas` ACL cannot be used in combination with either the `set_quotas` or `remove_quotas` ACL. The local authorizor will produce an error in such a case;
   * When upgrading a Mesos cluster that uses the `set_quotas` or `remove_quotas` ACLs, the operator should first upgrade the Mesos binaries. At this point, the deprecated ACLs will still be enforced. After the upgrade has been verified, the operator should replace deprecated values for `set_quotas` and `remove_quotas` with equivalent values for `update_quotas`;
   * If desired, the operator can use the `get_quotas` ACL after the upgrade to control which principals are allowed to query quota information.
