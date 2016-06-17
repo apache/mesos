@@ -1246,6 +1246,9 @@ private:
 
     mesos::maintenance::Schedule _getMaintenanceSchedule() const;
 
+    process::Future<mesos::maintenance::ClusterStatus>
+      _getMaintenanceStatus() const;
+
     /**
      * Continuation for operations: /reserve, /unreserve,
      * /create-volumes and /destroy-volumes. First tries to recover
@@ -1328,6 +1331,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMaintenanceSchedule(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> getMaintenanceStatus(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;

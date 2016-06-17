@@ -456,6 +456,20 @@ v1::executor::Event evolve(const ShutdownExecutorMessage&)
 }
 
 
+v1::master::Response evolve(const maintenance::ClusterStatus& status)
+{
+  v1::master::Response response;
+  response.set_type(v1::master::Response::GET_MAINTENANCE_STATUS);
+
+  v1::master::Response::GetMaintenanceStatus* maintenanceStatus =
+      response.mutable_get_maintenance_status();
+  maintenanceStatus->mutable_status()->CopyFrom(
+      evolve<v1::maintenance::ClusterStatus>(status));
+
+  return response;
+}
+
+
 v1::master::Response evolve(const maintenance::Schedule& schedule)
 {
   v1::master::Response response;

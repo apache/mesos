@@ -135,6 +135,7 @@ v1::master::Response evolve(const JSON::Object& object);
 
 // Helper functions that evolve old style internal messages to a
 // v1::master::Response.
+v1::master::Response evolve(const mesos::maintenance::ClusterStatus& status);
 v1::master::Response evolve(const mesos::maintenance::Schedule& schedule);
 
 
