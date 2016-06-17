@@ -167,6 +167,8 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp
   slave/containerizer/mesos/isolators/filesystem/linux.cpp
   slave/containerizer/mesos/isolators/filesystem/shared.cpp
+  slave/containerizer/mesos/isolators/gpu/nvidia.cpp
+  slave/containerizer/mesos/isolators/gpu/nvml.cpp
   slave/containerizer/mesos/isolators/namespaces/pid.cpp
   slave/containerizer/mesos/isolators/network/cni/cni.cpp
   slave/containerizer/mesos/provisioner/backends/aufs.cpp
