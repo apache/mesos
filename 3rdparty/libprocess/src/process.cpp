@@ -358,29 +358,29 @@ private:
       Socket* socket,
       Message* message);
 
-  // Collection of all active sockets.
+  // Collection of all active sockets (both inbound and outbound).
   map<int, Socket*> sockets;
 
   // Collection of sockets that should be disposed when they are
   // finished being used (e.g., when there is no more data to send on
-  // them).
+  // them). Can contain both inbound and outbound sockets.
   set<int> dispose;
 
-  // Map from socket to socket address (ip, port).
+  // Map from socket to socket address for outbound sockets.
   map<int, Address> addresses;
 
-  // Maps from socket address (ip, port) to temporary sockets (i.e.,
-  // they will get closed once there is no more data to send on them).
+  // Map from socket address to temporary sockets (outbound sockets
+  // that will be closed once there is no more data to send on them).
   map<Address, int> temps;
 
-  // Maps from socket address (ip, port) to persistent sockets (i.e., they will
-  // remain open even if there is no more data to send on them).  We
-  // distinguish these from the 'temps' collection so we can tell when
-  // a persistent socket has been lost (and thus generate
-  // ExitedEvents).
+  // Map from socket address (ip, port) to persistent sockets
+  // (outbound sockets that will remain open even if there is no more
+  // data to send on them).  We distinguish these from the 'temps'
+  // collection so we can tell when a persistent socket has been lost
+  // (and thus generate ExitedEvents).
   map<Address, int> persists;
 
-  // Map from socket to outgoing queue.
+  // Map from outbound socket to outgoing queue.
   map<int, queue<Encoder*>> outgoing;
 
   // HTTP proxies.
