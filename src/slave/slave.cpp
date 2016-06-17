@@ -776,8 +776,13 @@ void Slave::initialize()
           return http.containers(request, principal);
         });
 
-  auto authorize = [this](const Option<string>& principal) {
-    return authorizeLogAccess(principal);
+  const PID<Slave> slavePid = self();
+
+  auto authorize = [slavePid](const Option<string>& principal) {
+    return dispatch(
+        slavePid,
+        &Slave::authorizeLogAccess,
+        principal);
   };
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
@@ -5734,10 +5739,12 @@ Executor* Framework::launchExecutor(
   ExecutorID executorId = executorInfo.executor_id();
   FrameworkID frameworkId = id();
 
+  const PID<Slave> slavePid = slave->self();
+
   auto authorize =
-    [this, executorId, frameworkId](const Option<string>& principal) {
+    [slavePid, executorId, frameworkId](const Option<string>& principal) {
       return dispatch(
-          slave,
+          slavePid,
           &Slave::authorizeSandboxAccess,
           principal,
           frameworkId,
@@ -5936,10 +5943,12 @@ void Framework::recoverExecutor(const ExecutorState& state)
   ExecutorID executorId = state.id;
   FrameworkID frameworkId = id();
 
+  const PID<Slave> slavePid = slave->self();
+
   auto authorize =
-    [this, executorId, frameworkId](const Option<string>& principal) {
+    [slavePid, executorId, frameworkId](const Option<string>& principal) {
       return dispatch(
-          slave,
+          slavePid,
           &Slave::authorizeSandboxAccess,
           principal,
           frameworkId,
