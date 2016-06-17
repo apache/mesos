@@ -668,7 +668,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case mesos::master::Call::UPDATE_MAINTENANCE_SCHEDULE:
-      return NotImplemented();
+      return updateMaintenanceSchedule(call, principal, acceptType);
 
     case mesos::master::Call::START_MAINTENANCE:
       return NotImplemented();
@@ -2830,48 +2830,11 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
 }
 
 
-// /master/maintenance/schedule endpoint handler.
-Future<Response> Master::Http::maintenanceSchedule(
-    const Request& request,
-    const Option<string>& /*principal*/) const
+Future<Response> Master::Http::_updateMaintenanceSchedule(
+    const mesos::maintenance::Schedule& schedule) const
 {
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "GET" && request.method != "POST") {
-    return MethodNotAllowed({"GET", "POST"}, request.method);
-  }
-
-  // JSON-ify and return the current maintenance schedule.
-  if (request.method == "GET") {
-    // TODO(josephw): Return more than one schedule.
-    const mesos::maintenance::Schedule schedule =
-      master->maintenance.schedules.empty() ?
-        mesos::maintenance::Schedule() :
-        master->maintenance.schedules.front();
-
-    return OK(JSON::protobuf(schedule), request.url.query.get("jsonp"));
-  }
-
-  // Parse the POST body as JSON.
-  Try<JSON::Object> jsonSchedule = JSON::parse<JSON::Object>(request.body);
-  if (jsonSchedule.isError()) {
-    return BadRequest(jsonSchedule.error());
-  }
-
-  // Convert the schedule to a protobuf.
-  Try<mesos::maintenance::Schedule> protoSchedule =
-    ::protobuf::parse<mesos::maintenance::Schedule>(jsonSchedule.get());
-
-  if (protoSchedule.isError()) {
-    return BadRequest(protoSchedule.error());
-  }
-
   // Validate that the schedule only transitions machines between
   // `UP` and `DRAINING` modes.
-  mesos::maintenance::Schedule schedule = protoSchedule.get();
   Try<Nothing> isValid = maintenance::validation::schedule(
       schedule,
       master->machines);
@@ -2954,6 +2917,64 @@ Future<Response> Master::Http::maintenanceSchedule(
 
       return OK();
     }));
+}
+
+
+// /master/maintenance/schedule endpoint handler.
+Future<Response> Master::Http::maintenanceSchedule(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "GET" && request.method != "POST") {
+    return MethodNotAllowed({"GET", "POST"}, request.method);
+  }
+
+  // JSON-ify and return the current maintenance schedule.
+  if (request.method == "GET") {
+    // TODO(josephw): Return more than one schedule.
+    const mesos::maintenance::Schedule schedule =
+      master->maintenance.schedules.empty() ?
+        mesos::maintenance::Schedule() :
+        master->maintenance.schedules.front();
+
+    return OK(JSON::protobuf(schedule), request.url.query.get("jsonp"));
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Object> jsonSchedule = JSON::parse<JSON::Object>(request.body);
+  if (jsonSchedule.isError()) {
+    return BadRequest(jsonSchedule.error());
+  }
+
+  // Convert the schedule to a protobuf.
+  Try<mesos::maintenance::Schedule> protoSchedule =
+    ::protobuf::parse<mesos::maintenance::Schedule>(jsonSchedule.get());
+
+  if (protoSchedule.isError()) {
+    return BadRequest(protoSchedule.error());
+  }
+
+  return _updateMaintenanceSchedule(protoSchedule.get());
+}
+
+
+Future<Response> Master::Http::updateMaintenanceSchedule(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::UPDATE_MAINTENANCE_SCHEDULE, call.type());
+  CHECK(call.has_update_maintenance_schedule());
+
+  mesos::maintenance::Schedule schedule =
+    call.update_maintenance_schedule().schedule();
+
+  return _updateMaintenanceSchedule(schedule);
 }
 
 

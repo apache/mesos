@@ -1241,6 +1241,9 @@ private:
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;
 
+    process::Future<process::http::Response> _updateMaintenanceSchedule(
+        const mesos::maintenance::Schedule& schedule) const;
+
     /**
      * Continuation for operations: /reserve, /unreserve,
      * /create-volumes and /destroy-volumes. First tries to recover
@@ -1313,6 +1316,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> getLeadingMaster(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> updateMaintenanceSchedule(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
