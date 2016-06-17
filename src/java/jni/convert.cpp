@@ -140,34 +140,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved)
     mesosClassLoader = env->NewWeakGlobalRef(classLoader);
   }
 
-  // Check that we are loading the correct version of the native library.
-  jclass clazz = FindMesosClass(env, "org/apache/mesos/MesosNativeLibrary");
-  jobject jVERSION = env->GetStaticObjectField(
-      clazz, env->GetStaticFieldID(clazz, "VERSION", "Ljava/lang/String;"));
-
-  const string& jarVersion = construct<string>(env, jVERSION);
-
-  const string jarMajorVersion = strings::split(jarVersion, ".")[0];
-  const string nativeMajorVersion = strings::split(MESOS_VERSION, ".")[0];
-
-  if (jarMajorVersion != nativeMajorVersion) {
-    env->DeleteWeakGlobalRef(mesosClassLoader);
-    mesosClassLoader = nullptr;
-    const string& error =
-      "Mesos JAR version " + jarVersion +
-      " is not backwards compatible with Mesos native library version " +
-      MESOS_VERSION;
-    clazz = env->FindClass("java/lang/UnsatisfiedLinkError");
-    env->ThrowNew(clazz, error.c_str());
-    return JNI_ERR;
-  }
-
   // Set the 'loaded' property so we don't try and load it again. This
   // is necessary because a native library can be loaded either with
   // 'System.load' or 'System.loadLibrary' and while redundant calls
   // to 'System.loadLibrary' will be ignored one call of each could
   // cause an error.
-  clazz = FindMesosClass(env, "org/apache/mesos/MesosNativeLibrary");
+  jclass clazz = FindMesosClass(env, "org/apache/mesos/MesosNativeLibrary");
   jfieldID loaded = env->GetStaticFieldID(clazz, "loaded", "Z");
   env->SetStaticBooleanField(clazz, loaded, (jboolean) true);
 
