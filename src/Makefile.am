@@ -690,6 +690,7 @@ nodist_v1executor_HEADERS =						\
 v1maintenancedir = $(pkgincludedir)/v1/maintenance
 
 v1maintenance_HEADERS =							\
+  $(top_srcdir)/include/mesos/v1/maintenance/maintenance.hpp		\
   $(top_srcdir)/include/mesos/v1/maintenance/maintenance.proto
 
 nodist_v1maintenance_HEADERS =						\
