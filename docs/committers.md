@@ -106,7 +106,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Dave Lester</td>
-      <td>Twitter</td>
+      <td>Apple</td>
       <td>dlester</td>
       <td>dlester@apache.org</td>
     </tr>
@@ -174,6 +174,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>mpark@apache.org</td>
     </tr>
     <tr>
+      <td>+1</td>
+      <td>Alex R</td>
+      <td>Mesosphere</td>
+      <td>alexr</td>
+      <td>alexr@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Charles Reiss</td>
       <td>UC Berkeley</td>
@@ -188,20 +195,6 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>joris@apache.org</td>
     </tr>
     <tr>
-      <td>-8</td>
-      <td>Joseph Wu</td>
-      <td>Mesosphere</td>
-      <td></td>
-      <td>josephwu@apache.org</td>
-    </tr>
-    <tr>
-      <td>+1</td>
-      <td>Alex R</td>
-      <td>Mesosphere</td>
-      <td>alexr</td>
-      <td>alexr@apache.org</td>
-    </tr>
-    <tr>
       <td>-5</td>
       <td>Timothy St Clair</td>
       <td>Redhat</td>
@@ -209,7 +202,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>tstclair@apache.org</td>
     </tr>
     <tr>
-      <td>+2</td>
+      <td>+1</td>
       <td>Till Toenshoff</td>
       <td>Mesosphere</td>
       <td>tillt</td>
@@ -224,8 +217,15 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Joseph Wu</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>josephwu@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Yan Xu</td>
-      <td>Twitter</td>
+      <td>Apple</td>
       <td>xujyan</td>
       <td>yan@apache.org</td>
     </tr>
