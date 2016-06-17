@@ -55,6 +55,29 @@ struct GenericACL
   ACL::Entity objects;
 };
 
+
+// TODO(mpark): This class exists to optionally carry `ACL::SetQuota` and
+// `ACL::RemoveQuota` ACLs. This is a hack to support the deprecation cycle for
+// `ACL::SetQuota` and `ACL::RemoveQuota`. This can be removed / replaced with
+// `vector<GenericACL>` at the end of deprecation cycle which started with 1.0.
+struct GenericACLs
+{
+  GenericACLs(const vector<GenericACL>& acls_) : acls(acls_) {}
+
+  GenericACLs(
+      const vector<GenericACL>& acls_,
+      const vector<GenericACL>& set_quotas_,
+      const vector<GenericACL>& remove_quotas_)
+    : acls(acls_), set_quotas(set_quotas_), remove_quotas(remove_quotas_) {}
+
+  vector<GenericACL> acls;
+
+  // These ACLs are set iff the authorization action is `UPDATE_QUOTA`.
+  Option<vector<GenericACL>> set_quotas;
+  Option<vector<GenericACL>> remove_quotas;
+};
+
+
 // Match matrix:
 //
 //                  -----------ACL----------
@@ -167,7 +190,7 @@ class LocalAuthorizerObjectApprover : public ObjectApprover
 {
 public:
   LocalAuthorizerObjectApprover(
-      const vector<GenericACL>& acls,
+      const GenericACLs& acls,
       const Option<authorization::Subject>& subject,
       const authorization::Action& action,
       const bool permissive)
@@ -202,9 +225,6 @@ public:
         case authorization::CREATE_VOLUME_WITH_ROLE:
         case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
         case authorization::GET_QUOTA_WITH_ROLE:
-        case authorization::UPDATE_QUOTA_WITH_ROLE:
-        case authorization::SET_QUOTA_WITH_ROLE:
-        case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
         case authorization::GET_WEIGHT_WITH_ROLE:
         case authorization::UPDATE_WEIGHT_WITH_ROLE:
         case authorization::GET_ENDPOINT_WITH_PATH: {
@@ -248,6 +268,39 @@ public:
             aclObject.add_values(object->framework_info->user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
           }
+
+          break;
+        }
+        case authorization::UPDATE_QUOTA: {
+          // Check object has the required types set.
+          CHECK_NOTNULL(object->quota_info);
+
+          // TODO(mpark): This is a hack to support the deprecation cycle for
+          // `ACL::SetQuota` and `ACL::RemoveQuota`. This block of code can be
+          // removed at the end of deprecation cycle which started with 1.0.
+          if (acls_.set_quotas->size() > 0 || acls_.remove_quotas->size() > 0) {
+            CHECK_NOTNULL(object->value);
+            if (*object->value == "SetQuota") {
+              aclObject.add_values(object->quota_info->role());
+              aclObject.set_type(mesos::ACL::Entity::SOME);
+
+              CHECK_SOME(acls_.set_quotas);
+              return approved(acls_.set_quotas.get(), aclSubject, aclObject);
+            } else if (*object->value == "RemoveQuota") {
+              if (object->quota_info->has_principal()) {
+                aclObject.add_values(object->quota_info->principal());
+                aclObject.set_type(mesos::ACL::Entity::SOME);
+              } else {
+                aclObject.set_type(mesos::ACL::Entity::ANY);
+              }
+
+              CHECK_SOME(acls_.remove_quotas);
+              return approved(acls_.remove_quotas.get(), aclSubject, aclObject);
+            }
+          }
+
+          aclObject.add_values(object->quota_info->role());
+          aclObject.set_type(mesos::ACL::Entity::SOME);
 
           break;
         }
@@ -313,7 +366,7 @@ public:
       }
     }
 
-    return approved(acls_, aclSubject, aclObject);
+    return approved(acls_.acls, aclSubject, aclObject);
   }
 
 private:
@@ -332,7 +385,7 @@ private:
     return permissive_; // None of the ACLs match.
   }
 
-  const vector<GenericACL> acls_;
+  const GenericACLs acls_;
   const Option<authorization::Subject> subject_;
   const authorization::Action action_;
   const bool permissive_;
@@ -351,7 +404,7 @@ public:
     // deprecation cycle which started with 1.0.
     if (acls.set_quotas_size() > 0 ||
         acls.remove_quotas_size() > 0) {
-      LOG(WARNING) << "SetQuota and RemoveQuota ACLs are deprecacted; "
+      LOG(WARNING) << "SetQuota and RemoveQuota ACLs are deprecated; "
                    << "please use UpdateQuota";
     }
 
@@ -413,7 +466,7 @@ public:
     };
 
     // Generate GenericACLs.
-    Result<vector<GenericACL>> genericACLs = createGenericACLs(action, acls);
+    Result<GenericACLs> genericACLs = createGenericACLs(action, acls);
     if (genericACLs.isError()) {
       return Failure(genericACLs.error());
     }
@@ -429,7 +482,7 @@ public:
   }
 
 private:
-  static Result<vector<GenericACL>> createGenericACLs(
+  static Result<GenericACLs> createGenericACLs(
       const authorization::Action& action,
       const ACLs& acls)
   {
@@ -527,27 +580,7 @@ private:
 
         return acls_;
         break;
-      case authorization::UPDATE_QUOTA_WITH_ROLE:
-        // Deprecation case: If `update_quotas` is empty but
-        // `set_quotas` or `remove_quotas` are not, "skip"
-        // authorization here under assumption that the caller,
-        // i.e., `QuotaHandler`, checks `set_quotas`/`remove_quotas`.
-        //
-        // TODO(zhitao): Remove this special case at the end
-        // of the deprecation cycle which started with 1.0.
-        if (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0) {
-          CHECK(acls.update_quotas_size() == 0);
-
-          // TODO(joerg): This is a hack to support the quota behavior.
-          // Remove this once we remove the `SET_QUOTA_WITH_ROLE` and
-          // `REMOVE_QUOTA_WITH_PRINCIPAL` actions.
-          GenericACL acl_;
-          acl_.subjects.set_type(ACL::Entity::ANY);
-          acl_.objects.set_type(ACL::Entity::ANY);
-
-          acls_.push_back(acl_);
-        }
-
+      case authorization::UPDATE_QUOTA: {
         foreach (const ACL::UpdateQuota& acl, acls.update_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -556,59 +589,27 @@ private:
           acls_.push_back(acl_);
         }
 
-        return acls_;
-        break;
-
-      // TODO(zhitao): Remove the following two cases at the end
-      // of the deprecation cycle which started with 1.0.
-      case authorization::SET_QUOTA_WITH_ROLE:
-        if (acls.update_quotas_size() > 0) {
-          CHECK(acls.set_quotas_size() == 0);
-
-          // TODO(joerg): This is a hack to support the quota behavior.
-          // Remove this once we remove the `SET_QUOTA_WITH_ROLE` and
-          // `REMOVE_QUOTA_WITH_PRINCIPAL` actions.
-          GenericACL acl_;
-          acl_.subjects.set_type(ACL::Entity::ANY);
-          acl_.objects.set_type(ACL::Entity::ANY);
-
-          acls_.push_back(acl_);
-        }
-
+        vector<GenericACL> set_quotas;
         foreach (const ACL::SetQuota& acl, acls.set_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.roles();
 
-          acls_.push_back(acl_);
+          set_quotas.push_back(acl_);
         }
 
-        return acls_;
-        break;
-      case authorization::DESTROY_QUOTA_WITH_PRINCIPAL:
-        if (acls.update_quotas_size() > 0) {
-          CHECK(acls.remove_quotas_size() == 0);
-
-          // TODO(joerg): This is a hack to support the quota behavior.
-          // Remove this once we remove the `SET_QUOTA_WITH_ROLE` and
-          // `REMOVE_QUOTA_WITH_PRINCIPAL` actions.
-          GenericACL acl_;
-          acl_.subjects.set_type(ACL::Entity::ANY);
-          acl_.objects.set_type(ACL::Entity::ANY);
-
-          acls_.push_back(acl_);
-        }
-
+        vector<GenericACL> remove_quotas;
         foreach (const ACL::RemoveQuota& acl, acls.remove_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.quota_principals();
 
-          acls_.push_back(acl_);
+          remove_quotas.push_back(acl_);
         }
 
-        return acls_;
+        return GenericACLs(acls_, set_quotas, remove_quotas);
         break;
+      }
       case authorization::GET_WEIGHT_WITH_ROLE:
         foreach (const ACL::GetWeight& acl, acls.get_weights()) {
           GenericACL acl_;
@@ -799,9 +800,12 @@ process::Future<bool> LocalAuthorizer::authorized(
   CHECK(
     !request.has_object() ||
     (request.has_object() &&
-     (request.object().has_value() || request.object().has_framework_info() ||
-      request.object().has_task() || request.object().has_task_info() ||
-      request.object().has_executor_info())));
+     (request.object().has_value() ||
+      request.object().has_framework_info() ||
+      request.object().has_task() ||
+      request.object().has_task_info() ||
+      request.object().has_executor_info() ||
+      request.object().has_quota_info())));
 
   typedef Future<bool> (LocalAuthorizerProcess::*F)(
       const authorization::Request&);
