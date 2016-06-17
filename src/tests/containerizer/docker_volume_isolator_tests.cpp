@@ -46,10 +46,10 @@ using std::vector;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::Launcher;
 using mesos::internal::slave::DockerRuntimeIsolatorProcess;
 using mesos::internal::slave::DockerVolumeIsolatorProcess;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::Launcher;
 using mesos::internal::slave::LinuxFilesystemIsolatorProcess;
 using mesos::internal::slave::LinuxLauncher;
 using mesos::internal::slave::MesosContainerizer;
