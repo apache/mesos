@@ -13,10 +13,10 @@
     <tr>
       <th data-key="id">ID</th>
       <th data-key="hostname">Host</th>
-      <th data-key="resources.cpus">CPUs</th>
-      <th data-key="resources.gpus">GPUs</th>
-      <th data-key="resources.mem">Mem</th>
-      <th data-key="resources.disk">Disk</th>
+      <th data-key="resources.cpus">CPUs (Allocated / Total)</th>
+      <th data-key="resources.gpus">GPUs (Allocated / Total)</th>
+      <th data-key="resources.mem">Mem (Allocated / Total)</th>
+      <th data-key="resources.disk">Disk (Allocated / Total)</th>
       <th data-key="registered_time">Registered</th>
       <th data-key="reregistered_time">Re-Registered</th>
     </tr>
@@ -34,12 +34,19 @@
       </button>
     </td>
     <td>{{agent.hostname}}</td>
-    <td>{{agent.resources.cpus | number}}</td>
-    <td>{{agent.resources.gpus | number}}</td>
-    <td>{{agent.resources.mem * (1024 * 1024) | dataSize}}</td>
-    <td>{{agent.resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>
-
+      {{agent.used_resources.cpus | number}} / {{agent.resources.cpus | number}}
+    </td>
+    <td>
+      {{agent.used_resources.gpus | number}} / {{agent.resources.gpus | number}}
+    </td>
+    <td>
+      {{agent.used_resources.mem * (1024 * 1024) | dataSize}} / {{agent.resources.mem * (1024 * 1024) | dataSize}}
+    </td>
+    <td>
+      {{agent.used_resources.disk * (1024 * 1024) | dataSize}} / {{agent.resources.disk * (1024 * 1024) | dataSize}}
+    </td>
+    <td>
       <m-timestamp value="{{agent.registered_time * 1000}}"></m-timestamp>
     </td>
     <td>
