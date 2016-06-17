@@ -389,6 +389,71 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
 }
 
 
+// Test queries for machine maintenance status.
+TEST_P(MasterAPITest, GetMaintenanceStatus)
+{
+  // Set up a master.
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  ContentType contentType = GetParam();
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  // Generate `MachineID`s that can be used in this test.
+  MachineID machine1;
+  MachineID machine2;
+  machine1.set_hostname("Machine1");
+  machine2.set_ip("0.0.0.2");
+
+  // Try to schedule maintenance on an unscheduled machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, createUnavailability(Clock::now()))});
+  v1::maintenance::Schedule v1Schedule =
+    evolve<v1::maintenance::Schedule>(schedule);
+
+  v1::master::Call v1UpdateScheduleCall;
+  v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
+  v1::master::Call_UpdateMaintenanceSchedule* maintenanceSchedule =
+    v1UpdateScheduleCall.mutable_update_maintenance_schedule();
+  maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
+
+  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1UpdateScheduleCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1UpdateScheduleResponse);
+
+  // Query maintenance status.
+  v1::master::Call v1GetStatusCall;
+  v1GetStatusCall.set_type(v1::master::Call::GET_MAINTENANCE_STATUS);
+
+  Future<v1::master::Response> v1GetStatusResponse =
+    post(master.get()->pid, v1GetStatusCall, contentType);
+
+  AWAIT_READY(v1GetStatusResponse);
+  ASSERT_TRUE(v1GetStatusResponse.get().IsInitialized());
+  ASSERT_EQ(
+      v1::master::Response::GET_MAINTENANCE_STATUS,
+      v1GetStatusResponse.get().type());
+
+  // Verify maintenance status matches the expectation.
+  v1::maintenance::ClusterStatus status =
+    v1GetStatusResponse.get().get_maintenance_status().status();
+  ASSERT_EQ(2, status.draining_machines().size());
+  ASSERT_EQ(0, status.down_machines().size());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>
