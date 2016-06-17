@@ -30,6 +30,7 @@ message ACL {
   // NOTE:
   // To allow everyone access to an Entity set its type to 'ANY'.
   // To deny access to an Entity set its type to 'NONE'.
+  // Entities in the messages should be 'required'.
   message Entity {
     enum Type {
       SOME = 0;
@@ -124,7 +125,7 @@ message ACL {
     required Entity principals = 1;
 
     // Objects: The list of roles whose quotas can be seen.
-    optional Entity roles = 2;
+    required Entity roles = 2;
   }
 
   // Which principals are authorized to update quotas for the given roles.
@@ -133,7 +134,7 @@ message ACL {
     required Entity principals = 1;
 
     // Objects: The list of roles whose quotas can be updated.
-    optional Entity roles = 2;
+    required Entity roles = 2;
   }
 
   // Which principals are authorized to set quotas for given roles.
@@ -166,7 +167,7 @@ message ACL {
     required Entity principals = 1;
 
     // Objects: The list of roles whose weights can be seen.
-    optional Entity roles = 2;
+    required Entity roles = 2;
   }
 
   // Which principals are authorized to update weights for the given roles.
@@ -175,7 +176,7 @@ message ACL {
     required Entity principals = 1;
 
     // Objects: The list of roles whose weight can be updated.
-    optional Entity roles = 2;
+    required Entity roles = 2;
   }
 
   // Which principals are authorized to GET HTTP endpoints at the given paths.
@@ -184,7 +185,7 @@ message ACL {
     required Entity principals = 1;
 
     // Objects: The list of paths that can be retrieved.
-    optional Entity paths = 2;
+    required Entity paths = 2;
   }
 
   // Which principals are authorized to view framework information for
@@ -195,7 +196,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // frameworks can be viewed.
-    optional Entity users = 2;
+    required Entity users = 2;
   }
 
   // Which principals are authorized to view task information for tasks
@@ -206,7 +207,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // tasks can be viewed.
-    optional Entity users = 2;
+    required Entity users = 2;
   }
 
   // Which principals are authorized to view executor information for executors
@@ -217,7 +218,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // executors can be viewed.
-    optional Entity users = 2;
+    required Entity users = 2;
   }
 
   // Which principals are authorized to access the sandboxes of executors
@@ -228,7 +229,7 @@ message ACL {
 
     // Objects: The list of operating system users (e.g., linux users) whose
     // executors/tasks sandboxes can be accessed.
-    optional Entity users = 2;
+    required Entity users = 2;
   }
 
   // Which principals are authorized to access the Mesos logs.
@@ -238,7 +239,7 @@ message ACL {
 
     // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
     // access.
-    optional Entity logs = 2;
+    required Entity logs = 2;
   }
 }
 
