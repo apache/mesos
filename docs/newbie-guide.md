@@ -106,7 +106,7 @@ After completing the solution review make the source code changes, build and suc
 When creating and running test cases pay particular attention to race conditions. One recommendation is to run system tests multiple times.  Below is a sample command to repeat the test 100 times.
 
 
-    sudo GLOG_v=1 ./bin/mesos-tests.sh --verbose --gtest_filter=”*DOCKER*” --break-on-error --gtest_shuffle --gtest_repeat=100
+    sudo GLOG_v=1 ./bin/mesos-tests.sh --verbose --gtest_filter="*DOCKER*" --break-on-error --gtest_shuffle --gtest_repeat=100
 
 ## Submit a Patch to the Review Board
 
@@ -123,7 +123,7 @@ As you gain experience contributing to Mesos you may want to tackle more advance
 # FAQs
 
 Q: Where can I find documentation about Mesos?
-A: Mesos documentation is located in the ‘docs’ directory of the Mesos distribution. This documentation includes information about Mesos architecture and design, running Mesos, developing within the Mesos ecosystem and contributing to Mesos. Additionally, the latest documentation can be found here:
+A: Mesos documentation is located in the 'docs' directory of the Mesos distribution. This documentation includes information about Mesos architecture and design, running Mesos, developing within the Mesos ecosystem and contributing to Mesos. Additionally, the latest documentation can be found here:
 [http://mesos.apache.org/documentation/latest/index.html](http://mesos.apache.org/documentation/latest/index.html)
 
 
