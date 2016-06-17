@@ -126,8 +126,8 @@ Future<http::Response> Master::WeightsHandler::update(
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(request.body);
   if (parse.isError()) {
     return BadRequest(
-        "Failed to parse update weights request JSON ('" +
-        request.body + "'): " + parse.error());
+        "Failed to parse update weights request JSON '" +
+        request.body + "': " + parse.error());
   }
 
   // Create Protobuf representation of weights.
@@ -136,8 +136,8 @@ Future<http::Response> Master::WeightsHandler::update(
 
   if (weightInfos.isError()) {
     return BadRequest(
-        "Failed to convert weights JSON array to protobuf ('" +
-        request.body + "'): " + weightInfos.error());
+        "Failed to convert weights JSON array to protobuf '" +
+        request.body + "': " + weightInfos.error());
   }
 
   vector<WeightInfo> validatedWeightInfos;
