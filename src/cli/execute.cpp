@@ -54,6 +54,8 @@ using std::queue;
 using std::string;
 using std::vector;
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::internal::devolve;
 
 using mesos::v1::AgentID;
@@ -72,6 +74,7 @@ using mesos::v1::TaskID;
 using mesos::v1::TaskInfo;
 using mesos::v1::TaskState;
 using mesos::v1::TaskStatus;
+using mesos::v1::Volume;
 
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
@@ -182,6 +185,38 @@ public:
     add(&secret,
         "secret",
         "The secret to use for framework authentication.");
+
+    add(&volumes,
+        "volumes",
+        "The value could be a JSON-formatted string of volumes or a\n"
+        "file path containing the JSON-formatted volumes. Path must\n"
+        "be of the form `file:///path/to/file` or `/path/to/file`.\n"
+        "\n"
+        "See the `Volume` message in `mesos.proto` for the expected format.\n"
+        "\n"
+        "Example:\n"
+        "[\n"
+        "  {\n"
+        "    \"container_path\":\"/path/to/container\"\n"
+        "    \"mode\":\"RW\"\n"
+        "    \"source\":\n"
+        "    {\n"
+        "      \"docker_volume\":\n"
+        "        {\n"
+        "          \"driver\": \"volume_driver\",\n"
+        "          \"docker_options\":\n"
+        "            {\"parameter\":[\n"
+        "              {\n"
+        "                \"key\": \"key\",\n"
+        "                \"value\": \"value\"\n"
+        "              }\n"
+        "            ]},\n"
+        "            \"name\": \"volume_name\"\n"
+        "        },\n"
+        "      \"type\": \"DOCKER_VOLUME\"\n"
+        "    }\n"
+        "  }\n"
+        "]");
   }
 
   Option<string> master;
@@ -197,6 +232,7 @@ public:
   bool checkpoint;
   Option<string> appc_image;
   Option<string> docker_image;
+  Option<JSON::Array> volumes;
   string containerizer;
   string role;
   Option<Duration> kill_after;
@@ -220,6 +256,7 @@ public:
       const Option<string>& _uri,
       const Option<string>& _appcImage,
       const Option<string>& _dockerImage,
+      const vector<Volume>& _volumes,
       const string& _containerizer,
       const Option<Duration>& _killAfter,
       const Option<string>& _networks,
@@ -235,6 +272,7 @@ public:
       uri(_uri),
       appcImage(_appcImage),
       dockerImage(_dockerImage),
+      volumes(_volumes),
       containerizer(_containerizer),
       killAfter(_killAfter),
       networks(_networks),
@@ -528,10 +566,15 @@ private:
 
     ContainerInfo containerInfo;
 
+    foreach (const Volume& volume, volumes) {
+      containerInfo.add_volumes()->CopyFrom(volume);
+    }
+
     // Mesos containerizer supports 'appc' and 'docker' images.
     if (containerizer == "mesos") {
       if (dockerImage.isNone() && appcImage.isNone() &&
-          (networks.isNone() || networks->empty())) {
+          (networks.isNone() || networks->empty()) &&
+          volumes.empty()) {
         return None();
       }
 
@@ -612,6 +655,7 @@ private:
   const Option<string> uri;
   const Option<string> appcImage;
   const Option<string> dockerImage;
+  const vector<Volume> volumes;
   const string containerizer;
   const Option<Duration> killAfter;
   const Option<string> networks;
@@ -756,6 +800,22 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  vector<Volume> volumes;
+  if (flags.volumes.isSome()) {
+    Try<RepeatedPtrField<Volume>> _volumes =
+      ::protobuf::parse<RepeatedPtrField<Volume>>(flags.volumes.get());
+
+    if (_volumes.isError()) {
+      cerr << "Failed to convert '--volumes' to protobuf: "
+           << _volumes.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    foreach (const Volume& volume, _volumes.get()) {
+      volumes.push_back(volume);
+    }
+  }
+
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_user(user.get());
   frameworkInfo.set_name("mesos-execute instance");
@@ -789,6 +849,7 @@ int main(int argc, char** argv)
         uri,
         appcImage,
         dockerImage,
+        volumes,
         flags.containerizer,
         flags.kill_after,
         flags.networks,
