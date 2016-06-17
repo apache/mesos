@@ -454,6 +454,125 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
 }
 
 
+// Test start machine maintenance and stop machine maintenance APIs.
+// In this test case, we start maintenance on a machine and stop maintenance,
+// and then verify that the associated maintenance window disappears.
+TEST_P(MasterAPITest, StartAndStopMaintenance)
+{
+  // Set up a master.
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  ContentType contentType = GetParam();
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  // Generate `MachineID`s that can be used in this test.
+  MachineID machine1;
+  MachineID machine2;
+  MachineID machine3;
+  machine1.set_hostname("Machine1");
+  machine2.set_ip("0.0.0.2");
+  machine3.set_hostname("Machine3");
+  machine3.set_ip("0.0.0.3");
+
+  // Try to schedule maintenance on unscheduled machines.
+  Unavailability unavailability = createUnavailability(Clock::now());
+  maintenance::Schedule schedule = createSchedule({
+      createWindow({machine1, machine2}, unavailability),
+      createWindow({machine3}, unavailability)
+  });
+  v1::maintenance::Schedule v1Schedule =
+    evolve<v1::maintenance::Schedule>(schedule);
+
+  v1::master::Call v1UpdateScheduleCall;
+  v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
+  v1::master::Call_UpdateMaintenanceSchedule* maintenanceSchedule =
+    v1UpdateScheduleCall.mutable_update_maintenance_schedule();
+  maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
+
+  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1UpdateScheduleCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1UpdateScheduleResponse);
+
+  // Start maintenance on machine3.
+  v1::master::Call v1StartMaintenanceCall;
+  v1StartMaintenanceCall.set_type(v1::master::Call::START_MAINTENANCE);
+  v1::master::Call_StartMaintenance* startMaintenance =
+    v1StartMaintenanceCall.mutable_start_maintenance();
+  startMaintenance->add_machines()->CopyFrom(evolve<v1::MachineID>(machine3));
+
+  Future<Nothing> v1StartMaintenanceResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1StartMaintenanceCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1StartMaintenanceResponse);
+
+  // Stop maintenance on machine3.
+  v1::master::Call v1StopMaintenanceCall;
+  v1StopMaintenanceCall.set_type(v1::master::Call::STOP_MAINTENANCE);
+  v1::master::Call_StopMaintenance* stopMaintenance =
+    v1StopMaintenanceCall.mutable_stop_maintenance();
+  stopMaintenance->add_machines()->CopyFrom(evolve<v1::MachineID>(machine3));
+
+  Future<Nothing> v1StopMaintenanceResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1StopMaintenanceCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1StopMaintenanceResponse);
+
+  // Query maintenance schedule.
+  v1::master::Call v1GetScheduleCall;
+  v1GetScheduleCall.set_type(v1::master::Call::GET_MAINTENANCE_SCHEDULE);
+
+  Future<v1::master::Response> v1GetScheduleResponse =
+    post(master.get()->pid, v1GetScheduleCall, contentType);
+
+  AWAIT_READY(v1GetScheduleResponse);
+  ASSERT_TRUE(v1GetScheduleResponse.get().IsInitialized());
+  ASSERT_EQ(
+      v1::master::Response::GET_MAINTENANCE_SCHEDULE,
+      v1GetScheduleResponse.get().type());
+
+  // Check that only one maintenance window remains.
+  v1::maintenance::Schedule respSchedule =
+    v1GetScheduleResponse.get().get_maintenance_schedule().schedule();
+  ASSERT_EQ(1, respSchedule.windows().size());
+  ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
+  ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
+  ASSERT_EQ("0.0.0.2", respSchedule.windows(0).machine_ids(1).ip());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>
