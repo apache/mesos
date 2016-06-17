@@ -50,7 +50,8 @@ public:
         framework_info(nullptr),
         task(nullptr),
         task_info(nullptr),
-        executor_info(nullptr) {}
+        executor_info(nullptr),
+        quota_info(nullptr) {}
 
     Object(const authorization::Object& object)
       : value(object.has_value() ? &object.value() : nullptr),
@@ -59,13 +60,15 @@ public:
         task(object.has_task() ? &object.task() : nullptr),
         task_info(object.has_task_info() ? &object.task_info() : nullptr),
         executor_info(
-            object.has_executor_info() ? &object.executor_info() : nullptr) {}
+            object.has_executor_info() ? &object.executor_info() : nullptr),
+        quota_info(object.has_quota_info() ? &object.quota_info() : nullptr) {}
 
     const std::string* value;
     const FrameworkInfo* framework_info;
     const Task* task;
     const TaskInfo* task_info;
     const ExecutorInfo* executor_info;
+    const quota::QuotaInfo* quota_info;
   };
 
   /**
