@@ -674,7 +674,7 @@ Future<Response> Master::Http::api(
       return startMaintenance(call, principal, acceptType);
 
     case mesos::master::Call::STOP_MAINTENANCE:
-      return NotImplemented();
+      return stopMaintenance(call, principal, acceptType);
 
     case mesos::master::Call::GET_QUOTA:
       return NotImplemented();
@@ -3152,40 +3152,17 @@ string Master::Http::MACHINE_UP_HELP()
 }
 
 
-// /master/machine/up endpoint handler.
-Future<Response> Master::Http::machineUp(
-    const Request& request,
-    const Option<string>& /*principal*/) const
+Future<Response> Master::Http::_stopMaintenance(
+    const RepeatedPtrField<MachineID>& machineIds) const
 {
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "POST") {
-    return MethodNotAllowed({"POST"}, request.method);
-  }
-
-  // Parse the POST body as JSON.
-  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
-  if (jsonIds.isError()) {
-    return BadRequest(jsonIds.error());
-  }
-
-  // Convert the machines to a protobuf.
-  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
-  if (ids.isError()) {
-    return BadRequest(ids.error());
-  }
-
   // Validate every machine in the list.
-  Try<Nothing> isValid = maintenance::validation::machines(ids.get());
+  Try<Nothing> isValid = maintenance::validation::machines(machineIds);
   if (isValid.isError()) {
     return BadRequest(isValid.error());
   }
 
   // Check that all machines are part of a maintenance schedule.
-  foreach (const MachineID& id, ids.get()) {
+  foreach (const MachineID& id, machineIds) {
     if (!master->machines.contains(id)) {
       return BadRequest(
           "Machine '" + stringify(JSON::protobuf(id)) +
@@ -3200,7 +3177,7 @@ Future<Response> Master::Http::machineUp(
   }
 
   return master->registrar->apply(Owned<Operation>(
-      new maintenance::StopMaintenance(ids.get())))
+      new maintenance::StopMaintenance(machineIds)))
     .then(defer(master->self(), [=](bool result) -> Future<Response> {
       // See the top comment in "master/maintenance.hpp" for why this check
       // is here, and is appropriate.
@@ -3208,7 +3185,7 @@ Future<Response> Master::Http::machineUp(
 
       // Update the master's local state with the reactivated machines.
       hashset<MachineID> updated;
-      foreach (const MachineID& id, ids.get()) {
+      foreach (const MachineID& id, machineIds) {
         master->machines[id].info.set_mode(MachineInfo::UP);
         master->machines[id].info.clear_unavailability();
         updated.insert(id);
@@ -3244,6 +3221,50 @@ Future<Response> Master::Http::machineUp(
 
       return OK();
     }));
+}
+
+
+// /master/machine/up endpoint handler.
+Future<Response> Master::Http::machineUp(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed({"POST"}, request.method);
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
+  if (jsonIds.isError()) {
+    return BadRequest(jsonIds.error());
+  }
+
+  // Convert the machines to a protobuf.
+  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
+  if (ids.isError()) {
+    return BadRequest(ids.error());
+  }
+
+  return _stopMaintenance(ids.get());
+}
+
+
+Future<Response> Master::Http::stopMaintenance(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::STOP_MAINTENANCE, call.type());
+  CHECK(call.has_stop_maintenance());
+
+  RepeatedPtrField<MachineID> machineIds = call.stop_maintenance().machines();
+
+  return _stopMaintenance(machineIds);
 }
 
 
