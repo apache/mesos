@@ -456,6 +456,20 @@ v1::executor::Event evolve(const ShutdownExecutorMessage&)
 }
 
 
+v1::master::Response evolve(const maintenance::Schedule& schedule)
+{
+  v1::master::Response response;
+  response.set_type(v1::master::Response::GET_MAINTENANCE_SCHEDULE);
+
+  v1::master::Response::GetMaintenanceSchedule* maintenanceSchedule =
+      response.mutable_get_maintenance_schedule();
+  maintenanceSchedule->mutable_schedule()->CopyFrom(
+      evolve<v1::maintenance::Schedule>(schedule));
+
+  return response;
+}
+
+
 template<>
 v1::master::Response evolve<v1::master::Response::GET_FLAGS>(
     const JSON::Object& object)
