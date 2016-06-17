@@ -32,6 +32,7 @@
 #include <stout/try.hpp>
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "master/detector/standalone.hpp"
 
@@ -42,6 +43,10 @@
 using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::internal::slave::Slave;
+
+using mesos::internal::protobuf::maintenance::createSchedule;
+using mesos::internal::protobuf::maintenance::createUnavailability;
+using mesos::internal::protobuf::maintenance::createWindow;
 
 using process::Clock;
 using process::Failure;
@@ -89,6 +94,32 @@ public:
         }
         return deserialize<v1::master::Response>(contentType, response.body);
       });
+  }
+
+  // Helper for evolving a type by serializing/parsing when the types
+  // have not changed across versions.
+  template <typename T>
+  static T evolve(const google::protobuf::Message& message)
+  {
+    T t;
+
+    string data;
+
+    // NOTE: We need to use 'SerializePartialToString' instead of
+    // 'SerializeToString' because some required fields might not be set
+    // and we don't want an exception to get thrown.
+    CHECK(message.SerializePartialToString(&data))
+      << "Failed to serialize " << message.GetTypeName()
+      << " while evolving to " << t.GetTypeName();
+
+    // NOTE: We need to use 'ParsePartialFromString' instead of
+    // 'ParsePartialFromString' because some required fields might not
+    // be set and we don't want an exception to get thrown.
+    CHECK(t.ParsePartialFromString(data))
+      << "Failed to parse " << t.GetTypeName()
+      << " while evolving from " << message.GetTypeName();
+
+    return t;
   }
 };
 
@@ -288,6 +319,73 @@ TEST_P(MasterAPITest, GetLeadingMaster)
   ASSERT_EQ(v1::master::Response::GET_LEADING_MASTER, v1Response->type());
   ASSERT_EQ(master.get()->getMasterInfo().ip(),
             v1Response->get_leading_master().master_info().ip());
+}
+
+
+// Test updates a maintenance schedule and verifies it saved via query.
+TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
+{
+  // Set up a master.
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  ContentType contentType = GetParam();
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  // Generate `MachineID`s that can be used in this test.
+  MachineID machine1;
+  MachineID machine2;
+  machine1.set_hostname("Machine1");
+  machine2.set_ip("0.0.0.2");
+
+  // Try to schedule maintenance on an unscheduled machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, createUnavailability(Clock::now()))});
+  v1::maintenance::Schedule v1Schedule =
+    evolve<v1::maintenance::Schedule>(schedule);
+
+  v1::master::Call v1UpdateScheduleCall;
+  v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
+  v1::master::Call_UpdateMaintenanceSchedule* maintenanceSchedule =
+    v1UpdateScheduleCall.mutable_update_maintenance_schedule();
+  maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
+
+  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1UpdateScheduleCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1UpdateScheduleResponse);
+
+  // Query maintenance schedule.
+  v1::master::Call v1GetScheduleCall;
+  v1GetScheduleCall.set_type(v1::master::Call::GET_MAINTENANCE_SCHEDULE);
+
+  Future<v1::master::Response> v1GetScheduleResponse =
+    post(master.get()->pid, v1GetScheduleCall, contentType);
+
+  AWAIT_READY(v1GetScheduleResponse);
+  ASSERT_TRUE(v1GetScheduleResponse.get().IsInitialized());
+  ASSERT_EQ(
+      v1::master::Response::GET_MAINTENANCE_SCHEDULE,
+      v1GetScheduleResponse.get().type());
+
+  // Verify maintenance schedule matches the expectation.
+  v1::maintenance::Schedule respSchedule =
+    v1GetScheduleResponse.get().get_maintenance_schedule().schedule();
+  ASSERT_EQ(1, respSchedule.windows().size());
+  ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
+  ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
+  ASSERT_EQ("0.0.0.2", respSchedule.windows(0).machine_ids(1).ip());
 }
 
 
