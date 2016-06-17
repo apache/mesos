@@ -1250,54 +1250,38 @@ TYPED_TEST(AuthorizationTest, UpdateQuota)
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
-  // Principal "foo" can update quota for all roles, so requests 1 and 2 will
-  // pass.
+  // Principal "foo" can update quota for all roles, so this will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("foo");
-    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
-  }
-
-  {
-    authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
-    request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("prod");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "bar" can update quotas for role "dev", so this will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("dev");
+    request.mutable_object()->mutable_quota_info()->set_role("dev");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
-  // Principal "bar" can only update quotas for role "dev",
-  // so requests 4 and 5 will fail.
+  // Principal "bar" can only update quotas for role "dev", so this will fail.
   {
     authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("prod");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
+  // Anyone can update quotas for role "test", so this will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
-    request.mutable_subject()->set_value("bar");
-    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
-  }
-
-  // Anyone can update quotas for role "test", so request 6 will pass.
-  {
-    authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
-    request.mutable_object()->set_value("test");
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_object()->mutable_quota_info()->set_role("test");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1306,8 +1290,9 @@ TYPED_TEST(AuthorizationTest, UpdateQuota)
   // access for all other principals. This case will fail.
   {
     authorization::Request request;
-    request.set_action(authorization::UPDATE_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("jeff");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1403,53 +1388,42 @@ TYPED_TEST(AuthorizationTest, SetQuota)
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
-  // Principal "foo" can set quota for all roles, so requests 1 and 2 will pass.
+  // Principal "foo" can set quota for all roles, so this will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("foo");
-    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
-  }
-
-  {
-    authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
-    request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("prod");
+    request.mutable_object()->set_value("SetQuota");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   // Principal "bar" can set quotas for role "dev", so this will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("dev");
+    request.mutable_object()->set_value("SetQuota");
+    request.mutable_object()->mutable_quota_info()->set_role("dev");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
-  // Principal "bar" can only set quotas for role "dev",
-  // so request 4 and 5 will fail.
+  // Principal "bar" can only set quotas for role "dev", so this will fail.
   {
     authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("prod");
-    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
-  }
-
-  {
-    authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
-    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("SetQuota");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   // Anyone can set quotas for role "test", so request 6 will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
-    request.mutable_object()->set_value("test");
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_object()->set_value("SetQuota");
+    request.mutable_object()->mutable_quota_info()->set_role("test");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1458,8 +1432,10 @@ TYPED_TEST(AuthorizationTest, SetQuota)
   // access for all other principals. This case will fail.
   {
     authorization::Request request;
-    request.set_action(authorization::SET_QUOTA_WITH_ROLE);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("jeff");
+    request.mutable_object()->set_value("SetQuota");
+    request.mutable_object()->mutable_quota_info()->set_role("prod");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1508,9 +1484,10 @@ TYPED_TEST(AuthorizationTest, RemoveQuota)
   // Principal "foo" can remove its own quotas, so request 1 will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("foo");
-    request.mutable_object()->set_value("foo");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info()->set_principal("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1518,33 +1495,38 @@ TYPED_TEST(AuthorizationTest, RemoveQuota)
   // fail.
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("bar");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info()->set_principal("bar");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("bar");
-    request.mutable_object()->set_value("foo");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info()->set_principal("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
   // Principal "ops" can remove anyone's quotas, so requests 4 and 5 will pass.
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("ops");
-    request.mutable_object()->set_value("foo");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info()->set_principal("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("ops");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info();
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1553,9 +1535,10 @@ TYPED_TEST(AuthorizationTest, RemoveQuota)
   // access for all other principals. This case will fail.
   {
     authorization::Request request;
-    request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
+    request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("jeff");
-    request.mutable_object()->set_value("foo");
+    request.mutable_object()->set_value("RemoveQuota");
+    request.mutable_object()->mutable_quota_info()->set_principal("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
