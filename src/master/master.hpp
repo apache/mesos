@@ -1249,6 +1249,9 @@ private:
     process::Future<mesos::maintenance::ClusterStatus>
       _getMaintenanceStatus() const;
 
+    process::Future<process::http::Response> _startMaintenance(
+        const google::protobuf::RepeatedPtrField<MachineID>& machineIds) const;
+
     /**
      * Continuation for operations: /reserve, /unreserve,
      * /create-volumes and /destroy-volumes. First tries to recover
@@ -1336,6 +1339,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMaintenanceStatus(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> startMaintenance(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
