@@ -79,14 +79,14 @@ pid_t launchTaskPosix(
     // root filesystem and changing the user before exec-ing the
     // user process.
 #ifdef __linux__
-    Result<string> user = os::user();
-    if (user.isError()) {
-      cerr << "Failed to get current user: " << user.error() << endl;
+    Result<string> _user = os::user();
+    if (_user.isError()) {
+      cerr << "Failed to get current user: " << _user.error() << endl;
       abort();
-    } else if (user.isNone()) {
+    } else if (_user.isNone()) {
       cerr << "Current username is not found" << endl;
       abort();
-    } else if (user.get() != "root") {
+    } else if (_user.get() != "root") {
       cerr << "The command executor requires root with rootfs" << endl;
       abort();
     }
