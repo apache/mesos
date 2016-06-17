@@ -94,11 +94,9 @@
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #endif // __linux__
 
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 #endif // __linux__
-#endif // ENABLE_NVIDIA_GPU_SUPPORT
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
@@ -313,9 +311,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
     {"gpu/nvidia", &NvidiaGpuIsolatorProcess::create},
-#endif
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__

@@ -194,11 +194,6 @@ AC_ARG_ENABLE([install-module-dependencies],
                               for module development default: no]),
               [enable_install_module_dependencies=yes], [])
 
-AC_ARG_ENABLE([nvidia-gpu-support],
-              AS_HELP_STRING([--enable-nvidia-gpu-support],
-                             [build with Nvidia GPU support default: no]),
-              [enable_nvidia_gpu_support=yes], [])
-
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
@@ -1275,11 +1270,8 @@ AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
                [test "x$with_network_isolator" = "xyes"])
 
 
-# Check if Nvidia GPU support is enabled, and if so, verify we can
-# access the NVML header files.
-if test x"$enable_nvidia_gpu_support" = "xyes"; then
-  AC_DEFINE([ENABLE_NVIDIA_GPU_SUPPORT])
-
+# Check for libelf on Linux (both headers and libraries).
+if test "$OS_NAME" = "linux"; then
   AC_CHECK_HEADERS([gelf.h], [],
                    [AC_MSG_ERROR([Cannot find the libelf headers
 -------------------------------------------------------------------
@@ -1295,36 +1287,33 @@ The libelf library is required to build Mesos with Nvidia GPU
 support. Make sure this library is installed on the system.
 -------------------------------------------------------------------
   ])])
+fi
 
-  # If the user has asked not to include the bundled NVML headers,
-  # check to see if the path to the NVML headers has been specified.
-  # If it has, make sure that the path is absolute. If everything is
-  # in order, add this path to the CPPFLAGS.
-  if test "x$without_bundled_nvml" = "xyes" || \
-     test "x$enable_bundled" != "xyes"; then
-    if test -n "`echo $with_nvml`"; then
-      if test "$with_nvml" = "${with_nvml#/}"; then
-        AC_MSG_ERROR([The path passed to --with-nvml must be absolute.])
-      fi
-       CPPFLAGS="-I${with_nvml} $CPPFLAGS"
+
+# If the user has asked not to include the bundled NVML headers for
+# Nvidia GPU support, check to see if the path to the NVML headers has
+# been specified.  If it has, make sure that the path is absolute. If
+# everything is in order, add this path to the CPPFLAGS.
+if test "x$without_bundled_nvml" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  if test -n "`echo $with_nvml`"; then
+    if test "$with_nvml" = "${with_nvml#/}"; then
+      AC_MSG_ERROR([The path passed to --with-nvml must be absolute.])
     fi
+     CPPFLAGS="-I${with_nvml} $CPPFLAGS"
+  fi
 
-    AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
-                     [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
+  AC_CHECK_HEADERS([nvidia/gdk/nvml.h], [],
+                   [AC_MSG_ERROR([Cannot find the Nvidia NVML headers
 -------------------------------------------------------------------
 You have requested the use of a non-bundled NVML but no suitable
 NVML headers could be found. Make sure these headers are either
 installed on the system or the path passed via --with-nvml is correct.
 -------------------------------------------------------------------
-    ])])
-
-  else
-    with_bundled_nvml=yes
-  fi
+  ])])
+else
+  with_bundled_nvml=yes
 fi
-
-AM_CONDITIONAL([ENABLE_NVIDIA_GPU_SUPPORT],
-  [test "x$enable_nvidia_gpu_support" = "xyes"])
 
 AM_CONDITIONAL([WITH_BUNDLED_NVML],
   [test "x$with_bundled_nvml" = "xyes"])

@@ -381,6 +381,16 @@ mesos::internal::slave::Flags::Flags()
       "no cgroup limits are set, they are inherited from the root mesos\n"
       "cgroup.");
 
+  add(&Flags::nvidia_gpu_devices,
+      "nvidia_gpu_devices",
+      "A comma-separated list of Nvidia GPU devices. When `gpus` is\n"
+      "specified in the `--resources` flag, this flag determines which GPU\n"
+      "devices will be made available. The devices should be listed as\n"
+      "numbers that correspond to Nvidia's NVML device enumeration (as\n"
+      "seen by running the command `nvidia-smi` on an Nvidia GPU\n"
+      "equipped system).  The GPUs listed will only be isolated if the\n"
+      "`--isolation` flag contains the string `cgroups/devices/gpus/nvidia`.");
+
   add(&Flags::perf_events,
       "perf_events",
       "List of command-separated perf events to sample for each container\n"
@@ -585,18 +595,6 @@ mesos::internal::slave::Flags::Flags()
       "killing that container. This flag is deprecated; use task's kill\n"
       "policy instead.",
       Seconds(0));
-
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
-  add(&Flags::nvidia_gpu_devices,
-      "nvidia_gpu_devices",
-      "A comma-separated list of Nvidia GPU devices. When `gpus` is\n"
-      "specified in the `--resources` flag, this flag determines which GPU\n"
-      "devices will be made available. The devices should be listed as\n"
-      "numbers that correspond to Nvidia's NVML device enumeration (as\n"
-      "seen by running the command `nvidia-smi` on an Nvidia GPU\n"
-      "equipped system).  The GPUs listed will only be isolated if the\n"
-      "`--isolation` flag contains the string `cgroups/devices/gpus/nvidia`.");
-#endif // ENABLE_NVIDIA_GPU_SUPPORT
 
 #ifdef WITH_NETWORK_ISOLATOR
   add(&Flags::ephemeral_ports_per_container,

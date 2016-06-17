@@ -4,6 +4,8 @@ This release contains the following new features:
 
   * Scheduler and Executor v1 HTTP APIs are now considered stable.
 
+  * libelf is a new build dependency on Linux, required for Nvidia GPU support.
+
   * [MESOS-4791] - **Experimental** support for v1 Master and Agent APIs. These
     APIs let operators and services (monitoring, load balancers) send HTTP
     requests to '/api/v1' endpoint on master or agent. These APIs look similar

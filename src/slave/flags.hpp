@@ -91,6 +91,7 @@ public:
   Option<std::string> cgroups_net_cls_primary_handle;
   Option<std::string> cgroups_net_cls_secondary_handles;
   Option<std::string> agent_subsystems;
+  Option<std::vector<unsigned int>> nvidia_gpu_devices;
   Option<std::string> perf_events;
   Duration perf_interval;
   Duration perf_duration;
@@ -117,9 +118,6 @@ public:
   std::string docker_socket;
   Option<JSON::Object> docker_config;
 
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
-  Option<std::vector<unsigned int>> nvidia_gpu_devices;
-#endif
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;

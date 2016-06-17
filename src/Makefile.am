@@ -187,7 +187,9 @@ LIB_ZOOKEEPER = -lzookeeper_mt
 LDADD += -lzookeeper_mt
 endif
 
-if ENABLE_NVIDIA_GPU_SUPPORT
+# Introduced for NVIDIA GPU support (we needed to
+# introspect shared library dependencies).
+if OS_LINUX
 LIB_ELF = -lelf
 LDADD += -lelf
 endif
@@ -1036,6 +1038,8 @@ MESOS_LINUX_FILES =							\
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.cpp		\
+  slave/containerizer/mesos/isolators/gpu/nvidia.cpp			\
+  slave/containerizer/mesos/isolators/gpu/nvml.cpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp		\
   slave/containerizer/mesos/isolators/network/cni/cni.cpp		\
   slave/containerizer/mesos/provisioner/backends/aufs.cpp		\
@@ -1061,6 +1065,8 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/docker/volume/isolator.hpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
+  slave/containerizer/mesos/isolators/gpu/nvidia.hpp 			\
+  slave/containerizer/mesos/isolators/gpu/nvml.hpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
   slave/containerizer/mesos/isolators/network/cni/cni.hpp		\
   slave/containerizer/mesos/provisioner/backends/aufs.hpp		\
@@ -1113,14 +1119,6 @@ MESOS_NETWORK_ISOLATOR_FILES +=						\
   linux/routing/queueing/statistics.hpp					\
   slave/containerizer/mesos/isolators/network/port_mapping.hpp
 
-MESOS_NVIDIA_GPU_ISOLATOR_FILES =					\
-  slave/containerizer/mesos/isolators/gpu/nvidia.cpp			\
-  slave/containerizer/mesos/isolators/gpu/nvml.cpp
-
-MESOS_NVIDIA_GPU_ISOLATOR_FILES +=					\
-  slave/containerizer/mesos/isolators/gpu/nvidia.hpp 			\
-  slave/containerizer/mesos/isolators/gpu/nvml.hpp
-
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_FILES)
 else
@@ -1131,12 +1129,6 @@ if WITH_NETWORK_ISOLATOR
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_ISOLATOR_FILES)
 else
 EXTRA_DIST += $(MESOS_NETWORK_ISOLATOR_FILES)
-endif
-
-if ENABLE_NVIDIA_GPU_SUPPORT
-libmesos_no_3rdparty_la_SOURCES += $(MESOS_NVIDIA_GPU_ISOLATOR_FILES)
-else
-EXTRA_DIST += $(MESOS_NVIDIA_GPU_ISOLATOR_FILES)
 endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2151,6 +2143,7 @@ mesos_tests_DEPENDENCIES =					\
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
+  tests/ldcache_tests.cpp					\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
   tests/containerizer/cni_isolator_tests.cpp			\
@@ -2160,6 +2153,7 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/launch_tests.cpp				\
   tests/containerizer/memory_pressure_tests.cpp			\
   tests/containerizer/ns_tests.cpp				\
+  tests/containerizer/nvidia_gpu_isolator_tests.cpp		\
   tests/containerizer/perf_tests.cpp				\
   tests/containerizer/runtime_isolator_tests.cpp		\
   tests/containerizer/sched_tests.cpp				\
@@ -2170,12 +2164,6 @@ if WITH_NETWORK_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/port_mapping_tests.cpp			\
   tests/containerizer/routing_tests.cpp
-endif
-
-if ENABLE_NVIDIA_GPU_SUPPORT
-mesos_tests_SOURCES +=						\
-  tests/ldcache_tests.cpp					\
-  tests/containerizer/nvidia_gpu_isolator_tests.cpp
 endif
 
 if HAS_JAVA

@@ -44,11 +44,9 @@
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #endif // __linux__
 
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
 #endif // __linux__
-#endif // ENABLE_NVIDIA_GPU_SUPPORT
 
 using std::map;
 using std::string;
@@ -99,7 +97,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
         flags.default_role).get();
   }
 
-#ifdef ENABLE_NVIDIA_GPU_SUPPORT
+#ifdef __linux__
   // GPU resource.
   // To determine the proper number of GPU resources to return, we
   // need to check both the --resources and --nvidia_gpu_devices.
@@ -180,7 +178,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
           flags.default_role).get();
     }
   }
-#endif // ENABLE_NVIDIA_GPU_SUPPORT
+#endif
 
   // Memory resource.
   if (!strings::contains(flags.resources.getOrElse(""), "mem")) {
