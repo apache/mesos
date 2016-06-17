@@ -35,12 +35,12 @@ The operator can update the weights by sending an HTTP PUT request to the `/weig
 endpoint.
 
 An example request to the `/weights` endpoint could look like this (using the
-JSON definitions below):
+JSON file below):
 
-    $ curl -d jsonMessageBody -X PUT http://<master-ip>:<port>/weights
+    $ curl -d @weights.json -X PUT http://<master-ip>:<port>/weights
 
 For example, to set a weight of `2.0` for `role1` and set a weight of `3.5`
-for `role2`, the operator can use the following `jsonMessageBody`:
+for `role2`, the operator can use the following `weights.json`:
 
         [
           {

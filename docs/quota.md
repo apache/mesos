@@ -84,12 +84,12 @@ The operator can set a new quota by sending an HTTP POST request to the `/quota`
 endpoint.
 
 An example request to the quota endpoint could look like this (using the JSON
-definitions below):
+file below):
 
-    $ curl -d jsonMessageBody -X POST http://<master-ip>:<port>/quota
+    $ curl -d @quota.json -X POST http://<master-ip>:<port>/quota
 
 For example to set a quota of 12 CPUs and 6144 MB of RAM for `role1` the operator
-can use the following `jsonMessageBody`:
+can use the following `quota.json`:
 
         {
           "role": "role1",
