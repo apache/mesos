@@ -20,6 +20,7 @@ include(MesosProtobuf)
 
 # Build the protobuf structs.
 PROTOC_TO_INCLUDE_DIR(ACLS             mesos/authorizer/acls)
+PROTOC_TO_INCLUDE_DIR(AGENT            mesos/agent/agent)
 PROTOC_TO_INCLUDE_DIR(ALLOCATOR        mesos/master/allocator)
 PROTOC_TO_INCLUDE_DIR(APPC_SPEC        mesos/appc/spec)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
@@ -32,6 +33,7 @@ PROTOC_TO_INCLUDE_DIR(EXECUTOR         mesos/executor/executor)
 PROTOC_TO_INCLUDE_DIR(FETCHER          mesos/fetcher/fetcher)
 PROTOC_TO_INCLUDE_DIR(ISOLATOR         mesos/slave/isolator)
 PROTOC_TO_INCLUDE_DIR(MAINTENANCE      mesos/maintenance/maintenance)
+PROTOC_TO_INCLUDE_DIR(MASTER           mesos/master/master)
 PROTOC_TO_INCLUDE_DIR(MESOS            mesos/mesos)
 PROTOC_TO_INCLUDE_DIR(MODULE           mesos/module/module)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
@@ -39,11 +41,11 @@ PROTOC_TO_INCLUDE_DIR(QUOTA            mesos/quota/quota)
 PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(STATE            mesos/state/state)
 PROTOC_TO_INCLUDE_DIR(URI              mesos/uri/uri)
-PROTOC_TO_INCLUDE_DIR(V1_AGENT         mesos/v1/agent)
+PROTOC_TO_INCLUDE_DIR(V1_AGENT         mesos/v1/agent/agent)
 PROTOC_TO_INCLUDE_DIR(V1_ALLOCATOR     mesos/v1/master/allocator)
 PROTOC_TO_INCLUDE_DIR(V1_EXECUTOR      mesos/v1/executor/executor)
 PROTOC_TO_INCLUDE_DIR(V1_MAINTENANCE   mesos/v1/maintenance/maintenance)
-PROTOC_TO_INCLUDE_DIR(V1_MASTER        mesos/v1/master)
+PROTOC_TO_INCLUDE_DIR(V1_MASTER        mesos/v1/master/master)
 PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
 PROTOC_TO_INCLUDE_DIR(V1_QUOTA         mesos/v1/quota/quota)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
@@ -59,6 +61,7 @@ PROTOC_TO_SRC_DIR(ISOLATOR_DOCKER_VOLUME_STATE  slave/containerizer/mesos/isolat
 
 set(MESOS_PROTOBUF_SRC
   ${ACLS_PROTO_CC}
+  ${AGENT_PROTO_CC}
   ${ALLOCATOR_PROTO_CC}
   ${APPC_SPEC_PROTO_CC}
   ${AUTHENTICATION_PROTO_CC}
@@ -77,6 +80,7 @@ set(MESOS_PROTOBUF_SRC
   ${ISOLATOR_CNI_SPEC_PROTO_CC}
   ${ISOLATOR_DOCKER_VOLUME_STATE_PROTO_CC}
   ${MAINTENANCE_PROTO_CC}
+  ${MASTER_PROTO_CC}
   ${MESOS_PROTO_CC}
   ${MODULE_PROTO_CC}
   ${QUOTA_PROTO_CC}
