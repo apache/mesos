@@ -22,6 +22,7 @@ nobase_include_HEADERS =			\
   stout/check.hpp				\
   stout/duration.hpp				\
   stout/dynamiclibrary.hpp			\
+  stout/elf.hpp					\
   stout/error.hpp				\
   stout/errorbase.hpp				\
   stout/exit.hpp				\
