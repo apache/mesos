@@ -115,8 +115,12 @@ message Call {
     optional string length = 3;
   }
 
+  // Call::GetTasks requests 'limit' number of tasks starting
+  // from 'offset'. Tasks are sorted in 'order', either ascending
+  // or descending based on timestamp. If 'limit' is not set,
+  // default value 100 will be used.
   message GetTasks {
-    optional string limit = 1;
+    optional uint32 limit = 1 [default = 100];
     optional uint32 offset = 2;
     optional string order = 3;
   }
