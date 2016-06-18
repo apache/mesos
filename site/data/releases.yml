@@ -15,8 +15,12 @@ news:
 ##   - title: (required)
 ##     date: (required)
 ##     blog: (required)
+  - title: Mesos 0.27.3 is released!
+    date: June 12, 2016
+    target_version: 0.27.3
   - title: Mesos 0.28.2 is released!
     date: June 4, 2016
+    blog: mesos-0-28-2-released
     target_version: 0.28.2
   - title: Mesos 0.28.1 is released!
     date: April 13, 2016
@@ -89,6 +93,8 @@ versions:
     jira_version: 12335359
   - version:  0.28.0
     jira_version: 12334661
+  - version:  0.27.3
+    jira_version: 12335458
   - version:  0.27.2
     jira_version: 12334913
   - version:  0.27.1
