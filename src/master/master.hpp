@@ -1237,6 +1237,12 @@ private:
   private:
     JSON::Object _flags() const;
 
+    process::Future<std::vector<const Task*>> _tasks(
+        const size_t limit,
+        const size_t offset,
+        const std::string& order,
+        const Option<std::string>& principal) const;
+
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;
 

@@ -2692,6 +2692,40 @@ Future<Response> Master::Http::tasks(
     return redirect(request);
   }
 
+  // Get list options (limit and offset).
+  Result<int> result = numify<int>(request.url.query.get("limit"));
+  size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
+
+  result = numify<int>(request.url.query.get("offset"));
+  size_t offset = result.isSome() ? result.get() : 0;
+
+  Option<string> order = request.url.query.get("order");
+  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
+
+  return _tasks(limit, offset, _order, principal)
+    .then([=](const vector<const Task*>& tasks) -> Response {
+      auto tasksWriter = [&tasks](JSON::ObjectWriter* writer) {
+        writer->field("tasks", [&tasks](JSON::ArrayWriter* writer) {
+          foreach (const Task* task, tasks) {
+            writer->element(*task);
+          }
+        });
+      };
+
+      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+    })
+    .repair([](const Future<Response>& response) {
+      LOG(WARNING) << "Authorization failed: " << response.failure();
+      return InternalServerError(response.failure());
+    });
+}
+
+Future<vector<const Task*>> Master::Http::_tasks(
+    const size_t limit,
+    const size_t offset,
+    const string& order,
+    const Option<string>& principal) const
+{
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
@@ -2717,22 +2751,15 @@ Future<Response> Master::Http::tasks(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then(defer(master->self(),
-        [=](const tuple<Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>>& approvers) -> Response {
+    .then([=](const tuple<Owned<ObjectApprover>,
+                          Owned<ObjectApprover>,
+                          Owned<ObjectApprover>>& approvers)
+      -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
       Owned<ObjectApprover> executorsApprover;
       tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
-
-      // Get list options (limit and offset).
-      Result<int> result = numify<int>(request.url.query.get("limit"));
-      size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
-
-      result = numify<int>(request.url.query.get("offset"));
-      size_t offset = result.isSome() ? result.get() : 0;
 
       // TODO(nnielsen): Currently, formatting errors in offset and/or limit
       // will silently be ignored. This could be reported to the user instead.
@@ -2782,29 +2809,21 @@ Future<Response> Master::Http::tasks(
       // Sort tasks by task status timestamp. Default order is descending.
       // The earliest timestamp is chosen for comparison when
       // multiple are present.
-      Option<string> order = request.url.query.get("order");
-      if (order.isSome() && (order.get() == "asc")) {
+      if (order == "asc") {
         sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
       } else {
         sort(tasks.begin(), tasks.end(), TaskComparator::descending);
       }
 
-      auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
-        writer->field("tasks",
-                      [&tasks, limit, offset](JSON::ArrayWriter* writer) {
-          size_t end = std::min(offset + limit, tasks.size());
-          for (size_t i = offset; i < end; i++) {
-            const Task* task = tasks[i];
-            writer->element(*task);
-          }
-        });
-      };
+      // Collect 'limit' number of tasks starting from 'offset'.
+      vector<const Task*> _tasks;
+      size_t end = std::min(offset + limit, tasks.size());
+      for (size_t i = offset; i < end; i++) {
+        const Task* task = tasks[i];
+        _tasks.push_back(task);
+      }
 
-      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
-  }))
-  .repair([](const Future<Response>& response) {
-    LOG(WARNING) << "Authorization failed: " << response.failure();
-    return InternalServerError(response.failure());
+      return _tasks;
   });
 }
 
