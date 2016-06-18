@@ -97,6 +97,7 @@ public:
     cniPluginDir = path::join(sandbox.get(), "plugins");
     ASSERT_SOME(os::mkdir(cniPluginDir));
 
+    // TODO(jieyu): Verify that Mesos metadata is set properly.
     Try<Nothing> write = os::write(
         path::join(cniPluginDir, "mockPlugin"),
         strings::format(R"~(

@@ -134,6 +134,7 @@ private:
       const std::string& networkName,
       const std::string& plugin,
       const std::tuple<
+          process::Future<Nothing>,
           process::Future<Option<int>>,
           process::Future<std::string>>& t);
 

@@ -920,15 +920,68 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
   }
 
+  // Inject Mesos metadata to the network configuration JSON that will
+  // be passed to the plugin. Currently, we only pass in NetworkInfo
+  // for the given network.
   const NetworkConfigInfo& networkConfig =
     networkConfigs[containerNetwork.networkName];
 
+  Try<string> read = os::read(networkConfig.path);
+  if (read.isError()) {
+    return Failure(
+        "Failed to read CNI network configuration file: '" +
+        networkConfig.path + "': " + read.error());
+  }
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
+  if (parse.isError()) {
+    return Failure(
+        "Failed to parse CNI network configuration file: '" +
+        networkConfig.path + "': " + parse.error());
+  }
+
+  JSON::Object networkConfigJson = parse.get();
+
+  // Note that 'args' might or might not be specified in the network
+  // configuration file. We need to deal with both cases.
+  Result<JSON::Object> _args = networkConfigJson.at<JSON::Object>("args");
+  if (_args.isError()) {
+    return Failure(
+        "Invalid 'args' found in CNI network configuration file '" +
+        networkConfig.path + "': " + _args.error());
+  }
+
+  JSON::Object args = _args.isSome() ? _args.get() : JSON::Object();
+
+  // Make sure 'org.apache.mesos' is not set. It is reserved by Mesos.
+  if (args.values.count("org.apache.mesos") > 0) {
+    return Failure(
+        "'org.apache.mesos' in 'args' should not be set in CNI network "
+        "configuration file. It is reserved by Mesos");
+  }
+
+  CHECK_SOME(containerNetwork.networkInfo);
+  mesos::NetworkInfo networkInfo = containerNetwork.networkInfo.get();
+
+  JSON::Object mesos;
+  mesos.values["network_info"] = JSON::protobuf(networkInfo);
+  args.values["org.apache.mesos"] = mesos;
+  networkConfigJson.values["args"] = args;
+
+  // TODO(jieyu): Checkpoint the network configuration JSON so that we
+  // can use the same JSON during cleanup.
+
   // Invoke the CNI plugin.
   const string& plugin = networkConfig.config.type();
+
+  VLOG(1) << "Invoking CNI plugin '" << plugin
+          << "' with network configuration '"
+          << stringify(networkConfigJson) << "'";
+
   Try<Subprocess> s = subprocess(
       path::join(pluginDir.get(), plugin),
       {plugin},
-      Subprocess::PATH(networkConfig.path),
+      Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
@@ -940,7 +993,10 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
   }
 
-  return await(s->status(), io::read(s->out().get()))
+  return await(
+      io::write(s->in().get(), stringify(networkConfigJson)),
+      s->status(),
+      io::read(s->out().get()))
     .then(defer(
         PID<NetworkCniIsolatorProcess>(this),
         &NetworkCniIsolatorProcess::_attach,
@@ -955,12 +1011,20 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
     const ContainerID& containerId,
     const string& networkName,
     const string& plugin,
-    const tuple<Future<Option<int>>, Future<string>>& t)
+    const tuple<Future<Nothing>, Future<Option<int>>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  Future<Option<int>> status = std::get<0>(t);
+  Future<Nothing> input = std::get<0>(t);
+  if (!input.isReady()) {
+    return Failure(
+        "Failed to send CNI network configuration to "
+        "plugin '" + plugin + "': " +
+        (input.isFailed() ? input.failure() : "discarded"));
+  }
+
+  Future<Option<int>> status = std::get<1>(t);
   if (!status.isReady()) {
     return Failure(
         "Failed to get the exit status of the CNI plugin '" +
@@ -975,7 +1039,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 
   // CNI plugin will print result (in case of success) or error (in
   // case of failure) to stdout.
-  Future<string> output = std::get<1>(t);
+  Future<string> output = std::get<2>(t);
   if (!output.isReady()) {
     return Failure(
         "Failed to read stdout from the CNI plugin '" +
