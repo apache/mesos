@@ -65,6 +65,7 @@ v1::OfferID evolve(const OfferID& offerId);
 v1::TaskID evolve(const TaskID& taskId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
+v1::Task evolve(const Task& task);
 v1::MasterInfo evolve(const MasterInfo& masterInfo);
 
 v1::agent::Response evolve(const mesos::agent::Response& response);

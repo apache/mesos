@@ -38,8 +38,10 @@
 
 #include "slave/slave.hpp"
 
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
+using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::internal::slave::Slave;
@@ -223,6 +225,108 @@ TEST_P(MasterAPITest, GetMetrics)
 
   // Verifies that the response metrics is not empty.
   ASSERT_LE(0, metrics.size());
+}
+
+
+// This tests v1 API GetTasks when no task is present.
+TEST_P(MasterAPITest, GetTasksNoRunningTask)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.mutable_get_tasks();
+  v1Call.set_type(v1::master::Call::GET_TASKS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
+  ASSERT_EQ(0, v1Response.get().get_tasks().tasks_size());
+}
+
+
+// This tests v1 API GetTasks with 1 running task.
+TEST_P(MasterAPITest, GetTasks)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("test");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_TRUE(status.get().has_executor_id());
+  EXPECT_EQ(exec.id, status.get().executor_id());
+
+  v1::master::Call v1Call;
+  v1Call.mutable_get_tasks();
+  v1Call.set_type(v1::master::Call::GET_TASKS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
+  ASSERT_EQ(1, v1Response.get().get_tasks().tasks_size());
+  ASSERT_EQ(v1::TaskState::TASK_RUNNING,
+            v1Response.get().get_tasks().tasks(0).state());
+  ASSERT_EQ("test", v1Response.get().get_tasks().tasks(0).name());
+  ASSERT_EQ("1", v1Response.get().get_tasks().tasks(0).task_id().value());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 }
 
 

@@ -150,6 +150,12 @@ v1::TaskStatus evolve(const TaskStatus& status)
 }
 
 
+v1::Task evolve(const Task& task)
+{
+  return evolve<v1::Task>(task);
+}
+
+
 v1::MasterInfo evolve(const MasterInfo& masterInfo)
 {
   return evolve<v1::MasterInfo>(masterInfo);

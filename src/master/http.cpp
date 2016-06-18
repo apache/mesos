@@ -635,7 +635,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case mesos::master::Call::GET_TASKS:
-      return NotImplemented();
+      return getTasks(call, principal, acceptType);
 
     case mesos::master::Call::GET_ROLES:
       return NotImplemented();
@@ -1433,6 +1433,45 @@ Future<Response> Master::Http::getLeadingMaster(
 
   return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
+}
+
+
+Future<Response> Master::Http::getTasks(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
+
+  // Get list options (limit and offset).
+  Result<int> result = call.get_tasks().limit();
+  CHECK_SOME(result);
+  size_t limit = result.get();
+
+  result = call.get_tasks().offset();
+  size_t offset = result.isSome() ? result.get() : 0;
+
+  Option<string> order = call.get_tasks().order();
+  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
+
+  return _tasks(limit, offset, _order, principal)
+    .then([contentType](const vector<const Task*>& tasks) -> Response {
+      v1::master::Response response;
+      response.set_type(v1::master::Response::GET_TASKS);
+
+      v1::master::Response::GetTasks* getTasks = response.mutable_get_tasks();
+
+      foreach (const Task* task, tasks) {
+        getTasks->add_tasks()->CopyFrom(evolve(*task));
+      }
+
+      return OK(serialize(contentType, response),
+                stringify(contentType));
+    })
+    .repair([](const Future<Response>& response) {
+      LOG(WARNING) << "Authorization failed: " << response.failure();
+      return InternalServerError(response.failure());
+    });
 }
 
 
