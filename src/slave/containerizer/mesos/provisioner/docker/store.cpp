@@ -30,9 +30,9 @@
 #include <mesos/docker/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 
 #include "uri/fetcher.hpp"
 
