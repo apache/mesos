@@ -521,12 +521,10 @@ Future<Option<int>> Docker::run(
         volumeConfig = volume.host_path() + ":" + volumeConfig;
       }
 
-      if (volume.has_mode()) {
-        switch (volume.mode()) {
-          case Volume::RW: volumeConfig += ":rw"; break;
-          case Volume::RO: volumeConfig += ":ro"; break;
-          default: return Failure("Unsupported volume mode");
-        }
+      switch (volume.mode()) {
+        case Volume::RW: volumeConfig += ":rw"; break;
+        case Volume::RO: volumeConfig += ":ro"; break;
+        default: return Failure("Unsupported volume mode");
       }
     } else if (volume.has_source()) {
       if (volume.source().type() != Volume::Source::DOCKER_VOLUME) {
@@ -544,12 +542,10 @@ Future<Option<int>> Docker::run(
                        volume.source().docker_volume().driver());
       }
 
-      if (volume.has_mode()) {
-        switch (volume.mode()) {
-          case Volume::RW: volumeConfig += ":rw"; break;
-          case Volume::RO: volumeConfig += ":ro"; break;
-          default: return Failure("Unsupported volume mode");
-        }
+      switch (volume.mode()) {
+        case Volume::RW: volumeConfig += ":rw"; break;
+        case Volume::RO: volumeConfig += ":ro"; break;
+        default: return Failure("Unsupported volume mode");
       }
     } else {
       return Failure("Host path or volume source is required");
