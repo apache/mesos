@@ -1,20 +1,20 @@
 ## Container Network Interface (CNI) for Mesos Containers
 
-  This document describes the `network/cni` isolator, a network
-  isolator for the [MesosContainerizer](mesos-containerizer.md) that implements the
-  [Container Network Interface
-  (CNI)](https://github.com/containernetworking/cni) specification for
-  enabling networking support for Mesos containers.  The `network/cni`
-  isolator allows containers launched using the `MesosContainerizer`
-  to be attached to several different types of IP networks.  The
-  network technologies on which containers can possibly be launched,
-  using the `network/cni` isolator, range from traditional layer
-  3/layer 2 networks such as VLAN, ipvlan, macvlan, to the new class
-  of networks designed for container orchestration such as
-  [Calico](https://www.projectcalico.org/), [Weave](https://weave.in/)
-  and [Flannel](https://coreos.com/flannel/docs/latest/).  The
-  `MesosContainerizer` has the `network/cni` isolator enabled by
-  default.
+This document describes the `network/cni` isolator, a network isolator
+for the [MesosContainerizer](mesos-containerizer.md) that implements
+the [Container Network Interface
+(CNI)](https://github.com/containernetworking/cni) specification for
+enabling networking support for Mesos containers.  The `network/cni`
+isolator allows containers launched using the `MesosContainerizer` to
+be attached to several different types of IP networks.  The network
+technologies on which containers can possibly be launched, using the
+`network/cni` isolator, range from traditional layer 3/layer 2
+networks such as VLAN, ipvlan, macvlan, to the new class of networks
+designed for container orchestration such as
+[Calico](https://www.projectcalico.org/), [Weave](https://weave.in/)
+and [Flannel](https://coreos.com/flannel/docs/latest/).  The
+`MesosContainerizer` has the `network/cni` isolator enabled by
+default.
 
 ### Table of Contents
 - [Motivation](#motivation)
