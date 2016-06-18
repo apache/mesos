@@ -22,6 +22,7 @@ default.
   - [Configuring CNI networks](#configuring-cni-networks)
   - [Attaching containers to CNI networks](#attaching-containers-to-cni-networks)
   - [Accessing container network namespace](#accessing-container-network-namespace)
+  - [Mesos meta-data to CNI plugins](#mesos-meta-data-to-cni-plugins)
 - [Networking Recipes](#networking-recipes)
   - [A bridge network](#a-bridge-network)
 - [Limitations](#limitations)
