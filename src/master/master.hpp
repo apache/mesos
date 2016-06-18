@@ -35,14 +35,13 @@
 #include <mesos/master/allocator.hpp>
 #include <mesos/master/contender.hpp>
 #include <mesos/master/detector.hpp>
+#include <mesos/master/master.hpp>
 
 #include <mesos/module/authenticator.hpp>
 
 #include <mesos/quota/quota.hpp>
 
 #include <mesos/scheduler/scheduler.hpp>
-
-#include <mesos/master/master.hpp>
 
 #include <process/limiter.hpp>
 #include <process/http.hpp>
