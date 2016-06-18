@@ -508,6 +508,8 @@ Future<Option<int>> Docker::run(
 
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
+
+    // TODO(gyliu513): Set `host_path` as source.
     if (volume.has_host_path()) {
       if (!strings::startsWith(volume.host_path(), "/") &&
           !dockerInfo.has_volume_driver()) {
@@ -526,8 +528,31 @@ Future<Option<int>> Docker::run(
           default: return Failure("Unsupported volume mode");
         }
       }
-    } else if (volume.has_mode() && !volume.has_host_path()) {
-      return Failure("Host path is required with mode");
+    } else if (volume.has_source()) {
+      if (volume.source().type() != Volume::Source::DOCKER_VOLUME) {
+        VLOG(1) << "Ignored volume type '" << volume.source().type()
+                << "' for container '" << name << "' as only "
+                << "'DOCKER_VOLUME' was supported by docker";
+        continue;
+      }
+
+      volumeConfig = volume.source().docker_volume().name() +
+                     ":" + volumeConfig;
+
+      if (volume.source().docker_volume().has_driver()) {
+        argv.push_back("--volume-driver=" +
+                       volume.source().docker_volume().driver());
+      }
+
+      if (volume.has_mode()) {
+        switch (volume.mode()) {
+          case Volume::RW: volumeConfig += ":rw"; break;
+          case Volume::RO: volumeConfig += ":ro"; break;
+          default: return Failure("Unsupported volume mode");
+        }
+      }
+    } else {
+      return Failure("Host path or volume source is required");
     }
 
     argv.push_back("-v");
@@ -538,6 +563,8 @@ Future<Option<int>> Docker::run(
   argv.push_back("-v");
   argv.push_back(sandboxDirectory + ":" + mappedDirectory);
 
+  // TODO(gyliu513): Deprecate this after the release cycle of 1.0.
+  // It will be replaced by Volume.Source.DockerVolume.driver.
   if (dockerInfo.has_volume_driver()) {
     argv.push_back("--volume-driver=" + dockerInfo.volume_driver());
   }

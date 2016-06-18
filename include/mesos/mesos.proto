@@ -1835,7 +1835,7 @@ message ContainerInfo {
     optional bool force_pull_image = 6;
 
     // The name of volume driver plugin.
-    optional string volume_driver = 7;
+    optional string volume_driver = 7 [deprecated = true]; // Since 1.0
   }
 
   message MesosInfo {
