@@ -99,7 +99,7 @@ framework developers to specify the Docker volumes.
 ### <a name="pre-conditions"></a>Pre-conditions
 
 - Install `dvdcli` version
-  [0.1.0](https://github.com/emccode/dvdcli/releases/tag/v0.1.0).
+  [0.1.0](https://github.com/emccode/dvdcli/releases/tag/v0.1.0) on each agent.
 
 - Install the [Docker volume
   plugin](https://github.com/Docker/Docker/blob/master/docs/extend/plugins.md#volume-plugins)
@@ -116,7 +116,7 @@ In order to configure the `docker/volume` isolator, the operator needs to
 configure two flags at agent startup as follows:
 
 ```{.console}
-  sudo Mesos-slave \
+  sudo mesos-agent \
     --master=<master IP> \
     --ip=<agent IP> \
     --work_dir=/var/lib/mesos \
