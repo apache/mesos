@@ -22,6 +22,7 @@ steps for enabling Docker volume isolator, and required framework changes.
     - [Volume Protobuf](#volume-protobuf)
     - [Examples](#examples)
 - [Limitations](#limitations)
+- [Test it out!](#test-it-out)
 
 ## <a name="motivation"></a>Motivation
 
@@ -292,3 +293,91 @@ simultaneously is **strongly discouraged**, because the MesosContainerizer has i
 own reference counting to decide when to unmount a Docker volume. Otherwise, it
 would be problematic if a Docker volume is unmounted by MesosContainerizer but
 the DockerContainerizer is still using it.
+
+## <a name="test-it-out"></a>Test it out!
+
+This section presents examples for launching containers with Docker volumes.
+The following example is using [convoy](https://github.com/rancher/convoy/)
+as the Docker volume driver.
+
+Start the Mesos master.
+
+```{.console}
+  $ sudo mesos-master --work_dir=/tmp/mesos/master
+```
+
+Start the Mesos agent.
+
+```{.console}
+  $ sudo mesos-agent \
+    --master=<MASTER_IP>:5050 \
+    --isolation=docker/volume,docker/runtime,filesystem/linux \
+    --work_dir=/tmp/mesos/agent \
+    --image_providers=docker \
+    --executor_environment_variables="{}"
+```
+
+Create a volume named as `myvolume` with
+[convoy](https://github.com/rancher/convoy/).
+
+```{.console}
+  $ convoy create myvolume
+```
+
+Prepare a volume json file named as `myvolume.json` with following content.
+
+```
+  [{
+    "container_path":"\/tmp\/myvolume",
+    "mode":"RW",
+    "source":
+    {
+      "docker_volume":
+        {
+          "driver":"convoy",
+          "name":"myvolume"
+        },
+        "type":"DOCKER_VOLUME"
+    }
+  }]
+```
+
+Now, use Mesos CLI (i.e., mesos-execute) to launch a Docker container with
+`--volumes=<path>/myvolume.json` option.
+
+```{.console}
+  $ sudo mesos-execute \
+    --master=<MASTER_IP>:5050 \
+    --name=test \
+    --docker_image=ubuntu:14.04 \
+    --command="touch /tmp/myvolume/myfile" \
+    --volumes=<path>/myvolume.json
+```
+
+Create another task to verify the file `myfile` was created successfully.
+
+```{.console}
+  $ sudo mesos-execute \
+    --master=<MASTER_IP>:5050 \
+    --name=test \
+    --docker_image=ubuntu:14.04 \
+    --command="ls /tmp/myvolume" \
+    --volumes=<path>/myvolume.json
+```
+
+Check the [sandbox
+](https://github.com/apache/mesos/blob/master/docs/sandbox.md#where-is-the-sandbox)
+for the second task to check the file `myfile` was created successfully.
+
+```{.console}
+  $ cat stdout
+    Received SUBSCRIBED event
+    Subscribed executor on mesos002
+    Received LAUNCH event
+    Starting task test
+    Forked command at 27288
+    sh -c 'ls /tmp/myvolume/'
+    lost+found
+    myfile
+    Command exited with status 0 (pid: 27288)
+```
