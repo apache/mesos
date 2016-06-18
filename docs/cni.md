@@ -130,6 +130,43 @@ will need to attach the container to a CNI network (such as
 bridge/macvlan) that, in turn, is attached to the host network.
 ```
 
+#### <a name="mesos-meta-data-to-cni-plugins"></a>Mesos meta-data to CNI plugins
+
+When invoking CNI plugins (e.g., with command ADD), the isolator will
+pass on some Mesos meta-data to the plugins by specifying the `args`
+field in the [network configuration
+JSON](https://github.com/containernetworking/cni/blob/master/SPEC.md#network-configuration)
+according to the CNI spec. Currently, the isolator only passes on
+`NetworkInfo` of the corresponding network to the plugin. This is
+simply the JSON representation of the `NetworkInfo` protobuf. For
+instance:
+
+```{.json}
+{
+  "name" : "mynet",
+  "type" : "bridge",
+  "args" : {
+    "org.apache.mesos" : {
+      "network_info" : {
+        "name" : "mynet",
+        "labels" : {
+          "labels" : [
+            { "key" : "app", "value" : "myapp" },
+            { "key" : "env", "value" : "prod" }
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+It is important to note that `labels` within the `NetworkInfo` is set
+by frameworks launching the container, and the isolator passses on
+this information to the CNI plugins. As per the spec, the CNI plugins
+can use this meta-data information to enforce domain specific policies
+while attaching containers to a CNI network.
+
 #### <a name="accessing-container-network-namespace"></a>Accessing container network namespace
 
 The `network/cni` isolator allocates a network namespace to a
