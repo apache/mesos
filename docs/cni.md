@@ -163,9 +163,10 @@ instance:
 
 It is important to note that `labels` within the `NetworkInfo` is set
 by frameworks launching the container, and the isolator passses on
-this information to the CNI plugins. As per the spec, the CNI plugins
-can use this meta-data information to enforce domain specific policies
-while attaching containers to a CNI network.
+this information to the CNI plugins. As per the spec, it is the
+prerogative of the CNI plugins to use this meta-data information to
+enforce domain specific policies while attaching containers to a CNI
+network.
 
 #### <a name="accessing-container-network-namespace"></a>Accessing container network namespace
 
