@@ -638,7 +638,7 @@ Future<Response> Master::Http::api(
       return getTasks(call, principal, acceptType);
 
     case mesos::master::Call::GET_ROLES:
-      return NotImplemented();
+      return getRoles(call, principal, acceptType);
 
     case mesos::master::Call::GET_WEIGHTS:
       return NotImplemented();
@@ -1412,6 +1412,66 @@ Future<Response> Master::Http::setLoggingLevel(
       .then([]() -> Response {
         return OK();
       });
+}
+
+
+// This duplicates the functionality offered by `roles()`. This was necessary
+// as the JSON object returned by `roles()` was not specified in a formal way
+// i.e. via a corresponding protobuf object and would have been very hard to
+// convert back into a `Resource` object.
+Future<Response> Master::Http::getRoles(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_ROLES, call.type());
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_ROLES);
+
+  mesos::master::Response::GetRoles* getRoles = response.mutable_get_roles();
+
+  set<string> roleList;
+  if (master->roleWhitelist.isSome()) {
+    const hashset<string>& whitelist = master->roleWhitelist.get();
+    roleList.insert(whitelist.begin(), whitelist.end());
+  } else {
+    roleList.insert("*"); // Default role.
+    roleList.insert(
+        master->activeRoles.keys().begin(),
+        master->activeRoles.keys().end());
+    roleList.insert(
+        master->weights.keys().begin(),
+        master->weights.keys().end());
+    roleList.insert(
+        master->quotas.keys().begin(),
+        master->quotas.keys().end());
+  }
+
+  foreach (const string& name, roleList) {
+    mesos::Role role;
+
+    if (master->weights.contains(name)) {
+      role.set_weight(master->weights[name]);
+    }
+
+    if (master->activeRoles.contains(name)) {
+      Role* role_ = master->activeRoles[name];
+
+      role.mutable_resources()->CopyFrom(role_->resources());
+
+      foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
+        role.add_frameworks()->CopyFrom(frameworkId);
+      }
+    }
+
+    role.set_name(name);
+
+    getRoles->add_roles()->CopyFrom(role);
+  }
+
+  return OK(serialize(contentType, evolve(response)),
+            stringify(contentType));
 }
 
 

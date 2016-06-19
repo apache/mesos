@@ -2006,6 +2006,18 @@ message Flag {
 
 
 /**
+ * Describes a Role. Roles can be used to specify that certain resources are
+ * reserved for the use of one or more frameworks.
+ */
+message Role {
+  required string name = 1 [default = "*"];
+  optional double weight = 2 [default = 1.0];
+  repeated FrameworkID frameworks = 3;
+  repeated Resource resources = 4;
+}
+
+
+/**
  * Metric consists of a name and optionally its value.
  */
 message Metric {

@@ -1316,6 +1316,11 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> getRoles(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getMetrics(
         const mesos::master::Call& call,
         const Option<std::string>& principal,

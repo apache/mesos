@@ -287,11 +287,10 @@ message Response {
     repeated Task tasks = 1;
   }
 
+  // Provides information about every role that is on the role
+  // whitelist (if enabled), has one or more registered frameworks
+  // or has a non-default weight or quota.
   message GetRoles {
-    message Role {
-      // TODO(vinod): Fill in the fields.
-    }
-
     repeated Role roles = 1;
   }
 

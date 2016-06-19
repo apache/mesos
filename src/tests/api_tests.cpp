@@ -16,6 +16,8 @@
 
 #include <mesos/http.hpp>
 
+#include <mesos/v1/resources.hpp>
+
 #include <mesos/v1/master/master.hpp>
 
 #include <process/clock.hpp>
@@ -402,6 +404,64 @@ TEST_P(MasterAPITest, SetLoggingLevel)
   // Verifies the logging level reverted successfully.
   ASSERT_EQ(originalLevel, static_cast<uint32_t>(FLAGS_v));
   Clock::resume();
+}
+
+
+TEST_P(MasterAPITest, GetRoles)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = "role1";
+  masterFlags.weights = "role1=2.5";
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources =
+    "cpus(role1):0.5;mem(role1):512;ports(role1):[31000-31001];"
+    "disk(role1):1024;gpus(role1):1";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_ROLES);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_ROLES, v1Response->type());
+
+  ASSERT_EQ(2, v1Response->get_roles().roles().size());
+  EXPECT_EQ("role1", v1Response->get_roles().roles(1).name());
+  EXPECT_EQ(2.5, v1Response->get_roles().roles(1).weight());
+  ASSERT_EQ(v1::Resources::parse(slaveFlags.resources.get()).get(),
+            v1Response->get_roles().roles(1).resources());
+
+  driver.stop();
+  driver.join();
 }
 
 
