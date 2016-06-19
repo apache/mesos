@@ -17,6 +17,7 @@ news:
 ##     blog: (required)
   - title: Mesos 0.27.3 is released!
     date: June 12, 2016
+    blog: mesos-0-27-3-released
     target_version: 0.27.3
   - title: Mesos 0.28.2 is released!
     date: June 4, 2016
