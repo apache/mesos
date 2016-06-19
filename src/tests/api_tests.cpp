@@ -419,7 +419,7 @@ TEST_P(MasterAPITest, GetRoles)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources =
     "cpus(role1):0.5;mem(role1):512;ports(role1):[31000-31001];"
-    "disk(role1):1024;gpus(role1):1";
+    "disk(role1):1024;gpus(role1):0";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
