@@ -366,8 +366,7 @@ DockerContainerizerProcess::Container::create(
         slaveId,
         slavePid,
         checkpoint,
-        flags,
-        false);
+        flags);
     launchesExecutorContainer = true;
   }
 

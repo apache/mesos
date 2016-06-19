@@ -345,8 +345,7 @@ map<string, string> executorEnvironment(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const Flags& flags,
-    bool includeOsEnvironment)
+    const Flags& flags)
 {
   map<string, string> environment;
 
@@ -369,8 +368,12 @@ map<string, string> executorEnvironment(
       CHECK(value.is<JSON::String>());
       environment[key] = value.as<JSON::String>().value;
     }
-  } else if (includeOsEnvironment) {
-    environment = os::environment();
+  }
+
+  // Include a default $PATH if there isn't.
+  if (environment.count("PATH") == 0) {
+    environment["PATH"] =
+      "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
   }
 
   // Set LIBPROCESS_PORT so that we bind to a random free port (since

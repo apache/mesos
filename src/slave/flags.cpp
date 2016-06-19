@@ -238,8 +238,8 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::executor_environment_variables,
       "executor_environment_variables",
       "JSON object representing the environment variables that should be\n"
-      "passed to the executor, and thus subsequently task(s). By default the\n"
-      "executor will inherit the agent's environment variables.\n"
+      "passed to the executor, and thus subsequently task(s). By default this\n"
+      "flag is none. Users have to define executor environment explicitly.\n"
       "Example:\n"
       "{\n"
       "  \"PATH\": \"/bin:/usr/bin\",\n"

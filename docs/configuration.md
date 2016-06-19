@@ -1285,8 +1285,8 @@ is used for the <code>disk/du</code> isolator. (default: false)
   </td>
   <td>
 JSON object representing the environment variables that should be
-passed to the executor, and thus subsequently task(s). By default the
-executor will inherit the agent's environment variables.
+passed to the executor, and thus subsequently task(s). By default this
+flag is none. Users have to define executor environment explicitly.
 Example:
 <pre><code>{
   "PATH": "/bin:/usr/bin",

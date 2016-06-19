@@ -160,8 +160,7 @@ std::map<std::string, std::string> executorEnvironment(
     const SlaveID& slaveId,
     const process::PID<Slave>& slavePid,
     bool checkpoint,
-    const Flags& flags,
-    bool includeOsEnvironment = true);
+    const Flags& flags);
 
 } // namespace slave {
 } // namespace internal {
