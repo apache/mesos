@@ -762,6 +762,11 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
     }
   }
 
+  // TODO(alexr): Consider validating not only protobuf, but also the original
+  // JSON in order to spot misspelled names. A misspelled action may affect
+  // authorization result and hence lead to a security issue (e.g. when there
+  // are entries with same action but different subjects or objects).
+
   return None();
 }
 
