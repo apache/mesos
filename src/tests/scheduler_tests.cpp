@@ -185,14 +185,15 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
 
+  Future<Nothing> connected2;
   EXPECT_CALL(*scheduler2, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
+    .WillOnce(FutureSatisfy(&connected2))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos mesos2(master.get()->pid, contentType, scheduler2);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(connected2);
 
   // The previously connected scheduler instance should receive an
   // error/disconnected event.
@@ -284,13 +285,14 @@ TEST_P(SchedulerTest, MasterFailover)
 
   AWAIT_READY(disconnected);
 
+  Future<Nothing> connected2;
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
+    .WillOnce(FutureSatisfy(&connected2))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   detector->appoint(master.get()->pid);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(connected2);
 
   EXPECT_CALL(*scheduler, subscribed(_, _))
     .WillOnce(FutureArg<1>(&subscribed));

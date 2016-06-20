@@ -428,15 +428,16 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
 
+  Future<Nothing> connected2;
   EXPECT_CALL(*scheduler2, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
+    .WillOnce(FutureSatisfy(&connected2))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
       master.get()->pid, contentType, scheduler2);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(connected2);
 
   // The previously connected scheduler instance should receive an
   // error/disconnected event.
@@ -596,15 +597,16 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
   auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
 
+  Future<Nothing> connected2;
   EXPECT_CALL(*scheduler2, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
+    .WillOnce(FutureSatisfy(&connected2))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
       master.get()->pid, contentType, scheduler2);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(connected2);
 
   // The previously connected scheduler instance should receive an
   // error/disconnected event.
@@ -768,15 +770,16 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
 
+  Future<Nothing> connected2;
   EXPECT_CALL(*scheduler2, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
+    .WillOnce(FutureSatisfy(&connected2))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
       master.get()->pid, contentType, scheduler2);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(connected2);
 
   // The previously connected scheduler instance should receive an
   // error/disconnected event.
