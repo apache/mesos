@@ -1426,8 +1426,8 @@ e.g., <code>APPC,DOCKER</code>.
     --image_provisioner_backend=VALUE
   </td>
   <td>
-Strategy for provisioning container rootfs from images,
-e.g., <code>bind</code>, <code>copy</code>. (default: copy)
+Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
+<code>bind</code>, <code>copy</code>, <code>overlay</code>. (default: copy)
   </td>
 </tr>
 <tr>

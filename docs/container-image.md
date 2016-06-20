@@ -298,6 +298,21 @@ for more detail.
 For more information of overlayfs, please refer to
 [here](https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt).
 
+### AUFS
+
+The reason AUFS is introduced is because overlayfs support hasn't been
+merged until kernel 3.18 and Docker's default storage backend for
+ubuntu 14.04 is AUFS.
+
+Like overlayfs, AUFS is also a unioned file system, which is very
+stable, has a lot of real-world deployments, and has strong community
+support.
+
+Some Linux distributions do not support AUFS. This is usually because
+AUFS is not included in the mainline (upstream) Linux kernel.
+
+For more information of AUFS, please refer to
+[here](http://aufs.sourceforge.net/aufs2/man.html).
 
 ## Executor Dependencies in a Container Image
 
