@@ -1761,7 +1761,7 @@ TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      InternalServerError().status, response);
+      ServiceUnavailable().status, response);
 
   terminate(slave);
   wait(slave);
