@@ -45,7 +45,7 @@ Following are the instructions for stock Ubuntu 14.04. If you are using a differ
     $ sudo apt-get install -y autoconf libtool
 
     # Install other Mesos dependencies.
-    $ sudo apt-get -y install build-essential python-dev libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev libelf-dev
+    $ sudo apt-get -y install build-essential python-dev libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev
 
 ### Mac OS X Yosemite & El Capitan
 
@@ -112,7 +112,7 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
     $ sudo yum install -y devtoolset-2-toolchain
 
     # Install other Mesos dependencies.
-    $ sudo yum install -y apache-maven python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel elfutils-libelf-devel.x86_64
+    $ sudo yum install -y apache-maven python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
     # Enter a shell with 'devtoolset-2' enabled.
     $ scl enable devtoolset-2 bash
@@ -163,7 +163,7 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     $ sudo yum groupinstall -y "Development Tools"
 
     # Install other Mesos dependencies.
-    $ sudo yum install -y apache-maven python-devel java-1.8.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel elfutils-libelf-devel.x86_64
+    $ sudo yum install -y apache-maven python-devel java-1.8.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
 ## Building Mesos
 

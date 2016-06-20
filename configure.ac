@@ -1270,26 +1270,6 @@ AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
                [test "x$with_network_isolator" = "xyes"])
 
 
-# Check for libelf on Linux (both headers and libraries).
-if test "$OS_NAME" = "linux"; then
-  AC_CHECK_HEADERS([gelf.h], [],
-                   [AC_MSG_ERROR([Cannot find the libelf headers
--------------------------------------------------------------------
-The libelf headers are required to build Mesos with Nvidia
-GPU support. Make sure these headers are installed on the system.
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_LIB([elf], [elf_begin], [],
-               [AC_MSG_ERROR([Cannot find libelf
--------------------------------------------------------------------
-The libelf library is required to build Mesos with Nvidia GPU
-support. Make sure this library is installed on the system.
--------------------------------------------------------------------
-  ])])
-fi
-
-
 # If the user has asked not to include the bundled NVML headers for
 # Nvidia GPU support, check to see if the path to the NVML headers has
 # been specified.  If it has, make sure that the path is absolute. If

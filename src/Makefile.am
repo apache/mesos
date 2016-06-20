@@ -187,13 +187,6 @@ LIB_ZOOKEEPER = -lzookeeper_mt
 LDADD += -lzookeeper_mt
 endif
 
-# Introduced for NVIDIA GPU support (we needed to
-# introspect shared library dependencies).
-if OS_LINUX
-LIB_ELF = -lelf
-LDADD += -lelf
-endif
-
 # TODO(hausdorff): Remove our hard dependency on SASL, as some platforms
 # (namely Windows) will not support it in the forseeable future. As a
 # stop-gap, we conditionally compile the code in libmesos that depends on
@@ -1276,7 +1269,6 @@ libmesos_la_LIBTOOLFLAGS = --tag=CXX
 # Add the convenience library.
 libmesos_la_LIBADD =							\
   libmesos_no_3rdparty.la						\
-  $(LIB_ELF)								\
   $(LIB_GLOG)								\
   $(LIB_LEVELDB)							\
   $(LIB_PROCESS)							\
@@ -2145,7 +2137,6 @@ mesos_tests_DEPENDENCIES =					\
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
-  tests/ldcache_tests.cpp					\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
   tests/containerizer/cni_isolator_tests.cpp			\
