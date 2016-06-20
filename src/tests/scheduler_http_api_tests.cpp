@@ -935,6 +935,93 @@ TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
   }
 }
 
+
+// This test verifies that the scheduler will receive a `BadRequest` response
+// when it tries to acknowledge a status update with a malformed UUID.
+TEST_P(SchedulerHttpApiTest, MalformedUUID)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = contentType;
+  v1::FrameworkID frameworkId;
+  string streamId;
+
+  // Subscribe once to get a valid stream ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    Future<Response> response = process::http::streaming::post(
+        master.get()->pid,
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(Response::PIPE, response.get().type);
+    ASSERT_TRUE(response.get().headers.contains("Mesos-Stream-Id"));
+
+    streamId = response.get().headers.at("Mesos-Stream-Id");
+
+    Option<Pipe::Reader> reader = response.get().reader;
+    ASSERT_SOME(reader);
+
+    auto deserializer = lambda::bind(
+        &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check that the event type is subscribed and the framework ID is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
+
+    frameworkId = event.get().get().subscribed().framework_id();
+    EXPECT_NE("", frameworkId.value());
+  }
+
+  // Make an acknowledge call with a malformed UUID. This should result in a
+  // `BadResponse`.
+  {
+    headers["Mesos-Stream-Id"] = streamId;
+
+    Call call;
+    call.set_type(Call::ACKNOWLEDGE);
+
+    // Set the framework ID in the subscribe call.
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->set_value("task-id");
+    acknowledge->mutable_agent_id()->set_value("agent-id");
+
+    // Set a malformed uuid.
+    acknowledge->set_uuid("bad-uuid");
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    AWAIT_EXPECT_RESPONSE_BODY_EQ(
+        "Failed to validate scheduler::Call: Not a valid UUID", response);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

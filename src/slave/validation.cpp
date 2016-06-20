@@ -19,6 +19,7 @@
 #include <mesos/agent/agent.hpp>
 
 #include <stout/unreachable.hpp>
+#include <stout/uuid.hpp>
 
 #include "slave/validation.hpp"
 
@@ -140,6 +141,11 @@ Option<Error> validate(const mesos::executor::Call& call)
 
       if (!status.has_uuid()) {
         return Error("Expecting 'uuid' to be present");
+      }
+
+      Try<UUID> uuid = UUID::fromBytes(status.uuid()).get();
+      if (uuid.isError()) {
+        return uuid.error();
       }
 
       if (status.has_executor_id() &&

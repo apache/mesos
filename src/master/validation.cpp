@@ -301,11 +301,17 @@ Option<Error> validate(
       }
       return None();
 
-    case mesos::scheduler::Call::ACKNOWLEDGE:
+    case mesos::scheduler::Call::ACKNOWLEDGE: {
       if (!call.has_acknowledge()) {
         return Error("Expecting 'acknowledge' to be present");
       }
+
+      Try<UUID> uuid = UUID::fromBytes(call.acknowledge().uuid());
+      if (uuid.isError()) {
+        return uuid.error();
+      }
       return None();
+    }
 
     case mesos::scheduler::Call::RECONCILE:
       if (!call.has_reconcile()) {
