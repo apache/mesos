@@ -1516,16 +1516,17 @@ Future<Response> Master::Http::getTasks(
 
   return _tasks(limit, offset, _order, principal)
     .then([contentType](const vector<const Task*>& tasks) -> Response {
-      v1::master::Response response;
-      response.set_type(v1::master::Response::GET_TASKS);
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_TASKS);
 
-      v1::master::Response::GetTasks* getTasks = response.mutable_get_tasks();
+      mesos::master::Response::GetTasks* getTasks
+        = response.mutable_get_tasks();
 
       foreach (const Task* task, tasks) {
-        getTasks->add_tasks()->CopyFrom(evolve(*task));
+        getTasks->add_tasks()->CopyFrom(*task);
       }
 
-      return OK(serialize(contentType, response),
+      return OK(serialize(contentType, evolve(response)),
                 stringify(contentType));
     });
 }

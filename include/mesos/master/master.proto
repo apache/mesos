@@ -296,10 +296,6 @@ message Response {
   }
 
   message GetTasks {
-    message Task {
-      // TODO(vinod): Fill in the fields.
-    }
-
     repeated Task tasks = 1;
   }
 
