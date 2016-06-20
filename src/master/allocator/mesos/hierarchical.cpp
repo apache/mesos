@@ -250,12 +250,16 @@ void HierarchicalAllocatorProcess::addFramework(
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
 
-  // Check if the framework desires revocable resources.
+  // Set the framework capabilities that this allocator cares about.
   frameworks[frameworkId].revocable = false;
+  frameworks[frameworkId].gpuAware = false;
+
   foreach (const FrameworkInfo::Capability& capability,
            frameworkInfo.capabilities()) {
     if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
       frameworks[frameworkId].revocable = true;
+    } else if (capability.type() == FrameworkInfo::Capability::GPU_RESOURCES) {
+      frameworks[frameworkId].gpuAware = true;
     }
   }
 
@@ -388,12 +392,16 @@ void HierarchicalAllocatorProcess::updateFramework(
   // progress on allowing these fields to be updated.
   CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
 
+  // Update the framework capabilities that this allocator cares about.
   frameworks[frameworkId].revocable = false;
+  frameworks[frameworkId].gpuAware = false;
 
   foreach (const FrameworkInfo::Capability& capability,
            frameworkInfo.capabilities()) {
     if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
       frameworks[frameworkId].revocable = true;
+    } else if (capability.type() == FrameworkInfo::Capability::GPU_RESOURCES) {
+      frameworks[frameworkId].gpuAware = true;
     }
   }
 }
@@ -1263,6 +1271,14 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
+        // Only offer resources from slaves that have GPUs to
+        // frameworks that are capable of receiving GPUs.
+        // See MESOS-5634.
+        if (!frameworks[frameworkId].gpuAware &&
+            slaves[slaveId].total.gpus().getOrElse(0) > 0) {
+          continue;
+        }
+
         // Calculate the currently available resources on the slave.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
 
@@ -1390,6 +1406,14 @@ void HierarchicalAllocatorProcess::allocate(
 
         // If the framework has suppressed offers, ignore.
         if (frameworks[frameworkId].suppressed) {
+          continue;
+        }
+
+        // Only offer resources from slaves that have GPUs to
+        // frameworks that are capable of receiving GPUs.
+        // See MESOS-5634.
+        if (!frameworks[frameworkId].gpuAware &&
+            slaves[slaveId].total.gpus().getOrElse(0) > 0) {
           continue;
         }
 

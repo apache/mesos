@@ -283,6 +283,10 @@ protected:
     // Whether the framework desires revocable resources.
     bool revocable;
 
+    // Whether the framework is aware of GPU resources. See
+    // the documentation for the GPU_RESOURCES Capability.
+    bool gpuAware;
+
     // Active offer and inverse offer filters for the framework.
     hashmap<SlaveID, hashset<OfferFilter*>> offerFilters;
     hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
