@@ -36,13 +36,13 @@ message Call {
    enum Type {
     UNKNOWN = 0;
 
-    GET_HEALTH = 1;
-    GET_FLAGS = 2;
-    GET_VERSION = 3;
-    GET_METRICS = 4;                   // See 'GetMetrics' below.
+    GET_HEALTH = 1;         // Retrieves the agent's health status.
+    GET_FLAGS = 2;          // Retrieves the agent's flag configuration.
+    GET_VERSION = 3;        // Retrieves the agent's version information.
+    GET_METRICS = 4;        // See 'GetMetrics' below.
 
-    GET_LOGGING_LEVEL = 5;
-    SET_LOGGING_LEVEL = 6;             // See 'SetLoggingLevel' below.
+    GET_LOGGING_LEVEL = 5;  // Retrieves the agent's logging level.
+    SET_LOGGING_LEVEL = 6;  // See 'SetLoggingLevel' below.
 
     LIST_FILES = 7;
     READ_FILE = 8;
@@ -101,12 +101,12 @@ message Response {
   enum Type {
     UNKNOWN = 0;
 
-    GET_HEALTH = 1;
-    GET_FLAGS = 2;
-    GET_VERSION = 3;
-    GET_METRICS = 4;              // See 'GetMetrics' below.
+    GET_HEALTH = 1;                // See 'GetHealth' below.
+    GET_FLAGS = 2;                 // See 'GetFlags' below.
+    GET_VERSION = 3;               // See 'GetVersion' below.
+    GET_METRICS = 4;               // See 'GetMetrics' below.
 
-    GET_LOGGING_LEVEL = 5;
+    GET_LOGGING_LEVEL = 5;         // See 'GetLoggingLevel' below.
 
     LIST_FILES = 6;
     GET_FILE_CONTENTS = 7;
@@ -118,14 +118,21 @@ message Response {
     GET_CONTAINERS = 10;
   }
 
+  // The response for 'Call::GET_HEALTH', `healthy` would be true if the agent
+  // is healthy. Delayed responses are also indicative of the poor health of the
+  // agent.
   message GetHealth {
     required bool healthy = 1;
   }
 
+  // The response for 'Call::GET_FLAGS', contains the flag configuration of the
+  // agent.
   message GetFlags {
     repeated Flag flags = 1;
   }
 
+  // The response for 'Call::GET_VERSION', contains the version information of
+  // the agent.
   message GetVersion {
     required VersionInfo version_info = 1;
   }
@@ -136,6 +143,8 @@ message Response {
     repeated Metric metrics = 1;
   }
 
+  // The response for 'Call::GET_LOGGING_LEVEL', contains the logging level of
+  // the agent.
   message GetLoggingLevel {
     required uint32 level = 1;
   }

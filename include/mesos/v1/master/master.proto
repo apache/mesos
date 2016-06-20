@@ -42,13 +42,13 @@ message Call {
    // a streaming response of `Event`.
     UNKNOWN = 0;
 
-    GET_HEALTH = 1;
-    GET_FLAGS = 2;
-    GET_VERSION = 3;
-    GET_METRICS = 4;                   // See 'GetMetrics' below.
+    GET_HEALTH = 1;         // Retrieves the master's health status.
+    GET_FLAGS = 2;          // Retrieves the master's flag configuration.
+    GET_VERSION = 3;        // Retrieves the master's version information.
+    GET_METRICS = 4;        // See 'GetMetrics' below.
 
-    GET_LOGGING_LEVEL = 5;
-    SET_LOGGING_LEVEL = 6;             // See 'SetLoggingLevel' below.
+    GET_LOGGING_LEVEL = 5;  // Retrieves the master's logging level.
+    SET_LOGGING_LEVEL = 6;  // See 'SetLoggingLevel' below.
 
     LIST_FILES = 7;
     READ_FILE = 8;
@@ -58,13 +58,13 @@ message Call {
 
     GET_AGENTS = 11;
     GET_FRAMEWORKS = 12;
-    GET_TASKS = 13;
+    GET_TASKS = 13;         // See 'GetTasks' below.
     GET_ROLES = 14;
 
     GET_WEIGHTS = 15;
     UPDATE_WEIGHTS = 16;
 
-    GET_LEADING_MASTER = 17;
+    GET_LEADING_MASTER = 17; // Retrieves the leading master information.
 
     SUBSCRIBE = 18;
 
@@ -74,11 +74,13 @@ message Call {
     CREATE_VOLUMES = 21;
     DESTROY_VOLUMES = 22;
 
+    // Retrieves the cluster's maintenance status.
     GET_MAINTENANCE_STATUS = 23;
+    // Retrieves the cluster's maintenance schedule.
     GET_MAINTENANCE_SCHEDULE = 24;
-    UPDATE_MAINTENANCE_SCHEDULE = 25;
-    START_MAINTENANCE = 26;
-    STOP_MAINTENANCE = 27;
+    UPDATE_MAINTENANCE_SCHEDULE = 25; // See 'UpdateMaintenanceSchedule' below.
+    START_MAINTENANCE = 26;           // See 'StartMaintenance' below.
+    STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
 
     GET_QUOTA = 28;
     SET_QUOTA = 29;
@@ -149,14 +151,19 @@ message Call {
     repeated Resource volumes = 2;
   }
 
+  // Updates the cluster's maintenance schedule.
   message UpdateMaintenanceSchedule {
     required maintenance.Schedule schedule = 1;
   }
 
+  // Starts the maintenance of the cluster, this would bring a set of machines
+  // down.
   message StartMaintenance {
     repeated MachineID machines = 1;
   }
 
+  // Stops the maintenance of the cluster, this would bring a set of machines
+  // back up.
   message StopMaintenance {
     repeated MachineID machines = 1;
   }
@@ -197,12 +204,12 @@ message Response {
   enum Type {
     UNKNOWN = 0;
 
-    GET_HEALTH = 1;
-    GET_FLAGS = 2;
-    GET_VERSION = 3;
-    GET_METRICS = 4;              // See 'GetMetrics' below.
+    GET_HEALTH = 1;                // See 'GetHealth' below.
+    GET_FLAGS = 2;                 // See 'GetFlags' below.
+    GET_VERSION = 3;               // See 'GetVersion' below.
+    GET_METRICS = 4;               // See 'GetMetrics' below.
 
-    GET_LOGGING_LEVEL = 5;
+    GET_LOGGING_LEVEL = 5;         // See 'GetLoggingLevel' below.
 
     LIST_FILES = 6;
     GET_FILE_CONTENTS = 7;
@@ -217,22 +224,29 @@ message Response {
 
     GET_WEIGHTS = 14;
 
-    GET_LEADING_MASTER = 15;
+    GET_LEADING_MASTER = 15;       // See 'GetLeadingMaster' below.
 
-    GET_MAINTENANCE_STATUS = 16;
-    GET_MAINTENANCE_SCHEDULE = 17;
+    GET_MAINTENANCE_STATUS = 16;   // See 'GetMaintenanceStatus' below.
+    GET_MAINTENANCE_SCHEDULE = 17; // See 'GetMaintenanceSchedule' below.
 
     GET_QUOTA = 18;
   }
 
+  // The response for 'Call::GET_HEALTH', `healthy` would be true if the master
+  // is healthy. Delayed responses are also indicative of the poor health of the
+  // master.
   message GetHealth {
     required bool healthy = 1;
   }
 
+  // The response for 'Call::GET_FLAGS', contains the flag configuration of the
+  // master.
   message GetFlags {
     repeated Flag flags = 1;
   }
 
+  // The response for 'Call::GET_VERSION', contains the version information of
+  // the master.
   message GetVersion {
     required VersionInfo version_info = 1;
   }
@@ -243,6 +257,8 @@ message Response {
     repeated Metric metrics = 1;
   }
 
+  // The response for 'Call::GET_LOGGING_LEVEL', contains the logging level of
+  // the master.
   message GetLoggingLevel {
     required uint32 level = 1;
   }
@@ -294,14 +310,23 @@ message Response {
     repeated WeightInfo weight_infos = 1;
   }
 
+  // The response for 'Call::GET_LEADING_MASTER', contains the leading master
+  // information.
+  // NOTE: This is broken currently "on the cloud" (e.g. EC2) as it stores the
+  // private IP address, unless advertise_ip points to an externally accessible
+  // IP.
   message GetLeadingMaster {
     optional MasterInfo master_info = 1;
   }
 
+  // The response for 'Call::GET_MAINTENANCE_STATUS', contains the cluster's
+  // maintenance status.
   message GetMaintenanceStatus {
     required maintenance.ClusterStatus status = 1;
   }
 
+  // The response for 'Call::GET_MAINTENANCE_SCHEDULE', contains the cluster's
+  // maintenance schedule.
   message GetMaintenanceSchedule {
     required maintenance.Schedule schedule = 1;
   }
