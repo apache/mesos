@@ -153,6 +153,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
     FUTURE_DISPATCH(_, &Master::frameworkFailoverTimeout);
 
   Clock::advance(failoverTimeout.get());
+  Clock::resume();
 
   // Wait until master actually marks the framework as completed.
   AWAIT_READY(frameworkFailoverTimeout);
@@ -270,6 +271,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
     // Wait for `removeFramework()` to be completed on the master.
     Clock::pause();
     Clock::settle();
+    Clock::resume();
 
     // The scheduler should eventually realize the disconnection.
     AWAIT_READY(disconnected);

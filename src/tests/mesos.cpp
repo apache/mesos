@@ -77,6 +77,22 @@ ZooKeeperTestServer* MesosZooKeeperTest::server = nullptr;
 Option<zookeeper::URL> MesosZooKeeperTest::url;
 #endif // MESOS_HAS_JAVA
 
+void MesosTest::SetUpTestCase()
+{
+  // We set the connection delay used by the scheduler library to 0.
+  // This is done to speed up the tests.
+  os::setenv("MESOS_CONNECTION_DELAY_MAX", "0ms");
+}
+
+
+void MesosTest::TearDownTestCase()
+{
+  os::unsetenv("MESOS_CONNECTION_DELAY_MAX");
+
+  SSLTemporaryDirectoryTest::TearDownTestCase();
+}
+
+
 MesosTest::MesosTest(const Option<zookeeper::URL>& _zookeeperUrl)
   : zookeeperUrl(_zookeeperUrl) {}
 

@@ -108,6 +108,10 @@ class MockExecutor;
 // Mesos.  In this case, the class is an alias of `TemporaryDirectoryTest`.
 class MesosTest : public SSLTemporaryDirectoryTest
 {
+public:
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
 protected:
   MesosTest(const Option<zookeeper::URL>& url = None());
 

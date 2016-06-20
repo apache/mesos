@@ -1470,10 +1470,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Pause the clock before starting a framework.
-  // This ensures deterministic offer-ing behavior during the test.
-  Clock::pause();
-
   // Now start a framework.
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
@@ -1492,6 +1488,10 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   EXPECT_CALL(callbacks, received(_))
     .WillRepeatedly(Enqueue(&events));
+
+  // Pause the clock before subscribing the framework.
+  // This ensures deterministic offer-ing behavior during the test.
+  Clock::pause();
 
   {
     Call call;

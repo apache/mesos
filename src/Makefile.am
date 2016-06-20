@@ -938,6 +938,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   module/manager.hpp							\
   sched/constants.hpp							\
   sched/flags.hpp							\
+  scheduler/constants.hpp						\
+  scheduler/flags.hpp							\
   slave/constants.hpp							\
   slave/flags.hpp							\
   slave/gc.hpp								\
