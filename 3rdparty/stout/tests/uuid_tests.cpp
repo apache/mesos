@@ -16,6 +16,8 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/check.hpp>
+#include <stout/gtest.hpp>
 #include <stout/uuid.hpp>
 
 using std::string;
@@ -24,7 +26,7 @@ using std::string;
 TEST(UUIDTest, Test)
 {
   UUID uuid1 = UUID::random();
-  UUID uuid2 = UUID::fromBytes(uuid1.toBytes());
+  UUID uuid2 = UUID::fromBytes(uuid1.toBytes()).get();
   UUID uuid3 = uuid2;
 
   EXPECT_EQ(uuid1, uuid2);
@@ -46,4 +48,12 @@ TEST(UUIDTest, Test)
   EXPECT_EQ(string1, string2);
   EXPECT_EQ(string2, string3);
   EXPECT_EQ(string1, string3);
+}
+
+
+TEST(UUIDTest, MalformedUUID)
+{
+  EXPECT_SOME(UUID::fromBytes(UUID::random().toBytes()));
+  EXPECT_ERROR(UUID::fromBytes("malformed-uuid"));
+  EXPECT_ERROR(UUID::fromBytes("invalidstringmsg"));
 }
