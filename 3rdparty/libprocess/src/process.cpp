@@ -1214,7 +1214,19 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
   if (!future.isReady()) {
     // TODO(benh): Consider handling other "states" of future
     // (discarded, failed, etc) with different HTTP statuses.
-    socket_manager->send(ServiceUnavailable(), request, socket);
+    Response response = future.isFailed()
+      ? ServiceUnavailable(future.failure())
+      : ServiceUnavailable();
+
+    VLOG(1) << "Returning '" << response.status << "'"
+            << " for '" << request.url.path << "'"
+            << " ("
+            << (future.isFailed()
+                  ? future.failure()
+                  : "discarded") << ")";
+
+    socket_manager->send(response, request, socket);
+
     return true; // All done, can process next response.
   }
 
