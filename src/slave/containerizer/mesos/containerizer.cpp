@@ -1164,7 +1164,11 @@ Future<bool> MesosContainerizerProcess::__launch(
   }
 
   JSON::Array commandArray;
+
+  // TODO(jieyu): We should use Option here. If no namespace is
+  // required, we should pass None() to 'launcher->fork'.
   int namespaces = 0;
+
   foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
     if (!launchInfo.isSome()) {
       continue;

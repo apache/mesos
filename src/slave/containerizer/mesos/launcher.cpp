@@ -91,6 +91,10 @@ Try<pid_t> PosixLauncher::fork(
     const Option<int>& namespaces,
     vector<process::Subprocess::Hook> parentHooks)
 {
+  if (namespaces.isSome() && namespaces.get() != 0) {
+    return Error("Posix launcher does not support namespaces");
+  }
+
   if (pids.contains(containerId)) {
     return Error("Process has already been forked for container " +
                  stringify(containerId));
