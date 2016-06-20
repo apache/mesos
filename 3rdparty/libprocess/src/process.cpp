@@ -3332,7 +3332,10 @@ void ProcessBase::visit(const HttpEvent& event)
       .onAny(defer(self(), [this, endpoint, request, response, name, id](
           const Future<Option<AuthenticationResult>>& authentication) {
         if (!authentication.isReady()) {
-          response->set(InternalServerError());
+          response->set(
+              authentication.isFailed()
+                ? ServiceUnavailable(authentication.failure())
+                : ServiceUnavailable());
 
           VLOG(1) << "Returning '" << response->future()->status << "'"
                   << " for '" << request.url.path << "'"
@@ -3391,7 +3394,10 @@ void ProcessBase::visit(const HttpEvent& event)
           .onAny(defer(self(), [endpoint, request, response, principal](
               const Future<bool>& authorization) {
             if (!authorization.isReady()) {
-              response->set(InternalServerError());
+              response->set(
+                  authorization.isFailed()
+                    ? ServiceUnavailable(authorization.failure())
+                    : ServiceUnavailable());
 
               VLOG(1) << "Returning '" << response->future()->status << "'"
                       << " for '" << request.url.path << "'"
