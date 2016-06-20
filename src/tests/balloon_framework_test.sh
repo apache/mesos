@@ -114,8 +114,14 @@ if [[ ${STATUS} -ne 0 ]]; then
   exit 2
 fi
 
+EXECUTOR_ENVIRONMENT_VARIABLES="{ \"LD_LIBRARY_PATH\": \"${LD_LIBRARY_PATH}\" }"
+
 # The main event!
-${BALLOON_FRAMEWORK} --master=127.0.0.1:5432 --task_memory_usage_limit=1024MB --task_memory=32MB
+${BALLOON_FRAMEWORK} \
+    --master=127.0.0.1:5432 \
+    --task_memory_usage_limit=1024MB \
+    --task_memory=32MB \
+    --executor_environment_variables=${EXECUTOR_ENVIRONMENT_VARIABLES}
 STATUS=${?}
 
 # Make sure the balloon framework "failed".
