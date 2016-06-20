@@ -157,6 +157,10 @@ Additional API Changes:
   * [MESOS-5064] - Remove default value for the agent `work_dir`. This flag is
     now required, and the agent will exit immediately if it is not provided.
 
+  * [MESOS-5637] - Authorized endpoints consistently return `503` (Service
+    Unavailable) instead of `500` (Internal Server Error) when the authenticator
+    or the authorizer fails to process the request.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
