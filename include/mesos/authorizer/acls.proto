@@ -27,10 +27,13 @@ option java_outer_classname = "Protos";
  */
 message ACL {
   // Entity is used to describe a subject(s) or an object(s) of an ACL.
-  // NOTE:
-  // To allow everyone access to an Entity set its type to 'ANY'.
-  // To deny access to an Entity set its type to 'NONE'.
-  // Entities in the messages should be 'required'.
+  //
+  // NOTE: To allow everyone access to an `Entity` set its type to
+  // `ANY`. To deny access to an `Entity` set its type to `NONE`.
+  //
+  // NOTE: When adding new actions to these proto definitions,
+  // declare entities in these messages as `required`. Absent
+  // `Entity` is ambiguous: it can be interpreted as `NONE` or `ANY`.
   message Entity {
     enum Type {
       SOME = 0;
