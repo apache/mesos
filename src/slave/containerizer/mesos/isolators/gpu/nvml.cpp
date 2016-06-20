@@ -45,7 +45,7 @@ using std::string;
 
 namespace nvml {
 
-constexpr char LIBRARY_NAME[] = "libnvidia-ml.so.1";
+static constexpr char LIBRARY_NAME[] = "libnvidia-ml.so.1";
 
 
 struct NvidiaManagementLibrary
@@ -67,12 +67,12 @@ struct NvidiaManagementLibrary
 };
 
 
-const NvidiaManagementLibrary* nvml = nullptr;
+static const NvidiaManagementLibrary* nvml = nullptr;
 
 
-Once* initialized = new Once();
-Option<Error>* error = new Option<Error>();
-DynamicLibrary* library = new DynamicLibrary();
+static Once* initialized = new Once();
+static Option<Error>* error = new Option<Error>();
+static DynamicLibrary* library = new DynamicLibrary();
 
 
 Try<Nothing> initialize()
