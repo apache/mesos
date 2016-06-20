@@ -31,7 +31,8 @@ ostream& operator<<(ostream& stream, const StatusUpdate& update)
   stream << update.status().state();
 
   if (update.has_uuid()) {
-    stream << " (UUID: " << stringify(UUID::fromBytes(update.uuid())) << ")";
+    stream << " (UUID: " << stringify(UUID::fromBytes(update.uuid()).get())
+           << ")";
   }
 
   stream << " for task " << update.status().task_id();

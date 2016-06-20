@@ -2166,9 +2166,16 @@ void Master::receive(
       shutdown(framework, call.shutdown());
       break;
 
-    case scheduler::Call::ACKNOWLEDGE:
+    case scheduler::Call::ACKNOWLEDGE: {
+      Try<UUID> uuid = UUID::fromBytes(call.acknowledge().uuid());
+      if (uuid.isError()) {
+        drop(from, call, uuid.error());
+        return;
+      }
+
       acknowledge(framework, call.acknowledge());
       break;
+    }
 
     case scheduler::Call::RECONCILE:
       reconcile(framework, call.reconcile());
@@ -4301,22 +4308,34 @@ void Master::statusUpdateAcknowledgement(
   // important as validation logic is moved out of the scheduler
   // driver and into the master.
 
+  Try<UUID> uuid_ = UUID::fromBytes(uuid);
+  if (uuid_.isError()) {
+    LOG(WARNING)
+      << "Ignoring status update acknowledgement "
+      << " for task " << taskId << " of framework " << frameworkId
+      << " on agent " << slaveId << " due to: " << uuid_.error();
+    metrics->invalid_status_update_acknowledgements++;
+    return;
+  }
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == nullptr) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement " << UUID::fromBytes(uuid)
-      << " for task " << taskId << " of framework " << frameworkId
-      << " on agent " << slaveId << " because the framework cannot be found";
+      << "Ignoring status update acknowledgement "
+      << uuid_.get() << " for task " << taskId << " of framework "
+      << frameworkId << " on agent " << slaveId << " because the framework "
+      << "cannot be found";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
   if (framework->pid != from) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement " << UUID::fromBytes(uuid)
-      << " for task " << taskId << " of framework " << *framework
-      << " on agent " << slaveId << " because it is not expected from " << from;
+      << "Ignoring status update acknowledgement "
+      << uuid_.get() << " for task " << taskId << " of framework "
+      << *framework << " on agent " << slaveId << " because it is not "
+      << "expected from " << from;
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -4340,7 +4359,7 @@ void Master::acknowledge(
 
   const SlaveID& slaveId = acknowledge.slave_id();
   const TaskID& taskId = acknowledge.task_id();
-  const UUID uuid = UUID::fromBytes(acknowledge.uuid());
+  const UUID uuid = UUID::fromBytes(acknowledge.uuid()).get();
 
   Slave* slave = slaves.registered.get(slaveId);
 
@@ -4392,7 +4411,7 @@ void Master::acknowledge(
 
     // Remove the task once the terminal update is acknowledged.
     if (protobuf::isTerminalState(task->status_update_state()) &&
-        UUID::fromBytes(task->status_update_uuid()) == uuid) {
+        UUID::fromBytes(task->status_update_uuid()).get() == uuid) {
       removeTask(task);
      }
   }

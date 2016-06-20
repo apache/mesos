@@ -167,7 +167,7 @@ public:
           cout << "Received an ACKNOWLEDGED event" << endl;
 
           // Remove the corresponding update.
-          updates.erase(UUID::fromBytes(event.acknowledged().uuid()));
+          updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
 
           // Remove the corresponding task.
           tasks.erase(event.acknowledged().task_id());

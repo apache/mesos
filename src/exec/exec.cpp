@@ -358,20 +358,23 @@ protected:
       const TaskID& taskId,
       const string& uuid)
   {
+    Try<UUID> uuid_ = UUID::fromBytes(uuid);
+    CHECK_SOME(uuid_);
+
     if (aborted.load()) {
       VLOG(1) << "Ignoring status update acknowledgement "
-              << UUID::fromBytes(uuid) << " for task " << taskId
+              << uuid_.get() << " for task " << taskId
               << " of framework " << frameworkId
               << " because the driver is aborted!";
       return;
     }
 
     VLOG(1) << "Executor received status update acknowledgement "
-            << UUID::fromBytes(uuid) << " for task " << taskId
+            << uuid_.get() << " for task " << taskId
             << " of framework " << frameworkId;
 
     // Remove the corresponding update.
-    updates.erase(UUID::fromBytes(uuid));
+    updates.erase(uuid_.get());
 
     // Remove the corresponding task.
     tasks.erase(taskId);

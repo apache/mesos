@@ -159,7 +159,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
   }
 
   if (option.get().isSome()) {
-    if (UUID::fromBytes(option.get().get().uuid()) != uuid) {
+    if (UUID::fromBytes(option.get().get().uuid()).get() != uuid) {
       return false;
     }
   }
@@ -197,8 +197,8 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
     return false;
   }
 
-  if (UUID::fromBytes(option.get().get().uuid()) !=
-      UUID::fromBytes(entry.uuid())) {
+  if (UUID::fromBytes(option.get().get().uuid()).get() !=
+      UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }
 

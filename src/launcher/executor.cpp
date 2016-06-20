@@ -215,7 +215,7 @@ public:
 
         case Event::ACKNOWLEDGED: {
           // Remove the corresponding update.
-          updates.erase(UUID::fromBytes(event.acknowledged().uuid()));
+          updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
 
           // Remove the corresponding task.
           task = None();

@@ -716,7 +716,7 @@ Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
   // Check that this status update has not already been acknowledged.
   // This could happen in the rare case when the slave received the ACK
   // from the framework, died, but slave's ACK to the executor never made it!
-  if (acknowledged.contains(UUID::fromBytes(update.uuid()))) {
+  if (acknowledged.contains(UUID::fromBytes(update.uuid()).get())) {
     LOG(WARNING) << "Ignoring status update " << update
                  << " that has already been acknowledged by the framework!";
     return false;
@@ -725,7 +725,7 @@ Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
   // Check that this update hasn't already been received.
   // This could happen if the slave receives a status update from an executor,
   // then crashes after it writes it to disk but before it sends an ack.
-  if (received.contains(UUID::fromBytes(update.uuid()))) {
+  if (received.contains(UUID::fromBytes(update.uuid()).get())) {
     LOG(WARNING) << "Ignoring duplicate status update " << update;
     return false;
   }
@@ -758,9 +758,10 @@ Try<bool> StatusUpdateStream::acknowledgement(
 
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
-  if (uuid != UUID::fromBytes(update.uuid())) {
+  if (uuid != UUID::fromBytes(update.uuid()).get()) {
     LOG(WARNING) << "Unexpected status update acknowledgement (received "
-                 << uuid << ", expecting " << UUID::fromBytes(update.uuid())
+                 << uuid << ", expecting "
+                 << UUID::fromBytes(update.uuid()).get()
                  << ") for update " << update;
     return false;
   }
@@ -804,7 +805,7 @@ Try<Nothing> StatusUpdateStream::replay(
     _handle(update, StatusUpdateRecord::UPDATE);
 
     // Check if the update has an ACK too.
-    if (acks.contains(UUID::fromBytes(update.uuid()))) {
+    if (acks.contains(UUID::fromBytes(update.uuid()).get())) {
       _handle(update, StatusUpdateRecord::ACK);
     }
   }
@@ -857,13 +858,13 @@ void StatusUpdateStream::_handle(
 
   if (type == StatusUpdateRecord::UPDATE) {
     // Record this update.
-    received.insert(UUID::fromBytes(update.uuid()));
+    received.insert(UUID::fromBytes(update.uuid()).get());
 
     // Add it to the pending updates queue.
     pending.push(update);
   } else {
     // Record this ACK.
-    acknowledged.insert(UUID::fromBytes(update.uuid()));
+    acknowledged.insert(UUID::fromBytes(update.uuid()).get());
 
     // Remove the corresponding update from the pending queue.
     pending.pop();

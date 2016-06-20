@@ -320,7 +320,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         .tasks[task.task_id()]
         .updates.front().uuid());
 
-  const UUID& uuid = UUID::fromBytes(ack.get().acknowledge().uuid());
+  const UUID uuid = UUID::fromBytes(ack.get().acknowledge().uuid()).get();
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]

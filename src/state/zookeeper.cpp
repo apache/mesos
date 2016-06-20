@@ -551,7 +551,7 @@ Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
     return Error("Failed to deserialize Entry");
   }
 
-  if (UUID::fromBytes(current.uuid()) != uuid) {
+  if (UUID::fromBytes(current.uuid()).get() != uuid) {
     return false;
   }
 
@@ -602,7 +602,8 @@ Result<bool> ZooKeeperStorageProcess::doExpunge(const Entry& entry)
     return Error("Failed to deserialize Entry");
   }
 
-  if (UUID::fromBytes(current.uuid()) != UUID::fromBytes(entry.uuid())) {
+  if (UUID::fromBytes(current.uuid()).get() !=
+      UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }
 

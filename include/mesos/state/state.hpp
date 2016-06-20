@@ -152,7 +152,7 @@ inline process::Future<Variable> State::_fetch(
 inline process::Future<Option<Variable>> State::store(const Variable& variable)
 {
   // Note that we try and swap an entry even if the value didn't change!
-  UUID uuid = UUID::fromBytes(variable.entry.uuid());
+  UUID uuid = UUID::fromBytes(variable.entry.uuid()).get();
 
   // Create a new entry to replace the existing entry provided the
   // UUID matches.

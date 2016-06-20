@@ -2625,13 +2625,13 @@ void Slave::statusUpdateAcknowledgement(
   }
 
   statusUpdateManager->acknowledgement(
-      taskId, frameworkId, UUID::fromBytes(uuid))
+      taskId, frameworkId, UUID::fromBytes(uuid).get())
     .onAny(defer(self(),
                  &Slave::_statusUpdateAcknowledgement,
                  lambda::_1,
                  taskId,
                  frameworkId,
-                 UUID::fromBytes(uuid)));
+                 UUID::fromBytes(uuid).get()));
 }
 
 
@@ -6194,7 +6194,7 @@ void Executor::recoverTask(const TaskState& state)
         << "Expecting updates without 'uuid' to have been rejected";
 
       // If the terminal update has been acknowledged, remove it.
-      if (state.acks.contains(UUID::fromBytes(update.uuid()))) {
+      if (state.acks.contains(UUID::fromBytes(update.uuid()).get())) {
         completeTask(state.id);
       }
       break;
