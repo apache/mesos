@@ -899,12 +899,7 @@ Future<Response> Slave::Http::statistics(
                   [this, request](const ResourceUsage& usage) {
               return _statistics(usage, request);
             }));
-        }))
-    .repair([](const Future<Response>& future) {
-      LOG(WARNING) << "Could not collect statistics: " << future.failure();
-
-      return InternalServerError();
-    });
+        }));
 }
 
 

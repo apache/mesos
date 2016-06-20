@@ -1527,10 +1527,6 @@ Future<Response> Master::Http::getTasks(
 
       return OK(serialize(contentType, response),
                 stringify(contentType));
-    })
-    .repair([](const Future<Response>& response) {
-      LOG(WARNING) << "Authorization failed: " << response.failure();
-      return InternalServerError(response.failure());
     });
 }
 
@@ -2172,11 +2168,7 @@ Future<Response> Master::Http::state(
       };
 
       return OK(jsonify(state), request.url.query.get("jsonp"));
-    }))
-    .repair([](const Future<Response>& response) {
-      LOG(WARNING) << "Authorization failed: " << response.failure();
-      return InternalServerError(response.failure());
-    });
+    }));
 }
 
 
@@ -2488,11 +2480,7 @@ Future<Response> Master::Http::stateSummary(
       };
 
       return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
-    }))
-    .repair([](const Future<Response>& response) {
-      LOG(WARNING) << "Authorization failed: " << response.failure();
-      return InternalServerError(response.failure());
-    });
+    }));
 }
 
 
@@ -2812,10 +2800,6 @@ Future<Response> Master::Http::tasks(
       };
 
       return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
-    })
-    .repair([](const Future<Response>& response) {
-      LOG(WARNING) << "Authorization failed: " << response.failure();
-      return InternalServerError(response.failure());
     });
 }
 
