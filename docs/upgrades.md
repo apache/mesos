@@ -51,6 +51,7 @@ We categorize the changes as follows:
       <li>C <a href="#1-0-x-persistent-volume">Destruction of persistent volumes</a></li>
       <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
       <li>C <a href="#1-0-x-quota-acls">Quota ACLs</a></li>
+      <li>R <a href="#1-0-x-executor-environment-variables">Executor environment variables inheritance</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
@@ -171,6 +172,10 @@ We categorize the changes as follows:
 
 
 ## Upgrading from 0.28.x to 1.0.x ##
+
+<a name="1-0-x-executor-environment-variables"</a>
+
+* By default, executors will no longer inherit environment variables from the agent. The operator can still use the `--executor-environment-variables` flag on the agent to explicitly specify what environment variables the executors will get. Mesos generated environment variables (i.e., `$MESOS_`, `$LIBPROCESS_`) will not be affected. If `$PATH` is not specified for an executor, a default value `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` will be used.
 
 <a name="1-0-x-allocator-metrics"></a>
 
