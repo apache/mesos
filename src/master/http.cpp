@@ -680,7 +680,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case mesos::master::Call::SET_QUOTA:
-      return NotImplemented();
+      return quotaHandler.set(call, principal);
 
     case mesos::master::Call::REMOVE_QUOTA:
       return NotImplemented();

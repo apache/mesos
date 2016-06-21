@@ -905,6 +905,40 @@ TEST_P(MasterAPITest, Subscribe)
 }
 
 
+TEST_P(MasterAPITest, SetQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::Resources quotaResources =
+    v1::Resources::parse("cpus:1;mem:512").get();
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SET_QUOTA);
+
+  v1::quota::QuotaRequest* quotaRequest =
+    v1Call.mutable_set_quota()->mutable_quota_request();
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  quotaRequest->set_force(true);
+  quotaRequest->set_role("role1");
+  quotaRequest->mutable_guarantee()->CopyFrom(quotaResources);
+
+  ContentType contentType = GetParam();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>

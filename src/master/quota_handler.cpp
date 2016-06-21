@@ -269,6 +269,17 @@ Future<http::Response> Master::QuotaHandler::_status(
 
 
 Future<http::Response> Master::QuotaHandler::set(
+    const mesos::master::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::master::Call::SET_QUOTA, call.type());
+  CHECK(call.has_set_quota());
+
+  return _set(call.set_quota().quota_request(), principal);
+}
+
+
+Future<http::Response> Master::QuotaHandler::set(
     const http::Request& request,
     const Option<string>& principal) const
 {
@@ -295,12 +306,19 @@ Future<http::Response> Master::QuotaHandler::set(
         protoRequest.error());
   }
 
-  // Create the `QuotaInfo` protobuf message from the request JSON.
-  Try<QuotaInfo> create = quota::createQuotaInfo(protoRequest.get());
+  return _set(protoRequest.get(), principal);
+}
+
+
+Future<http::Response> Master::QuotaHandler::_set(
+    const QuotaRequest& quotaRequest,
+    const Option<string>& principal) const
+{
+  Try<QuotaInfo> create = quota::createQuotaInfo(quotaRequest);
   if (create.isError()) {
     return BadRequest(
-        "Failed to create 'QuotaInfo' from set quota request JSON '" +
-        request.body + "': " + create.error());
+        "Failed to create 'QuotaInfo' from set quota request: " +
+        create.error());
   }
 
   QuotaInfo quotaInfo = create.get();
@@ -309,14 +327,14 @@ Future<http::Response> Master::QuotaHandler::set(
   Option<Error> validateError = quota::validation::quotaInfo(quotaInfo);
   if (validateError.isSome()) {
     return BadRequest(
-        "Failed to validate set quota request JSON '" + request.body + "': " +
+        "Failed to validate set quota request: " +
         validateError.get().message);
   }
 
   // Check that the role is on the role whitelist, if it exists.
   if (!master->isWhitelistedRole(quotaInfo.role())) {
     return BadRequest(
-        "Failed to validate set quota request JSON: Unknown role '" +
+        "Failed to validate set quota request: Unknown role '" +
         quotaInfo.role() + "'");
   }
 
@@ -324,12 +342,12 @@ Future<http::Response> Master::QuotaHandler::set(
   // TODO(joerg84): Update error message once quota update is in place.
   if (master->quotas.contains(quotaInfo.role())) {
     return BadRequest(
-        "Failed to validate set quota request JSON: Can not set quota"
+        "Failed to validate set quota request: Can not set quota"
         " for role '" + quotaInfo.role() + "' which already has quota");
   }
 
   // The force flag is used to overwrite the `capacityHeuristic` check.
-  const bool forced = protoRequest.get().force();
+  const bool forced = quotaRequest.force();
 
   if (principal.isSome()) {
     quotaInfo.set_principal(principal.get());
@@ -337,12 +355,12 @@ Future<http::Response> Master::QuotaHandler::set(
 
   return authorizeSetQuota(principal, quotaInfo)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
-      return !authorized ? Forbidden() : _set(quotaInfo, forced);
+      return !authorized ? Forbidden() : __set(quotaInfo, forced);
     }));
 }
 
 
-Future<http::Response> Master::QuotaHandler::_set(
+Future<http::Response> Master::QuotaHandler::__set(
     const QuotaInfo& quotaInfo,
     bool forced) const
 {

@@ -987,6 +987,10 @@ private:
         const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> set(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal) const;
+
+    process::Future<process::http::Response> set(
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
@@ -1061,7 +1065,11 @@ private:
         const std::list<bool>& authorized) const;
 
     process::Future<process::http::Response> _set(
-        const mesos::quota::QuotaInfo& quota,
+        const mesos::quota::QuotaRequest& quotaRequest,
+        const Option<std::string>& principal) const;
+
+    process::Future<process::http::Response> __set(
+        const mesos::quota::QuotaInfo& quotaInfo,
         bool forced) const;
 
     process::Future<process::http::Response> _remove(

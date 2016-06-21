@@ -708,7 +708,8 @@ v1quota_HEADERS =							\
   $(top_srcdir)/include/mesos/v1/quota/quota.proto
 
 nodist_v1quota_HEADERS =						\
-  ../include/mesos/v1/master/allocator.pb.h
+  ../include/mesos/v1/master/allocator.pb.h				\
+  ../include/mesos/v1/quota/quota.pb.h
 
 v1schedulerdir = $(pkgincludedir)/v1/scheduler
 
