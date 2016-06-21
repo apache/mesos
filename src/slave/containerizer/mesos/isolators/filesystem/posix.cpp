@@ -195,7 +195,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
               << original << "' with uid " << s.st_uid
               << " and gid " << s.st_gid;
 
-    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, original, true);
+    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, original, false);
     if (chown.isError()) {
       return Failure(
           "Failed to change the ownership of the persistent volume at '" +

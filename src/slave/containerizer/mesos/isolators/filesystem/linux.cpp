@@ -562,7 +562,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
               << source << "' with uid " << s.st_uid
               << " and gid " << s.st_gid;
 
-    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, true);
+    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, false);
     if (chown.isError()) {
       return Failure(
           "Failed to change the ownership of the persistent volume at '" +
