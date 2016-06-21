@@ -364,18 +364,30 @@ message Response {
 message Event {
   enum Type {
     UNKNOWN = 0;
-    UPDATE = 1; // See `Update` below.
+    TASK_ADDED = 1; // See `TaskAdded` below.
+    TASK_UPDATED = 2; // See `TaskUpdated` below.
 
     // TODO(vinod): Fill in more events.
   }
 
-  // Status updates forwarded by the master.
-  // See the comments in scheduler.proto for further details.
-  message Update {
-    required TaskStatus status = 1;
+  // Forwarded by the master when a task becomes known to it. This can happen
+  // when a new task is launched by the scheduler or when the task becomes
+  // known to the master upon an agent (re-)registration after a failover.
+  message TaskAdded {
+    required Task task = 1;
+  }
+
+  // Forwarded by the master when an existing task transitions to a new state.
+  message TaskUpdated {
+    required TaskID task_id = 1;
+    required FrameworkID framework_id = 2;
+    required SlaveID slave_id = 3;
+    optional ExecutorID executor_id = 4;
+    required TaskState state = 5;
   }
 
   optional Type type = 1;
 
-  optional Update update = 2;
+  optional TaskAdded task_added = 2;
+  optional TaskUpdated task_updated = 3;
 }
