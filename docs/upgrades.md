@@ -52,6 +52,7 @@ We categorize the changes as follows:
       <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
       <li>C <a href="#1-0-x-quota-acls">Quota ACLs</a></li>
       <li>R <a href="#1-0-x-executor-environment-variables">Executor environment variables inheritance</a></li>
+      <li>R <a href="#1-0-x-deprecated-fields-in-container-config">Deprecated fields in ContainerConfig</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
@@ -172,6 +173,12 @@ We categorize the changes as follows:
 
 
 ## Upgrading from 0.28.x to 1.0.x ##
+
+<a name="1-0-x-deprecated-fields-in-container-config"</a>
+
+* Mesos 1.0 removed the camel cased protobuf fields in `ContainerConfig` (see `include/mesos/slave/isolator.proto`):
+  * `required ExecutorInfo executorInfo = 1;`
+  * `optional TaskInfo taskInfo = 2;`
 
 <a name="1-0-x-executor-environment-variables"</a>
 
