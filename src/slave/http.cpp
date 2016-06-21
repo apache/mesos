@@ -313,9 +313,6 @@ Future<Response> Slave::Http::api(
     case agent::Call::GET_STATE:
       return NotImplemented();
 
-    case agent::Call::GET_RESOURCE_STATISTICS:
-      return NotImplemented();
-
     case agent::Call::GET_CONTAINERS:
       return NotImplemented();
   }

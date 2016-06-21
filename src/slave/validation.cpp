@@ -88,9 +88,6 @@ Option<Error> validate(
     case mesos::agent::Call::GET_STATE:
       return None();
 
-    case mesos::agent::Call::GET_RESOURCE_STATISTICS:
-      return None();
-
     case mesos::agent::Call::GET_CONTAINERS:
       return None();
   }

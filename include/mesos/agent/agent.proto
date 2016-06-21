@@ -49,9 +49,7 @@ message Call {
 
     GET_STATE = 9;
 
-    GET_RESOURCE_STATISTICS = 10;
-
-    GET_CONTAINERS = 11;
+    GET_CONTAINERS = 10;
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -113,9 +111,7 @@ message Response {
 
     GET_STATE = 8;
 
-    GET_RESOURCE_STATISTICS = 9;
-
-    GET_CONTAINERS = 10;
+    GET_CONTAINERS = 9;
   }
 
   // The response for 'Call::GET_HEALTH', `healthy` would be true if the agent
@@ -161,10 +157,6 @@ message Response {
     // TODO(vinod): Fill in the fields.
   }
 
-  message GetResourceStatistics {
-    required ResourceStatistics resource_statistics = 1;
-  }
-
   message GetContainers {
     message Container {
       // TODO(vinod): Fill in the fields.
@@ -183,6 +175,5 @@ message Response {
   optional ListFiles list_files = 7;
   optional GetFileContents get_file_contents = 8;
   optional GetState get_state = 9;
-  optional GetResourceStatistics get_resource_statistics = 10;
-  optional GetContainers get_containers = 11;
+  optional GetContainers get_containers = 10;
 }
