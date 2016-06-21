@@ -2848,10 +2848,11 @@ Future<vector<const Task*>> Master::Http::_tasks(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then([=](const tuple<Owned<ObjectApprover>,
-                          Owned<ObjectApprover>,
-                          Owned<ObjectApprover>>& approvers)
-      -> vector<const Task*> {
+    .then(defer(master->self(),
+      [=](const tuple<Owned<ObjectApprover>,
+                      Owned<ObjectApprover>,
+                      Owned<ObjectApprover>>& approvers)
+        -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
@@ -2921,7 +2922,7 @@ Future<vector<const Task*>> Master::Http::_tasks(
       }
 
       return _tasks;
-  });
+  }));
 }
 
 
