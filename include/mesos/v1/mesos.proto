@@ -2024,8 +2024,8 @@ message Flag {
  * reserved for the use of one or more frameworks.
  */
 message Role {
-  required string name = 1 [default = "*"];
-  optional double weight = 2 [default = 1.0];
+  required string name = 1;
+  required double weight = 2;
   repeated FrameworkID frameworks = 3;
   repeated Resource resources = 4;
 }

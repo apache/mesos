@@ -1451,6 +1451,8 @@ Future<Response> Master::Http::getRoles(
 
     if (master->weights.contains(name)) {
       role.set_weight(master->weights[name]);
+    } else {
+      role.set_weight(1.0);
     }
 
     if (master->activeRoles.contains(name)) {
