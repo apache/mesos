@@ -130,24 +130,134 @@ are declined.
 Currently the local authorizer configuration format supports the following
 entries, each representing an authorizable action:
 
-|Action Name|Subject|Object|Description|
-|-----------|-------|------|-----------|
-|`register_frameworks`|Framework principal.|Resource [roles](roles.md) of the framework.|(Re-)registering of frameworks.|
-|`run_tasks`|Framework principal.|UNIX user to launch the task as.|Launching tasks/executors by a framework.|
-|`teardown_frameworks`|Operator username.|Principals whose frameworks can be shutdown by the operator.|Tearing down frameworks.|
-|`reserve_resources`|Framework principal or Operator username.|Resource role of the reservation.|[Reserving](reservation.md) resources.|
-|`unreserve_resources`|Framework principal or Operator username.|Principals whose resources can be unreserved by the operator.|[Unreserving](reservation.md) resources.|
-|`create_volumes`|Framework principal or Operator username.|Resource role of the volume.|Creating [volumes](persistent-volume.md).|
-|`destroy_volumes`|Framework principal or Operator username.|Principals whose volumes can be destroyed by the operator.|Destroying [volumes](persistent-volume.md).|
-|`get_quotas`|Operator username.|Resource role whose quota status will be queried.|Querying [quota](quota.md) status for roles.|
-|`update_quotas`|Operator username.|Resource role whose quota will be updated.|Modifying [quotas](quota.md) for roles.|
-|`get_weights`|Operator username.|Resource roles whose [weights](weights.md) can be viewed by the operator.|Get weights for roles.|
-|`update_weights`|Operator username.|Resource roles whose [weights](weights.md) can be updated by the operator.|Updating weights.|
-|`view_frameworks`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
-|`view_executors`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
-|`view_tasks`|HTTP user.|UNIX user of whom executors can be viewed.|Filtering http endpoints.|
-|`access_sandboxes`|Operator username.|Operating system user whose executor/task sandboxes can be accessed.|Access task sandboxes.|
-|`access_mesos_logs`|Operator username.|Implicitly given. A user should only use types ANY and NONE to allow/deny access to the log.|Access Mesos logs.|
+<table>
+<thead>
+<tr>
+  <th>Action Name</th>
+  <th>Subject</th>
+  <th>Object</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>register_frameworks</code></td>
+  <td>Framework principal.</td>
+  <td>Resource <a href="/apache/mesos/blob/master/docs/roles.md">roles</a> of
+      the framework.
+  </td>
+  <td>(Re-)registering of frameworks.</td>
+</tr>
+<tr>
+  <td><code>run_tasks</code></td>
+  <td>Framework principal.</td>
+  <td>UNIX user to launch the task as.</td>
+  <td>Launching tasks/executors by a framework.</td>
+</tr>
+<tr>
+  <td><code>teardown_frameworks</code></td>
+  <td>Operator username.</td>
+  <td>Principals whose frameworks can be shutdown by the operator.</td>
+  <td>Tearing down frameworks.</td>
+</tr>
+<tr>
+  <td><code>reserve_resources</code></td>
+  <td>Framework principal or Operator username.</td>
+  <td>Resource role of the reservation.</td>
+  <td><a href="/apache/mesos/blob/master/docs/reservation.md">Reserving</a>
+      resources.
+  </td>
+</tr>
+<tr>
+  <td><code>unreserve_resources</code></td>
+  <td>Framework principal or Operator username.</td>
+  <td>Principals whose resources can be unreserved by the operator.</td>
+  <td><a href="/apache/mesos/blob/master/docs/reservation.md">Unreserving</a>
+      resources.
+  </td>
+</tr>
+<tr>
+  <td><code>create_volumes</code></td>
+  <td>Framework principal or Operator username.</td>
+  <td>Resource role of the volume.</td>
+  <td>Creating
+      <a href="/apache/mesos/blob/master/docs/persistent-volume.md">volumes</a>.
+  </td>
+</tr>
+<tr>
+  <td><code>destroy_volumes</code></td>
+  <td>Framework principal or Operator username.</td>
+  <td>Principals whose volumes can be destroyed by the operator.</td>
+  <td>Destroying
+      <a href="/apache/mesos/blob/master/docs/persistent-volume.md">volumes</a>.
+  </td>
+</tr>
+<tr>
+  <td><code>get_quotas</code></td>
+  <td>Operator username.</td>
+  <td>Resource role whose quota status will be queried.</td>
+  <td>Querying <a href="/apache/mesos/blob/master/docs/quota.md">quota</a>
+      status.
+  </td>
+</tr>
+<tr>
+  <td><code>update_quotas</code></td>
+  <td>Operator username.</td>
+  <td>Resource role whose quota will be updated.</td>
+  <td>Modifying <a href="/apache/mesos/blob/master/docs/quota.md">quotas</a>.
+  </td>
+</tr>
+<tr>
+  <td><code>get_weights</code></td>
+  <td>Operator username.</td>
+  <td>Resource roles whose weights can be viewed by the operator.</td>
+  <td>Querying
+      <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
+  </td>
+</tr>
+<tr>
+  <td><code>update_weights</code></td>
+  <td>Operator username.</td>
+  <td>Resource roles whose weights can be updated by the operator.</td>
+  <td>Updating
+      <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
+  </td>
+</tr>
+<tr>
+  <td><code>view_frameworks</code></td>
+  <td>HTTP user.</td>
+  <td>UNIX user of whom executors can be viewed.</td>
+  <td>Filtering http endpoints.</td>
+</tr>
+<tr>
+  <td><code>view_executors</code></td>
+  <td>HTTP user.</td>
+  <td>UNIX user of whom executors can be viewed.</td>
+  <td>Filtering http endpoints.</td>
+</tr>
+<tr>
+  <td><code>view_tasks</code></td>
+  <td>HTTP user.</td>
+  <td>UNIX user of whom executors can be viewed.</td>
+  <td>Filtering http endpoints.</td>
+</tr>
+<tr>
+  <td><code>access_sandboxes</code></td>
+  <td>Operator username.</td>
+  <td>Operating system user whose executor/task sandboxes can be accessed.</td>
+  <td>Access task sandboxes.</td>
+</tr>
+<tr>
+  <td><code>access_mesos_logs</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use types ANY and NONE to allow/deny
+      access to the log.
+  </td>
+  <td>Access Mesos logs.</td>
+</tr>
+</tbody>
+</table>
+
 
 ### Examples
 
