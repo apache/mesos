@@ -113,6 +113,7 @@
     $scope.completed_frameworks = {};
     $scope.active_tasks = [];
     $scope.completed_tasks = [];
+    $scope.orphan_tasks = [];
 
     // Update the stats.
     $scope.cluster = $scope.state.cluster;
@@ -146,9 +147,11 @@
       }
       if (task.statuses.length > 0) {
         task.start_time = task.statuses[0].timestamp * 1000;
-        task.finish_time =
-          task.statuses[task.statuses.length - 1].timestamp * 1000;
       }
+
+      // TODO(bmahler): Only set the terminal time if the last state is terminal!
+      task.finish_time =
+        task.statuses[task.statuses.length - 1].timestamp * 1000;
     };
 
     _.each($scope.state.frameworks, function(framework) {
@@ -212,6 +215,9 @@
 
       _.each(framework.completed_tasks, setTaskMetadata);
     });
+
+    $scope.orphan_tasks = $scope.state.orphan_tasks;
+    _.each($scope.orphan_tasks, setTaskMetadata);
 
     $scope.used_cpus -= $scope.offered_cpus;
     $scope.used_gpus -= $scope.offered_gpus;

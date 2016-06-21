@@ -91,6 +91,11 @@
             <td>Lost</td>
             <td class="text-right">{{lost_tasks | number}}</td>
           </tr>
+          <tr>
+            <td>Orphan</td>
+             <!-- TODO(janisz) Use metrics when MESOS-5648 gets resolved -->
+            <td class="text-right">{{orphan_tasks.length | number}}</td>
+          </tr>
         </tbody>
       </table>
 
@@ -233,6 +238,53 @@
           </td>
         </tr>
       </tbody>
+
+      <table m-table table-content="orphan_tasks" title="Orphan Tasks"
+        class="table table-striped table-bordered table-condensed">
+        <thead>
+          <tr>
+            <th data-key="id">ID</th>
+            <th data-key="name">Name</th>
+            <th data-key="state">State</th>
+            <th data-key="start_time" data-sort>Started</th>
+            <th data-key="finish_time">Stopped</th>
+            <th data-key="host">Host</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-ng-if="orphan_tasks.length === 0">
+            <td colspan="7">No orphan tasks.</td>
+          </tr>
+          <tr ng-repeat="task in $data">
+            <td>{{task.id}}</td>
+            <td>{{task.name}}</td>
+            <td>{{task.state | truncateMesosState}}</td>
+            <td>
+              <m-timestamp value="{{task.start_time}}"></m-timestamp>
+            </td>
+            <td>
+              <m-timestamp value="{{task.finish_time}}"></m-timestamp>
+            </td>
+            <td>
+              <a data-ng-show="_.has(agents, task.slave_id)"
+                  href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
+                {{agents[task.slave_id].hostname}}
+              </a>
+              <span class="text-muted" data-ng-show="!_.has(agents, task.slave_id)">
+                Agent offline
+              </span>
+            </td>
+            <td>
+              <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+                Sandbox
+              </a>
+              <span class="text-muted" data-ng-show="!agents[task.slave_id]">
+                Agent offline
+              </span>
+            </td>
+          </tr>
+        </tbody>
     </table>
   </div>
 </div>
