@@ -338,6 +338,10 @@ list<string> DRFSorter::sort()
     }
 
     clients = temp;
+
+    // Reset dirty to false so as not to re-calculate *all*
+    // shares unless another dirtying operation occurs.
+    dirty = false;
   }
 
   list<string> result;
