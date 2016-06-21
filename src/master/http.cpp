@@ -1531,8 +1531,8 @@ Future<Response> Master::Http::getTasks(
       mesos::master::Response response;
       response.set_type(mesos::master::Response::GET_TASKS);
 
-      mesos::master::Response::GetTasks* getTasks
-        = response.mutable_get_tasks();
+      mesos::master::Response::GetTasks* getTasks =
+        response.mutable_get_tasks();
 
       foreach (const Task* task, tasks) {
         getTasks->add_tasks()->CopyFrom(*task);
@@ -2815,6 +2815,7 @@ Future<Response> Master::Http::tasks(
       return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
     });
 }
+
 
 Future<vector<const Task*>> Master::Http::_tasks(
     const size_t limit,
