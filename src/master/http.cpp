@@ -1329,8 +1329,6 @@ Future<Response> Master::Http::getHealth(
   response.set_type(mesos::master::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return OK(serialize(contentType, response),
-            stringify(contentType));
   return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
 }
