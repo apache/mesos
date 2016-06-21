@@ -20,9 +20,11 @@
 #include <set>
 #include <string>
 
+#include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/option.hpp>
 
 #include "master/allocator/sorter/drf/metrics.hpp"
 
