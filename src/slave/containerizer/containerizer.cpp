@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <map>
+#include <set>
 #include <vector>
 
 #include <process/dispatch.hpp>
@@ -49,6 +50,7 @@
 #endif // __linux__
 
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -112,7 +114,26 @@ Try<Resources> Containerizer::resources(const Flags& flags)
   //       NVIDIA management Library (NVML). We special case specifying
   //       `gpus:0` explicitly to not perform auto-discovery.
   //
-  if (nvml::isAvailable()) {
+  // NOTE: We also check to make sure the `gpu/nvidia` isolation flag
+  // is set before enumerating GPUs. We do this because we decided it
+  // makes sense to only do autodiscovery of GPUs when this isolator
+  // is turned on (unlike for CPUs, memory, and disk where
+  // autodiscovery happens by default). We decided to take this
+  // approach, because GPU support is still experimental, and is only
+  // known to work well if this isolator is enabled. We didn't want to
+  // start advertising GPUs in our resource offer and have people
+  // attempt to use them in scenarious we haven't considered yet. In
+  // the future we may support other use cases, but for now we are
+  // being cautious.
+  const vector<string> tokens = strings::tokenize(flags.isolation, ",");
+  const set<string> isolators = set<string>(tokens.begin(), tokens.end());
+
+  if (flags.nvidia_gpu_devices.isSome() && isolators.count("gpu/nvidia") == 0) {
+    return Error("'--nvidia_gpus_devices' can only be specified if the"
+                 " `--isolation` flag contains `gpu/nvidia`");
+  }
+
+  if (isolators.count("gpu/nvidia") > 0 && nvml::isAvailable()) {
     Try<Nothing> initialized = nvml::initialize();
     if (initialized.isError()) {
       return Error("Failed to nvml::initialize: " + initialized.error());
