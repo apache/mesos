@@ -5441,7 +5441,7 @@ Future<bool> Slave::authorizeSandboxAccess(
 
   return sandboxApprover
     .then(defer(self(),
-        [this, &frameworkId, &executorId]
+        [this, frameworkId, executorId]
             (const Owned<ObjectApprover>& sandboxApprover)
             -> Future<bool> {
         // Construct authorization object.
