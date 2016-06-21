@@ -199,8 +199,8 @@ described in the ***Building Mesos*** section above.
     # Start mesos master (Ensure work directory exists and has proper permissions).
     $ ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos
 
-    # Start mesos agent.
-    $ ./bin/mesos-agent.sh --master=127.0.0.1:5050
+    # Start mesos agent (Ensure work directory exists and has proper permissions).
+    $ ./bin/mesos-agent.sh --master=127.0.0.1:5050 --work_dir=/var/lib/mesos
 
     # Visit the mesos web page.
     $ http://127.0.0.1:5050
