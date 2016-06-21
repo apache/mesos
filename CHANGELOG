@@ -124,6 +124,9 @@ Deprecations:
   * [MESOS-5155] - Deprecated `SetQuota` and `RemoveQuota` ACLs. This change is
     applicable to the local authorizer as well as any custom authorizer module.
 
+  * [MESOS-5666] - Deprecated camel cased `taskInfo` and `executorInfo` in
+    isolator `ContainerConfig`.
+
 Additional API Changes:
   * [MESOS-4580] - Returning `202` (Accepted) for /reserve and related endpoints.
 

@@ -995,16 +995,8 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
   containerConfig.set_directory(directory);
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
 
-  // TODO(gilbert): Remove this in 0.29.0. The camel case protobuf
-  // field 'executorInfo' will be deprecated and removed in 0.29.0.
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
-
   if (taskInfo.isSome()) {
     containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
-
-    // TODO(gilbert): Remove this in 0.29.0. The camel case protobuf
-    // field 'taskInfo' will be deprecated and removed in 0.29.0.
-    containerConfig.mutable_taskinfo()->CopyFrom(taskInfo.get());
   }
 
   if (user.isSome()) {

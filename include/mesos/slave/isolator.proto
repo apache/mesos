@@ -89,12 +89,6 @@ message ContainerConfig {
   optional Docker docker = 7;
 
   // TODO(gilbert): Add appc image manifest.
-
-  // The following two fields are deprecated. Please do NOT use them
-  // in your isolator. Use 'executor_info' and 'task_info' instead.
-  // TODO(gilbert): Remove them in 0.29.
-  required ExecutorInfo executorInfo = 1;
-  optional TaskInfo taskInfo = 2;
 }
 
 
