@@ -65,6 +65,13 @@ void DRFSorter::update(const string& name, double weight)
 {
   CHECK(weights.contains(name));
   weights[name] = weight;
+
+  // If the total resources have changed, we're going to
+  // recalculate all the shares, so don't bother just
+  // updating this client.
+  if (!dirty) {
+    update(name);
+  }
 }
 
 

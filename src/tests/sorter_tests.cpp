@@ -176,6 +176,42 @@ TEST(SorterTest, WDRFSorter)
 }
 
 
+TEST(SorterTest, WDRFSorterUpdateWeight)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
+
+  // The `dirty` in `sorter` will be set as `true` which means that the
+  // total resources have changed, the `sorter` is going to recalculate
+  // all the shares for each client.
+  sorter.add(slaveId, totalResources);
+
+  sorter.add("a");
+  Resources aResources = Resources::parse("cpus:5;mem:5").get();
+  sorter.allocated("a", slaveId, aResources);
+
+  Resources bResources = Resources::parse("cpus:6;mem:6").get();
+  sorter.add("b");
+  sorter.allocated("b", slaveId, bResources);
+
+  // shares: a = .05, b = .06
+  EXPECT_EQ(list<string>({"a", "b"}), sorter.sort());
+
+  // The `dirty` in `sorter` is set back to `false`, this means that the
+  // `sorter` will not re-calculate `share` for each client but only for
+  // the client whose allocation has been updated.
+
+  sorter.update("b", 2);
+
+  // shares: a = .05, b = .03
+  EXPECT_EQ(list<string>({"b", "a"}), sorter.sort());
+}
+
+
 // Some resources are split across multiple resource objects (e.g.
 // persistent volumes). This test ensures that the shares for these
 // are accounted correctly.
