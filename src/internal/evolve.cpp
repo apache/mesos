@@ -490,6 +490,12 @@ v1::master::Response evolve(const maintenance::Schedule& schedule)
 }
 
 
+v1::master::Event evolve(const mesos::master::Event& event)
+{
+  return evolve<v1::master::Event>(event);
+}
+
+
 template<>
 v1::master::Response evolve<v1::master::Response::GET_FLAGS>(
     const JSON::Object& object)

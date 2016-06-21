@@ -23,6 +23,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/master/master.hpp>
+
 #include <mesos/executor/executor.hpp>
 
 #include <mesos/master/master.hpp>
@@ -119,6 +121,9 @@ v1::executor::Event evolve(const KillTaskMessage& message);
 v1::executor::Event evolve(const RunTaskMessage& message);
 v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
 v1::executor::Event evolve(const ShutdownExecutorMessage& message);
+
+
+v1::master::Event evolve(const mesos::master::Event& event);
 
 
 // Before the v1 API we had REST endpoints that returned JSON. The JSON was not
