@@ -6872,7 +6872,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     task->set_status_update_uuid(update.uuid());
   }
 
-  // TODO(brenden) Consider wiping the `message` field?
+  // TODO(brenden): Consider wiping the `message` field?
   if (task->statuses_size() > 0 &&
       task->statuses(task->statuses_size() - 1).state() == status.state()) {
     task->mutable_statuses()->RemoveLast();
@@ -7467,6 +7467,7 @@ double Master::_resources_revocable_percent(const string& name)
 
   return _resources_revocable_used(name) / total;
 }
+
 
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 {
