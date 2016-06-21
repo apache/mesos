@@ -952,6 +952,19 @@ Future<Response> Master::Http::scheduler(
 }
 
 
+static Resources removeDiskInfos(const Resources& resources)
+{
+  Resources result;
+
+  foreach (Resource resource, resources) {
+    resource.clear_disk();
+    result += resource;
+  }
+
+  return result;
+}
+
+
 string Master::Http::CREATE_VOLUMES_HELP()
 {
   return HELP(
@@ -972,19 +985,6 @@ string Master::Http::CREATE_VOLUMES_HELP()
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be created."),
     AUTHENTICATION(true));
-}
-
-
-static Resources removeDiskInfos(const Resources& resources)
-{
-  Resources result;
-
-  foreach (Resource resource, resources) {
-    resource.clear_disk();
-    result += resource;
-  }
-
-  return result;
 }
 
 
@@ -1425,68 +1425,6 @@ Future<Response> Master::Http::setLoggingLevel(
 }
 
 
-// This duplicates the functionality offered by `roles()`. This was necessary
-// as the JSON object returned by `roles()` was not specified in a formal way
-// i.e. via a corresponding protobuf object and would have been very hard to
-// convert back into a `Resource` object.
-Future<Response> Master::Http::getRoles(
-    const mesos::master::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
-{
-  CHECK_EQ(mesos::master::Call::GET_ROLES, call.type());
-
-  mesos::master::Response response;
-  response.set_type(mesos::master::Response::GET_ROLES);
-
-  mesos::master::Response::GetRoles* getRoles = response.mutable_get_roles();
-
-  set<string> roleList;
-  if (master->roleWhitelist.isSome()) {
-    const hashset<string>& whitelist = master->roleWhitelist.get();
-    roleList.insert(whitelist.begin(), whitelist.end());
-  } else {
-    roleList.insert("*"); // Default role.
-    roleList.insert(
-        master->activeRoles.keys().begin(),
-        master->activeRoles.keys().end());
-    roleList.insert(
-        master->weights.keys().begin(),
-        master->weights.keys().end());
-    roleList.insert(
-        master->quotas.keys().begin(),
-        master->quotas.keys().end());
-  }
-
-  foreach (const string& name, roleList) {
-    mesos::Role role;
-
-    if (master->weights.contains(name)) {
-      role.set_weight(master->weights[name]);
-    } else {
-      role.set_weight(1.0);
-    }
-
-    if (master->activeRoles.contains(name)) {
-      Role* role_ = master->activeRoles[name];
-
-      role.mutable_resources()->CopyFrom(role_->resources());
-
-      foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
-        role.add_frameworks()->CopyFrom(frameworkId);
-      }
-    }
-
-    role.set_name(name);
-
-    getRoles->add_roles()->CopyFrom(role);
-  }
-
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
-}
-
-
 Future<Response> Master::Http::getLeadingMaster(
     const mesos::master::Call& call,
     const Option<string>& principal,
@@ -1505,42 +1443,6 @@ Future<Response> Master::Http::getLeadingMaster(
 
   return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
-}
-
-
-Future<Response> Master::Http::getTasks(
-    const mesos::master::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
-{
-  CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
-
-  // Get list options (limit and offset).
-  Result<int> result = call.get_tasks().limit();
-  CHECK_SOME(result);
-  size_t limit = result.get();
-
-  result = call.get_tasks().offset();
-  size_t offset = result.isSome() ? result.get() : 0;
-
-  Option<string> order = call.get_tasks().order();
-  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
-
-  return _tasks(limit, offset, _order, principal)
-    .then([contentType](const vector<const Task*>& tasks) -> Response {
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_TASKS);
-
-      mesos::master::Response::GetTasks* getTasks =
-        response.mutable_get_tasks();
-
-      foreach (const Task* task, tasks) {
-        getTasks->add_tasks()->CopyFrom(*task);
-      }
-
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
-    });
 }
 
 
@@ -2497,26 +2399,6 @@ Future<Response> Master::Http::stateSummary(
 }
 
 
-string Master::Http::ROLES_HELP()
-{
-  return HELP(
-    TLDR(
-        "Information about roles."),
-    DESCRIPTION(
-        "Returns 200 OK when information about roles was queried successfully.",
-        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
-        "current master is not the leader.",
-        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
-        "found.",
-        "This endpoint provides information about roles as a JSON object.",
-        "It returns information about every role that is on the role",
-        "whitelist (if enabled), has one or more registered frameworks,",
-        "or has a non-default weight or quota. For each role, it returns",
-        "the weight, total allocated resources, and registered frameworks."),
-    AUTHENTICATION(true));
-}
-
-
 // Returns a JSON object modeled after a role.
 JSON::Object model(
     const string& name,
@@ -2552,6 +2434,26 @@ JSON::Object model(
   }
 
   return object;
+}
+
+
+string Master::Http::ROLES_HELP()
+{
+  return HELP(
+    TLDR(
+        "Information about roles."),
+    DESCRIPTION(
+        "Returns 200 OK when information about roles was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
+        "This endpoint provides information about roles as a JSON object.",
+        "It returns information about every role that is on the role",
+        "whitelist (if enabled), has one or more registered frameworks,",
+        "or has a non-default weight or quota. For each role, it returns",
+        "the weight, total allocated resources, and registered frameworks."),
+    AUTHENTICATION(true));
 }
 
 
@@ -2614,6 +2516,68 @@ Future<Response> Master::Http::roles(
   }
 
   return OK(object, request.url.query.get("jsonp"));
+}
+
+
+// This duplicates the functionality offered by `roles()`. This was necessary
+// as the JSON object returned by `roles()` was not specified in a formal way
+// i.e. via a corresponding protobuf object and would have been very hard to
+// convert back into a `Resource` object.
+Future<Response> Master::Http::getRoles(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_ROLES, call.type());
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_ROLES);
+
+  mesos::master::Response::GetRoles* getRoles = response.mutable_get_roles();
+
+  set<string> roleList;
+  if (master->roleWhitelist.isSome()) {
+    const hashset<string>& whitelist = master->roleWhitelist.get();
+    roleList.insert(whitelist.begin(), whitelist.end());
+  } else {
+    roleList.insert("*"); // Default role.
+    roleList.insert(
+        master->activeRoles.keys().begin(),
+        master->activeRoles.keys().end());
+    roleList.insert(
+        master->weights.keys().begin(),
+        master->weights.keys().end());
+    roleList.insert(
+        master->quotas.keys().begin(),
+        master->quotas.keys().end());
+  }
+
+  foreach (const string& name, roleList) {
+    mesos::Role role;
+
+    if (master->weights.contains(name)) {
+      role.set_weight(master->weights[name]);
+    } else {
+      role.set_weight(1.0);
+    }
+
+    if (master->activeRoles.contains(name)) {
+      Role* role_ = master->activeRoles[name];
+
+      role.mutable_resources()->CopyFrom(role_->resources());
+
+      foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
+        role.add_frameworks()->CopyFrom(frameworkId);
+      }
+    }
+
+    role.set_name(name);
+
+    getRoles->add_roles()->CopyFrom(role);
+  }
+
+  return OK(serialize(contentType, evolve(response)),
+            stringify(contentType));
 }
 
 
@@ -2714,31 +2678,6 @@ Future<Response> Master::Http::_teardown(const FrameworkID& id) const
 }
 
 
-string Master::Http::TASKS_HELP()
-{
-  return HELP(
-    TLDR(
-        "Lists tasks from all active frameworks."),
-    DESCRIPTION(
-        "Returns 200 OK when task information was queried successfully.",
-        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
-        "current master is not the leader.",
-        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
-        "found.",
-        "Lists known tasks.",
-        "",
-        "Query parameters:",
-        "",
-        ">        limit=VALUE          Maximum number of tasks returned "
-        "(default is " + stringify(TASK_LIMIT) + ").",
-        ">        offset=VALUE         Starts task list at offset.",
-        ">        order=(asc|desc)     Ascending or descending sort order "
-        "(default is descending)."
-        ""),
-    AUTHENTICATION(true));
-}
-
-
 struct TaskComparator
 {
   static bool ascending(const Task* lhs, const Task* rhs)
@@ -2783,6 +2722,31 @@ struct TaskComparator
 };
 
 
+string Master::Http::TASKS_HELP()
+{
+  return HELP(
+    TLDR(
+        "Lists tasks from all active frameworks."),
+    DESCRIPTION(
+        "Returns 200 OK when task information was queried successfully.",
+        "Returns 307 TEMPORARY_REDIRECT redirect to the leading master when",
+        "current master is not the leader.",
+        "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
+        "found.",
+        "Lists known tasks.",
+        "",
+        "Query parameters:",
+        "",
+        ">        limit=VALUE          Maximum number of tasks returned "
+        "(default is " + stringify(TASK_LIMIT) + ").",
+        ">        offset=VALUE         Starts task list at offset.",
+        ">        order=(asc|desc)     Ascending or descending sort order "
+        "(default is descending)."
+        ""),
+    AUTHENTICATION(true));
+}
+
+
 Future<Response> Master::Http::tasks(
     const Request& request,
     const Option<string>& principal) const
@@ -2813,6 +2777,42 @@ Future<Response> Master::Http::tasks(
       };
 
       return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+    });
+}
+
+
+Future<Response> Master::Http::getTasks(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
+
+  // Get list options (limit and offset).
+  Result<int> result = call.get_tasks().limit();
+  CHECK_SOME(result);
+  size_t limit = result.get();
+
+  result = call.get_tasks().offset();
+  size_t offset = result.isSome() ? result.get() : 0;
+
+  Option<string> order = call.get_tasks().order();
+  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
+
+  return _tasks(limit, offset, _order, principal)
+    .then([contentType](const vector<const Task*>& tasks) -> Response {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_TASKS);
+
+      mesos::master::Response::GetTasks* getTasks =
+        response.mutable_get_tasks();
+
+      foreach (const Task* task, tasks) {
+        getTasks->add_tasks()->CopyFrom(*task);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
     });
 }
 
@@ -2946,6 +2946,56 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
 }
 
 
+// /master/maintenance/schedule endpoint handler.
+Future<Response> Master::Http::maintenanceSchedule(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "GET" && request.method != "POST") {
+    return MethodNotAllowed({"GET", "POST"}, request.method);
+  }
+
+  // JSON-ify and return the current maintenance schedule.
+  if (request.method == "GET") {
+    const mesos::maintenance::Schedule schedule = _getMaintenanceSchedule();
+    return OK(JSON::protobuf(schedule), request.url.query.get("jsonp"));
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Object> jsonSchedule = JSON::parse<JSON::Object>(request.body);
+  if (jsonSchedule.isError()) {
+    return BadRequest(jsonSchedule.error());
+  }
+
+  // Convert the schedule to a protobuf.
+  Try<mesos::maintenance::Schedule> protoSchedule =
+    ::protobuf::parse<mesos::maintenance::Schedule>(jsonSchedule.get());
+
+  if (protoSchedule.isError()) {
+    return BadRequest(protoSchedule.error());
+  }
+
+  return _updateMaintenanceSchedule(protoSchedule.get());
+}
+
+
+mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule() const
+{
+  // TODO(josephw): Return more than one schedule.
+  const mesos::maintenance::Schedule schedule =
+    master->maintenance.schedules.empty() ?
+      mesos::maintenance::Schedule() :
+      master->maintenance.schedules.front();
+
+  return schedule;
+}
+
+
 Future<Response> Master::Http::_updateMaintenanceSchedule(
     const mesos::maintenance::Schedule& schedule) const
 {
@@ -3036,56 +3086,6 @@ Future<Response> Master::Http::_updateMaintenanceSchedule(
 }
 
 
-mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule() const
-{
-  // TODO(josephw): Return more than one schedule.
-  const mesos::maintenance::Schedule schedule =
-    master->maintenance.schedules.empty() ?
-      mesos::maintenance::Schedule() :
-      master->maintenance.schedules.front();
-
-  return schedule;
-}
-
-
-// /master/maintenance/schedule endpoint handler.
-Future<Response> Master::Http::maintenanceSchedule(
-    const Request& request,
-    const Option<string>& /*principal*/) const
-{
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "GET" && request.method != "POST") {
-    return MethodNotAllowed({"GET", "POST"}, request.method);
-  }
-
-  // JSON-ify and return the current maintenance schedule.
-  if (request.method == "GET") {
-    const mesos::maintenance::Schedule schedule = _getMaintenanceSchedule();
-    return OK(JSON::protobuf(schedule), request.url.query.get("jsonp"));
-  }
-
-  // Parse the POST body as JSON.
-  Try<JSON::Object> jsonSchedule = JSON::parse<JSON::Object>(request.body);
-  if (jsonSchedule.isError()) {
-    return BadRequest(jsonSchedule.error());
-  }
-
-  // Convert the schedule to a protobuf.
-  Try<mesos::maintenance::Schedule> protoSchedule =
-    ::protobuf::parse<mesos::maintenance::Schedule>(jsonSchedule.get());
-
-  if (protoSchedule.isError()) {
-    return BadRequest(protoSchedule.error());
-  }
-
-  return _updateMaintenanceSchedule(protoSchedule.get());
-}
-
-
 Future<Response> Master::Http::getMaintenanceSchedule(
     const mesos::master::Call& call,
     const Option<string>& principal,
@@ -3129,6 +3129,36 @@ string Master::Http::MACHINE_DOWN_HELP()
         "  the list of machines into DOWN mode.  Currently, only",
         "  machines in DRAINING mode are allowed to be brought down."),
     AUTHENTICATION(true));
+}
+
+
+// /master/machine/down endpoint handler.
+Future<Response> Master::Http::machineDown(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed({"POST"}, request.method);
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
+  if (jsonIds.isError()) {
+    return BadRequest(jsonIds.error());
+  }
+
+  // Convert the machines to a protobuf.
+  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
+  if (ids.isError()) {
+    return BadRequest(ids.error());
+  }
+
+  return _startMaintenance(ids.get());
 }
 
 
@@ -3205,36 +3235,6 @@ Future<Response> Master::Http::_startMaintenance(
 }
 
 
-// /master/machine/down endpoint handler.
-Future<Response> Master::Http::machineDown(
-    const Request& request,
-    const Option<string>& /*principal*/) const
-{
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "POST") {
-    return MethodNotAllowed({"POST"}, request.method);
-  }
-
-  // Parse the POST body as JSON.
-  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
-  if (jsonIds.isError()) {
-    return BadRequest(jsonIds.error());
-  }
-
-  // Convert the machines to a protobuf.
-  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
-  if (ids.isError()) {
-    return BadRequest(ids.error());
-  }
-
-  return _startMaintenance(ids.get());
-}
-
-
 Future<Response> Master::Http::startMaintenance(
     const mesos::master::Call& call,
     const Option<string>& principal,
@@ -3265,6 +3265,36 @@ string Master::Http::MACHINE_UP_HELP()
         "  the list of machines into UP mode.  This also removes",
         "  the list of machines from the maintenance schedule."),
     AUTHENTICATION(true));
+}
+
+
+// /master/machine/up endpoint handler.
+Future<Response> Master::Http::machineUp(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed({"POST"}, request.method);
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
+  if (jsonIds.isError()) {
+    return BadRequest(jsonIds.error());
+  }
+
+  // Convert the machines to a protobuf.
+  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
+  if (ids.isError()) {
+    return BadRequest(ids.error());
+  }
+
+  return _stopMaintenance(ids.get());
 }
 
 
@@ -3340,36 +3370,6 @@ Future<Response> Master::Http::_stopMaintenance(
 }
 
 
-// /master/machine/up endpoint handler.
-Future<Response> Master::Http::machineUp(
-    const Request& request,
-    const Option<string>& /*principal*/) const
-{
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "POST") {
-    return MethodNotAllowed({"POST"}, request.method);
-  }
-
-  // Parse the POST body as JSON.
-  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
-  if (jsonIds.isError()) {
-    return BadRequest(jsonIds.error());
-  }
-
-  // Convert the machines to a protobuf.
-  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
-  if (ids.isError()) {
-    return BadRequest(ids.error());
-  }
-
-  return _stopMaintenance(ids.get());
-}
-
-
 Future<Response> Master::Http::stopMaintenance(
     const mesos::master::Call& call,
     const Option<string>& principal,
@@ -3403,6 +3403,28 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
         "Inverse offer responses are cleared if the master fails over.",
         "However, new inverse offers will be sent once the master recovers."),
     AUTHENTICATION(true));
+}
+
+
+// /master/maintenance/status endpoint handler.
+Future<Response> Master::Http::maintenanceStatus(
+    const Request& request,
+    const Option<string>& /*principal*/) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "GET") {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
+  return _getMaintenanceStatus()
+    .then([request](const mesos::maintenance::ClusterStatus& status)
+            -> Response {
+      return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
+    });
 }
 
 
@@ -3460,28 +3482,6 @@ Future<mesos::maintenance::ClusterStatus>
 
     return status;
   }));
-}
-
-
-// /master/maintenance/status endpoint handler.
-Future<Response> Master::Http::maintenanceStatus(
-    const Request& request,
-    const Option<string>& /*principal*/) const
-{
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "GET") {
-    return MethodNotAllowed({"GET"}, request.method);
-  }
-
-  return _getMaintenanceStatus()
-    .then([request](const mesos::maintenance::ClusterStatus& status)
-            -> Response {
-      return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
-    });
 }
 
 
