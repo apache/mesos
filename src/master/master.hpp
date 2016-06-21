@@ -159,24 +159,7 @@ struct Slave
     return nullptr;
   }
 
-  void addTask(Task* task)
-  {
-    const TaskID& taskId = task->task_id();
-    const FrameworkID& frameworkId = task->framework_id();
-
-    CHECK(!tasks[frameworkId].contains(taskId))
-      << "Duplicate task " << taskId << " of framework " << frameworkId;
-
-    tasks[frameworkId][taskId] = task;
-
-    if (!protobuf::isTerminalState(task->state())) {
-      usedResources[frameworkId] += task->resources();
-    }
-
-    LOG(INFO) << "Adding task " << taskId
-              << " with resources " << task->resources()
-              << " on agent " << id << " (" << info.hostname() << ")";
-  }
+  void addTask(Task* task);
 
   // Notification of task termination, for resource accounting.
   // TODO(bmahler): This is a hack for performance. We need to

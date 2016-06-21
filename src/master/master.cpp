@@ -7474,6 +7474,26 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
   return Duration::create(frameworkInfo.failover_timeout()).isSome();
 }
 
+
+void Slave::addTask(Task* task)
+{
+  const TaskID& taskId = task->task_id();
+  const FrameworkID& frameworkId = task->framework_id();
+
+  CHECK(!tasks[frameworkId].contains(taskId))
+    << "Duplicate task " << taskId << " of framework " << frameworkId;
+
+  tasks[frameworkId][taskId] = task;
+
+  if (!protobuf::isTerminalState(task->state())) {
+    usedResources[frameworkId] += task->resources();
+  }
+
+  LOG(INFO) << "Adding task " << taskId
+            << " with resources " << task->resources()
+            << " on agent " << id << " (" << info.hostname() << ")";
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
