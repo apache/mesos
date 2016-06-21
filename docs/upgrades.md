@@ -53,6 +53,7 @@ We categorize the changes as follows:
       <li>C <a href="#1-0-x-quota-acls">Quota ACLs</a></li>
       <li>R <a href="#1-0-x-executor-environment-variables">Executor environment variables inheritance</a></li>
       <li>R <a href="#1-0-x-deprecated-fields-in-container-config">Deprecated fields in ContainerConfig</a></li>
+      <li>C <a href="#1-0-x-persistent-volume-ownership">Persistent volume ownership</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
@@ -173,6 +174,10 @@ We categorize the changes as follows:
 
 
 ## Upgrading from 0.28.x to 1.0.x ##
+
+<a name="1-0-x-persistent-volume-ownership"</a>
+
+* Prior to Mesos 1.0, Mesos agent recursively changes the ownership of the persistent volumes every time they are mounted to a container. From Mesos 1.0, this behavior has been changed. Mesos agent will do a _non-recursive_ change of ownership of the persistent volumes.
 
 <a name="1-0-x-deprecated-fields-in-container-config"</a>
 
