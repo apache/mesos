@@ -4716,6 +4716,7 @@ void Master::_registerSlave(
     machineId.set_ip(stringify(pid.address.ip));
 
     Slave* slave = new Slave(
+        this,
         slaveInfo,
         pid,
         machineId,
@@ -4960,6 +4961,7 @@ void Master::_reregisterSlave(
     machineId.set_ip(stringify(pid.address.ip));
 
     Slave* slave = new Slave(
+        this,
         slaveInfo,
         pid,
         machineId,
@@ -6850,6 +6852,14 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // If the task has already transitioned to a terminal state,
     // do not update its state.
     if (!protobuf::isTerminalState(task->state())) {
+      // Send a notification to all subscribers if the task transitioned
+      // to a new state.
+      if (!subscribers.subscribed.empty() &&
+          latestState.get() != task->state()) {
+        subscribers.send(protobuf::master::event::createTaskUpdated(
+            *task, latestState.get()));
+      }
+
       task->set_state(latestState.get());
     }
   } else {
@@ -6860,6 +6870,13 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // its state. Note that we are being defensive here because this should not
     // happen unless there is a bug in the master code.
     if (!protobuf::isTerminalState(task->state())) {
+      // Send a notification to all subscribers if the task transitioned
+      // to a new state.
+      if (!subscribers.subscribed.empty() && task->state() != status.state()) {
+        subscribers.send(protobuf::master::event::createTaskUpdated(
+            *task, status.state()));
+      }
+
       task->set_state(status.state());
     }
   }
@@ -7489,9 +7506,52 @@ void Slave::addTask(Task* task)
     usedResources[frameworkId] += task->resources();
   }
 
+  if (!master->subscribers.subscribed.empty()) {
+    master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
+  }
+
   LOG(INFO) << "Adding task " << taskId
             << " with resources " << task->resources()
             << " on agent " << id << " (" << info.hostname() << ")";
+}
+
+
+void Master::Subscribers::send(const mesos::master::Event& event)
+{
+  VLOG(1) << "Notifying all active subscribers about " << event.type() << " "
+          << "event";
+
+  foreachvalue (Subscriber subscriber, subscribed) {
+    subscriber.http.send<mesos::master::Event, v1::master::Event>(event);
+  }
+}
+
+
+void Master::exited(const UUID& id)
+{
+  if (!subscribers.subscribed.contains(id)) {
+    LOG(WARNING) << "Unknown subscriber" << id << " disconnected";
+    return;
+  }
+
+  subscribers.subscribed.erase(id);
+}
+
+
+void Master::subscribe(HttpConnection http)
+{
+  Subscribers::Subscriber subscriber{http};
+
+  subscribers.subscribed.put(http.streamId, subscriber);
+
+  LOG(INFO) << "Added subscriber: " << subscriber.http.streamId << " to the "
+            << "list of active subscribers";
+
+  subscriber.http.closed()
+    .onAny(defer(self(),
+           [this, subscriber](const Future<Nothing>&) {
+             exited(subscriber.http.streamId);
+           }));
 }
 
 } // namespace master {

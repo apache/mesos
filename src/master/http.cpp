@@ -685,8 +685,20 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::REMOVE_QUOTA:
       return NotImplemented();
 
-    case mesos::master::Call::SUBSCRIBE:
-      return NotImplemented();
+    case mesos::master::Call::SUBSCRIBE: {
+      Pipe pipe;
+      OK ok;
+
+      ok.headers["Content-Type"] = stringify(acceptType);
+      ok.type = Response::PIPE;
+      ok.reader = pipe.reader();
+
+      HttpConnection http {pipe.writer(), acceptType, UUID::random()};
+
+      master->subscribe(http);
+
+      return ok;
+    }
   }
 
   UNREACHABLE();
