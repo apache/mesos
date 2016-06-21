@@ -20,6 +20,8 @@
 
 #include <mesos/v1/master/master.hpp>
 
+#include <mesos/v1/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -30,11 +32,13 @@
 #include <stout/gtest.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
+#include <stout/recordio.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/recordio.hpp"
 
 #include "master/detector/standalone.hpp"
 
@@ -45,6 +49,8 @@
 
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
+
+using mesos::internal::recordio::Reader;
 
 using mesos::internal::slave::Slave;
 
@@ -58,7 +64,10 @@ using process::Future;
 using process::Owned;
 
 using process::http::OK;
+using process::http::Pipe;
 using process::http::Response;
+
+using recordio::Decoder;
 
 using testing::_;
 using testing::AtMost;
@@ -734,6 +743,165 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
   ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
   ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
   ASSERT_EQ("0.0.0.2", respSchedule.windows(0).machine_ids(1).ip());
+}
+
+
+// This test tries to verify that a client subscribed to the 'api/v1'
+// endpoint is able to receive `TASK_ADDED`/`TASK_UPDATED` events.
+TEST_P(MasterAPITest, Subscribe)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  ContentType contentType = GetParam();
+  headers["Accept"] = stringify(contentType);
+
+  Future<Response> response = process::http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_SOME(response->reader);
+
+  Pipe::Reader reader = response->reader.get();
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Reader<v1::master::Event> decoder(
+      Decoder<v1::master::Event>(deserializer), reader);
+
+  Future<Result<v1::master::Event>> event = decoder.read();
+
+  EXPECT_TRUE(event.isPending());
+
+  // Launch a task using the scheduler. This should result in a `TASK_ADDED`
+  // event when the task is launched followed by a `TASK_UPDATED` event after
+  // the task transitions to running state.
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  TestContainerizer containerizer(executorId, executor);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::SUBSCRIBE);
+
+    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  TaskInfo task = createTask(internal::devolve(offer), "", executorId);
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .Times(2);
+
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(
+        frameworkId, internal::evolve(executorId)));
+
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        frameworkId, internal::evolve(executorId), v1::TASK_RUNNING));
+
+  EXPECT_CALL(*executor, acknowledged(_, _));
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::ACCEPT);
+
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    v1::scheduler::Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+
+    operation->mutable_launch()->add_task_infos()->CopyFrom(
+        internal::evolve(task));
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(event);
+
+  ASSERT_EQ(v1::master::Event::TASK_ADDED, event.get().get().type());
+  ASSERT_EQ(internal::evolve(task.task_id()),
+            event.get().get().task_added().task().task_id());
+
+  event = decoder.read();
+
+  AWAIT_READY(event);
+
+  ASSERT_EQ(v1::master::Event::TASK_UPDATED, event.get().get().type());
+  ASSERT_EQ(v1::TASK_RUNNING, event.get().get().task_updated().state());
+
+  event = decoder.read();
+
+  // After we advance the clock, the status update manager would retry the
+  // `TASK_RUNNING` update. Since, the state of the task is not changed, this
+  // should not result in another `TASK_UPDATED` event.
+  Clock::pause();
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::settle();
+
+  EXPECT_TRUE(event.isPending());
+
+  EXPECT_TRUE(reader.close());
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
+    .Times(AtMost(1));
 }
 
 
