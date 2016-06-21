@@ -103,7 +103,6 @@ class SlaveObserver;
 
 struct BoundedRateLimiter;
 struct Framework;
-struct HttpConnection;
 struct Role;
 
 
@@ -363,6 +362,43 @@ inline std::ostream& operator<<(std::ostream& stream, const Slave& slave)
   return stream << slave.id << " at " << slave.pid
                 << " (" << slave.info.hostname() << ")";
 }
+
+
+// Represents the streaming HTTP connection to a framework.
+struct HttpConnection
+{
+  HttpConnection(const process::http::Pipe::Writer& _writer,
+                 ContentType _contentType,
+                 UUID _streamId)
+    : writer(_writer),
+      contentType(_contentType),
+      streamId(_streamId),
+      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+
+  // Converts the message to an Event before sending.
+  template <typename Message>
+  bool send(const Message& message)
+  {
+    // We need to evolve the internal 'message' into a
+    // 'v1::scheduler::Event'.
+    return writer.write(encoder.encode(evolve(message)));
+  }
+
+  bool close()
+  {
+    return writer.close();
+  }
+
+  process::Future<Nothing> closed() const
+  {
+    return writer.readerClosed();
+  }
+
+  process::http::Pipe::Writer writer;
+  ContentType contentType;
+  UUID streamId;
+  ::recordio::Encoder<v1::scheduler::Event> encoder;
+};
 
 
 class Master : public ProtobufProcess<Master>
@@ -1803,43 +1839,6 @@ private:
 inline std::ostream& operator<<(
     std::ostream& stream,
     const Framework& framework);
-
-
-// Represents the streaming HTTP connection to a framework.
-struct HttpConnection
-{
-  HttpConnection(const process::http::Pipe::Writer& _writer,
-                 ContentType _contentType,
-                 UUID _streamId)
-    : writer(_writer),
-      contentType(_contentType),
-      streamId(_streamId),
-      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
-
-  // Converts the message to an Event before sending.
-  template <typename Message>
-  bool send(const Message& message)
-  {
-    // We need to evolve the internal 'message' into a
-    // 'v1::scheduler::Event'.
-    return writer.write(encoder.encode(evolve(message)));
-  }
-
-  bool close()
-  {
-    return writer.close();
-  }
-
-  process::Future<Nothing> closed() const
-  {
-    return writer.readerClosed();
-  }
-
-  process::http::Pipe::Writer writer;
-  ContentType contentType;
-  UUID streamId;
-  ::recordio::Encoder<v1::scheduler::Event> encoder;
-};
 
 
 // This process periodically sends heartbeats to a scheduler on the
