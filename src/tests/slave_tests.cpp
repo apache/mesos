@@ -721,7 +721,7 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
   container->set_type(ContainerInfo::MESOS);
 
   NetworkInfo *network = container->add_network_infos();
-  network->set_ip_address("4.3.2.1");
+  network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
   FrameworkInfo frameworkInfo;
@@ -735,7 +735,13 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
   // must be included in Executor.container (copied from TaskInfo.container).
   EXPECT_TRUE(executor.has_container());
 
-  EXPECT_EQ("4.3.2.1", executor.container().network_infos(0).ip_address());
+  EXPECT_EQ(1, executor.container().network_infos(0).ip_addresses_size());
+
+  NetworkInfo::IPAddress ipAddress =
+    executor.container().network_infos(0).ip_addresses(0);
+
+  EXPECT_EQ("4.3.2.1", ipAddress.ip_address());
+
   EXPECT_EQ(1, executor.container().network_infos(0).groups_size());
   EXPECT_EQ("public", executor.container().network_infos(0).groups(0));
 }
@@ -791,7 +797,7 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
   container->set_type(ContainerInfo::MESOS);
 
   NetworkInfo *network = container->add_network_infos();
-  network->set_ip_address("4.3.2.1");
+  network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
   FrameworkInfo frameworkInfo;
@@ -3454,11 +3460,13 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
   // TaskStatus.container_status.network_infos[0].ip_address.
   EXPECT_TRUE(status.get().has_container_status());
   EXPECT_EQ(1, status.get().container_status().network_infos().size());
-  EXPECT_TRUE(
-      status.get().container_status().network_infos(0).has_ip_address());
-  EXPECT_EQ(
-      slaveIPAddress,
-      status.get().container_status().network_infos(0).ip_address());
+  EXPECT_EQ(1, status.get().container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
+
+  NetworkInfo::IPAddress ipAddress =
+    status.get().container_status().network_infos(0).ip_addresses(0);
+
+  ASSERT_TRUE(ipAddress.has_ip_address());
+  EXPECT_EQ(slaveIPAddress, ipAddress.ip_address());
 
   // Now do the same validation with state endpoint.
   Future<Response> response = process::http::get(
@@ -3479,7 +3487,8 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
       slaveIPAddress,
       parse.get().find<JSON::String>(
           "frameworks[0].executors[0].tasks[0].statuses[0]"
-          ".container_status.network_infos[0].ip_address"));
+          ".container_status.network_infos[0]"
+          ".ip_addresses[0].ip_address"));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

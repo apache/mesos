@@ -3615,8 +3615,13 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   EXPECT_TRUE(status->has_container_status());
   ContainerStatus containerStatus = status->container_status();
   EXPECT_EQ(1, containerStatus.network_infos().size());
-  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
-  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
+  EXPECT_EQ(1, containerStatus.network_infos(0).ip_addresses().size());
+
+  NetworkInfo::IPAddress ipAddress =
+    containerStatus.network_infos(0).ip_addresses(0);
+
+  ASSERT_TRUE(ipAddress.has_ip_address());
+  EXPECT_EQ(slaveIPAddress, ipAddress.ip_address());
 
   // Now do the same validation with state endpoint.
   Future<Response> response = process::http::get(
@@ -3637,7 +3642,8 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
       slaveIPAddress,
       parse.get().find<JSON::String>(
           "frameworks[0].tasks[0].statuses[0]"
-          ".container_status.network_infos[0].ip_address"));
+          ".container_status.network_infos[0]"
+          ".ip_addresses[0].ip_address"));
 
   // Now test for explicit reconciliation.
   Future<TaskStatus> explicitReconciliationStatus;
@@ -3658,8 +3664,12 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
 
   containerStatus = explicitReconciliationStatus->container_status();
   EXPECT_EQ(1, containerStatus.network_infos().size());
-  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
-  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
+  EXPECT_EQ(1, containerStatus.network_infos(0).ip_addresses().size());
+
+  ipAddress = containerStatus.network_infos(0).ip_addresses(0);
+
+  ASSERT_TRUE(ipAddress.has_ip_address());
+  EXPECT_EQ(slaveIPAddress, ipAddress.ip_address());
 
   Future<TaskStatus> implicitReconciliationStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3674,8 +3684,12 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
 
   containerStatus = implicitReconciliationStatus->container_status();
   EXPECT_EQ(1, containerStatus.network_infos().size());
-  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
-  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
+  EXPECT_EQ(1, containerStatus.network_infos(0).ip_addresses().size());
+
+  ipAddress = containerStatus.network_infos(0).ip_addresses(0);
+
+  ASSERT_TRUE(ipAddress.has_ip_address());
+  EXPECT_EQ(slaveIPAddress, ipAddress.ip_address());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

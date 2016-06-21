@@ -1776,19 +1776,6 @@ message NetworkInfo {
   // to decide how to interpret this field.
   optional string name = 6;
 
-  // Specify IP address requirement. Set protocol to the desired value to
-  // request the network isolator on the Agent to assign an IP address to the
-  // container being launched. If a specific IP address is specified in
-  // ip_address, this field should not be set.
-  optional Protocol protocol = 1 [deprecated = true]; // Since 0.26.0
-
-  // Statically assigned IP provided by the Framework. This IP will be assigned
-  // to the container by the network isolator module on the Agent. This field
-  // should not be used with the protocol field above.
-  // NOTE: It is up to the networking 'provider' (IPAM/Isolator) to interpret
-  // this either as a hint of as a requirement for assigning the IP.
-  optional string ip_address = 2 [deprecated = true]; // Since 0.26.0
-
   // A group is the name given to a set of logically-related interfaces that
   // are allowed to communicate among themselves. Network traffic is allowed
   // between two container interfaces that share at least one network group.

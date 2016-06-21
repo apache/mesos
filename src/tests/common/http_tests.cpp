@@ -237,8 +237,6 @@ TEST(HTTP, SerializeNetworkInfo)
   NetworkInfo::IPAddress* address = networkInfo.add_ip_addresses();
   address->set_protocol(NetworkInfo::IPv4);
   address->set_ip_address("10.0.0.1");
-  networkInfo.set_protocol(NetworkInfo::IPv6);
-  networkInfo.set_ip_address("10.0.0.2");
   networkInfo.add_groups("foo");
   networkInfo.add_groups("bar");
 
@@ -253,8 +251,6 @@ TEST(HTTP, SerializeNetworkInfo)
       "      \"ip_address\": \"10.0.0.1\""
       "    }"
       "  ],"
-      "  \"protocol\": \"IPv6\","
-      "  \"ip_address\": \"10.0.0.2\","
       "  \"groups\": ["
       "    \"foo\","
       "    \"bar\""

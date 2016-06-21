@@ -588,9 +588,6 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
   // network isolation group. The `ip_address` field is deprecated, but the
   // hook module should continue to set it as well as the new `ip_addresses`
   // field for now.
-  EXPECT_TRUE(networkInfo.has_ip_address());
-  EXPECT_EQ("4.3.2.1", networkInfo.ip_address());
-
   EXPECT_EQ(1, networkInfo.ip_addresses().size());
   EXPECT_TRUE(networkInfo.ip_addresses(0).has_ip_address());
   EXPECT_EQ("4.3.2.1", networkInfo.ip_addresses(0).ip_address());

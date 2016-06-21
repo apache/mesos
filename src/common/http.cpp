@@ -187,10 +187,6 @@ JSON::Object model(const NetworkInfo& info)
 {
   JSON::Object object;
 
-  if (info.has_ip_address()) {
-    object.values["ip_address"] = info.ip_address();
-  }
-
   if (info.groups().size() > 0) {
     JSON::Array array;
     array.values.reserve(info.groups().size()); // MESOS-2353.
@@ -464,10 +460,6 @@ void json(JSON::ArrayWriter* writer, const Labels& labels)
 
 static void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 {
-  if (info.has_ip_address()) {
-    writer->field("ip_address", info.ip_address());
-  }
-
   if (info.groups().size() > 0) {
     writer->field("groups", info.groups());
   }
