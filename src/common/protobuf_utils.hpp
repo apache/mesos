@@ -24,6 +24,8 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/master/master.hpp>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <process/time.hpp>
@@ -148,6 +150,22 @@ mesos::maintenance::Schedule createSchedule(
     std::initializer_list<mesos::maintenance::Window> windows);
 
 } // namespace maintenance {
+
+namespace master {
+namespace event {
+
+// Helper for creating a `TASK_UPDATED` event from a `Task` with the
+// recently transitioned state of the task.
+mesos::master::Event createTaskUpdated(
+    const Task& task,
+    const TaskState& state);
+
+
+// Helper for creating a `TASK_ADDED` event from a `Task`.
+mesos::master::Event createTaskAdded(const Task& task);
+
+} // namespace event {
+} // namespace master {
 
 } // namespace protobuf {
 } // namespace internal {

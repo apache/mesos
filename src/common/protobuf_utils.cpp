@@ -378,6 +378,43 @@ mesos::maintenance::Schedule createSchedule(
 
 } // namespace maintenance {
 
+namespace master {
+namespace event {
+
+mesos::master::Event createTaskUpdated(const Task& task, const TaskState& state)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::TASK_UPDATED);
+
+  mesos::master::Event::TaskUpdated* taskUpdated = event.mutable_task_updated();
+
+  taskUpdated->mutable_task_id()->CopyFrom(task.task_id());
+  taskUpdated->mutable_framework_id()->CopyFrom(task.framework_id());
+  taskUpdated->mutable_slave_id()->CopyFrom(task.slave_id());
+
+  if (task.has_executor_id()) {
+    taskUpdated->mutable_executor_id()->CopyFrom(task.executor_id());
+  }
+
+  taskUpdated->set_state(state);
+
+  return event;
+}
+
+
+mesos::master::Event createTaskAdded(const Task& task)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::TASK_ADDED);
+
+  event.mutable_task_added()->mutable_task()->CopyFrom(task);
+
+  return event;
+}
+
+} // namespace event {
+} // namespace master {
+
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {
