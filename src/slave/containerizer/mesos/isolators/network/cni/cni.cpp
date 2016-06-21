@@ -969,7 +969,25 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   networkConfigJson.values["args"] = args;
 
   // TODO(jieyu): Checkpoint the network configuration JSON so that we
-  // can use the same JSON during cleanup.
+  // can use the same JSON during cleanup. Currently, we write it to a
+  // temporary file.
+  Try<std::string> temp = os::mktemp();
+  if (temp.isError()) {
+    return Failure(
+        "Failed to create the temp file for the "
+        "CNI network configuration: " + temp.error());
+  }
+
+  Try<Nothing> write = os::write(
+      temp.get(),
+      stringify(networkConfigJson));
+
+  if (write.isError()) {
+    os::rm(temp.get());
+    return Failure(
+        "Failed to write the CNI network configuration "
+        "to the temp file: " + write.error());
+  }
 
   // Invoke the CNI plugin.
   const string& plugin = networkConfig.config.type();
@@ -981,7 +999,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   Try<Subprocess> s = subprocess(
       path::join(pluginDir.get(), plugin),
       {plugin},
-      Subprocess::PIPE(),
+      Subprocess::PATH(temp.get()),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
@@ -989,21 +1007,23 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       environment);
 
   if (s.isError()) {
+    os::rm(temp.get());
     return Failure(
         "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
   }
 
-  return await(
-      io::write(s->in().get(), stringify(networkConfigJson)),
-      s->status(),
-      io::read(s->out().get()))
+  return await(s->status(), io::read(s->out().get()))
     .then(defer(
         PID<NetworkCniIsolatorProcess>(this),
         &NetworkCniIsolatorProcess::_attach,
         containerId,
         networkName,
         plugin,
-        lambda::_1));
+        lambda::_1))
+    .onAny([temp]() {
+      os::rm(temp.get());
+      return Nothing();
+    });
 }
 
 
@@ -1011,20 +1031,12 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
     const ContainerID& containerId,
     const string& networkName,
     const string& plugin,
-    const tuple<Future<Nothing>, Future<Option<int>>, Future<string>>& t)
+    const tuple<Future<Option<int>>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  Future<Nothing> input = std::get<0>(t);
-  if (!input.isReady()) {
-    return Failure(
-        "Failed to send CNI network configuration to "
-        "plugin '" + plugin + "': " +
-        (input.isFailed() ? input.failure() : "discarded"));
-  }
-
-  Future<Option<int>> status = std::get<1>(t);
+  Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
     return Failure(
         "Failed to get the exit status of the CNI plugin '" +
@@ -1039,7 +1051,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 
   // CNI plugin will print result (in case of success) or error (in
   // case of failure) to stdout.
-  Future<string> output = std::get<2>(t);
+  Future<string> output = std::get<1>(t);
   if (!output.isReady()) {
     return Failure(
         "Failed to read stdout from the CNI plugin '" +
