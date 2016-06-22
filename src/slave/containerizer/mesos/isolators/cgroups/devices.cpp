@@ -291,10 +291,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsDevicesIsolatorProcess::prepare(
     }
   }
 
-  return update(containerId, containerConfig.executor_info().resources())
-    .then([]() -> Future<Option<ContainerLaunchInfo>> {
-      return None();
-    });
+  return None();
 }
 
 
