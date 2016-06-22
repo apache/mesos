@@ -808,11 +808,6 @@ protected:
     Try<Owned<Rootfs>> rootfs = LinuxRootfs::create(rootfsPath);
     ASSERT_SOME(rootfs);
 
-    // 'modules' directory is usually very large and is an easy one to exclude.
-    // TODO(jojy): Consider adding directory exclusion filter in LinuxRootfs.
-    Try<Nothing> rmdir = os::rmdir(path::join(rootfsPath, "lib", "modules"));
-    ASSERT_SOME(rmdir);
-
     Try<Nothing> manifestWrite = os::write(
         path::join(imagePath, "manifest"),
         manifest);
