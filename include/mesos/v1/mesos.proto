@@ -279,12 +279,11 @@ message FrameworkInfo {
       // Frameworks that are aware of GPU resources are expected to
       // avoid placing non-GPU workloads on GPU agents, in order
       // to avoid occupying a GPU agent and preventing GPU workloads
-      // from using precious GPU resources! Currently, if a
-      // framework is unaware of GPU resources, it will not be
-      // offered *any* of the resources on an agent with GPUs.
-      // This restriction is in place because we do not have a
-      // revocation mechanism that ensures GPU workloads can evict
-      // GPU agent occupants if necessary.
+      // from running! Currently, if a framework is unaware of GPU
+      // resources, it will not be offered *any* of the resources on
+      // an agent with GPUs. This restriction is in place because we
+      // do not have a revocation mechanism that ensures GPU workloads
+      // can evict GPU agent occupants if necessary.
       //
       // TODO(bmahler): As we add revocation we can relax the
       // restriction here. See MESOS-5634 for more information.
