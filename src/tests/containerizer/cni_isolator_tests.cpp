@@ -180,8 +180,13 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_CURL_LaunchCommandTask)
 
   const Offer& offer = offers.get()[0];
 
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/sbin' is not in the PATH by default.
   CommandInfo command;
-  command.set_value("ifconfig");
+  command.set_shell(false);
+  command.set_value("/sbin/ifconfig");
+  command.add_arguments("ifconfig");
 
   TaskInfo task = createTask(
       offer.slave_id(),
