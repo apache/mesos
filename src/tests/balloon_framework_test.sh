@@ -93,6 +93,7 @@ if [[ ${STATUS} -ne 0 ]]; then
   exit 2
 fi
 
+EXECUTOR_ENVIRONMENT_VARIABLES="{\"LD_LIBRARY_PATH\":\"${LD_LIBRARY_PATH}\"}"
 
 # Launch agent.
 ${AGENT} \
@@ -101,6 +102,7 @@ ${AGENT} \
     --isolation=cgroups/mem \
     --cgroups_hierarchy=${TEST_CGROUP_HIERARCHY} \
     --cgroups_root=${TEST_CGROUP_ROOT} \
+    --executor_environment_variables=${EXECUTOR_ENVIRONMENT_VARIABLES} \
     --resources="cpus:1;mem:96" &
 AGENT_PID=${!}
 echo "${GREEN}Launched agent at ${AGENT_PID}${NORMAL}"
@@ -114,14 +116,11 @@ if [[ ${STATUS} -ne 0 ]]; then
   exit 2
 fi
 
-EXECUTOR_ENVIRONMENT_VARIABLES="{ \"LD_LIBRARY_PATH\": \"${LD_LIBRARY_PATH}\" }"
-
 # The main event!
 ${BALLOON_FRAMEWORK} \
     --master=127.0.0.1:5432 \
     --task_memory_usage_limit=1024MB \
-    --task_memory=32MB \
-    --executor_environment_variables=${EXECUTOR_ENVIRONMENT_VARIABLES}
+    --task_memory=32MB
 STATUS=${?}
 
 # Make sure the balloon framework "failed".
