@@ -487,7 +487,9 @@ add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.
 #########################################################
-add_subdirectory(tests/)
+if (NOT WIN32)
+  add_subdirectory(tests/)
+endif (NOT WIN32)
 
 
 # mesos-log
