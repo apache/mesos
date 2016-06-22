@@ -162,6 +162,12 @@ v1::MasterInfo evolve(const MasterInfo& masterInfo)
 }
 
 
+v1::Resource evolve(const Resource& resource)
+{
+  return evolve<v1::Resource>(resource);
+}
+
+
 v1::agent::Response evolve(const mesos::agent::Response& response)
 {
   return evolve<v1::agent::Response>(response);

@@ -63,6 +63,7 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 
+using process::http::Accepted;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
@@ -936,6 +937,155 @@ TEST_P(MasterAPITest, SetQuota)
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+// Test create and destroy persistent volumes through the master operator API.
+// In this test case, we create a persistent volume with the API, then launch a
+// task using the volume. Then we destroy the volume with the API after the task
+// is finished.
+TEST_P(MasterAPITest, CreateAndDestroyVolumes)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // For capturing the SlaveID so we can use it in the create/destroy volumes
+  // API call.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  // Do Static reservation so we can create persistent volumes from it.
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(), &containerizer, slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  // Create the persistent volume.
+  v1::master::Call v1CreateVolumesCall;
+  v1CreateVolumesCall.set_type(v1::master::Call::CREATE_VOLUMES);
+  v1::master::Call_CreateVolumes* createVolumes =
+    v1CreateVolumesCall.mutable_create_volumes();
+
+  Resource volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  createVolumes->add_volumes()->CopyFrom(evolve<v1::Resource>(volume));
+  createVolumes->mutable_agent_id()->CopyFrom(evolve<v1::AgentID>(slaveId));
+
+  ContentType contentType = GetParam();
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<Nothing> v1CreateVolumesResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1CreateVolumesCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != Accepted().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1CreateVolumesResponse);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  // Start a framework and launch a task on the persistent volume.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  Resources taskResources = Resources::parse(
+      "disk:256",
+      frameworkInfo.role()).get();
+
+  TaskInfo taskInfo = createTask(
+      offer.slave_id(),
+      taskResources,
+      "sleep 1",
+      DEFAULT_EXECUTOR_ID);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_FINISHED, status.get().state());
+
+  // Destroy the persistent volume.
+  v1::master::Call v1DestroyVolumesCall;
+  v1DestroyVolumesCall.set_type(v1::master::Call::DESTROY_VOLUMES);
+  v1::master::Call_DestroyVolumes* destroyVolumes =
+    v1DestroyVolumesCall.mutable_destroy_volumes();
+
+  destroyVolumes->mutable_agent_id()->CopyFrom(evolve<v1::AgentID>(slaveId));
+  destroyVolumes->add_volumes()->CopyFrom(evolve<v1::Resource>(volume));
+
+  Future<Nothing> v1DestroyVolumesResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1DestroyVolumesCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != Accepted().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(v1DestroyVolumesResponse);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 }
 
 
