@@ -72,6 +72,10 @@
 #define CLONE_NEWUSER 0x10000000
 #endif
 
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP 0x02000000
+#endif
+
 namespace ns {
 
 // Returns all the supported namespaces by the kernel.
@@ -100,6 +104,7 @@ inline Try<int> nstype(const std::string& ns)
   nstypes["net"] = CLONE_NEWNET;
   nstypes["user"] = CLONE_NEWUSER;
   nstypes["pid"] = CLONE_NEWPID;
+  nstypes["cgroup"] = CLONE_NEWCGROUP;
 
   if (!nstypes.contains(ns)) {
     return Error("Unknown namespace '" + ns + "'");
@@ -310,7 +315,8 @@ inline std::string stringify(int flags)
     {CLONE_NEWIPC,  "CLONE_NEWIPC"},
     {CLONE_NEWPID,  "CLONE_NEWPID"},
     {CLONE_NEWNET,  "CLONE_NEWNET"},
-    {CLONE_NEWUSER, "CLONE_NEWUSER"}
+    {CLONE_NEWUSER, "CLONE_NEWUSER"},
+    {CLONE_NEWCGROUP, "CLONE_NEWCGROUP"}
   };
 
   std::vector<std::string> namespaces;
