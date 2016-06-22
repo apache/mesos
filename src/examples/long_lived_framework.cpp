@@ -213,7 +213,7 @@ protected:
         }
 
         case Event::ERROR: {
-          LOG(ERROR) << "Error: " << event.error().message();
+          EXIT(EXIT_FAILURE) << "Error: " << event.error().message();
           break;
         }
 
