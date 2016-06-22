@@ -1310,6 +1310,11 @@ private:
         const google::protobuf::RepeatedPtrField<Resource>& volumes,
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> _destroyVolumes(
+        const SlaveID& slaveId,
+        const google::protobuf::RepeatedPtrField<Resource>& volumes,
+        const Option<std::string>& principal) const;
+
     /**
      * Continuation for operations: /reserve, /unreserve,
      * /create-volumes and /destroy-volumes. First tries to recover
@@ -1422,6 +1427,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> createVolumes(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> destroyVolumes(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;

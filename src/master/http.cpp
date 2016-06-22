@@ -659,7 +659,7 @@ Future<Response> Master::Http::api(
       return createVolumes(call, principal, acceptType);
 
     case mesos::master::Call::DESTROY_VOLUMES:
-      return NotImplemented();
+      return destroyVolumes(call, principal, acceptType);
 
     case mesos::master::Call::GET_MAINTENANCE_STATUS:
       return getMaintenanceStatus(call, principal, acceptType);
@@ -1122,6 +1122,54 @@ string Master::Http::DESTROY_VOLUMES_HELP()
 }
 
 
+Future<Response> Master::Http::_destroyVolumes(
+    const SlaveID& slaveId,
+    const RepeatedPtrField<Resource>& volumes,
+    const Option<string>& principal) const
+{
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
+  // Create an offer operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::DESTROY);
+  operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
+
+  Option<Error> validate = validation::operation::validate(
+      operation.destroy(), slave->checkpointedResources);
+
+  if (validate.isSome()) {
+    return BadRequest("Invalid DESTROY operation: " + validate.get().message);
+  }
+
+  return master->authorizeDestroyVolume(operation.destroy(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Forbidden();
+      }
+
+      return _operation(slaveId, volumes, operation);
+    }));
+}
+
+
+Future<Response> Master::Http::destroyVolumes(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::DESTROY_VOLUMES, call.type());
+  CHECK(call.has_destroy_volumes());
+
+  SlaveID slaveId = call.destroy_volumes().agent_id();
+  RepeatedPtrField<Resource> volumes = call.destroy_volumes().volumes();
+
+  return _destroyVolumes(slaveId, volumes, principal);
+}
+
+
 Future<Response> Master::Http::destroyVolumes(
     const Request& request,
     const Option<string>& principal) const
@@ -1155,11 +1203,6 @@ Future<Response> Master::Http::destroyVolumes(
   SlaveID slaveId;
   slaveId.set_value(value.get());
 
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
   value = values.get("volumes");
   if (value.isNone()) {
     return BadRequest("Missing 'volumes' query parameter");
@@ -1183,26 +1226,7 @@ Future<Response> Master::Http::destroyVolumes(
     volumes += volume.get();
   }
 
-  // Create an offer operation.
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::DESTROY);
-  operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
-
-  Option<Error> validate = validation::operation::validate(
-      operation.destroy(), slave->checkpointedResources);
-
-  if (validate.isSome()) {
-    return BadRequest("Invalid DESTROY operation: " + validate.get().message);
-  }
-
-  return master->authorizeDestroyVolume(operation.destroy(), principal)
-    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
-      if (!authorized) {
-        return Forbidden();
-      }
-
-      return _operation(slaveId, volumes, operation);
-    }));
+  return _destroyVolumes(slaveId, volumes, principal);
 }
 
 
