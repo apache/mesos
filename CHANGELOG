@@ -860,6 +860,15 @@ All Issues:
   * [MESOS-4834] - Add 'file' fetcher plugin.
 
 
+Release Notes - Mesos - Version 0.27.4
+--------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+  * [MESOS-5330] - Agent should backoff before connecting to the master.
+
+
 Release Notes - Mesos - Version 0.27.3
 --------------------------------------
 * This is a bug fix release.
