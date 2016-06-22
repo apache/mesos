@@ -101,40 +101,50 @@ public:
       }
     }
 
-    std::vector<std::string> directories = {
-      "/bin",
-      "/lib",
-      "/lib64",
-      "/etc"
+    std::vector<std::string> files = {
+      "/bin/echo",
+      "/bin/ls",
+      "/bin/sh",
+      "/usr/bin/sh",
+      "/lib/x86_64-linux-gnu",
+      "/lib64/ld-linux-x86-64.so.2",
+      "/lib64/libc.so.6",
+      "/lib64/libdl.so.2",
+      "/lib64/libtinfo.so.5",
+      "/lib64/libselinux.so.1",
+      "/lib64/libpcre.so.1",
+      "/lib64/liblzma.so.5",
+      "/lib64/libpthread.so.0",
+      "/lib64/libcap.so.2",
+      "/lib64/libacl.so.1",
+      "/lib64/libattr.so.1",
+      "/lib64/librt.so.1",
+      "/etc/passwd"
     };
 
-    foreach (const std::string& directory, directories) {
+    foreach (const std::string& file, files) {
       // Some linux distros are moving all binaries and libraries to
       // /usr, in which case /bin, /lib, and /lib64 will be symlinks
       // to their equivalent directories in /usr.
-      Result<std::string> realpath = os::realpath(directory);
-      if (!realpath.isSome()) {
-        return Error("Failed to get realpath for '" +
-                     directory + "': " + (realpath.isError() ?
-                     realpath.error() : "No such directory"));
-      }
-
-      Try<Nothing> result = rootfs->add(realpath.get());
-      if (result.isError()) {
-        return Error("Failed to add '" + realpath.get() +
-                     "' to rootfs: " + result.error());
-      }
-
-      if (os::stat::islink(directory)) {
-        result = rootfs->add(directory);
+      Result<std::string> realpath = os::realpath(file);
+      if (realpath.isSome()) {
+        Try<Nothing> result = rootfs->add(realpath.get());
         if (result.isError()) {
-          return Error("Failed to add '" + directory + "' to rootfs: " +
-                       result.error());
+          return Error("Failed to add '" + realpath.get() +
+                       "' to rootfs: " + result.error());
+        }
+
+        if (file != realpath.get()) {
+          result = rootfs->add(file);
+          if (result.isError()) {
+            return Error("Failed to add '" + file + "' to rootfs: " +
+                         result.error());
+          }
         }
       }
     }
 
-    directories = {
+    std::vector<std::string> directories = {
       "/proc",
       "/sys",
       "/dev",
