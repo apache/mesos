@@ -1498,25 +1498,30 @@ int NetworkCniIsolatorSetup::execute()
     // rootfs of host filesystem and will later pivot to the rootfs of
     // the container filesystem, when launching the task.
     if (!os::exists(file)) {
-      // NOTE: We just fail if the mount point does not exist on the
-      // host filesystem because we don't want to pollute the host
-      // filesystem.
-      cerr << "Mount point '" << file << "' does not exist "
-           << "on the host filesystem"<< endl;
-      return EXIT_FAILURE;
-    }
+      // Make an exception for `/etc/hostname`, because it may not
+      // exist on every system but hostname is still accessible by
+      // `getHostname()`.
+      if (file != "/etc/hostname") {
+        // NOTE: We just fail if the mount point does not exist on the
+        // host filesystem because we don't want to pollute the host
+        // filesystem.
+        cerr << "Mount point '" << file << "' does not exist "
+             << "on the host filesystem" << endl;
+        return EXIT_FAILURE;
+      }
+    } else {
+      mount = fs::mount(
+          source,
+          file,
+          None(),
+          MS_BIND,
+          nullptr);
 
-    mount = fs::mount(
-        source,
-        file,
-        None(),
-        MS_BIND,
-        nullptr);
-
-    if (mount.isError()) {
-      cerr << "Failed to bind mount from '" << source << "' to '"
-           << file << "': " << mount.error() << endl;
-      return EXIT_FAILURE;
+      if (mount.isError()) {
+        cerr << "Failed to bind mount from '" << source << "' to '"
+             << file << "': " << mount.error() << endl;
+        return EXIT_FAILURE;
+      }
     }
 
     // Do the bind mount in the container filesystem.
