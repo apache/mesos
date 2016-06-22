@@ -1385,7 +1385,8 @@ Future<Response> Master::Http::getMetrics(
           metric->set_value(value);
         }
 
-        return OK(serialize(contentType, response), stringify(contentType));
+        return OK(serialize(contentType, evolve(response)),
+                  stringify(contentType));
       });
 }
 
