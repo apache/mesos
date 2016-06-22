@@ -46,6 +46,7 @@
 #include "none.hpp"
 #include "result.hpp"
 #include "stringify.hpp"
+#include "strings.hpp"
 #include "try.hpp"
 
 
@@ -70,6 +71,44 @@ namespace net {
 class MAC
 {
 public:
+  // Parse a MAC address (e.g., 01:23:34:67:89:ab).
+  static Try<MAC> parse(const std::string& s)
+  {
+    std::vector<std::string> tokens = strings::split(s, ":");
+    if (tokens.size() != 6) {
+      return Error("Invalid format. Expecting xx:xx:xx:xx:xx:xx");
+    }
+
+    auto isValidHexDigit = [](char c) {
+      return (c >= '0' && c <= '9') ||
+          (c >= 'a' && c <= 'f') ||
+          (c >= 'A' && c <= 'F');
+    };
+
+    uint8_t bytes[6];
+    for (size_t i = 0; i < 6; i++) {
+      if (tokens[i].size() != 2) {
+        return Error("Not a two digit hex number");
+      }
+
+      if (!isValidHexDigit(tokens[i][0]) ||
+          !isValidHexDigit(tokens[i][1])) {
+        return Error("Not a valid hex number");
+      }
+
+      const char* str = tokens[i].c_str();
+      char *endptr = nullptr;
+      unsigned long value = strtoul(str, &endptr, 16);
+
+      assert(endptr == str + 2);
+      assert(value < 256);
+
+      bytes[i] = static_cast<uint8_t>(value);
+    }
+
+    return MAC(bytes);
+  }
+
   // Constructs a MAC address from a byte array.
   explicit MAC(const uint8_t (&_bytes)[6])
   {

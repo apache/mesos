@@ -66,3 +66,29 @@ TEST(NetTest, ConstructMAC)
 
   EXPECT_EQ("12:34:56:78:9a:bc", stringify(net::MAC(bytes)));
 }
+
+
+TEST(NetTest, ParseMAC)
+{
+  Try<net::MAC> mac = net::MAC::parse("12:34:56:78:9a:bc");
+  ASSERT_SOME(mac);
+
+  EXPECT_EQ(0x12, mac.get()[0]);
+  EXPECT_EQ(0x34, mac.get()[1]);
+  EXPECT_EQ(0x56, mac.get()[2]);
+  EXPECT_EQ(0x78, mac.get()[3]);
+  EXPECT_EQ(0x9a, mac.get()[4]);
+  EXPECT_EQ(0xbc, mac.get()[5]);
+
+  EXPECT_SOME(net::MAC::parse("12:34:56:78:9A:BC"));
+  EXPECT_SOME(net::MAC::parse("ff:34:56:78:9a:bc"));
+  EXPECT_SOME(net::MAC::parse("00:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("12:34:56:78:9a"));
+  EXPECT_ERROR(net::MAC::parse("123:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("x1:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("-1:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("+1:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("fff:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse(" 2:34:56:78:9a:bc"));
+  EXPECT_ERROR(net::MAC::parse("1 :34:56:78:9a:bc"));
+}
