@@ -1205,11 +1205,12 @@ Future<bool> MesosContainerizerProcess::__launch(
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
           -> Future<bool> {
     // Use a pipe to block the child until it's been isolated.
-    int pipes[2];
+    // The `pipes` array is captured later in a lambda.
+    std::array<int, 2> pipes;
 
     // TODO(jmlvanre): consider returning failure if `pipe` gives an
     // error. Currently we preserve the previous logic.
-    CHECK_SOME(os::pipe(pipes));
+    CHECK_SOME(os::pipe(pipes.data()));
 
     // Prepare the flags to pass to the launch process.
     MesosContainerizerLaunch::Flags launchFlags;
