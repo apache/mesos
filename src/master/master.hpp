@@ -1113,10 +1113,12 @@ private:
         const Option<std::string>& principal,
         const std::vector<std::string>& roles) const;
 
-    process::Future<process::http::Response> _get(
-        const process::http::Request& request,
+    process::Future<std::vector<WeightInfo>> _filterWeights(
         const std::vector<WeightInfo>& weightInfos,
         const std::list<bool>& authorized) const;
+
+    process::Future<std::vector<WeightInfo>> _getWeights(
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> _update(
         const std::vector<WeightInfo>& updateWeightInfos) const;

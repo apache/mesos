@@ -62,6 +62,24 @@ Future<http::Response> Master::WeightsHandler::get(
   // Check that the request type is GET which is guaranteed by the master.
   CHECK_EQ("GET", request.method);
 
+  return _getWeights(principal)
+    .then([request](const vector<WeightInfo>& weightInfos)
+      -> Future<http::Response> {
+      RepeatedPtrField<WeightInfo> filteredWeightInfos;
+
+      foreach (const WeightInfo& weightInfo, weightInfos) {
+        filteredWeightInfos.Add()->CopyFrom(weightInfo);
+      }
+
+      return OK(JSON::protobuf(filteredWeightInfos),
+                request.url.query.get("jsonp"));
+  });
+}
+
+
+Future<vector<WeightInfo>> Master::WeightsHandler::_getWeights(
+    const Option<string>& principal) const
+{
   vector<WeightInfo> weightInfos;
   weightInfos.reserve(master->weights.size());
 
@@ -83,34 +101,31 @@ Future<http::Response> Master::WeightsHandler::get(
     .then(defer(
         master->self(),
         [=](const list<bool>& roleAuthorizationsCollected)
-          -> Future<http::Response> {
-      return _get(request, weightInfos, roleAuthorizationsCollected);
-    }));
+          -> Future<vector<WeightInfo>> {
+      return _filterWeights(weightInfos, roleAuthorizationsCollected);
+  }));
 }
 
 
-Future<http::Response> Master::WeightsHandler::_get(
-    const http::Request& request,
+Future<vector<WeightInfo>> Master::WeightsHandler::_filterWeights(
     const vector<WeightInfo>& weightInfos,
     const list<bool>& roleAuthorizations) const
 {
   CHECK(weightInfos.size() == roleAuthorizations.size());
 
-  RepeatedPtrField<WeightInfo> filteredWeightInfos;
+  vector<WeightInfo> filteredWeightInfos;
 
   // Create an entry (including role and resources) for each weight,
   // except those filtered out based on the authorizer's response.
   auto weightInfoIt = weightInfos.begin();
   foreach (bool authorized, roleAuthorizations) {
     if (authorized) {
-      filteredWeightInfos.Add()->CopyFrom(*weightInfoIt);
+      filteredWeightInfos.push_back(*weightInfoIt);
     }
     ++weightInfoIt;
   }
 
-  return OK(
-    JSON::protobuf(filteredWeightInfos),
-    request.url.query.get("jsonp"));
+  return filteredWeightInfos;
 }
 
 
