@@ -260,7 +260,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   EXPECT_EQ(TASK_RUNNING, running.get().state());
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(_statusUpdateAcknowledgement);
+  AWAIT_READY_FOR(_statusUpdateAcknowledgement, Seconds(120));
 
   // We restart the slave to let it recover.
   slave.get()->terminate();
@@ -323,7 +323,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   // Stop the memory-hammering task.
   driver.killTask(task.task_id());
 
-  AWAIT_READY(killed);
+  AWAIT_READY_FOR(killed, Seconds(120));
   EXPECT_EQ(task.task_id(), killed->task_id());
   EXPECT_EQ(TASK_KILLED, killed->state());
 
