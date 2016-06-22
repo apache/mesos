@@ -571,6 +571,7 @@ Release Notes - Mesos - Version 0.28.3
 
 All Issues:
 ** Bug
+  * [MESOS-5330] - Agent should backoff before connecting to the master.
   * [MESOS-5543] - /dev/fd is missing in the Mesos containerizer environment.
 
 
