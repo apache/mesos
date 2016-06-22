@@ -94,7 +94,11 @@ Try<Owned<slave::Store>> Store::create(const Flags& flags)
   // TODO(jieyu): We should inject URI fetcher from top level, instead
   // of creating it here.
   uri::fetcher::Flags _flags;
+
+  // TODO(dpravat): Remove after resolving MESOS-5473.
+#ifndef __WINDOWS__
   _flags.docker_config = flags.docker_config;
+#endif
 
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(_flags);
   if (fetcher.isError()) {
