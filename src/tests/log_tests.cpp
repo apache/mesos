@@ -2089,7 +2089,7 @@ TEST_F(LogTest, Metrics)
   initializer.flags.path = path;
   ASSERT_SOME(initializer.execute());
 
-  Log log(1, path, {}, false, "prefix/");
+  Log log(1, path, std::set<process::UPID>(), false, "prefix/");
 
   // Make sure the log is recovered. If the log is not recovered, the
   // writer cannot be elected.
