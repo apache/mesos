@@ -641,7 +641,7 @@ Future<Response> Master::Http::api(
       return getRoles(call, principal, acceptType);
 
     case mesos::master::Call::GET_WEIGHTS:
-      return NotImplemented();
+      return weightsHandler.getWeights(call, principal, acceptType);
 
     case mesos::master::Call::UPDATE_WEIGHTS:
       return NotImplemented();

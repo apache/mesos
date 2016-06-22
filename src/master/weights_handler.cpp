@@ -77,6 +77,30 @@ Future<http::Response> Master::WeightsHandler::get(
 }
 
 
+Future<http::Response> Master::WeightsHandler::getWeights(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_WEIGHTS, call.type());
+
+  return _getWeights(principal)
+    .then([contentType](const vector<WeightInfo>& weightInfos)
+      -> Future<http::Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_WEIGHTS);
+
+      foreach(const WeightInfo& weightInfo, weightInfos) {
+        response.mutable_get_weights()->add_weight_infos()->CopyFrom(
+            weightInfo);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+  });
+}
+
+
 Future<vector<WeightInfo>> Master::WeightsHandler::_getWeights(
     const Option<string>& principal) const
 {

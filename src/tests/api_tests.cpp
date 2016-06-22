@@ -939,6 +939,31 @@ TEST_P(MasterAPITest, SetQuota)
 }
 
 
+TEST_P(MasterAPITest, GetWeights)
+{
+  // Start a master with `--weights` flag.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.weights = "role=2.0";
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_WEIGHTS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_WEIGHTS, v1Response->type());
+  ASSERT_EQ(1, v1Response->get_weights().weight_infos_size());
+  ASSERT_EQ("role", v1Response->get_weights().weight_infos().Get(0).role());
+  ASSERT_EQ(2.0, v1Response->get_weights().weight_infos().Get(0).weight());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>
