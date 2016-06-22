@@ -803,8 +803,8 @@ Future<http::Response> FilesProcess::debug(
       request.method,
       authorizer,
       principal)
-    .then(defer([object, jsonp](bool authorized)
-                  -> Future<http::Response> {
+    .then(defer(
+        [object, jsonp](bool authorized) -> Future<http::Response> {
           if (!authorized) {
             return Forbidden();
           }

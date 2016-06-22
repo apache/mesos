@@ -938,7 +938,8 @@ Future<Response> Slave::Http::state(
       tasksApprover,
       executorsApprover,
       flagsApprover)
-    .then(defer(slave->self(),
+    .then(defer(
+        slave->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
