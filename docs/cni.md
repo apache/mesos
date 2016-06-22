@@ -25,6 +25,7 @@ default.
   - [Mesos meta-data to CNI plugins](#mesos-meta-data-to-cni-plugins)
 - [Networking Recipes](#networking-recipes)
   - [A bridge network](#a-bridge-network)
+  - [A Calico network](#a-calico-network)
 - [Limitations](#limitations)
 
 
@@ -335,6 +336,21 @@ $ sudo ip netns exec 5baff64c ip route show
 default via 192.168.0.1 dev eth0
 192.168.0.0/16 dev eth0  proto kernel  scope link  src 192.168.0.2
 ```
+
+#### <a name="a-calico-network">A Calico network</a>
+[Calico](https://projectcalico.org/) is an example of an 3rd-party CNI plugin
+that works out-of-the-box with Mesos CNI.
+
+Calico takes a pure Layer-3 approach to networking, allocating a unique,
+routable IP address to each Meso task. Task routes are distributed by a BGP
+vRouter run on each Agent, which leverages the existing Linux kernel forwarding
+engine without needing tunnels, NAT, or overlays. Additionally, Calico supports
+rich and flexible network policy which it enforces using bookended ACLs on
+each compute node to provide tenant isolation, security groups, and external
+reachability constraints.
+
+For information on setting up and using Calico-CNI, see
+[Calico's guide on adding Calico-CNI to Mesos](https://github.com/projectcalico/calico-containers/blob/master/docs/mesos/ManualInstallCalicoCNI.md).
 
 
 ### <a name="limitations"></a>Limitations
