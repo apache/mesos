@@ -808,15 +808,15 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
 
   // Listen to 'localhost' and 'Port'.
   command1 << "nc -u -l localhost " << validPort << " > " << trafficViaLoopback
-           << "&";
+           << "& ";
 
   // Listen to 'public IP' and 'Port'.
   command1 << "nc -u -l " << hostIP << " " << validPort << " > "
-           << trafficViaPublic << "&";
+           << trafficViaPublic << "& ";
 
   // Listen to 'public IP' and 'invalidPort'. This should not receive anything.
   command1 << "nc -u -l " << invalidPort << " | tee " << trafficViaLoopback
-           << " " << trafficViaPublic << "&";
+           << " " << trafficViaPublic << "& ";
 
   // Touch the guard file.
   command1 << "touch " << container1Ready;
