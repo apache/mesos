@@ -24,6 +24,7 @@
 
 #include <process/subprocess.hpp>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
@@ -362,7 +363,7 @@ inline Try<pid_t> cloneChild(
   if (blocking) {
     // We assume this should not fail under reasonable conditions so we
     // use CHECK.
-    CHECK_EQ(0, ::pipe(pipes));
+    CHECK_SOME(os::pipe(pipes));
   }
 
   // Now, clone the child process.
