@@ -169,7 +169,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   // Stop the memory-hammering task.
   driver.killTask(task.task_id());
 
-  AWAIT_READY(killed);
+  AWAIT_READY_FOR(killed, Seconds(120));
   EXPECT_EQ(task.task_id(), killed->task_id());
   EXPECT_EQ(TASK_KILLED, killed->state());
 
