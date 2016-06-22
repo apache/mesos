@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __LAUNCHER_EXECUTOR_HPP__
-#define __LAUNCHER_EXECUTOR_HPP__
+#ifndef __LAUNCHER_WINDOWS_EXECUTOR_HPP__
+#define __LAUNCHER_WINDOWS_EXECUTOR_HPP__
 
 #include <string>
 
@@ -38,4 +38,4 @@ PROCESS_INFORMATION launchTaskWindows(
 } // namespace v1 {
 } // namespace mesos {
 
-#endif // __LAUNCHER_EXECUTOR_HPP__
+#endif // __LAUNCHER_WINDOWS_EXECUTOR_HPP__
