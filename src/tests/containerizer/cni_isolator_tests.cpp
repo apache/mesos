@@ -310,6 +310,9 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
   EXPECT_TRUE(os::exists(paths::getNetworkDir(
       paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__")));
 
+  EXPECT_TRUE(os::exists(paths::getNetworkConfigPath(
+      paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__")));
+
   EXPECT_TRUE(os::exists(paths::getInterfaceDir(
       paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__", "eth0")));
 
