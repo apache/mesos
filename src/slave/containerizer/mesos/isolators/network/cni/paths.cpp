@@ -75,6 +75,17 @@ Try<list<string>> getNetworkNames(
 }
 
 
+string getNetworkConfigPath(
+    const string& rootDir,
+    const string& containerId,
+    const string& networkName)
+{
+  return path::join(
+      getNetworkDir(rootDir, containerId, networkName),
+      "network.conf");
+}
+
+
 string getInterfaceDir(
     const string& rootDir,
     const string& containerId,

@@ -968,25 +968,20 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   args.values["org.apache.mesos"] = mesos;
   networkConfigJson.values["args"] = args;
 
-  // TODO(jieyu): Checkpoint the network configuration JSON so that we
-  // can use the same JSON during cleanup. Currently, we write it to a
-  // temporary file.
-  Try<std::string> temp = os::mktemp();
-  if (temp.isError()) {
-    return Failure(
-        "Failed to create the temp file for the "
-        "CNI network configuration: " + temp.error());
-  }
+  // Checkpoint the network configuration JSON. We will use
+  // the same JSON during cleanup.
+  const string networkConfigPath = paths::getNetworkConfigPath(
+      rootDir.get(),
+      containerId.value(),
+      networkName);
 
-  Try<Nothing> write = os::write(
-      temp.get(),
-      stringify(networkConfigJson));
+  Try<Nothing> write =
+    os::write(networkConfigPath, stringify(networkConfigJson));
 
   if (write.isError()) {
-    os::rm(temp.get());
     return Failure(
-        "Failed to write the CNI network configuration "
-        "to the temp file: " + write.error());
+        "Failed to checkpoint the CNI network configuration '" +
+        stringify(networkConfigJson) + "': " + write.error());
   }
 
   // Invoke the CNI plugin.
@@ -999,7 +994,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   Try<Subprocess> s = subprocess(
       path::join(pluginDir.get(), plugin),
       {plugin},
-      Subprocess::PATH(temp.get()),
+      Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
@@ -1007,7 +1002,6 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       environment);
 
   if (s.isError()) {
-    os::rm(temp.get());
     return Failure(
         "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
   }
@@ -1019,11 +1013,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         containerId,
         networkName,
         plugin,
-        lambda::_1))
-    .onAny([temp]() {
-      os::rm(temp.get());
-      return Nothing();
-    });
+        lambda::_1));
 }
 
 
@@ -1102,7 +1092,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   Try<Nothing> write = os::write(networkInfoPath, output.get());
   if (write.isError()) {
     return Failure(
-        "Failed to checkpoint the output of CNI plugin'" +
+        "Failed to checkpoint the output of CNI plugin '" +
         output.get() + "': " + write.error());
   }
 

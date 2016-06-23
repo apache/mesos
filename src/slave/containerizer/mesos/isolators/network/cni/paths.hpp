@@ -32,9 +32,11 @@ namespace paths {
 //    |- <ID of Container1>/
 //    |  |-- ns -> /proc/<pid>/ns/net (bind mount)
 //    |  |-- <Name of CNI network 1>/
+//    |  |   |-- network.conf (JSON file to keep the CNI network configuration)
 //    |  |   |-- ifname1/
 //    |  |       |-- network.info (JSON file to keep the output of CNI plugin)
 //    |  |-- <Name of CNI network 2>/
+//    |  |   |-- network.conf
 //    |      |-- ifname2/
 //    |          |-- network.info
 //    |-- <ID of ContainerID 2>/
@@ -57,6 +59,12 @@ string getNetworkDir(
 Try<list<string>> getNetworkNames(
     const string& rootDir,
     const string& containerId);
+
+
+string getNetworkConfigPath(
+    const string& rootDir,
+    const string& containerId,
+    const string& networkName);
 
 
 string getInterfaceDir(
