@@ -5461,14 +5461,10 @@ Future<bool> Slave::authorizeSandboxAccess(
         Try<bool> approved = sandboxApprover.get()->approved(object);
 
         if (approved.isError()) {
-          return Failure("Error during sandbox authorization: " +
-                         approved.error());
+          return Failure(approved.error());
         }
         return approved.get();
-    }))
-    .repair([](const Future<bool>) {
-      return Failure("Error during sandbox authorization");
-    });
+    }));
 }
 
 
