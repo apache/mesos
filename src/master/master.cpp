@@ -1174,8 +1174,10 @@ void Master::initialize()
   provide("", path::join(flags.webui_dir, "master/static/index.html"));
   provide("static", path::join(flags.webui_dir, "master/static"));
 
-  auto authorize = [this](const Option<string>& principal) {
-    return authorizeLogAccess(principal);
+  const PID<Master> masterPid = self();
+
+  auto authorize = [masterPid](const Option<string>& principal) {
+    return dispatch(masterPid, &Master::authorizeLogAccess, principal);
   };
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
