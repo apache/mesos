@@ -988,8 +988,9 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   const string& plugin = networkConfig.config.type();
 
   VLOG(1) << "Invoking CNI plugin '" << plugin
-          << "' with network configuration '"
-          << stringify(networkConfigJson) << "'";
+          << "' with network configuration '" << stringify(networkConfigJson)
+          << "' to attach container " << containerId << " to network '"
+          << networkName << "'";
 
   Try<Subprocess> s = subprocess(
       path::join(pluginDir.get(), plugin),
@@ -1265,14 +1266,25 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
         "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
   }
 
-  const NetworkConfigInfo& networkConfig = networkConfigs[networkName];
+  // Use the checkpointed CNI network configuration to call the
+  // CNI plugin to detach the container from the CNI network.
+  const string networkConfigPath = paths::getNetworkConfigPath(
+      rootDir.get(),
+      containerId.value(),
+      networkName);
 
   // Invoke the CNI plugin.
-  const string& plugin = networkConfig.config.type();
+  const string& plugin = networkConfigs[networkName].config.type();
+
+  VLOG(1) << "Invoking CNI plugin '" << plugin
+          << "' with network configuration '" << networkConfigPath
+          << "' to detach container " << containerId << " from network '"
+          << networkName << "'";
+
   Try<Subprocess> s = subprocess(
       path::join(pluginDir.get(), plugin),
       {plugin},
-      Subprocess::PATH(networkConfig.path),
+      Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
