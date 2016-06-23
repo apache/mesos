@@ -5440,31 +5440,32 @@ Future<bool> Slave::authorizeSandboxAccess(
     authorizer.get()->getObjectApprover(subject, authorization::ACCESS_SANDBOX);
 
   return sandboxApprover
-    .then(defer(self(),
-        [this, frameworkId, executorId]
-            (const Owned<ObjectApprover>& sandboxApprover)
-            -> Future<bool> {
-        // Construct authorization object.
-        ObjectApprover::Object object;
+    .then(defer(
+        self(),
+        [this, frameworkId, executorId](
+            const Owned<ObjectApprover>& sandboxApprover) -> Future<bool> {
+          // Construct authorization object.
+          ObjectApprover::Object object;
 
-        if (frameworks.contains(frameworkId)) {
-          Framework* framework = frameworks.get(frameworkId).get();
+          if (frameworks.contains(frameworkId)) {
+            Framework* framework = frameworks.get(frameworkId).get();
 
-          object.framework_info = &(framework->info);
+            object.framework_info = &(framework->info);
 
-          if (framework->executors.contains(executorId)) {
-            object.executor_info =
-              &(framework->executors.get(executorId).get()->info);
+            if (framework->executors.contains(executorId)) {
+              object.executor_info =
+                &(framework->executors.get(executorId).get()->info);
+            }
           }
-        }
 
-        Try<bool> approved = sandboxApprover.get()->approved(object);
+          Try<bool> approved = sandboxApprover.get()->approved(object);
 
-        if (approved.isError()) {
-          return Failure(approved.error());
-        }
-        return approved.get();
-    }));
+          if (approved.isError()) {
+            return Failure(approved.error());
+          }
+
+          return approved.get();
+        }));
 }
 
 
