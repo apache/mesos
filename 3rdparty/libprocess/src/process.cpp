@@ -2202,6 +2202,7 @@ void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
     CHECK(sockets.count(from_fd) > 0);
     CHECK(sockets.count(to_fd) == 0);
 
+    delete sockets[from_fd];
     sockets.erase(from_fd);
     sockets[to_fd] = to;
 
