@@ -989,6 +989,14 @@ Future<Response> Master::Http::createVolumes(
       return BadRequest(
           "Error in parsing 'volumes' query parameter: " + volume.error());
     }
+
+    // Since the `+=` operator will silently drop invalid resources, we validate
+    // each resource individually.
+    Option<Error> error = Resources::validate(volume.get());
+    if (error.isSome()) {
+      return BadRequest(error.get().message);
+    }
+
     volumes += volume.get();
   }
 
@@ -1135,6 +1143,14 @@ Future<Response> Master::Http::destroyVolumes(
       return BadRequest(
           "Error in parsing 'volumes' query parameter: " + volume.error());
     }
+
+    // Since the `+=` operator will silently drop invalid resources, we validate
+    // each resource individually.
+    Option<Error> error = Resources::validate(volume.get());
+    if (error.isSome()) {
+      return BadRequest(error.get().message);
+    }
+
     volumes += volume.get();
   }
 
@@ -1552,6 +1568,14 @@ Future<Response> Master::Http::reserve(
       return BadRequest(
           "Error in parsing 'resources' query parameter: " + resource.error());
     }
+
+    // Since the `+=` operator will silently drop invalid resources, we validate
+    // each resource individually.
+    Option<Error> error = Resources::validate(resource.get());
+    if (error.isSome()) {
+      return BadRequest(error.get().message);
+    }
+
     resources += resource.get();
   }
 
@@ -3544,6 +3568,14 @@ Future<Response> Master::Http::unreserve(
       return BadRequest(
           "Error in parsing 'resources' query parameter: " + resource.error());
     }
+
+    // Since the `+=` operator will silently drop invalid resources, we validate
+    // each resource individually.
+    Option<Error> error = Resources::validate(resource.get());
+    if (error.isSome()) {
+      return BadRequest(error.get().message);
+    }
+
     resources += resource.get();
   }
 

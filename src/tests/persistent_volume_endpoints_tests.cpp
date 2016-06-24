@@ -469,6 +469,74 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
 }
 
 
+// This tests that an attempt to create or destroy a volume containing an
+// invalid resource will receive a Bad Request response.
+TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "disk(role1):1024";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+  AWAIT_READY(slaveId);
+
+  // This volume has role "*", which is not allowed.
+  Try<Resource> disk = Resources::parse("disk", "64", "*");
+  CHECK_SOME(disk);
+  Resource volume = createPersistentVolume(
+      disk.get(),
+      "id1",
+      "path1",
+      DEFAULT_CREDENTIAL.principal(),
+      DEFAULT_CREDENTIAL.principal());
+
+  // We construct the body manually here because it's difficult to construct a
+  // `Resources` object that contains an invalid `Resource`, and our helper
+  // function `createRequestBody` accepts `Resources`.
+  string body = strings::format(
+        "slaveId=%s&volumes=[%s]",
+        slaveId->value(),
+        JSON::protobuf(volume)).get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "create-volumes",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        body);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    CHECK_EQ(response->body,
+             "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "destroy-volumes",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        body);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    CHECK_EQ(response->body,
+             "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+}
+
+
 // This tests that an attempt to create a volume that is larger than the
 // reserved resources at the slave results in a 'Conflict' HTTP error.
 TEST_F(PersistentVolumeEndpointsTest, VolumeExceedsReservedSize)

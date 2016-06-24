@@ -816,6 +816,65 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 }
 
 
+// This tests that an attempt to reserve or unreserve an invalid resource will
+// return a Bad Request response.
+TEST_F(ReservationEndpointsTest, InvalidResource)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  // This resource is marked for the default "*" role and it also has a
+  // `ReservationInfo`, which is not allowed.
+  Try<Resource> resource = Resources::parse("cpus", "4", "*");
+  CHECK_SOME(resource);
+  resource->mutable_reservation()->CopyFrom(
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  // We construct the body manually here because it's difficult to construct a
+  // `Resources` object that contains an invalid `Resource`, and our helper
+  // function `createRequestBody` accepts `Resources`.
+  string body = strings::format(
+        "slaveId=%s&resources=[%s]",
+        slaveId->value(),
+        JSON::protobuf(resource.get())).get();
+
+  {
+    Future<Response> response =
+      process::http::post(master.get()->pid, "reserve", headers, body);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    CHECK_EQ(response->body,
+             "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+
+  {
+    Future<Response> response =
+      process::http::post(master.get()->pid, "unreserve", headers, body);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    CHECK_EQ(response->body,
+             "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+}
+
+
 // This tests that an attempt to reserve/unreserve more resources than available
 // results in a 'Conflict' HTTP error.
 TEST_F(ReservationEndpointsTest, InsufficientResources)
