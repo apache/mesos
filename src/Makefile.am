@@ -1034,6 +1034,7 @@ MESOS_LINUX_FILES =							\
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.cpp		\
+  slave/containerizer/mesos/isolators/gpu/allocator.cpp			\
   slave/containerizer/mesos/isolators/gpu/nvidia.cpp			\
   slave/containerizer/mesos/isolators/gpu/nvml.cpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp		\
@@ -1061,6 +1062,7 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/docker/volume/isolator.hpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
+  slave/containerizer/mesos/isolators/gpu/allocator.hpp			\
   slave/containerizer/mesos/isolators/gpu/nvidia.hpp			\
   slave/containerizer/mesos/isolators/gpu/nvml.hpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
