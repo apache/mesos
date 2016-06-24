@@ -303,6 +303,9 @@ TEST_F(FilesTest, ResolveTest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       BadRequest().status,
       process::http::get(upid, "read", "path=one/"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      BadRequest().status,
+      process::http::get(upid, "read", "path=one/two/"));
 
   // Breaking out of sandbox.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
@@ -320,6 +323,7 @@ TEST_F(FilesTest, BrowseTest)
   ASSERT_SOME(os::mkdir("1/3"));
   ASSERT_SOME(os::write("1/two", "two"));
   ASSERT_SOME(os::write("1/three", "three"));
+  ASSERT_SOME(os::mkdir("2"));
 
   AWAIT_EXPECT_READY(files.attach("1", "one"));
 
@@ -370,16 +374,52 @@ TEST_F(FilesTest, BrowseTest)
     return authorized;
   };
 
+  ASSERT_SOME(os::mkdir("2"));
+
   AWAIT_EXPECT_READY(files.attach("1", "one", authorization));
+  AWAIT_EXPECT_READY(files.attach("2", "/two/", authorization));
+
+  // The `FilesProcess` stores authorization callbacks in a map keyed by path.
+  // If no callback is found for the requested path, then it is assumed that
+  // authorization for that path is not enabled - the request is authorized.
+  // Because of this, it is worth testing several permutations of the process's
+  // handling of trailing slashes in path names when authorization is enabled.
+  // We sometimes remove trailing slashes, so it's possible that we could fail
+  // to find the callback in the map.
 
   response = process::http::get(upid, "browse", "path=one");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
 
+  response = process::http::get(upid, "browse", "path=one/");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+
+  response = process::http::get(upid, "browse", "path=/two");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  response = process::http::get(upid, "browse", "path=/two/");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
   authorized = false;
 
   response = process::http::get(upid, "browse", "path=one");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
+  response = process::http::get(upid, "browse", "path=one/");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
+  response = process::http::get(upid, "browse", "path=/two");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
+  response = process::http::get(upid, "browse", "path=/two/");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 }

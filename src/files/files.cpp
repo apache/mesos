@@ -315,8 +315,13 @@ Future<bool> FilesProcess::authorize(
     string requestedPath,
     const Option<string>& principal)
 {
-  if (authorizations.count(requestedPath) > 0) {
-    return authorizations[requestedPath](principal);
+  // The path may contain a trailing forward slash. Since we store the
+  // authorization callbacks without the trailing slash, we must remove it here,
+  // if present.
+  string trimmedPath = strings::remove(requestedPath, "/", strings::SUFFIX);
+
+  if (authorizations.count(trimmedPath) > 0) {
+    return authorizations[trimmedPath](principal);
   }
 
   do {
