@@ -1,0 +1,370 @@
+- name: Adam B
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - adam@mesosphere.io
+  jira_user: adam-mesos
+  reviewboard_user: adam-mesos
+
+- name: Alexander Rojas
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - alexander@mesosphere.io
+  jira_user: arojas
+  reviewboard_user: arojas
+
+- name: Alexander Rukletsov
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - alexr@apache.org
+    - rukletsov@gmail.com
+  jira_user: alexr
+  reviewboard_user: alexr
+
+- name: Anand Mazumdar
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - mazumdar.anand@gmail.com
+  jira_user: anandmazumdar
+  reviewboard_user: anandmazumdar
+
+- name: Andrey Dyatlov
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - adyatlov@mesosphere.io
+  jira_user: dyatlov
+  reviewboard_user: dyatlov
+
+- name: Artem Harutyunyan
+  affiliations:
+  - {organization: Mesosphere}
+  emails:
+    - artem@mesosphere.io
+  jira_user: hartem
+  reviewboard_user: hartem
+
+- name: Avinash Sridharan
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - avinash@mesosphere.io
+  jira_user: avinash@mesosphere.io
+  reviewboard_user: asridharan
+
+- name: Ben Mahler
+  affiliations:
+    - {organization: Mesosphere, start_date: 2015-10-19}
+    - {organization: Twitter, end_date: 2015-10-18}
+  emails:
+    - benjamin.mahler@gmail.com
+    - bmahler@apache.org
+    - bmahler@twitter.com
+  jira_user: bmahler
+  reviewboard_user: bmahler
+
+- name: Benjamin Bannier
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - benjamin.bannier@mesosphere.io
+  jira_user: jirauser
+  reviewboard_user: bbanier
+
+- name: Benjamin Hindman
+  affiliations:
+    - {organization: Mesosphere, start_date: 2014-09-22}
+    - {organization: Twitter, end_date: 2014-09-21}
+  emails:
+    - benjamin.hindman@gmail.com
+  jira_user: benjaminhindman
+  reviewboard_user: benjaminhindman
+
+- name: Bernd Mathiske
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - bernd@mesosphere.io
+  jira_user: bernd-mesos
+  reviewboard_user: bernd-mesos
+
+- name: Diana Arroyo
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - darroyo@us.ibm.com
+  jira_user: darroyo
+  reviewboard_user: darroyo
+
+- name: Gaston Kleiman
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - gaston@mesosphere.com
+  jira_user: gkleiman
+  reviewboard_user: gaston
+
+- name: Gilbert Song
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - gilbert@mesoshere.io
+    - songzihao1990@gmail.com
+  jira_user: gilbert
+  reviewboard_user: gilbert
+
+- name: Greg Mann
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - greg@mesosphere.io
+  jira_user: greggomann
+  reviewboard_user: greggomann
+
+- name: Guangya Liu
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - gyliu513@gmail.com
+  jira_user: gyliu
+  reviewboard_user: gyliu
+
+- name: Isabel Jimenez
+  affiliations:
+  - {organization: Mesosphere}
+  emails:
+    - contact@isabeljimenez.com
+  jira_user: ijimenez
+  reviewboard_user: ijimenez
+
+- name: Jan Schlicht
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - jan@mesosphere.io
+  jira_user: nfnt
+  reviewboard_user: nfnt
+
+- name: Jian Qiu
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - qiujian@cn.ibm.com
+  jira_user: qiujian
+  reviewboard_user: qiujian
+
+- name: Jiang Yan Xu
+  affiliations:
+    - {organization: Twitter}
+  emails:
+    - yan@jxu.me
+  jira_user: xujyan
+  reviewboard_user: xujyan
+
+- name: Jie Yu
+  affiliations:
+    - {organization: Mesosphere, start_date: 2015-12-07}
+    - {organization: Twitter, end_date: 2015-12-06}
+  emails:
+    - yujie.jay@gmail.com
+  jira_user: jieyu
+  reviewboard_user: jieyu
+
+- name: Joerg Schad
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - joerg@mesosphere.io
+  jira_user: js84
+  reviewboard_user: joerg84
+
+- name: Jojy Varghese
+  affiliations:
+  - {organization: Mesosphere}
+  emails:
+    - jojy@mesosphere.io
+  jira_user: jojy
+  reviewboard_user: jojy
+
+- name: Joris Van Remoortere
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - joris.van.remoortere@gmail.com
+  jira_user: jvanremoortere
+  reviewboard_user: jvanremoortere
+
+- name: Joseph Wu
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - joseph@mesosphere.io
+  jira_user: kaysoky
+  reviewboard_user: kaysoky
+
+- name: Kapil Arya
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - kapil@mesosphere.io
+  jira_user: karya
+  reviewboard_user: karya
+
+- name: Kevin Klues
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - klueska@gmail.com
+  jira_user: klueska
+  reviewboard_user: klueska
+
+- name: Klaus Ma
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - klaus1982.cn@gmail.com
+    - klaus@cguru.net
+  jira_user: klaus1982
+  reviewboard_user: klaus1982
+
+- name: Lily Chen
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - lily@mesosphere.io
+  jira_user: chenlily
+  reviewboard_user: chenlily
+
+- name: Maged Michael
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - maged.michael@gmail.com
+  jira_user: magedm
+  reviewboard_user: magedm
+
+- name: Michael Lunoe
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - michael.lunoe@gmail.com
+  jira_user: mlunoe
+  reviewboard_user: mlunoe
+
+- name: Michael Park
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+   - mpark@apache.org
+   - mcypark@gmail.com
+  jira_user: mcypark
+  reviewboard_user: mcypark
+
+- name: Neil Conway
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - neil.conway@gmail.com
+  jira_user: neilc
+  reviewboard_user: neilc
+
+- name: Qian Zhang
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - zhangqxa@cn.ibm.com
+  jira_user: qianzhang
+  reviewboard_user: qianzhang
+
+- name: Till Toenshoff
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - toenshoff@me.com
+  jira_user: tillt
+  reviewboard_user: tillt
+
+- name: Vinod Kone
+  affiliations:
+    - {organization: Mesosphere, start_date: 2016-01-05}
+    - {organization: Twitter, end_date: 2016-01-04}
+  emails:
+    - vinodkone@Vinods-MacBook-Pro.local
+    - vinodkone@gmail.com
+  jira_user: vinodkone
+  reviewboard_user: vinodkone
+
+- name: Yong Qiao Wang
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - yqwyq@cn.ibm.com
+  jira_user: gradywang
+  reviewboard_user: JamesYongQiaoWang
+
+- name: zhou xing
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - xingzhou@cn.ibm.com
+  jira_user: dongdong
+  reviewboard_user: dongdong
+
+- name: Abhishek Dasgupta
+  affiliations:
+    - {organization: IBM}
+  emails:
+   - a10gupta@linux.vnet.ibm.com
+  jira_user: a10gupta
+  reviewboard_user: a10gupta
+
+- name: Ezra Silvera
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - ezra@il.ibm.com
+  jira_user: ezrasilvera
+  reviewboard_user: ezrasilvera
+
+- name: Jay Guo
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - guojiannan@cn.ibm.com
+  jira_user: guoger
+  reviewboard_user: guoger
+
+- name: Alex Clemmer
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - clemmer.alexander@gmail.com
+  jira_user: hausdorff
+  reviewboard_user: hausdorff
+
+- name: Alex Naparu
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - alex.naparu@microsoft.com
+    - alex.naparu@outlook.com
+  reviewboard_user: alexnaparu
+
+- name: Daniel Pravat
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - dpravat@outlook.com
+  jira_user: dpravat
+  reviewboard_user: dpravat
+
+- name: M Lawindi
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - mlawindi@microsoft.com
+  jira_user: jirauser
+  reviewboard_user: mlawindi
