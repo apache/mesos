@@ -71,7 +71,7 @@
     - {organization: Mesosphere}
   emails:
     - benjamin.bannier@mesosphere.io
-  jira_user: jirauser
+  jira_user: bbanier
   reviewboard_user: bbanier
 
 - name: Benjamin Hindman
@@ -366,5 +366,4 @@
     - {organization: Microsoft}
   emails:
     - mlawindi@microsoft.com
-  jira_user: jirauser
   reviewboard_user: mlawindi
