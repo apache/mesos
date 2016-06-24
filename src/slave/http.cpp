@@ -211,7 +211,7 @@ string Slave::Http::API_HELP()
         "Endpoint for API calls against the agent."),
     DESCRIPTION(
         "Returns 200 OK if the call is successful"),
-    AUTHENTICATION(false));
+    AUTHENTICATION(true));
 }
 
 
