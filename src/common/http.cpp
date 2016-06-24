@@ -47,6 +47,8 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::Owned;
+
 using process::http::authorization::AuthorizationCallbacks;
 
 namespace mesos {
@@ -618,6 +620,81 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
   callbacks.insert(std::make_pair("/metrics/snapshot", getEndpoint));
 
   return callbacks;
+}
+
+bool approveViewFrameworkInfo(
+    const Owned<ObjectApprover>& frameworksApprover,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = frameworksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during FrameworkInfo authorization: "
+                 << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+bool approveViewExecutorInfo(
+    const Owned<ObjectApprover>& executorsApprover,
+    const ExecutorInfo& executorInfo,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.executor_info = &executorInfo;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = executorsApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during ExecutorInfo authorization: "
+             << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+bool approveViewTaskInfo(
+    const Owned<ObjectApprover>& tasksApprover,
+    const TaskInfo& taskInfo,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.task_info = &taskInfo;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = tasksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during TaskInfo authorization: " << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
+
+bool approveViewTask(
+    const Owned<ObjectApprover>& tasksApprover,
+    const Task& task,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.task = &task;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = tasksApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during Task authorization: " << approved.error();
+     // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
 }
 
 }  // namespace mesos {

@@ -26,6 +26,7 @@
 
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
@@ -99,6 +100,41 @@ void json(JSON::ObjectWriter* writer, const TaskStatus& status);
 
 const process::http::authorization::AuthorizationCallbacks
   createAuthorizationCallbacks(Authorizer* authorizer);
+
+
+// Implementation of the `ObjectApprover` interface authorizing all objects.
+class AcceptingObjectApprover : public ObjectApprover
+{
+public:
+  virtual Try<bool> approved(
+      const Option<ObjectApprover::Object>& object) const noexcept override
+  {
+    return true;
+  }
+};
+
+
+bool approveViewFrameworkInfo(
+    const process::Owned<ObjectApprover>& frameworksApprover,
+    const FrameworkInfo& frameworkInfo);
+
+
+bool approveViewExecutorInfo(
+    const process::Owned<ObjectApprover>& executorsApprover,
+    const ExecutorInfo& executorInfo,
+    const FrameworkInfo& frameworkInfo);
+
+
+bool approveViewTaskInfo(
+    const process::Owned<ObjectApprover>& tasksApprover,
+    const TaskInfo& taskInfo,
+    const FrameworkInfo& frameworkInfo);
+
+
+bool approveViewTask(
+    const process::Owned<ObjectApprover>& tasksApprover,
+    const Task& task,
+    const FrameworkInfo& frameworkInfo);
 
 } // namespace mesos {
 

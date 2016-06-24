@@ -91,6 +91,7 @@ using process::metrics::internal::MetricsProcess;
 
 using std::list;
 using std::string;
+using std::tie;
 using std::tuple;
 using std::vector;
 
@@ -123,69 +124,141 @@ using process::http::Response;
 using process::http::Request;
 
 
-static void json(JSON::ObjectWriter* writer, const Executor& executor)
+// Filtered representation of an Executor. Tasks within this executor
+// are filtered based on whether the user is authorized to view them.
+struct ExecutorWriter
 {
-  writer->field("id", executor.id.value());
-  writer->field("name", executor.info.name());
-  writer->field("source", executor.info.source());
-  writer->field("container", executor.containerId.value());
-  writer->field("directory", executor.directory);
-  writer->field("resources", executor.resources);
+  ExecutorWriter(
+      const Owned<ObjectApprover>& taskApprover,
+      const Executor* executor,
+      const Framework* framework)
+    : taskApprover_(taskApprover),
+      executor_(executor),
+      framework_(framework) {}
 
-  if (executor.info.has_labels()) {
-    writer->field("labels", executor.info.labels());
+  void operator()(JSON::ObjectWriter* writer) const
+  {
+    writer->field("id", executor_->id.value());
+    writer->field("name", executor_->info.name());
+    writer->field("source", executor_->info.source());
+    writer->field("container", executor_->containerId.value());
+    writer->field("directory", executor_->directory);
+    writer->field("resources", executor_->resources);
+
+    if (executor_->info.has_labels()) {
+      writer->field("labels", executor_->info.labels());
+    }
+
+    writer->field("tasks", [this](JSON::ArrayWriter* writer) {
+      foreach (Task* task, executor_->launchedTasks.values()) {
+        if (!approveViewTask(taskApprover_, *task, framework_->info)) {
+          continue;
+        }
+
+        writer->element(*task);
+      }
+    });
+
+    writer->field("queued_tasks", [this](JSON::ArrayWriter* writer) {
+      foreach (const TaskInfo& task, executor_->queuedTasks.values()) {
+        if (!approveViewTaskInfo(taskApprover_, task, framework_->info)) {
+          continue;
+        }
+
+        writer->element(task);
+      }
+    });
+
+    writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
+      foreach (const std::shared_ptr<Task>& task, executor_->completedTasks) {
+        if (!approveViewTask(taskApprover_, *task, framework_->info)) {
+          continue;
+        }
+
+        writer->element(*task);
+      }
+
+      // NOTE: We add 'terminatedTasks' to 'completed_tasks' for
+      // simplicity.
+      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (Task* task, executor_->terminatedTasks.values()) {
+        if (!approveViewTask(taskApprover_, *task, framework_->info)) {
+          continue;
+        }
+
+        writer->element(*task);
+      }
+    });
   }
 
-  writer->field("tasks", [&executor](JSON::ArrayWriter* writer) {
-    foreach (Task* task, executor.launchedTasks.values()) {
-      writer->element(*task);
-    }
-  });
+  const Owned<ObjectApprover>& taskApprover_;
+  const Executor* executor_;
+  const Framework* framework_;
+};
 
-  writer->field("queued_tasks", [&executor](JSON::ArrayWriter* writer) {
-    foreach (const TaskInfo& task, executor.queuedTasks.values()) {
-      writer->element(task);
-    }
-  });
-
-  writer->field("completed_tasks", [&executor](JSON::ArrayWriter* writer) {
-    foreach (const std::shared_ptr<Task>& task, executor.completedTasks) {
-      writer->element(*task);
-    }
-
-    // NOTE: We add 'terminatedTasks' to 'completed_tasks' for
-    // simplicity.
-    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-    // supports it.
-    foreach (Task* task, executor.terminatedTasks.values()) {
-      writer->element(*task);
-    }
-  });
-}
-
-
-static void json(JSON::ObjectWriter* writer, const Framework& framework)
+// Filtered representation of FrameworkInfo.
+// Executors and Tasks are filtered based on whether the
+// user is authorized to view them.
+struct FrameworkWriter
 {
-  writer->field("id", framework.id().value());
-  writer->field("name", framework.info.name());
-  writer->field("user", framework.info.user());
-  writer->field("failover_timeout", framework.info.failover_timeout());
-  writer->field("checkpoint", framework.info.checkpoint());
-  writer->field("role", framework.info.role());
-  writer->field("hostname", framework.info.hostname());
+  FrameworkWriter(
+      const Owned<ObjectApprover>& taskApprover,
+      const Owned<ObjectApprover>& executorApprover,
+      const Framework* framework)
+    : taskApprover_(taskApprover),
+      executorApprover_(executorApprover),
+      framework_(framework) {}
 
-  writer->field("executors", [&framework](JSON::ArrayWriter* writer) {
-    foreachvalue (Executor* executor, framework.executors) {
-      writer->element(*executor);
-    }
-  });
+  void operator()(JSON::ObjectWriter* writer) const
+  {
+    writer->field("id", framework_->id().value());
+    writer->field("name", framework_->info.name());
+    writer->field("user", framework_->info.user());
+    writer->field("failover_timeout", framework_->info.failover_timeout());
+    writer->field("checkpoint", framework_->info.checkpoint());
+    writer->field("role", framework_->info.role());
+    writer->field("hostname", framework_->info.hostname());
 
-  writer->field("completed_executors", [&framework](JSON::ArrayWriter* writer) {
-    foreach (const Owned<Executor>& executor, framework.completedExecutors) {
-      writer->element(*executor);
-    }
-  });
-}
+    writer->field("executors", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (Executor* executor, framework_->executors) {
+        if (!approveViewExecutorInfo(
+                executorApprover_, executor->info, framework_->info)) {
+          continue;
+        }
+
+        ExecutorWriter executorWriter(
+            taskApprover_,
+            executor,
+            framework_);
+
+        writer->element(executorWriter);
+      }
+    });
+
+    writer->field(
+        "completed_executors", [this](JSON::ArrayWriter* writer) {
+          foreach (
+              const Owned<Executor>& executor, framework_->completedExecutors) {
+            if (!approveViewExecutorInfo(
+                executorApprover_, executor->info, framework_->info)) {
+              continue;
+            }
+
+            ExecutorWriter executorWriter(
+                taskApprover_,
+                executor.get(),
+                framework_);
+
+            writer->element(executorWriter);
+          }
+        });
+  }
+
+  const Owned<ObjectApprover>& taskApprover_;
+  const Owned<ObjectApprover>& executorApprover_;
+  const Framework* framework_;
+};
 
 
 void Slave::Http::log(const Request& request)
@@ -752,78 +825,141 @@ string Slave::Http::STATE_HELP() {
 
 Future<Response> Slave::Http::state(
     const Request& request,
-    const Option<string>& /* principal */) const
+    const Option<string>& principal) const
 {
   if (slave->state == Slave::RECOVERING) {
     return ServiceUnavailable("Agent has not finished recovery");
   }
 
-  auto state = [this](JSON::ObjectWriter* writer) {
-    writer->field("version", MESOS_VERSION);
+  // Retrieve `ObjectApprover`s for authorizing frameworks and tasks.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> tasksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
 
-    if (build::GIT_SHA.isSome()) {
-      writer->field("git_sha", build::GIT_SHA.get());
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
     }
 
-    if (build::GIT_BRANCH.isSome()) {
-      writer->field("git_branch", build::GIT_BRANCH.get());
-    }
+    frameworksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
 
-    if (build::GIT_TAG.isSome()) {
-      writer->field("git_tag", build::GIT_TAG.get());
-    }
+    tasksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_TASK);
 
-    writer->field("build_date", build::DATE);
-    writer->field("build_time", build::TIME);
-    writer->field("build_user", build::USER);
-    writer->field("start_time", slave->startTime.secs());
+    executorsApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
 
-    writer->field("id", slave->info.id().value());
-    writer->field("pid", string(slave->self()));
-    writer->field("hostname", slave->info.hostname());
+  return collect(frameworksApprover, tasksApprover, executorsApprover)
+    .then(defer(slave->self(),
+        [this, request](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers) -> Response {
+      auto state = [this, approvers](JSON::ObjectWriter* writer) {
+        // Get approver from tuple.
+        Owned<ObjectApprover> frameworksApprover;
+        Owned<ObjectApprover> tasksApprover;
+        Owned<ObjectApprover> executorsApprover;
+        tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
 
-    writer->field("resources", Resources(slave->info.resources()));
-    writer->field("attributes", Attributes(slave->info.attributes()));
+        writer->field("version", MESOS_VERSION);
 
-    if (slave->master.isSome()) {
-      Try<string> hostname = net::getHostname(slave->master.get().address.ip);
-      if (hostname.isSome()) {
-        writer->field("master_hostname", hostname.get());
-      }
-    }
-
-    if (slave->flags.log_dir.isSome()) {
-      writer->field("log_dir", slave->flags.log_dir.get());
-    }
-
-    if (slave->flags.external_log_file.isSome()) {
-      writer->field("external_log_file", slave->flags.external_log_file.get());
-    }
-
-    writer->field("frameworks", [this](JSON::ArrayWriter* writer) {
-      foreachvalue (Framework* framework, slave->frameworks) {
-        writer->element(*framework);
-      }
-    });
-
-    // Model all of the completed frameworks.
-    writer->field("completed_frameworks", [this](JSON::ArrayWriter* writer) {
-      foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
-        writer->element(*framework);
-      }
-    });
-
-    writer->field("flags", [this](JSON::ObjectWriter* writer) {
-      foreachvalue (const flags::Flag& flag, slave->flags) {
-        Option<string> value = flag.stringify(slave->flags);
-        if (value.isSome()) {
-          writer->field(flag.effective_name().value, value.get());
+        if (build::GIT_SHA.isSome()) {
+          writer->field("git_sha", build::GIT_SHA.get());
         }
-      }
-    });
-  };
 
-  return OK(jsonify(state), request.url.query.get("jsonp"));
+        if (build::GIT_BRANCH.isSome()) {
+          writer->field("git_branch", build::GIT_BRANCH.get());
+        }
+
+        if (build::GIT_TAG.isSome()) {
+          writer->field("git_tag", build::GIT_TAG.get());
+        }
+
+        writer->field("build_date", build::DATE);
+        writer->field("build_time", build::TIME);
+        writer->field("build_user", build::USER);
+        writer->field("start_time", slave->startTime.secs());
+
+        writer->field("id", slave->info.id().value());
+        writer->field("pid", string(slave->self()));
+        writer->field("hostname", slave->info.hostname());
+
+        writer->field("resources", Resources(slave->info.resources()));
+        writer->field("attributes", Attributes(slave->info.attributes()));
+
+        if (slave->master.isSome()) {
+          Try<string> hostname =
+            net::getHostname(slave->master.get().address.ip);
+
+          if (hostname.isSome()) {
+            writer->field("master_hostname", hostname.get());
+          }
+        }
+
+        if (slave->flags.log_dir.isSome()) {
+          writer->field("log_dir", slave->flags.log_dir.get());
+        }
+
+        if (slave->flags.external_log_file.isSome()) {
+          writer->field(
+              "external_log_file", slave->flags.external_log_file.get());
+        }
+
+        writer->field("frameworks", [=](JSON::ArrayWriter* writer) {
+          foreachvalue (Framework* framework, slave->frameworks) {
+            // Skip unauthorized frameworks.
+            if (!approveViewFrameworkInfo(
+                    frameworksApprover, framework->info)) {
+              continue;
+            }
+
+            FrameworkWriter frameworkWriter(
+                tasksApprover,
+                executorsApprover,
+                framework);
+
+            writer->element(frameworkWriter);
+          }
+        });
+
+        // Model all of the completed frameworks.
+        writer->field("completed_frameworks", [=](JSON::ArrayWriter* writer) {
+          foreach (const Owned<Framework>& framework,
+                   slave->completedFrameworks) {
+            // Skip unauthorized frameworks.
+            if (!approveViewFrameworkInfo(
+                    frameworksApprover, framework->info)) {
+              continue;
+            }
+
+            FrameworkWriter frameworkWriter(
+                tasksApprover,
+                executorsApprover,
+                framework.get());
+
+            writer->element(frameworkWriter);
+          }
+        });
+
+        writer->field("flags", [this](JSON::ObjectWriter* writer) {
+            foreachvalue (const flags::Flag& flag, slave->flags) {
+              Option<string> value = flag.stringify(slave->flags);
+              if (value.isSome()) {
+                writer->field(flag.effective_name().value, value.get());
+              }
+            }
+          });
+      };
+
+      return OK(jsonify(state), request.url.query.get("jsonp"));
+    }));
 }
 
 
