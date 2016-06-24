@@ -6,7 +6,12 @@ layout: documentation
 # Submitting a Patch
 
 * You've fixed a bug or added a feature and want to contribute it. AWESOME!
+* We use [Apache Software Foundation JIRA](https://issues.apache.org/jira/browse/mesos/) to track and manage issues. If you don't already have an account, you'll need to create one.
 * We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).
+* Once your JIRA and Review Board accounts are in place please go ahead and create a GitHub pull request with an entry for yourself in [AFFILIATIONS.yml](https://github.com/apache/mesos/blob/master/AFFILIATIONS.yml) file.
+  * The file is used to map contributions to the JIRA and Review Board accounts of their respective authors. We also use this mapping to track contributions of various organizations to Apache Mesos.
+  * Feel free to omit the `affiliations` field out in case you do not want your contribution to be atributed to a particular organization.
+  * In the `email` field please specify the email that your local git client is setup with.
 * A code review request should be created for every JIRA that involves a change to the codebase.
 
 ### Before you start writing code
@@ -19,9 +24,8 @@ layout: documentation
     2. Prefer working on issues marked as "[Accepted](https://issues.apache.org/jira/browse/MESOS-1?jql=project%20%3D%20MESOS%20AND%20status%20%3D%20Accepted)", rather than merely "Open". If an issue has been accepted, it means at least one Mesos developer thought that the ideas proposed in the issue are worth pursuing further.
     3. Issues marked with the "[newbie](https://issues.apache.org/jira/browse/MESOS-1?jql=project%20%3D%20MESOS%20AND%20status%20%3D%20Accepted%20AND%20labels%20%3D%20newbie)" label can be good candidates for "starter" projects.
 
-4. Assign the JIRA to yourself. To do this, you will need:
-    1. An Apache JIRA user account (sign up for one [here](https://issues.apache.org/jira/secure/Signup!default.jspa)).
-    2. You need to be added to the list of Mesos "contributors" by a Mesos committer (send email to [dev@mesos.apache.org](mailto:dev@mesos.apache.org)) in order to be assigned (or to assign yourself) to a JIRA issue.
+4. Assign the JIRA to yourself.
+   1. You will be able to assign the JIRA to yourself as soon as your pull request with additions to the AFFILIATIONS.yml file is merged.
 
 5. Formulate a plan for resolving the issue. Propose your plan via comments in the JIRA.
 
