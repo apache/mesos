@@ -80,8 +80,16 @@ case $COMPILER in
     append_dockerfile "ENV CXX g++"
     ;;
   clang)
-    append_dockerfile "ENV CC clang"
-    append_dockerfile "ENV CXX clang++"
+    case $OS in
+    *ubuntu*)
+      append_dockerfile "ENV CC clang-3.5"
+      append_dockerfile "ENV CXX clang++-3.5"
+      ;;
+    *)
+      append_dockerfile "ENV CC clang"
+      append_dockerfile "ENV CXX clang++"
+      ;;
+    esac
     ;;
   *)
     echo "Unknown Compiler $COMPILER"
