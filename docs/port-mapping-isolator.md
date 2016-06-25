@@ -1,24 +1,27 @@
 ---
-title: Apache Mesos - Per-container Network Monitoring and Isolation
+title: Apache Mesos - Port Mapping Network Isolator
 layout: documentation
 ---
 
-# Per-container Network Monitoring and Isolation
+# Port Mapping Network Isolator
 
-Mesos on Linux provides support for per-container network monitoring and
-isolation. The network isolation prevents a single container from exhausting the
-available network ports, consuming an unfair share of the network bandwidth or
-significantly delaying packet transmission for others. Network statistics for
-each active container are published through the [/monitor/statistics](endpoints/slave/monitor/statistics.md)
-endpoint on the agent. The network isolation is transparent for the majority of
-tasks running on a agent (those that bind to port 0 and let the kernel allocate
-their port).
+The port mapping network isolator provides a way to achieve
+per-container network monitoring and isolation without relying on IP
+per container.  The network isolator prevents a single container from
+exhausting the available network ports, consuming an unfair share of
+the network bandwidth or significantly delaying packet transmission
+for others. Network statistics for each active container are published
+through the
+[/monitor/statistics](endpoints/slave/monitor/statistics.md) endpoint
+on the agent. The port mapping network isolator is transparent for the
+majority of tasks running on a agent (those that bind to port 0 and
+let the kernel allocate their port).
 
 ## Installation
 
-Per-container network monitoring and isolation is __not__ supported by default.
-To enable it you need to install additional dependencies and configure it during
-the build process.
+Port mapping network isolator is __not__ supported by default.  To
+enable it you need to install additional dependencies and configure it
+during the build process.
 
 ### Prerequisites
 
@@ -43,21 +46,21 @@ libnl3 development package to compile Mesos:
 
 ### Build
 
-To build Mesos with per-container network monitoring and isolation support, you
-need to add a configure option:
+To build Mesos with port mapping network isolator support, you need to
+add a configure option:
 
     $ ./configure --with-network-isolator
     $ make
 
 ## Configuration
 
-Per-container network monitoring and isolation is enabled on the agent by adding
+The port mapping network isolator is enabled on the agent by adding
 `network/port_mapping` to the agent command line `--isolation` flag.
 
     --isolation="network/port_mapping"
 
-If the agent has not been compiled with per-container network monitoring and
-isolation support, it will refuse to start and print an error:
+If the agent has not been compiled with port mapping network isolator
+support, it will refuse to start and print an error:
 
     I0708 00:17:08.080271 44267 containerizer.cpp:111] Using isolation: network/port_mapping
     Failed to create a containerizer: Could not create MesosContainerizer: Unknown or unsupported
@@ -65,19 +68,21 @@ isolation support, it will refuse to start and print an error:
 
 ## Configuring network ports
 
-Without network isolation, all the containers on a host share the public IP
-address of the agent and can bind to any port allowed by the OS.
+Without port mapping network isolator, all the containers on a host
+share the public IP address of the agent and can bind to any port
+allowed by the OS.
 
-When network isolation is enabled, each container on the agent has a separate
-network stack (via Linux [network namespaces](http://lwn.net/Articles/580893/)).
-All containers still share the same public IP of the agent (so that the service
-discovery mechanism does not need to be changed). The agent assigns each
-container a non-overlapping range of the ports and only packets to/from these
-assigned port ranges will be delivered. Applications requesting the kernel
-assign a port (by binding to port 0) will be given ports from the container
-assigned range. Applications can bind to ports outside the container assigned
-ranges but packets from to/from these ports will be silently dropped by the
-host.
+When the port mapping network isolator is enabled, each container on
+the agent has a separate network stack (via Linux [network
+namespaces](http://lwn.net/Articles/580893/)).  All containers still
+share the same public IP of the agent (so that the service discovery
+mechanism does not need to be changed). The agent assigns each
+container a non-overlapping range of the ports and only packets
+to/from these assigned port ranges will be delivered. Applications
+requesting the kernel assign a port (by binding to port 0) will be
+given ports from the container assigned range. Applications can bind
+to ports outside the container assigned ranges but packets from
+to/from these ports will be silently dropped by the host.
 
 Mesos provides two ranges of ports to containers:
 
@@ -161,11 +166,11 @@ algorithm). Use the `--egress_unique_flow_per_container` flag to enable.
 
 ### Putting it all together
 
-A complete agent command line enabling network isolation, reserving ports
-57345-61000 for host ephemeral ports, 32768-57344 for container ephemeral ports,
-31000-32000 for non-ephemeral ports allocated by the framework, limiting
-container transmit bandwidth to 300 Mbits/second (37.5MBytes) with unique flows
-enabled would thus be:
+A complete agent command line enabling port mapping network isolator,
+reserving ports 57345-61000 for host ephemeral ports, 32768-57344 for
+container ephemeral ports, 31000-32000 for non-ephemeral ports
+allocated by the framework, limiting container transmit bandwidth to
+300 Mbits/second (37.5MBytes) with unique flows enabled would thus be:
 
     mesos-agent \
     --isolation=network/port_mapping \

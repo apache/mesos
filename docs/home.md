@@ -32,7 +32,6 @@ layout: documentation
 * [High Availability](high-availability.md) for running multiple masters simultaneously.
 * [Operational Guide](operational-guide.md)
 * [Monitoring](monitoring.md)
-* [Network Monitoring and Isolation](network-monitoring.md)
 * [Agent Recovery](agent-recovery.md) for doing seamless agent upgrades and allowing executors to survive `mesos-agent` crashes.
 * [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
 * [Tools](tools.md) for setting up and running a Mesos cluster.
@@ -43,7 +42,9 @@ layout: documentation
 
 * [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
 * [Fetcher Cache](fetcher.md) for how to configure the Mesos fetcher cache.
-* [Networking for Mesos-managed Containers](networking-for-mesos-managed-containers.md)
+* [Networking](networking.md)
+  * [Container Network Interface (CNI)](cni.md)
+  * [Port Mapping Isolator](port-mapping-isolator.md)
 * [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
 * [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
 * [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
