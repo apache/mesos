@@ -367,3 +367,9 @@
   emails:
     - mlawindi@microsoft.com
   reviewboard_user: mlawindi
+
+- name: José Guilherme Vanz
+  emails:
+    - guilherme.sft@gmail.com
+  jira_user: jvanz
+  reviewboard_user: jvanz
