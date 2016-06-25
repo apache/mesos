@@ -622,6 +622,7 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
   return callbacks;
 }
 
+
 bool approveViewFrameworkInfo(
     const Owned<ObjectApprover>& frameworksApprover,
     const FrameworkInfo& frameworkInfo)
@@ -652,7 +653,7 @@ bool approveViewExecutorInfo(
   Try<bool> approved = executorsApprover->approved(object);
   if (approved.isError()) {
     LOG(WARNING) << "Error during ExecutorInfo authorization: "
-             << approved.error();
+                 << approved.error();
     // TODO(joerg84): Consider exposing these errors to the caller.
     return false;
   }
