@@ -264,7 +264,7 @@ public:
         std::next(available.begin(), count));
 
     return allocate(allocation)
-      .then([=]() { return allocation; });
+      .then([=]() -> Future<set<Gpu>> { return allocation; });
   }
 
   Future<Nothing> allocate(const set<Gpu>& gpus)
