@@ -373,3 +373,11 @@
     - guilherme.sft@gmail.com
   jira_user: jvanz
   reviewboard_user: jvanz
+  
+- name: Xiao Deshi
+  affiliations:
+    - {organization: Dataman}
+  emails:
+    - xiaods@gmail.com
+  jira_user: xds2000
+  reviewboard_user: xds2000
