@@ -758,16 +758,22 @@ execute action **X** on all objects?_.
 
 `Object` has several optional fields of which, depending on the action,
 one or more fields must be set
-(e.g., the `view_executors` action expects the `executor_info` and `framework_info` to be set).
+(e.g., the `view_executors` action expects the `executor_info` and
+`framework_info` to be set).
 
 The `action` field of the `Request` message is an enum. It is kept optional —
 even though a valid action is necessary for every request — to allow for
 backwards compatibility when adding new fields (see
 [MESOS-4997](https://issues.apache.org/jira/browse/MESOS-4997) for details).
 
-Third, the `ObjectApprover` interface. In order to support efficient authorization of large objects and multiple objects a user can request an `ObjectApprover` via `Future<Owned<ObjectApprover>> getObjectApprover(const authorization::Subject& subject, const authorization::Action& action)`.
-The resulting `ObjectApprover` provides `Try<bool> approved(const ObjectApprover::Object& object)` to synchronously check whether objects are
-authorized. The `ObjectApprover::Object` follows the structure of the `Request::Object` above.
+Third, the `ObjectApprover` interface. In order to support efficient
+authorization of large objects and multiple objects a user can request an
+`ObjectApprover` via
+`Future<Owned<ObjectApprover>> getObjectApprover(const authorization::Subject& subject, const authorization::Action& action)`.
+The resulting `ObjectApprover` provides
+`Try<bool> approved(const ObjectApprover::Object& object)` to synchronously
+check whether objects are authorized. The `ObjectApprover::Object` follows the
+structure of the `Request::Object` above.
 
 ```cpp
 struct Object
@@ -780,7 +786,8 @@ struct Object
 };
 ```
 
-As the fields take pointer to each entity the `ObjectApprover::Object` does not require the entity to be copied.
+As the fields take pointer to each entity the `ObjectApprover::Object` does not
+require the entity to be copied.
 
 NOTE: As the `ObjectApprover` is run synchronously in a different actor process
 `ObjectApprover.approved()` call must not block!
