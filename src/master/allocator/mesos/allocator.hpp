@@ -17,7 +17,7 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
 #define __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -38,11 +38,11 @@ class MesosAllocatorProcess;
 // lifetime. We ensure the template parameter AllocatorProcess
 // implements MesosAllocatorProcess by storing a pointer to it.
 template <typename AllocatorProcess>
-class MesosAllocator : public mesos::master::allocator::Allocator
+class MesosAllocator : public mesos::allocator::Allocator
 {
 public:
   // Factory to allow for typed tests.
-  static Try<mesos::master::allocator::Allocator*> create();
+  static Try<mesos::allocator::Allocator*> create();
 
   ~MesosAllocator();
 
@@ -123,11 +123,12 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<mesos::allocator::InverseOfferStatus>& status,
       const Option<Filters>& filters);
 
   process::Future<
-      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+      hashmap<SlaveID,
+              hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses();
 
   void recoverResources(
@@ -250,11 +251,12 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<mesos::allocator::InverseOfferStatus>& status,
       const Option<Filters>& filters = None()) = 0;
 
   virtual process::Future<
-      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+      hashmap<SlaveID,
+              hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses() = 0;
 
   virtual void recoverResources(
@@ -282,10 +284,10 @@ public:
 
 
 template <typename AllocatorProcess>
-Try<mesos::master::allocator::Allocator*>
+Try<mesos::allocator::Allocator*>
 MesosAllocator<AllocatorProcess>::create()
 {
-  mesos::master::allocator::Allocator* allocator =
+  mesos::allocator::Allocator* allocator =
     new MesosAllocator<AllocatorProcess>();
   return CHECK_NOTNULL(allocator);
 }
@@ -539,7 +541,7 @@ inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const Option<UnavailableResources>& unavailableResources,
-    const Option<mesos::master::InverseOfferStatus>& status,
+    const Option<mesos::allocator::InverseOfferStatus>& status,
     const Option<Filters>& filters)
 {
   return process::dispatch(
@@ -555,7 +557,8 @@ inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
 
 template <typename AllocatorProcess>
 inline process::Future<
-    hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    hashmap<SlaveID,
+            hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
   MesosAllocator<AllocatorProcess>::getInverseOfferStatuses()
 {
   return process::dispatch(

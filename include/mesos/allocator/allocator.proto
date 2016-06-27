@@ -16,7 +16,7 @@
 
 import "mesos/mesos.proto";
 
-package mesos.master;
+package mesos.allocator;
 
 
 /**

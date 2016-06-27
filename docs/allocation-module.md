@@ -9,14 +9,14 @@ The logic that the Mesos master uses to determine which frameworks to make resou
 
 To use a custom allocator in Mesos, one must:
 
-- [Implement](#writing-a-custom-allocator) the `Allocator` interface as defined in `mesos/master/allocator.hpp`,
+- [Implement](#writing-a-custom-allocator) the `Allocator` interface as defined in `mesos/allocator/allocator.hpp`,
 
 - [Wrap](#wiring-up-a-custom-allocator) the allocator implementation in a module and load it in the Mesos master.
 
 <a name="writing-a-custom-allocator"></a>
 ## Writing a custom allocator
 
-Allocator modules are implemented in C++, the same language in which Mesos is written. They must subclass the `Allocator` interface defined in `mesos/master/allocator.hpp`. However, your implementation can be a C++ proxy, which delegates calls to an actual allocator written in a language of your choice.
+Allocator modules are implemented in C++, the same language in which Mesos is written. They must subclass the `Allocator` interface defined in `mesos/allocator/allocator.hpp`. However, your implementation can be a C++ proxy, which delegates calls to an actual allocator written in a language of your choice.
 
 The default allocator is `HierarchicalDRFAllocatorProcess`, which lives in `$MESOS_HOME/src/master/allocator/mesos/hierarchical.hpp`. Like most Mesos components, it is actor-based, which means all interface methods are non-blocking and return immediately after putting the corresponding action into the actor's queue. If you would like to design your custom allocator in a similar manner, subclass `MesosAllocatorProcess` from `$MESOS_HOME/src/master/allocator/mesos/allocator.hpp` and wrap your actor-based allocator in `MesosAllocator`. This dispatches calls to the underlying actor and controls its lifetime. You can refer to `HierarchicalDRFAllocatorProcess` as a starting place if you choose to write your own actor-based allocation module.
 
@@ -37,14 +37,14 @@ Once a custom allocator has been written, the next step is to override the built
 An allocator module is a factory function and a module description, as defined in `mesos/module/allocator.hpp`. Assuming the allocation logic is implemented by the `ExternalAllocator` class declared in `external_allocator.hpp`, the following snippet describes the implementation of an allocator module named `ExternalAllocatorModule`:
 
 ~~~{.cpp}
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 #include <mesos/module/allocator.hpp>
 #include <stout/try.hpp>
 
 #include "external_allocator.hpp"
 
 using namespace mesos;
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 static Allocator* createExternalAllocator(const Parameters& parameters)

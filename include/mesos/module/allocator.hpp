@@ -20,20 +20,20 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 namespace mesos {
 namespace modules {
 
 template <>
-inline const char* kind<mesos::master::allocator::Allocator>()
+inline const char* kind<mesos::allocator::Allocator>()
 {
   return "Allocator";
 }
 
 
 template <>
-struct Module<mesos::master::allocator::Allocator> : ModuleBase
+struct Module<mesos::allocator::Allocator> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -42,19 +42,19 @@ struct Module<mesos::master::allocator::Allocator> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::master::allocator::Allocator*
+      mesos::allocator::Allocator*
         (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::master::allocator::Allocator>(),
+        mesos::modules::kind<mesos::allocator::Allocator>(),
         _authorName,
         _authorEmail,
         _description,
         _compatible),
       create(_create) {}
 
-  mesos::master::allocator::Allocator* (*create)(const Parameters& parameters);
+  mesos::allocator::Allocator* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {

@@ -21,7 +21,7 @@ include(MesosProtobuf)
 # Build the protobuf structs.
 PROTOC_TO_INCLUDE_DIR(ACLS             mesos/authorizer/acls)
 PROTOC_TO_INCLUDE_DIR(AGENT            mesos/agent/agent)
-PROTOC_TO_INCLUDE_DIR(ALLOCATOR        mesos/master/allocator)
+PROTOC_TO_INCLUDE_DIR(ALLOCATOR        mesos/allocator/allocator)
 PROTOC_TO_INCLUDE_DIR(APPC_SPEC        mesos/appc/spec)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
 PROTOC_TO_INCLUDE_DIR(AUTHORIZATION    mesos/authorizer/authorizer)

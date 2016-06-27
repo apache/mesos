@@ -72,6 +72,7 @@ We categorize the changes as follows:
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <li>C <a href="#1-0-x-authorizer">Authorizer</a></li>
+    <li>C <a href="#1-0-x-allocator">Allocator</a></li>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <li>C <a href="#1-0-x-status-code">HTTP return codes</a></li>
@@ -261,6 +262,10 @@ We categorize the changes as follows:
   * The authorizer interface has been refactored in order to decouple the ACL definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request-based authorization). NOTE: This is a **breaking change** for authorizer modules.
   * Authorization-based HTTP endpoint filtering enables operators to restrict which parts of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
   * The ``subject` and `object` fields in the authorization::Request protobuf message have been changed to be optional. If these fields are not set, the request should only be allowed for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
+
+<a name="1-0-x-allocator"></a>
+
+* Namespace and header file of `Allocator` has been moved to be consistent with other packages.
 
 <a name="1-0-x-endpoint-authorization"></a>
 

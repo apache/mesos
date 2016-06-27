@@ -22,7 +22,7 @@
 
 #include <gmock/gmock.h>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -55,7 +55,7 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::protobuf::createLabel;
 
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 
 using process::Clock;
 using process::Future;

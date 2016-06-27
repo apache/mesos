@@ -127,7 +127,7 @@ protected:
 
   // Starts a master with the specified allocator process and flags.
   virtual Try<process::Owned<cluster::Master>> StartMaster(
-      mesos::master::allocator::Allocator* allocator,
+      mesos::allocator::Allocator* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.

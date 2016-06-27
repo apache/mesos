@@ -168,6 +168,9 @@ Additional API Changes:
   * [MESOS-5680] - We should not 'chown -R' on persistent volumes every time
     container tries to use it.
 
+  * [MESOS-5642] - Namespace and header file of `Allocator` has been moved to
+    be consistent with other packages.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.

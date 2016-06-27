@@ -168,11 +168,12 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<mesos::allocator::InverseOfferStatus>& status,
       const Option<Filters>& filters);
 
   process::Future<
-      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+      hashmap<SlaveID,
+      hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses();
 
   void recoverResources(
@@ -359,7 +360,7 @@ protected:
       // allocator will send out new inverse offers and re-collect the
       // information. This is similar to all the outstanding offers from an old
       // master being invalidated, and new offers being sent out.
-      hashmap<FrameworkID, mesos::master::InverseOfferStatus> statuses;
+      hashmap<FrameworkID, mesos::allocator::InverseOfferStatus> statuses;
 
       // Represents the "unit of accounting" for maintenance. When a
       // `FrameworkID` is present in the hashset it means an inverse offer has

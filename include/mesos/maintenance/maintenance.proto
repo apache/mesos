@@ -15,7 +15,7 @@
 // limitations under the License.
 
 import "mesos/mesos.proto";
-import "mesos/master/allocator.proto";
+import "mesos/allocator/allocator.proto";
 
 package mesos.maintenance;
 
@@ -76,7 +76,7 @@ message ClusterStatus {
 
     // A list of the most recent responses to inverse offers from frameworks
     // running on this draining machine.
-    repeated master.InverseOfferStatus statuses = 2;
+    repeated allocator.InverseOfferStatus statuses = 2;
   }
 
   repeated DrainingMachine draining_machines = 1;

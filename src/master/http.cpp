@@ -3420,10 +3420,9 @@ Future<mesos::maintenance::ClusterStatus>
   return master->allocator->getInverseOfferStatuses()
     .then(defer(
         master->self(),
-        [=](
-            hashmap<
-                SlaveID,
-                hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result)
+        [=](hashmap<
+            SlaveID,
+            hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>> result)
           -> Future<mesos::maintenance::ClusterStatus> {
     // Unwrap the master's machine information into two arrays of machines.
     // The data is coming from the allocator and therefore could be stale.
@@ -3444,7 +3443,7 @@ Future<mesos::maintenance::ClusterStatus>
           foreach (const SlaveID& slave, machine.slaves) {
             if (result.contains(slave)) {
               foreachvalue (
-                  const mesos::master::InverseOfferStatus& status,
+                  const mesos::allocator::InverseOfferStatus& status,
                   result[slave]) {
                 drainingMachine->add_statuses()->CopyFrom(status);
               }

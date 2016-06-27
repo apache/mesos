@@ -252,7 +252,7 @@ Try<Owned<cluster::Master>> MesosTest::StartMaster(
 
 
 Try<Owned<cluster::Master>> MesosTest::StartMaster(
-    mesos::master::allocator::Allocator* allocator,
+    mesos::allocator::Allocator* allocator,
     const Option<master::Flags>& flags)
 {
   return cluster::Master::start(

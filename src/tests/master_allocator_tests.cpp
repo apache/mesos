@@ -23,7 +23,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <mesos/module/allocator.hpp>
 
@@ -52,7 +52,7 @@
 
 using google::protobuf::RepeatedPtrField;
 
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;

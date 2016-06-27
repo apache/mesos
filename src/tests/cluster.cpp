@@ -24,7 +24,7 @@
 
 #include <mesos/log/log.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -104,7 +104,7 @@ namespace cluster {
 Try<process::Owned<Master>> Master::start(
     const master::Flags& flags,
     const Option<zookeeper::URL>& zookeeperUrl,
-    const Option<mesos::master::allocator::Allocator*>& allocator,
+    const Option<mesos::allocator::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer,
     const Option<std::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
 {
@@ -113,7 +113,7 @@ Try<process::Owned<Master>> Master::start(
 
   // If the allocator is not provided, create a default one.
   if (allocator.isNone()) {
-    Try<mesos::master::allocator::Allocator*> _allocator =
+    Try<mesos::allocator::Allocator*> _allocator =
       master::allocator::HierarchicalDRFAllocator::create();
 
     if (_allocator.isError()) {

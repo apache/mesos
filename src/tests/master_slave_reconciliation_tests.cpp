@@ -22,7 +22,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>

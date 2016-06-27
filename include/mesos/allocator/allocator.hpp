@@ -14,14 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_MASTER_ALLOCATOR_HPP__
-#define __MESOS_MASTER_ALLOCATOR_HPP__
+#ifndef __MESOS_ALLOCATOR_ALLOCATOR_HPP__
+#define __MESOS_ALLOCATOR_ALLOCATOR_HPP__
 
 #include <string>
 #include <vector>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/master/allocator.pb.h>
+#include <mesos/allocator/allocator.pb.h>
 
 #include <mesos/maintenance/maintenance.hpp>
 
@@ -39,7 +39,6 @@
 #include <stout/try.hpp>
 
 namespace mesos {
-namespace master {
 namespace allocator {
 
 /**
@@ -310,7 +309,8 @@ public:
    * Retrieves the status of all inverse offers maintained by the allocator.
    */
   virtual process::Future<
-      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+      hashmap<SlaveID,
+              hashmap<FrameworkID, mesos::allocator::InverseOfferStatus>>>
     getInverseOfferStatuses() = 0;
 
   /**
@@ -389,7 +389,6 @@ public:
 };
 
 } // namespace allocator {
-} // namespace master {
 } // namespace mesos {
 
 #endif // __MESOS_MASTER_ALLOCATOR_HPP__

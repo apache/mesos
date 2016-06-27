@@ -26,7 +26,7 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 #include <mesos/master/contender.hpp>
 #include <mesos/master/detector.hpp>
 
@@ -88,7 +88,7 @@ using mesos::Parameters;
 
 using mesos::log::Log;
 
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 
 using mesos::master::contender::MasterContender;
 

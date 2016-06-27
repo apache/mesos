@@ -26,7 +26,7 @@
 
 #include <mesos/log/log.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 #include <mesos/master/contender.hpp>
 #include <mesos/master/detector.hpp>
 
@@ -82,7 +82,7 @@ public:
   static Try<process::Owned<Master>> start(
       const master::Flags& flags = master::Flags(),
       const Option<zookeeper::URL>& zookeeperUrl = None(),
-      const Option<mesos::master::allocator::Allocator*>& allocator = None(),
+      const Option<mesos::allocator::Allocator*>& allocator = None(),
       const Option<Authorizer*>& authorizer = None(),
       const Option<std::shared_ptr<process::RateLimiter>>&
         slaveRemovalLimiter = None());
@@ -112,7 +112,7 @@ private:
   Files files;
 
   // Dependencies that are created by the factory method.
-  process::Owned<mesos::master::allocator::Allocator> allocator;
+  process::Owned<mesos::allocator::Allocator> allocator;
   process::Owned<Authorizer> authorizer;
   process::Owned<mesos::master::contender::MasterContender> contender;
   process::Owned<mesos::master::detector::MasterDetector> detector;

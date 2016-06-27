@@ -32,7 +32,7 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 #include <mesos/master/contender.hpp>
 #include <mesos/master/detector.hpp>
 #include <mesos/master/master.hpp>
@@ -392,7 +392,7 @@ struct HttpConnection
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(mesos::master::allocator::Allocator* allocator,
+  Master(mesos::allocator::Allocator* allocator,
          Registrar* registrar,
          Files* files,
          mesos::master::contender::MasterContender* contender,
@@ -1471,7 +1471,7 @@ private:
 
   Option<MasterInfo> leader; // Current leading master.
 
-  mesos::master::allocator::Allocator* allocator;
+  mesos::allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
   Files* files;

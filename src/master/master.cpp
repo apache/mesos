@@ -33,7 +33,7 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 #include <mesos/master/contender.hpp>
 #include <mesos/master/detector.hpp>
 
@@ -124,7 +124,7 @@ namespace master {
 
 namespace authentication = process::http::authentication;
 
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 
 using mesos::master::contender::MasterContender;
 
@@ -4025,8 +4025,8 @@ void Master::acceptInverseOffers(
         CHECK(inverseOffer->has_slave_id());
         slaveId = inverseOffer->slave_id();
 
-        mesos::master::InverseOfferStatus status;
-        status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
+        mesos::allocator::InverseOfferStatus status;
+        status.set_status(mesos::allocator::InverseOfferStatus::ACCEPT);
         status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
         status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
 
@@ -4115,8 +4115,8 @@ void Master::declineInverseOffers(
     // longer valid.
     InverseOffer* inverseOffer = getInverseOffer(offerId);
     if (inverseOffer != nullptr) { // If this is an inverse offer.
-      mesos::master::InverseOfferStatus status;
-      status.set_status(mesos::master::InverseOfferStatus::DECLINE);
+      mesos::allocator::InverseOfferStatus status;
+      status.set_status(mesos::allocator::InverseOfferStatus::DECLINE);
       status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
       status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
 

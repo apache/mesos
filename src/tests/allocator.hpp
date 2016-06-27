@@ -19,7 +19,7 @@
 
 #include <gmock/gmock.h>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -203,17 +203,17 @@ ACTION_P(InvokeUpdateWeights, allocator)
 
 
 template <typename T = master::allocator::HierarchicalDRFAllocator>
-mesos::master::allocator::Allocator* createAllocator()
+mesos::allocator::Allocator* createAllocator()
 {
   // T represents the allocator type. It can be a default built-in
   // allocator, or one provided by an allocator module.
-  Try<mesos::master::allocator::Allocator*> instance = T::create();
+  Try<mesos::allocator::Allocator*> instance = T::create();
   CHECK_SOME(instance);
   return CHECK_NOTNULL(instance.get());
 }
 
 template <typename T = master::allocator::HierarchicalDRFAllocator>
-class TestAllocator : public mesos::master::allocator::Allocator
+class TestAllocator : public mesos::allocator::Allocator
 {
 public:
   // Actual allocation is done by an instance of real allocator,
@@ -433,13 +433,13 @@ public:
       const SlaveID&,
       const FrameworkID&,
       const Option<UnavailableResources>&,
-      const Option<mesos::master::InverseOfferStatus>&,
+      const Option<mesos::allocator::InverseOfferStatus>&,
       const Option<Filters>&));
 
   MOCK_METHOD0(getInverseOfferStatuses, process::Future<
       hashmap<SlaveID, hashmap<
           FrameworkID,
-          mesos::master::InverseOfferStatus>>>());
+          mesos::allocator::InverseOfferStatus>>>());
 
   MOCK_METHOD4(recoverResources, void(
       const FrameworkID&,
@@ -463,7 +463,7 @@ public:
   MOCK_METHOD1(updateWeights, void(
       const std::vector<WeightInfo>&));
 
-  process::Owned<mesos::master::allocator::Allocator> real;
+  process::Owned<mesos::allocator::Allocator> real;
 };
 
 } // namespace tests {

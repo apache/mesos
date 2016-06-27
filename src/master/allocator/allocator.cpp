@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <mesos/module/allocator.hpp>
 
@@ -29,7 +29,6 @@ using std::string;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 namespace mesos {
-namespace master {
 namespace allocator {
 
 Try<Allocator*> Allocator::create(const string& name)
@@ -46,5 +45,4 @@ Try<Allocator*> Allocator::create(const string& name)
 }
 
 } // namespace allocator {
-} // namespace master {
 } // namespace mesos {

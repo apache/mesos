@@ -1300,7 +1300,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
   ASSERT_EQ(
-      mesos::master::InverseOfferStatus::DECLINE,
+      mesos::allocator::InverseOfferStatus::DECLINE,
       statuses.get().draining_machines(0).statuses(0).status());
 
   ASSERT_EQ(
@@ -1363,7 +1363,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
   ASSERT_EQ(
-      mesos::master::InverseOfferStatus::ACCEPT,
+      mesos::allocator::InverseOfferStatus::ACCEPT,
       statuses.get().draining_machines(0).statuses(0).status());
 
   ASSERT_EQ(

@@ -17,7 +17,7 @@
 #ifndef __MESOS_LOCAL_HPP__
 #define __MESOS_LOCAL_HPP__
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <process/process.hpp>
 
@@ -38,7 +38,7 @@ namespace local {
 // Launch a local cluster with the given flags.
 process::PID<master::Master> launch(
     const Flags& flags,
-    mesos::master::allocator::Allocator* _allocator = nullptr);
+    mesos::allocator::Allocator* _allocator = nullptr);
 
 void shutdown();
 

@@ -23,7 +23,7 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <mesos/master/allocator.hpp>
+#include <mesos/allocator/allocator.hpp>
 
 #include <mesos/module/anonymous.hpp>
 #include <mesos/module/authorizer.hpp>
@@ -80,7 +80,7 @@ using namespace mesos::internal::log;
 
 using mesos::log::Log;
 
-using mesos::master::allocator::Allocator;
+using mesos::allocator::Allocator;
 
 using mesos::master::contender::MasterContender;
 using mesos::master::contender::StandaloneMasterContender;

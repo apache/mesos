@@ -35,7 +35,7 @@
 using std::string;
 using std::vector;
 
-using mesos::master::InverseOfferStatus;
+using mesos::allocator::InverseOfferStatus;
 
 using process::Failure;
 using process::Future;
