@@ -861,7 +861,9 @@ Future<Response> Slave::Http::state(
         [this, request](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
-      auto state = [this, approvers](JSON::ObjectWriter* writer) {
+      // This lambda is consumed before the outer lambda
+      // returns, hence capture by reference is fine here.
+      auto state = [this, &approvers](JSON::ObjectWriter* writer) {
         // Get approver from tuple.
         Owned<ObjectApprover> frameworksApprover;
         Owned<ObjectApprover> tasksApprover;
@@ -912,7 +914,11 @@ Future<Response> Slave::Http::state(
               "external_log_file", slave->flags.external_log_file.get());
         }
 
-        writer->field("frameworks", [=](JSON::ArrayWriter* writer) {
+        // Model all of the frameworks.
+        writer->field(
+            "frameworks",
+            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
+                JSON::ArrayWriter* writer) {
           foreachvalue (Framework* framework, slave->frameworks) {
             // Skip unauthorized frameworks.
             if (!approveViewFrameworkInfo(
@@ -930,7 +936,10 @@ Future<Response> Slave::Http::state(
         });
 
         // Model all of the completed frameworks.
-        writer->field("completed_frameworks", [=](JSON::ArrayWriter* writer) {
+        writer->field(
+            "completed_frameworks",
+            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
+                JSON::ArrayWriter* writer) {
           foreach (const Owned<Framework>& framework,
                    slave->completedFrameworks) {
             // Skip unauthorized frameworks.
