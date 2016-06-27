@@ -59,20 +59,20 @@ message Call {
     GET_AGENTS = 11;
     GET_FRAMEWORKS = 12;
     GET_TASKS = 13;         // See 'GetTasks' below.
-    GET_ROLES = 14;
+    GET_ROLES = 14;         // Retrieves the information about roles.
 
-    GET_WEIGHTS = 15;
+    GET_WEIGHTS = 15;       // Retrieves the information about role weights.
     UPDATE_WEIGHTS = 16;
 
     GET_LEADING_MASTER = 17; // Retrieves the leading master information.
 
-    SUBSCRIBE = 18;
+    SUBSCRIBE = 18;          // Subscribes the master to receive events.
 
     RESERVE_RESOURCES = 19;
     UNRESERVE_RESOURCES = 20;
 
-    CREATE_VOLUMES = 21;
-    DESTROY_VOLUMES = 22;
+    CREATE_VOLUMES = 21;     // See 'CreateVolumes' below.
+    DESTROY_VOLUMES = 22;    // See 'DestroyVolumes' below.
 
     // Retrieves the cluster's maintenance status.
     GET_MAINTENANCE_STATUS = 23;
@@ -83,7 +83,7 @@ message Call {
     STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
 
     GET_QUOTA = 28;
-    SET_QUOTA = 29;
+    SET_QUOTA = 29;          // See 'SetQuota' below.
     REMOVE_QUOTA = 30;
   }
 
@@ -141,11 +141,20 @@ message Call {
     repeated Resource resources = 2;
   }
 
+  // Create persistent volumes on reserved resources. The request is forwarded
+  // asynchronously to the Mesos agent where the reserved resources are located.
+  // That asynchronous message may not be delivered or creating the volumes at
+  // the agent might fail. Volume creation can be verified by sending a
+  // `GET_VOLUMES` call.
   message CreateVolumes {
     required AgentID agent_id = 1;
     repeated Resource volumes = 2;
   }
 
+  // Destroy persistent volumes. The request is forwarded asynchronously to the
+  // Mesos agent where the reserved resources are located. That asynchronous
+  // message may not be delivered or destroying the volumes at the agent might
+  // fail. Volume deletion can be verified by sending a `GET_VOLUMES` call.
   message DestroyVolumes {
     required AgentID agent_id = 1;
     repeated Resource volumes = 2;
@@ -220,10 +229,10 @@ message Response {
 
     GET_AGENTS = 10;
     GET_FRAMEWORKS = 11;
-    GET_TASKS = 12;
-    GET_ROLES = 13;
+    GET_TASKS = 12;                // See 'GetTasks' below.
+    GET_ROLES = 13;                // See 'GetRoles' below.
 
-    GET_WEIGHTS = 14;
+    GET_WEIGHTS = 14;              // See 'GetWeights' below.
 
     GET_LEADING_MASTER = 15;       // See 'GetLeadingMaster' below.
 
@@ -233,33 +242,28 @@ message Response {
     GET_QUOTA = 18;
   }
 
-  // The response for 'Call::GET_HEALTH', `healthy` would be true if the master
-  // is healthy. Delayed responses are also indicative of the poor health of the
-  // master.
+  // `healthy` would be true if the master is healthy. Delayed responses are
+  // also indicative of the poor health of the master.
   message GetHealth {
     required bool healthy = 1;
   }
 
-  // The response for 'Call::GET_FLAGS', contains the flag configuration of the
-  // master.
+  // Contains the flag configuration of the master.
   message GetFlags {
     repeated Flag flags = 1;
   }
 
-  // The response for 'Call::GET_VERSION', contains the version information of
-  // the master.
+  // Contains the version information of the master.
   message GetVersion {
     required VersionInfo version_info = 1;
   }
 
-  // The response for 'Call::GET_METRICS', contains a snapshot of the current
-  // metrics.
+  // Contains a snapshot of the current metrics.
   message GetMetrics {
     repeated Metric metrics = 1;
   }
 
-  // The response for 'Call::GET_LOGGING_LEVEL', contains the logging level of
-  // the master.
+  // Contains the logging level of the master.
   message GetLoggingLevel {
     required uint32 level = 1;
   }
@@ -296,23 +300,25 @@ message Response {
     repeated Framework frameworks = 1;
   }
 
+  // Lists both running and completed tasks from all active and completed
+  // frameworks.
   message GetTasks {
     repeated Task tasks = 1;
   }
 
-  // Provides information about every role that is on the role
-  // whitelist (if enabled), has one or more registered frameworks
-  // or has a non-default weight or quota.
+  // Provides information about every role that is on the role whitelist (if
+  // enabled), has one or more registered frameworks or has a non-default weight
+  // or quota.
   message GetRoles {
     repeated Role roles = 1;
   }
 
+  // Provides the weight information about every role.
   message GetWeights {
     repeated WeightInfo weight_infos = 1;
   }
 
-  // The response for 'Call::GET_LEADING_MASTER', contains the leading master
-  // information.
+  // Contains the leading master information.
   // NOTE: This is broken currently "on the cloud" (e.g. EC2) as it stores the
   // private IP address, unless advertise_ip points to an externally accessible
   // IP.
@@ -320,14 +326,12 @@ message Response {
     optional MasterInfo master_info = 1;
   }
 
-  // The response for 'Call::GET_MAINTENANCE_STATUS', contains the cluster's
-  // maintenance status.
+  // Contains the cluster's maintenance status.
   message GetMaintenanceStatus {
     required maintenance.ClusterStatus status = 1;
   }
 
-  // The response for 'Call::GET_MAINTENANCE_SCHEDULE', contains the cluster's
-  // maintenance schedule.
+  // Contains the cluster's maintenance schedule.
   message GetMaintenanceSchedule {
     required maintenance.Schedule schedule = 1;
   }
