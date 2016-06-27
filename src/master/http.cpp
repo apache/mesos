@@ -562,7 +562,7 @@ Future<Response> Master::Http::api(
       return getLeadingMaster(call, principal, acceptType);
 
     case mesos::master::Call::RESERVE_RESOURCES:
-      return NotImplemented();
+      return reserveResources(call, principal, acceptType);
 
     case mesos::master::Call::UNRESERVE_RESOURCES:
       return NotImplemented();
@@ -1423,6 +1423,26 @@ Future<Response> Master::Http::getLeadingMaster(
 }
 
 
+Future<Response> Master::Http::reserveResources(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
+
+  const SlaveID& slaveId = call.reserve_resources().agent_id();
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
+  const Resources& resources = call.reserve_resources().resources();
+
+  return _reserve(slaveId, resources, principal);
+}
+
+
 string Master::Http::REDIRECT_HELP()
 {
   return HELP(
@@ -1579,6 +1599,15 @@ Future<Response> Master::Http::reserve(
     resources += resource.get();
   }
 
+  return _reserve(slaveId, resources, principal);
+}
+
+
+Future<Response> Master::Http::_reserve(
+    const SlaveID& slaveId,
+    const Resources& resources,
+    const Option<string>& principal) const
+{
   // Create an offer operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::RESERVE);

@@ -40,12 +40,17 @@
 #include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
 
+#include "internal/evolve.hpp"
+
 #include "master/detector/standalone.hpp"
 
 #include "slave/slave.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
@@ -496,6 +501,96 @@ TEST_P(MasterAPITest, GetLeadingMaster)
 }
 
 
+// This test verifies that an operator can reserve available resources through
+// the `RESERVE_RESOURCES` call.
+TEST_P(MasterAPITest, ReserveResources)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo .set_role("role");
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Expect an offer to be rescinded!
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::RESERVE_RESOURCES);
+
+  v1::master::Call::ReserveResources* reserveResources =
+    v1Call.mutable_reserve_resources();
+
+  reserveResources->mutable_agent_id()->CopyFrom(
+    internal::evolve(slaveId.get()));
+
+  reserveResources->mutable_resources()->CopyFrom(
+    internal::evolve<v1::Resource>(
+      static_cast<const RepeatedPtrField<Resource>&>(dynamicallyReserved)));
+
+  ContentType contentType = GetParam();
+
+  Future<Response> response = process::http::post(
+    master.get()->pid,
+    "api/v1",
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+    serialize(contentType, v1Call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // Test updates a maintenance schedule and verifies it saved via query.
 TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
 {
@@ -938,6 +1033,7 @@ TEST_P(MasterAPITest, SetQuota)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
+
 
 // Test create and destroy persistent volumes through the master operator API.
 // In this test case, we create a persistent volume with the API, then launch a
