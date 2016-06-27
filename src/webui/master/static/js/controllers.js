@@ -146,12 +146,26 @@
         task.executor_id = task.id;
       }
       if (task.statuses.length > 0) {
-        task.start_time = task.statuses[0].timestamp * 1000;
+          var firstStatus = task.statuses[0];
+          if (!isStateTerminal(firstStatus.state)) {
+              task.start_time = firstStatus.timestamp * 1000;
+          }
+          var lastStatus = task.statuses[task.statuses.length - 1];
+          if (isStateTerminal(task.state)) {
+              task.finish_time = lastStatus.timestamp * 1000;
+          }
       }
+    };
 
-      // TODO(bmahler): Only set the terminal time if the last state is terminal!
-      task.finish_time =
-        task.statuses[task.statuses.length - 1].timestamp * 1000;
+    var isStateTerminal = function(taskState) {
+      var terminalStates = [
+          'TASK_ERROR',
+          'TASK_FAILED',
+          'TASK_FINISHED',
+          'TASK_KILLED',
+          'TASK_LOST'
+      ];
+      return terminalStates.indexOf(taskState) > -1;
     };
 
     _.each($scope.state.frameworks, function(framework) {
