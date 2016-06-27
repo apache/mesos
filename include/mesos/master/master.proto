@@ -212,7 +212,7 @@ message Response {
     GET_LOGGING_LEVEL = 5;         // See 'GetLoggingLevel' below.
 
     LIST_FILES = 6;
-    GET_FILE_CONTENTS = 7;
+    READ_FILE = 7;
 
     GET_STATE = 8;
     GET_STATE_SUMMARY = 9;
