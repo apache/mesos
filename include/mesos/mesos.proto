@@ -2025,3 +2025,31 @@ message Metric {
   required string name = 1;
   optional double value = 2;
 }
+
+
+/**
+ * Describes a File.
+ */
+message FileInfo {
+  // Absolute path to the file.
+  required string path = 1;
+
+  // Number of hard links.
+  optional int32 nlink = 2;
+
+  // Total size in bytes.
+  optional uint64 size = 3;
+
+  // Last modification time.
+  optional TimeInfo mtime = 4;
+
+  // Represents a file's mode and permission bits. The bits have the same
+  // definition on all systems and is portable.
+  optional uint32 mode = 5;
+
+  // User ID of owner.
+  optional string uid = 6;
+
+  // Group ID of owner.
+  optional string gid = 7;
+}
