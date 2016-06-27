@@ -2811,7 +2811,6 @@ Future<vector<const Task*>> Master::Http::_tasks(
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
-  Future<Owned<ObjectApprover>> executorsApprover;
   if (master->authorizer.isSome()) {
     authorization::Subject subject;
     if (principal.isSome()) {
@@ -2823,26 +2822,20 @@ Future<vector<const Task*>> Master::Http::_tasks(
 
     tasksApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_TASK);
-
-    executorsApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_EXECUTOR);
   } else {
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  return collect(frameworksApprover, tasksApprover)
     .then(defer(master->self(),
       [=](const tuple<Owned<ObjectApprover>,
-                      Owned<ObjectApprover>,
                       Owned<ObjectApprover>>& approvers)
         -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
-      Owned<ObjectApprover> executorsApprover;
-      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+      tie(frameworksApprover, tasksApprover) = approvers;
 
       // TODO(nnielsen): Currently, formatting errors in offset and/or limit
       // will silently be ignored. This could be reported to the user instead.
