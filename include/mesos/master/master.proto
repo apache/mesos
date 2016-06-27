@@ -131,11 +131,13 @@ message Call {
     repeated WeightInfo weight_infos = 1;
   }
 
+  // Reserve resources dynamically on a specific agent.
   message ReserveResources {
     required SlaveID agent_id = 1;
     repeated Resource resources = 2;
   }
 
+  // Unreserve resources dynamically on a specific agent.
   message UnreserveResources {
     required SlaveID agent_id = 1;
     repeated Resource resources = 2;
