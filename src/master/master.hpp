@@ -1310,6 +1310,11 @@ private:
         const Resources& resources,
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> _unreserve(
+        const SlaveID& slaveId,
+        const Resources& resources,
+        const Option<std::string>& principal) const;
+
     process::Future<process::http::Response> _createVolumes(
         const SlaveID& slaveId,
         const google::protobuf::RepeatedPtrField<Resource>& volumes,
@@ -1442,6 +1447,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> reserveResources(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> unreserveResources(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
