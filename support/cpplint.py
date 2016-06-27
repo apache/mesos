@@ -31,6 +31,7 @@
 # Modified by Adam B (adam@mesosphere.io) to handle hpp files.
 # Modified by Avinash S (avinash@mesosphere.io) to check for at least
 # a __single__ space in comments is required for hpp and cpp files.
+# Modified by Tomek J (janiszt@gmail.com) to check for NULL usage.
 
 
 """Does google-lint on c++ files.
@@ -156,6 +157,7 @@ _ERROR_CATEGORIES = [
   'build/include_order',
   'build/include_what_you_use',
   'build/namespaces',
+  'build/nullptr',
   'build/printf_format',
   'build/storage_class',
   'legal/copyright',
@@ -3438,6 +3440,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
            cleansed_line.find('break;') != -1)):
     error(filename, linenum, 'whitespace/newline', 0,
           'More than one command on the same line')
+
+  if re.search(r'\bNULL\b', cleansed_line):
+    error(filename, linenum, 'build/nullptr', 1,
+          'NULL found; better to use nullptr')
 
   # Some more style checks
   CheckBraces(filename, clean_lines, linenum, error)

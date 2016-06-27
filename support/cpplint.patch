@@ -1,18 +1,27 @@
 diff --git a/support/cpplint.py b/support/cpplint.py
-index 2ad644e..96e7fbc 100644
+index 2ad644e..5c5fd99 100644
 --- a/support/cpplint.py
 +++ b/support/cpplint.py
-@@ -29,6 +29,9 @@
+@@ -29,6 +29,10 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
  # Modified by Adam B (adam@mesosphere.io) to handle hpp files.
 +# Modified by Avinash S (avinash@mesosphere.io) to check for at least
 +# a __single__ space in comments is required for hpp and cpp files.
++# Modified by Tomek J (janiszt@gmail.com) to check for NULL usage.
 +
 
  """Does google-lint on c++ files.
 
-@@ -1777,16 +1780,16 @@ class _NamespaceInfo(_BlockInfo):
+@@ -153,6 +157,7 @@ _ERROR_CATEGORIES = [
+   'build/include_order',
+   'build/include_what_you_use',
+   'build/namespaces',
++  'build/nullptr',
+   'build/printf_format',
+   'build/storage_class',
+   'legal/copyright',
+@@ -1777,16 +1782,16 @@ class _NamespaceInfo(_BlockInfo):
      if self.name:
        # Named namespace
        if not Match((r'};*\s*(//|/\*).*\bnamespace\s+' + re.escape(self.name) +
@@ -33,7 +42,7 @@ index 2ad644e..96e7fbc 100644
 
 
  class _PreprocessorInfo(object):
-@@ -1995,11 +1998,9 @@ class _NestingState(object):
+@@ -1995,11 +2000,9 @@ class _NestingState(object):
        if access_match:
          classinfo.access = access_match.group(2)
 
@@ -47,7 +56,7 @@ index 2ad644e..96e7fbc 100644
            if classinfo.is_struct:
              parent = 'struct ' + classinfo.name
            else:
-@@ -2008,7 +2009,7 @@ class _NestingState(object):
+@@ -2008,7 +2011,7 @@ class _NestingState(object):
            if access_match.group(3):
              slots = access_match.group(3)
            error(filename, linenum, 'whitespace/indent', 3,
@@ -56,7 +65,7 @@ index 2ad644e..96e7fbc 100644
                      access_match.group(2), slots, parent))
 
      # Consume braces or semicolons from what's left of the line
-@@ -2637,13 +2638,10 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
+@@ -2637,13 +2640,10 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
      if (line.count('"', 0, commentpos) -
          line.count('\\"', 0, commentpos)) % 2 == 0:   # not in quotes
        # Allow one space for new scopes, two spaces otherwise:
@@ -73,7 +82,7 @@ index 2ad644e..96e7fbc 100644
        # There should always be a space between the // and the comment
        commentend = commentpos + 2
        if commentend < len(line) and not line[commentend] == ' ':
-@@ -2694,11 +2692,11 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
+@@ -2694,11 +2694,11 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
            'Missing spaces around %s' % match.group(1))
    # We allow no-spaces around << when used like this: 10<<20, but
    # not otherwise (particularly, not when used as streams)
@@ -87,3 +96,14 @@ index 2ad644e..96e7fbc 100644
      error(filename, linenum, 'whitespace/operators', 3,
            'Missing spaces around <<')
    elif not Match(r'#.*include', line):
+@@ -3441,6 +3441,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
+     error(filename, linenum, 'whitespace/newline', 0,
+           'More than one command on the same line')
+
++  if re.search(r'\bNULL\b', cleansed_line):
++    error(filename, linenum, 'build/nullptr', 1,
++          'NULL found; better to use nullptr')
++
+   # Some more style checks
+   CheckBraces(filename, clean_lines, linenum, error)
+   CheckEmptyBlockBody(filename, clean_lines, linenum, error)
