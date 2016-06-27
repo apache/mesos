@@ -260,11 +260,11 @@ public:
         case authorization::ACCESS_SANDBOX: {
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
-          if (object->executor_info != NULL &&
+          if (object->executor_info != nullptr &&
               object->executor_info->command().has_user()) {
             aclObject.add_values(object->executor_info->command().user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
-          } else if (object->framework_info != NULL) {
+          } else if (object->framework_info != nullptr) {
             aclObject.add_values(object->framework_info->user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
           }
