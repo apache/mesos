@@ -288,9 +288,23 @@ message Response {
 
   message GetAgents {
     message Agent {
-      // TODO(vinod): Fill in the fields.
+      required AgentInfo agent_info = 1;
+      required bool active = 2;
+      required string version = 3;
+
+      optional string pid = 4;
+      optional TimeInfo registered_time = 5;
+      optional TimeInfo reregistered_time = 6;
+
+      // Total resources (including oversubscribed resources) the agent
+      // provides.
+      repeated Resource total_resources = 7;
+
+      repeated Resource allocated_resources = 8;
+      repeated Resource offered_resources = 9;
     }
 
+    // Registered agents.
     repeated Agent agents = 1;
   }
 
