@@ -94,10 +94,8 @@ PROCESS_INFORMATION launchTaskWindows(
       &processInfo);        // PROCESS_INFORMATION pointer.
 
   if (!createProcessResult) {
-    cerr << "launchTaskWindows: CreateProcess failed with error code"
-         << GetLastError() << endl;
-
-    abort();
+    ABORT("launchTaskWindows: CreateProcess failed with error code " +
+          GetLastError());
   }
 
   Try<HANDLE> job = os::create_job(processInfo.dwProcessId);

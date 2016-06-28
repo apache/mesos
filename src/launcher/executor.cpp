@@ -350,14 +350,12 @@ protected:
       // Get CommandInfo from a JSON string.
       Try<JSON::Object> object = JSON::parse<JSON::Object>(taskCommand.get());
       if (object.isError()) {
-        cerr << "Failed to parse JSON: " << object.error() << endl;
-        abort();
+        ABORT("Failed to parse JSON: " + object.error());
       }
 
       Try<CommandInfo> parse = protobuf::parse<CommandInfo>(object.get());
       if (parse.isError()) {
-        cerr << "Failed to parse protobuf: " << parse.error() << endl;
-        abort();
+        ABORT("Failed to parse protobuf: " + parse.error());
       }
 
       command = parse.get();

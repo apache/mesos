@@ -56,22 +56,18 @@ pid_t launchTaskPosix(
   int _pipes[2];
 
   Try<Nothing> pipes = os::pipe(_pipes);
-  if (pipes.isError())
-  {
-    cerr << "Failed to create pipe: " << pipes.error() << endl;
-    abort();
+  if (pipes.isError()) {
+    ABORT("Failed to create pipe: " + pipes.error());
   }
   // Set the FD_CLOEXEC flags on these pipes.
   Try<Nothing> cloexec = os::cloexec(_pipes[0]);
   if (cloexec.isError()) {
-    cerr << "Failed to cloexec(pipe[0]): " << cloexec.error() << endl;
-    abort();
+    ABORT("Failed to cloexec(pipe[0]): " + cloexec.error());
   }
 
   cloexec = os::cloexec(_pipes[1]);
   if (cloexec.isError()) {
-    cerr << "Failed to cloexec(pipe[1]): " << cloexec.error() << endl;
-    abort();
+    ABORT("Failed to cloexec(pipe[1]): " + cloexec.error());
   }
 
   if (rootfs.isSome()) {
@@ -81,18 +77,14 @@ pid_t launchTaskPosix(
 #ifdef __linux__
     Result<string> _user = os::user();
     if (_user.isError()) {
-      cerr << "Failed to get current user: " << _user.error() << endl;
-      abort();
+      ABORT("Failed to get current user: " + _user.error());
     } else if (_user.isNone()) {
-      cerr << "Current username is not found" << endl;
-      abort();
+      ABORT("Current username is not found");
     } else if (_user.get() != "root") {
-      cerr << "The command executor requires root with rootfs" << endl;
-      abort();
+      ABORT("The command executor requires root with rootfs");
     }
 #else
-    cerr << "Not expecting root volume with non-linux platform." << endl;
-    abort();
+    ABORT("Not expecting root volume with non-linux platform");
 #endif // __linux__
   }
 
@@ -117,9 +109,8 @@ pid_t launchTaskPosix(
 
   pid_t pid;
   if ((pid = fork()) == -1) {
-    cerr << "Failed to fork to run " << commandString << ": "
-         << os::strerror(errno) << endl;
-    abort();
+    ABORT("Failed to fork to run '" + commandString + "'"
+          ": " + os::strerror(errno));
   }
 
   // TODO(jieyu): Make the child process async signal safe.
@@ -136,8 +127,7 @@ pid_t launchTaskPosix(
       cout << "Forking another process and retrying" << endl;
 
       if ((pid = fork()) == -1) {
-        perror("Failed to fork to launch command");
-        abort();
+        ABORT("Failed to fork to launch command: " + os::strerror(errno));
       }
 
       if (pid > 0) {
@@ -148,8 +138,7 @@ pid_t launchTaskPosix(
     }
 
     if (write(_pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
-      perror("Failed to write PID on pipe");
-      abort();
+      ABORT("Failed to write PID on pipe: " + os::strerror(errno));
     }
 
     os::close(_pipes[1]);
@@ -178,9 +167,8 @@ pid_t launchTaskPosix(
       if (user.isSome()) {
         Result<uid_t> _uid = os::getuid(user.get());
         if (!_uid.isSome()) {
-          cerr << "Failed to get the uid of user '" << user.get() << "': "
-               << (_uid.isError() ? _uid.error() : "not found") << endl;
-          abort();
+          ABORT("Failed to get the uid of user '" + user.get() + "': " +
+                (_uid.isError() ? _uid.error() : "not found"));
         }
 
         // No need to change user/groups if the specified user is
@@ -188,17 +176,15 @@ pid_t launchTaskPosix(
         if (_uid.get() != os::getuid().get()) {
           Result<gid_t> _gid = os::getgid(user.get());
           if (!_gid.isSome()) {
-            cerr << "Failed to get the gid of user '" << user.get() << "': "
-                 << (_gid.isError() ? _gid.error() : "not found") << endl;
-            abort();
+            ABORT("Failed to get the gid of user '" + user.get() + "': " +
+                  (_gid.isError() ? _gid.error() : "not found"));
           }
 
           Try<vector<gid_t>> _gids = os::getgrouplist(user.get());
           if (_gids.isError()) {
-            cerr << "Failed to get the supplementary gids of user '"
-                 << user.get() << "': "
-                 << (_gids.isError() ? _gids.error() : "not found") << endl;
-            abort();
+            ABORT("Failed to get the supplementary gids of "
+                  "user '" + user.get() + "': " +
+                  (_gids.isError() ? _gids.error() : "not found"));
           }
 
           uid = _uid.get();
@@ -209,31 +195,26 @@ pid_t launchTaskPosix(
 
       Try<Nothing> chroot = fs::chroot::enter(rootfs.get());
       if (chroot.isError()) {
-        cerr << "Failed to enter chroot '" << rootfs.get()
-             << "': " << chroot.error() << endl;
-        abort();
+        ABORT("Failed to enter chroot '" + rootfs.get() + "'"
+              ": " + chroot.error());
       }
 
       if (uid.isSome()) {
         Try<Nothing> setgid = os::setgid(gid.get());
         if (setgid.isError()) {
-          cerr << "Failed to set gid to " << gid.get()
-               << ": " << setgid.error() << endl;
-          abort();
+          ABORT("Failed to set gid to " + stringify(gid.get()) +
+                ": " + setgid.error());
         }
 
         Try<Nothing> setgroups = os::setgroups(gids, uid);
         if (setgroups.isError()) {
-          cerr << "Failed to set supplementary gids: "
-               << setgroups.error() << endl;
-          abort();
+          ABORT("Failed to set supplementary gids: " + setgroups.error());
         }
 
         Try<Nothing> setuid = os::setuid(uid.get());
         if (setuid.isError()) {
-          cerr << "Failed to set uid to " << uid.get()
-               << ": " << setuid.error() << endl;
-          abort();
+          ABORT("Failed to set uid to " + stringify(uid.get()) +
+                ": " + setuid.error());
         }
       }
 
@@ -248,13 +229,11 @@ pid_t launchTaskPosix(
 
       Try<Nothing> chdir = os::chdir(cwd);
       if (chdir.isError()) {
-        cerr << "Failed to chdir into current working directory '"
-             << cwd << "': " << chdir.error() << endl;
-        abort();
+        ABORT("Failed to chdir into current working directory "
+              "'" + cwd + "': " + chdir.error());
       }
 #else
-      cerr << "Rootfs is only supported on Linux" << endl;
-      abort();
+      ABORT("Rootfs is only supported on Linux");
 #endif // __linux__
     }
 
@@ -277,8 +256,7 @@ pid_t launchTaskPosix(
       execvp(argv[0], argv);
     }
 
-    perror("Failed to exec");
-    abort();
+    ABORT("Failed to exec: " + os::strerror(errno));
   }
 
   // In parent process.
@@ -286,9 +264,7 @@ pid_t launchTaskPosix(
 
   // Get the child's pid via the pipe.
   if (read(_pipes[0], &pid, sizeof(pid)) == -1) {
-    cerr << "Failed to get child PID from pipe, read: "
-         << os::strerror(errno) << endl;
-    abort();
+    ABORT("Failed to get child PID from pipe, read: " + os::strerror(errno));
   }
 
   os::close(_pipes[0]);
