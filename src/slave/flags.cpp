@@ -92,8 +92,7 @@ mesos::internal::slave::Flags::Flags()
       "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem`, or\n"
       "`cgroups/cpu,cgroups/mem`, or network/port_mapping\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
-      "or `cgroups/devices/gpus/nvidia` for nvidia specific gpu isolation\n"
-      "(configure with flag: `--enable-nvidia-gpu-support` to enable),\n"
+      "or `gpu/nvidia` for nvidia specific gpu isolation,\n"
       "or `external`, or load an alternate isolator module using\n"
       "the `--modules` flag. Note that this flag is only relevant\n"
       "for the Mesos Containerizer.",
@@ -389,7 +388,7 @@ mesos::internal::slave::Flags::Flags()
       "numbers that correspond to Nvidia's NVML device enumeration (as\n"
       "seen by running the command `nvidia-smi` on an Nvidia GPU\n"
       "equipped system).  The GPUs listed will only be isolated if the\n"
-      "`--isolation` flag contains the string `cgroups/devices/gpus/nvidia`.");
+      "`--isolation` flag contains the string `gpu/nvidia`.");
 
   add(&Flags::perf_events,
       "perf_events",
