@@ -18,8 +18,9 @@ package mesos.slave;
 
 import "mesos/mesos.proto";
 
-import "mesos/docker/v1.proto";
+import "mesos/appc/spec.proto";
 
+import "mesos/docker/v1.proto";
 
 /**
  * Information when an executor is impacted by a resource limitation
@@ -88,7 +89,11 @@ message ContainerConfig {
 
   optional Docker docker = 7;
 
-  // TODO(gilbert): Add appc image manifest.
+  message Appc {
+    optional appc.spec.ImageManifest manifest = 1;
+  }
+
+  optional Appc appc = 10;
 }
 
 
