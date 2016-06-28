@@ -309,11 +309,42 @@ message Response {
   }
 
   message GetFrameworks {
+    /**
+     * Executor captures information for an executor of a framework.
+     */
+    message Executor {
+      required ExecutorInfo info = 1;
+      optional AgentID agent_id = 2;
+    }
+
+    /**
+     * Framework captures information for a framework. This is used in response
+     * for both GET_FRAMEWORK and GET_STATE.
+     */
     message Framework {
-    // TODO(vinod): Fill in the fields.
+      required FrameworkInfo framework_info = 1;
+      required bool active = 2;
+      required bool connected = 3;
+
+      optional TimeInfo registered_time = 4;
+      optional TimeInfo reregistered_time = 5;
+      optional TimeInfo unregistered_time = 6;
+
+      repeated TaskInfo pending_tasks = 7;
+      repeated Task tasks = 8;
+      repeated Task completed_tasks = 9;
+
+      repeated Executor executors = 10;
+
+      repeated Offer offers = 11;
+
+      repeated Resource allocated_resources = 12;
+      repeated Resource offered_resources = 13;
     }
 
     repeated Framework frameworks = 1;
+    repeated Framework completed_frameworks = 2;
+    repeated FrameworkID unregistered_frameworks = 3;
   }
 
   // Lists both running and completed tasks from all active and completed
