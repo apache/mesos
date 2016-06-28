@@ -432,6 +432,17 @@ Future<http::Response> Master::QuotaHandler::__set(
 
 
 Future<http::Response> Master::QuotaHandler::remove(
+    const mesos::master::Call& call,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::master::Call::REMOVE_QUOTA, call.type());
+  CHECK(call.has_remove_quota());
+
+  return _remove(call.remove_quota().role(), principal);
+}
+
+
+Future<http::Response> Master::QuotaHandler::remove(
     const http::Request& request,
     const Option<string>& principal) const
 {
@@ -474,14 +485,22 @@ Future<http::Response> Master::QuotaHandler::remove(
         "': Role '" + role + "' has no quota set");
   }
 
+  return _remove(role, principal);
+}
+
+
+Future<http::Response> Master::QuotaHandler::_remove(
+    const string& role,
+    const Option<string>& principal) const
+{
   return authorizeRemoveQuota(principal, master->quotas[role].info)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
-      return !authorized ? Forbidden() : _remove(role);
+      return !authorized ? Forbidden() : __remove(role);
     }));
 }
 
 
-Future<http::Response> Master::QuotaHandler::_remove(const string& role) const
+Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
 {
   // Remove quota from the quota-related local state. We do this before
   // updating the registry in order to make sure that we are not already

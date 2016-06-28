@@ -595,7 +595,7 @@ Future<Response> Master::Http::api(
       return quotaHandler.set(call, principal);
 
     case mesos::master::Call::REMOVE_QUOTA:
-      return NotImplemented();
+      return quotaHandler.remove(call, principal);
 
     case mesos::master::Call::SUBSCRIBE: {
       Pipe pipe;
