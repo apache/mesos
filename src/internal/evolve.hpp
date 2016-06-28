@@ -151,6 +151,9 @@ v1::master::Response evolve(const mesos::maintenance::Schedule& schedule);
 template <v1::agent::Response::Type T>
 v1::agent::Response evolve(const JSON::Object& object);
 
+template <v1::agent::Response::Type T>
+v1::agent::Response evolve(const JSON::Array& array);
+
 } // namespace internal {
 } // namespace mesos {
 

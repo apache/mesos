@@ -152,9 +152,17 @@ message Response {
     // TODO(vinod): Fill in the fields.
   }
 
+  // Information about containers running on this agent. It contains
+  // ContainerStatus and ResourceStatistics along with some metadata
+  // of the containers.
   message GetContainers {
     message Container {
-      // TODO(vinod): Fill in the fields.
+      required FrameworkID framework_id = 1;
+      required ExecutorID executor_id = 2;
+      required string executor_name = 3;
+      required ContainerID container_id = 4;
+      optional ContainerStatus container_status = 5;
+      optional ResourceStatistics resource_statistics = 6;
     }
 
     repeated Container containers = 1;

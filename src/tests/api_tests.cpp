@@ -1579,6 +1579,111 @@ TEST_P(AgentAPITest, SetLoggingLevel)
   Clock::resume();
 }
 
+
+TEST_P(AgentAPITest, GetContainers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // No tasks launched, we should expect zero containers in Response.
+  {
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::GET_CONTAINERS);
+
+    ContentType contentType = GetParam();
+
+    Future<v1::agent::Response> v1Response =
+      post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response.get().type());
+    ASSERT_EQ(0, v1Response.get().get_containers().containers_size());
+  }
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  ResourceStatistics statistics;
+  statistics.set_mem_limit_bytes(2048);
+  // We have to set timestamp here since serializing protobuf without
+  // filling all required fields generates errors.
+  statistics.set_timestamp(0);
+
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(statistics));
+
+  ContainerStatus containerStatus;
+  NetworkInfo* networkInfo = containerStatus.add_network_infos();
+  NetworkInfo::IPAddress* ipAddr = networkInfo->add_ip_addresses();
+  ipAddr->set_ip_address("192.168.1.20");
+
+  EXPECT_CALL(containerizer, status(_))
+    .WillOnce(Return(containerStatus));
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_CONTAINERS);
+
+  ContentType contentType = GetParam();
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response.get().type());
+  ASSERT_EQ(1, v1Response.get().get_containers().containers_size());
+  ASSERT_EQ("192.168.1.20",
+            v1Response.get().get_containers().containers(0).container_status()
+              .network_infos(0).ip_addresses(0).ip_address());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

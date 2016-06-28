@@ -387,7 +387,7 @@ Future<Response> Slave::Http::api(
       return NotImplemented();
 
     case agent::Call::GET_CONTAINERS:
-      return NotImplemented();
+      return getContainers(call, principal, acceptType);
   }
 
   UNREACHABLE();
@@ -1143,6 +1143,35 @@ Future<Response> Slave::Http::containers(
 
           return _containers(request);
         }));
+}
+
+
+Future<Response> Slave::Http::getContainers(
+    const agent::Call& call,
+    const Option<string>& printcipal,
+    ContentType contentType) const
+{
+  CHECK_EQ(agent::Call::GET_CONTAINERS, call.type());
+
+  return __containers()
+      .then([contentType](const Future<JSON::Array>& result)
+          -> Future<Response> {
+        if (!result.isReady()) {
+          LOG(WARNING) << "Could not collect container status and statistics: "
+                       << (result.isFailed()
+                            ? result.failure()
+                            : "Discarded");
+          return result.isFailed()
+            ? InternalServerError(result.failure())
+            : InternalServerError();
+        }
+
+        return OK(
+            serialize(
+                contentType,
+                evolve<v1::agent::Response::GET_CONTAINERS>(result.get())),
+            stringify(contentType));
+      });
 }
 
 
