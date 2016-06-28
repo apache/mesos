@@ -370,27 +370,6 @@ static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
 }
 
 
-static void json(JSON::ObjectWriter* writer, const Full<Framework>& full)
-{
-  // Use the `FullFrameworkWriter` with `AcceptingObjectApprover`.
-
-  Future<Owned<ObjectApprover>> tasksApprover =
-    Owned<ObjectApprover>(new AcceptingObjectApprover());
-  Future<Owned<ObjectApprover>> executorsApprover =
-    Owned<ObjectApprover>(new AcceptingObjectApprover());
-
-  const Framework& framework = full;
-
-  // Note that we know the futures are ready.
-  auto frameworkWriter = FullFrameworkWriter(
-      tasksApprover.get(),
-      executorsApprover.get(),
-      &framework);
-
-  frameworkWriter(writer);
-}
-
-
 void Master::Http::log(const Request& request)
 {
   Option<string> userAgent = request.headers.get("User-Agent");
@@ -1174,44 +1153,112 @@ string Master::Http::FRAMEWORKS_HELP()
 
 Future<Response> Master::Http::frameworks(
     const Request& request,
-    const Option<string>& /*principal*/) const
+    const Option<string>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
     return redirect(request);
   }
 
-  auto frameworks = [this](JSON::ObjectWriter* writer) {
-    // Model all of the frameworks.
-    writer->field("frameworks", [this](JSON::ArrayWriter* writer) {
-      foreachvalue (Framework* framework, master->frameworks.registered) {
-        writer->element(Full<Framework>(*framework));
-      }
-    });
+  // Retrieve `ObjectApprover`s for authorizing frameworks and tasks and
+  // executors.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> tasksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
 
-    // Model all of the completed frameworks.
-    writer->field("completed_frameworks", [this](JSON::ArrayWriter* writer) {
-      foreach (const std::shared_ptr<Framework>& framework,
-               master->frameworks.completed) {
-        writer->element(Full<Framework>(*framework));
-      }
-    });
+  if (master->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
 
-    // Model all currently unregistered frameworks. This can happen
-    // when a framework has yet to re-register after master failover.
-    writer->field("unregistered_frameworks", [this](JSON::ArrayWriter* writer) {
-      // Find unregistered frameworks.
-      foreachvalue (const Slave* slave, master->slaves.registered) {
-        foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-          if (!master->frameworks.registered.contains(frameworkId)) {
-            writer->element(frameworkId.value());
+    frameworksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    tasksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_TASK);
+
+    executorsApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return collect(frameworksApprover, tasksApprover, executorsApprover)
+    .then(defer(master->self(),
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers) -> Response {
+      auto frameworks = [this, approvers](JSON::ObjectWriter* writer) {
+        // Get approver from tuple.
+        Owned<ObjectApprover> frameworksApprover;
+        Owned<ObjectApprover> tasksApprover;
+        Owned<ObjectApprover> executorsApprover;
+        tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+
+        // Model all of the frameworks.
+        writer->field(
+            "frameworks",
+            [this, frameworksApprover, executorsApprover, tasksApprover](
+                JSON::ArrayWriter* writer) {
+              foreachvalue (Framework* framework,
+                            master->frameworks.registered) {
+                // Skip unauthorized frameworks.
+                if (!approveViewFrameworkInfo(
+                        frameworksApprover, framework->info)) {
+                  continue;
+                }
+
+                FullFrameworkWriter frameworkWriter(
+                    tasksApprover,
+                    executorsApprover,
+                    framework);
+
+                writer->element(frameworkWriter);
+              }
+            });
+
+        // Model all of the completed frameworks.
+        writer->field(
+            "completed_frameworks",
+            [this, frameworksApprover, executorsApprover, tasksApprover](
+                JSON::ArrayWriter* writer) {
+              foreach (const std::shared_ptr<Framework>& framework,
+                       master->frameworks.completed) {
+                // Skip unauthorized frameworks.
+                if (!approveViewFrameworkInfo(
+                        frameworksApprover, framework->info)) {
+                  continue;
+                }
+
+                FullFrameworkWriter frameworkWriter(
+                    tasksApprover,
+                    executorsApprover,
+                    framework.get());
+
+                writer->element(frameworkWriter);
+              }
+            });
+
+        // Model all currently unregistered frameworks. This can happen
+        // when a framework has yet to re-register after master failover.
+        writer->field("unregistered_frameworks", [this](
+            JSON::ArrayWriter* writer) {
+          // Find unregistered frameworks.
+          foreachvalue (const Slave* slave, master->slaves.registered) {
+            foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+              if (!master->frameworks.registered.contains(frameworkId)) {
+                writer->element(frameworkId.value());
+              }
+            }
           }
-        }
-      }
-    });
-  };
+        });
+      };
 
-  return OK(jsonify(frameworks), request.url.query.get("jsonp"));
+      return OK(jsonify(frameworks), request.url.query.get("jsonp"));
+  }));
 }
 
 
