@@ -496,6 +496,9 @@ private:
     process::Future<process::http::Response> _containers(
         const process::http::Request& request) const;
 
+    // Helper function to collect containers status and resource statistics.
+    process::Future<JSON::Array> __containers() const;
+
     // Helper routines for endpoint authorization.
     Try<std::string> extractEndpoint(const process::http::URL& url) const;
 

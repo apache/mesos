@@ -1148,6 +1148,27 @@ Future<Response> Slave::Http::containers(
 
 Future<Response> Slave::Http::_containers(const Request& request) const
 {
+  return __containers()
+      .then([request](const Future<JSON::Array>& result) -> Future<Response> {
+        if (!result.isReady()) {
+          LOG(WARNING) << "Could not collect container status and statistics: "
+                       << (result.isFailed()
+                            ? result.failure()
+                            : "Discarded");
+
+          return result.isFailed()
+            ? InternalServerError(result.failure())
+            : InternalServerError();
+        }
+
+        return process::http::OK(
+            result.get(), request.url.query.get("jsonp"));
+      });
+}
+
+
+Future<JSON::Array> Slave::Http::__containers() const
+{
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
   list<Future<ContainerStatus>> statusFutures;
   list<Future<ResourceStatistics>> statsFutures;
@@ -1171,10 +1192,10 @@ Future<Response> Slave::Http::_containers(const Request& request) const
   }
 
   return await(await(statusFutures), await(statsFutures)).then(
-      [metadata, request](const tuple<
+      [metadata](const tuple<
           Future<list<Future<ContainerStatus>>>,
           Future<list<Future<ResourceStatistics>>>>& t)
-          -> Future<Response> {
+          -> Future<JSON::Array> {
         const list<Future<ContainerStatus>>& status = std::get<0>(t).get();
         const list<Future<ResourceStatistics>>& stats = std::get<1>(t).get();
         CHECK_EQ(status.size(), stats.size());
@@ -1222,13 +1243,7 @@ Future<Response> Slave::Http::_containers(const Request& request) const
           metadataIter++;
         }
 
-        return process::http::OK(result, request.url.query.get("jsonp"));
-      })
-      .repair([](const Future<Response>& future) {
-        LOG(WARNING) << "Could not collect container status and statistics: "
-                     << future.failure();
-
-        return InternalServerError();
+        return result;
       });
 }
 
