@@ -1366,6 +1366,11 @@ private:
 
     // Master API handlers.
 
+    process::Future<process::http::Response> getAgents(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
         const Option<std::string>& principal,

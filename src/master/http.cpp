@@ -541,7 +541,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case mesos::master::Call::GET_AGENTS:
-      return NotImplemented();
+      return getAgents(call, principal, acceptType);
 
     case mesos::master::Call::GET_FRAMEWORKS:
       return NotImplemented();
@@ -1736,6 +1736,52 @@ Future<Response> Master::Http::slaves(
   };
 
   return OK(jsonify(slaves), request.url.query.get("jsonp"));
+}
+
+
+Future<process::http::Response> Master::Http::getAgents(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_AGENTS, call.type());
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_AGENTS);
+
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    mesos::master::Response::GetAgents::Agent* agent =
+        response.mutable_get_agents()->add_agents();
+
+    agent->mutable_agent_info()->CopyFrom(slave->info);
+
+    agent->set_pid(string(slave->pid));
+    agent->set_active(slave->active);
+    agent->set_version(slave->version);
+
+    agent->mutable_registered_time()->set_nanoseconds(
+        slave->registeredTime.duration().ns());
+
+    if (slave->reregisteredTime.isSome()) {
+      agent->mutable_reregistered_time()->set_nanoseconds(
+          slave->reregisteredTime.get().duration().ns());
+    }
+
+    foreach (const Resource& resource, slave->totalResources) {
+      agent->add_total_resources()->CopyFrom(resource);
+    }
+
+    foreach (const Resource& resource, Resources::sum(slave->usedResources)) {
+      agent->add_allocated_resources()->CopyFrom(resource);
+    }
+
+    foreach (const Resource& resource, slave->offeredResources) {
+      agent->add_offered_resources()->CopyFrom(resource);
+    }
+  }
+
+  return OK(serialize(contentType, evolve(response)),
+            stringify(contentType));
 }
 
 

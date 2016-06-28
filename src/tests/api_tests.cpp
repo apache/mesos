@@ -150,6 +150,49 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(ContentType::PROTOBUF, ContentType::JSON));
 
 
+TEST_P(MasterAPITest, GetAgents)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start one agent.
+  Future<SlaveRegisteredMessage> agentRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.hostname = "host";
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), flags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentRegisteredMessage);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
+  ASSERT_EQ(v1Response.get().get_agents().agents_size(), 1);
+
+  const v1::master::Response::GetAgents::Agent& v1Agent =
+      v1Response.get().get_agents().agents(0);
+
+  ASSERT_EQ("host", v1Agent.agent_info().hostname());
+  ASSERT_EQ(agent.get()->pid, v1Agent.pid());
+  ASSERT_TRUE(v1Agent.active());
+  ASSERT_EQ("1.0.0", v1Agent.version());
+  ASSERT_EQ(4, v1Agent.total_resources_size());
+}
+
+
 TEST_P(MasterAPITest, GetFlags)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
