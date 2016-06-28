@@ -49,27 +49,6 @@ pid_t launchTaskPosix(
     Option<string>& sandboxDirectory,
     Option<string>& workingDirectory)
 {
-  // TODO(benh): Clean this up with the new 'Fork' abstraction.
-  // Use pipes to determine which child has successfully changed
-  // session. This is needed as the setsid call can fail from other
-  // processes having the same group id.
-  int _pipes[2];
-
-  Try<Nothing> pipes = os::pipe(_pipes);
-  if (pipes.isError()) {
-    ABORT("Failed to create pipe: " + pipes.error());
-  }
-  // Set the FD_CLOEXEC flags on these pipes.
-  Try<Nothing> cloexec = os::cloexec(_pipes[0]);
-  if (cloexec.isError()) {
-    ABORT("Failed to cloexec(pipe[0]): " + cloexec.error());
-  }
-
-  cloexec = os::cloexec(_pipes[1]);
-  if (cloexec.isError()) {
-    ABORT("Failed to cloexec(pipe[1]): " + cloexec.error());
-  }
-
   if (rootfs.isSome()) {
     // The command executor is responsible for chrooting into the
     // root filesystem and changing the user before exec-ing the
@@ -117,31 +96,12 @@ pid_t launchTaskPosix(
   if (pid == 0) {
     // In child process, we make cleanup easier by putting process
     // into it's own session.
-    os::close(_pipes[0]);
-
-    // NOTE: We setsid() in a loop because setsid() might fail if another
-    // process has the same process group id as the calling process.
-    while ((pid = setsid()) == -1) {
-      perror("Could not put command in its own session, setsid");
-
-      cout << "Forking another process and retrying" << endl;
-
-      if ((pid = fork()) == -1) {
-        ABORT("Failed to fork to launch command: " + os::strerror(errno));
-      }
-
-      if (pid > 0) {
-        // In parent process. It is ok to suicide here, because
-        // we're not watching this process.
-        exit(0);
-      }
+    // NOTE: POSIX guarantees a forked child's pid does not match any
+    // existing process group id so only a single `setsid()` is
+    // required and the session id will be the pid.
+    if (::setsid() == -1) {
+      ABORT("Failed to put child in a new session: " + os::strerror(errno));
     }
-
-    if (write(_pipes[1], &pid, sizeof(pid)) != sizeof(pid)) {
-      ABORT("Failed to write PID on pipe: " + os::strerror(errno));
-    }
-
-    os::close(_pipes[1]);
 
     if (rootfs.isSome()) {
       // NOTE: we need to put change user, chdir logics in command
@@ -258,16 +218,6 @@ pid_t launchTaskPosix(
 
     ABORT("Failed to exec: " + os::strerror(errno));
   }
-
-  // In parent process.
-  os::close(_pipes[1]);
-
-  // Get the child's pid via the pipe.
-  if (read(_pipes[0], &pid, sizeof(pid)) == -1) {
-    ABORT("Failed to get child PID from pipe, read: " + os::strerror(errno));
-  }
-
-  os::close(_pipes[0]);
 
   return pid;
 }
