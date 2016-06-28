@@ -547,10 +547,7 @@ string Slave::Http::FLAGS_HELP()
   return HELP(
     TLDR("Exposes the agent's flag configuration."),
     None(),
-    AUTHENTICATION(true),
-    AUTHORIZATION(
-        "The request principal should be authorized to query this endpoint.",
-        "See the authorization documentation for details."));
+    AUTHENTICATION(true));
 }
 
 
@@ -564,21 +561,7 @@ Future<Response> Slave::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  Try<string> endpoint = extractEndpoint(request.url);
-  if (endpoint.isError()) {
-    return Failure("Failed to extract endpoint: " + endpoint.error());
-  }
-
-  return authorizeEndpoint(principal, endpoint.get(), request.method)
-    .then(defer(
-        slave->self(),
-        [this, request](bool authorized) -> Future<Response> {
-          if (!authorized) {
-            return Forbidden();
-          }
-
-          return OK(_flags(), request.url.query.get("jsonp"));
-        }));
+  return OK(_flags(), request.url.query.get("jsonp"));
 }
 
 

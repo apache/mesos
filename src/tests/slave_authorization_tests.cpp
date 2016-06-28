@@ -75,96 +75,6 @@ typedef ::testing::Types<
 TYPED_TEST_CASE(SlaveAuthorizerTest, AuthorizerTypes);
 
 
-// This test verifies that only authorized principals
-// can access the '/flags' endpoint.
-TYPED_TEST(SlaveAuthorizerTest, AuthorizeFlagsEndpoint)
-{
-  const string endpoint = "flags";
-
-  // Setup ACLs so that only the default principal
-  // can access the '/flags' endpoint.
-  ACLs acls;
-  acls.set_permissive(false);
-
-  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
-  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_paths()->add_values("/" + endpoint);
-
-  // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-  ASSERT_SOME(create);
-  Owned<Authorizer> authorizer(create.get());
-
-  StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> agent =
-    this->StartSlave(&detector, authorizer.get());
-  ASSERT_SOME(agent);
-
-  Future<Response> response = http::get(
-      agent.get()->pid,
-      endpoint,
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
-
-  response = http::get(
-      agent.get()->pid,
-      endpoint,
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
-}
-
-
-// This test verifies that access to the '/flags' endpoint can be authorized
-// without authentication if an authorization rule exists that applies to
-// anyone. The authorizer will map the absence of a principal to "ANY".
-TYPED_TEST(SlaveAuthorizerTest, AuthorizeFlagsEndpointWithoutPrincipal)
-{
-  const string endpoint = "flags";
-
-  // Because the authenticators' lifetime is tied to libprocess's lifetime,
-  // it may already be set by other tests. We have to unset it here to disable
-  // HTTP authentication.
-  // TODO(nfnt): Fix this behavior. The authenticator should be unset by
-  // every test case that sets it, similar to how it's done for the master.
-  http::authentication::unsetAuthenticator(
-      slave::DEFAULT_HTTP_AUTHENTICATION_REALM);
-
-  // Setup ACLs so that any principal can access the '/flags' endpoint.
-  ACLs acls;
-  acls.set_permissive(false);
-
-  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
-  acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  acl->mutable_paths()->add_values("/" + endpoint);
-
-  slave::Flags agentFlags = this->CreateSlaveFlags();
-  agentFlags.acls = acls;
-  agentFlags.authenticate_http = false;
-  agentFlags.http_credentials = None();
-
-  // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-  ASSERT_SOME(create);
-  Owned<Authorizer> authorizer(create.get());
-
-  StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> agent = this->StartSlave(
-      &detector, authorizer.get(), agentFlags);
-  ASSERT_SOME(agent);
-
-  Future<Response> response = http::get(agent.get()->pid, endpoint);
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
-}
-
-
 // This test verifies that authorization based endpoint filtering
 // works correctly on the /state endpoint.
 // Both default users are allowed to to view high level frameworks, but only
@@ -374,7 +284,6 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         "monitor/statistics",
         "monitor/statistics.json",
-        "flags",
         "containers"));
 
 
