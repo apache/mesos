@@ -130,6 +130,9 @@ Option<Error> validate(
       return None();
 
     case mesos::master::Call::UPDATE_WEIGHTS:
+      if (!call.has_update_weights()) {
+        return Error("Expecting 'update_weights' to be present");
+      }
       return None();
 
     case mesos::master::Call::GET_LEADING_MASTER:

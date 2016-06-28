@@ -1120,6 +1120,11 @@ private:
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> update(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
   private:
     process::Future<bool> authorizeGetWeight(
         const Option<std::string>& principal,

@@ -183,6 +183,18 @@ Future<http::Response> Master::WeightsHandler::update(
 }
 
 
+Future<http::Response> Master::WeightsHandler::update(
+    const mesos::master::Call& call,
+    const Option<std::string>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::UPDATE_WEIGHTS, call.type());
+  CHECK(call.has_update_weights());
+
+  return _updateWeights(principal, call.update_weights().weight_infos());
+}
+
+
 Future<http::Response> Master::WeightsHandler::_updateWeights(
     const Option<string>& principal,
     const RepeatedPtrField<WeightInfo>& weightInfos) const {

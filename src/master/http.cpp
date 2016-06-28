@@ -556,7 +556,7 @@ Future<Response> Master::Http::api(
       return weightsHandler.get(call, principal, acceptType);
 
     case mesos::master::Call::UPDATE_WEIGHTS:
-      return NotImplemented();
+      return weightsHandler.update(call, principal, acceptType);
 
     case mesos::master::Call::GET_LEADING_MASTER:
       return getLeadingMaster(call, principal, acceptType);

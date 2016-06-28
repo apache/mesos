@@ -1569,6 +1569,64 @@ TEST_P(MasterAPITest, GetWeights)
 }
 
 
+TEST_P(MasterAPITest, UpdateWeights)
+{
+  // Start a master with `--weights` flag.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.weights = "role=2.0";
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  v1::master::Call getCall, updateCall;
+  getCall.set_type(v1::master::Call::GET_WEIGHTS);
+  updateCall.set_type(v1::master::Call::UPDATE_WEIGHTS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> getResponse =
+    post(master.get()->pid, getCall, contentType);
+
+  AWAIT_READY(getResponse);
+  ASSERT_TRUE(getResponse->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_WEIGHTS, getResponse->type());
+  ASSERT_EQ(1, getResponse->get_weights().weight_infos_size());
+  ASSERT_EQ("role", getResponse->get_weights().weight_infos().Get(0).role());
+  ASSERT_EQ(2.0, getResponse->get_weights().weight_infos().Get(0).weight());
+
+  v1::WeightInfo* weightInfo =
+    updateCall.mutable_update_weights()->add_weight_infos();
+  weightInfo->set_role("role");
+  weightInfo->set_weight(4.0);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<Nothing> updateResponse = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, updateCall),
+      stringify(contentType))
+    .then([contentType](const Response& response) -> Future<Nothing> {
+      if (response.status != OK().status) {
+        return Failure("Unexpected response status " + response.status);
+      }
+      return Nothing();
+    });
+
+  AWAIT_READY(updateResponse);
+
+  getResponse = post(master.get()->pid, getCall, contentType);
+
+  AWAIT_READY(getResponse);
+  ASSERT_TRUE(getResponse->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_WEIGHTS, getResponse->type());
+  ASSERT_EQ(1, getResponse->get_weights().weight_infos_size());
+  ASSERT_EQ("role", getResponse->get_weights().weight_infos().Get(0).role());
+  ASSERT_EQ(4.0, getResponse->get_weights().weight_infos().Get(0).weight());
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>
