@@ -352,6 +352,7 @@ message Response {
     required maintenance.Schedule schedule = 1;
   }
 
+  // Contains the cluster's configured quotas.
   message GetQuota {
     required quota.QuotaStatus status = 1;
   }

@@ -206,6 +206,25 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
 
 
 Future<http::Response> Master::QuotaHandler::status(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_QUOTA, call.type());
+
+  return _status(principal)
+    .then([contentType](const QuotaStatus& status) -> Future<http::Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_QUOTA);
+      response.mutable_get_quota()->mutable_status()->CopyFrom(status);
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
+}
+
+
+Future<http::Response> Master::QuotaHandler::status(
     const http::Request& request,
     const Option<string>& principal) const
 {
@@ -214,6 +233,16 @@ Future<http::Response> Master::QuotaHandler::status(
   // Check that the request type is GET which is guaranteed by the master.
   CHECK_EQ("GET", request.method);
 
+  return _status(principal)
+    .then([request](const QuotaStatus& status) -> Future<http::Response> {
+      return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
+    });
+}
+
+
+Future<QuotaStatus> Master::QuotaHandler::_status(
+    const Option<string>& principal) const
+{
   // Quotas can be updated during preparation of the response.
   // Copy current view of the collection to avoid conflicts.
   vector<QuotaInfo> quotaInfos;
@@ -235,36 +264,27 @@ Future<http::Response> Master::QuotaHandler::status(
     .then(defer(
         master->self(),
         [=](const list<bool>& authorizedRolesCollected)
-            -> Future<http::Response> {
-      return _status(request, quotaInfos, authorizedRolesCollected);
+            -> Future<QuotaStatus> {
+      CHECK(quotaInfos.size() == authorizedRolesCollected.size());
+
+      QuotaStatus status;
+      status.mutable_infos()->Reserve(static_cast<int>(quotaInfos.size()));
+
+      // Create an entry (including role and resources) for each quota,
+      // except those filtered out based on the authorizer's response.
+      //
+      // NOTE: This error-prone code will be removed with
+      // the introduction of authorization filters.
+      auto quotaInfoIt = quotaInfos.begin();
+      foreach (const bool& authorized, authorizedRolesCollected) {
+        if (authorized) {
+          status.add_infos()->CopyFrom(*quotaInfoIt);
+        }
+      ++quotaInfoIt;
+      }
+
+      return status;
     }));
-}
-
-
-Future<http::Response> Master::QuotaHandler::_status(
-    const http::Request& request,
-    const vector<QuotaInfo>& quotaInfos,
-    const list<bool>& authorizedRoles) const
-{
-  CHECK(quotaInfos.size() == authorizedRoles.size());
-
-  QuotaStatus status;
-  status.mutable_infos()->Reserve(static_cast<int>(quotaInfos.size()));
-
-  // Create an entry (including role and resources) for each quota,
-  // except those filtered out based on the authorizer's response.
-  //
-  // NOTE: This error-prone code will be removed with
-  // the introduction of authorization filters.
-  auto quotaInfoIt = quotaInfos.begin();
-  foreach (const bool& authorized, authorizedRoles) {
-    if (authorized) {
-      status.add_infos()->CopyFrom(*quotaInfoIt);
-    }
-    ++quotaInfoIt;
-  }
-
-  return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
 }
 
 

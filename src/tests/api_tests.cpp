@@ -1169,6 +1169,60 @@ TEST_P(MasterAPITest, Subscribe)
 }
 
 
+// This test verifies if we can retrieve the current quota status through
+// `GET_QUOTA` call, after we set quota resources through `SET_QUOTA` call.
+TEST_P(MasterAPITest, GetQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::Resources quotaResources =
+    v1::Resources::parse("cpus:1;mem:512").get();
+
+  ContentType contentType = GetParam();
+
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::SET_QUOTA);
+
+    v1::quota::QuotaRequest* quotaRequest =
+      v1Call.mutable_set_quota()->mutable_quota_request();
+
+    // Use the force flag for setting quota that cannot be satisfied in
+    // this empty cluster without any agents.
+    quotaRequest->set_force(true);
+    quotaRequest->set_role("role1");
+    quotaRequest->mutable_guarantee()->CopyFrom(quotaResources);
+
+    // Send a quota request for the specified role.
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // Verify the quota is set using the `GET_QUOTA` call.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_QUOTA);
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_QUOTA, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_quota().status().infos().size());
+    EXPECT_EQ(quotaResources,
+              v1Response->get_quota().status().infos(0).guarantee());
+  }
+}
+
+
 TEST_P(MasterAPITest, SetQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

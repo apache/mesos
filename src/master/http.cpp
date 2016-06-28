@@ -589,7 +589,7 @@ Future<Response> Master::Http::api(
       return stopMaintenance(call, principal, acceptType);
 
     case mesos::master::Call::GET_QUOTA:
-      return NotImplemented();
+      return quotaHandler.status(call, principal, acceptType);
 
     case mesos::master::Call::SET_QUOTA:
       return quotaHandler.set(call, principal);
