@@ -133,7 +133,7 @@ ACTION_P(InvokeUpdateAllocation, allocator)
 }
 
 
-ACTION_P(InvokeUpdateResources, allocator)
+ACTION_P(InvokeUpdateAvailable, allocator)
 {
   return allocator->real->updateAvailable(arg0, arg1);
 }
@@ -305,7 +305,7 @@ public:
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, updateAvailable(_, _))
-      .WillByDefault(InvokeUpdateResources(this));
+      .WillByDefault(InvokeUpdateAvailable(this));
     EXPECT_CALL(*this, updateAvailable(_, _))
       .WillRepeatedly(DoDefault());
 
