@@ -53,6 +53,7 @@ using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
+using process::defer;
 using process::Failure;
 using process::Future;
 using process::PID;
@@ -74,12 +75,12 @@ static constexpr unsigned int NVIDIA_MAJOR_DEVICE = 195;
 NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
-    const list<Gpu>& gpus,
+    const NvidiaGpuAllocator& _allocator,
     const cgroups::devices::Entry& uvmDeviceEntry,
     const cgroups::devices::Entry& ctlDeviceEntry)
   : flags(_flags),
     hierarchy(_hierarchy),
-    available(gpus),
+    allocator(_allocator),
     NVIDIA_CTL_DEVICE_ENTRY(ctlDeviceEntry),
     NVIDIA_UVM_DEVICE_ENTRY(uvmDeviceEntry) {}
 
@@ -107,55 +108,24 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
                  " in the --isolation flag");
   }
 
-  // Initialize NVML.
-  Try<Nothing> initialize = nvml::initialize();
-  if (initialize.isError()) {
-    return Error("Failed to initialize nvml: " + initialize.error());
-  }
-
-  // Grab the full list of resources computed for this containerizer
-  // and filter it down to just the GPU resources.
+  // Create the allocator.
   //
-  // TODO(klueska): Calling into the containerizer helper here is
-  // a hack. Consider passing the resources directly into `create`.
-  Try<Resources> resources = Containerizer::resources(flags);
+  // TODO(klueska): We need to share the allocator
+  // with the docker containerizer.
+  Try<Resources> resources =
+    NvidiaGpuAllocator::resources(flags);
+
   if (resources.isError()) {
-    return Error(resources.error());
+    return Error("Failed to NvidiaGpuAllocator::resources: " +
+                 resources.error());
   }
 
-  // Figure out the list of GPUs to make available by their index.
-  vector<unsigned int> indices;
+  Try<NvidiaGpuAllocator> allocator =
+    NvidiaGpuAllocator::create(flags, resources.get());
 
-  if (flags.nvidia_gpu_devices.isSome()) {
-    indices = flags.nvidia_gpu_devices.get();
-  } else if (resources->gpus().isSome()) {
-    for (unsigned int i = 0; i < resources->gpus().get(); ++i) {
-      indices.push_back(i);
-    }
-  }
-
-  // Build the list of available GPUs using the ids computed above.
-  list<Gpu> gpus;
-
-  foreach (unsigned int index, indices) {
-    Try<nvmlDevice_t> handle = nvml::deviceGetHandleByIndex(index);
-    if (handle.isError()) {
-      return Error("Failed to obtain Nvidia device handle for"
-                   " index " + stringify(index) + ": " + handle.error());
-    }
-
-    Try<unsigned int> minor = nvml::deviceGetMinorNumber(handle.get());
-    if (minor.isError()) {
-      return Error("Failed to obtain Nvidia device minor number: " +
-                   minor.error());
-    }
-
-    Gpu gpu;
-    gpu.handle = handle.get();
-    gpu.major = NVIDIA_MAJOR_DEVICE;
-    gpu.minor = minor.get();
-
-    gpus.push_back(gpu);
+  if (allocator.isError()) {
+    return Error("Failed to NvidiaGpuAllocator::create: " +
+                 allocator.error());
   }
 
   // Retrieve the cgroups devices hierarchy.
@@ -201,7 +171,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
       new NvidiaGpuIsolatorProcess(
           flags,
           hierarchy.get(),
-          gpus,
+          allocator.get(),
           ctlDeviceEntry,
           uvmDeviceEntry));
 
@@ -213,6 +183,8 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  list<Future<Nothing>> futures;
+
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
@@ -247,19 +219,27 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
                      " '" + cgroup + "': " + entries.error());
     }
 
+    const set<Gpu>& available = allocator.total();
+
+    set<Gpu> containerGpus;
     foreach (const cgroups::devices::Entry& entry, entries.get()) {
-      for (auto gpu = available.begin(); gpu != available.end(); ++gpu) {
-        if (entry.selector.major == gpu->major &&
-            entry.selector.minor == gpu->minor) {
-          infos[containerId]->allocated.push_back(*gpu);
-          available.erase(gpu);
+      foreach (const Gpu& gpu, available) {
+        if (entry.selector.major == gpu.major &&
+            entry.selector.minor == gpu.minor) {
+          containerGpus.insert(gpu);
           break;
         }
       }
     }
+
+    futures.push_back(allocator.allocate(containerGpus)
+      .then(defer(self(), [=]() -> Future<Nothing> {
+        infos[containerId]->allocated = containerGpus;
+        return Nothing();
+      })));
   }
 
-  return Nothing();
+  return collect(futures).then([]() { return Nothing(); });
 }
 
 
@@ -325,43 +305,23 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
   if (requested > info->allocated.size()) {
     size_t additional = requested - info->allocated.size();
 
-    if (additional > available.size()) {
-      return Failure("Not enough GPUs available to reserve"
-                     " " + stringify(additional) + " additional GPUs");
-    }
-
-    for (size_t i = 0; i < additional; i++) {
-      const Gpu& gpu = available.front();
-
-      cgroups::devices::Entry entry;
-      entry.selector.type = Entry::Selector::Type::CHARACTER;
-      entry.selector.major = gpu.major;
-      entry.selector.minor = gpu.minor;
-      entry.access.read = true;
-      entry.access.write = true;
-      entry.access.mknod = true;
-
-      Try<Nothing> allow = cgroups::devices::allow(
-          hierarchy, info->cgroup, entry);
-
-      if (allow.isError()) {
-        return Failure("Failed to grant cgroups access to GPU device"
-                       " '" + stringify(entry) + "': " + allow.error());
-      }
-
-      info->allocated.push_back(gpu);
-      available.pop_front();
-    }
+    return allocator.allocate(additional)
+      .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
+                  &NvidiaGpuIsolatorProcess::_update,
+                  containerId,
+                  lambda::_1));
   } else if (requested < info->allocated.size()) {
     size_t fewer = info->allocated.size() - requested;
 
+    set<Gpu> deallocated;
+
     for (size_t i = 0; i < fewer; i++) {
-      const Gpu& gpu = info->allocated.front();
+      const auto gpu = info->allocated.begin();
 
       cgroups::devices::Entry entry;
       entry.selector.type = Entry::Selector::Type::CHARACTER;
-      entry.selector.major = gpu.major;
-      entry.selector.minor = gpu.minor;
+      entry.selector.major = gpu->major;
+      entry.selector.minor = gpu->minor;
       entry.access.read = true;
       entry.access.write = true;
       entry.access.mknod = true;
@@ -374,10 +334,46 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
                        " '" + stringify(entry) + "': " + deny.error());
       }
 
-      info->allocated.pop_front();
-      available.push_back(gpu);
+      deallocated.insert(*gpu);
+      info->allocated.erase(gpu);
+    }
+
+    return allocator.deallocate(deallocated);
+  }
+
+  return Nothing();
+}
+
+
+Future<Nothing> NvidiaGpuIsolatorProcess::_update(
+    const ContainerID& containerId,
+    const set<Gpu>& allocation)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Failed to complete GPU allocation: unknown container");
+  }
+
+  Info* info = CHECK_NOTNULL(infos.at(containerId));
+
+  foreach (const Gpu& gpu, allocation) {
+    cgroups::devices::Entry entry;
+    entry.selector.type = Entry::Selector::Type::CHARACTER;
+    entry.selector.major = gpu.major;
+    entry.selector.minor = gpu.minor;
+    entry.access.read = true;
+    entry.access.write = true;
+    entry.access.mknod = true;
+
+    Try<Nothing> allow = cgroups::devices::allow(
+        hierarchy, info->cgroup, entry);
+
+    if (allow.isError()) {
+      return Failure("Failed to grant cgroups access to GPU device"
+                     " '" + stringify(entry) + "': " + allow.error());
     }
   }
+
+  info->allocated = allocation;
 
   return Nothing();
 }
@@ -407,15 +403,17 @@ Future<Nothing> NvidiaGpuIsolatorProcess::cleanup(
     return Nothing();
   }
 
-  Info* info = CHECK_NOTNULL(infos[containerId]);
+  Info* info = CHECK_NOTNULL(infos.at(containerId));
 
   // Make any remaining GPUs available.
-  available.splice(available.end(), info->allocated);
+  return allocator.deallocate(info->allocated)
+    .then(defer(self(), [=]() -> Future<Nothing> {
+      CHECK(infos.contains(containerId));
+      delete infos.at(containerId);
+      infos.erase(containerId);
 
-  delete info;
-  infos.erase(containerId);
-
-  return Nothing();
+      return Nothing();
+    }));
 }
 
 } // namespace slave {

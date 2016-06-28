@@ -18,8 +18,7 @@
 #define __NVIDIA_GPU_ISOLATOR_HPP__
 
 #include <list>
-
-#include <nvidia/gdk/nvml.h>
+#include <set>
 
 #include <process/future.hpp>
 
@@ -32,6 +31,8 @@
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
+
+#include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
 
 namespace mesos {
 namespace internal {
@@ -96,14 +97,16 @@ public:
       const ContainerID& containerId);
 
 private:
-  // TODO(klueska): Consider exposing this as a generic
-  // device type in a library (possibly cgroups or stout?).
-  struct Gpu
-  {
-    nvmlDevice_t handle;
-    unsigned int major;
-    unsigned int minor;
-  };
+  NvidiaGpuIsolatorProcess(
+      const Flags& _flags,
+      const std::string& hierarchy,
+      const NvidiaGpuAllocator& _allocator,
+      const cgroups::devices::Entry& ctlDeviceEntry,
+      const cgroups::devices::Entry& uvmDeviceEntry);
+
+  process::Future<Nothing> _update(
+      const ContainerID& containerId,
+      const std::set<Gpu>& allocation);
 
   struct Info
   {
@@ -112,15 +115,8 @@ private:
 
     const ContainerID containerId;
     const std::string cgroup;
-    std::list<Gpu> allocated;
+    std::set<Gpu> allocated;
   };
-
-  NvidiaGpuIsolatorProcess(
-      const Flags& _flags,
-      const std::string& hierarchy,
-      const std::list<Gpu>& gpus,
-      const cgroups::devices::Entry& ctlDeviceEntry,
-      const cgroups::devices::Entry& uvmDeviceEntry);
 
   const Flags flags;
 
@@ -130,7 +126,7 @@ private:
   // TODO(bmahler): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;
 
-  std::list<Gpu> available;
+  NvidiaGpuAllocator allocator;
 
   const cgroups::devices::Entry NVIDIA_CTL_DEVICE_ENTRY;
   const cgroups::devices::Entry NVIDIA_UVM_DEVICE_ENTRY;
