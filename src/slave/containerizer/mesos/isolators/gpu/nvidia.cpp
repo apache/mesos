@@ -100,7 +100,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
 
   if (devicesIsolator == tokens.end()) {
     return Error("The 'cgroups/devices' isolator must be enabled in"
-                 " order to use the gpu/devices isolator");
+                 " order to use the 'gpu/nvidia' isolator");
   }
 
   if (devicesIsolator > gpuIsolator) {
