@@ -32,7 +32,6 @@ pid_t launchTaskPosix(
     const mesos::v1::CommandInfo& command,
     const Option<std::string>& user,
     char** argv,
-    Option<char**>& override,
     Option<std::string>& rootfs,
     Option<std::string>& sandboxDirectory,
     Option<std::string>& workingDirectory);

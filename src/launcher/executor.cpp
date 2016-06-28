@@ -124,7 +124,6 @@ class CommandExecutor: public ProtobufProcess<CommandExecutor>
 {
 public:
   CommandExecutor(
-      const Option<char**>& _override,
       const string& _healthCheckDir,
       const Option<string>& _rootfs,
       const Option<string>& _sandboxDirectory,
@@ -145,7 +144,6 @@ public:
       frameworkInfo(None()),
       taskId(None()),
       healthCheckDir(_healthCheckDir),
-      override(_override),
       rootfs(_rootfs),
       sandboxDirectory(_sandboxDirectory),
       workingDirectory(_workingDirectory),
@@ -362,26 +360,23 @@ protected:
     } else if (task->has_command()) {
       command = task->command();
     } else {
-      CHECK_SOME(override)
-        << "Expecting task '" << task->task_id()
-        << "' to have a command!";
+      LOG(FATAL) << "Expecting task '" << task->task_id() << "' "
+                 << "to have a command";
     }
 
-    if (override.isNone()) {
-      // TODO(jieyu): For now, we just fail the executor if the task's
-      // CommandInfo is not valid. The framework will receive
-      // TASK_FAILED for the task, and will most likely find out the
-      // cause with some debugging. This is a temporary solution. A more
-      // correct solution is to perform this validation at master side.
-      if (command.shell()) {
-        CHECK(command.has_value())
-          << "Shell command of task '" << task->task_id()
-          << "' is not specified!";
-      } else {
-        CHECK(command.has_value())
-          << "Executable of task '" << task->task_id()
-          << "' is not specified!";
-      }
+    // TODO(jieyu): For now, we just fail the executor if the task's
+    // CommandInfo is not valid. The framework will receive
+    // TASK_FAILED for the task, and will most likely find out the
+    // cause with some debugging. This is a temporary solution. A more
+    // correct solution is to perform this validation at master side.
+    if (command.shell()) {
+      CHECK(command.has_value())
+        << "Shell command of task '" << task->task_id()
+        << "' is not specified!";
+    } else {
+      CHECK(command.has_value())
+        << "Executable of task '" << task->task_id()
+        << "' is not specified!";
     }
 
     cout << "Starting task " << task->task_id() << endl;
@@ -399,7 +394,6 @@ protected:
         command,
         user,
         argv,
-        override,
         rootfs,
         sandboxDirectory,
         workingDirectory);
@@ -411,7 +405,6 @@ protected:
         task.get(),
         command,
         argv,
-        override,
         rootfs);
 
     pid = processInformation.dwProcessId;
@@ -785,7 +778,6 @@ private:
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
   string healthCheckDir;
-  Option<char**> override;
   Option<string> rootfs;
   Option<string> sandboxDirectory;
   Option<string> workingDirectory;
@@ -808,16 +800,6 @@ class Flags : public flags::FlagsBase
 public:
   Flags()
   {
-    // TODO(gilbert): Deprecate the 'override' flag since no one is
-    // using it, and it may cause confusing with 'task_command' flag.
-    add(&override,
-        "override",
-        "Whether to override the command the executor should run when the\n"
-        "task is launched. Only this flag is expected to be on the command\n"
-        "line and all arguments after the flag will be used as the\n"
-        "subsequent 'argv' to be used with 'execvp'",
-        false);
-
     add(&rootfs,
         "rootfs",
         "The path to the root filesystem for the task");
@@ -846,7 +828,6 @@ public:
     // 'sh -c' with user specified wrapper.
   }
 
-  bool override;
   Option<string> rootfs;
   Option<string> sandbox_directory;
   Option<string> working_directory;
@@ -881,18 +862,6 @@ int main(int argc, char** argv)
   // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
-  }
-
-  // After flags.load(..., &argc, &argv) all flags will have been
-  // stripped from argv. Additionally, arguments after a "--"
-  // terminator will be preservered in argv and it is therefore
-  // possible to pass override and prefix commands which use
-  // "--foobar" style flags.
-  Option<char**> override = None();
-  if (flags.override) {
-    if (argc > 1) {
-      override = argv + 1;
-    }
   }
 
   const Option<string> envPath = os::getenv("MESOS_LAUNCHER_DIR");
@@ -936,7 +905,6 @@ int main(int argc, char** argv)
 
   Owned<mesos::v1::internal::CommandExecutor> executor(
       new mesos::v1::internal::CommandExecutor(
-          override,
           path,
           flags.rootfs,
           flags.sandbox_directory,

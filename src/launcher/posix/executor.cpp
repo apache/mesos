@@ -44,7 +44,6 @@ pid_t launchTaskPosix(
     const mesos::v1::CommandInfo& command,
     const Option<string>& user,
     char** argv,
-    Option<char**>& override,
     Option<string>& rootfs,
     Option<string>& sandboxDirectory,
     Option<string>& workingDirectory)
@@ -69,21 +68,18 @@ pid_t launchTaskPosix(
 
   // Prepare the command log message.
   string commandString;
-  if (override.isSome()) {
-    char** argv = override.get();
-    // argv is guaranteed to be nullptr terminated and we rely on
-    // that fact to print command to be executed.
-    for (int i = 0; argv[i] != nullptr; i++) {
-      commandString += string(argv[i]) + " ";
-    }
-  } else if (command.shell()) {
-    commandString = string(os::Shell::arg0) + " " +
-      string(os::Shell::arg1) + " '" +
-      command.value() + "'";
+
+  if (command.shell()) {
+    commandString = strings::format(
+        "%s %s '%s'",
+        os::Shell::arg0,
+        os::Shell::arg1,
+        command.value()).get();
   } else {
-    commandString =
-      "[" + command.value() + ", " +
-      strings::join(", ", command.arguments()) + "]";
+    commandString = strings::format(
+        "[%s, %s]",
+        command.value(),
+        strings::join(", ", command.arguments())).get();
   }
 
   pid_t pid;
@@ -200,19 +196,14 @@ pid_t launchTaskPosix(
     cout << commandString << endl;
 
     // The child has successfully setsid, now run the command.
-    if (override.isNone()) {
-      if (command.shell()) {
-        execlp(os::Shell::name,
-               os::Shell::arg0,
-               os::Shell::arg1,
-               command.value().c_str(),
-               (char*) nullptr);
-      } else {
-        execvp(command.value().c_str(), argv);
-      }
+    if (command.shell()) {
+      execlp(os::Shell::name,
+             os::Shell::arg0,
+             os::Shell::arg1,
+             command.value().c_str(),
+             (char*) nullptr);
     } else {
-      char** argv = override.get();
-      execvp(argv[0], argv);
+      execvp(command.value().c_str(), argv);
     }
 
     ABORT("Failed to exec: " + os::strerror(errno));

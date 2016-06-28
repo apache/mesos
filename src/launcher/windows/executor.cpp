@@ -37,7 +37,6 @@ PROCESS_INFORMATION launchTaskWindows(
     const TaskInfo& task,
     const CommandInfo& command,
     char** argv,
-    Option<char**>& override,
     Option<string>& rootfs)
 {
   PROCESS_INFORMATION processInfo;
@@ -50,31 +49,26 @@ PROCESS_INFORMATION launchTaskWindows(
   string executable;
   string commandLine = command.value();
 
-  if (override.isNone()) {
-    if (command.shell()) {
-      // Use Windows shell (`cmd.exe`). Look for it in the system folder.
-      char systemDir[MAX_PATH];
-      if (!::GetSystemDirectory(systemDir, MAX_PATH)) {
-        // No way to recover from this, safe to exit the process.
-        abort();
-      }
-
-      executable = path::join(systemDir, os::Shell::name);
-
-      // `cmd.exe` needs to be used in conjunction with the `/c` parameter.
-      // For compliance with C-style applications, `cmd.exe` should be passed
-      // as `argv[0]`.
-      // TODO(alexnaparu): Quotes are probably needed after `/c`.
-      commandLine =
-        strings::join(" ", os::Shell::arg0, os::Shell::arg1, commandLine);
-    } else {
-      // Not a shell command, execute as-is.
-      executable = command.value();
-      commandLine = os::stringify_args(argv);
+  if (command.shell()) {
+    // Use Windows shell (`cmd.exe`). Look for it in the system folder.
+    char systemDir[MAX_PATH];
+    if (!::GetSystemDirectory(systemDir, MAX_PATH)) {
+      // No way to recover from this, safe to exit the process.
+      abort();
     }
+
+    executable = path::join(systemDir, os::Shell::name);
+
+    // `cmd.exe` needs to be used in conjunction with the `/c` parameter.
+    // For compliance with C-style applications, `cmd.exe` should be passed
+    // as `argv[0]`.
+    // TODO(alexnaparu): Quotes are probably needed after `/c`.
+    commandLine =
+      strings::join(" ", os::Shell::arg0, os::Shell::arg1, commandLine);
   } else {
-    // Convert all arguments to a single space-separated string.
-    commandLine = os::stringify_args(override.get());
+    // Not a shell command, execute as-is.
+    executable = command.value();
+    commandLine = os::stringify_args(argv);
   }
 
   cout << commandLine << endl;

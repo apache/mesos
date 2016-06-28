@@ -31,7 +31,6 @@ PROCESS_INFORMATION launchTaskWindows(
     const TaskInfo& task,
     const CommandInfo& command,
     char** argv,
-    Option<char**>& override,
     Option<std::string>& rootfs);
 
 } // namespace internal {
