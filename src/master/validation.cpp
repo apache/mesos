@@ -135,17 +135,35 @@ Option<Error> validate(
     case mesos::master::Call::GET_LEADING_MASTER:
       return None();
 
-    case mesos::master::Call::RESERVE_RESOURCES:
+    case mesos::master::Call::RESERVE_RESOURCES: {
       if (!call.has_reserve_resources()) {
         return Error("Expecting 'reserve_resources' to be present");
       }
-      return None();
 
-    case mesos::master::Call::UNRESERVE_RESOURCES:
+      Option<Error> error =
+        Resources::validate(call.reserve_resources().resources());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      return None();
+    }
+
+    case mesos::master::Call::UNRESERVE_RESOURCES: {
       if (!call.has_unreserve_resources()) {
         return Error("Expecting 'unreserve_resources' to be present");
       }
+
+      Option<Error> error =
+        Resources::validate(call.unreserve_resources().resources());
+
+      if (error.isSome()) {
+        return error;
+      }
+
       return None();
+    }
 
     case mesos::master::Call::CREATE_VOLUMES:
       if (!call.has_create_volumes()) {
