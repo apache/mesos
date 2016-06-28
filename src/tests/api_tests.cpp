@@ -212,6 +212,52 @@ TEST_P(MasterAPITest, GetFlags)
 }
 
 
+TEST_P(MasterAPITest, GetFrameworks)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_FRAMEWORKS);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response.get().type());
+
+  v1::master::Response::GetFrameworks frameworks =
+      v1Response.get().get_frameworks();
+
+  ASSERT_EQ(1, frameworks.frameworks_size());
+  ASSERT_EQ("default", frameworks.frameworks(0).framework_info().name());
+  ASSERT_EQ("*", frameworks.frameworks(0).framework_info().role());
+  ASSERT_FALSE(frameworks.frameworks(0).framework_info().checkpoint());
+  ASSERT_TRUE(frameworks.frameworks(0).active());
+  ASSERT_TRUE(frameworks.frameworks(0).connected());
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_P(MasterAPITest, GetHealth)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
