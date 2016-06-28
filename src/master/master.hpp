@@ -1100,7 +1100,7 @@ private:
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
-    process::Future<process::http::Response> getWeights(
+    process::Future<process::http::Response> get(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;

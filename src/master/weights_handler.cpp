@@ -77,7 +77,7 @@ Future<http::Response> Master::WeightsHandler::get(
 }
 
 
-Future<http::Response> Master::WeightsHandler::getWeights(
+Future<http::Response> Master::WeightsHandler::get(
     const mesos::master::Call& call,
     const Option<string>& principal,
     ContentType contentType) const
