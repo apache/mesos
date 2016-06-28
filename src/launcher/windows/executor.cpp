@@ -34,7 +34,6 @@ namespace v1 {
 namespace internal {
 
 PROCESS_INFORMATION launchTaskWindows(
-    const TaskInfo& task,
     const CommandInfo& command,
     char** argv,
     Option<string>& rootfs)

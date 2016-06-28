@@ -390,7 +390,6 @@ protected:
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
-        task.get(),
         command,
         user,
         argv,
@@ -402,7 +401,6 @@ protected:
     // and is part of a job object. While the process handle is kept
     // open the reap function will work.
     PROCESS_INFORMATION processInformation = launchTaskWindows(
-        task.get(),
         command,
         argv,
         rootfs);

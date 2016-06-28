@@ -28,7 +28,6 @@ namespace v1 {
 namespace internal {
 
 pid_t launchTaskPosix(
-    const mesos::v1::TaskInfo& task,
     const mesos::v1::CommandInfo& command,
     const Option<std::string>& user,
     char** argv,
