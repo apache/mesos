@@ -202,12 +202,11 @@ pid_t launchTaskPosix(
     // The child has successfully setsid, now run the command.
     if (override.isNone()) {
       if (command.shell()) {
-        execlp(
-                os::Shell::name,
-                os::Shell::arg0,
-                os::Shell::arg1,
-                command.value().c_str(),
-                (char*) nullptr);
+        execlp(os::Shell::name,
+               os::Shell::arg0,
+               os::Shell::arg1,
+               command.value().c_str(),
+               (char*) nullptr);
       } else {
         execvp(command.value().c_str(), argv);
       }
