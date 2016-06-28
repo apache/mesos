@@ -41,8 +41,17 @@ layout: community_section
     <b>Commits</b>: <a href="mailto:commits-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:commits-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/commits@mesos.apache.org/">Archives</a><br />
     <b>Modules</b>: <a href="mailto:modules-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:modules-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/modules@mesos.apache.org/">Archives</a><br /></p>
 
-    <h3 name="ircchannel">IRC Channel</h3>
-    <p>Developers and users chat in the #mesos channel on irc.freenode.net.</p>
+    <h3 name="slack">Slack</h3>
+    <p>Developers and users chat at <a href="https://mesos.slack.com">mesos.slack.com</a>.</p>
+
+    <p>To request an invite for slack please click <a href="https://mesos-slackin.herokuapp.com">here</a>.</p>
+
+    <p>All slack communication is publicly archived <a href="http://mesos.slackarchive.io">here</a>.</p>
+
+    <h3 name="ircchannel">IRC </h3>
+    <p> If you want to connect to our slack team through an IRC client please click <a href="https://my.slack.com/gateways">here</a> after signing up.</p>
+
+    <p>The slack channel is currently also mirrored at #mesos channel on irc.freenode.net.</p>
 
     <p>If you are new to IRC, you can use a <a href="http://webchat.freenode.net/?channels=#mesos">web-based client</a>.</p>
 
