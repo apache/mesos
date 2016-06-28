@@ -1136,7 +1136,12 @@ private:
     process::Future<std::vector<WeightInfo>> _getWeights(
         const Option<std::string>& principal) const;
 
-    process::Future<process::http::Response> _update(
+    process::Future<process::http::Response>_updateWeights(
+        const Option<std::string>& principal,
+        const google::protobuf::RepeatedPtrField<WeightInfo>& weightInfos)
+            const;
+
+    process::Future<process::http::Response> __updateWeights(
         const std::vector<WeightInfo>& updateWeightInfos) const;
 
     // Rescind all outstanding offers if any of the 'weightInfos' roles has

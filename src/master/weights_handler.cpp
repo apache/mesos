@@ -179,9 +179,17 @@ Future<http::Response> Master::WeightsHandler::update(
         request.body + "': " + weightInfos.error());
   }
 
+  return _updateWeights(principal, weightInfos.get());
+}
+
+
+Future<http::Response> Master::WeightsHandler::_updateWeights(
+    const Option<string>& principal,
+    const RepeatedPtrField<WeightInfo>& weightInfos) const {
   vector<WeightInfo> validatedWeightInfos;
   vector<string> roles;
-  foreach (WeightInfo& weightInfo, weightInfos.get()) {
+
+  foreach (WeightInfo weightInfo, weightInfos) {
     string role = strings::trim(weightInfo.role());
 
     Option<Error> roleError = roles::validate(role);
@@ -216,12 +224,12 @@ Future<http::Response> Master::WeightsHandler::update(
         return Forbidden();
       }
 
-      return _update(validatedWeightInfos);
+      return __updateWeights(validatedWeightInfos);
     }));
 }
 
 
-Future<http::Response> Master::WeightsHandler::_update(
+Future<http::Response> Master::WeightsHandler::__updateWeights(
     const vector<WeightInfo>& weightInfos) const
 {
   // Update the registry and acknowledge the request.
