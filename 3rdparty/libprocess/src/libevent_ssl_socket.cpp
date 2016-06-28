@@ -790,6 +790,9 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
   CHECK(bev == nullptr);
 
+  // NOTE: Accepted sockets are nonblocking by default in libevent, but
+  // can be set to block via the `LEV_OPT_LEAVE_SOCKETS_BLOCKING`
+  // flag for `evconnlistener_new`.
   listener = evconnlistener_new(
       base,
       [](evconnlistener* listener,
@@ -804,6 +807,24 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
               CHECK_NOTNULL(arg));
 
         std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
+
+        // NOTE: Passing the flag `LEV_OPT_CLOSE_ON_EXEC` into
+        // `evconnlistener_new` would atomically set `SOCK_CLOEXEC`
+        // on the accepted socket. However, this flag is not supported
+        // in the minimum recommended version of libevent (2.0.22).
+        Try<Nothing> cloexec = os::cloexec(socket);
+        if (cloexec.isError()) {
+          VLOG(2) << "Failed to accept, cloexec: " << cloexec.error();
+
+          // Propagate the error through the listener's `accept_queue`.
+          if (impl != nullptr) {
+            impl->accept_queue.put(
+                Failure("Failed to accept, cloexec: " + cloexec.error()));
+          }
+
+          os::close(socket);
+          return;
+        }
 
         if (impl != nullptr) {
           Try<net::IP> ip = net::IP::create(*addr);
