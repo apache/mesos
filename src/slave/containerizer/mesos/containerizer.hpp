@@ -38,6 +38,8 @@
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
+#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -53,7 +55,8 @@ public:
   static Try<MesosContainerizer*> create(
       const Flags& flags,
       bool local,
-      Fetcher* fetcher);
+      Fetcher* fetcher,
+      const Option<NvidiaComponents>& nvidia = None());
 
   MesosContainerizer(
       const Flags& flags,

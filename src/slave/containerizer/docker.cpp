@@ -131,7 +131,8 @@ Option<ContainerID> parse(const Docker::Container& container)
 
 Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
-    Fetcher* fetcher)
+    Fetcher* fetcher,
+    const Option<NvidiaComponents>& nvidia)
 {
   // Create and initialize the container logger module.
   Try<ContainerLogger*> logger =

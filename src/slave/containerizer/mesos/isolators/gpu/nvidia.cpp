@@ -81,7 +81,9 @@ NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     NVIDIA_UVM_DEVICE_ENTRY(uvmDeviceEntry) {}
 
 
-Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
+Try<Isolator*> NvidiaGpuIsolatorProcess::create(
+    const Flags& flags,
+    const NvidiaComponents& components)
 {
   // Make sure the 'cgroups/devices' isolator is present and
   // precedes the GPU isolator.
@@ -102,26 +104,6 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
   if (devicesIsolator > gpuIsolator) {
     return Error("'cgroups/devices' must precede 'gpu/nvidia'"
                  " in the --isolation flag");
-  }
-
-  // Create the allocator.
-  //
-  // TODO(klueska): We need to share the allocator
-  // with the docker containerizer.
-  Try<Resources> resources =
-    NvidiaGpuAllocator::resources(flags);
-
-  if (resources.isError()) {
-    return Error("Failed to NvidiaGpuAllocator::resources: " +
-                 resources.error());
-  }
-
-  Try<NvidiaGpuAllocator> allocator =
-    NvidiaGpuAllocator::create(flags, resources.get());
-
-  if (allocator.isError()) {
-    return Error("Failed to NvidiaGpuAllocator::create: " +
-                 allocator.error());
   }
 
   // Retrieve the cgroups devices hierarchy.
@@ -167,7 +149,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(const Flags& flags)
       new NvidiaGpuIsolatorProcess(
           flags,
           hierarchy.get(),
-          allocator.get(),
+          components.allocator,
           ctlDeviceEntry,
           uvmDeviceEntry));
 

@@ -96,7 +96,9 @@
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
 #endif // __linux__
+#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
@@ -146,7 +148,8 @@ const char MESOS_CONTAINERIZER[] = "mesos-containerizer.exe";
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
-    Fetcher* fetcher)
+    Fetcher* fetcher,
+    const Option<NvidiaComponents>& nvidia)
 {
   // Modify `flags` based on the deprecated `isolation` flag (and then
   // use `flags_` in the rest of this function).
@@ -311,7 +314,20 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
-    {"gpu/nvidia", &NvidiaGpuIsolatorProcess::create},
+
+    {"gpu/nvidia",
+      [&nvidia] (const Flags& flags) -> Try<Isolator*> {
+        if (!nvml::isAvailable()) {
+          return Error("Cannot create the Nvidia GPU isolator:"
+                       " NVML is not available");
+        }
+
+        CHECK_SOME(nvidia)
+          << "Nvidia components should be set when NVML is available";
+
+        return NvidiaGpuIsolatorProcess::create(flags, nvidia.get());
+      }},
+
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__

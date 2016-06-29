@@ -30,6 +30,8 @@
 
 #include "slave/containerizer/containerizer.hpp"
 
+#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -58,7 +60,8 @@ class DockerContainerizer : public Containerizer
 public:
   static Try<DockerContainerizer*> create(
       const Flags& flags,
-      Fetcher* fetcher);
+      Fetcher* fetcher,
+      const Option<NvidiaComponents>& nvidia = None());
 
   // This is only public for tests.
   DockerContainerizer(
