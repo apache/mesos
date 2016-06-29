@@ -94,11 +94,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #endif // __linux__
 
-#ifdef __linux__
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
-#include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
-#endif // __linux__
-#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"

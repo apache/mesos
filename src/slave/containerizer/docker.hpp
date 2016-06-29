@@ -30,7 +30,7 @@
 
 #include "slave/containerizer/containerizer.hpp"
 
-#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 
 namespace mesos {
 namespace internal {

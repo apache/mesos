@@ -37,8 +37,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
-#include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
-#include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 
 #include "tests/mesos.hpp"
 

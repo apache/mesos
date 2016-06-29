@@ -38,7 +38,7 @@
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
-#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 
 namespace mesos {
 namespace internal {

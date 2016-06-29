@@ -45,12 +45,7 @@
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #endif // __linux__
 
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
-#include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
-#endif // __linux__
-
-#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 
 using std::map;
 using std::set;
