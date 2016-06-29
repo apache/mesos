@@ -78,6 +78,7 @@ using recordio::Decoder;
 using testing::_;
 using testing::AtMost;
 using testing::DoAll;
+using testing::Eq;
 using testing::Return;
 using testing::WithParamInterface;
 
@@ -334,14 +335,12 @@ TEST_P(MasterAPITest, GetMetrics)
 }
 
 
-// This tests v1 API GetTasks when no task is present.
 TEST_P(MasterAPITest, GetTasksNoRunningTask)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   v1::master::Call v1Call;
-  v1Call.mutable_get_tasks();
   v1Call.set_type(v1::master::Call::GET_TASKS);
 
   ContentType contentType = GetParam();
@@ -352,11 +351,16 @@ TEST_P(MasterAPITest, GetTasksNoRunningTask)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
-  ASSERT_EQ(0, v1Response.get().get_tasks().tasks_size());
+
+  ASSERT_EQ(0, v1Response.get().get_tasks().pending_tasks().size());
+  ASSERT_EQ(0, v1Response.get().get_tasks().tasks().size());
+  ASSERT_EQ(0, v1Response.get().get_tasks().completed_tasks().size());
+  ASSERT_EQ(0, v1Response.get().get_tasks().orphan_tasks().size());
 }
 
 
-// This tests v1 API GetTasks with 1 running task.
+// This test verifies that the GetTasks v1 API call returns responses correctly
+// when the task transitions from being active to completed.
 TEST_P(MasterAPITest, GetTasks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -393,8 +397,9 @@ TEST_P(MasterAPITest, GetTasks)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
+  Future<ExecutorDriver*> execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+    .WillOnce(FutureArg<0>(&execDriver));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -405,28 +410,70 @@ TEST_P(MasterAPITest, GetTasks)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
+  AWAIT_READY(execDriver);
+
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
   EXPECT_TRUE(status.get().has_executor_id());
   EXPECT_EQ(exec.id, status.get().executor_id());
 
   v1::master::Call v1Call;
-  v1Call.mutable_get_tasks();
   v1Call.set_type(v1::master::Call::GET_TASKS);
 
   ContentType contentType = GetParam();
 
-  Future<v1::master::Response> v1Response =
-    post(master.get()->pid, v1Call, contentType);
+  {
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
 
-  AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
-  ASSERT_EQ(1, v1Response.get().get_tasks().tasks_size());
-  ASSERT_EQ(v1::TaskState::TASK_RUNNING,
-            v1Response.get().get_tasks().tasks(0).state());
-  ASSERT_EQ("test", v1Response.get().get_tasks().tasks(0).name());
-  ASSERT_EQ("1", v1Response.get().get_tasks().tasks(0).task_id().value());
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
+    ASSERT_EQ(1, v1Response.get().get_tasks().tasks().size());
+    ASSERT_EQ(v1::TaskState::TASK_RUNNING,
+              v1Response.get().get_tasks().tasks(0).state());
+    ASSERT_EQ("test", v1Response.get().get_tasks().tasks(0).name());
+    ASSERT_EQ("1", v1Response.get().get_tasks().tasks(0).task_id().value());
+  }
+
+  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
+    FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(),
+        _,
+        Eq(slave.get()->pid));
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  // Send a terminal update so that the task transitions to completed.
+  TaskStatus status3;
+  status3.mutable_task_id()->CopyFrom(task.task_id());
+  status3.set_state(TASK_FINISHED);
+
+  execDriver.get()->sendStatusUpdate(status3);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+
+  AWAIT_READY(acknowledgement);
+
+  {
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
+    ASSERT_EQ(0, v1Response.get().get_tasks().tasks().size());
+    ASSERT_EQ(1, v1Response.get().get_tasks().completed_tasks().size());
+    ASSERT_EQ(v1::TaskState::TASK_FINISHED,
+              v1Response.get().get_tasks().completed_tasks(0).state());
+    ASSERT_EQ("test", v1Response.get().get_tasks().completed_tasks(0).name());
+    ASSERT_EQ(
+        "1",
+        v1Response.get().get_tasks().completed_tasks(0).task_id().value());
+  }
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

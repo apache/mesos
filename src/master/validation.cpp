@@ -118,9 +118,6 @@ Option<Error> validate(
       return None();
 
     case mesos::master::Call::GET_TASKS:
-      if (!call.has_get_tasks()) {
-        return Error("Expecting 'get_tasks' to be present");
-      }
       return None();
 
     case mesos::master::Call::GET_ROLES:

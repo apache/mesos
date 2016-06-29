@@ -2434,6 +2434,10 @@ Future<Response> Master::Http::state(
             });
 
         // Model all of the orphan tasks.
+        // TODO(vinod): Need to filter these tasks based on authorization! This
+        // is currently not possible because we don't have `FrameworkInfo` for
+        // these tasks. We need to either store `FrameworkInfo` for orphan
+        // tasks or persist FrameworkInfo of all frameworks in the registry.
         writer->field("orphan_tasks", [this](JSON::ArrayWriter* writer) {
           // Find those orphan tasks.
           foreachvalue (const Slave* slave, master->slaves.registered) {
@@ -2452,6 +2456,8 @@ Future<Response> Master::Http::state(
 
         // Model all currently unregistered frameworks. This can happen
         // when a framework has yet to re-register after master failover.
+        // TODO(vinod): Need to filter these frameworks based on authorization!
+        // See the TODO above for "orphan_tasks" for further details.
         writer->field("unregistered_frameworks", [this](
             JSON::ArrayWriter* writer) {
           // Find unregistered frameworks.
@@ -3271,21 +3277,6 @@ Future<Response> Master::Http::getTasks(
 {
   CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
 
-  // Get list options (limit and offset).
-
-  // TODO(nnielsen): Currently, formatting errors in offset and/or limit
-  // will silently be ignored. This could be reported to the user instead.
-
-  Result<int> result = call.get_tasks().limit();
-  CHECK_SOME(result);
-  size_t limit = result.get();
-
-  result = call.get_tasks().offset();
-  size_t offset = result.isSome() ? result.get() : 0;
-
-  Option<string> order = call.get_tasks().order();
-  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
-
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
@@ -3336,9 +3327,28 @@ Future<Response> Master::Http::getTasks(
         frameworks.push_back(framework.get());
       }
 
-      // Construct task list with both running and finished tasks.
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_TASKS);
+
+      mesos::master::Response::GetTasks* getTasks =
+        response.mutable_get_tasks();
+
       vector<const Task*> tasks;
       foreach (const Framework* framework, frameworks) {
+        // Pending tasks.
+        foreachvalue (const TaskInfo& taskInfo, framework->pendingTasks) {
+          // Skip unauthorized tasks.
+          if (!approveViewTaskInfo(tasksApprover, taskInfo, framework->info)) {
+            continue;
+          }
+
+          const Task& task =
+            protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
+
+          getTasks->add_pending_tasks()->CopyFrom(task);
+        }
+
+        // Active tasks.
         foreachvalue (Task* task, framework->tasks) {
           CHECK_NOTNULL(task);
           // Skip unauthorized tasks.
@@ -3346,37 +3356,36 @@ Future<Response> Master::Http::getTasks(
             continue;
           }
 
-          tasks.push_back(task);
+          getTasks->add_tasks()->CopyFrom(*task);
         }
+
+        // Completed tasks.
         foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
           // Skip unauthorized tasks.
           if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
             continue;
           }
 
-          tasks.push_back(task.get());
+          getTasks->add_completed_tasks()->CopyFrom(*task);
         }
       }
 
-      // Sort tasks by task status timestamp. Default order is descending.
-      // The earliest timestamp is chosen for comparison when
-      // multiple are present.
-      if (_order == "asc") {
-        sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
-      } else {
-        sort(tasks.begin(), tasks.end(), TaskComparator::descending);
-      }
-
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_TASKS);
-
-      mesos::master::Response::GetTasks* getTasks =
-        response.mutable_get_tasks();
-
-      // Collect 'limit' number of tasks starting from 'offset'.
-      size_t end = std::min(offset + limit, tasks.size());
-      for (size_t i = offset; i < end; i++) {
-        getTasks->add_tasks()->CopyFrom(*tasks[i]);
+      // Orphan tasks.
+      // TODO(vinod): Need to filter these tasks based on authorization! This
+      // is currently not possible because we don't have `FrameworkInfo` for
+      // these tasks. We need to either store `FrameworkInfo` for orphan
+      // tasks or persist FrameworkInfo of all frameworks in the registry.
+      foreachvalue (const Slave* slave, master->slaves.registered) {
+        typedef hashmap<TaskID, Task*> TaskMap;
+        foreachvalue (const TaskMap& tasks, slave->tasks) {
+          foreachvalue (const Task* task, tasks) {
+            CHECK_NOTNULL(task);
+            if (!master->frameworks.registered.contains(
+                task->framework_id())) {
+              getTasks->add_orphan_tasks()->CopyFrom(*task);
+            }
+          }
+        }
       }
 
       return OK(serialize(contentType, evolve(response)),
