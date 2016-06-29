@@ -204,7 +204,7 @@ object</td>
 </tr>
 </table>
 
-To load a hook into Mesos, you need to
+To load a hook into Mesos, you need to:
 
 - introduce it to Mesos by listing it in the `--modules` configuration,
 
