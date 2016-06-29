@@ -1516,7 +1516,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
 
 
 // This test verifies that authorization based endpoint filtering
-// works correctly on the /state endpoint.
+// works correctly on the /tasks endpoint.
 // Both default users are allowed to to view high level frameworks, but only
 // one is allowed to view the tasks.
 TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
