@@ -3167,63 +3167,6 @@ Future<Response> Master::Http::tasks(
   Option<string> order = request.url.query.get("order");
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
-  return _tasks(limit, offset, _order, principal)
-    .then([request](const vector<const Task*>& tasks) -> Response {
-      auto tasksWriter = [&tasks](JSON::ObjectWriter* writer) {
-        writer->field("tasks", [&tasks](JSON::ArrayWriter* writer) {
-          foreach (const Task* task, tasks) {
-            writer->element(*task);
-          }
-        });
-      };
-
-      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
-    });
-}
-
-
-Future<Response> Master::Http::getTasks(
-    const mesos::master::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
-{
-  CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
-
-  // Get list options (limit and offset).
-  Result<int> result = call.get_tasks().limit();
-  CHECK_SOME(result);
-  size_t limit = result.get();
-
-  result = call.get_tasks().offset();
-  size_t offset = result.isSome() ? result.get() : 0;
-
-  Option<string> order = call.get_tasks().order();
-  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
-
-  return _tasks(limit, offset, _order, principal)
-    .then([contentType](const vector<const Task*>& tasks) -> Response {
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_TASKS);
-
-      mesos::master::Response::GetTasks* getTasks =
-        response.mutable_get_tasks();
-
-      foreach (const Task* task, tasks) {
-        getTasks->add_tasks()->CopyFrom(*task);
-      }
-
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
-    });
-}
-
-
-Future<vector<const Task*>> Master::Http::_tasks(
-    const size_t limit,
-    const size_t offset,
-    const string& order,
-    const Option<string>& principal) const
-{
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
@@ -3247,14 +3190,11 @@ Future<vector<const Task*>> Master::Http::_tasks(
     .then(defer(master->self(),
       [=](const tuple<Owned<ObjectApprover>,
                       Owned<ObjectApprover>>& approvers)
-        -> vector<const Task*> {
+        -> Future<Response> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
       tie(frameworksApprover, tasksApprover) = approvers;
-
-      // TODO(nnielsen): Currently, formatting errors in offset and/or limit
-      // will silently be ignored. This could be reported to the user instead.
 
       // Construct framework list with both active and completed frameworks.
       vector<const Framework*> frameworks;
@@ -3266,6 +3206,7 @@ Future<vector<const Task*>> Master::Http::_tasks(
 
         frameworks.push_back(framework);
       }
+
       foreach (const std::shared_ptr<Framework>& framework,
                master->frameworks.completed) {
         // Skip unauthorized frameworks.
@@ -3301,21 +3242,145 @@ Future<vector<const Task*>> Master::Http::_tasks(
       // Sort tasks by task status timestamp. Default order is descending.
       // The earliest timestamp is chosen for comparison when
       // multiple are present.
-      if (order == "asc") {
+      if (_order == "asc") {
         sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
       } else {
         sort(tasks.begin(), tasks.end(), TaskComparator::descending);
       }
 
-      // Collect 'limit' number of tasks starting from 'offset'.
-      vector<const Task*> _tasks;
-      size_t end = std::min(offset + limit, tasks.size());
-      for (size_t i = offset; i < end; i++) {
-        const Task* task = tasks[i];
-        _tasks.push_back(task);
+      auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
+        writer->field("tasks",
+                      [&tasks, limit, offset](JSON::ArrayWriter* writer) {
+          // Collect 'limit' number of tasks starting from 'offset'.
+          size_t end = std::min(offset + limit, tasks.size());
+          for (size_t i = offset; i < end; i++) {
+            writer->element(*tasks[i]);
+          }
+        });
+      };
+
+      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+  }));
+}
+
+
+Future<Response> Master::Http::getTasks(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
+
+  // Get list options (limit and offset).
+
+  // TODO(nnielsen): Currently, formatting errors in offset and/or limit
+  // will silently be ignored. This could be reported to the user instead.
+
+  Result<int> result = call.get_tasks().limit();
+  CHECK_SOME(result);
+  size_t limit = result.get();
+
+  result = call.get_tasks().offset();
+  size_t offset = result.isSome() ? result.get() : 0;
+
+  Option<string> order = call.get_tasks().order();
+  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
+
+  // Retrieve Approvers for authorizing frameworks and tasks.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> tasksApprover;
+  if (master->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    frameworksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    tasksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_TASK);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return collect(frameworksApprover, tasksApprover)
+    .then(defer(master->self(),
+      [=](const tuple<Owned<ObjectApprover>,
+                      Owned<ObjectApprover>>& approvers)
+        -> Future<Response> {
+      // Get approver from tuple.
+      Owned<ObjectApprover> frameworksApprover;
+      Owned<ObjectApprover> tasksApprover;
+      tie(frameworksApprover, tasksApprover) = approvers;
+
+      // Construct framework list with both active and completed frameworks.
+      vector<const Framework*> frameworks;
+      foreachvalue (Framework* framework, master->frameworks.registered) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework);
       }
 
-      return _tasks;
+      foreach (const std::shared_ptr<Framework>& framework,
+               master->frameworks.completed) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework.get());
+      }
+
+      // Construct task list with both running and finished tasks.
+      vector<const Task*> tasks;
+      foreach (const Framework* framework, frameworks) {
+        foreachvalue (Task* task, framework->tasks) {
+          CHECK_NOTNULL(task);
+          // Skip unauthorized tasks.
+          if (!approveViewTask(tasksApprover, *task, framework->info)) {
+            continue;
+          }
+
+          tasks.push_back(task);
+        }
+        foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
+          // Skip unauthorized tasks.
+          if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+            continue;
+          }
+
+          tasks.push_back(task.get());
+        }
+      }
+
+      // Sort tasks by task status timestamp. Default order is descending.
+      // The earliest timestamp is chosen for comparison when
+      // multiple are present.
+      if (_order == "asc") {
+        sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
+      } else {
+        sort(tasks.begin(), tasks.end(), TaskComparator::descending);
+      }
+
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_TASKS);
+
+      mesos::master::Response::GetTasks* getTasks =
+        response.mutable_get_tasks();
+
+      // Collect 'limit' number of tasks starting from 'offset'.
+      size_t end = std::min(offset + limit, tasks.size());
+      for (size_t i = offset; i < end; i++) {
+        getTasks->add_tasks()->CopyFrom(*tasks[i]);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
   }));
 }
 
