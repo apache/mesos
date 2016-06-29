@@ -69,15 +69,6 @@ Try<Owned<Backend>> OverlayBackend::create(const Flags&)
       "but is running as user " + user.get());
   }
 
-  Try<bool> supported = fs::supported("overlayfs");
-  if (supported.isError()) {
-    return Error(supported.error());
-  }
-
-  if (!supported.get()) {
-    return Error("Overlay filesystem not supported");
-  }
-
   return Owned<Backend>(new OverlayBackend(
       Owned<OverlayBackendProcess>(new OverlayBackendProcess())));
 }
