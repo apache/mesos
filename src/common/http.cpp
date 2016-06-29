@@ -692,7 +692,7 @@ bool approveViewTask(
   Try<bool> approved = tasksApprover->approved(object);
   if (approved.isError()) {
     LOG(WARNING) << "Error during Task authorization: " << approved.error();
-     // TODO(joerg84): Consider exposing these errors to the caller.
+    // TODO(joerg84): Consider exposing these errors to the caller.
     return false;
   }
   return approved.get();
