@@ -133,13 +133,13 @@ message Call {
 
   // Reserve resources dynamically on a specific agent.
   message ReserveResources {
-    required SlaveID agent_id = 1;
+    required SlaveID slave_id = 1;
     repeated Resource resources = 2;
   }
 
   // Unreserve resources dynamically on a specific agent.
   message UnreserveResources {
-    required SlaveID agent_id = 1;
+    required SlaveID slave_id = 1;
     repeated Resource resources = 2;
   }
 
@@ -149,7 +149,7 @@ message Call {
   // the agent might fail. Volume creation can be verified by sending a
   // `GET_VOLUMES` call.
   message CreateVolumes {
-    required SlaveID agent_id = 1;
+    required SlaveID slave_id = 1;
     repeated Resource volumes = 2;
   }
 
@@ -158,7 +158,7 @@ message Call {
   // message may not be delivered or destroying the volumes at the agent might
   // fail. Volume deletion can be verified by sending a `GET_VOLUMES` call.
   message DestroyVolumes {
-    required SlaveID agent_id = 1;
+    required SlaveID slave_id = 1;
     repeated Resource volumes = 2;
   }
 

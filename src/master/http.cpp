@@ -991,8 +991,8 @@ Future<Response> Master::Http::createVolumes(
   CHECK_EQ(mesos::master::Call::CREATE_VOLUMES, call.type());
   CHECK(call.has_create_volumes());
 
-  SlaveID slaveId = call.create_volumes().agent_id();
-  RepeatedPtrField<Resource> volumes = call.create_volumes().volumes();
+  const SlaveID& slaveId = call.create_volumes().slave_id();
+  const RepeatedPtrField<Resource>& volumes = call.create_volumes().volumes();
 
   return _createVolumes(slaveId, volumes, principal);
 }
@@ -1062,8 +1062,8 @@ Future<Response> Master::Http::destroyVolumes(
   CHECK_EQ(mesos::master::Call::DESTROY_VOLUMES, call.type());
   CHECK(call.has_destroy_volumes());
 
-  SlaveID slaveId = call.destroy_volumes().agent_id();
-  RepeatedPtrField<Resource> volumes = call.destroy_volumes().volumes();
+  const SlaveID& slaveId = call.destroy_volumes().slave_id();
+  const RepeatedPtrField<Resource>& volumes = call.destroy_volumes().volumes();
 
   return _destroyVolumes(slaveId, volumes, principal);
 }
@@ -1634,7 +1634,7 @@ Future<Response> Master::Http::reserveResources(
 {
   CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
 
-  const SlaveID& slaveId = call.reserve_resources().agent_id();
+  const SlaveID& slaveId = call.reserve_resources().slave_id();
   const Resources& resources = call.reserve_resources().resources();
 
   return _reserve(slaveId, resources, principal);
@@ -1648,7 +1648,7 @@ Future<Response> Master::Http::unreserveResources(
 {
   CHECK_EQ(mesos::master::Call::UNRESERVE_RESOURCES, call.type());
 
-  const SlaveID& slaveId = call.unreserve_resources().agent_id();
+  const SlaveID& slaveId = call.unreserve_resources().slave_id();
   const Resources& resources = call.unreserve_resources().resources();
 
   return _unreserve(slaveId, resources, principal);
