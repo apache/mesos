@@ -879,42 +879,6 @@ string Master::Http::CREATE_VOLUMES_HELP()
 }
 
 
-Future<Response> Master::Http::_createVolumes(
-    const SlaveID& slaveId,
-    const RepeatedPtrField<Resource>& volumes,
-    const Option<string>& principal) const
-{
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
-  // Create an offer operation.
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::CREATE);
-  operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
-
-  Option<Error> validate = validation::operation::validate(
-      operation.create(), slave->checkpointedResources, principal);
-
-  if (validate.isSome()) {
-    return BadRequest("Invalid CREATE operation: " + validate.get().message);
-  }
-
-  return master->authorizeCreateVolume(operation.create(), principal)
-    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
-      if (!authorized) {
-        return Forbidden();
-      }
-
-      // The resources required for this operation are equivalent to the
-      // volumes specified by the user minus any DiskInfo (DiskInfo will
-      // be created when this operation is applied).
-      return _operation(slaveId, removeDiskInfos(volumes), operation);
-    }));
-}
-
-
 Future<Response> Master::Http::createVolumes(
     const Request& request,
     const Option<string>& principal) const
@@ -983,6 +947,42 @@ Future<Response> Master::Http::createVolumes(
 }
 
 
+Future<Response> Master::Http::_createVolumes(
+    const SlaveID& slaveId,
+    const RepeatedPtrField<Resource>& volumes,
+    const Option<string>& principal) const
+{
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
+  // Create an offer operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::CREATE);
+  operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
+
+  Option<Error> validate = validation::operation::validate(
+      operation.create(), slave->checkpointedResources, principal);
+
+  if (validate.isSome()) {
+    return BadRequest("Invalid CREATE operation: " + validate.get().message);
+  }
+
+  return master->authorizeCreateVolume(operation.create(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Forbidden();
+      }
+
+      // The resources required for this operation are equivalent to the
+      // volumes specified by the user minus any DiskInfo (DiskInfo will
+      // be created when this operation is applied).
+      return _operation(slaveId, removeDiskInfos(volumes), operation);
+    }));
+}
+
+
 Future<Response> Master::Http::createVolumes(
     const mesos::master::Call& call,
     const Option<string>& principal,
@@ -1018,6 +1018,74 @@ string Master::Http::DESTROY_VOLUMES_HELP()
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."),
     AUTHENTICATION(true));
+}
+
+
+Future<Response> Master::Http::destroyVolumes(
+    const Request& request,
+    const Option<string>& principal) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed({"POST"}, request.method);
+  }
+
+  // Parse the query string in the request body.
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  const hashmap<string, string>& values = decode.get();
+
+  Option<string> value;
+
+  value = values.get("slaveId");
+  if (value.isNone()) {
+    return BadRequest("Missing 'slaveId' query parameter");
+  }
+
+  SlaveID slaveId;
+  slaveId.set_value(value.get());
+
+  value = values.get("volumes");
+  if (value.isNone()) {
+    return BadRequest("Missing 'volumes' query parameter");
+  }
+
+  Try<JSON::Array> parse =
+    JSON::parse<JSON::Array>(value.get());
+
+  if (parse.isError()) {
+    return BadRequest(
+        "Error in parsing 'volumes' query parameter: " + parse.error());
+  }
+
+  Resources volumes;
+  foreach (const JSON::Value& value, parse.get().values) {
+    Try<Resource> volume = ::protobuf::parse<Resource>(value);
+    if (volume.isError()) {
+      return BadRequest(
+          "Error in parsing 'volumes' query parameter: " + volume.error());
+    }
+
+    // Since the `+=` operator will silently drop invalid resources, we validate
+    // each resource individually.
+    Option<Error> error = Resources::validate(volume.get());
+    if (error.isSome()) {
+      return BadRequest(error.get().message);
+    }
+
+    volumes += volume.get();
+  }
+
+  return _destroyVolumes(slaveId, volumes, principal);
 }
 
 
@@ -1064,74 +1132,6 @@ Future<Response> Master::Http::destroyVolumes(
 
   const SlaveID& slaveId = call.destroy_volumes().slave_id();
   const RepeatedPtrField<Resource>& volumes = call.destroy_volumes().volumes();
-
-  return _destroyVolumes(slaveId, volumes, principal);
-}
-
-
-Future<Response> Master::Http::destroyVolumes(
-    const Request& request,
-    const Option<string>& principal) const
-{
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
-  if (request.method != "POST") {
-    return MethodNotAllowed({"POST"}, request.method);
-  }
-
-  // Parse the query string in the request body.
-  Try<hashmap<string, string>> decode =
-    process::http::query::decode(request.body);
-
-  if (decode.isError()) {
-    return BadRequest("Unable to decode query string: " + decode.error());
-  }
-
-  const hashmap<string, string>& values = decode.get();
-
-  Option<string> value;
-
-  value = values.get("slaveId");
-  if (value.isNone()) {
-    return BadRequest("Missing 'slaveId' query parameter");
-  }
-
-  SlaveID slaveId;
-  slaveId.set_value(value.get());
-
-  value = values.get("volumes");
-  if (value.isNone()) {
-    return BadRequest("Missing 'volumes' query parameter");
-  }
-
-  Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(value.get());
-
-  if (parse.isError()) {
-    return BadRequest(
-        "Error in parsing 'volumes' query parameter: " + parse.error());
-  }
-
-  Resources volumes;
-  foreach (const JSON::Value& value, parse.get().values) {
-    Try<Resource> volume = ::protobuf::parse<Resource>(value);
-    if (volume.isError()) {
-      return BadRequest(
-          "Error in parsing 'volumes' query parameter: " + volume.error());
-    }
-
-    // Since the `+=` operator will silently drop invalid resources, we validate
-    // each resource individually.
-    Option<Error> error = Resources::validate(volume.get());
-    if (error.isSome()) {
-      return BadRequest(error.get().message);
-    }
-
-    volumes += volume.get();
-  }
 
   return _destroyVolumes(slaveId, volumes, principal);
 }
@@ -1627,34 +1627,6 @@ Future<Response> Master::Http::getLeadingMaster(
 }
 
 
-Future<Response> Master::Http::reserveResources(
-    const mesos::master::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
-{
-  CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
-
-  const SlaveID& slaveId = call.reserve_resources().slave_id();
-  const Resources& resources = call.reserve_resources().resources();
-
-  return _reserve(slaveId, resources, principal);
-}
-
-
-Future<Response> Master::Http::unreserveResources(
-    const mesos::master::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
-{
-  CHECK_EQ(mesos::master::Call::UNRESERVE_RESOURCES, call.type());
-
-  const SlaveID& slaveId = call.unreserve_resources().slave_id();
-  const Resources& resources = call.unreserve_resources().resources();
-
-  return _unreserve(slaveId, resources, principal);
-}
-
-
 string Master::Http::REDIRECT_HELP()
 {
   return HELP(
@@ -1844,6 +1816,20 @@ Future<Response> Master::Http::_reserve(
       // ReservationInfo from the resources.
       return _operation(slaveId, resources.flatten(), operation);
     }));
+}
+
+
+Future<Response> Master::Http::reserveResources(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
+
+  const SlaveID& slaveId = call.reserve_resources().slave_id();
+  const Resources& resources = call.reserve_resources().resources();
+
+  return _reserve(slaveId, resources, principal);
 }
 
 
@@ -3946,6 +3932,20 @@ Future<Response> Master::Http::_operation(
     .repair([](const Future<Response>& result) {
        return Conflict(result.failure());
     });
+}
+
+
+Future<Response> Master::Http::unreserveResources(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::UNRESERVE_RESOURCES, call.type());
+
+  const SlaveID& slaveId = call.unreserve_resources().slave_id();
+  const Resources& resources = call.unreserve_resources().resources();
+
+  return _unreserve(slaveId, resources, principal);
 }
 
 } // namespace master {
