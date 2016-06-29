@@ -84,7 +84,7 @@ struct _Deferred
 
     return std::function<void()>(
         [=]() {
-          dispatch(pid_.get(), std::function<void()>(f_));
+          dispatch(pid_.get(), f_);
         });
   }
 
@@ -99,7 +99,7 @@ struct _Deferred
 
     return std::function<void()>(
         [=]() {
-          dispatch(pid_.get(), std::function<void()>(f_));
+          dispatch(pid_.get(), f_);
         });
   }
 
@@ -115,7 +115,7 @@ struct _Deferred
 
     return std::function<R()>(
         [=]() {
-          return dispatch(pid_.get(), std::function<R()>(f_));
+          return dispatch(pid_.get(), f_);
         });
   }
 
@@ -131,7 +131,7 @@ struct _Deferred
 
     return std::function<R()>(
         [=]() {
-          return dispatch(pid_.get(), std::function<R()>(f_));
+          return dispatch(pid_.get(), f_);
         });
   }
 
