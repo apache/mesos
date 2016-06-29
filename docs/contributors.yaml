@@ -381,3 +381,12 @@
     - xiaods@gmail.com
   jira_user: xds2000
   reviewboard_user: xds2000
+
+- name: Haris Choudhary
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - haris05ch@gmail.com
+    - hchoudhary@mesosphere.com
+  jira_user: HarisCh
+  reviewboard_user: HarisCh
