@@ -189,9 +189,8 @@ TEST(HTTPTest, EndpointsHelp)
 
   // Wait until the HttpProcess initialization has run so
   // that the route calls have completed.
-  std::function<Nothing()> f = []() { return Nothing(); };
+  Future<Nothing> initialized = dispatch(pid, []() { return Nothing(); });
 
-  Future<Nothing> initialized = dispatch(pid, f);
   AWAIT_READY(initialized);
 
   // Hit '/help' and wait for a 200 OK response.
@@ -260,9 +259,8 @@ TEST(HTTPTest, EndpointsHelpRemoval)
 
   // Wait until the HttpProcess initialization has run so
   // that the route calls have completed.
-  std::function<Nothing()> f = []() { return Nothing(); };
+  Future<Nothing> initialized = dispatch(pid, []() { return Nothing(); });
 
-  Future<Nothing> initialized = dispatch(pid, f);
   AWAIT_READY(initialized);
 
   // Hit '/help/<id>/body' and wait for a 200 OK response.
