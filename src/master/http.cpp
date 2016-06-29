@@ -1635,12 +1635,6 @@ Future<Response> Master::Http::reserveResources(
   CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
 
   const SlaveID& slaveId = call.reserve_resources().agent_id();
-
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
   const Resources& resources = call.reserve_resources().resources();
 
   return _reserve(slaveId, resources, principal);
@@ -1655,12 +1649,6 @@ Future<Response> Master::Http::unreserveResources(
   CHECK_EQ(mesos::master::Call::UNRESERVE_RESOURCES, call.type());
 
   const SlaveID& slaveId = call.unreserve_resources().agent_id();
-
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
   const Resources& resources = call.unreserve_resources().resources();
 
   return _unreserve(slaveId, resources, principal);
@@ -1787,11 +1775,6 @@ Future<Response> Master::Http::reserve(
   SlaveID slaveId;
   slaveId.set_value(value.get());
 
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
   value = values.get("resources");
   if (value.isNone()) {
     return BadRequest("Missing 'resources' query parameter");
@@ -1832,6 +1815,11 @@ Future<Response> Master::Http::_reserve(
     const Resources& resources,
     const Option<string>& principal) const
 {
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
   // Create an offer operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::RESERVE);
@@ -3836,11 +3824,6 @@ Future<Response> Master::Http::unreserve(
   SlaveID slaveId;
   slaveId.set_value(value.get());
 
-  Slave* slave = master->slaves.registered.get(slaveId);
-  if (slave == nullptr) {
-    return BadRequest("No agent found with specified ID");
-  }
-
   value = values.get("resources");
   if (value.isNone()) {
     return BadRequest("Missing 'resources' query parameter");
@@ -3881,6 +3864,11 @@ Future<Response> Master::Http::_unreserve(
     const Resources& resources,
     const Option<string>& principal) const
 {
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
   // Create an offer operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::UNRESERVE);
