@@ -222,8 +222,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
@@ -377,8 +376,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
@@ -478,8 +476,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
@@ -676,8 +673,7 @@ TEST_F(DockerVolumeIsolatorTest,
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
@@ -811,8 +807,7 @@ TEST_F(DockerVolumeIsolatorTest,
   flags.isolation = "docker/volume,docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
@@ -947,8 +942,7 @@ TEST_F(DockerVolumeIsolatorTest,
   flags.isolation = "docker/volume,docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
 
-  MockDockerVolumeDriverClient* mockClient =
-      new MockDockerVolumeDriverClient;
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
 
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(flags, Owned<DriverClient>(mockClient));
