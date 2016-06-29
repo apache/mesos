@@ -158,9 +158,11 @@
 
 - name: Jiang Yan Xu
   affiliations:
-    - {organization: Twitter}
+    - {organization: Apple, start_date: 2016-02-01}
+    - {organization: Twitter, end_date: 2016-01-31}
   emails:
     - yan@jxu.me
+    - xujyan@apple.com
   jira_user: xujyan
   reviewboard_user: xujyan
 
