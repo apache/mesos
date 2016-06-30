@@ -390,18 +390,10 @@ protected:
 
     cout << "Starting task " << task->task_id() << endl;
 
-    // Prepare the argv before fork as it's not async signal safe.
-    char **argv = new char*[command.arguments().size() + 1];
-    for (int i = 0; i < command.arguments().size(); i++) {
-      argv[i] = (char*) command.arguments(i).c_str();
-    }
-    argv[command.arguments().size()] = nullptr;
-
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
         command,
         user,
-        argv,
         rootfs,
         sandboxDirectory,
         workingDirectory);
@@ -411,7 +403,6 @@ protected:
     // open the reap function will work.
     PROCESS_INFORMATION processInformation = launchTaskWindows(
         command,
-        argv,
         rootfs);
 
     pid = processInformation.dwProcessId;
@@ -419,8 +410,6 @@ protected:
     CloseHandle(processInformation.hThread);
     processHandle = processInformation.hProcess;
 #endif
-
-    delete[] argv;
 
     cout << "Forked command at " << pid << endl;
 

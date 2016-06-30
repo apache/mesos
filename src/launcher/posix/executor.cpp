@@ -42,7 +42,6 @@ namespace internal {
 pid_t launchTaskPosix(
     const mesos::v1::CommandInfo& command,
     const Option<string>& user,
-    char** argv,
     Option<string>& rootfs,
     Option<string>& sandboxDirectory,
     Option<string>& workingDirectory)
@@ -80,6 +79,13 @@ pid_t launchTaskPosix(
         command.value(),
         strings::join(", ", command.arguments())).get();
   }
+
+  // Prepare the argv before fork as it's not async signal safe.
+  char **argv = new char*[command.arguments().size() + 1];
+  for (int i = 0; i < command.arguments().size(); i++) {
+    argv[i] = (char*) command.arguments(i).c_str();
+  }
+  argv[command.arguments().size()] = nullptr;
 
   pid_t pid;
   if ((pid = fork()) == -1) {
@@ -207,6 +213,8 @@ pid_t launchTaskPosix(
 
     ABORT("Failed to exec: " + os::strerror(errno));
   }
+
+  delete[] argv;
 
   return pid;
 }

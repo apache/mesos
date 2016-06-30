@@ -29,7 +29,6 @@ namespace internal {
 
 PROCESS_INFORMATION launchTaskWindows(
     const CommandInfo& command,
-    char** argv,
     Option<std::string>& rootfs);
 
 } // namespace internal {
