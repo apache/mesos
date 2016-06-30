@@ -132,16 +132,14 @@ private:
   {
     VLOG(1) << "Check passed";
 
-    // Send a healthy status update on the first success,
-    // and on the first success following failure(s).
-    if (initializing || consecutiveFailures > 0) {
-      TaskHealthStatus taskHealthStatus;
-      taskHealthStatus.set_healthy(true);
-      taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
-      send(executor, taskHealthStatus);
-      initializing = false;
-    }
-    consecutiveFailures = 0;
+    // Send a healthy status update on every check, because https://github.com/mesosphere/marathon/issues/916
+    
+    TaskHealthStatus taskHealthStatus;
+    taskHealthStatus.set_healthy(true);
+    taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
+    send(executor, taskHealthStatus);
+    initializing = false;
+    
     reschedule();
   }
 
