@@ -16,10 +16,10 @@
 
 - name: Alexander Rukletsov
   affiliations:
-    - {organization: Mesosphere}
+    - {organization: Mesosphere, start_date: 2014-08-01}
   emails:
     - alexr@apache.org
-    - rukletsov@gmail.com
+    - alex@mesosphere.io
   jira_user: alexr
   reviewboard_user: alexr
 
