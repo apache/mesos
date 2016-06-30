@@ -77,6 +77,7 @@ public:
   Option<std::string> modulesDir;
   std::string authenticators;
   std::string allocator;
+  Option<std::set<std::string>> fair_sharing_excluded_resource_names;
   Option<std::string> hooks;
   Duration agent_ping_timeout;
   size_t max_agent_ping_timeouts;

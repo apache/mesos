@@ -431,6 +431,16 @@ mesos::internal::master::Flags::Flags()
       "load an alternate allocator module using `--modules`.",
       DEFAULT_ALLOCATOR);
 
+  add(&Flags::fair_sharing_excluded_resource_names,
+      "fair_sharing_excluded_resource_names",
+      "A comma-separated list of the resource names (e.g. 'gpus')\n"
+      "that will be excluded from fair sharing constraints.\n"
+      "This may be useful in cases where the fair sharing\n"
+      "implementation currently has limitations. E.g. See the\n"
+      "problem of \"scarce\" resources:\n"
+      "  http://www.mail-archive.com/dev@mesos.apache.org/msg35631.html\n"
+      "  https://issues.apache.org/jira/browse/MESOS-5377");
+
   add(&Flags::hooks,
       "hooks",
       "A comma-separated list of hook modules to be\n"
