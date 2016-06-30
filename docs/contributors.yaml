@@ -41,7 +41,7 @@
 
 - name: Artem Harutyunyan
   affiliations:
-  - {organization: Mesosphere}
+    - {organization: Mesosphere}
   emails:
     - artem@mesosphere.io
   jira_user: hartem
@@ -134,7 +134,7 @@
 
 - name: Isabel Jimenez
   affiliations:
-  - {organization: Mesosphere}
+    - {organization: Mesosphere}
   emails:
     - contact@isabeljimenez.com
   jira_user: ijimenez
@@ -185,7 +185,7 @@
 
 - name: Jojy Varghese
   affiliations:
-  - {organization: Mesosphere}
+    - {organization: Mesosphere}
   emails:
     - jojy@mesosphere.io
   jira_user: jojy
@@ -260,8 +260,8 @@
   affiliations:
     - {organization: Mesosphere}
   emails:
-   - mpark@apache.org
-   - mcypark@gmail.com
+    - mpark@apache.org
+    - mcypark@gmail.com
   jira_user: mcypark
   reviewboard_user: mcypark
 
@@ -319,7 +319,7 @@
   affiliations:
     - {organization: IBM}
   emails:
-   - a10gupta@linux.vnet.ibm.com
+    - a10gupta@linux.vnet.ibm.com
   jira_user: a10gupta
   reviewboard_user: a10gupta
 
