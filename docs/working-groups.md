@@ -18,6 +18,7 @@ layout: documentation
 * **GPU support**
 	* communication:
 		* irc: mesos-gpus
+		* slack: [#gpus](https://mesos.slack.com/messages/gpus/)
 		* mailing list subject prefix: GPU
 	* members:
 		* Benjamin Mahler
