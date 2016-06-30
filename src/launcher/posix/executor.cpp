@@ -21,6 +21,8 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/raw/argv.hpp>
+
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif
@@ -81,11 +83,7 @@ pid_t launchTaskPosix(
   }
 
   // Prepare the argv before fork as it's not async signal safe.
-  char **argv = new char*[command.arguments().size() + 1];
-  for (int i = 0; i < command.arguments().size(); i++) {
-    argv[i] = (char*) command.arguments(i).c_str();
-  }
-  argv[command.arguments().size()] = nullptr;
+  os::raw::Argv argv(command.arguments());
 
   pid_t pid;
   if ((pid = fork()) == -1) {
@@ -213,8 +211,6 @@ pid_t launchTaskPosix(
 
     ABORT("Failed to exec: " + os::strerror(errno));
   }
-
-  delete[] argv;
 
   return pid;
 }
