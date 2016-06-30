@@ -151,6 +151,33 @@ protected:
       size_t length = 0);
 
   /**
+   * Describes the behavior of the `link` call when the target `pid`
+   * points to a remote process. This enum has no effect if the target
+   * `pid` points to a local process.
+   */
+  enum class RemoteConnection
+  {
+    /**
+     * If a persistent socket to the target `pid` does not exist,
+     * a new link is created. If a persistent socket already exists,
+     * `link` will subscribe this process to the existing link.
+     *
+     * This is the default behavior.
+     */
+    REUSE,
+
+    /**
+     * If a persistent socket to the target `pid` does not exist,
+     * a new link is created. If a persistent socket already exists,
+     * `link` create a new socket connection with the target `pid`
+     * and *atomically* swap the existing link with the new link.
+     *
+     * Existing linkers will remain linked, albeit via the new socket.
+     */
+    RECONNECT,
+  };
+
+  /**
    * Links with the specified `UPID`.
    *
    * Linking with a process from within the same OS process is
@@ -162,7 +189,9 @@ protected:
    * remote linked process cannot be determined; we handle this
    * situation by generating an ExitedEvent.
    */
-  UPID link(const UPID& pid);
+  UPID link(
+      const UPID& pid,
+      const RemoteConnection remote = RemoteConnection::REUSE);
 
   /**
    * Any function which takes a "from" `UPID` and a message body as
