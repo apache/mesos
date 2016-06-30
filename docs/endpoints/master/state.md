@@ -19,6 +19,8 @@ Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
 This endpoint shows information about the frameworks, tasks,
 executors and agents running in the cluster as a JSON object.
+The information shown might be filtered based on the user
+accessing the endpoint.
 
 Example (**Note**: this is not exhaustive):
 
@@ -94,3 +96,9 @@ Example (**Note**: this is not exhaustive):
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+This endpoint might be filtered based on the user accessing it.
+For example a user might only see the subset of frameworks,
+tasks, and executors they are allowed to view.
+See the authorization documentation for details.

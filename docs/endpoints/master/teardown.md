@@ -24,3 +24,9 @@ framework to tear down.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+Using this endpoint to teardown frameworks requires that the
+current principal is authorized to teardown frameworks created
+by the principal who created the framework.
+See the authorization documentation for details.

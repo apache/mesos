@@ -14,7 +14,3 @@ Exposes the agent's flag configuration.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-The request principal should be authorized to query this endpoint.
-See the authorization documentation for details.
