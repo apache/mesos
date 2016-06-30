@@ -28,6 +28,7 @@ layout: documentation
 * [Jenkins](https://github.com/jenkinsci/mesos-plugin) is a continuous integration server. The mesos-jenkins plugin allows it to dynamically launch workers on a Mesos cluster depending on the workload.
 * [JobServer](http://www.grandlogic.com/content/html_docs/jobserver.html) is a distributed job scheduler and processor  which allows developers to build custom batch processing Tasklets using point and click web UI.
 * [GoDocker](https://bitbucket.org/osallou/go-docker) is a batch computing job scheduler like SGE, Torque, etc. It schedules batch computing tasks via webui, API or CLI for system or LDAP users, mounting their home directory or other shared resources in a Docker container. It targets scientists, not developers, and provides plugin mechanisms to extend or modify the default behavior.
+* [Cook](https://github.com/twosigma/cook) is a job scheduler like Torque that not only supports individual tasks, but also Spark. Cook provides powerful automatic preemption and multitenancy features for shared clusters, in order to guarantee throughput to all users while allowing individuals to temporarily "burst" to additional resources as needed. Cook provides a simple REST API & Java client for interaction.
 
 ## Data Storage
 
