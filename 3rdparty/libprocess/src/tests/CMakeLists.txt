@@ -48,6 +48,10 @@ if (NOT WIN32)
 endif (NOT WIN32)
 
 
+# ADDITIONAL CPP FLAGS FOR PROCESS TEST BINARY (e.g., -DBUILD_DIR=...).
+#######################################################################
+add_definitions("-DBUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
+
 # INCLUDE DIRECTIVES FOR PROCESS TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
 ###############################################################################
@@ -69,6 +73,11 @@ target_link_libraries(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_LIBS})
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_DEPENDENCIES})
+
+# ADDITIONAL EXECUTABLE(s).
+###########################
+add_executable(test-linkee test_linkee.cpp)
+target_link_libraries(test-linkee ${PROCESS_TEST_LIBS})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
