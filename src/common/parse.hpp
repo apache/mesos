@@ -152,8 +152,8 @@ inline Try<std::set<std::string>> parse(const std::string& value)
   std::set<std::string> result;
 
   foreach (const std::string& token, strings::tokenize(value, ",")) {
-    if (result.count(token)) {
-      return Error("Duplicate items for '" + token + "'");
+    if (result.count(token) > 0) {
+      return Error("Duplicate token '" + token + "'");
     }
 
     result.insert(token);
