@@ -1229,20 +1229,22 @@ Future<bool> MesosContainerizerProcess::__launch(
 
     launchFlags.command = JSON::protobuf(executorLaunchCommand.get());
 
-    launchFlags.sandbox = executorRootfs.isSome()
-      ? flags.sandbox_directory
-      : directory;
+    if (executorRootfs.isNone()) {
+      // NOTE: If the executor shares the host filesystem, we should
+      // not allow them to 'cd' into an arbitrary directory because
+      // that'll create security issues.
+      if (workingDirectory.isSome()) {
+        LOG(WARNING) << "Ignore working directory '" << workingDirectory.get()
+                     << "' specified in container launch info for container "
+                     << containerId << " since the executor is using the "
+                     << "host filesystem";
+      }
 
-    // NOTE: If the executor shares the host filesystem, we should not
-    // allow them to 'cd' into an arbitrary directory because that'll
-    // create security issues.
-    if (executorRootfs.isNone() && workingDirectory.isSome()) {
-      LOG(WARNING) << "Ignore working directory '" << workingDirectory.get()
-                   << "' specified in container launch info for container "
-                   << containerId << " since the executor is using the "
-                   << "host filesystem";
+      launchFlags.working_directory = directory;
     } else {
-      launchFlags.working_directory = workingDirectory;
+      launchFlags.working_directory = workingDirectory.isSome()
+        ? workingDirectory
+        : flags.sandbox_directory;
     }
 
 #ifdef __WINDOWS__

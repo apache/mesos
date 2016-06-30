@@ -63,7 +63,7 @@ public:
     command.set_value(_command);
 
     launchFlags.command = JSON::protobuf(command);
-    launchFlags.sandbox = "/tmp";
+    launchFlags.working_directory = "/tmp";
     launchFlags.pipe_read = open("/dev/zero", O_RDONLY);
     launchFlags.pipe_write = open("/dev/null", O_WRONLY);
     launchFlags.rootfs = rootfs;

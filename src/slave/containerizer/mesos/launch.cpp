@@ -51,23 +51,16 @@ MesosContainerizerLaunch::Flags::Flags()
       "command",
       "The command to execute.");
 
-  add(&sandbox,
-      "sandbox",
-      "The sandbox for the executor. If rootfs is specified this must\n"
-      "be relative to the new root.");
-
   add(&working_directory,
       "working_directory",
-      "The working directory for the executor. It will be ignored if\n"
-      "container root filesystem is not specified.");
+      "The working directory for the command. It has to be an absolute path \n"
+      "w.r.t. the root filesystem used for the command.");
 
 #ifndef __WINDOWS__
   add(&rootfs,
       "rootfs",
-      "Absolute path to the container root filesystem.\n"
-      "The command and sandbox flags are interpreted relative\n"
-      "to rootfs\n"
-      "Different platforms may implement 'chroot' differently.");
+      "Absolute path to the container root filesystem. The command will be \n"
+      "interpreted relative to this path");
 
   add(&user,
       "user",
@@ -102,11 +95,6 @@ int MesosContainerizerLaunch::execute()
   // Check command line flags.
   if (flags.command.isNone()) {
     cerr << "Flag --command is not specified" << endl;
-    return 1;
-  }
-
-  if (flags.sandbox.isNone()) {
-    cerr << "Flag --sandbox is not specified" << endl;
     return 1;
   }
 
@@ -346,19 +334,14 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-  // Determine the current working directory for the executor.
-  string cwd;
-  if (rootfs.isSome() && flags.working_directory.isSome()) {
-    cwd = flags.working_directory.get();
-  } else {
-    cwd = flags.sandbox.get();
-  }
-
-  Try<Nothing> chdir = os::chdir(cwd);
-  if (chdir.isError()) {
-    cerr << "Failed to chdir into current working directory '"
-         << cwd << "': " << chdir.error() << endl;
-    return 1;
+  if (flags.working_directory.isSome()) {
+    Try<Nothing> chdir = os::chdir(flags.working_directory.get());
+    if (chdir.isError()) {
+      cerr << "Failed to chdir into current working directory "
+           << "'" << flags.working_directory.get() << "': "
+           << chdir.error() << endl;
+      return 1;
+    }
   }
 
   // Relay the environment variables.
