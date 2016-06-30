@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <iostream>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,6 +65,7 @@ using std::atomic;
 using std::cout;
 using std::endl;
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -179,7 +181,8 @@ protected:
         flags.allocation_interval,
         offerCallback.get(),
         inverseOfferCallback.get(),
-        {});
+        {},
+        flags.fair_sharing_excluded_resource_names);
   }
 
   SlaveInfo createSlaveInfo(const string& resources)
@@ -478,6 +481,136 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework3.id(), allocation.get().frameworkId);
   EXPECT_EQ(slave4.resources(), Resources::sum(allocation.get().resources));
+}
+
+
+// Tests that the fairness exclusion list works as expected. The test
+// accomplishes this by adding frameworks and slaves one at a time to
+// the allocator with exclude resources, making sure that each time a
+// new slave is added all of its resources are offered to whichever
+// framework currently has the smallest share. Checking for proper DRF
+// logic when resources are returned, frameworks exit, etc, is handled
+// by SorterTest.DRFSorter.
+TEST_F(HierarchicalAllocatorTest, DRFWithFairnessExclusion)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // Specify that `gpus` should not be fairly shared.
+  master::Flags flags_;
+  flags_.fair_sharing_excluded_resource_names = set<string>({"gpus"});
+
+  initialize(flags_);
+
+  // Total cluster resources will become cpus=2, mem=1024, gpus=1.
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0;gpus:1");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+
+  // framework1 will be offered all of agent1's resources since it is
+  // the only framework running so far.
+  FrameworkInfo framework1 = createFrameworkInfo(
+      "role1", {FrameworkInfo::Capability::GPU_RESOURCES});
+
+  allocator->addFramework(framework1.id(), framework1, {});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation->frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation->resources));
+
+  // role1 share = 1 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework1 share = 1
+
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, {});
+
+  // Total cluster resources will become cpus=3, mem=1536, (ignored) gpus=1
+  // role1 share = 0.66 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+
+  // framework2 will be offered all of agent2's resources since role2
+  // has the lowest user share, and framework2 is its only framework.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation->frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation->resources));
+
+  // role1 share = 0.67 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework1 share = 1
+  // role2 share = 0.33 (cpus=1, mem=512)
+  //   framework2 share = 1
+
+  // Total cluster resources will become cpus=6, mem=3584, (ignored) gpus=1
+  // role1 share = 0.33 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework1 share = 1
+  // role2 share = 0.16 (cpus=1, mem=512)
+  //   framework2 share = 1
+  SlaveInfo agent3 = createSlaveInfo("cpus:3;mem:2048;disk:0");
+  allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), {});
+
+  // framework2 will be offered all of agent3's resources since role2
+  // has the lowest share.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation->frameworkId);
+  EXPECT_EQ(agent3.resources(), Resources::sum(allocation->resources));
+
+  // role1 share = 0.33 (cpus=2, mem=1024, (ignored)gpus=1)
+  //   framework1 share = 1
+  // role2 share = 0.71 (cpus=4, mem=2560)
+  //   framework2 share = 1
+
+  FrameworkInfo framework3 = createFrameworkInfo("role1");
+  allocator->addFramework(framework3.id(), framework3, {});
+
+  // Total cluster resources will become cpus=10, mem=7680, (ignored) gpus=1
+  // role1 share = 0.2 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework1 share = 1
+  //   framework3 share = 0
+  // role2 share = 0.4 (cpus=4, mem=2560)
+  //   framework2 share = 1
+  SlaveInfo agent4 = createSlaveInfo("cpus:4;mem:4096;disk:0");
+  allocator->addSlave(agent4.id(), agent4, None(), agent4.resources(), {});
+
+  // framework3 will be offered all of agent4's resources since role1
+  // has the lowest user share, and framework3 has the lowest share of
+  // role1's frameworks.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework3.id(), allocation->frameworkId);
+  EXPECT_EQ(agent4.resources(), Resources::sum(allocation->resources));
+
+  // role1 share = 0.67 (cpus=6, mem=5120, (ignored) gpus=1)
+  //   framework1 share = 0.33 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework3 share = 0.8 (cpus=4, mem=4096)
+  // role2 share = 0.4 (cpus=4, mem=2560)
+  //   framework2 share = 1
+
+  FrameworkInfo framework4 = createFrameworkInfo("role1");
+  allocator->addFramework(framework4.id(), framework4, {});
+
+  // Total cluster resources will become cpus=11, mem=8192, (ignored) gpus=1
+  // role1 share = 0.63 (cpus=6, mem=5120, (ignored) gpus=1)
+  //   framework1 share = 0.33 (cpus=2, mem=1024, (ignored) gpus=1)
+  //   framework3 share = 0.8 (cpus=4, mem=4096)
+  //   framework4 share = 0
+  // role2 share = 0.36 (cpus=4, mem=2560)
+  //   framework2 share = 1
+  SlaveInfo agent5 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent5.id(), agent5, None(), agent5.resources(), {});
+
+  // Even though framework4 doesn't have any resources, role2 has a
+  // lower share than role1, so framework2 receives agent5's resources.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation->frameworkId);
+  EXPECT_EQ(agent5.resources(), Resources::sum(allocation->resources));
 }
 
 
@@ -2739,6 +2872,63 @@ TEST_F(HierarchicalAllocatorTest, DominantShareMetrics)
   ASSERT_TRUE(metrics.is<JSON::Object>());
   map<string, JSON::Value> values = metrics.as<JSON::Object>().values;
   EXPECT_EQ(0u, values.count("allocator/mesos/roles/roleB/shares/dominant"));
+}
+
+
+// Verifies that per-role dominant share metrics are correctly
+// reported when resources are excluded from fair sharing.
+TEST_F(HierarchicalAllocatorTest, DominantShareMetricsWithFairnessExclusion)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // Specify that `gpus` should not be fairly shared.
+  master::Flags flags_;
+  flags_.fair_sharing_excluded_resource_names = set<string>({"gpus"});
+
+  initialize(flags_);
+
+  // Register one agent and one framework. The framework will
+  // immediately receive receive an offer and make it have the
+  // maximum possible dominant share.
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;gpus:1");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+
+  FrameworkInfo framework1 = createFrameworkInfo(
+      "roleA", {FrameworkInfo::Capability::GPU_RESOURCES});
+
+  allocator->addFramework(framework1.id(), framework1, {});
+  Clock::settle();
+
+  JSON::Object expected;
+
+  expected.values = {
+      {"allocator/mesos/roles/roleA/shares/dominant", 1},
+  };
+
+  JSON::Value metrics = Metrics();
+  EXPECT_TRUE(metrics.contains(expected));
+
+  FrameworkInfo framework2 = createFrameworkInfo("roleB");
+  allocator->addFramework(framework2.id(), framework2, {});
+  Clock::settle();
+
+  // Add a second, identical agent. Now `framework2` will
+  // receive an offer since it has the lowest dominant share:
+  // the 100% of `gpus` allocated to framework1 are excluded!
+  SlaveInfo agent2 = createSlaveInfo("cpus:3;mem:3072");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+  Clock::settle();
+
+  expected.values = {
+      {"allocator/mesos/roles/roleA/shares/dominant", 0.25},
+      {"allocator/mesos/roles/roleB/shares/dominant", 0.75},
+  };
+
+  metrics = Metrics();
+  EXPECT_TRUE(metrics.contains(expected));
 }
 
 
