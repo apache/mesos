@@ -301,3 +301,79 @@ TEST_F(RmdirTest, RemoveDirectoryButPreserveRoot)
   EXPECT_TRUE(os::exists(newDirectory));
   EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectory));
 }
+
+
+#ifdef __linux__
+// This test fixture verifies that `rmdir` behaves correctly
+// with option `continueOnError` and makes sure the undeletable
+// files from tests are cleaned up during teardown.
+class RmdirContinueOnErrorTest : public RmdirTest
+{
+public:
+  virtual void TearDown()
+  {
+    if (mountPoint.isSome()) {
+      if (os::system("umount -f -l " + mountPoint.get()) != 0) {
+        LOG(ERROR) << "Failed to unmount '" << mountPoint.get();
+      }
+    }
+
+    RmdirTest::TearDown();
+  }
+
+protected:
+  Option<string> mountPoint;
+};
+
+
+// This test creates a busy mount point which is not directly deletable
+// by rmdir and verifies that rmdir deletes all files that
+// it's able to delete if `continueOnError = true`.
+TEST_F(RmdirContinueOnErrorTest, RemoveWithContinueOnError)
+{
+  // Mounting a filesystem requires root permission.
+  Result<string> user = os::user();
+  ASSERT_SOME(user);
+
+  if (user.get() != "root") {
+    return;
+  }
+
+  const string tmpdir = os::getcwd();
+
+  // Successfully make directory and then `touch` a file
+  // in that folder.
+  const string directory = "directory";
+
+  // The busy mount point goes before the regular file in `rmdir`'s
+  // directory traversal due to their names. This makes sure that
+  // an error occurs before all deletable files are deleted.
+  const string mountPoint_ = path::join(
+      directory,
+      "mount.point");
+
+  const string regularFile = path::join(
+      directory,
+      "regular.file");
+
+  ASSERT_SOME(os::mkdir(directory));
+  ASSERT_SOME(os::mkdir(mountPoint_));
+  ASSERT_SOME(os::touch(regularFile));
+
+  ASSERT_EQ(0, os::system("mount --bind " + mountPoint_ + " " + mountPoint_));
+
+  // Register the mount point for cleanup.
+  mountPoint = Option<string>(mountPoint_);
+
+  EXPECT_TRUE(os::exists(directory));
+  EXPECT_TRUE(os::exists(mountPoint_));
+  EXPECT_TRUE(os::exists(regularFile));
+
+  // Run rmdir with `continueOnError = true`.
+  ASSERT_SOME(os::rmdir(directory, true, true, true));
+
+  EXPECT_TRUE(os::exists(directory));
+  EXPECT_TRUE(os::exists(mountPoint_));
+  EXPECT_FALSE(os::exists(regularFile));
+}
+#endif // __linux__

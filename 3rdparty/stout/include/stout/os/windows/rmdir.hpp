@@ -13,6 +13,8 @@
 #ifndef __STOUT_OS_WINDOWS_RMDIR_HPP__
 #define __STOUT_OS_WINDOWS_RMDIR_HPP__
 
+#include <glog/logging.h>
+
 #include <stout/nothing.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -30,7 +32,7 @@ namespace internal {
 // Recursive version of `RemoveDirectory`. NOTE: unlike `rmdir`, this requires
 // Windows-formatted paths, and therefore should be in the `internal` namespace.
 inline Try<Nothing> recursive_remove_directory(
-    const std::string& path, bool removeRoot)
+    const std::string& path, bool removeRoot, bool continueOnError)
 {
   // Appending a slash here if the path doesn't already have one simplifies
   // path join logic later, because (unlike Unix) Windows doesn't like double
@@ -80,23 +82,42 @@ inline Try<Nothing> recursive_remove_directory(
         recursive_remove_directory(current_absolute_path, removeRoot);
 
       if (removed.isError()) {
-        return Error(removed.error());
+        if (continueOnError) {
+          LOG(WARNING) << "Failed to delete directory " << current_absolute_path
+                       << " with error " << removed.error();
+        } else {
+          return Error(removed.error());
+        }
       }
     } else {
       // NOTE: this also handles symbolic links.
       if (::remove(current_absolute_path.c_str()) != 0) {
-        return WindowsError(
-            "`os::internal::recursive_remove_directory` attempted to delete "
-            "file '" + current_absolute_path + "', but failed");
+        if (continueOnError) {
+          LOG(WARNING)
+              << "`os::internal::recursive_remove_directory`"
+              << " attempted to delete file '"
+              << current_absolute_path << "', but failed";
+        } else {
+          return WindowsError(
+              "`os::internal::recursive_remove_directory` attempted to delete "
+              "file '" + current_absolute_path + "', but failed");
+        }
       }
     }
   } while (FindNextFile(search_handle.get(), &found));
 
   // Finally, remove current directory unless `removeRoot` is disabled.
   if (removeRoot && ::_rmdir(current_path.c_str()) == -1) {
-    return ErrnoError(
-        "`os::internal::recursive_remove_directory` attempted to delete file "
-        "'" + current_path + "', but failed");
+    if (continueOnError) {
+      LOG(WARNING) << "`os::internal::recursive_remove_directory`"
+                   << " attempted to delete directory '"
+                   << current_path << "', but failed";
+      return ErrnoError("rmdir failed in 'continueOnError' mode");
+    } else {
+      return ErrnoError(
+          "`os::internal::recursive_remove_directory` attempted to delete "
+          "directory '" + current_path + "', but failed");
+    }
   }
 
   return Nothing();
@@ -111,10 +132,14 @@ inline Try<Nothing> recursive_remove_directory(
 // all the files and directories beneath the given root directory, but
 // not the root directory itself.
 // Note that this function expects an absolute path.
+// By default rmdir aborts when an error occurs during the deletion of any file
+// but if continueOnError is set to true, rmdir logs the error and continues
+// with the next file.
 inline Try<Nothing> rmdir(
     const std::string& directory,
     bool recursive = true,
-    bool removeRoot = true)
+    bool removeRoot = true,
+    bool continueOnError = false)
 {
   // Canonicalize the path to Windows style for the call to
   // `recursive_remove_directory`.
@@ -135,7 +160,10 @@ inline Try<Nothing> rmdir(
       return Nothing();
     }
   } else {
-    return os::internal::recursive_remove_directory(root.get(), removeRoot);
+    return os::internal::recursive_remove_directory(
+        root.get(),
+        removeRoot,
+        continueOnError);
   }
 }
 

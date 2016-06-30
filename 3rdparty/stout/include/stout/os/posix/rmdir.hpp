@@ -17,8 +17,11 @@
 #include <unistd.h>
 #include <string>
 
+#include <glog/logging.h>
+
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
@@ -32,11 +35,15 @@ namespace os {
 // all the files and directories beneath the given root directory, but
 // not the root directory itself.
 // Note that this function expects an absolute path.
+// By default rmdir aborts when an error occurs during the deletion of
+// any file but if 'continueOnError' is set to true, rmdir logs the error
+// and continues with the next file.
 #ifndef __sun // FTS is not available on Solaris.
 inline Try<Nothing> rmdir(
     const std::string& directory,
     bool recursive = true,
-    bool removeRoot = true)
+    bool removeRoot = true,
+    bool continueOnError = false)
 {
   if (!recursive) {
     if (::rmdir(directory.c_str()) < 0) {
@@ -71,9 +78,15 @@ inline Try<Nothing> rmdir(
           }
 
           if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
-            Error error = ErrnoError();
-            fts_close(tree);
-            return error;
+            if (continueOnError) {
+              LOG(ERROR) << "Failed to delete directory "
+                         << path::join(directory, node->fts_path)
+                         << ": " << os::strerror(errno);
+            } else {
+              Error error = ErrnoError();
+              fts_close(tree);
+              return error;
+            }
           }
           break;
         // `FTS_DEFAULT` would include any file type which is not
@@ -85,9 +98,15 @@ inline Try<Nothing> rmdir(
         // `FTS_COMFOLLOW` or `FTS_LOGICAL`. Adding here for completion.
         case FTS_SLNONE:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
-            Error error = ErrnoError();
-            fts_close(tree);
-            return error;
+            if (continueOnError) {
+              LOG(ERROR) << "Failed to delete path "
+                         << path::join(directory, node->fts_path)
+                         << ": " << os::strerror(errno);
+            } else {
+              Error error = ErrnoError();
+              fts_close(tree);
+              return error;
+            }
           }
           break;
         default:
@@ -95,8 +114,11 @@ inline Try<Nothing> rmdir(
       }
     }
 
+    // If 'continueOnError' is true, we have already logged individual errors.
     if (errno != 0) {
-      Error error = ErrnoError();
+      Error error = continueOnError
+        ? Error("rmdir failed in 'continueOnError' mode")
+        : ErrnoError();
       fts_close(tree);
       return error;
     }
