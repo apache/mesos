@@ -392,3 +392,12 @@
     - hchoudhary@mesosphere.com
   jira_user: HarisCh
   reviewboard_user: HarisCh
+- name: Phil Winder
+  affiliations:
+    - {organization: Container Solutions}
+    - {organization: Winder Research and Development}
+  emails:
+    - philip.winder@container-solutions.com
+    - phil@winderresearch.com
+  jira_user: philwinder
+  reviewboard_user: philwinder
