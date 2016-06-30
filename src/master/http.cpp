@@ -1280,9 +1280,7 @@ Future<Response> Master::Http::frameworks(
 
 
 mesos::master::Response::GetFrameworks::Framework model(
-    const Framework& framework,
-    const Owned<ObjectApprover>& tasksApprover,
-    const Owned<ObjectApprover>& executorsApprover)
+    const Framework& framework)
 {
   mesos::master::Response::GetFrameworks::Framework _framework;
 
@@ -1306,54 +1304,12 @@ mesos::master::Response::GetFrameworks::Framework model(
     _framework.mutable_reregistered_time()->set_nanoseconds(time);
   }
 
-  foreachvalue (const TaskInfo& taskInfo, framework.pendingTasks) {
-    // Skip unauthorized tasks.
-    if (!approveViewTaskInfo(tasksApprover, taskInfo, framework.info)) {
-      continue;
-    }
-
-    _framework.mutable_pending_tasks()->Add()->CopyFrom(taskInfo);
-  }
-
-  foreachvalue (const Task* task, framework.tasks) {
-    // Skip unauthorized tasks.
-    if (!approveViewTask(tasksApprover, *task, framework.info)) {
-      continue;
-    }
-
-    _framework.mutable_tasks()->Add()->CopyFrom(*task);
-  }
-
-  foreach (const std::shared_ptr<Task>& task, framework.completedTasks) {
-    // Skip unauthorized tasks.
-    if (!approveViewTask(tasksApprover, *task.get(), framework.info)) {
-      continue;
-    }
-
-    _framework.mutable_completed_tasks()->Add()->CopyFrom(*task.get());
-  }
-
-  foreachpair (const SlaveID& slaveId,
-               const auto& executorsMap,
-               framework.executors) {
-    foreachvalue (const ExecutorInfo& info, executorsMap) {
-      // Skip unauthorized executors.
-      if (!approveViewExecutorInfo(executorsApprover,
-                                   info,
-                                   framework.info)) {
-        continue;
-      }
-
-      mesos::master::Response::GetFrameworks::Executor executor;
-      executor.mutable_info()->CopyFrom(executor);
-      executor.mutable_slave_id()->set_value(slaveId.value());
-
-      _framework.mutable_executors()->Add()->CopyFrom(executor);
-    }
-  }
-
   foreach (const Offer* offer, framework.offers) {
     _framework.mutable_offers()->Add()->CopyFrom(*offer);
+  }
+
+  foreach (const InverseOffer* offer, framework.inverseOffers) {
+    _framework.mutable_inverse_offers()->Add()->CopyFrom(*offer);
   }
 
   foreach (const Resource& resource, framework.totalUsedResources) {
@@ -1375,10 +1331,8 @@ Future<Response> Master::Http::getFrameworks(
 {
   CHECK_EQ(mesos::master::Call::GET_FRAMEWORKS, call.type());
 
-  // Retrieve `ObjectApprover`s for authorizing frameworks and tasks.
+  // Retrieve `ObjectApprover`s for authorizing frameworks.
   Future<Owned<ObjectApprover>> frameworksApprover;
-  Future<Owned<ObjectApprover>> tasksApprover;
-  Future<Owned<ObjectApprover>> executorsApprover;
 
   if (master->authorizer.isSome()) {
     authorization::Subject subject;
@@ -1389,28 +1343,13 @@ Future<Response> Master::Http::getFrameworks(
     frameworksApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_FRAMEWORK);
 
-    tasksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_TASK);
-
-    executorsApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_EXECUTOR);
   } else {
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  return frameworksApprover
     .then(defer(master->self(),
-        [=](const tuple<Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>>& approvers) -> Response {
-      // Get approver from tuple.
-      Owned<ObjectApprover> frameworksApprover;
-      Owned<ObjectApprover> tasksApprover;
-      Owned<ObjectApprover> executorsApprover;
-      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
-
+        [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
       mesos::master::Response response;
       response.set_type(mesos::master::Response::GET_FRAMEWORKS);
 
@@ -1421,8 +1360,8 @@ Future<Response> Master::Http::getFrameworks(
           continue;
         }
 
-        response.mutable_get_frameworks()->add_frameworks()->CopyFrom(
-            model(*framework, tasksApprover, executorsApprover));
+        response.mutable_get_frameworks()->add_frameworks()
+            ->CopyFrom(model(*framework));
       }
 
       foreach (const std::shared_ptr<Framework>& framework,
@@ -1433,13 +1372,13 @@ Future<Response> Master::Http::getFrameworks(
         }
 
         response.mutable_get_frameworks()->add_completed_frameworks()
-            ->CopyFrom(model(*framework, tasksApprover, executorsApprover));
+            ->CopyFrom(model(*framework));
       }
 
       foreachvalue (const Slave* slave, master->slaves.registered) {
         foreachkey (const FrameworkID& frameworkId, slave->tasks) {
           if (!master->frameworks.registered.contains(frameworkId)) {
-            response.mutable_get_frameworks()->add_unregistered_frameworks()
+            response.mutable_get_frameworks()->add_unsubscribed_frameworks()
                 ->set_value(frameworkId.value());
           }
         }
