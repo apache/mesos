@@ -1504,7 +1504,7 @@ void SocketManager::link_connect(
     .onAny(lambda::bind(
         &internal::ignore_recv_data,
         lambda::_1,
-        socket,
+        new Socket(*socket),
         data,
         size));
 
@@ -1524,6 +1524,8 @@ void SocketManager::link_connect(
   if (encoder != nullptr) {
     internal::send(encoder, new Socket(*socket));
   }
+
+  delete socket;
 }
 
 
