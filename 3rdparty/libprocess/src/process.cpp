@@ -309,6 +309,10 @@ public:
             const UPID& to,
             const Socket::Kind& kind = Socket::DEFAULT_KIND());
 
+  // Test-only method to fetch the file descriptor behind a
+  // persistent socket.
+  Option<int> get_persistent_socket(const UPID& to);
+
   PID<HttpProxy> proxy(const Socket& socket);
 
   void send(Encoder* encoder, bool persist);
@@ -1582,6 +1586,28 @@ void SocketManager::link(
           new Socket(socket.get()),
           to));
   }
+}
+
+
+// Tests can declare this function and use it to fetch the socket FD's
+// for links managed by the `SocketManager`. Without explicitly
+// declaring this function, it is not visible. This is the preferred
+// behavior as we do not want applications to have easy access to
+// managed FD's.
+Option<int> get_persistent_socket(const UPID& to)
+{
+  return socket_manager->get_persistent_socket(to);
+}
+
+Option<int> SocketManager::get_persistent_socket(const UPID& to)
+{
+  synchronized (mutex) {
+    if (persists.count(to.address) > 0) {
+      return persists.at(to.address);
+    }
+  }
+
+  return None();
 }
 
 
