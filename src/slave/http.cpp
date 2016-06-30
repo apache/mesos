@@ -547,7 +547,10 @@ string Slave::Http::FLAGS_HELP()
   return HELP(
     TLDR("Exposes the agent's flag configuration."),
     None(),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The request principal should be authorized to view all flags.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -561,7 +564,27 @@ Future<Response> Slave::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  return OK(_flags(), request.url.query.get("jsonp"));
+  if (slave->authorizer.isNone()) {
+    return OK(_flags(), request.url.query.get("jsonp"));
+  }
+
+  authorization::Request authRequest;
+  authRequest.set_action(authorization::VIEW_FLAGS);
+
+  if (principal.isSome()) {
+    authRequest.mutable_subject()->set_value(principal.get());
+  }
+
+  return slave->authorizer.get()->authorized(authRequest)
+      .then(defer(
+          slave->self(),
+          [this, request](bool authorized) -> Future<Response> {
+            if (authorized) {
+              return OK(_flags(), request.url.query.get("jsonp"));
+            } else {
+              return Forbidden();
+            }
+          }));
 }
 
 
@@ -825,6 +848,7 @@ Future<Response> Slave::Http::state(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
+  Future<Owned<ObjectApprover>> flagsApprover;
 
   if (slave->authorizer.isSome()) {
     authorization::Subject subject;
@@ -840,15 +864,24 @@ Future<Response> Slave::Http::state(
 
     executorsApprover = slave->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_EXECUTOR);
+
+    flagsApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FLAGS);
   } else {
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    flagsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  return collect(
+      frameworksApprover,
+      tasksApprover,
+      executorsApprover,
+      flagsApprover)
     .then(defer(slave->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
       // This lambda is consumed before the outer lambda
@@ -858,7 +891,11 @@ Future<Response> Slave::Http::state(
         Owned<ObjectApprover> frameworksApprover;
         Owned<ObjectApprover> tasksApprover;
         Owned<ObjectApprover> executorsApprover;
-        tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+        Owned<ObjectApprover> flagsApprover;
+        tie(frameworksApprover,
+            tasksApprover,
+            executorsApprover,
+            flagsApprover) = approvers;
 
         writer->field("version", MESOS_VERSION);
 
@@ -895,13 +932,24 @@ Future<Response> Slave::Http::state(
           }
         }
 
-        if (slave->flags.log_dir.isSome()) {
-          writer->field("log_dir", slave->flags.log_dir.get());
-        }
+        if (approveViewFlags(flagsApprover)) {
+          if (slave->flags.log_dir.isSome()) {
+            writer->field("log_dir", slave->flags.log_dir.get());
+          }
 
-        if (slave->flags.external_log_file.isSome()) {
-          writer->field(
-              "external_log_file", slave->flags.external_log_file.get());
+          if (slave->flags.external_log_file.isSome()) {
+            writer->field(
+                "external_log_file", slave->flags.external_log_file.get());
+          }
+
+          writer->field("flags", [this](JSON::ObjectWriter* writer) {
+            foreachvalue (const flags::Flag& flag, slave->flags) {
+              Option<string> value = flag.stringify(slave->flags);
+              if (value.isSome()) {
+                writer->field(flag.effective_name().value, value.get());
+              }
+            }
+          });
         }
 
         // Model all of the frameworks.
@@ -946,15 +994,6 @@ Future<Response> Slave::Http::state(
             writer->element(frameworkWriter);
           }
         });
-
-        writer->field("flags", [this](JSON::ObjectWriter* writer) {
-            foreachvalue (const flags::Flag& flag, slave->flags) {
-              Option<string> value = flag.stringify(slave->flags);
-              if (value.isSome()) {
-                writer->field(flag.effective_name().value, value.get());
-              }
-            }
-          });
       };
 
       return OK(jsonify(state), request.url.query.get("jsonp"));

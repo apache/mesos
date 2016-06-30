@@ -2288,6 +2288,62 @@ TYPED_TEST(AuthorizationTest, OptionalObject)
   }
 }
 
+
+TYPED_TEST(AuthorizationTest, ViewFlags)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can see the flags.
+    mesos::ACL::ViewFlags* acl = acls.add_view_flags();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_flags()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can see the flags.
+    mesos::ACL::ViewFlags* acl = acls.add_view_flags();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_flags()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_FLAGS);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_FLAGS);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Test that no authorzer is created with invalid flags.
+  {
+    ACLs invalid;
+
+    mesos::ACL::ViewFlags* acl = invalid.add_view_flags();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_flags()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

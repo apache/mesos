@@ -244,6 +244,17 @@ message ACL {
     // access.
     required Entity logs = 2;
   }
+
+  // Which principals are authorized to access the command-line flags used to
+  // launch the master/agent.
+  message ViewFlags {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity flags = 2;
+  }
 }
 
 
@@ -294,4 +305,5 @@ message ACLs {
   repeated ACL.AccessSandbox access_sandboxes = 19;
   repeated ACL.AccessMesosLog access_mesos_logs = 20;
   repeated ACL.GetWeight get_weights = 21;
+  repeated ACL.ViewFlags view_flags = 22;
 }

@@ -266,6 +266,94 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
 }
 
 
+TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
+{
+  ACLs acls;
+
+  {
+    // Default principal can see the flags.
+    mesos::ACL::ViewFlags* acl = acls.add_view_flags();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_flags()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // Second default principal can not see the flags.
+    mesos::ACL::ViewFlags* acl = acls.add_view_flags();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_flags()->set_type(ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  StandaloneMasterDetector detector;
+
+  Try<Owned<cluster::Slave>> agent =
+    this->StartSlave(&detector, authorizer.get());
+
+  ASSERT_SOME(agent);
+
+  // The default principal should be able to access the flags.
+  {
+    Future<Response> response = http::get(
+        agent.get()->pid,
+        "flags",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+        << response.get().body;
+
+    response = http::get(
+        agent.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+        << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+    JSON::Object state = parse.get();
+
+    ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
+    EXPECT_TRUE(1u <= state.values["flags"].as<JSON::Object>().values.size());
+  }
+
+  // The second default principal should not have access to the
+  // /flags endpoint and get a filtered view of the /state one.
+  {
+    Future<Response> response = http::get(
+        agent.get()->pid,
+        "flags",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+        << response.get().body;
+
+    response = http::get(
+        agent.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+        << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+    JSON::Object state = parse.get();
+
+    EXPECT_TRUE(state.values.find("flags") == state.values.end());
+  }
+}
+
+
 // Parameterized fixture for agent-specific authorization tests. The
 // path of the tested endpoint is passed as the only parameter.
 class SlaveEndpointTest:

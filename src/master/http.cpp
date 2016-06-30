@@ -1455,7 +1455,11 @@ string Master::Http::FLAGS_HELP()
   return HELP(
     TLDR("Exposes the master's flag configuration."),
     None(),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Querying this endpoint requires that the current principal",
+        "is authorized to view all flags.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -1469,7 +1473,27 @@ Future<Response> Master::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  return OK(_flags(), request.url.query.get("jsonp"));
+  if (master->authorizer.isNone()) {
+    return OK(_flags(), request.url.query.get("jsonp"));
+  }
+
+  authorization::Request authRequest;
+  authRequest.set_action(authorization::VIEW_FLAGS);
+
+  if (principal.isSome()) {
+    authRequest.mutable_subject()->set_value(principal.get());
+  }
+
+  return master->authorizer.get()->authorized(authRequest)
+      .then(defer(
+          master->self(),
+          [this, request](bool authorized) -> Future<Response> {
+            if (authorized) {
+              return OK(_flags(), request.url.query.get("jsonp"));
+            } else {
+              return Forbidden();
+            }
+          }));
 }
 
 
@@ -2194,6 +2218,7 @@ Future<Response> Master::Http::state(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
+  Future<Owned<ObjectApprover>> flagsApprover;
 
   if (master->authorizer.isSome()) {
     authorization::Subject subject;
@@ -2209,15 +2234,24 @@ Future<Response> Master::Http::state(
 
     executorsApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_EXECUTOR);
+
+    flagsApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FLAGS);
   } else {
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    flagsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  return collect(
+      frameworksApprover,
+      tasksApprover,
+      executorsApprover,
+      flagsApprover)
     .then(defer(master->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
                                     Owned<ObjectApprover>>& approvers)
           -> Response {
@@ -2228,7 +2262,11 @@ Future<Response> Master::Http::state(
         Owned<ObjectApprover> frameworksApprover;
         Owned<ObjectApprover> tasksApprover;
         Owned<ObjectApprover> executorsApprover;
-        tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+        Owned<ObjectApprover> flagsApprover;
+        tie(frameworksApprover,
+            tasksApprover,
+            executorsApprover,
+            flagsApprover) = approvers;
 
         writer->field("version", MESOS_VERSION);
 
@@ -2259,31 +2297,33 @@ Future<Response> Master::Http::state(
         writer->field("activated_slaves", master->_slaves_active());
         writer->field("deactivated_slaves", master->_slaves_inactive());
 
-        if (master->flags.cluster.isSome()) {
-          writer->field("cluster", master->flags.cluster.get());
-        }
-
         if (master->leader.isSome()) {
           writer->field("leader", master->leader.get().pid());
         }
 
-        if (master->flags.log_dir.isSome()) {
-          writer->field("log_dir", master->flags.log_dir.get());
-        }
-
-        if (master->flags.external_log_file.isSome()) {
-          writer->field("external_log_file",
-             master->flags.external_log_file.get());
-        }
-
-        writer->field("flags", [this](JSON::ObjectWriter* writer) {
-          foreachvalue (const flags::Flag& flag, master->flags) {
-            Option<string> value = flag.stringify(master->flags);
-            if (value.isSome()) {
-              writer->field(flag.effective_name().value, value.get());
-            }
+        if (approveViewFlags(flagsApprover)) {
+          if (master->flags.cluster.isSome()) {
+            writer->field("cluster", master->flags.cluster.get());
           }
-        });
+
+          if (master->flags.log_dir.isSome()) {
+            writer->field("log_dir", master->flags.log_dir.get());
+          }
+
+          if (master->flags.external_log_file.isSome()) {
+            writer->field("external_log_file",
+                          master->flags.external_log_file.get());
+          }
+
+          writer->field("flags", [this](JSON::ObjectWriter* writer) {
+              foreachvalue (const flags::Flag& flag, master->flags) {
+                Option<string> value = flag.stringify(master->flags);
+                if (value.isSome()) {
+                  writer->field(flag.effective_name().value, value.get());
+                }
+              }
+            });
+        }
 
         // Model all of the slaves.
         writer->field("slaves", [this](JSON::ArrayWriter* writer) {

@@ -257,6 +257,11 @@ public:
 
           break;
         }
+        case authorization::VIEW_FLAGS: {
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          break;
+        }
         case authorization::ACCESS_SANDBOX: {
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
@@ -654,6 +659,17 @@ private:
 
         return acls_;
         break;
+      case authorization::VIEW_FLAGS:
+        foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.flags();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
       case authorization::ACCESS_SANDBOX: {
         foreach (const ACL::AccessSandbox& acl, acls.access_sandboxes()) {
           GenericACL acl_;
@@ -759,6 +775,12 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
     if (acl.logs().type() == ACL::Entity::SOME) {
       return Error("acls.access_mesos_logs type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
+    if (acl.flags().type() == ACL::Entity::SOME) {
+      return Error("acls.view_flags type must be either NONE or ANY");
     }
   }
 

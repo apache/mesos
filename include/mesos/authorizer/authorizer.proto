@@ -94,6 +94,10 @@ enum Action {
   // This action will not fill in any object fields, since the object
   // is the master/agent log itself.
   ACCESS_MESOS_LOG = 17;
+
+  // This action will not fill in any object fields, since the object
+  // is the entire set of flags.
+  VIEW_FLAGS = 18;
 }
 
 

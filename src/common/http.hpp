@@ -136,6 +136,9 @@ bool approveViewTask(
     const Task& task,
     const FrameworkInfo& frameworkInfo);
 
+
+bool approveViewFlags(const process::Owned<ObjectApprover>& flagsApprover);
+
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__
