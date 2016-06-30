@@ -156,7 +156,24 @@ public:
 
   void add(const process::UPID& pid)
   {
-    link(pid); // Try and keep a socket open (more efficient).
+    // Link in order to keep a socket open (more efficient).
+    //
+    // We force a reconnect to avoid sending on a "stale" socket. In
+    // general when linking to a remote process, the underlying TCP
+    // connection may become "stale". RFC 793 refers to this as a
+    // "half-open" connection: the RST is not sent upon the death
+    // of the peer and a RST will only be received once further
+    // data is sent on the socket.
+    //
+    // "Half-open" (aka "stale") connections are typically addressed
+    // via keep-alives (see RFC 1122 4.2.3.6) to periodically probe
+    // the connection. In this case, we can rely on the (re-)addition
+    // of the network member to create a new connection.
+    //
+    // See MESOS-5576 for a scenario where reconnecting helps avoid
+    // dropped messages.
+    link(pid, RemoteConnection::RECONNECT);
+
     pids.insert(pid);
 
     // Update any pending watches.
