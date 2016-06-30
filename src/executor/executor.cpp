@@ -477,7 +477,10 @@ protected:
       // Backoff and reconnect only if framework checkpointing is enabled.
       backoff();
     } else {
-      shutdown();
+      Event event;
+      event.set_type(Event::SHUTDOWN);
+
+      receive(event, true);
     }
   }
 
