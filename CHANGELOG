@@ -577,6 +577,9 @@ All Issues:
   * [MESOS-5673] - Port mapping isolator may cause segfault if it bind mount root does not exist.
   * [MESOS-5330] - Agent should backoff before connecting to the master.
   * [MESOS-5543] - /dev/fd is missing in the Mesos containerizer environment.
+  * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
+  * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
+  * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
 
 
 Release Notes - Mesos - Version 0.28.2
