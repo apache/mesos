@@ -93,7 +93,9 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights) = 0;
+      const hashmap<std::string, double>& weights,
+      const Option<std::set<std::string>>&
+        fairnessExcludeResourceNames = None()) = 0;
 
   /**
    * Informs the allocator of the recovered state from the master.

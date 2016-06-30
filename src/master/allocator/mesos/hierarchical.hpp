@@ -17,6 +17,7 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 #define __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 
+#include <set>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -100,7 +101,9 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights);
+      const hashmap<std::string, double>& weights,
+      const Option<std::set<std::string>>&
+        fairnessExcludeResourceNames = None());
 
   void recover(
       const int _expectedAgentCount,
@@ -397,6 +400,9 @@ protected:
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
+
+  // Resources (by name) that will be excluded from a role's fair share.
+  Option<std::set<std::string>> fairnessExcludeResourceNames;
 
   // There are two stages of allocation. During the first stage resources
   // are allocated only to frameworks in roles with quota set. During the

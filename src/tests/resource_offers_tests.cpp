@@ -288,7 +288,7 @@ TEST_F(ResourceOffersTest, Request)
 {
   TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _))
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _))
     .Times(1);
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator);
