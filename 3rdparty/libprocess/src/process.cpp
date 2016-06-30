@@ -1389,6 +1389,7 @@ SocketManager::~SocketManager() {}
 void SocketManager::accepted(const Socket& socket)
 {
   synchronized (mutex) {
+    CHECK(sockets.count(socket) == 0);
     sockets.emplace(socket, socket);
   }
 }
@@ -1553,7 +1554,9 @@ void SocketManager::link(
         socket = create.get();
         int s = socket.get().get();
 
+        CHECK(sockets.count(s) == 0);
         sockets.emplace(s, socket.get());
+
         addresses[s] = to.address;
 
         persists[to.address] = s;
@@ -1577,15 +1580,11 @@ void SocketManager::link(
 
         socket = create.get();
 
-        // Grab a copy of the existing socket that we're swapping.
-        // This should go out of scope and be closed after the swap
-        // is complete.
-        Socket existing(sockets.at(persists.at(to.address)));
-
         // Update all the data structures that are mapped to the old
         // socket. They will now point to the new socket we are about
         // to try to connect. The old socket should no longer have any
         // references after the swap and should be closed.
+        Socket existing(sockets.at(persists.at(to.address)));
         swap_implementing_socket(existing, socket.get());
 
         connect = true;
@@ -1922,7 +1921,9 @@ void SocketManager::send(Message* message, const Socket::Kind& kind)
       socket = create.get();
       int s = socket.get();
 
+      CHECK(sockets.count(s) == 0);
       sockets.emplace(s, socket.get());
+
       addresses[s] = address;
       temps[address] = s;
 
@@ -2017,7 +2018,7 @@ Encoder* SocketManager::next(int s)
 
           Try<Nothing> shutdown = socket.shutdown();
           if (shutdown.isError()) {
-            LOG(ERROR) << "Failed to shutdown socket with fd " << socket
+            LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
                        << ": " << shutdown.error();
           }
         }
@@ -2100,7 +2101,7 @@ void SocketManager::close(int s)
 
       Try<Nothing> shutdown = socket.shutdown();
       if (shutdown.isError()) {
-        LOG(ERROR) << "Failed to shutdown socket with fd " << socket
+        LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
                    << ": " << shutdown.error();
       }
     }
