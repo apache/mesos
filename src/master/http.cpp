@@ -875,7 +875,12 @@ string Master::Http::CREATE_VOLUMES_HELP()
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be created."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to create persistent volumes requires that",
+        "the current principal is authorized to create volumes for the",
+        "specific role.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -1017,7 +1022,12 @@ string Master::Http::DESTROY_VOLUMES_HELP()
         "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to destroy persistent volumes requires that",
+        "the current principal is authorized to destroy volumes created",
+        "by the principal who created the volume.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -1147,7 +1157,10 @@ string Master::Http::FRAMEWORKS_HELP()
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "This endpoint might be filtered based on the user accessing it.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -1710,7 +1723,12 @@ string Master::Http::RESERVE_HELP()
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be reserved."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to reserve resources requires that the",
+        "current principal is authorized to reserve resources for the",
+        "specific role.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -2082,6 +2100,8 @@ string Master::Http::STATE_HELP()
         "found.",
         "This endpoint shows information about the frameworks, tasks,",
         "executors and agents running in the cluster as a JSON object.",
+        "The information shown might be filtered based on the user",
+        "accessing the endpoint.",
         "",
         "Example (**Note**: this is not exhaustive):",
         "",
@@ -2152,7 +2172,12 @@ string Master::Http::STATE_HELP()
         "    \"unregistered_frameworks\" : []",
         "}",
         "```"),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "This endpoint might be filtered based on the user accessing it.",
+        "For example a user might only see the subset of frameworks,",
+        "tasks, and executors they are allowed to view.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -2510,8 +2535,15 @@ string Master::Http::STATESUMMARY_HELP()
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found.",
         "This endpoint gives a summary of the state of all tasks and",
-        "registered frameworks in the cluster as a JSON object."),
-    AUTHENTICATION(true));
+        "registered frameworks in the cluster as a JSON object.",
+        "The information shown might be filtered based on the user",
+        "accessing the endpoint."),
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "This endpoint might be filtered based on the user accessing it.",
+        "For example a user might only see the subset of frameworks",
+        "they are allowed to view.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -2855,7 +2887,12 @@ string Master::Http::TEARDOWN_HELP()
         "found.",
         "Please provide a \"frameworkId\" value designating the running",
         "framework to tear down."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to teardown frameworks requires that the",
+        "current principal is authorized to teardown frameworks created",
+        "by the principal who created the framework.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -2994,6 +3031,8 @@ string Master::Http::TASKS_HELP()
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found.",
         "Lists known tasks.",
+        "The information shown might be filtered based on the user",
+        "accessing the endpoint.",
         "",
         "Query parameters:",
         "",
@@ -3003,7 +3042,12 @@ string Master::Http::TASKS_HELP()
         ">        order=(asc|desc)     Ascending or descending sort order "
         "(default is descending)."
         ""),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "This endpoint might be filtered based on the user accessing it.",
+        "For example a user might only see the subset of tasks they are",
+        "allowed to view.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -3773,7 +3817,12 @@ string Master::Http::UNRESERVE_HELP()
         "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be unreserved."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "Using this endpoint to unreserve resources requires that the",
+        "current principal is authorized to unreserve resources created",
+        "by the principal who reserved the resources.",
+        "See the authorization documentation for details."));
 }
 
 

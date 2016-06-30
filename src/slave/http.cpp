@@ -718,6 +718,8 @@ string Slave::Http::STATE_HELP() {
     DESCRIPTION(
         "This endpoint shows information about the frameworks, executors",
         "and the agent's master as a JSON object.",
+        "The information shown might be filtered based on the user",
+        "accessing the endpoint.",
         "",
         "Example (**Note**: this is not exhaustive):",
         "",
@@ -802,7 +804,12 @@ string Slave::Http::STATE_HELP() {
         "    },",
         "}",
         "```"),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "This endpoint might be filtered based on the user accessing it.",
+        "For example a user might only see the subset of frameworks,",
+        "tasks, and executors they are allowed to view.",
+        "See the authorization documentation for details."));
 }
 
 
