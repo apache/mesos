@@ -52,6 +52,10 @@ public:
 
   virtual ~Sorter() = default;
 
+  // Initialize the sorter.
+  virtual void initialize(
+      const Option<std::set<std::string>>& fairnessExcludeResourceNames) = 0;
+
   // Adds a client to allocate resources to. A client
   // may be a user or a framework.
   virtual void add(const std::string& client, double weight = 1) = 0;
@@ -141,11 +145,6 @@ public:
   // Returns the number of clients this Sorter contains,
   // either active or deactivated.
   virtual int count() = 0;
-
-  // Initialize resource names that will be ignored by sorter when
-  // calculating dominant share for frameworks or roles.
-  virtual void initialize(
-      const Option<std::set<std::string>>& fairnessExcludeResourceNames) = 0;
 };
 
 } // namespace allocator {
