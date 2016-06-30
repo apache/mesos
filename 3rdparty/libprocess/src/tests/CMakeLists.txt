@@ -78,6 +78,7 @@ add_dependencies(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_DEPENDENCIES})
 ###########################
 add_executable(test-linkee test_linkee.cpp)
 target_link_libraries(test-linkee ${PROCESS_TEST_LIBS})
+add_dependencies(${PROCESS_TESTS_TARGET} test-linkee)
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
