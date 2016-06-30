@@ -40,6 +40,7 @@ layout: documentation
 * [Football Radar](http://www.footballradar.com)
 * [Foursquare](http://www.foursquare.com)
 * [GenOuest](http://www.genouest.org)
+* [Gigawatt IO](http://gigawatt.io)
 * [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
 * [GSShop](http://www.gsshop.com)
