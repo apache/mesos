@@ -132,7 +132,11 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
     foreach (const PathInfo& info, paths.get(removalTime)) {
       LOG(INFO) << "Deleting " << info.path;
 
-      Try<Nothing> rmdir = os::rmdir(info.path);
+      // Run rmdir with 'continueOnError = true'. It's possible for
+      // tasks and isolators to lay down files that are not deletable by
+      // GC. In the face of such errors GC needs to free up disk space
+      // wherever it can because it's already re-offered to frameworks.
+      Try<Nothing> rmdir = os::rmdir(info.path, true, true, true);
 
       if (rmdir.isError()) {
         LOG(WARNING) << "Failed to delete '" << info.path << "': "

@@ -37,6 +37,9 @@
 #include <stout/gtest.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
+
+#include "linux/fs.hpp"
 
 #include "logging/logging.hpp"
 
@@ -843,6 +846,142 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
   driver.stop();
   driver.join();
 }
+
+
+#ifdef __linux__
+// In Mesos it's possible for tasks and isolators to lay down files
+// that are not deletable by GC. This test fixture verifies that GC
+// behaves correctly and makes sure the undeletable files from tests
+// are cleaned up during teardown.
+class ROOT_GarbageCollectorUndeletableFilesTest
+  : public GarbageCollectorIntegrationTest
+{
+public:
+  virtual void TearDown()
+  {
+    if (mountPoint.isSome()) {
+      Try<Nothing> unmount = fs::unmount(
+          mountPoint.get(),
+          MNT_FORCE | MNT_DETACH);
+      if (unmount.isError()) {
+        LOG(ERROR) << "Failed to unmount '" << mountPoint.get()
+                   << "': " << unmount.error();
+      }
+    }
+
+    GarbageCollectorIntegrationTest::TearDown();
+  }
+
+protected:
+  Option<string> mountPoint;
+};
+
+
+// This test runs a task that creates a busy mount point which is not
+// directly deletable by GC. We verify that GC deletes all files that
+// it's able to delete in the face of such errors.
+TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
+       BusyMountPoint)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+  const Offer& offer = offers.get()[0];
+  SlaveID slaveId = offer.slave_id();
+
+  // The busy mount point goes before the regular file in GC's
+  // directory traversal due to their names. This makes sure that
+  // an error occurs before all deletable files are GCed.
+  string mountPoint_ = "test1";
+  string regularFile = "test2.txt";
+
+  TaskInfo task = createTask(
+      slaveId,
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "touch "+ regularFile + "; "
+      "mkdir " + mountPoint_ + "; "
+      "mount --bind " + mountPoint_ + " " + mountPoint_,
+      None(),
+      "test-task123",
+      "test-task123");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<Nothing> schedule = FUTURE_DISPATCH(
+      _, &GarbageCollectorProcess::schedule);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  ExecutorID executorId;
+  executorId.set_value("test-task123");
+  Result<string> sandbox_ = os::realpath(slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      slaveId,
+      frameworkId.get(),
+      executorId));
+  ASSERT_SOME(sandbox_);
+  string sandbox = sandbox_.get();
+  // Register the mount point for cleanup.
+  mountPoint = Option<string>(path::join(sandbox, mountPoint_));
+
+  EXPECT_TRUE(os::exists(sandbox));
+  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint_)));
+  EXPECT_TRUE(os::exists(path::join(sandbox, regularFile)));
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+
+  AWAIT_READY(schedule);
+
+  Clock::pause();
+  Clock::advance(flags.gc_delay);
+  Clock::settle();
+
+  EXPECT_TRUE(os::exists(sandbox));
+  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint_)));
+  EXPECT_FALSE(os::exists(path::join(sandbox, regularFile)));
+
+  Clock::resume();
+  driver.stop();
+  driver.join();
+}
+#endif // __linux__
 
 } // namespace tests {
 } // namespace internal {
