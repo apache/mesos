@@ -124,6 +124,9 @@ public:
 
   virtual int count();
 
+  virtual void initialize(
+      const Option<std::set<std::string>>& fairnessExcludeResourceNames);
+
 private:
   // Recalculates the share for the client and moves
   // it in 'clients' accordingly.
@@ -131,6 +134,9 @@ private:
 
   // Returns the dominant resource share for the client.
   double calculateShare(const std::string& name);
+
+  // Resource names that will be ignored by `calculateShare()`.
+  Option<std::set<std::string>> fairnessExcludeResourceNames;
 
   // Returns an iterator to the specified client, if
   // it exists in this Sorter.

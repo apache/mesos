@@ -409,6 +409,12 @@ double DRFSorter::calculateShare(const string& name)
   // scalars.
 
   foreach (const string& scalar, total_.scalarQuantities.names()) {
+    // Filter out the exclude resource names.
+    if (fairnessExcludeResourceNames.isSome() &&
+        fairnessExcludeResourceNames.get().count(scalar)) {
+      continue;
+    }
+
     // We collect the scalar accumulated total value from the
     // `Resources` object.
     //
@@ -444,6 +450,12 @@ double DRFSorter::calculateShare(const string& name)
   }
 
   return share / weights[name];
+}
+
+
+void DRFSorter::initialize(
+    const Option<set<std::string>>& _fairnessExcludeResourceNames) {
+  fairnessExcludeResourceNames = _fairnessExcludeResourceNames;
 }
 
 

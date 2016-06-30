@@ -141,6 +141,11 @@ public:
   // Returns the number of clients this Sorter contains,
   // either active or deactivated.
   virtual int count() = 0;
+
+  // Initialize resource names that will be ignored by sorter when
+  // calculating dominant share for frameworks or roles.
+  virtual void initialize(
+      const Option<std::set<std::string>>& fairnessExcludeResourceNames) = 0;
 };
 
 } // namespace allocator {
