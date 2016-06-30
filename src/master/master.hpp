@@ -1301,7 +1301,12 @@ private:
     static std::string WEIGHTS_HELP();
 
   private:
-    JSON::Object _flags() const;
+    JSON::Object __flags() const;
+
+    class FlagsError; // Forward declaration.
+
+    process::Future<Try<JSON::Object, FlagsError>> _flags(
+        const Option<std::string>& principal) const;
 
     process::Future<std::vector<const Task*>> _tasks(
         const size_t limit,

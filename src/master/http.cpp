@@ -45,6 +45,7 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/base64.hpp>
+#include <stout/errorbase.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -1450,6 +1451,26 @@ Future<Response> Master::Http::getFrameworks(
 }
 
 
+class Master::Http::FlagsError : public Error
+{
+public:
+  enum Type
+  {
+    UNAUTHORIZED
+  };
+
+  // TODO(arojas): Provide a proper string representation of the enum.
+  explicit FlagsError(Type _type)
+    : Error(stringify(_type)), type(_type) {}
+
+  FlagsError(Type _type, const std::string& _message)
+    : Error(stringify(_type)), type(_type), message(_message) {}
+
+  const Type type;
+  const std::string message;
+};
+
+
 string Master::Http::FLAGS_HELP()
 {
   return HELP(
@@ -1473,8 +1494,30 @@ Future<Response> Master::Http::flags(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
+  Option<string> jsonp = request.url.query.get("jsonp");
+
+  return _flags(principal)
+      .then([jsonp](const Try<JSON::Object, FlagsError>& flags)
+            -> Future<Response> {
+        if (flags.isError()) {
+          switch (flags.error().type) {
+            case FlagsError::Type::UNAUTHORIZED:
+              return Forbidden();
+          }
+
+          return InternalServerError(flags.error().message);
+        }
+
+        return OK(flags.get(), jsonp);
+      });
+}
+
+
+Future<Try<JSON::Object, Master::Http::FlagsError>> Master::Http::_flags(
+    const Option<string>& principal) const
+{
   if (master->authorizer.isNone()) {
-    return OK(_flags(), request.url.query.get("jsonp"));
+    return __flags();
   }
 
   authorization::Request authRequest;
@@ -1487,17 +1530,17 @@ Future<Response> Master::Http::flags(
   return master->authorizer.get()->authorized(authRequest)
       .then(defer(
           master->self(),
-          [this, request](bool authorized) -> Future<Response> {
-            if (authorized) {
-              return OK(_flags(), request.url.query.get("jsonp"));
-            } else {
-              return Forbidden();
-            }
-          }));
+          [this](bool authorized) -> Future<Try<JSON::Object, FlagsError>> {
+        if (authorized) {
+          return __flags();
+        } else {
+          return FlagsError(FlagsError::Type::UNAUTHORIZED);
+        }
+      }));
 }
 
 
-JSON::Object Master::Http::_flags() const
+JSON::Object Master::Http::__flags() const
 {
   JSON::Object object;
 
@@ -1523,9 +1566,23 @@ Future<Response> Master::Http::getFlags(
 {
   CHECK_EQ(mesos::master::Call::GET_FLAGS, call.type());
 
-  return OK(serialize(contentType,
-                      evolve<v1::master::Response::GET_FLAGS>(_flags())),
+  return _flags(principal)
+      .then([contentType](const Try<JSON::Object, FlagsError>& flags)
+            -> Future<Response> {
+        if (flags.isError()) {
+          switch (flags.error().type) {
+            case FlagsError::Type::UNAUTHORIZED:
+              return Forbidden();
+          }
+
+          return InternalServerError(flags.error().message);
+        }
+
+        return OK(
+            serialize(contentType,
+                      evolve<v1::master::Response::GET_FLAGS>(flags.get())),
             stringify(contentType));
+      });
 }
 
 
