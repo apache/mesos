@@ -469,7 +469,7 @@ protected:
 
 // We map the templatized version of the `HierarchicalAllocatorProcess` to one
 // that relies on sorter factories in the internal namespace. This allows us
-// to keep the implemention of the allocator in the implementation file.
+// to keep the implementation of the allocator in the implementation file.
 template <
     typename RoleSorter,
     typename FrameworkSorter,
