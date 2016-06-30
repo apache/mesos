@@ -66,6 +66,7 @@ layout: documentation
 * [Orbitz Worldwide](http://www.orbitz.com/)
 * [OpenCredo](http://www.opencredo.com/)
 * [OpenTable](http://www.opentable.com)
+* [Opera](https://www.opera.com/)
 * [Oscar Insurance](https://www.hioscar.com/)
 * [OVH](https://www.ovh.com/)
 * [PayPal](https://www.paypal.com)
