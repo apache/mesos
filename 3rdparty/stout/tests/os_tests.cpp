@@ -102,6 +102,18 @@ TEST_F(OsTest, Environment)
 }
 
 
+TEST_F(OsTest, Argv)
+{
+  vector<string> args = {"arg0", "arg1", "arg2"};
+
+  os::raw::Argv _argv(args);
+  char** argv = _argv;
+  for (size_t i = 0; i < args.size(); i++) {
+    EXPECT_EQ(args[i], argv[i]);
+  }
+}
+
+
 TEST_F(OsTest, System)
 {
   EXPECT_EQ(0, os::system("exit 0"));

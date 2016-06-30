@@ -129,6 +129,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/stat.hpp			\
   stout/os/posix/su.hpp				\
   stout/os/posix/write.hpp			\
+  stout/os/raw/argv.hpp				\
   stout/os/raw/environment.hpp			\
   stout/os/windows/bootid.hpp			\
   stout/os/windows/chroot.hpp			\
