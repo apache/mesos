@@ -76,11 +76,19 @@ MesosContainerizerLaunch::Flags::Flags()
 
   add(&pipe_read,
       "pipe_read",
-      "The read end of the control pipe.");
+      "The read end of the control pipe. This is a file descriptor \n"
+      "on Posix, or a handle on Windows. It's caller's responsibility \n"
+      "to make sure the file descriptor or the handle is inherited \n"
+      "properly in the subprocess. It's used to synchronize with the \n"
+      "parent process. If not specified, no synchronization will happen.");
 
   add(&pipe_write,
       "pipe_write",
-      "The write end of the control pipe.");
+      "The write end of the control pipe. This is a file descriptor \n"
+      "on Posix, or a handle on Windows. It's caller's responsibility \n"
+      "to make sure the file descriptor or the handle is inherited \n"
+      "properly in the subprocess. It's used to synchronize with the \n"
+      "parent process. If not specified, no synchronization will happen.");
 
   add(&commands,
       "commands",
@@ -102,13 +110,13 @@ int MesosContainerizerLaunch::execute()
     return 1;
   }
 
-  if (flags.pipe_read.isNone()) {
-    cerr << "Flag --pipe_read is not specified" << endl;
-    return 1;
-  }
+  bool controlPipeSpecified =
+    flags.pipe_read.isSome() && flags.pipe_write.isSome();
 
-  if (flags.pipe_write.isNone()) {
-    cerr << "Flag --pipe_write is not specified" << endl;
+  if ((flags.pipe_read.isSome() && flags.pipe_write.isNone()) ||
+      (flags.pipe_read.isNone() && flags.pipe_write.isSome())) {
+    cerr << "Flag --pipe_read and --pipe_write should either be "
+         << "both set or both not set" << endl;
     return 1;
   }
 
@@ -134,43 +142,43 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
+  if (controlPipeSpecified) {
+    int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
 
-// NOTE: On windows we need to pass `HANDLE`s between processes, as
-// file descriptors are not unique across processes. Here we convert
-// back from from the `HANDLE`s we receive to fds that can be used in
-// os-agnostic code.
+    // NOTE: On windows we need to pass `HANDLE`s between processes,
+    // as file descriptors are not unique across processes. Here we
+    // convert back from from the `HANDLE`s we receive to fds that can
+    // be used in os-agnostic code.
 #ifdef __WINDOWS__
-  pipe[0] = os::handle_to_fd(pipe[0], _O_RDONLY | _O_TEXT);
-  pipe[1] = os::handle_to_fd(pipe[1], _O_TEXT);
+    pipe[0] = os::handle_to_fd(pipe[0], _O_RDONLY | _O_TEXT);
+    pipe[1] = os::handle_to_fd(pipe[1], _O_TEXT);
 #endif // __WINDOWS__
 
-  Try<Nothing> close = os::close(pipe[1]);
-  if (close.isError()) {
-    cerr << "Failed to close pipe[1]: " << close.error() << endl;
-    return 1;
-  }
+    Try<Nothing> close = os::close(pipe[1]);
+    if (close.isError()) {
+      cerr << "Failed to close pipe[1]: " << close.error() << endl;
+      return 1;
+    }
 
-  // Do a blocking read on the pipe until the parent signals us to continue.
-  char dummy;
-  ssize_t length;
-  while ((length = os::read(
-              pipe[0],
-              &dummy,
-              sizeof(dummy))) == -1 &&
-          errno == EINTR);
+    // Do a blocking read on the pipe until the parent signals us to continue.
+    char dummy;
+    ssize_t length;
+    while ((length = os::read(pipe[0], &dummy, sizeof(dummy))) == -1 &&
+           errno == EINTR);
 
-  if (length != sizeof(dummy)) {
-     // There's a reasonable probability this will occur during agent
-     // restarts across a large/busy cluster.
-     cerr << "Failed to synchronize with agent (it's probably exited)" << endl;
-     return 1;
-  }
+    if (length != sizeof(dummy)) {
+       // There's a reasonable probability this will occur during
+       // agent restarts across a large/busy cluster.
+       cerr << "Failed to synchronize with agent "
+            << "(it's probably exited)" << endl;
+       return 1;
+    }
 
-  close = os::close(pipe[0]);
-  if (close.isError()) {
-    cerr << "Failed to close pipe[0]: " << close.error() << endl;
-    return 1;
+    close = os::close(pipe[0]);
+    if (close.isError()) {
+      cerr << "Failed to close pipe[0]: " << close.error() << endl;
+      return 1;
+    }
   }
 
   // Run additional preparation commands. These are run as the same
