@@ -39,7 +39,9 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#ifdef __linux__
 #include "linux/fs.hpp"
+#endif
 
 #include "logging/logging.hpp"
 
