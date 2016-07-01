@@ -58,33 +58,34 @@ message Call {
 
     GET_AGENTS = 11;
     GET_FRAMEWORKS = 12;
-    GET_TASKS = 13;         // Retrieves the information about all known tasks.
-    GET_ROLES = 14;         // Retrieves the information about roles.
+    GET_EXECUTORS = 13;     // Retrieves the information about all executors.
+    GET_TASKS = 14;         // Retrieves the information about all known tasks.
+    GET_ROLES = 15;         // Retrieves the information about roles.
 
-    GET_WEIGHTS = 15;       // Retrieves the information about role weights.
-    UPDATE_WEIGHTS = 16;
+    GET_WEIGHTS = 16;       // Retrieves the information about role weights.
+    UPDATE_WEIGHTS = 17;
 
-    GET_LEADING_MASTER = 17; // Retrieves the leading master information.
+    GET_LEADING_MASTER = 18; // Retrieves the leading master information.
 
-    SUBSCRIBE = 18;          // Subscribes the master to receive events.
+    SUBSCRIBE = 19;          // Subscribes the master to receive events.
 
-    RESERVE_RESOURCES = 19;
-    UNRESERVE_RESOURCES = 20;
+    RESERVE_RESOURCES = 20;
+    UNRESERVE_RESOURCES = 21;
 
-    CREATE_VOLUMES = 21;     // See 'CreateVolumes' below.
-    DESTROY_VOLUMES = 22;    // See 'DestroyVolumes' below.
+    CREATE_VOLUMES = 22;     // See 'CreateVolumes' below.
+    DESTROY_VOLUMES = 23;    // See 'DestroyVolumes' below.
 
     // Retrieves the cluster's maintenance status.
-    GET_MAINTENANCE_STATUS = 23;
+    GET_MAINTENANCE_STATUS = 24;
     // Retrieves the cluster's maintenance schedule.
-    GET_MAINTENANCE_SCHEDULE = 24;
-    UPDATE_MAINTENANCE_SCHEDULE = 25; // See 'UpdateMaintenanceSchedule' below.
-    START_MAINTENANCE = 26;           // See 'StartMaintenance' below.
-    STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
+    GET_MAINTENANCE_SCHEDULE = 25;
+    UPDATE_MAINTENANCE_SCHEDULE = 26; // See 'UpdateMaintenanceSchedule' below.
+    START_MAINTENANCE = 27;           // See 'StartMaintenance' below.
+    STOP_MAINTENANCE = 28;            // See 'StopMaintenance' below.
 
-    GET_QUOTA = 28;
-    SET_QUOTA = 29;          // See 'SetQuota' below.
-    REMOVE_QUOTA = 30;
+    GET_QUOTA = 29;
+    SET_QUOTA = 30;          // See 'SetQuota' below.
+    REMOVE_QUOTA = 31;
   }
 
   // Provides a snapshot of the current metrics tracked by the master.
@@ -220,17 +221,18 @@ message Response {
 
     GET_AGENTS = 10;
     GET_FRAMEWORKS = 11;
-    GET_TASKS = 12;                // See 'GetTasks' below.
-    GET_ROLES = 13;                // See 'GetRoles' below.
+    GET_EXECUTORS = 12;            // See 'GetExecutors' below.
+    GET_TASKS = 13;                // See 'GetTasks' below.
+    GET_ROLES = 14;                // See 'GetRoles' below.
 
-    GET_WEIGHTS = 14;              // See 'GetWeights' below.
+    GET_WEIGHTS = 15;              // See 'GetWeights' below.
 
-    GET_LEADING_MASTER = 15;       // See 'GetLeadingMaster' below.
+    GET_LEADING_MASTER = 16;       // See 'GetLeadingMaster' below.
 
-    GET_MAINTENANCE_STATUS = 16;   // See 'GetMaintenanceStatus' below.
-    GET_MAINTENANCE_SCHEDULE = 17; // See 'GetMaintenanceSchedule' below.
+    GET_MAINTENANCE_STATUS = 17;   // See 'GetMaintenanceStatus' below.
+    GET_MAINTENANCE_SCHEDULE = 18; // See 'GetMaintenanceSchedule' below.
 
-    GET_QUOTA = 18;
+    GET_QUOTA = 19;
   }
 
   // `healthy` would be true if the master is healthy. Delayed responses are
@@ -329,6 +331,19 @@ message Response {
     repeated FrameworkID unsubscribed_frameworks = 3;
   }
 
+  // Lists information about all the executors known to the master at the
+  // current time. Note that there might be executors unknown to the master
+  // running on partitioned or unsubscribed agents.
+  message GetExecutors {
+    message Executor {
+      required ExecutorInfo executor_info = 1;
+      required SlaveID slave_id = 2;
+    }
+
+    repeated Executor executors = 1;
+    repeated Executor orphan_executors = 2;
+  }
+
   // Lists information about all the tasks known to the master at the current
   // time. Note that there might be tasks unknown to the master running on
   // partitioned or unsubscribed agents.
@@ -398,13 +413,14 @@ message Response {
   optional GetStateSummary get_state_summary = 10;
   optional GetAgents get_agents = 11;
   optional GetFrameworks get_frameworks = 12;
-  optional GetTasks get_tasks = 13;
-  optional GetRoles get_roles = 14;
-  optional GetWeights get_weights = 15;
-  optional GetLeadingMaster get_leading_master = 16;
-  optional GetMaintenanceStatus get_maintenance_status = 17;
-  optional GetMaintenanceSchedule get_maintenance_schedule = 18;
-  optional GetQuota get_quota = 19;
+  optional GetExecutors get_executors = 13;
+  optional GetTasks get_tasks = 14;
+  optional GetRoles get_roles = 15;
+  optional GetWeights get_weights = 16;
+  optional GetLeadingMaster get_leading_master = 17;
+  optional GetMaintenanceStatus get_maintenance_status = 18;
+  optional GetMaintenanceSchedule get_maintenance_schedule = 19;
+  optional GetQuota get_quota = 20;
 }
 
 
