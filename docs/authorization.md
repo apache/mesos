@@ -216,6 +216,13 @@ entries, each representing an authorizable action:
   </td>
 </tr>
 <tr>
+  <td><code>get_endpoints</code></td>
+  <td>HTTP username.</td>
+  <td>HTTP endpoints the user should be able to access using the HTTP "GET"
+      method.</td>
+  <td>Performing an HTTP "GET" on an endpoint.</td>
+</tr>
+<tr>
   <td><code>update_weights</code></td>
   <td>Operator username.</td>
   <td>Resource roles whose weights can be updated by the operator.</td>
@@ -258,6 +265,14 @@ entries, each representing an authorizable action:
 </tbody>
 </table>
 
+### Authorizable HTTP endpoints
+
+The `get_endpoints` action covers:
+
+* `/logging/toggle`
+* `/metrics/snapshot`
+* `/slave(id)/containers`
+* `/slave(id)/monitor/statistics`
 
 ### Examples
 
@@ -702,6 +717,36 @@ principal can update quota.
                        },
                        "roles": {
                          "values": ["foo-role"]
+                       }
+                     }
+                   ]
+}
+```
+
+
+The principal `ops` can reach all HTTP endpoints using the _GET_
+method. The principal `foo`, however, can only use the HTTP _GET_ on
+the `/logging/toggle` and `/monitor/statistics` endpoints.  No other
+principals can use _GET_ on any endpoints.
+
+```json
+{
+  "permissive": false,
+  "get_endpoints": [
+                     {
+                       "principals": {
+                         "values": ["ops"]
+                       },
+                       "paths": {
+                         "type": "ANY"
+                       }
+                     },
+                     {
+                       "principals": {
+                         "values": ["foo"]
+                       },
+                       "paths": {
+                         "values": ["/logging/toggle", "/monitor/statistics"]
                        }
                      }
                    ]
