@@ -526,6 +526,9 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::GET_FRAMEWORKS:
       return getFrameworks(call, principal, acceptType);
 
+    case mesos::master::Call::GET_EXECUTORS:
+      return getExecutors(call, principal, acceptType);
+
     case mesos::master::Call::GET_TASKS:
       return getTasks(call, principal, acceptType);
 
@@ -1380,6 +1383,118 @@ Future<Response> Master::Http::getFrameworks(
           if (!master->frameworks.registered.contains(frameworkId)) {
             response.mutable_get_frameworks()->add_unsubscribed_frameworks()
                 ->set_value(frameworkId.value());
+          }
+        }
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    }));
+}
+
+
+Future<Response> Master::Http::getExecutors(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_EXECUTORS, call.type());
+
+  // Retrieve `ObjectApprover`s for authorizing frameworks and executors.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
+  if (master->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    frameworksApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    executorsApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return collect(frameworksApprover, executorsApprover)
+    .then(defer(master->self(),
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers)
+          -> Response {
+      // Get approver from tuple.
+      Owned<ObjectApprover> frameworksApprover;
+      Owned<ObjectApprover> executorsApprover;
+      tie(frameworksApprover, executorsApprover) = approvers;
+
+      // Construct framework list with both active and completed frameworks.
+      vector<const Framework*> frameworks;
+      foreachvalue (Framework* framework, master->frameworks.registered) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework);
+      }
+
+      foreach (const std::shared_ptr<Framework>& framework,
+               master->frameworks.completed) {
+        // Skip unauthorized frameworks.
+        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+          continue;
+        }
+
+        frameworks.push_back(framework.get());
+      }
+
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_EXECUTORS);
+
+      mesos::master::Response::GetExecutors* getExecutors =
+        response.mutable_get_executors();
+
+      foreach (const Framework* framework, frameworks) {
+        foreachpair (const SlaveID& slaveId,
+                     const auto& executorsMap,
+                     framework->executors) {
+          foreachvalue (const ExecutorInfo& info, executorsMap) {
+            // Skip unauthorized executors.
+            if (!approveViewExecutorInfo(executorsApprover,
+                                         info,
+                                         framework->info)) {
+              continue;
+            }
+
+            mesos::master::Response::GetExecutors::Executor* executor =
+              getExecutors->add_executors();
+
+            executor->mutable_executor_info()->CopyFrom(info);
+            executor->mutable_slave_id()->CopyFrom(slaveId);
+          }
+        }
+      }
+
+      // Orphan executors.
+      // TODO(haosdent): Need to filter these executors based on authorization!
+      // This is currently not possible because we don't have `FrameworkInfo`
+      // for these executors. We need to either store `FrameworkInfo` for orphan
+      // executors or persist FrameworkInfo of all frameworks in the registry.
+      foreachvalue (const Slave* slave, master->slaves.registered) {
+        typedef hashmap<ExecutorID, ExecutorInfo> ExecutorMap;
+        foreachpair (const FrameworkID& frameworkId,
+                     const ExecutorMap& executors,
+                     slave->executors) {
+          foreachvalue (const ExecutorInfo& info, executors) {
+            if (!master->frameworks.registered.contains(frameworkId)) {
+              mesos::master::Response::GetExecutors::Executor* executor =
+                getExecutors->add_orphan_executors();
+
+              executor->mutable_executor_info()->CopyFrom(info);
+              executor->mutable_slave_id()->CopyFrom(slave->id);
+            }
           }
         }
       }
