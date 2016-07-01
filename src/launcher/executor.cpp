@@ -134,7 +134,7 @@ class CommandExecutor: public ProtobufProcess<CommandExecutor>
 {
 public:
   CommandExecutor(
-      const string& _healthCheckDir,
+      const string& _launcherDir,
       const Option<string>& _rootfs,
       const Option<string>& _sandboxDirectory,
       const Option<string>& _workingDirectory,
@@ -152,7 +152,7 @@ public:
       shutdownGracePeriod(_shutdownGracePeriod),
       frameworkInfo(None()),
       taskId(None()),
-      healthCheckDir(_healthCheckDir),
+      launcherDir(_launcherDir),
       rootfs(_rootfs),
       sandboxDirectory(_sandboxDirectory),
       workingDirectory(_workingDirectory),
@@ -739,7 +739,7 @@ private:
   Option<KillPolicy> killPolicy;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
-  string healthCheckDir;
+  string launcherDir;
   Option<string> rootfs;
   Option<string> sandboxDirectory;
   Option<string> workingDirectory;
