@@ -254,6 +254,42 @@ public:
 };
 
 
+inline bool operator==(const Path& left, const Path& right)
+{
+  return left.value == right.value;
+}
+
+
+inline bool operator!=(const Path& left, const Path& right)
+{
+  return !(left == right);
+}
+
+
+inline bool operator<(const Path& left, const Path& right)
+{
+  return left.value < right.value;
+}
+
+
+inline bool operator>(const Path& left, const Path& right)
+{
+  return right < left;
+}
+
+
+inline bool operator<=(const Path& left, const Path& right)
+{
+  return !(left > right);
+}
+
+
+inline bool operator>=(const Path& left, const Path& right)
+{
+  return !(left < right);
+}
+
+
 inline std::ostream& operator<<(
     std::ostream& stream,
     const Path& path)

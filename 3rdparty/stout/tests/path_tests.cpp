@@ -167,6 +167,30 @@ TEST(PathTest, Absolute)
 }
 
 
+TEST(PathTest, Comparison)
+{
+  EXPECT_TRUE(Path("a") == Path("a"));
+  EXPECT_FALSE(Path("a") == Path("b"));
+
+  EXPECT_TRUE(Path("a") != Path("b"));
+  EXPECT_FALSE(Path("a") != Path("a"));
+
+  EXPECT_TRUE(Path("a") < Path("b"));
+  EXPECT_FALSE(Path("b") < Path("a"));
+
+  EXPECT_TRUE(Path("a") <= Path("b"));
+  EXPECT_TRUE(Path("a") <= Path("a"));
+  EXPECT_FALSE(Path("b") <= Path("a"));
+
+  EXPECT_TRUE(Path("b") > Path("a"));
+  EXPECT_FALSE(Path("a") > Path("a"));
+
+  EXPECT_TRUE(Path("b") >= Path("a"));
+  EXPECT_TRUE(Path("b") >= Path("b"));
+  EXPECT_FALSE(Path("a") >= Path("b"));
+}
+
+
 class PathFileTest : public TemporaryDirectoryTest {};
 
 
