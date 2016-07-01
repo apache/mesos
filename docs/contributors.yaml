@@ -299,6 +299,14 @@
   jira_user: vinodkone
   reviewboard_user: vinodkone
 
+- name: Yanyan Hu
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - yanyanhu@cn.ibm.com
+  jira_user: yanyanhu
+  reviewboard_user: yanyanhu
+
 - name: Yong Qiao Wang
   affiliations:
     - {organization: IBM}
