@@ -410,3 +410,12 @@
     - phil@winderresearch.com
   jira_user: philwinder
   reviewboard_user: philwinder
+
+- name: Charles Allen
+  affiliations:
+    - {organization: Metamarkets}
+  emails:
+    - charles@allen-net.com
+    - charles.allen@metamarkets.com
+  jira_user: drcrallen
+  reviewboard_user: drcrallen
