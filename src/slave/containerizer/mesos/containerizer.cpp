@@ -945,6 +945,12 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Container is already destroyed");
   }
 
+  if (containers_[containerId]->state == DESTROYING) {
+    return Failure("Container is currently being destroyed");
+  }
+
+  containers_[containerId]->state = FETCHING;
+
   return fetcher->fetch(
       containerId,
       commandInfo,
@@ -1493,10 +1499,6 @@ void MesosContainerizerProcess::destroy(
     return;
   }
 
-  if (container->state == FETCHING) {
-    fetcher->kill(containerId);
-  }
-
   if (container->state == ISOLATING) {
     VLOG(1) << "Waiting for the isolators to complete for container '"
             << containerId << "'";
@@ -1509,6 +1511,11 @@ void MesosContainerizerProcess::destroy(
       .onAny(defer(self(), &Self::_destroy, containerId));
 
     return;
+  }
+
+  // Either RUNNING or FETCHING at this point.
+  if (container->state == FETCHING) {
+    fetcher->kill(containerId);
   }
 
   container->state = DESTROYING;
