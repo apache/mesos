@@ -543,8 +543,8 @@ TEST_F(SlaveTest, GetExecutorInfo)
 
   // Now assert that it actually is running mesos-executor without any
   // bleedover from the command we intend on running.
-  EXPECT_TRUE(executor.command().shell());
-  EXPECT_EQ(0, executor.command().arguments_size());
+  EXPECT_FALSE(executor.command().shell());
+  EXPECT_EQ(1, executor.command().arguments_size());
   ASSERT_TRUE(executor.has_labels());
   EXPECT_EQ(2, executor.labels().labels_size());
   ASSERT_TRUE(executor.has_discovery());
@@ -595,7 +595,7 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
   const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
   // Now assert that the executor has both the command and ContainerInfo
-  EXPECT_TRUE(executor.command().shell());
+  EXPECT_FALSE(executor.command().shell());
   // CommandInfo.container is not included. In this test the ContainerInfo
   // must be included in Executor.container (copied from TaskInfo.container).
   EXPECT_TRUE(executor.has_container());

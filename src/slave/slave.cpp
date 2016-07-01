@@ -3949,18 +3949,15 @@ ExecutorInfo Slave::getExecutorInfo(
       executor.mutable_command()->set_user(task.command().user());
     }
 
-    Result<string> path =
-      os::realpath(path::join(flags.launcher_dir, "mesos-executor"));
-
-    // Explicitly set 'shell' to true since we want to use the shell
-    // for running the mesos-executor (and even though this is the
-    // default we want to be explicit).
-    executor.mutable_command()->set_shell(true);
+    Result<string> path = os::realpath(
+        path::join(flags.launcher_dir, "mesos-executor"));
 
     if (path.isSome()) {
+      executor.mutable_command()->set_shell(false);
+      executor.mutable_command()->set_value(path.get());
+      executor.mutable_command()->add_arguments("mesos-executor");
+
       if (hasRootfs) {
-        executor.mutable_command()->set_shell(false);
-        executor.mutable_command()->add_arguments("mesos-executor");
         executor.mutable_command()->add_arguments(
             "--sandbox_directory=" + flags.sandbox_directory);
 
@@ -3981,9 +3978,8 @@ ExecutorInfo Slave::getExecutorInfo(
         }
 #endif // __WINDOWS__
       }
-
-      executor.mutable_command()->set_value(path.get());
     } else {
+      executor.mutable_command()->set_shell(true);
       executor.mutable_command()->set_value(
           "echo '" +
           (path.isError() ? path.error() : "No such file or directory") +
