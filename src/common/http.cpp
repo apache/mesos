@@ -47,6 +47,7 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::Failure;
 using process::Owned;
 
 using process::http::authorization::AuthorizationCallbacks;
@@ -68,6 +69,16 @@ ostream& operator<<(ostream& stream, ContentType contentType)
 }
 
 namespace internal {
+
+// Set of endpoint whose access is protected with the authorization
+// action `GET_EDNPOINTS_WITH_PATH`.
+hashset<string> AUTHORIZABLE_ENDPOINTS{
+    "/containers",
+    "/logging/toggle",
+    "/metrics/snapshot",
+    "/monitor/statistics",
+    "/monitor/statistics.json"};
+
 
 string serialize(
     ContentType contentType,
@@ -599,6 +610,13 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
   Callback getEndpoint = [authorizer](
       const process::http::Request& httpRequest,
       const Option<string>& principal) -> process::Future<bool> {
+        const string path = httpRequest.url.path;
+
+        if (!internal::AUTHORIZABLE_ENDPOINTS.contains(path)) {
+          return Failure(
+              "Endpoint '" + path + "' is not an authorizable endpoint.");
+        }
+
         authorization::Request authRequest;
         authRequest.set_action(mesos::authorization::GET_ENDPOINT_WITH_PATH);
 
@@ -606,7 +624,6 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
           authRequest.mutable_subject()->set_value(principal.get());
         }
 
-        const string path = httpRequest.url.path;
         authRequest.mutable_object()->set_value(path);
 
         LOG(INFO) << "Authorizing principal '"
@@ -711,6 +728,46 @@ bool approveViewFlags(
     return false;
   }
   return approved.get();
+}
+
+
+process::Future<bool> authorizeEndpoint(
+    const std::string& endpoint,
+    const std::string& method,
+    const Option<Authorizer*>& authorizer,
+    const Option<std::string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  authorization::Request request;
+
+  // TODO(nfnt): Add an additional case when POST requests
+  // need to be authorized separately from GET requests.
+  if (method == "GET") {
+    request.set_action(authorization::GET_ENDPOINT_WITH_PATH);
+  } else {
+    return Failure("Unexpected request method '" + method + "'");
+  }
+
+  if (!internal::AUTHORIZABLE_ENDPOINTS.contains(endpoint)) {
+    return Failure(
+        "Endpoint '" + endpoint + "' is not an authorizable endpoint.");
+  }
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  request.mutable_object()->set_value(endpoint);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to " <<  method
+            << " the '" << endpoint << "' endpoint";
+
+  return authorizer.get()->authorized(request);
 }
 
 }  // namespace mesos {

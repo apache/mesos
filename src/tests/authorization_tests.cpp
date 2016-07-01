@@ -2344,6 +2344,53 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
   }
 }
 
+
+// This tests the authorization of ACLs used for unreserve
+// operations on dynamically reserved resources.
+TYPED_TEST(AuthorizationTest, ValidateEndpoints)
+{
+  {
+    ACLs acls;
+
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_paths()->add_values("/frameworks");
+
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    EXPECT_ERROR(create);
+  }
+
+  {
+    ACLs acls;
+
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_paths()->add_values("/frameworks");
+    acl->mutable_paths()->add_values("/monitor/statistics");
+    acl->mutable_paths()->add_values("/containers");
+
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    EXPECT_ERROR(create);
+  }
+
+  {
+    ACLs acls;
+
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_paths()->add_values("/monitor/statistics");
+    acl->mutable_paths()->add_values("/monitor/statistics.json");
+    acl->mutable_paths()->add_values("/containers");
+
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    EXPECT_SOME(create);
+    delete create.get();
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

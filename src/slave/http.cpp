@@ -1057,7 +1057,11 @@ Future<Response> Slave::Http::statistics(
     return Failure("Failed to extract endpoint: " + endpoint.error());
   }
 
-  return authorizeEndpoint(principal, endpoint.get(), request.method)
+  return authorizeEndpoint(
+      endpoint.get(),
+      request.method,
+      slave->authorizer,
+      principal)
     .then(defer(
         slave->self(),
         [this, request](bool authorized) -> Future<Response> {
@@ -1162,7 +1166,11 @@ Future<Response> Slave::Http::containers(
     return Failure("Failed to extract endpoint: " + endpoint.error());
   }
 
-  return authorizeEndpoint(principal, endpoint.get(), request.method)
+  return authorizeEndpoint(
+      endpoint.get(),
+      request.method,
+      slave->authorizer,
+      principal)
     .then(defer(
         slave->self(),
         [this, request](bool authorized) -> Future<Response> {
@@ -1321,40 +1329,6 @@ Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
   }
 
   return "/" + pathComponents[1];
-}
-
-
-Future<bool> Slave::Http::authorizeEndpoint(
-    const Option<string>& principal,
-    const string& endpoint,
-    const string& method) const
-{
-  if (slave->authorizer.isNone()) {
-    return true;
-  }
-
-  authorization::Request request;
-
-  // TODO(nfnt): Add an additional case when POST requests
-  // need to be authorized separately from GET requests.
-  if (method == "GET") {
-    request.set_action(authorization::GET_ENDPOINT_WITH_PATH);
-  } else {
-    return Failure("Unexpected request method '" + method + "'");
-  }
-
-  if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
-  }
-
-  request.mutable_object()->set_value(endpoint);
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? principal.get() : "ANY")
-            << "' to " <<  method
-            << " the '" << endpoint << "' endpoint";
-
-  return slave->authorizer.get()->authorized(request);
 }
 
 } // namespace slave {

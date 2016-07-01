@@ -96,7 +96,7 @@ TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)
   AWAIT_READY(registered);
 
   Future<process::http::Response> response =
-    process::http::get(MetricsProcess::instance()->self(), "/snapshot");
+    process::http::get(MetricsProcess::instance()->self(), "snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

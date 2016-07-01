@@ -502,18 +502,6 @@ private:
     // Helper routines for endpoint authorization.
     Try<std::string> extractEndpoint(const process::http::URL& url) const;
 
-    // Authorizes access to an HTTP endpoint. The `method` parameter
-    // determines which ACL action will be used in the authorization.
-    // It is expected that the caller has validated that `method` is
-    // supported by this function. Currently "GET" is supported.
-    //
-    // TODO(nfnt): Prefer types instead of strings
-    // for `endpoint` and `method`, see MESOS-5300.
-    process::Future<bool> authorizeEndpoint(
-        const Option<std::string>& principal,
-        const std::string& endpoint,
-        const std::string& method) const;
-
     // Agent API handlers.
 
     process::Future<process::http::Response> getFlags(

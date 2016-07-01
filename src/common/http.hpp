@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
@@ -40,6 +41,8 @@ class Resources;
 class Task;
 
 namespace internal {
+
+extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 
 // Serializes a protobuf message for transmission
 // based on the HTTP content type.
@@ -138,6 +141,20 @@ bool approveViewTask(
 
 
 bool approveViewFlags(const process::Owned<ObjectApprover>& flagsApprover);
+
+
+// Authorizes access to an HTTP endpoint. The `method` parameter
+// determines which ACL action will be used in the authorization.
+// It is expected that the caller has validated that `method` is
+// supported by this function. Currently "GET" is supported.
+//
+// TODO(nfnt): Prefer types instead of strings
+// for `endpoint` and `method`, see MESOS-5300.
+process::Future<bool> authorizeEndpoint(
+    const std::string& endpoint,
+    const std::string& method,
+    const Option<Authorizer*>& authorizer,
+    const Option<std::string>& principal);
 
 } // namespace mesos {
 

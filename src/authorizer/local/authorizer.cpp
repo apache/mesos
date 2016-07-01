@@ -37,6 +37,7 @@
 #include <stout/try.hpp>
 
 #include "common/parse.hpp"
+#include "common/http.hpp"
 
 using process::dispatch;
 using process::Failure;
@@ -781,6 +782,16 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
     if (acl.flags().type() == ACL::Entity::SOME) {
       return Error("acls.view_flags type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::GetEndpoint& acl, acls.get_endpoints()) {
+    if (acl.paths().type() == ACL::Entity::SOME) {
+      foreach (const string& path, acl.paths().values()) {
+        if (!AUTHORIZABLE_ENDPOINTS.contains(path)) {
+          return Error("Path: '" + path + "' is not an authorizable path");
+        }
+      }
     }
   }
 
