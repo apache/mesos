@@ -19,6 +19,8 @@
 
 #include <nvidia/gdk/nvml.h>
 
+#include <string>
+
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
@@ -45,6 +47,7 @@ Try<Nothing> initialize();
 
 // NVML wrapper functions. May be called after initializing
 // the library.
+Try<std::string> systemGetDriverVersion();
 Try<unsigned int> deviceGetCount();
 Try<nvmlDevice_t> deviceGetHandleByIndex(unsigned int index);
 Try<unsigned int> deviceGetMinorNumber(nvmlDevice_t handle);

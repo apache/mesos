@@ -51,15 +51,18 @@ static constexpr char LIBRARY_NAME[] = "libnvidia-ml.so.1";
 struct NvidiaManagementLibrary
 {
   NvidiaManagementLibrary(
+      nvmlReturn_t (*_systemGetDriverVersion)(char *, unsigned int),
       nvmlReturn_t (*_deviceGetCount)(unsigned int*),
       nvmlReturn_t (*_deviceGetHandleByIndex)(unsigned int, nvmlDevice_t*),
       nvmlReturn_t (*_deviceGetMinorNumber)(nvmlDevice_t, unsigned int*),
       const char* (*_errorString)(nvmlReturn_t))
-    : deviceGetCount(_deviceGetCount),
+    : systemGetDriverVersion(_systemGetDriverVersion),
+      deviceGetCount(_deviceGetCount),
       deviceGetHandleByIndex(_deviceGetHandleByIndex),
       deviceGetMinorNumber(_deviceGetMinorNumber),
       errorString(_errorString) {}
 
+  nvmlReturn_t (*systemGetDriverVersion)(char *, unsigned int);
   nvmlReturn_t (*deviceGetCount)(unsigned int*);
   nvmlReturn_t (*deviceGetHandleByIndex)(unsigned int, nvmlDevice_t*);
   nvmlReturn_t (*deviceGetMinorNumber)(nvmlDevice_t, unsigned int*);
@@ -100,6 +103,7 @@ Try<Nothing> initialize()
   // TODO(klueska): Use nvmlDeviceGetCount_v2 and nvmlDeviceGetHandleByIndex_v2.
   map<string, void*> symbols = {
       { "nvmlInit_v2", nullptr },
+      { "nvmlSystemGetDriverVersion", nullptr },
       { "nvmlDeviceGetCount", nullptr },
       { "nvmlDeviceGetHandleByIndex", nullptr },
       { "nvmlDeviceGetMinorNumber", nullptr },
@@ -130,6 +134,8 @@ Try<Nothing> initialize()
   }
 
   nvml = new NvidiaManagementLibrary(
+      (nvmlReturn_t (*)(char*, unsigned int))
+          symbols.at("nvmlSystemGetDriverVersion"),
       (nvmlReturn_t (*)(unsigned int*))
           symbols.at("nvmlDeviceGetCount"),
       (nvmlReturn_t (*)(unsigned int, nvmlDevice_t*))
@@ -176,6 +182,22 @@ bool isAvailable()
   return true;
 }
 
+
+Try<string> systemGetDriverVersion()
+{
+  if (nvml == nullptr) {
+    return Error("NVML has not been initialized");
+  }
+
+  // The NVML manual specifies that the version string will never
+  // exceed 80 characters.
+  char version[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE];
+  nvmlReturn_t result = nvml->systemGetDriverVersion(version, sizeof(version));
+  if (result != NVML_SUCCESS) {
+    return Error(nvml->errorString(result));
+  }
+  return string(version);
+}
 
 Try<unsigned int> deviceGetCount()
 {
