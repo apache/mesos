@@ -24,6 +24,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
@@ -104,8 +105,7 @@ private:
       const Flags& _flags,
       const std::string& hierarchy,
       const NvidiaGpuAllocator& _allocator,
-      const cgroups::devices::Entry& ctlDeviceEntry,
-      const cgroups::devices::Entry& uvmDeviceEntry);
+      const map<Path, cgroups::devices::Entry>& _controlDeviceEntries);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
@@ -131,8 +131,7 @@ private:
 
   NvidiaGpuAllocator allocator;
 
-  const cgroups::devices::Entry NVIDIA_CTL_DEVICE_ENTRY;
-  const cgroups::devices::Entry NVIDIA_UVM_DEVICE_ENTRY;
+  const map<Path, cgroups::devices::Entry> controlDeviceEntries;
 };
 
 } // namespace slave {

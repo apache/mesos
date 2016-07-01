@@ -73,13 +73,11 @@ NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const NvidiaGpuAllocator& _allocator,
-    const cgroups::devices::Entry& uvmDeviceEntry,
-    const cgroups::devices::Entry& ctlDeviceEntry)
+    const map<Path, cgroups::devices::Entry>& _controlDeviceEntries)
   : flags(_flags),
     hierarchy(_hierarchy),
     allocator(_allocator),
-    NVIDIA_CTL_DEVICE_ENTRY(ctlDeviceEntry),
-    NVIDIA_UVM_DEVICE_ENTRY(uvmDeviceEntry) {}
+    controlDeviceEntries(_controlDeviceEntries) {}
 
 
 Try<Isolator*> NvidiaGpuIsolatorProcess::create(
@@ -116,21 +114,26 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
         hierarchy.error());
   }
 
-  // Create the device entries for
-  // `/dev/nvidiactl` and `/dev/nvidia-uvm`.
+  // Create device entries for `/dev/nvidiactl` and
+  // `/dev/nvidia-uvm`. Optionally create a device entry for
+  // `/dev/nvidia-uvm-tools` if it exists.
+  map<Path, cgroups::devices::Entry> deviceEntries;
+
   Try<dev_t> device = os::stat::rdev("/dev/nvidiactl");
   if (device.isError()) {
     return Error("Failed to obtain device ID for '/dev/nvidiactl': " +
                  device.error());
   }
 
-  cgroups::devices::Entry ctlDeviceEntry;
-  ctlDeviceEntry.selector.type = Entry::Selector::Type::CHARACTER;
-  ctlDeviceEntry.selector.major = major(device.get());
-  ctlDeviceEntry.selector.minor = minor(device.get());
-  ctlDeviceEntry.access.read = true;
-  ctlDeviceEntry.access.write = true;
-  ctlDeviceEntry.access.mknod = true;
+  cgroups::devices::Entry entry;
+  entry.selector.type = Entry::Selector::Type::CHARACTER;
+  entry.selector.major = major(device.get());
+  entry.selector.minor = minor(device.get());
+  entry.access.read = true;
+  entry.access.write = true;
+  entry.access.mknod = true;
+
+  deviceEntries[Path("/dev/nvidiactl")] = entry;
 
   device = os::stat::rdev("/dev/nvidia-uvm");
   if (device.isError()) {
@@ -138,21 +141,33 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
                  device.error());
   }
 
-  cgroups::devices::Entry uvmDeviceEntry;
-  uvmDeviceEntry.selector.type = Entry::Selector::Type::CHARACTER;
-  uvmDeviceEntry.selector.major = major(device.get());
-  uvmDeviceEntry.selector.minor = minor(device.get());
-  uvmDeviceEntry.access.read = true;
-  uvmDeviceEntry.access.write = true;
-  uvmDeviceEntry.access.mknod = true;
+  entry.selector.type = Entry::Selector::Type::CHARACTER;
+  entry.selector.major = major(device.get());
+  entry.selector.minor = minor(device.get());
+  entry.access.read = true;
+  entry.access.write = true;
+  entry.access.mknod = true;
+
+  deviceEntries[Path("/dev/nvidia-uvm")] = entry;
+
+  device = os::stat::rdev("/dev/nvidia-uvm-tools");
+  if (device.isSome()) {
+    entry.selector.type = Entry::Selector::Type::CHARACTER;
+    entry.selector.major = major(device.get());
+    entry.selector.minor = minor(device.get());
+    entry.access.read = true;
+    entry.access.write = true;
+    entry.access.mknod = true;
+
+    deviceEntries[Path("/dev/nvidia-uvm-tools")] = entry;
+  }
 
   process::Owned<MesosIsolatorProcess> process(
       new NvidiaGpuIsolatorProcess(
           flags,
           hierarchy.get(),
           components.allocator,
-          ctlDeviceEntry,
-          uvmDeviceEntry));
+          deviceEntries));
 
   return new MesosIsolator(process);
 }
@@ -233,23 +248,20 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
   infos[containerId] = new Info(
       containerId, path::join(flags.cgroups_root, containerId.value()));
 
-  // Grant access to /dev/nvidiactl and /dev/nvida-uvm.
+  // Grant access to all `controlDeviceEntries`.
   //
   // This allows standard NVIDIA tools like `nvidia-smi` to be
   // used within the container even if no GPUs are allocated.
   // Without these devices, these tools fail abnormally.
-  map<string, const cgroups::devices::Entry> entries = {
-    { "/dev/nvidiactl", NVIDIA_CTL_DEVICE_ENTRY },
-    { "/dev/nvidia-uvm", NVIDIA_UVM_DEVICE_ENTRY },
-  };
-
-  foreachkey (const string& device, entries) {
+  foreachkey (const Path& devicePath, controlDeviceEntries) {
     Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy, infos[containerId]->cgroup, entries[device]);
+        hierarchy,
+        infos[containerId]->cgroup,
+        controlDeviceEntries.at(devicePath));
 
     if (allow.isError()) {
       return Failure("Failed to grant cgroups access to"
-                     " '" + device + "': " + allow.error());
+                     " '" + stringify(devicePath) + "': " + allow.error());
     }
   }
 
