@@ -44,9 +44,9 @@ namespace internal {
 pid_t launchTaskPosix(
     const mesos::v1::CommandInfo& command,
     const Option<string>& user,
-    Option<string>& rootfs,
-    Option<string>& sandboxDirectory,
-    Option<string>& workingDirectory)
+    const Option<string>& rootfs,
+    const Option<string>& sandboxDirectory,
+    const Option<string>& workingDirectory)
 {
   if (rootfs.isSome()) {
     // The command executor is responsible for chrooting into the
