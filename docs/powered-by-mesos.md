@@ -72,6 +72,7 @@ layout: documentation
 * [Oscar Insurance](https://www.hioscar.com/)
 * [OVH](https://www.ovh.com/)
 * [PayPal](https://www.paypal.com)
+* [Piksel](http://www.piksel.com)
 * [Pinkbike](http://www.pinkbike.com)
 * [ProfitStars](http://www.profitstars.com)
 * [Qubit](http://www.qubitproducts.com)
