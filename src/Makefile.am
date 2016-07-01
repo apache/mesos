@@ -969,6 +969,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/docker.hpp					\
   slave/containerizer/external_containerizer.hpp			\
   slave/containerizer/fetcher.hpp					\
+  slave/containerizer/mesos/constants.hpp				\
   slave/containerizer/mesos/containerizer.hpp				\
   slave/containerizer/mesos/isolator.hpp				\
   slave/containerizer/mesos/launch.hpp					\

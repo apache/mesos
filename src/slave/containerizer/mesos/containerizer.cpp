@@ -105,6 +105,7 @@
 #include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
 
+#include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
@@ -135,11 +136,6 @@ using state::FrameworkState;
 using state::ExecutorState;
 using state::RunState;
 
-#ifndef __WINDOWS__
-const char MESOS_CONTAINERIZER[] = "mesos-containerizer";
-#else
-const char MESOS_CONTAINERIZER[] = "mesos-containerizer.exe";
-#endif // __WINDOWS__
 
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
