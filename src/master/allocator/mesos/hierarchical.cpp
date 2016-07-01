@@ -34,6 +34,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 using std::set;
 using std::string;
 using std::vector;
@@ -257,21 +259,14 @@ void HierarchicalAllocatorProcess::addFramework(
 
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
+  frameworks[frameworkId].suppressed = false;
 
   // Set the framework capabilities that this allocator cares about.
-  frameworks[frameworkId].revocable = false;
-  frameworks[frameworkId].gpuAware = false;
+  frameworks[frameworkId].revocable = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::REVOCABLE_RESOURCES);
 
-  foreach (const FrameworkInfo::Capability& capability,
-           frameworkInfo.capabilities()) {
-    if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
-      frameworks[frameworkId].revocable = true;
-    } else if (capability.type() == FrameworkInfo::Capability::GPU_RESOURCES) {
-      frameworks[frameworkId].gpuAware = true;
-    }
-  }
-
-  frameworks[frameworkId].suppressed = false;
+  frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -401,17 +396,11 @@ void HierarchicalAllocatorProcess::updateFramework(
   CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
 
   // Update the framework capabilities that this allocator cares about.
-  frameworks[frameworkId].revocable = false;
-  frameworks[frameworkId].gpuAware = false;
+  frameworks[frameworkId].revocable = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::REVOCABLE_RESOURCES);
 
-  foreach (const FrameworkInfo::Capability& capability,
-           frameworkInfo.capabilities()) {
-    if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
-      frameworks[frameworkId].revocable = true;
-    } else if (capability.type() == FrameworkInfo::Capability::GPU_RESOURCES) {
-      frameworks[frameworkId].gpuAware = true;
-    }
-  }
+  frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
 }
 
 

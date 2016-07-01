@@ -38,6 +38,7 @@
 #include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "docker/docker.hpp"
 #include "docker/executor.hpp"
@@ -348,15 +349,13 @@ private:
       killed = true;
 
       // Send TASK_KILLING if the framework can handle it.
-      foreach (const FrameworkInfo::Capability& c,
-               frameworkInfo->capabilities()) {
-        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
-          TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId.get());
-          status.set_state(TASK_KILLING);
-          driver.get()->sendStatusUpdate(status);
-          break;
-        }
+      if (protobuf::frameworkHasCapability(
+              frameworkInfo.get(),
+              FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+        TaskStatus status;
+        status.mutable_task_id()->CopyFrom(taskId.get());
+        status.set_state(TASK_KILLING);
+        driver.get()->sendStatusUpdate(status);
       }
 
       // TODO(bmahler): Replace this with 'docker kill' so

@@ -44,6 +44,21 @@ namespace mesos {
 namespace internal {
 namespace protobuf {
 
+bool frameworkHasCapability(
+    const FrameworkInfo& framework,
+    FrameworkInfo::Capability::Type capability)
+{
+  foreach (const FrameworkInfo::Capability& c,
+           framework.capabilities()) {
+    if (c.type() == capability) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 bool isTerminalState(const TaskState& state)
 {
   return (state == TASK_FINISHED ||

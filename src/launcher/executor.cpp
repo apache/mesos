@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/mesos.hpp>
+
 #include <mesos/v1/executor.hpp>
 #include <mesos/v1/mesos.hpp>
 
@@ -65,8 +67,10 @@
 #include <stout/os/killtree.hpp>
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
+#include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
 #ifdef __linux__
@@ -103,8 +107,11 @@ using process::Subprocess;
 using process::Time;
 using process::Timer;
 
+using mesos::internal::devolve;
 using mesos::internal::evolve;
 using mesos::internal::TaskHealthStatus;
+
+using mesos::internal::protobuf::frameworkHasCapability;
 
 using mesos::v1::ExecutorID;
 using mesos::v1::FrameworkID;
@@ -539,12 +546,10 @@ private:
       CHECK_SOME(taskId);
       CHECK(taskId.get() == _taskId);
 
-      foreach (const FrameworkInfo::Capability& c,
-               frameworkInfo->capabilities()) {
-        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
-          update(taskId.get(), TASK_KILLING);
-          break;
-        }
+      if (frameworkHasCapability(
+              devolve(frameworkInfo.get()),
+              mesos::FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+        update(taskId.get(), TASK_KILLING);
       }
 
       // Now perform signal escalation to begin killing the task.
