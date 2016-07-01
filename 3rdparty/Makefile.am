@@ -299,6 +299,11 @@ if WITH_BUNDLED_GLOG
 	cd $(GLOG) && \
 	  $(MAKE) $(AM_MAKEFLAGS) DESTDIR=$(INSTALLDIR) install
 endif
+if WITH_BUNDLED_NVML
+	@test -d $(INSTALLDIR)/include/nvidia || \
+	  rm -rf $(INSTALLDIR)/include/nvidia
+	cp -fpR $(NVML)/nvidia $(INSTALLDIR)/include/
+endif
 if WITH_BUNDLED_PICOJSON
 	cd $(PICOJSON) && \
 	  $(MAKE) $(AM_MAKEFLAGS) \
