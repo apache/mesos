@@ -3956,6 +3956,8 @@ ExecutorInfo Slave::getExecutorInfo(
       executor.mutable_command()->set_shell(false);
       executor.mutable_command()->set_value(path.get());
       executor.mutable_command()->add_arguments("mesos-executor");
+      executor.mutable_command()->add_arguments(
+          "--launcher_dir=" + flags.launcher_dir);
 
       if (hasRootfs) {
         executor.mutable_command()->add_arguments(
