@@ -33,6 +33,7 @@ layout: documentation
 * **HTTP API**
 	* communication:
 		* irc: mesos-http-api
+		* slack: [#http-api](https://mesos.slack.com/messages/http-api/)
 		* mailing list subject prefix: HTTP API
 	* members:
 		* Anand Mazumdar
@@ -62,6 +63,8 @@ layout: documentation
 		* Jie Yu
 		* Kapil Arya
 		* Niklas Nielsen
+	* communication:
+	    * slack [#networking](https://mesos.slack.com/messages/networking/)
 	* resources:
 		* [IP Address Manager Enable Per-Container IP in Mesos](https://docs.google.com/document/d/17mXtAmdAXcNBwp_JfrxmZcQrs7EO6ancSbejrqjLQ0g/edit)
 		* [MESOS-2044](https://issues.apache.org/jira/browse/MESOS-2044)
