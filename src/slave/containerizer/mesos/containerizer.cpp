@@ -1288,7 +1288,10 @@ Future<containerizer::Termination> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    // See the comments in destroy() for race conditions which lead
+    // to "unknown containers".
+    return Failure("Unknown container (could have already been destroyed): " +
+                   stringify(containerId));
   }
 
   return containers_[containerId]->promise.future();
@@ -1451,14 +1454,26 @@ void MesosContainerizerProcess::destroy(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
+    // This can happen due to the race between destroys initiated by
+    // the launch failure, the terminated executor and the agent so
+    // the same container is destroyed multiple times in reaction to
+    // one failure. e.g., a stuck fetcher results in:
+    // - The agent invoking destroy(), which kills the fetcher and
+    //   the executor.
+    // - The agent invoking destroy() again for the failed launch
+    //   (due to the fetcher getting killed).
+    // - The containerizer invoking destroy() for the reaped executor.
+    //
+    // The guard here and `if (container->state == DESTROYING)` below
+    // make sure redundant destroys short-circuit.
+    VLOG(1) << "Ignoring destroy of unknown container: " << containerId;
     return;
   }
 
   Container* container = containers_[containerId].get();
 
   if (container->state == DESTROYING) {
-    // Destroy has already been initiated.
+    VLOG(1) << "Destroy has already been initiated for '" << containerId << "'";
     return;
   }
 
