@@ -62,6 +62,11 @@ TEST(LdcacheTest, Parse)
       file->get_dynamic_strings(elf::DynamicTag::NEEDED);
     ASSERT_SOME(needed);
     ASSERT_LE(needed->size(), cache->size());
+
+    Result<Version> abiVersion = file->get_abi_version();
+    if (!abiVersion.isNone()) {
+      ASSERT_SOME(abiVersion);
+    }
   }
 }
 
