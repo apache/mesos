@@ -91,6 +91,12 @@ ExecutorID devolve(const v1::ExecutorID& executorId)
 }
 
 
+HealthCheck devolve(const v1::HealthCheck& check)
+{
+  return devolve<HealthCheck>(check);
+}
+
+
 Offer devolve(const v1::Offer& offer)
 {
   return devolve<Offer>(offer);
@@ -106,6 +112,12 @@ InverseOffer devolve(const v1::InverseOffer& inverseOffer)
 Credential devolve(const v1::Credential& credential)
 {
   return devolve<Credential>(credential);
+}
+
+
+TaskID devolve(const v1::TaskID& taskId)
+{
+  return devolve<TaskID>(taskId);
 }
 
 

@@ -50,9 +50,11 @@ SlaveInfo devolve(const v1::AgentInfo& agentInfo);
 FrameworkID devolve(const v1::FrameworkID& frameworkId);
 FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
 ExecutorID devolve(const v1::ExecutorID& executorId);
+HealthCheck devolve(const v1::HealthCheck& check);
 Offer devolve(const v1::Offer& offer);
 InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Credential devolve(const v1::Credential& credential);
+TaskID devolve(const v1::TaskID& taskId);
 TaskStatus devolve(const v1::TaskStatus& status);
 
 scheduler::Call devolve(const v1::scheduler::Call& call);
