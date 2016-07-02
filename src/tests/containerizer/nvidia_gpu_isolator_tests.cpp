@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 
 #include <stout/jsonify.hpp>
+#include <stout/os/exists.hpp>
 
 #include "master/master.hpp"
 
@@ -49,6 +50,7 @@ using mesos::internal::slave::Gpu;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::NvidiaGpuAllocator;
+using mesos::internal::slave::NvidiaVolume;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
@@ -459,6 +461,25 @@ TEST_F(NvidiaGpuTest, NVIDIA_GPU_Allocator)
 
   // Attempt to allocate a bogus GPU.
   AWAIT_FAILED(allocator->allocate({ bogus }));
+}
+
+
+// Tests that we can create the volume that consolidates
+// the Nvidia libraries and binaries.
+TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeCreation)
+{
+  Try<NvidiaVolume> volume = NvidiaVolume::create();
+  ASSERT_SOME(volume);
+
+  ASSERT_TRUE(os::exists(volume->HOST_PATH()));
+
+  vector<string> directories = { "bin", "lib", "lib64" };
+  foreach (const string& directory, directories) {
+    EXPECT_TRUE(os::exists(volume->HOST_PATH() + "/" + directory));
+  }
+
+  EXPECT_TRUE(os::exists(volume->HOST_PATH() + "/bin/nvidia-smi"));
+  EXPECT_TRUE(os::exists(volume->HOST_PATH() + "/lib64/libnvidia-ml.so.1"));
 }
 
 } // namespace tests {

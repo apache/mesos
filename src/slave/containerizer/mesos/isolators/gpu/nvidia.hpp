@@ -21,6 +21,7 @@
 #include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/volume.hpp"
 #endif
 
 #include "slave/containerizer/mesos/isolators/gpu/components.hpp"
