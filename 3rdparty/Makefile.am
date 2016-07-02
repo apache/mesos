@@ -43,6 +43,7 @@ pkg3rdpartydir = $(pkglibdir)/3rdparty
 include versions.am
 
 BOOST = boost-$(BOOST_VERSION)
+ELFIO = elfio-$(ELFIO_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GMOCK = gmock-$(GMOCK_VERSION)
 GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
@@ -60,6 +61,7 @@ ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
 EXTRA_DIST =		\
   $(BOOST).tar.gz	\
+  $(ELFIO).tar.gz	\
   $(GLOG).tar.gz	\
   $(GMOCK).tar.gz	\
   $(GPERFTOOLS).tar.gz	\
@@ -73,6 +75,11 @@ EXTRA_DIST =		\
   $(SETUPTOOLS).tar.gz	\
   $(WHEEL).tar.gz	\
   $(ZOOKEEPER).tar.gz
+
+# We need to patch ELFIO in order to deal with some off-by-one errors
+# in parsing the NOTE sections of a binary.
+EXTRA_DIST +=		\
+  $(ELFIO).patch
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
@@ -103,6 +110,7 @@ EXTRA_DIST +=		\
 
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
+  $(ELFIO)		\
   $(GLOG)		\
   $(GMOCK)		\
   $(GPERFTOOLS)		\
@@ -144,6 +152,41 @@ endif
 
 if WITH_BUNDLED_BOOST
   ALL_LOCAL += $(BOOST)-stamp
+endif
+
+if WITH_BUNDLED_ELFIO
+# Stout depends on ELFIO. Install ELFIO into $PREFIX/include
+# but don't add it to the source tarball.
+elfiodir = $(includedir)/elfio
+
+nodist_elfio_HEADERS =			\
+  $(ELFIO)/elfio/elf_types.hpp		\
+  $(ELFIO)/elfio/elfio.hpp		\
+  $(ELFIO)/elfio/elfio_dump.hpp		\
+  $(ELFIO)/elfio/elfio_dynamic.hpp	\
+  $(ELFIO)/elfio/elfio_header.hpp	\
+  $(ELFIO)/elfio/elfio_note.hpp		\
+  $(ELFIO)/elfio/elfio_relocation.hpp	\
+  $(ELFIO)/elfio/elfio_section.hpp	\
+  $(ELFIO)/elfio/elfio_segment.hpp	\
+  $(ELFIO)/elfio/elfio_strings.hpp	\
+  $(ELFIO)/elfio/elfio_symbols.hpp	\
+  $(ELFIO)/elfio/elfio_utils.hpp
+
+$(ELFIO)/elfio/elf_types.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_dump.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_dynamic.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_header.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_note.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_relocation.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_section.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_segment.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_strings.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_symbols.hpp: $(ELFIO)-stamp
+$(ELFIO)/elfio/elfio_utils.hpp: $(ELFIO)-stamp
+
+ALL_LOCAL += $(ELFIO)-stamp
 endif
 
 if WITH_BUNDLED_GLOG
@@ -294,6 +337,11 @@ if WITH_BUNDLED_BOOST
 	@test -d $(INSTALLDIR)/include/boost || \
 	  rm -rf $(INSTALLDIR)/include/boost
 	cp -fpR $(BOOST)/boost $(INSTALLDIR)/include/
+endif
+if WITH_BUNDLED_ELFIO
+	@test -d $(INSTALLDIR)/include/elfio || \
+	  rm -rf $(INSTALLDIR)/include/elfio /
+	cp -fpR $(ELFIO)/elfio $(INSTALLDIR)/include/
 endif
 if WITH_BUNDLED_GLOG
 	cd $(GLOG) && \

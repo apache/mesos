@@ -33,6 +33,7 @@ ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VE
 LIBPROCESS = 3rdparty/libprocess
 STOUT = 3rdparty/stout
 BOOST = 3rdparty/boost-$(BOOST_VERSION)
+ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
 GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GMOCK = 3rdparty/gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
@@ -128,6 +129,10 @@ if WITH_BUNDLED_BOOST
 # path. This disables compiler warnings inside Boost headers since we
 # can't easily fix them. See MESOS-3799.
 MESOS_CPPFLAGS += -isystem ../$(BOOST)
+endif
+
+if WITH_BUNDLED_ELFIO
+MESOS_CPPFLAGS += -I../$(ELFIO)
 endif
 
 if WITH_BUNDLED_GLOG

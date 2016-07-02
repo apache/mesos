@@ -20,6 +20,7 @@
 # still need to update version numbers in src/python/setup.py.in too!
 
 BOOST_VERSION = 1.53.0
+ELFIO_VERSION = 3.1
 GLOG_VERSION = 0.3.3
 GMOCK_VERSION = 1.7.0
 GPERFTOOLS_VERSION = 2.5

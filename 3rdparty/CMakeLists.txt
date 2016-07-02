@@ -28,6 +28,7 @@ set(UPSTREAM_URL ${3RDPARTY_DEPENDENCIES})
 set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 if (REBUNDLED)
   set(BOOST_URL       ${REBUNDLED_DIR}/boost-${BOOST_VERSION}.tar.gz)
+  set(ELFIO_URL       ${REBUNDLED_DIR}/elfio-${ELFIO_VERSION}.tar.gz)
   set(GLOG_URL        ${REBUNDLED_DIR}/glog-${GLOG_VERSION}.tar.gz)
   set(PICOJSON_URL    ${REBUNDLED_DIR}/picojson-${PICOJSON_VERSION}.tar.gz)
   set(NVML_URL        ${REBUNDLED_DIR}/nvml-${NVML_VERSION}.tar.gz)
@@ -35,6 +36,7 @@ if (REBUNDLED)
   set(LIBEV_URL       ${REBUNDLED_DIR}/libev-${LIBEV_VERSION}.tar.gz)
 else (REBUNDLED)
   set(BOOST_URL       ${UPSTREAM_URL}/boost-${BOOST_VERSION}.tar.gz)
+  set(ELFIO_URL       ${UPSTREAM_URL}/elfio-${ELFIO_VERSION}.tar.gz)
   set(GLOG_URL        ${UPSTREAM_URL}/glog-${GLOG_VERSION}.tar.gz)
   set(PICOJSON_URL    ${UPSTREAM_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
   set(NVML_URL        ${UPSTREAM_URL}/nvml-${NVML_VERSION}.tar.gz)
@@ -146,6 +148,15 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
+  )
+
+ExternalProject_Add(
+  ${ELFIO_TARGET}
+  PREFIX            ${ELFIO_CMAKE_ROOT}
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${ELFIO_URL}
   )
 
 # The patch, configure, build, and install commands are stubbed out on Windows
