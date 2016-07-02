@@ -260,14 +260,16 @@ if (NOT WIN32)
     master/quota_handler.cpp
     master/registry.hpp
     master/registrar.cpp
-    # master/repairer.cpp
     master/weights.cpp
     master/weights_handler.cpp
     master/allocator/allocator.cpp
     master/allocator/mesos/hierarchical.cpp
     master/allocator/mesos/metrics.cpp
+    master/allocator/sorter/drf/metrics.cpp
     master/allocator/sorter/drf/sorter.cpp
     master/contender/contender.cpp
+    master/contender/standalone.cpp
+    master/contender/zookeeper.cpp
     )
 endif (NOT WIN32)
 
@@ -484,11 +486,12 @@ target_link_libraries(${MESOS_TARGET} ${AGENT_LIBS})
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################
+add_subdirectory(docker/)
+add_subdirectory(health-check/)
+add_subdirectory(launcher/)
+add_subdirectory(master/)
 add_subdirectory(slave/)
 add_subdirectory(slave/containerizer/mesos/)
-add_subdirectory(launcher/)
-add_subdirectory(health-check/)
-add_subdirectory(docker/)
 add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.

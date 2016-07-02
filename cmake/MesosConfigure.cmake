@@ -87,6 +87,10 @@ add_custom_target(
 ##################
 include(SlaveConfigure)
 
+# CONFIGURE MASTER.
+##################
+include(MasterConfigure)
+
 # MESOS LIBRARY CONFIGURATION.
 ##############################
 set(MESOS_TARGET mesos-${MESOS_PACKAGE_VERSION})
