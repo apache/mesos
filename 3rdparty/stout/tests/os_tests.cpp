@@ -156,7 +156,7 @@ TEST_F(OsTest, Nonblock)
   close(pipes[1]);
 
   EXPECT_ERROR(os::nonblock(pipes[0]));
-  EXPECT_ERROR(os::nonblock(pipes[0]));
+  EXPECT_ERROR(os::nonblock(pipes[1]));
 }
 
 
