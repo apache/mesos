@@ -25,7 +25,13 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
+#include <stout/result.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/version.hpp>
 
 namespace elf {
 
@@ -39,6 +45,7 @@ enum Class
 enum class SectionType
 {
   DYNAMIC = SHT_DYNAMIC,
+  NOTE = SHT_NOTE,
 };
 
 enum class DynamicTag
@@ -74,7 +81,7 @@ public:
 
     // Create the mapping from section type to sections.
     foreach (ELFIO::section* section, file->elf.sections) {
-      SectionType section_type = (SectionType) section->get_type();
+      SectionType section_type = SectionType(section->get_type());
       file->sections_by_type[section_type].push_back(section);
     }
 
@@ -97,7 +104,7 @@ public:
   Try<std::vector<std::string>> get_dynamic_strings(DynamicTag tag) const
   {
     if (sections_by_type.count(SectionType::DYNAMIC) == 0) {
-      return Error("No DYNAMIC sections found in ELF");
+      return Error("No DYNAMIC sections found");
     }
 
     std::vector<std::string> strings;
@@ -112,7 +119,7 @@ public:
         std::string entry_string;
 
         if (!accessor.get_entry(i, entry_tag, entry_value, entry_string)) {
-          return Error("Failed to get entry from DYNAMIC section of elf");
+          return Error("Failed to get entry from DYNAMIC section");
         }
 
         if (tag == DynamicTag(entry_tag)) {
@@ -122,6 +129,75 @@ public:
     }
 
     return strings;
+  }
+
+  // Get the ABI version of the ELF file by parsing the contents of
+  // the `.note.ABI-tag` section. This section is Linux specific and
+  // adheres to the format described in the links below.
+  //
+  // NOTE: Not all ELF files have a `.note.ABI-tag` section (even on
+  // Linux), so we return a `Result` to allow the return value to be
+  // `None()`.
+  //
+  // https://refspecs.linuxfoundation.org/LSB_1.2.0/gLSB/noteabitag.html
+  // http://flint.cs.yale.edu/cs422/doc/ELF_Format.pdf
+  Result<Version> get_abi_version() const
+  {
+    ELFIO::section* section = elf.sections[".note.ABI-tag"];
+
+    if (section == nullptr) {
+      return None();
+    }
+
+    if (SectionType(section->get_type()) != SectionType::NOTE) {
+      return Error("Section '.note.ABI-tag' is not a NOTE");
+    }
+
+    auto accessor = ELFIO::note_section_accessor(elf, section);
+
+    if (accessor.get_notes_num() != 1) {
+      return Error("Section '.note.ABI-tag' does not have exactly one entry");
+    }
+
+    ELFIO::Elf_Word type;
+    std::string name;
+    void* descriptor;
+    ELFIO::Elf_Word descriptor_size;
+
+    if (!accessor.get_note(0, type, name, descriptor, descriptor_size)) {
+      return Error("Failed to get entry from '.note.ABI-tag' section");
+    }
+
+    // The note in a `.note.ABI-tag` section must have `type == 1`.
+    if (type != 1) {
+      return Error("Corrupt tag type '" + stringify(type) + "' from"
+                   " entry in '.note.ABI-tag' section");
+    }
+
+    // Linux mandates `name == GNU`.
+    // However, ELFIO seems to include '\0' in the string itself
+    // when constructing `name`, so instead we make sure that
+    // `name` starts with "GNU" instead.
+    if (!strings::startsWith(name, "GNU")) {
+      return Error("Corrupt label '" + name + "' from"
+                   " entry in '.note.ABI-tag' section");
+    }
+
+    // The version array consists of 4 32-bit numbers, with the
+    // first number fixed at 0 (meaning it is a Linux ELF file), and
+    // the rest specifying the ABI version. For example, if the array
+    // contains {0, 2, 3, 99}, this signifies a Linux ELF file
+    // with an ABI version of 2.3.99.
+    std::vector<uint32_t> version(
+        (uint32_t*)descriptor,
+        (uint32_t*)((char*)descriptor + descriptor_size));
+
+    if (version.size() != 4 && version[0] != 0) {
+      return Error("Corrupt version '" + stringify(version) + "'"
+                   " from entry in '.note.ABI-tag' section");
+    }
+
+    return Version(version[1], version[2], version[3]);
   }
 
 private:
