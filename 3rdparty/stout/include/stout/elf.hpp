@@ -17,218 +17,118 @@
 #ifndef __STOUT_ELF_HPP__
 #define __STOUT_ELF_HPP__
 
-#include <fcntl.h>
-#include <gelf.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include <map>
 #include <string>
 #include <vector>
 
+#include <elfio/elfio.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/nothing.hpp>
-#include <stout/option.hpp>
-#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 namespace elf {
 
-enum Class {
+enum Class
+{
   CLASSNONE = ELFCLASSNONE,
   CLASS32 = ELFCLASS32,
   CLASS64 = ELFCLASS64,
 };
 
-enum class SectionType {
+enum class SectionType
+{
   DYNAMIC = SHT_DYNAMIC,
 };
 
-enum class DynamicTag {
+enum class DynamicTag
+{
   STRTAB = DT_STRTAB,
   SONAME = DT_SONAME,
   NEEDED = DT_NEEDED,
 };
 
+
 // This class is used to represent the contents of a standard ELF
 // binary. The current implementation is incomplete.
 //
-// TODO(klueska): For now, we only include functionality to extract
-// the SONAME from shared libraries and read their external library
-// dependencies. In the future, we will expand this class to include
-// helpers for full access to an ELF file's contents.
-class File {
+// NOTE: We use ELFIO under the hood to do our elf parsing for us.
+// Unfortunately, ELFIO reads the *entire* elf file into memory when
+// it is first loaded instead of relying on something like `mmap` to
+// only page in the parts of the file we are interested in. If this
+// becomes a problem, we will have to use something like `libelf`
+// instead (but note that libelf is not header-only and will
+// therefore introduce a runtime library dependency).
+class File
+{
 public:
-  // Open an ELF binary. We do some preliminary parsing as part of
-  // opening the ELF to get quick references to all of its internal
-  // sections for all future calls.
-  //
-  // TODO(klueska): Consider adding a 'stout::Owned' type to avoid
-  // returning a raw pointer here.
-  static Try<File*> open(const std::string& path)
+  // TODO(klueska): Return a unique_ptr here.
+  static Try<File*> load(const std::string& path)
   {
-    // Set the elf library operating version.
-    if (elf_version(EV_CURRENT) == EV_NONE) {
-      return Error("Failed to set ELF library version: " +
-                   stringify(elf_errmsg(-1)));
-    }
-
     File* file = new File();
 
-    file->fd = ::open(path.c_str(), O_RDONLY);
-    if (file->fd < 0) {
+    if (!file->elf.load(path.c_str())) {
       delete file;
-      return ErrnoError("Failed to open file");
+      return Error("Unknown error during elfio::load");
     }
 
-    file->elf = elf_begin(file->fd, ELF_C_READ, nullptr);
-    if (file->elf == nullptr) {
-      delete file;
-      return Error("elf_begin() failed: " + stringify(elf_errmsg(-1)));
-    }
-
-    if (elf_kind(file->elf) != ELF_K_ELF) {
-      delete file;
-      return Error("File is not an ELF binary");
-    }
-
-    // Create the mapping from section type to section locations.
-    Elf_Scn* section = nullptr;
-    while ((section = elf_nextscn(file->elf, section)) != nullptr) {
-      GElf_Shdr section_header;
-      if (gelf_getshdr(section, &section_header) == nullptr) {
-        delete file;
-        return Error("gelf_getshdr() failed: " + stringify(elf_errmsg(-1)));
-      }
-
-      SectionType section_type = (SectionType) section_header.sh_type;
-      switch (section_type) {
-        case SectionType::DYNAMIC:
-          file->sections[section_type].push_back(section);
-      }
+    // Create the mapping from section type to sections.
+    foreach (ELFIO::section* section, file->elf.sections) {
+      SectionType section_type = (SectionType) section->get_type();
+      file->sections_by_type[section_type].push_back(section);
     }
 
     return file;
   }
 
-  void close()
+  // Returns the ELF class of an ELF file (CLASS32, or CLASS64).
+  Try<Class> get_class() const
   {
-    if (elf != nullptr) {
-      elf_end(elf);
-      elf = nullptr;
-    }
-
-    if (fd >= 0) {
-      ::close(fd);
-      fd = -1;
-    }
-  }
-
-  ~File()
-  {
-    close();
-  };
-
-
-  // Returns the ELF class of an
-  // ELF file (CLASS32, or CLASS64).
-  Try<Class> GetClass() const
-  {
-    Class c = (Class)gelf_getclass(elf);
+    Class c = Class(elf.get_class());
     if (c == CLASSNONE) {
-      return Error("gelf_getclass() failed: " + stringify(elf_errmsg(-1)));
+      return Error("Unknown error");
     }
     return c;
   }
 
 
-  // Extract the strings associated with the provided `DynamicTag`
-  // from the DYNAMIC section of the ELF binary.
-  Try<std::vector<std::string>> GetDynamicStrings(DynamicTag tag) const
+  // Extract the strings associated with the provided
+  // `DynamicTag` from all DYNAMIC sections in the ELF binary.
+  Try<std::vector<std::string>> get_dynamic_strings(DynamicTag tag) const
   {
-    if (sections.count(SectionType::DYNAMIC) == 0) {
+    if (sections_by_type.count(SectionType::DYNAMIC) == 0) {
       return Error("No DYNAMIC sections found in ELF");
     }
 
-    if (sections.count(SectionType::DYNAMIC) != 1) {
-      return Error("Multiple DYNAMIC sections found in ELF");
-    }
-
-    Elf_Scn* dynamic_section = sections.at(SectionType::DYNAMIC)[0];
-
-    // Walk through the entries in the dynamic section and look for
-    // entries with the provided tag. These entries contain offsets to
-    // strings in the dynamic section's string table. Consequently, we
-    // also have to look for an entry containing a pointer to the
-    // dynamic section's string table so we can resolve the strings
-    // associated with the provided tag later on.
-    Elf_Data* dynamic_data = elf_getdata(dynamic_section, nullptr);
-    if (dynamic_data == nullptr) {
-      return Error("elf_getdata() failed: " + stringify(elf_errmsg(-1)));
-    }
-
-    Option<uintptr_t> strtab_pointer = None();
-    std::vector<uintptr_t> strtab_offsets;
-
-    for (size_t i = 0; i < dynamic_data->d_size / sizeof(GElf_Dyn); i++) {
-      GElf_Dyn entry;
-      if (gelf_getdyn(dynamic_data, i, &entry) == nullptr) {
-          return Error("gelf_getdyn() failed: " + stringify(elf_errmsg(-1)));
-      }
-
-      if ((DynamicTag)entry.d_tag == DynamicTag::STRTAB) {
-        strtab_pointer = entry.d_un.d_ptr;
-      }
-
-      if ((DynamicTag)entry.d_tag == tag) {
-        strtab_offsets.push_back(entry.d_un.d_ptr);
-      }
-    }
-
-    if (strtab_offsets.empty()) {
-      return std::vector<std::string>();
-    }
-
-    if (strtab_pointer.isNone()) {
-      return Error("Failed to find string table");
-    }
-
-    // Get a reference to the actual string table so we can index into it.
-    Elf_Scn* string_table_section = gelf_offscn(elf, strtab_pointer.get());
-    if (string_table_section == nullptr) {
-      return Error("gelf_offscn() failed: " + stringify(elf_errmsg(-1)));
-    }
-
-    size_t strtab_index = elf_ndxscn(string_table_section);
-    if (strtab_index == SHN_UNDEF) {
-      return Error("elf_ndxscn() failed: " + stringify(elf_errmsg(-1)));
-    }
-
-    // Find the strings in the string table from their offsets and return them.
     std::vector<std::string> strings;
-    foreach (uintptr_t offset, strtab_offsets) {
-      char* string = elf_strptr(elf, strtab_index, offset);
-      if (string == nullptr) {
-        return Error("elf_strptr() failed: " + stringify(elf_errmsg(-1)));
-      }
 
-      strings.push_back(string);
+    foreach (ELFIO::section* section,
+             sections_by_type.at(SectionType::DYNAMIC)) {
+      auto accessor = ELFIO::dynamic_section_accessor(elf, section);
+
+      for (ELFIO::Elf_Xword i = 0; i < accessor.get_entries_num(); ++i) {
+        ELFIO::Elf_Xword entry_tag;
+        ELFIO::Elf_Xword entry_value;
+        std::string entry_string;
+
+        if (!accessor.get_entry(i, entry_tag, entry_value, entry_string)) {
+          return Error("Failed to get entry from DYNAMIC section of elf");
+        }
+
+        if (tag == DynamicTag(entry_tag)) {
+          strings.push_back(entry_string);
+        }
+      }
     }
 
     return strings;
   }
 
 private:
-  explicit File()
-    : fd(-1),
-      elf(nullptr) {}
+  explicit File() {}
 
-  int fd;
-  Elf* elf;
-  std::map<SectionType, std::vector<Elf_Scn*>> sections;
+  ELFIO::elfio elf;
+  std::map<SectionType, std::vector<ELFIO::section*>> sections_by_type;
 };
 
 } // namespace elf {
