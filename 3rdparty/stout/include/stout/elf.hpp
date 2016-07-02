@@ -192,7 +192,7 @@ public:
         (uint32_t*)descriptor,
         (uint32_t*)((char*)descriptor + descriptor_size));
 
-    if (version.size() != 4 && version[0] != 0) {
+    if (version.size() != 4 || version[0] != 0) {
       return Error("Corrupt version '" + stringify(version) + "'"
                    " from entry in '.note.ABI-tag' section");
     }
