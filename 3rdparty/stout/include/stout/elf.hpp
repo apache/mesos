@@ -175,10 +175,7 @@ public:
     }
 
     // Linux mandates `name == GNU`.
-    // However, ELFIO seems to include '\0' in the string itself
-    // when constructing `name`, so instead we make sure that
-    // `name` starts with "GNU" instead.
-    if (!strings::startsWith(name, "GNU")) {
+    if (name != "GNU") {
       return Error("Corrupt label '" + name + "' from"
                    " entry in '.note.ABI-tag' section");
     }
