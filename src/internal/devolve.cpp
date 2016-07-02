@@ -127,6 +127,12 @@ TaskStatus devolve(const v1::TaskStatus& status)
 }
 
 
+CommandInfo devolve(const v1::CommandInfo& command)
+{
+  return devolve<CommandInfo>(command);
+}
+
+
 executor::Call devolve(const v1::executor::Call& call)
 {
   return devolve<executor::Call>(call);
