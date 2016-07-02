@@ -359,12 +359,12 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
       whiteout.push_back(path::join(path.dirname(), path.basename().substr(
           strlen(spec::WHITEOUT_PREFIX))));
 
-      Try<Nothing> rm = os::rm(path.value);
+      Try<Nothing> rm = os::rm(path.string());
       if (rm.isError()) {
         ::fts_close(tree);
         return Failure(
             "Failed to remove the whiteout '.wh.' file '" +
-            path.value + "': " + rm.error());
+            path.string() + "': " + rm.error());
       }
     }
   }

@@ -47,7 +47,7 @@ protected:
   {
     const Path testFile(
         directory.isSome() ?
-        path::join(directory.get(), file.value): file);
+        path::join(directory.get(), file.string()): file);
 
     const string& testFileDir = testFile.dirname();
     if (!os::exists(testFileDir)) {
@@ -270,7 +270,7 @@ TEST_F(CompressionTest, GZIPDecompressTarFile)
   ASSERT_FALSE(os::exists(testFile));
 
   // Append ".gz" as gzip expects it.
-  const Path gzipFile(outputTarFile.value + ".gz");
+  const Path gzipFile(outputTarFile.string() + ".gz");
   ASSERT_SOME(os::rename(outputTarFile, gzipFile));
 
   AWAIT_ASSERT_READY(command::decompress(gzipFile));

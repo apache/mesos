@@ -225,7 +225,7 @@ void FetcherCacheTest::SetUp()
 // there are only text files.
 static void logFile(const Path& path, const string& filename)
 {
-  string filePath = path::join(path.value, filename);
+  string filePath = path::join(path.string(), filename);
   Try<string> text = os::read(filePath);
   if (text.isSome()) {
     cout << "Begin file contents of `" << filename << "`:" << endl;
@@ -241,15 +241,15 @@ static void logFile(const Path& path, const string& filename)
 // there are only text files.
 static void logSandbox(const Path& path)
 {
-  Try<list<string>> entries = os::ls(path.value);
+  Try<list<string>> entries = os::ls(path.string());
   if (entries.isSome()) {
-    cout << "Begin listing sandbox `" << path.value << "`:" << endl;
+    cout << "Begin listing sandbox `" << path.string() << "`:" << endl;
     foreach (const string& entry, entries.get()) {
       logFile(path, entry);
     }
     cout << "End sandbox" << endl;
   } else {
-    cout << "Could not list sandbox `" << path.value
+    cout << "Could not list sandbox `" << path.string()
          << "`: " << entries.error() << endl;
   }
 }
@@ -622,7 +622,7 @@ TEST_F(FetcherCacheTest, LocalUncached)
   ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
-  const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
+  const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
   EXPECT_TRUE(isExecutable(path));
   EXPECT_TRUE(os::exists(path + taskName(index)));
 }
@@ -651,7 +651,7 @@ TEST_F(FetcherCacheTest, LocalCached)
 
     AWAIT_READY(awaitFinished(task.get()));
 
-    const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
+    const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
     EXPECT_TRUE(isExecutable(path));
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
@@ -690,7 +690,7 @@ TEST_F(FetcherCacheTest, CachedCustomFilename)
 
   // Verify that the downloaded executable lives at our custom output path.
   const string executablePath = path::join(
-    task.get().runDirectory.value, customOutputFile);
+    task->runDirectory.string(), customOutputFile);
 
   EXPECT_TRUE(isExecutable(executablePath));
 
@@ -698,7 +698,7 @@ TEST_F(FetcherCacheTest, CachedCustomFilename)
   // named $COMMAND_NAME + $1, so if we want to verify that it ran here we have
   // to check this path in addition to the custom-named executable we saved.
   const string outputPath = path::join(
-    task.get().runDirectory.value, COMMAND_NAME);
+    task->runDirectory.string(), COMMAND_NAME);
 
   EXPECT_TRUE(os::exists(outputPath + taskName(index)));
 }
@@ -733,7 +733,7 @@ TEST_F(FetcherCacheTest, CachedCustomOutputFileWithSubdirectory)
   // Verify that the downloaded executable lives at our custom output file
   // path.
   const string executablePath = path::join(
-      task.get().runDirectory.value, customOutputFile);
+      task->runDirectory.string(), customOutputFile);
 
   EXPECT_TRUE(isExecutable(executablePath));
 
@@ -741,7 +741,7 @@ TEST_F(FetcherCacheTest, CachedCustomOutputFileWithSubdirectory)
   // named $COMMAND_NAME + $1, so if we want to verify that it ran here we have
   // to check this path in addition to the custom-named executable we saved.
   const string outputPath = path::join(
-      task.get().runDirectory.value, COMMAND_NAME);
+      task->runDirectory.string(), COMMAND_NAME);
 
   EXPECT_TRUE(os::exists(outputPath + taskName(index)));
 }
@@ -780,7 +780,7 @@ TEST_F(FetcherCacheTest, CachedFallback)
 
   AWAIT_READY(awaitFinished(task.get()));
 
-  const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
+  const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
   EXPECT_TRUE(isExecutable(path));
   EXPECT_TRUE(os::exists(path + taskName(0)));
 
@@ -818,12 +818,12 @@ TEST_F(FetcherCacheTest, LocalUncachedExtract)
   AWAIT_READY(awaitFinished(task.get()));
 
   EXPECT_TRUE(os::exists(
-      path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
+      path::join(task->runDirectory.string(), ARCHIVE_NAME)));
   EXPECT_FALSE(isExecutable(
-      path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
+      path::join(task->runDirectory.string(), ARCHIVE_NAME)));
 
   const string path =
-    path::join(task.get().runDirectory.value, ARCHIVED_COMMAND_NAME);
+    path::join(task->runDirectory.string(), ARCHIVED_COMMAND_NAME);
   EXPECT_TRUE(isExecutable(path));
   EXPECT_TRUE(os::exists(path + taskName(index)));
 
@@ -855,10 +855,10 @@ TEST_F(FetcherCacheTest, LocalCachedExtract)
     AWAIT_READY(awaitFinished(task.get()));
 
     EXPECT_FALSE(os::exists(
-        path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
+        path::join(task->runDirectory.string(), ARCHIVE_NAME)));
 
     const string path =
-      path::join(task.get().runDirectory.value, ARCHIVED_COMMAND_NAME);
+      path::join(task->runDirectory.string(), ARCHIVED_COMMAND_NAME);
     EXPECT_TRUE(isExecutable(path));
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
@@ -1007,7 +1007,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedSerialized)
     AWAIT_READY(awaitFinished(task.get()));
 
     const string path =
-      path::join(task.get().runDirectory.value, COMMAND_NAME);
+      path::join(task->runDirectory.string(), COMMAND_NAME);
     EXPECT_TRUE(isExecutable(path));
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
@@ -1090,11 +1090,11 @@ TEST_F(FetcherCacheHttpTest, HttpCachedConcurrent)
 
   for (size_t i = 0; i < countTasks; i++) {
     EXPECT_EQ(i % 2 == 1, os::exists(
-        path::join(tasks.get()[i].runDirectory.value, ARCHIVE_NAME)));
+        path::join(tasks->at(i).runDirectory.string(), ARCHIVE_NAME)));
     EXPECT_TRUE(isExecutable(
-        path::join(tasks.get()[i].runDirectory.value, COMMAND_NAME)));
+        path::join(tasks->at(i).runDirectory.string(), COMMAND_NAME)));
     EXPECT_TRUE(os::exists(
-        path::join(tasks.get()[i].runDirectory.value,
+        path::join(tasks->at(i).runDirectory.string(),
                    COMMAND_NAME + taskName(i))));
   }
 }
@@ -1200,39 +1200,47 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
   // Task 0.
 
   EXPECT_FALSE(isExecutable(
-      path::join(tasks.get()[0].runDirectory.value, ARCHIVE_NAME)));
+      path::join(tasks->at(0).runDirectory.string(), ARCHIVE_NAME)));
   EXPECT_FALSE(os::exists(
-      path::join(tasks.get()[0].runDirectory.value, ARCHIVED_COMMAND_NAME)));
+      path::join(tasks->at(0).runDirectory.string(), ARCHIVED_COMMAND_NAME)));
 
   EXPECT_TRUE(isExecutable(
-      path::join(tasks.get()[0].runDirectory.value, COMMAND_NAME)));
+      path::join(tasks->at(0).runDirectory.string(), COMMAND_NAME)));
   EXPECT_TRUE(os::exists(
-      path::join(tasks.get()[0].runDirectory.value,
+      path::join(tasks->at(0).runDirectory.string(),
                  COMMAND_NAME + taskName(0))));
 
   // Task 1.
 
-  EXPECT_FALSE(isExecutable(
-      path::join(tasks.get()[1].runDirectory.value, ARCHIVE_NAME)));
-  EXPECT_TRUE(isExecutable(
-      path::join(tasks.get()[1].runDirectory.value, ARCHIVED_COMMAND_NAME)));
+  EXPECT_FALSE(isExecutable(path::join(
+      tasks->at(1).runDirectory.string(),
+      ARCHIVE_NAME)));
+  EXPECT_TRUE(isExecutable(path::join(
+      tasks->at(1).runDirectory.string(),
+      ARCHIVED_COMMAND_NAME)));
   EXPECT_TRUE(os::exists(path::join(
-      tasks.get()[1].runDirectory.value, ARCHIVED_COMMAND_NAME + taskName(1))));
+      tasks->at(1).runDirectory.string(),
+      ARCHIVED_COMMAND_NAME + taskName(1))));
 
-  EXPECT_FALSE(isExecutable(
-      path::join(tasks.get()[1].runDirectory.value, COMMAND_NAME)));
+  EXPECT_FALSE(isExecutable(path::join(
+      tasks->at(1).runDirectory.string(),
+      COMMAND_NAME)));
 
   // Task 2.
 
-  EXPECT_FALSE(os::exists(
-      path::join(tasks.get()[2].runDirectory.value, ARCHIVE_NAME)));
-  EXPECT_TRUE(isExecutable(
-      path::join(tasks.get()[2].runDirectory.value, ARCHIVED_COMMAND_NAME)));
+  EXPECT_FALSE(os::exists(path::join(
+      tasks->at(2).runDirectory.string(),
+      ARCHIVE_NAME)));
+  EXPECT_TRUE(isExecutable(path::join(
+      tasks->at(2).runDirectory.string(),
+      ARCHIVED_COMMAND_NAME)));
   EXPECT_TRUE(os::exists(path::join(
-      tasks.get()[2].runDirectory.value, ARCHIVED_COMMAND_NAME + taskName(2))));
+      tasks->at(2).runDirectory.string(),
+      ARCHIVED_COMMAND_NAME + taskName(2))));
 
-  EXPECT_FALSE(isExecutable(
-      path::join(tasks.get()[2].runDirectory.value, COMMAND_NAME)));
+  EXPECT_FALSE(isExecutable(path::join(
+      tasks->at(2).runDirectory.string(),
+      COMMAND_NAME)));
 }
 
 
@@ -1260,7 +1268,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
 
     AWAIT_READY(awaitFinished(task.get()));
 
-    const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
+    const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
     EXPECT_TRUE(isExecutable(path));
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
@@ -1322,7 +1330,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     AWAIT_READY(awaitFinished(task.get()));
 
     const string path =
-      path::join(task.get().runDirectory.value, COMMAND_NAME);
+      path::join(task->runDirectory.string(), COMMAND_NAME);
     EXPECT_TRUE(isExecutable(path));
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
@@ -1373,9 +1381,9 @@ TEST_F(FetcherCacheTest, SimpleEviction)
 
     // Check that the task succeeded.
     EXPECT_TRUE(isExecutable(
-        path::join(task.get().runDirectory.value, commandFilename)));
+        path::join(task->runDirectory.string(), commandFilename)));
     EXPECT_TRUE(os::exists(
-        path::join(task.get().runDirectory.value, COMMAND_NAME + taskName(i))));
+        path::join(task->runDirectory.string(), COMMAND_NAME + taskName(i))));
 
     if (i < countCacheEntries) {
       EXPECT_EQ(i + 1, fetcherProcess->cacheSize());
@@ -1451,9 +1459,9 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   // Check that the task succeeded.
   EXPECT_TRUE(isExecutable(
-      path::join(task0.get().runDirectory.value, commandFilename0)));
+      path::join(task0->runDirectory.string(), commandFilename0)));
   EXPECT_TRUE(os::exists(
-      path::join(task0.get().runDirectory.value, COMMAND_NAME + taskName(0))));
+      path::join(task0->runDirectory.string(), COMMAND_NAME + taskName(0))));
 
   AWAIT_READY(fetcherInfo0);
 
@@ -1500,9 +1508,9 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   // Check that the task succeeded.
   EXPECT_TRUE(isExecutable(
-      path::join(task1.get().runDirectory.value, commandFilename1)));
+      path::join(task1->runDirectory.string(), commandFilename1)));
   EXPECT_TRUE(os::exists(
-      path::join(task1.get().runDirectory.value, COMMAND_NAME + taskName(1))));
+      path::join(task1->runDirectory.string(), COMMAND_NAME + taskName(1))));
 
   AWAIT_READY(fetcherInfo1);
 
@@ -1548,9 +1556,9 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   // Check that the task succeeded.
   EXPECT_TRUE(isExecutable(
-      path::join(task2.get().runDirectory.value, commandFilename2)));
+      path::join(task2->runDirectory.string(), commandFilename2)));
   EXPECT_TRUE(os::exists(
-      path::join(task2.get().runDirectory.value, COMMAND_NAME + taskName(2))));
+      path::join(task2->runDirectory.string(), COMMAND_NAME + taskName(2))));
 
   AWAIT_READY(fetcherInfo2);
 
@@ -1607,8 +1615,8 @@ TEST_F(FetcherCacheTest, RemoveLRUCacheEntries)
 
     // Check that the task succeeded.
     EXPECT_TRUE(isExecutable(
-        path::join(task.get().runDirectory.value, commandFilename)));
-    EXPECT_TRUE(os::exists(path::join(task.get().runDirectory.value,
+        path::join(task->runDirectory.string(), commandFilename)));
+    EXPECT_TRUE(os::exists(path::join(task->runDirectory.string(),
                                       COMMAND_NAME + taskName(taskIndex))));
 
     ++taskIndex;

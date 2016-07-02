@@ -36,15 +36,15 @@ inline Result<Credentials> read(const Path& path)
 {
   LOG(INFO) << "Loading credentials for authentication from '" << path << "'";
 
-  Try<std::string> read = os::read(path.value);
+  Try<std::string> read = os::read(path.string());
   if (read.isError()) {
-    return Error("Failed to read credentials file '" + path.value +
+    return Error("Failed to read credentials file '" + path.string() +
                  "': " + read.error());
   } else if (read.get().empty()) {
     return None();
   }
 
-  Try<os::Permissions> permissions = os::permissions(path.value);
+  Try<os::Permissions> permissions = os::permissions(path.string());
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credentials file '" << path
                  << "': " << permissions.error();
@@ -85,15 +85,15 @@ inline Result<Credential> readCredential(const Path& path)
 {
   LOG(INFO) << "Loading credential for authentication from '" << path << "'";
 
-  Try<std::string> read = os::read(path.value);
+  Try<std::string> read = os::read(path.string());
   if (read.isError()) {
-    return Error("Failed to read credential file '" + path.value +
+    return Error("Failed to read credential file '" + path.string() +
                  "': " + read.error());
   } else if (read.get().empty()) {
     return None();
   }
 
-  Try<os::Permissions> permissions = os::permissions(path.value);
+  Try<os::Permissions> permissions = os::permissions(path.string());
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credential file '" << path
                  << "': " << permissions.error();

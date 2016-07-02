@@ -297,15 +297,15 @@ Try<Nothing> create(const Path& path, const string& data)
 {
   Try<Nothing> write = os::write(path, data);
   if (write.isError()) {
-    return Error(
-        "Failed to write systemd slice `" + path.value + "`: " + write.error());
+    return Error("Failed to write systemd slice `" + path.string() + "`: " +
+                 write.error());
   }
 
   LOG(INFO) << "Created systemd slice: `" << path << "`";
 
   Try<Nothing> reload = daemonReload();
   if (reload.isError()) {
-    return Error("Failed to create systemd slice `" + path.value + "`: " +
+    return Error("Failed to create systemd slice `" + path.string() + "`: " +
                  reload.error());
   }
 

@@ -192,7 +192,7 @@ Future<Nothing> Fetcher::fetch(const Image::Appc& appc, const Path& directory)
   return fetcher->fetch(uri.get(), directory)
     .then([=]() -> Future<Nothing> {
       // Change the extension to ".gz" as gzip utility expects it.
-      const Path _aciBundle(aciBundle.value + ".gz");
+      const Path _aciBundle(aciBundle.string() + ".gz");
 
       Try<Nothing> rename = os::rename(aciBundle, _aciBundle);
       if (rename.isError()) {
