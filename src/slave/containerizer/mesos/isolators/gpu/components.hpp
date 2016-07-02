@@ -19,6 +19,7 @@
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/volume.hpp"
 #endif
 
 namespace mesos {
@@ -33,10 +34,14 @@ namespace slave {
 struct NvidiaComponents
 {
 #ifdef __linux__
-  NvidiaComponents(const NvidiaGpuAllocator& _allocator)
-    : allocator(_allocator) {}
+  NvidiaComponents(
+    const NvidiaGpuAllocator& _allocator,
+    const NvidiaVolume& _volume)
+    : allocator(_allocator),
+      volume(_volume) {}
 
   NvidiaGpuAllocator allocator;
+  NvidiaVolume volume;
 #endif
 };
 

@@ -231,7 +231,13 @@ Try<Containerizer*> Containerizer::create(
                    allocator.error());
     }
 
-    nvidia = NvidiaComponents(allocator.get());
+    Try<NvidiaVolume> volume = NvidiaVolume::create();
+
+    if (volume.isError()) {
+      return Error("Failed to NvidiaVolume::create: " + volume.error());
+    }
+
+    nvidia = NvidiaComponents(allocator.get(), volume.get());
   }
 #endif
 
