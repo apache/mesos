@@ -786,6 +786,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   executor/executor.cpp							\
   executor/v0_v1executor.cpp						\
   files/files.cpp							\
+  health-check/health_checker.cpp						\
   hdfs/hdfs.cpp								\
   hook/manager.cpp							\
   internal/devolve.cpp							\
@@ -906,6 +907,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   examples/utils.hpp							\
   executor/v0_v1executor.hpp						\
   files/files.hpp							\
+  health-check/health_checker.hpp						\
   hdfs/hdfs.hpp								\
   hook/manager.hpp							\
   internal/devolve.hpp							\

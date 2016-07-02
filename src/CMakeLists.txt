@@ -203,6 +203,10 @@ set(FILES_SRC
   files/files.cpp
   )
 
+set(HEALTH_CHECK_SRC
+  health-check/health_checker.cpp
+  )
+
 set(HOOK_SRC
   hook/manager.cpp
   )
@@ -409,6 +413,7 @@ set(MESOS_SRC
   ${HOOK_SRC}
   ${INTERNAL_SRC}
   ${FILES_SRC}
+  ${HEALTH_CHECK_SRC}
   ${MESSAGES_SRC}
   ${LOGGING_SRC}
   ${VERSION_SRC}
