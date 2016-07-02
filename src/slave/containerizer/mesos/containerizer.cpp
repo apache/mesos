@@ -780,6 +780,8 @@ Future<bool> MesosContainerizerProcess::_launch(
     return Failure("Container is currently being destroyed");
   }
 
+  CHECK_EQ(containers_[containerId]->state, PROVISIONING);
+
   // We will provision the images specified in ContainerInfo::volumes
   // as well. We will mutate ContainerInfo::volumes to include the
   // paths to the provisioned root filesystems (by setting the
@@ -881,6 +883,8 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
     return Failure("Container is currently being destroyed");
   }
 
+  CHECK_EQ(containers_[containerId]->state, PROVISIONING);
+
   containers_[containerId]->state = PREPARING;
 
   // Construct ContainerConfig.
@@ -949,6 +953,8 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     return Failure("Container is currently being destroyed");
   }
 
+  CHECK_EQ(containers_[containerId]->state, ISOLATING);
+
   containers_[containerId]->state = FETCHING;
 
   return fetcher->fetch(
@@ -980,6 +986,8 @@ Future<bool> MesosContainerizerProcess::__launch(
   if (containers_[containerId]->state == DESTROYING) {
     return Failure("Container is currently being destroyed");
   }
+
+  CHECK_EQ(containers_[containerId]->state, PREPARING);
 
   // Prepare environment variables for the executor.
   map<string, string> environment = executorEnvironment(
@@ -1229,6 +1237,8 @@ Future<bool> MesosContainerizerProcess::isolate(
     return Failure("Container is currently being destroyed");
   }
 
+  CHECK_EQ(containers_[containerId]->state, PREPARING);
+
   containers_[containerId]->state = ISOLATING;
 
   // Set up callbacks for isolator limitations.
@@ -1265,6 +1275,8 @@ Future<bool> MesosContainerizerProcess::exec(
       containers_[containerId]->state == DESTROYING) {
     return Failure("Container destroyed during launch");
   }
+
+  CHECK_EQ(containers_[containerId]->state, FETCHING);
 
   // Now that we've contained the child we can signal it to continue
   // by writing to the pipe.
@@ -1547,6 +1559,8 @@ void MesosContainerizerProcess::destroy(
 void MesosContainerizerProcess::_destroy(
     const ContainerID& containerId)
 {
+  CHECK(containers_.contains(containerId));
+
   // Kill all processes then continue destruction.
   launcher->destroy(containerId)
     .onAny(defer(self(), &Self::__destroy, containerId, lambda::_1));
@@ -1595,6 +1609,8 @@ void MesosContainerizerProcess::___destroy(
     const Future<Option<int>>& status,
     const Option<string>& message)
 {
+  CHECK(containers_.contains(containerId));
+
   cleanupIsolators(containerId)
     .onAny(defer(self(),
                  &Self::____destroy,
