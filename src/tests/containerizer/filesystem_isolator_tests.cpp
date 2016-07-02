@@ -723,7 +723,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   // This is called once orphans are cleaned up.  But this future is not
   // directly tied to the `Slave::_recover` future above.
   _recover = FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
-  AWAIT_READY(_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
 
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   ASSERT_SOME(table);
