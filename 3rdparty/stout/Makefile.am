@@ -22,6 +22,7 @@ SUBDIRS = . include
 include ../versions.am
 
 BOOST = ../boost-$(BOOST_VERSION)
+ELFIO = ../elfio-$(ELFIO_VERSION)
 GLOG = ../glog-$(GLOG_VERSION)
 GMOCK = ../gmock-$(GMOCK_VERSION)
 GTEST = $(GMOCK)/gtest
@@ -33,6 +34,10 @@ PICOJSON = ../picojson-$(PICOJSON_VERSION)
 # can't easily fix them. See MESOS-3799.
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+endif
+
+if WITH_BUNDLED_ELFIO
+ELFIO_INCLUDE_FLAGS = -I$(ELFIO)
 endif
 
 if WITH_BUNDLED_GLOG
@@ -128,6 +133,7 @@ endif
 stout_tests_CPPFLAGS =			\
   -I$(srcdir)/include			\
   $(BOOST_INCLUDE_FLAGS)		\
+  $(ELFIO_INCLUDE_FLAGS)		\
   $(GLOG_INCLUDE_FLAGS)			\
   $(GMOCK_INCLUDE_FLAGS)		\
   $(GTEST_INCLUDE_FLAGS)		\
