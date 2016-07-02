@@ -27,6 +27,7 @@ include ../versions.am
 
 STOUT = ../stout
 BOOST = ../boost-$(BOOST_VERSION)
+ELFIO = ../elfio-$(ELFIO_VERSION)
 GLOG = ../glog-$(GLOG_VERSION)
 GMOCK = ../gmock-$(GMOCK_VERSION)
 GPERFTOOLS = ../gperftools-$(GPERFTOOLS_VERSION)
@@ -37,6 +38,10 @@ PICOJSON = ../picojson-$(PICOJSON_VERSION)
 
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+endif
+
+if WITH_BUNDLED_ELFIO
+ELFIO_INCLUDE_FLAGS = -I$(ELFIO)
 endif
 
 if WITH_BUNDLED_GLOG
@@ -139,6 +144,7 @@ libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\
   $(BOOST_INCLUDE_FLAGS)			\
+  $(ELFIO_INCLUDE_FLAGS)			\
   $(GLOG_INCLUDE_FLAGS)				\
   $(GPERFTOOLS_INCLUDE_FLAGS)			\
   $(HTTP_PARSER_INCLUDE_FLAGS)			\

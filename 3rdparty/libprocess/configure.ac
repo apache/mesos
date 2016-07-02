@@ -140,6 +140,13 @@ AC_ARG_WITH([curl],
                            [specify where to locate the curl library]),
             [], [])
 
+AC_ARG_WITH([elfio],
+            AS_HELP_STRING([--with-elfio@<:@=DIR@:>@],
+                           [excludes building and using the bundled ELFIO
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_elfio=yes], [])
+
 AC_ARG_WITH([glog],
             AS_HELP_STRING([--with-glog@<:@=DIR@:>@],
                            [excludes building and using the bundled glog
@@ -487,6 +494,34 @@ AC_CHECK_LIB([curl], [curl_global_init], [],
 libcurl is required for libprocess to build.
 -------------------------------------------------------------------
 ])])
+
+
+# If the user has asked not to include the bundled ELFIO headers,
+# check to see if the path to the ELFIO headers has been specified. If
+# it has, make sure that the path is absolute. If everything is in
+# order, add this path to the CPPFLAGS.
+if test "x$without_bundled_elfio" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  if test -n "`echo $with_elfio`"; then
+    if test "$with_elfio" = "${with_elfio#/}"; then
+      AC_MSG_ERROR([The path passed to --with-elfio must be absolute.])
+    fi
+     CPPFLAGS="-I${with_elfio} $CPPFLAGS"
+  fi
+
+  AC_CHECK_HEADERS([elfio/elfio.h], [],
+                   [AC_MSG_ERROR([Cannot find the ELFIO headers
+-------------------------------------------------------------------
+You have requested the use of a non-bundled ELFIO but no suitable
+ELFIO headers could be found. Make sure these headers are either
+installed on the system or the path passed via --with-elfio is correct.
+-------------------------------------------------------------------
+  ])])
+else
+  with_bundled_elfio=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_ELFIO], [test "x$with_bundled_elfio" = "xyes"])
 
 
 if test -n "`echo $with_glog`"; then
