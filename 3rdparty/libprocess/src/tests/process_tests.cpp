@@ -968,7 +968,7 @@ Option<int> get_persistent_socket(const UPID& to);
 // becomes "stale", but libprocess does not receive a TCP RST either.
 // A `send` later will trigger a socket error and thereby discover
 // the socket's staleness.
-TEST_F(ProcessRemoteLinkTest, RemoteUseStaleLink)
+TEST_F(ProcessRemoteLinkTest, DISABLED_RemoteUseStaleLink)
 {
   RemoteLinkTestProcess process(pid);
 
@@ -1020,7 +1020,7 @@ TEST_F(ProcessRemoteLinkTest, RemoteUseStaleLink)
 // "stale", "relinking" prior to sending a message will lead to successful
 // message passing. The existing remote link is broken in the same way as
 // the test `RemoteUseStaleLink`.
-TEST_F(ProcessRemoteLinkTest, RemoteStaleLinkRelink)
+TEST_F(ProcessRemoteLinkTest, DISABLED_RemoteStaleLinkRelink)
 {
   RemoteLinkTestProcess process(pid);
 
