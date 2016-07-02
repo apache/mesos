@@ -78,8 +78,8 @@ inline Try<Nothing> recursive_remove_directory(
 
     // Delete current path, whether it's a directory, file, or symlink.
     if (is_directory) {
-      Try<Nothing> removed =
-        recursive_remove_directory(current_absolute_path, removeRoot);
+      Try<Nothing> removed = recursive_remove_directory(
+          current_absolute_path, removeRoot, continueOnError);
 
       if (removed.isError()) {
         if (continueOnError) {
