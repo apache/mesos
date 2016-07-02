@@ -885,14 +885,14 @@ Future<bool> MesosContainerizerProcess::_launch(
   // and its dependencies finish before '_launch' starts since onAny
   // is not guaranteed to be executed in order.
   if (!containers_.contains(containerId)) {
-    return Failure("Container has been destroyed");
+    return Failure("Container destroyed during provisioning");
   }
 
   // Make sure containerizer is not in DESTROYING state, to avoid
   // a possible race that containerizer is destroying the container
   // while it is provisioning the image from volumes.
   if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is currently being destroyed");
+    return Failure("Container is being destroyed during provisioning");
   }
 
   CHECK_EQ(containers_[containerId]->state, PROVISIONING);
@@ -988,14 +988,14 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
   // 'prepare' starts since onAny is not guaranteed to be executed
   // in order.
   if (!containers_.contains(containerId)) {
-    return Failure("Container has been destroyed");
+    return Failure("Container destroyed during provisioning");
   }
 
   // Make sure containerizer is not in DESTROYING state, to avoid
   // a possible race that containerizer is destroying the container
   // while it is preparing isolators for the container.
   if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is currently being destroyed");
+    return Failure("Container is being destroyed during provisioning");
   }
 
   CHECK_EQ(containers_[containerId]->state, PROVISIONING);
@@ -1053,11 +1053,11 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     const SlaveID& slaveId)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container is already destroyed");
+    return Failure("Container destroyed during isolating");
   }
 
   if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is currently being destroyed");
+    return Failure("Container is being destroyed during isolating");
   }
 
   CHECK_EQ(containers_[containerId]->state, ISOLATING);
@@ -1093,11 +1093,11 @@ Future<bool> MesosContainerizerProcess::__launch(
     const list<Option<ContainerLaunchInfo>>& launchInfos)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container has been destroyed");
+    return Failure("Container destroyed during preparing");
   }
 
   if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is currently being destroyed");
+    return Failure("Container is being destroyed during preparing");
   }
 
   CHECK_EQ(containers_[containerId]->state, PREPARING);
@@ -1356,11 +1356,11 @@ Future<bool> MesosContainerizerProcess::isolate(
     pid_t _pid)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container is already destroyed");
+    return Failure("Container destroyed during preparing");
   }
 
   if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is currently being destroyed");
+    return Failure("Container is being destroyed during preparing");
   }
 
   CHECK_EQ(containers_[containerId]->state, PREPARING);
@@ -1397,9 +1397,12 @@ Future<bool> MesosContainerizerProcess::exec(
 {
   // The container may be destroyed before we exec the executor so
   // return failure here.
-  if (!containers_.contains(containerId) ||
-      containers_[containerId]->state == DESTROYING) {
-    return Failure("Container destroyed during launch");
+  if (!containers_.contains(containerId)) {
+    return Failure("Container destroyed during fetching");
+  }
+
+  if (containers_[containerId]->state == DESTROYING) {
+    return Failure("Container is being destroyed during fetching");
   }
 
   CHECK_EQ(containers_[containerId]->state, FETCHING);
