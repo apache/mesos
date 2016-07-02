@@ -347,19 +347,17 @@ int MesosContainerizerLaunch::execute()
   // Relay the environment variables.
   // TODO(jieyu): Consider using a clean environment.
 
-  if (command.get().shell()) {
+  if (command->shell()) {
     // Execute the command using shell.
-    os::execlp(os::Shell::name, os::Shell::arg0,
-               os::Shell::arg1, command.get().value().c_str(), (char*) nullptr);
+    os::execlp(os::Shell::name,
+               os::Shell::arg0,
+               os::Shell::arg1,
+               command->value().c_str(),
+               (char*) nullptr);
   } else {
     // Use execvp to launch the command.
-    char** argv = new char*[command.get().arguments().size() + 1];
-    for (int i = 0; i < command.get().arguments().size(); i++) {
-      argv[i] = strdup(command.get().arguments(i).c_str());
-    }
-    argv[command.get().arguments().size()] = nullptr;
-
-    execvp(command.get().value().c_str(), argv);
+    execvp(command->value().c_str(),
+           os::raw::Argv(command->arguments()));
   }
 
   // If we get here, the execle call failed.

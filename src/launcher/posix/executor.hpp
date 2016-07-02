@@ -29,6 +29,7 @@ namespace internal {
 
 pid_t launchTaskPosix(
     const mesos::v1::CommandInfo& command,
+    const std::string& launcherDir,
     const Option<std::string>& user,
     const Option<std::string>& rootfs,
     const Option<std::string>& sandboxDirectory,

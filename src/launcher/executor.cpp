@@ -393,6 +393,7 @@ protected:
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
         command,
+        launcherDir,
         user,
         rootfs,
         sandboxDirectory,
