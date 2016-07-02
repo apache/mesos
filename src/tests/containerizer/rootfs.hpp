@@ -105,6 +105,7 @@ public:
       "/bin/echo",
       "/bin/ls",
       "/bin/sh",
+      "/bin/sleep",
       "/usr/bin/sh",
       "/lib/x86_64-linux-gnu",
       "/lib64/ld-linux-x86-64.so.2",
