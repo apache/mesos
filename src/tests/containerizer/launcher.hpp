@@ -74,6 +74,10 @@ public:
       destroy,
       process::Future<Nothing>(const ContainerID& containerId));
 
+  MOCK_METHOD1(
+      status,
+      process::Future<ContainerStatus>(const ContainerID& containerId));
+
   process::Owned<slave::Launcher> real;
 };
 

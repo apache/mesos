@@ -366,6 +366,19 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 }
 
 
+Future<ContainerStatus> LinuxLauncher::status(const ContainerID& containerId)
+{
+  if (!pids.contains(containerId)) {
+    return Failure("Container does not exist!");
+  }
+
+  ContainerStatus status;
+  status.set_executor_pid(pids[containerId]);
+
+  return status;
+}
+
+
 string LinuxLauncher::cgroup(const ContainerID& containerId)
 {
   return path::join(flags.cgroups_root, containerId.value());

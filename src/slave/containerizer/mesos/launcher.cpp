@@ -46,7 +46,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
 {
   return new PosixLauncher();
@@ -166,6 +165,19 @@ Future<Nothing> _destroy(const Future<Option<int>>& future)
     return Failure("Failed to kill all processes: " +
                    (future.isFailed() ? future.failure() : "unknown error"));
   }
+}
+
+
+Future<ContainerStatus> PosixLauncher::status(const ContainerID& containerId)
+{
+  if (!pids.contains(containerId)) {
+    return Failure("Container does not exist!");
+  }
+
+  ContainerStatus status;
+  status.set_executor_pid(pids[containerId]);
+
+  return status;
 }
 
 

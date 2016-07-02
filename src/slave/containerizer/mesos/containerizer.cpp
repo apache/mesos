@@ -1551,6 +1551,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
   foreach (const Owned<Isolator>& isolator, isolators) {
     futures.push_back(isolator->status(containerId));
   }
+  futures.push_back(launcher->status(containerId));
 
   // We are using `await` here since we are interested in partial
   // results from calls to `isolator->status`. We also need to

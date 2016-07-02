@@ -1269,6 +1269,50 @@ TEST_F(MesosContainerizerRecoverTest, SkipRecoverNonMesosContainers)
   EXPECT_EQ(0u, containers.get().size());
 }
 
+
+class MesosLauncherStatusTest : public MesosTest {};
+
+
+// Check that we get the proper PID from launcher
+// Using a invalid container ID should return a failure.
+TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  ContainerID invalidContainerId;
+  invalidContainerId.set_value(UUID::random().toString());
+
+  Try<pid_t> forked = launcher.get()->fork(
+      containerId,
+      flags.launcher_dir,
+      vector<string>(),
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      None());
+  
+  ASSERT_SOME(forked);
+
+  Future<ContainerStatus> validStatus = launcher.get()->status(containerId);
+
+  AWAIT_READY(validStatus);
+  EXPECT_EQ(validStatus->executor_pid(), forked.get());
+
+  Future<ContainerStatus> invalidStatus =
+    launcher.get()->status(invalidContainerId);
+
+  AWAIT_FAILED(invalidStatus);
+
+  AWAIT_READY(launcher.get()->destroy(containerId));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

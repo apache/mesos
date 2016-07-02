@@ -52,6 +52,9 @@ public:
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId);
+
 private:
   LinuxLauncher(
       const Flags& flags,

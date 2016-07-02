@@ -75,6 +75,11 @@ public:
 
   // Kill all processes in the containerized context.
   virtual process::Future<Nothing> destroy(const ContainerID& containerId) = 0;
+
+  // Return ContainerStatus information about container.
+  // Currently only returns Executor PID info.
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId) = 0;
 };
 
 
@@ -106,6 +111,9 @@ public:
         process::Subprocess::Hook::None());
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
+
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId);
 
 protected:
   PosixLauncher() {}
