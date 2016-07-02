@@ -3673,7 +3673,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_inspect)));
 
-  EXPECT_CALL(*mockDocker, run(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockDocker, run(_, _, _, _, _, _, _, _, _, _))
     .WillOnce(Return(Failure("Run failed")));
 
   Owned<MasterDetector> detector = master.get()->createDetector();

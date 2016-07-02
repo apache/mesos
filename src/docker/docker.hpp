@@ -30,6 +30,7 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/version.hpp>
 
 #include <stout/os/rm.hpp>
@@ -51,6 +52,20 @@ public:
       const Option<JSON::Object>& config = None());
 
   virtual ~Docker() {}
+
+  struct Device
+  {
+    Path path;
+
+    struct Access
+    {
+      Access() : read(false), write(false), mknod(false) {}
+
+      bool read;
+      bool write;
+      bool mknod;
+    } access;
+  };
 
   class Container
   {
@@ -130,6 +145,7 @@ public:
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources = None(),
       const Option<std::map<std::string, std::string>>& env = None(),
+      const Option<std::vector<Device>>& devices = None(),
       const process::Subprocess::IO& _stdout =
         process::Subprocess::FD(STDOUT_FILENO),
       const process::Subprocess::IO& _stderr =

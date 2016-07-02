@@ -446,6 +446,7 @@ Future<Option<int>> Docker::run(
     const string& mappedDirectory,
     const Option<Resources>& resources,
     const Option<map<string, string>>& env,
+    const Option<vector<Device>>& devices,
     const process::Subprocess::IO& _stdout,
     const process::Subprocess::IO& _stderr) const
 {
@@ -658,6 +659,33 @@ Future<Option<int>> Docker::run(
 
       argv.push_back("-p");
       argv.push_back(portMapping);
+    }
+  }
+
+  if (devices.isSome()) {
+    foreach (const Device& device, devices.get()) {
+      if (!device.path.absolute()) {
+        return Failure("Device path '" + device.path.string() + "'"
+                       " is not an absolute path");
+      }
+
+      string permissions;
+      permissions += device.access.read ? "r" : "";
+      permissions += device.access.write ? "w" : "";
+      permissions += device.access.mknod ? "m" : "";
+
+      // Docker doesn't handle this case (it fails by saying
+      // that an absolute path is not being provided).
+      if (permissions.empty()) {
+        return Failure("At least one access required for --devices:"
+                       " none specified for '" + device.path.string() + "'");
+      }
+
+      // Note that docker silently does not handle default devices
+      // passed in with restricted permissions (e.g. /dev/null), so
+      // we don't bother checking this case either.
+
+      argv.push_back("--device=" + device.path.string() + ":" + permissions);
     }
   }
 

@@ -164,6 +164,7 @@ public:
         mappedDirectory,
         task.resources() + task.executor().resources(),
         taskEnvironment,
+        None(), // No extra devices.
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO));
 

@@ -1475,7 +1475,7 @@ public:
       const Option<JSON::Object>& config = None());
   virtual ~MockDocker();
 
-  MOCK_CONST_METHOD9(
+  MOCK_CONST_METHOD10(
       run,
       process::Future<Option<int>>(
           const mesos::ContainerInfo&,
@@ -1485,6 +1485,7 @@ public:
           const std::string&,
           const Option<mesos::Resources>&,
           const Option<std::map<std::string, std::string>>&,
+          const Option<std::vector<Device>>&,
           const process::Subprocess::IO&,
           const process::Subprocess::IO&));
 
@@ -1521,6 +1522,7 @@ public:
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources,
       const Option<std::map<std::string, std::string>>& env,
+      const Option<std::vector<Device>>& devices,
       const process::Subprocess::IO& stdout,
       const process::Subprocess::IO& stderr) const
   {
@@ -1532,6 +1534,7 @@ public:
         mappedDirectory,
         resources,
         env,
+        devices,
         stdout,
         stderr);
   }

@@ -652,7 +652,7 @@ MockDocker::MockDocker(
   EXPECT_CALL(*this, stop(_, _, _))
     .WillRepeatedly(Invoke(this, &MockDocker::_stop));
 
-  EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockDocker::_run));
 
   EXPECT_CALL(*this, inspect(_, _))

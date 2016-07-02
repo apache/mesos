@@ -1229,6 +1229,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         flags.sandbox_directory,
         container->resources,
         container->environment,
+        None(), // No extra devices.
         subprocessInfo.out,
         subprocessInfo.err);
 

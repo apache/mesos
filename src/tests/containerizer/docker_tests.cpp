@@ -656,6 +656,61 @@ TEST_F(DockerImageTest, ParseInspectonImage)
             image.get().environment.get().at("CA_CERTIFICATES_JAVA_VERSION"));
 }
 
+
+// Tests the --devices flag of 'docker run' by adding the
+// /dev/nvidiactl device (present alongside Nvidia GPUs).
+//
+// TODO(bmahler): Avoid needing Nvidia GPUs to test this.
+TEST_F(DockerTest, ROOT_DOCKER_NVIDIA_GPU_DeviceAllow)
+{
+  const string containerName = NAME_PREFIX + "-test";
+  Resources resources = Resources::parse("cpus:1;mem:512;gpus:1").get();
+
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  // Make sure the additional device is exposed (/dev/nvidiactl) and
+  // make sure that the default devices (e.g. /dev/null) are still
+  // accessible.
+  CommandInfo commandInfo;
+  commandInfo.set_value("touch /dev/nvidiactl && touch /dev/null");
+
+  Docker::Device nvidiaCtl;
+  nvidiaCtl.path = Path("/dev/nvidiactl");
+  nvidiaCtl.access.read = true;
+  nvidiaCtl.access.write = true;
+  nvidiaCtl.access.mknod = true;
+
+  vector<Docker::Device> devices = { nvidiaCtl };
+
+  Future<Option<int>> status = docker->run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources,
+      None(),
+      devices);
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_TRUE(WIFEXITED(status->get())) << status->get();
+  EXPECT_EQ(0, WEXITSTATUS(status->get())) << status->get();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
