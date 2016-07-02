@@ -34,6 +34,8 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+#include "tests/containerizer/docker_archive.hpp"
+
 namespace http = process::http;
 
 using mesos::internal::master::Master;
@@ -260,6 +262,123 @@ TEST_F(HealthCheckTest, HealthyTask)
   EXPECT_EQ(TASK_RUNNING, implicitReconciliation.get().state());
   EXPECT_TRUE(implicitReconciliation.get().has_healthy());
   EXPECT_TRUE(implicitReconciliation.get().healthy());
+
+  // Verify that task health is exposed in the master's state endpoint.
+  {
+    Future<http::Response> response = http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_TRUE(find);
+  }
+
+  // Verify that task health is exposed in the slave's state endpoint.
+  {
+    Future<http::Response> response = http::get(
+        slave.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_TRUE(find);
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Testing a healthy task with a container image using mesos
+// containerizer reporting one healthy status to scheduler.
+TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const string directory = path::join(os::getcwd(), "archives");
+
+  Future<Nothing> testImage = DockerArchive::create(directory, "alpine");
+  AWAIT_READY(testImage);
+
+  ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_registry = directory;
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Make use of 'populateTasks()' to avoid duplicate code.
+  vector<TaskInfo> tasks =
+    populateTasks("sleep 120", "exit 0", offers.get()[0]);
+
+  TaskInfo task = tasks[0];
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  HealthCheck* health = task.mutable_health_check();
+  health->mutable_command()->set_value("exit 0");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealth;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealth));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealth);
+  EXPECT_EQ(TASK_RUNNING, statusHealth.get().state());
+  EXPECT_TRUE(statusHealth.get().has_healthy());
+  EXPECT_TRUE(statusHealth.get().healthy());
 
   // Verify that task health is exposed in the master's state endpoint.
   {
