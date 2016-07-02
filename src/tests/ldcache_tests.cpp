@@ -44,26 +44,24 @@ TEST(LdcacheTest, Parse)
   ASSERT_GT(cache->size(), 1u);
 
   foreach (const ldcache::Entry& entry, cache.get()) {
-    Try<elf::File*> open = elf::File::open(entry.path);
-    ASSERT_SOME(open);
+    Try<elf::File*> load = elf::File::load(entry.path);
+    ASSERT_SOME(load);
 
-    Owned<elf::File> file(open.get());
+    Owned<elf::File> file(load.get());
 
-    Try<elf::Class> c = file->GetClass();
+    Try<elf::Class> c = file->get_class();
     ASSERT_SOME(c);
     ASSERT_TRUE(c.get() == elf::CLASS32 || c.get() == elf::CLASS64);
 
     Try<vector<string>> soname =
-      file->GetDynamicStrings(elf::DynamicTag::SONAME);
+      file->get_dynamic_strings(elf::DynamicTag::SONAME);
     ASSERT_SOME(soname);
     ASSERT_LE(soname->size(), 1u);
 
     Try<vector<string>> needed =
-      file->GetDynamicStrings(elf::DynamicTag::NEEDED);
+      file->get_dynamic_strings(elf::DynamicTag::NEEDED);
     ASSERT_SOME(needed);
     ASSERT_LE(needed->size(), cache->size());
-
-    file->close();
   }
 }
 
