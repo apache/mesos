@@ -371,9 +371,21 @@ inline bool startsWith(const std::string& s, const std::string& prefix)
 }
 
 
+inline bool startsWith(const std::string& s, char c)
+{
+  return !s.empty() && s.front() == c;
+}
+
+
 inline bool endsWith(const std::string& s, const std::string& suffix)
 {
   return s.rfind(suffix) == s.length() - suffix.length();
+}
+
+
+inline bool endsWith(const std::string& s, char c)
+{
+  return !s.empty() && s.back() == c;
 }
 
 
