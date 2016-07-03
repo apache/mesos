@@ -688,7 +688,8 @@ TEST_F(DockerTest, ROOT_DOCKER_NVIDIA_GPU_DeviceAllow)
   commandInfo.set_value("touch /dev/nvidiactl && touch /dev/null");
 
   Docker::Device nvidiaCtl;
-  nvidiaCtl.path = Path("/dev/nvidiactl");
+  nvidiaCtl.hostPath = Path("/dev/nvidiactl");
+  nvidiaCtl.containerPath = Path("/dev/nvidiactl");
   nvidiaCtl.access.read = true;
   nvidiaCtl.access.write = true;
   nvidiaCtl.access.mknod = true;

@@ -664,8 +664,8 @@ Future<Option<int>> Docker::run(
 
   if (devices.isSome()) {
     foreach (const Device& device, devices.get()) {
-      if (!device.path.absolute()) {
-        return Failure("Device path '" + device.path.string() + "'"
+      if (!device.hostPath.absolute()) {
+        return Failure("Device path '" + device.hostPath.string() + "'"
                        " is not an absolute path");
       }
 
@@ -678,14 +678,18 @@ Future<Option<int>> Docker::run(
       // that an absolute path is not being provided).
       if (permissions.empty()) {
         return Failure("At least one access required for --devices:"
-                       " none specified for '" + device.path.string() + "'");
+                       " none specified for"
+                       " '" + device.hostPath.string() + "'");
       }
 
       // Note that docker silently does not handle default devices
       // passed in with restricted permissions (e.g. /dev/null), so
       // we don't bother checking this case either.
 
-      argv.push_back("--device=" + device.path.string() + ":" + permissions);
+      argv.push_back("--device=" +
+                     device.hostPath.string() + ":" +
+                     device.containerPath.string() + ":" +
+                     permissions);
     }
   }
 

@@ -55,7 +55,8 @@ public:
 
   struct Device
   {
-    Path path;
+    Path hostPath;
+    Path containerPath;
 
     struct Access
     {
