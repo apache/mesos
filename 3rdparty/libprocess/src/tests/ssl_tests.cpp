@@ -116,11 +116,11 @@ TEST(SSL, Disabled)
 TEST_F(SSLTest, BasicSameProcess)
 {
   os::setenv("SSL_ENABLED", "true");
-  os::setenv("SSL_KEY_FILE", key_path().value);
-  os::setenv("SSL_CERT_FILE", certificate_path().value);
+  os::setenv("SSL_KEY_FILE", key_path().string());
+  os::setenv("SSL_CERT_FILE", certificate_path().string());
   os::setenv("SSL_REQUIRE_CERT", "true");
   os::setenv("SSL_CA_DIR", os::getcwd());
-  os::setenv("SSL_CA_FILE", certificate_path().value);
+  os::setenv("SSL_CA_FILE", certificate_path().string());
 
   openssl::reinitialize();
 
@@ -175,14 +175,14 @@ TEST_F(SSLTest, SSLSocket)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -204,14 +204,14 @@ TEST_F(SSLTest, NonSSLSocket)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}},
       server.get(),
       false);
   ASSERT_SOME(client);
@@ -230,18 +230,18 @@ TEST_F(SSLTest, NoVerifyBadCA)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_VERIFY_CERT", "false"},
       {"SSL_REQUIRE_CERT", "false"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().value},
-      {"SSL_CERT_FILE", scrap_certificate_path().value},
+      {"SSL_KEY_FILE", scrap_key_path().string()},
+      {"SSL_CERT_FILE", scrap_certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"},
-      {"SSL_CA_FILE", certificate_path().value}},
+      {"SSL_CA_FILE", certificate_path().string()}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -264,15 +264,15 @@ TEST_F(SSLTest, RequireBadCA)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().value},
-      {"SSL_CERT_FILE", scrap_certificate_path().value},
+      {"SSL_KEY_FILE", scrap_key_path().string()},
+      {"SSL_CERT_FILE", scrap_certificate_path().string()},
       {"SSL_REQUIRE_CERT", "false"}},
       server.get(),
       true);
@@ -292,15 +292,15 @@ TEST_F(SSLTest, VerifyBadCA)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_VERIFY_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().value},
-      {"SSL_CERT_FILE", scrap_certificate_path().value},
+      {"SSL_KEY_FILE", scrap_key_path().string()},
+      {"SSL_CERT_FILE", scrap_certificate_path().string()},
       {"SSL_REQUIRE_CERT", "false"}},
       server.get(),
       true);
@@ -320,15 +320,15 @@ TEST_F(SSLTest, VerifyCertificate)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_VERIFY_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}},
       server.get(),
       true);
@@ -352,15 +352,15 @@ TEST_F(SSLTest, RequireCertificate)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}},
       server.get(),
       true);
@@ -405,15 +405,15 @@ TEST_F(SSLTest, ProtocolMismatch)
       // Set up the default server environment variables.
       map<string, string> server_environment = {
         {"SSL_ENABLED", "true"},
-        {"SSL_KEY_FILE", key_path().value},
-        {"SSL_CERT_FILE", certificate_path().value}
+        {"SSL_KEY_FILE", key_path().string()},
+        {"SSL_CERT_FILE", certificate_path().string()}
       };
 
       // Set up the default client environment variables.
       map<string, string> client_environment = {
         {"SSL_ENABLED", "true"},
-        {"SSL_KEY_FILE", key_path().value},
-        {"SSL_CERT_FILE", certificate_path().value},
+        {"SSL_KEY_FILE", key_path().string()},
+        {"SSL_CERT_FILE", certificate_path().string()},
       };
 
       // Disable all protocols except for the one we're testing.
@@ -465,8 +465,8 @@ TEST_F(SSLTest, ValidDowngrade)
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
       {"SSL_SUPPORT_DOWNGRADE", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
@@ -494,8 +494,8 @@ TEST_F(SSLTest, NoValidDowngrade)
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
       {"SSL_SUPPORT_DOWNGRADE", "false"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()},
       {"SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
@@ -524,8 +524,8 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
     map<string, string> server_environment = {
       {"SSL_ENABLED", "true"},
       {"SSL_SUPPORT_DOWNGRADE", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}
     };
 
     // Disable all protocols except for the one we're testing.
@@ -571,8 +571,8 @@ TEST_F(SSLTest, NoValidDowngradeEachProtocol)
     map<string, string> server_environment = {
       {"SSL_ENABLED", "true"},
       {"SSL_SUPPORT_DOWNGRADE", "false"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}
     };
 
     // Disable all protocols except for the one we're testing.
@@ -606,8 +606,8 @@ TEST_F(SSLTest, PeerAddress)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   const Try<Socket> client_create = Socket::create(Socket::SSL);
@@ -643,8 +643,8 @@ TEST_F(SSLTest, HTTPSGet)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -683,8 +683,8 @@ TEST_F(SSLTest, HTTPSPost)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -727,8 +727,8 @@ TEST_F(SSLTest, SilentSocket)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+      {"SSL_KEY_FILE", key_path().string()},
+      {"SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());

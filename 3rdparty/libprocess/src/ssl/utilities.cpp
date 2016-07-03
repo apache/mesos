@@ -220,7 +220,7 @@ Try<X509*> generate_x509(
 Try<Nothing> write_key_file(EVP_PKEY* private_key, const Path& path)
 {
   // We use 'FILE*' here because it is an API requirement by openssl.
-  FILE* file = fopen(path.value.c_str(), "wb");
+  FILE* file = fopen(path.string().c_str(), "wb");
   if (file == nullptr) {
     return Error("Failed to open file '" + stringify(path) + "' for writing");
   }
@@ -241,7 +241,7 @@ Try<Nothing> write_key_file(EVP_PKEY* private_key, const Path& path)
 Try<Nothing> write_certificate_file(X509* x509, const Path& path)
 {
   // We use 'FILE*' here because it is an API requirement by openssl.
-  FILE* file = fopen(path.value.c_str(), "wb");
+  FILE* file = fopen(path.string().c_str(), "wb");
   if (file == nullptr) {
     return Error("Failed to open file '" + stringify(path) + "' for writing");
   }
