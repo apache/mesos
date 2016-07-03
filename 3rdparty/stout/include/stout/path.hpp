@@ -64,11 +64,7 @@ inline std::string join(const std::vector<std::string>& paths)
 
 inline bool absolute(const std::string& path)
 {
-  if (path.empty() || path[0] != os::PATH_SEPARATOR) {
-    return false;
-  }
-
-  return true;
+  return strings::startsWith(path, os::PATH_SEPARATOR);
 }
 
 } // namespace path {
