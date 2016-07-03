@@ -17,10 +17,15 @@
 #include <map>
 #include <vector>
 
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
+#include <stout/stringify.hpp>
 
 #include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
@@ -349,7 +354,50 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     }
   }
 
-  return Docker::Container(output, id, name, optionalPid, started, ipAddress);
+  vector<Device> devices;
+
+  Result<JSON::Array> devicesArray =
+    json.find<JSON::Array>("HostConfig.Devices");
+
+  if (devicesArray.isError()) {
+    return Error("Failed to parse HostConfig.Devices: " + devicesArray.error());
+  }
+
+  if (devicesArray.isSome()) {
+    foreach (const JSON::Value& entry, devicesArray->values) {
+      if (!entry.is<JSON::Object>()) {
+        return Error("Malformed HostConfig.Devices"
+                     " entry '" + stringify(entry) + "'");
+      }
+
+      JSON::Object object = entry.as<JSON::Object>();
+
+      Result<JSON::String> hostPath =
+        object.at<JSON::String>("PathOnHost");
+      Result<JSON::String> containerPath =
+        object.at<JSON::String>("PathInContainer");
+      Result<JSON::String> permissions =
+        object.at<JSON::String>("CgroupPermissions");
+
+      if (!hostPath.isSome() ||
+          !containerPath.isSome() ||
+          !permissions.isSome()) {
+        return Error("Malformed HostConfig.Devices entry"
+                     " '" + stringify(object) + "'");
+      }
+
+      Device device;
+      device.hostPath = Path(hostPath->value);
+      device.containerPath = Path(containerPath->value);
+      device.access.read = strings::contains(permissions->value, "r");
+      device.access.write = strings::contains(permissions->value, "w");
+      device.access.mknod = strings::contains(permissions->value, "m");
+
+      devices.push_back(device);
+    }
+  }
+
+  return Container(output, id, name, optionalPid, started, ipAddress, devices);
 }
 
 

@@ -712,6 +712,77 @@ TEST_F(DockerTest, ROOT_DOCKER_NVIDIA_GPU_DeviceAllow)
   EXPECT_EQ(0, WEXITSTATUS(status->get())) << status->get();
 }
 
+
+// Tests that devices are parsed correctly from 'docker inspect'.
+//
+// TODO(bmahler): Avoid needing Nvidia GPUs to test this and
+// merge this into a more general inspect test.
+TEST_F(DockerTest, ROOT_DOCKER_NVIDIA_GPU_InspectDevices)
+{
+  const string containerName = NAME_PREFIX + "-test";
+  Resources resources = Resources::parse("cpus:1;mem:512;gpus:1").get();
+
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  // Make sure the additional device is exposed (/dev/nvidiactl) and
+  // make sure that the default devices (e.g. /dev/null) are still
+  // accessible. We then sleep to allow time to inspect and verify
+  // that the device is correctly parsed from the json.
+  CommandInfo commandInfo;
+  commandInfo.set_value("touch /dev/nvidiactl && touch /dev/null && sleep 120");
+
+  Docker::Device nvidiaCtl;
+  nvidiaCtl.hostPath = Path("/dev/nvidiactl");
+  nvidiaCtl.containerPath = Path("/dev/nvidiactl");
+  nvidiaCtl.access.read = true;
+  nvidiaCtl.access.write = true;
+  nvidiaCtl.access.mknod = false;
+
+  vector<Docker::Device> devices = { nvidiaCtl };
+
+  Future<Option<int>> status = docker->run(
+      containerInfo,
+      commandInfo,
+      containerName,
+      directory.get(),
+      "/mnt/mesos/sandbox",
+      resources,
+      None(),
+      devices);
+
+  Future<Docker::Container> container =
+    docker->inspect(containerName, Milliseconds(1));
+
+  AWAIT_READY(container);
+
+  EXPECT_EQ(1u, container->devices.size());
+  EXPECT_EQ(nvidiaCtl.hostPath, container->devices[0].hostPath);
+  EXPECT_EQ(nvidiaCtl.containerPath, container->devices[0].hostPath);
+  EXPECT_EQ(nvidiaCtl.access.read, container->devices[0].access.read);
+  EXPECT_EQ(nvidiaCtl.access.write, container->devices[0].access.write);
+  EXPECT_EQ(nvidiaCtl.access.mknod, container->devices[0].access.mknod);
+
+  AWAIT_READY(docker->kill(containerName, SIGKILL));
+
+  AWAIT_READY(status);
+  ASSERT_SOME(status.get());
+  EXPECT_TRUE(WIFEXITED(status->get())) << status->get();
+  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(status->get())) << status->get();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

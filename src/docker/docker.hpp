@@ -95,6 +95,8 @@ public:
     // been not been assigned.
     const Option<std::string> ipAddress;
 
+    const std::vector<Device> devices;
+
   private:
     Container(
         const std::string& output,
@@ -102,13 +104,15 @@ public:
         const std::string& name,
         const Option<pid_t>& pid,
         bool started,
-        const Option<std::string>& ipAddress)
+        const Option<std::string>& ipAddress,
+        const std::vector<Device>& devices)
       : output(output),
         id(id),
         name(name),
         pid(pid),
         started(started),
-        ipAddress(ipAddress) {}
+        ipAddress(ipAddress),
+        devices(devices) {}
   };
 
   class Image
