@@ -3367,11 +3367,11 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   slave.get()->terminate();
 
   // Step 2. Simulate failed over master by restarting the master.
+  EXPECT_CALL(sched, disconnected(&driver));
+
   master->reset();
   master = this->StartMaster();
   ASSERT_SOME(master);
-
-  EXPECT_CALL(sched, disconnected(_));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))

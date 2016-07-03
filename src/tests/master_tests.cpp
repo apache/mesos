@@ -537,22 +537,23 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   slave.get()->terminate();
   slave->reset();
 
-  frameworkId = Future<FrameworkID>();
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
+  Future<Nothing> disconnected;
+  EXPECT_CALL(sched, disconnected(&driver))
+    .WillOnce(FutureSatisfy(&disconnected));
 
   // Restart master.
   master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<Nothing> disconnected;
-  EXPECT_CALL(sched, disconnected(&driver))
-    .WillOnce(FutureSatisfy(&disconnected));
+  frameworkId = Future<FrameworkID>();
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   // Simulate a spurious event (e.g., due to ZooKeeper
   // expiration) at the scheduler.
   detector.appoint(master.get()->pid);
 
+  AWAIT_READY(disconnected);
   AWAIT_READY(frameworkId);
 
   // Restart slave.

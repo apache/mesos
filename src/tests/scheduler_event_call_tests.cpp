@@ -238,14 +238,14 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
 
   AWAIT_READY(registered);
 
+  EXPECT_CALL(sched, disconnected(&driver));
+
   // Fail over the master and expect a 'reregistered' call.
   // Note that the master sends a registered message for
   // this case (see MESOS-786).
   master->reset();
   master = StartMaster();
   ASSERT_SOME(master);
-
-  EXPECT_CALL(sched, disconnected(&driver));
 
   frameworkRegisteredMessage =
     DROP_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);

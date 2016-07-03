@@ -603,10 +603,10 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   Clock::settle();
   Clock::resume();
 
+  EXPECT_CALL(sched, disconnected(&driver));
+
   // Simulate failed over master by restarting the master.
   master->reset();
-
-  EXPECT_CALL(sched, disconnected(&driver));
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
