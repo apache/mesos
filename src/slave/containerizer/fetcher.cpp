@@ -163,7 +163,7 @@ Try<Nothing> Fetcher::validateOutputFile(const string& path)
 
   // TODO(mrbrowning): Check that the filename's directory component is
   // actually a subdirectory of the sandbox, not just relative to it.
-  if (path.at(0) == '/') {
+  if (strings::startsWith(path, '/')) {
     return Error("URI output file must be within the sandbox directory");
   }
 

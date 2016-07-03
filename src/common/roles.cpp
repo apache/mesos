@@ -65,7 +65,7 @@ Option<Error> validate(const string& role)
     return Error("Role name '.' is invalid");
   } else if (role == *dotdot) {
     return Error("Role name '..' is invalid");
-  } else if (role[0] == '-') {
+  } else if (strings::startsWith(role, '-')) {
     return Error("Role name '" + role + "' is invalid "
                  "because it starts with a dash");
   }

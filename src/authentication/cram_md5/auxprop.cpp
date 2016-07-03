@@ -18,6 +18,8 @@
 
 #include <mutex>
 
+#include <stout/strings.hpp>
+
 #include "logging/logging.hpp"
 
 // We need to disable the deprecation warnings as Apple has decided
@@ -125,7 +127,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 
     // Skip properties that don't apply to this lookup given the flags.
     if (flags & SASL_AUXPROP_AUTHZID) {
-      if (name[0] == '*') {
+      if (strings::startsWith(name, '*')) {
         VLOG(1) << "Skipping auxiliary property '" << name
                 << "' since SASL_AUXPROP_AUTHZID == true";
         continue;
@@ -134,7 +136,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
       // Only consider properties that start with '*' if
       // SASL_AUXPROP_AUTHZID is not set but don't include the '*'
       // when looking up the property name.
-      if (name[0] != '*') {
+      if (!strings::startsWith(name, '*')) {
         VLOG(1) << "Skipping auxiliary property '" << name
                 << "' since SASL_AUXPROP_AUTHZID == false "
                 << "but property name starts with '*'";
