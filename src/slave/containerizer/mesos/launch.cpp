@@ -83,8 +83,8 @@ MesosContainerizerLaunch::Flags::Flags()
       "properly in the subprocess. It's used to synchronize with the \n"
       "parent process. If not specified, no synchronization will happen.");
 
-  add(&commands,
-      "commands",
+  add(&pre_exec_commands,
+      "pre_exec_commands",
       "The additional preparation commands to execute before\n"
       "executing the command.");
 }
@@ -171,20 +171,9 @@ int MesosContainerizerLaunch::execute()
 
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.
-  if (flags.commands.isSome()) {
+  if (flags.pre_exec_commands.isSome()) {
     // TODO(jieyu): Use JSON::Array if we have generic parse support.
-    JSON::Object object = flags.commands.get();
-    if (object.values.count("commands") == 0) {
-      cerr << "Invalid JSON format for flag --commands" << endl;
-      return 1;
-    }
-
-    if (!object.values["commands"].is<JSON::Array>()) {
-      cerr << "Invalid JSON format for flag --commands" << endl;
-      return 1;
-    }
-
-    JSON::Array array = object.values["commands"].as<JSON::Array>();
+    JSON::Array array = flags.pre_exec_commands.get();
     foreach (const JSON::Value& value, array.values) {
       if (!value.is<JSON::Object>()) {
         cerr << "Invalid JSON format for flag --commands" << endl;

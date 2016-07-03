@@ -1163,7 +1163,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     environment[variable.name()] = variable.value();
   }
 
-  JSON::Array commandArray;
+  JSON::Array preExecCommands;
 
   // TODO(jieyu): We should use Option here. If no namespace is
   // required, we should pass None() to 'launcher->fork'.
@@ -1177,7 +1177,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     // Populate the list of additional commands to be run inside the container
     // context.
     foreach (const CommandInfo& command, launchInfo->commands()) {
-      commandArray.values.emplace_back(JSON::protobuf(command));
+      preExecCommands.values.emplace_back(JSON::protobuf(command));
     }
 
     // Process additional environment variables returned by isolators.
@@ -1192,10 +1192,6 @@ Future<bool> MesosContainerizerProcess::__launch(
       namespaces |= launchInfo->namespaces();
     }
   }
-
-  // TODO(jieyu): Use JSON::Array once we have generic parse support.
-  JSON::Object commands;
-  commands.values["commands"] = commandArray;
 
   if (executorLaunchCommand.isNone()) {
     executorLaunchCommand = executorInfo.command();
@@ -1269,7 +1265,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     launchFlags.pipe_read = os::fd_to_handle(pipes[0]);
     launchFlags.pipe_write = os::fd_to_handle(pipes[1]);
 #endif // __WINDOWS
-    launchFlags.commands = commands;
+    launchFlags.pre_exec_commands = preExecCommands;
 
     VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
             << launchFlags << "'";

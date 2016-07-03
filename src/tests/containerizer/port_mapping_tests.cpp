@@ -327,12 +327,10 @@ protected:
       return Error("No valid commands inside ContainerLaunchInfo.");
     }
 
-    JSON::Object commands;
-    JSON::Array array;
-    array.values.push_back(JSON::protobuf(launchInfo->commands(0)));
-    commands.values["commands"] = array;
+    JSON::Array preExecCommands;
+    preExecCommands.values.push_back(JSON::protobuf(launchInfo->commands(0)));
 
-    launchFlags.commands = commands;
+    launchFlags.pre_exec_commands = preExecCommands;
 
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;
