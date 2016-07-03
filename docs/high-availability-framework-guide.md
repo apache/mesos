@@ -127,6 +127,15 @@ Highly available framework designs typically follow a few common patterns:
     generous value. To avoid accidental destruction of tasks in production
     environments, many frameworks use a `failover_timeout` of 1 week or more.
 
+      * In the current implementation, a framework's `failover_timeout` is not
+        preserved during master failover. Hence, if a framework fails but the
+        leading master fails before the `failover_timeout` is reached, the newly
+        elected leading master won't know that the framework's tasks should be
+        killed after a period of time. Hence, if the framework never
+        reregisters, those tasks will continue to run indefinitely but will be
+        orphaned. This behavior will likely be fixed in a future version of
+        Mesos ([MESOS-4659](https://issues.apache.org/jira/browse/MESOS-4659)).
+
 4. After connecting to the Mesos master, the new leading scheduler should ensure
    that its local state is consistent with the current state of the cluster. For
    example, suppose that the previous leading scheduler attempted to launch a
