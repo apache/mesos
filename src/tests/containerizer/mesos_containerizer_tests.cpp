@@ -1297,7 +1297,7 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
       None(),
       None(),
       None());
-  
+
   ASSERT_SOME(forked);
 
   Future<ContainerStatus> validStatus = launcher.get()->status(containerId);
