@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <sched.h>
 #include <string.h>
 
 #include <iostream>
@@ -26,6 +27,7 @@
 
 #ifdef __linux__
 #include "linux/fs.hpp"
+#include "linux/ns.hpp"
 #endif
 
 #include "mesos/mesos.hpp"
@@ -87,6 +89,13 @@ MesosContainerizerLaunch::Flags::Flags()
       "pre_exec_commands",
       "The additional preparation commands to execute before\n"
       "executing the command.");
+
+#ifdef __linux__
+  add(&unshare_namespace_mnt,
+      "unshare_namespace_mnt",
+      "Whether to launch the command in a new mount namespace.",
+      false);
+#endif // __linux__
 }
 
 
@@ -168,6 +177,16 @@ int MesosContainerizerLaunch::execute()
       return 1;
     }
   }
+
+#ifdef __linux__
+  if (flags.unshare_namespace_mnt) {
+    if (unshare(CLONE_NEWNS) != 0) {
+      cerr << "Failed to unshare mount namespace: "
+           << os::strerror(errno) << endl;
+      return 1;
+    }
+  }
+#endif // __linux__
 
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.

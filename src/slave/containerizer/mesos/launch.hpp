@@ -43,6 +43,9 @@ public:
     Option<int> pipe_read;
     Option<int> pipe_write;
     Option<JSON::Array> pre_exec_commands;
+#ifdef __linux__
+    bool unshare_namespace_mnt;
+#endif // __linux__
   };
 
   MesosContainerizerLaunch() : Subcommand(NAME) {}
