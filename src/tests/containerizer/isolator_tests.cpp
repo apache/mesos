@@ -1348,7 +1348,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
 
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
-  ASSERT_EQ(1, prepare.get().get().commands().size());
+  ASSERT_EQ(1, prepare.get().get().pre_exec_commands().size());
   EXPECT_TRUE(prepare.get().get().has_namespaces());
 
   // The test will touch a file in container path.
@@ -1361,7 +1361,8 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   args.push_back("sh");
   args.push_back("-x");
   args.push_back("-c");
-  args.push_back(prepare.get().get().commands(0).value() + " && touch " + file);
+  args.push_back(
+      prepare.get().get().pre_exec_commands(0).value() + " && touch " + file);
 
   Try<pid_t> pid = launcher->fork(
       containerId,
@@ -1453,7 +1454,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
-  ASSERT_EQ(1, prepare.get().get().commands().size());
+  ASSERT_EQ(1, prepare.get().get().pre_exec_commands().size());
   EXPECT_TRUE(prepare.get().get().has_namespaces());
 
   // Test the volume mounting by touching a file in the container's
@@ -1465,7 +1466,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   args.push_back("sh");
   args.push_back("-x");
   args.push_back("-c");
-  args.push_back(prepare.get().get().commands(0).value() +
+  args.push_back(prepare.get().get().pre_exec_commands(0).value() +
                  " && touch " +
                  path::join(containerPath, filename));
 

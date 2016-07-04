@@ -105,7 +105,9 @@ message ContainerConfig {
  * shell commands for the preparation commands.
  */
 message ContainerLaunchInfo {
-  repeated CommandInfo commands = 1;
+  // The additional preparation commands to execute before
+  // executing the command.
+  repeated CommandInfo pre_exec_commands = 1;
   optional Environment environment = 2;
 
   // The root filesystem for the container.

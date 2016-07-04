@@ -2514,7 +2514,7 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
             << executorInfo.executor_id() << "'";
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.add_commands()->set_value(scripts(infos[containerId]));
+  launchInfo.add_pre_exec_commands()->set_value(scripts(infos[containerId]));
 
   // NOTE: the port mapping isolator itself doesn't require mount
   // namespace. However, if mount namespace is enabled because of

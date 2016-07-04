@@ -323,12 +323,13 @@ protected:
     launchFlags.pipe_read = pipes[0];
     launchFlags.pipe_write = pipes[1];
 
-    if (launchInfo->commands().size() != 1) {
+    if (launchInfo->pre_exec_commands().size() != 1) {
       return Error("No valid commands inside ContainerLaunchInfo.");
     }
 
     JSON::Array preExecCommands;
-    preExecCommands.values.push_back(JSON::protobuf(launchInfo->commands(0)));
+    preExecCommands.values.push_back(JSON::protobuf(
+        launchInfo->pre_exec_commands(0)));
 
     launchFlags.pre_exec_commands = preExecCommands;
 
@@ -473,7 +474,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
 
   AWAIT_READY(launchInfo1);
   ASSERT_SOME(launchInfo1.get());
-  ASSERT_EQ(1, launchInfo1.get()->commands().size());
+  ASSERT_EQ(1, launchInfo1.get()->pre_exec_commands().size());
 
   ostringstream command1;
 
@@ -542,7 +543,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
 
   AWAIT_READY(launchInfo2);
   ASSERT_SOME(launchInfo2.get());
-  ASSERT_EQ(1, launchInfo2.get()->commands().size());
+  ASSERT_EQ(1, launchInfo2.get()->pre_exec_commands().size());
 
   ostringstream command2;
 
@@ -636,7 +637,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
 
   AWAIT_READY(launchInfo1);
   ASSERT_SOME(launchInfo1.get());
-  ASSERT_EQ(1, launchInfo1.get()->commands().size());
+  ASSERT_EQ(1, launchInfo1.get()->pre_exec_commands().size());
 
   ostringstream command1;
 
@@ -705,7 +706,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
 
   AWAIT_READY(launchInfo2);
   ASSERT_SOME(launchInfo2.get());
-  ASSERT_EQ(1, launchInfo2.get()->commands().size());
+  ASSERT_EQ(1, launchInfo2.get()->pre_exec_commands().size());
 
   ostringstream command2;
 
@@ -801,7 +802,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command1;
 
@@ -919,7 +920,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command1;
 
@@ -1045,7 +1046,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
   for (unsigned int i = 0; i < nameServers.size(); i++) {
@@ -1132,7 +1133,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
   command << "ping -c1 127.0.0.1 && ping -c1 " << hostIP
@@ -1222,7 +1223,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
   for (unsigned int i = 0; i < nameServers.size(); i++) {
@@ -1318,7 +1319,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
   for (unsigned int i = 0; i < nameServers.size(); i++) {
@@ -1410,7 +1411,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
 
   AWAIT_READY(launchInfo1);
   ASSERT_SOME(launchInfo1.get());
-  ASSERT_EQ(1, launchInfo1.get()->commands().size());
+  ASSERT_EQ(1, launchInfo1.get()->pre_exec_commands().size());
 
   ostringstream command1;
   command1 << "sleep 1000";
@@ -1529,7 +1530,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   // Fill 'size' bytes of data. The actual content does not matter.
   string data(size.bytes(), 'a');
@@ -1693,7 +1694,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
 
   AWAIT_READY(launchInfo);
   ASSERT_SOME(launchInfo.get());
-  ASSERT_EQ(1, launchInfo.get()->commands().size());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   // Fill 'size' bytes of data. The actual content does not matter.
   string data(size.bytes(), 'a');

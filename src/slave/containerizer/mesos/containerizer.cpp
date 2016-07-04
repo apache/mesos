@@ -1176,7 +1176,7 @@ Future<bool> MesosContainerizerProcess::__launch(
 
     // Populate the list of additional commands to be run inside the container
     // context.
-    foreach (const CommandInfo& command, launchInfo->commands()) {
+    foreach (const CommandInfo& command, launchInfo->pre_exec_commands()) {
       preExecCommands.values.emplace_back(JSON::protobuf(command));
     }
 

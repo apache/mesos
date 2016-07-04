@@ -165,7 +165,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   Fetcher fetcher;
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.add_commands()->set_value("touch " + file);
+  launchInfo.add_pre_exec_commands()->set_value("touch " + file);
 
   Try<Owned<MesosContainerizer>> containerizer = CreateContainerizer(
       &fetcher,
@@ -214,11 +214,13 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   Fetcher fetcher;
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.add_commands()->set_value("touch " + file + " && exit 1");
+  launchInfo.add_pre_exec_commands()->set_value(
+      "touch " + file + " && exit 1");
 
   Try<Owned<MesosContainerizer>> containerizer = CreateContainerizer(
       &fetcher,
       launchInfo);
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -268,12 +270,12 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   // This isolator prepare command one will succeed if called first, otherwise
   // it won't get run.
   ContainerLaunchInfo launch1;
-  launch1.add_commands()->set_value("touch " + file1 + " && exit 0");
+  launch1.add_pre_exec_commands()->set_value("touch " + file1 + " && exit 0");
   launchInfos.push_back(launch1);
 
   // This will fail, either first or after the successful command.
   ContainerLaunchInfo launch2;
-  launch2.add_commands()->set_value("touch " + file2 + " && exit 1");
+  launch2.add_pre_exec_commands()->set_value("touch " + file2 + " && exit 1");
   launchInfos.push_back(launch2);
 
   Fetcher fetcher;
@@ -698,7 +700,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   // Need to help the compiler to disambiguate between overloads.
   ContainerLaunchInfo launchInfo;
-  launchInfo.add_commands()->CopyFrom(commandInfo);
+  launchInfo.add_pre_exec_commands()->CopyFrom(commandInfo);
   Option<ContainerLaunchInfo> option = launchInfo;
   promise.set(option);
 

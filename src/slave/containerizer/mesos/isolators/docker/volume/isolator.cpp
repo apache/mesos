@@ -493,7 +493,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
 
     const string command = "mount -n --rbind " + source + " " + target;
 
-    launchInfo.add_commands()->set_value(command);
+    launchInfo.add_pre_exec_commands()->set_value(command);
   }
 
   return launchInfo;

@@ -291,7 +291,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     return Failure("Failed to generate isolation script: " + _script.error());
   }
 
-  CommandInfo* command = launchInfo.add_commands();
+  CommandInfo* command = launchInfo.add_pre_exec_commands();
   command->set_value(_script.get());
 
   return update(containerId, containerConfig.executor_info().resources())
