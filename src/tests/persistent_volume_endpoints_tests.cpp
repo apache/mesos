@@ -1781,6 +1781,142 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
 }
 
 
+// This test checks that a combination of HTTP endpoint reservations,
+// framework reservations and unreservations, and slave removals works
+// correctly. See MESOS-5698 for context.
+TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveID> slave1Id;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slave1Id)));
+
+  slave::Flags slave1Flags = CreateSlaveFlags();
+  slave1Flags.resources = "cpus:4";
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), slave1Flags);
+
+  ASSERT_SOME(slave1);
+  AWAIT_READY(slave1Id);
+
+  Future<SlaveID> slave2Id;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slave2Id)));
+
+  // Each slave needs its own flags to ensure work_dirs are unique.
+  slave::Flags slave2Flags = CreateSlaveFlags();
+  slave2Flags.resources = "cpus:3";
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), slave2Flags);
+
+  ASSERT_SOME(slave2);
+  AWAIT_READY(slave2Id);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  // Reserve all CPUs on `slave1` via HTTP endpoint.
+  Resources slave1Unreserved = Resources::parse("cpus:4").get();
+  Resources slave1Reserved = slave1Unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slave1Id.get(), "resources", slave1Reserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, addFramework(_, _, _));
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(2u, offers.get().size());
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(),
+                    master.get()->pid,
+                    slave2.get()->pid);
+
+  // Use the offers API to reserve all CPUs on `slave2`.
+  Resources slave2Unreserved = Resources::parse("cpus:3").get();
+  Resources slave2Reserved = slave2Unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  for (size_t i = 0; i < offers.get().size(); i++) {
+    Offer offer = offers.get()[i];
+    SlaveID offeredSlaveId = offer.slave_id();
+
+    ASSERT_TRUE(offeredSlaveId == slave1Id.get() ||
+                offeredSlaveId == slave2Id.get());
+
+    if (offeredSlaveId == slave2Id.get()) {
+      driver.acceptOffers({offer.id()}, {RESERVE(slave2Reserved)});
+      break;
+    }
+  }
+
+  AWAIT_READY(checkpointResources);
+  EXPECT_EQ(Resources(checkpointResources.get().resources()),
+            slave2Reserved);
+
+  // Shutdown `slave2` with an explicit shutdown message.
+  Future<Nothing> removeSlave;
+  EXPECT_CALL(allocator, removeSlave(_))
+    .WillOnce(DoAll(InvokeRemoveSlave(&allocator),
+                    FutureSatisfy(&removeSlave)));
+
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(_, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  slave2.get()->shutdown();
+
+  AWAIT_READY(removeSlave);
+
+  AWAIT_READY(slaveLost);
+
+  response = process::http::post(
+      master.get()->pid,
+      "unreserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slave1Id.get(), "resources", slave1Reserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+  driver.stop();
+  driver.join();
+
+  EXPECT_CALL(allocator, removeSlave(_));
+}
+
+
 // This tests that dynamic reservations and persistent volumes are
 // reflected in the "/slaves" master endpoint.
 TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)

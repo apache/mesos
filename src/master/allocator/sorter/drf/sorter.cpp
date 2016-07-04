@@ -191,11 +191,6 @@ void DRFSorter::update(
   const Resources newAllocationQuantity =
     newAllocation.createStrippedScalarQuantity();
 
-  CHECK(total_.scalarQuantities.contains(oldAllocationQuantity));
-
-  total_.scalarQuantities -= oldAllocationQuantity;
-  total_.scalarQuantities += newAllocationQuantity;
-
   CHECK(allocations[name].resources[slaveId].contains(oldAllocation));
   CHECK(allocations[name].scalarQuantities.contains(oldAllocationQuantity));
 
