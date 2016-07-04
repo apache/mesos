@@ -267,7 +267,8 @@ protected:
  * SSLTest::launch_client that factor out common behavior used in
  * tests.
  */
-class SSLTest : public SSLTemporaryDirectoryTest
+class SSLTest : public SSLTemporaryDirectoryTest,
+                public ::testing::WithParamInterface<const char*>
 {
 protected:
   SSLTest() : data("Hello World!") {}

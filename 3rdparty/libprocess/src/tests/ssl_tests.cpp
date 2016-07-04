@@ -102,6 +102,11 @@ Future<Nothing> await_subprocess(
 }
 
 
+INSTANTIATE_TEST_CASE_P(SSLVerifyIPAdd,
+                        SSLTest,
+                        ::testing::Values("false", "true"));
+
+
 // Ensure that we can't create an SSL socket when SSL is not enabled.
 TEST(SSL, Disabled)
 {
@@ -113,7 +118,7 @@ TEST(SSL, Disabled)
 
 // Test a basic back-and-forth communication within the same OS
 // process.
-TEST_F(SSLTest, BasicSameProcess)
+TEST_P(SSLTest, BasicSameProcess)
 {
   os::setenv("SSL_ENABLED", "true");
   os::setenv("SSL_KEY_FILE", key_path().string());
@@ -121,6 +126,7 @@ TEST_F(SSLTest, BasicSameProcess)
   os::setenv("SSL_REQUIRE_CERT", "true");
   os::setenv("SSL_CA_DIR", os::getcwd());
   os::setenv("SSL_CA_FILE", certificate_path().string());
+  os::setenv("SSL_VERIFY_IPADD", GetParam());
 
   openssl::reinitialize();
 
@@ -348,20 +354,22 @@ TEST_F(SSLTest, VerifyCertificate)
 // Ensure that a certificate that WAS generated using the certificate
 // authority is NOT allowed to communicate when the SSL_REQUIRE_CERT
 // flag is enabled.
-TEST_F(SSLTest, RequireCertificate)
+TEST_P(SSLTest, RequireCertificate)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
       {"SSL_KEY_FILE", key_path().string()},
       {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}});
+      {"SSL_REQUIRE_CERT", "true"},
+      {"SSL_VERIFY_IPADD", GetParam()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"SSL_ENABLED", "true"},
       {"SSL_KEY_FILE", key_path().string()},
       {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}},
+      {"SSL_REQUIRE_CERT", "true"},
+      {"SSL_VERIFY_IPADD", GetParam()}},
       server.get(),
       true);
   ASSERT_SOME(client);
