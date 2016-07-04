@@ -103,6 +103,9 @@ This release contains the following new features:
     resource. This initial support works when there is no container filesystem
     isolation in use. Improvements to the support to come in future releases.
 
+  * [MESOS-5724] - SSL certificate validation allows for additional IP address
+    subject alternative name extension verification.
+
 Deprecations:
   * [MESOS-2281] - Deprecated the plain text format for credentials in favor of
     the JSON format.
