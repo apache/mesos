@@ -269,9 +269,13 @@ void DRFSorter::unallocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
+  const Resources resourcesQuantity = resources.createStrippedScalarQuantity();
+
+  CHECK(allocations[name].resources[slaveId].contains(resources));
+  CHECK(allocations[name].scalarQuantities.contains(resourcesQuantity));
+
   allocations[name].resources[slaveId] -= resources;
-  allocations[name].scalarQuantities -=
-    resources.createStrippedScalarQuantity();
+  allocations[name].scalarQuantities -= resourcesQuantity;
 
   if (allocations[name].resources[slaveId].empty()) {
     allocations[name].resources.erase(slaveId);
@@ -300,7 +304,12 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
-    total_.scalarQuantities -= resources.createStrippedScalarQuantity();
+    const Resources resourcesQuantity =
+      resources.createStrippedScalarQuantity();
+
+    CHECK(total_.scalarQuantities.contains(resourcesQuantity));
+    total_.scalarQuantities -= resourcesQuantity;
+
     dirty = true;
   }
 }
