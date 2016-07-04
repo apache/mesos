@@ -906,6 +906,58 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 }
 
 
+// This test verifies that a file volume with an absolute host
+// path as well as an absolute container path is properly mounted
+// in the container's mount namespace.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "test -f /tmp/test/file.txt");
+
+  const string file = path::join(os::getcwd(), "file");
+  ASSERT_SOME(os::touch(file));
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeFromHostPath("/tmp/test/file.txt", file, Volume::RW)}));
+
+  const string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  AWAIT_READY_FOR(launch, Seconds(60));
+
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
+
+
 // This test verifies that a volume with an absolute host path and a
 // relative container path is properly mounted in the container's
 // mount namespace. The mount point will be created in the sandbox.
