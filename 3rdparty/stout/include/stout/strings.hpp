@@ -367,7 +367,8 @@ inline bool checkBracketsMatching(
 
 inline bool startsWith(const std::string& s, const std::string& prefix)
 {
-  return s.find(prefix) == 0;
+  return s.size() >= prefix.size() &&
+         std::equal(prefix.begin(), prefix.end(), s.begin());
 }
 
 
@@ -379,7 +380,8 @@ inline bool startsWith(const std::string& s, char c)
 
 inline bool endsWith(const std::string& s, const std::string& suffix)
 {
-  return s.rfind(suffix) == s.length() - suffix.length();
+  return s.size() >= suffix.size() &&
+         std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
 }
 
 
