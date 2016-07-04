@@ -116,9 +116,6 @@ public:
       const std::string& client,
       const SlaveID& slaveId) = 0;
 
-  // Returns the total resources that are in this sorter.
-  virtual const hashmap<SlaveID, Resources>& total() const = 0;
-
   // Returns the total scalar resource quantities in this sorter. This
   // omits metadata about dynamic reservations and persistent volumes; see
   // `Resources::createStrippedScalarQuantity`.
@@ -130,9 +127,6 @@ public:
 
   // Remove resources from the total pool.
   virtual void remove(const SlaveID& slaveId, const Resources& resources) = 0;
-
-  // Updates the total pool of resources.
-  virtual void update(const SlaveID& slaveId, const Resources& resources) = 0;
 
   // Returns a list of all clients, in the order that they
   // should be allocated to, according to this Sorter's policy.

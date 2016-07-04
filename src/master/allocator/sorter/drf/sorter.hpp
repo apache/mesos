@@ -111,15 +111,11 @@ public:
 
   virtual Resources allocation(const std::string& name, const SlaveID& slaveId);
 
-  virtual const hashmap<SlaveID, Resources>& total() const;
-
   virtual const Resources& totalScalarQuantities() const;
 
   virtual void add(const SlaveID& slaveId, const Resources& resources);
 
   virtual void remove(const SlaveID& slaveId, const Resources& resources);
-
-  virtual void update(const SlaveID& slaveId, const Resources& resources);
 
   virtual std::list<std::string> sort();
 
@@ -153,11 +149,9 @@ private:
 
   // Total resources.
   struct Total {
-    hashmap<SlaveID, Resources> resources;
-
-    // NOTE: Scalars can be safely aggregated across slaves. We keep
-    // that to speed up the calculation of shares. See MESOS-2891 for
-    // the reasons why we want to do that.
+    // NOTE: We do not need to track the total resources at each
+    // slave; instead, we can safely aggregate scalar resources across
+    // slaves, which substantially improves performance (MESOS-2891).
     //
     // NOTE: We omit information about dynamic reservations and persistent
     // volumes here to enable resources to be aggregated across slaves

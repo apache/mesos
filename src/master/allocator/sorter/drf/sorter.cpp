@@ -191,11 +191,7 @@ void DRFSorter::update(
   const Resources newAllocationQuantity =
     newAllocation.createStrippedScalarQuantity();
 
-  CHECK(total_.resources[slaveId].contains(oldAllocation));
   CHECK(total_.scalarQuantities.contains(oldAllocationQuantity));
-
-  total_.resources[slaveId] -= oldAllocation;
-  total_.resources[slaveId] += newAllocation;
 
   total_.scalarQuantities -= oldAllocationQuantity;
   total_.scalarQuantities += newAllocationQuantity;
@@ -262,12 +258,6 @@ Resources DRFSorter::allocation(const string& name, const SlaveID& slaveId)
 }
 
 
-const hashmap<SlaveID, Resources>& DRFSorter::total() const
-{
-  return total_.resources;
-}
-
-
 const Resources& DRFSorter::totalScalarQuantities() const
 {
   return total_.scalarQuantities;
@@ -296,7 +286,6 @@ void DRFSorter::unallocated(
 void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
-    total_.resources[slaveId] += resources;
     total_.scalarQuantities += resources.createStrippedScalarQuantity();
 
     // We have to recalculate all shares when the total resources
@@ -311,37 +300,9 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
-    CHECK(total_.resources.contains(slaveId));
-
-    total_.resources[slaveId] -= resources;
     total_.scalarQuantities -= resources.createStrippedScalarQuantity();
-
-    if (total_.resources[slaveId].empty()) {
-      total_.resources.erase(slaveId);
-    }
-
     dirty = true;
   }
-}
-
-
-void DRFSorter::update(const SlaveID& slaveId, const Resources& resources)
-{
-  const Resources oldSlaveQuantity =
-    total_.resources[slaveId].createStrippedScalarQuantity();
-
-  CHECK(total_.scalarQuantities.contains(oldSlaveQuantity));
-
-  total_.scalarQuantities -= oldSlaveQuantity;
-  total_.scalarQuantities += resources.createStrippedScalarQuantity();
-
-  total_.resources[slaveId] = resources;
-
-  if (total_.resources[slaveId].empty()) {
-    total_.resources.erase(slaveId);
-  }
-
-  dirty = true;
 }
 
 

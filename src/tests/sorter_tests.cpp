@@ -379,8 +379,10 @@ TEST(SorterTest, UpdateTotal)
   EXPECT_EQ("b", sorted.front());
   EXPECT_EQ("a", sorted.back());
 
-  // Update the total resources.
-  sorter.update(slaveId, Resources::parse("cpus:100;mem:10").get());
+  // Update the total resources by removing the previous total and
+  // adding back the new total.
+  sorter.remove(slaveId, Resources::parse("cpus:10;mem:100").get());
+  sorter.add(slaveId, Resources::parse("cpus:100;mem:10").get());
 
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
@@ -422,8 +424,10 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
   EXPECT_EQ("b", sorted.front());
   EXPECT_EQ("a", sorted.back());
 
-  // Update the total resources of slaveA.
-  sorter.update(slaveA, Resources::parse("cpus:95;mem:50").get());
+  // Update the total resources of slaveA by removing the previous
+  // total and adding the new total.
+  sorter.remove(slaveA, Resources::parse("cpus:5;mem:50").get());
+  sorter.add(slaveA, Resources::parse("cpus:95;mem:50").get());
 
   // Now the dominant share of "a" is 0.02 (cpus) and "b" is 0.03
   // (mem), which should change the sort order.

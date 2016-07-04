@@ -521,17 +521,23 @@ void HierarchicalAllocatorProcess::updateSlave(
   // Check that all the oversubscribed resources are revocable.
   CHECK_EQ(oversubscribed, oversubscribed.revocable());
 
+  const Resources oldRevocable = slaves[slaveId].total.revocable();
+
   // Update the total resources.
 
   // Remove the old oversubscribed resources from the total and then
   // add the new estimate of oversubscribed resources.
   slaves[slaveId].total = slaves[slaveId].total.nonRevocable() + oversubscribed;
 
-  // Now, update the total resources in the role sorters.
-  roleSorter->update(slaveId, slaves[slaveId].total);
+  // Update the total resources in the `roleSorter` by removing the
+  // previous oversubscribed resources and adding the new
+  // oversubscription estimate.
+  roleSorter->remove(slaveId, oldRevocable);
+  roleSorter->add(slaveId, oversubscribed);
 
-  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->update(slaveId, slaves[slaveId].total.nonRevocable());
+  // NOTE: We do not need to update `quotaRoleSorter` because this
+  // function only changes the revocable resources on the slave, but
+  // the quota role sorter only manages non-revocable resources.
 
   LOG(INFO) << "Agent " << slaveId << " (" << slaves[slaveId].hostname << ")"
             << " updated with oversubscribed resources " << oversubscribed
@@ -693,13 +699,17 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
   Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
   CHECK_SOME(updatedTotal);
 
+  const Resources oldTotal = slaves[slaveId].total;
   slaves[slaveId].total = updatedTotal.get();
 
-  // Now, update the total resources in the role sorters.
-  roleSorter->update(slaveId, slaves[slaveId].total);
+  // Now, update the total resources in the role sorters by removing
+  // the previous resources at this slave and adding the new resources.
+  roleSorter->remove(slaveId, oldTotal);
+  roleSorter->add(slaveId, updatedTotal.get());
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->update(slaveId, slaves[slaveId].total.nonRevocable());
+  quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
+  quotaRoleSorter->add(slaveId, updatedTotal.get().nonRevocable());
 
   return Nothing();
 }
