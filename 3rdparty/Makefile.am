@@ -340,7 +340,7 @@ if WITH_BUNDLED_BOOST
 endif
 if WITH_BUNDLED_ELFIO
 	@test -d $(INSTALLDIR)/include/elfio || \
-	  rm -rf $(INSTALLDIR)/include/elfio /
+	  rm -rf $(INSTALLDIR)/include/elfio
 	cp -fpR $(ELFIO)/elfio $(INSTALLDIR)/include/
 endif
 if WITH_BUNDLED_GLOG
