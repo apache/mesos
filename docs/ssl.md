@@ -52,6 +52,9 @@ Enforce that certificates must be presented by connecting clients. This means al
 #### SSL_VERIFY_DEPTH=(N) [default=4]
 The maximum depth used to verify certificates. The default is 4. See the OpenSSL documentation or contact your system administrator to learn why you may want to change this.
 
+#### SSL_VERIFY_IPADD=(false|0,true|1) [default=false|0]
+Enable IP address verification in the certificate subject alternative name extension. When set to `true` the peer certificate verification will additionally use the IP address of a peer connection. When a hostname of the peer as well as its IP address are available, the validation will succeed when either the hostname or the IP match.
+
 #### SSL_CA_DIR=(path to CA directory)
 The directory used to find the certificate authority / authorities. You can specify `SSL_CA_DIR` or `SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
 
