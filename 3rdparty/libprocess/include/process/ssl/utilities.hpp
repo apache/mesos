@@ -18,6 +18,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
+#include <stout/ip.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
@@ -56,7 +57,9 @@ Try<EVP_PKEY*> generate_private_rsa_key(
  * @param parent_certificate. Otherwise, it is assumed this is a
  * self-signed certificate in which case the @param subject_key must
  * be the same as the @param sign_key, and the issuer name will be the
- * same as the subject name.
+ * same as the subject name. If @param ip is provided, then the
+ * certificate will use the ip for a subject alternative name iPAddress
+ * extension.
  *
  * @param subject_key The key that will be made public by the
  *     certificate.
@@ -68,6 +71,8 @@ Try<EVP_PKEY*> generate_private_rsa_key(
  *     certificate will be valid.
  * @param hostname An optional hostname used to set the common name of
  *     the certificate.
+ * @param ip An optional IP used to set the subject alternative name
+ *     iPAddress of the certificate extension.
  *
  * @return A pointer to an X509 certificate if successful otherwise an
  *     Error.
@@ -78,7 +83,8 @@ Try<X509*> generate_x509(
     const Option<X509*>& parent_certificate = None(),
     int serial = 1,
     int days = 365,
-    Option<std::string> hostname = None());
+    Option<std::string> hostname = None(),
+    const Option<net::IP>& ip = None());
 
 
 /**

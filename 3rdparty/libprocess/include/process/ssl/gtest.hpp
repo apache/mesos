@@ -192,7 +192,8 @@ protected:
         None(),
         1,
         365,
-        hostname.get());
+        hostname.get(),
+        net::IP(INADDR_LOOPBACK));
 
     if (certificate.isError()) {
       cleanup("Could not generate certificate: " + certificate.error());

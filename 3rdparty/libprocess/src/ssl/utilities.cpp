@@ -88,7 +88,8 @@ Try<X509*> generate_x509(
     const Option<X509*>& parent_certificate,
     int serial,
     int days,
-    Option<std::string> hostname)
+    Option<std::string> hostname,
+    const Option<net::IP>& ip)
 {
   Option<X509_NAME*> issuer_name = None();
   if (parent_certificate.isNone()) {
@@ -205,6 +206,84 @@ Try<X509*> generate_x509(
   if (X509_set_issuer_name(x509, issuer_name.get()) != 1) {
     X509_free(x509);
     return Error("Failed to set issuer name: X509_set_issuer_name");
+  }
+
+  if (ip.isSome()) {
+    // Add an X509 extension with an IP for subject alternative name.
+
+    STACK_OF(GENERAL_NAME)* alt_name_stack = sk_GENERAL_NAME_new_null();
+    if (alt_name_stack == nullptr) {
+      X509_free(x509);
+      return Error("Failed to create a stack: sk_GENERAL_NAME_new_null");
+    }
+
+    GENERAL_NAME* alt_name = GENERAL_NAME_new();
+    if (alt_name == nullptr) {
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to create GENERAL_NAME: GENERAL_NAME_new");
+    }
+
+    alt_name->type = GEN_IPADD;
+
+    ASN1_STRING* alt_name_str = ASN1_STRING_new();
+    if (alt_name_str == nullptr) {
+      GENERAL_NAME_free(alt_name);
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to create alternative name: ASN1_STRING_new");
+    }
+
+    Try<in_addr> in = ip.get().in();
+
+    if (in.isError()) {
+      ASN1_STRING_free(alt_name_str);
+      GENERAL_NAME_free(alt_name);
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to get IP/4 address");
+    }
+
+    // For `iPAddress` we hand over a binary value as part of the
+    // specification.
+    if (ASN1_STRING_set(
+            alt_name_str,
+            &in.get().s_addr,
+            sizeof(in_addr_t)) == 0) {
+      ASN1_STRING_free(alt_name_str);
+      GENERAL_NAME_free(alt_name);
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to set alternative name: ASN1_STRING_set");
+    }
+
+    // We are transferring ownership of 'alt_name_str` towards the
+    // `ASN1_OCTET_STRING` here.
+    alt_name->d.iPAddress = alt_name_str;
+
+    // We try to transfer ownership of 'alt_name` towards the
+    // `STACK_OF(GENERAL_NAME)` here.
+    if (sk_GENERAL_NAME_push(alt_name_stack, alt_name) == 0) {
+      GENERAL_NAME_free(alt_name);
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to push alternative name: sk_GENERAL_NAME_push");
+    }
+
+    // We try to transfer the ownership of `alt_name_stack` towards the
+    // `X509` here.
+    if (X509_add1_ext_i2d(
+            x509,
+            NID_subject_alt_name,
+            alt_name_stack,
+            0,
+            0) == 0) {
+      sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
+      X509_free(x509);
+      return Error("Failed to set subject alternative name: X509_add1_ext_i2d");
+    }
+
+    sk_GENERAL_NAME_pop_free(alt_name_stack, GENERAL_NAME_free);
   }
 
   // Sign the certificate with the sign key.
