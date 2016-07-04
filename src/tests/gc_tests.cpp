@@ -883,7 +883,7 @@ protected:
 // directly deletable by GC. We verify that GC deletes all files that
 // it's able to delete in the face of such errors.
 TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
-       BusyMountPoint)
+       DISABLED_BusyMountPoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
