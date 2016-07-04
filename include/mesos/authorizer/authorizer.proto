@@ -87,8 +87,9 @@ enum Action {
   // `FrameworkInfo` set.
   VIEW_EXECUTOR = 15;
 
-  // This action will have a `FrameworkInfo` and `ExecutorInfo` set,
-  // allowing both as objects in order to perform authorization.
+  // This action will have an object which commonly has both a
+  // `FrameworkInfo` and `ExecutorInfo` set. In exceptional cases the
+  // object might have nothing set. See MESOS-5730.
   ACCESS_SANDBOX = 16;
 
   // This action will not fill in any object fields, since the object
