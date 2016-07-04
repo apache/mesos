@@ -18,6 +18,7 @@
 #include <string>
 
 #include <stout/flags.hpp>
+#include <stout/ip.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -39,6 +40,7 @@ public:
   Option<std::string> key_file;
   bool verify_cert;
   bool require_cert;
+  bool verify_ipadd;
   unsigned int verification_depth;
   Option<std::string> ca_dir;
   Option<std::string> ca_file;
@@ -61,6 +63,7 @@ const Flags& flags();
 //    SSL_KEY_FILE=(path to key)
 //    SSL_VERIFY_CERT=(false|0,true|1)
 //    SSL_REQUIRE_CERT=(false|0,true|1)
+//    SSL_VERIFY_IPADD=(false|0,true|1)
 //    SSL_VERIFY_DEPTH=(4)
 //    SSL_CA_DIR=(path to CA directory)
 //    SSL_CA_FILE=(path to CA file)
@@ -82,7 +85,10 @@ SSL_CTX* context();
 
 // Verify that the hostname is properly associated with the peer
 // certificate associated with the specified SSL connection.
-Try<Nothing> verify(const SSL* const ssl, const Option<std::string>& hostname);
+Try<Nothing> verify(
+    const SSL* const ssl,
+    const Option<std::string>& hostname = None(),
+    const Option<net::IP>& ip = None());
 
 } // namespace openssl {
 } // namespace network {

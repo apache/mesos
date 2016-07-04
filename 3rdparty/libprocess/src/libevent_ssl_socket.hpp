@@ -178,6 +178,7 @@ private:
   Queue<Future<Socket>> accept_queue;
 
   Option<std::string> peer_hostname;
+  Option<net::IP> peer_ip;
 
   // Socket descriptor/handle used by libevent_ssl.
   // Ownership semantics:

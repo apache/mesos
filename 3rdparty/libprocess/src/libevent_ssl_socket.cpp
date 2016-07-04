@@ -396,7 +396,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
     // Do post-validation of connection.
     SSL* ssl = bufferevent_openssl_get_ssl(bev);
 
-    Try<Nothing> verify = openssl::verify(ssl, peer_hostname);
+    Try<Nothing> verify = openssl::verify(ssl, peer_hostname, peer_ip);
     if (verify.isError()) {
       VLOG(1) << "Failed connect, verification error: " << verify.error();
       SSL_free(ssl);
@@ -513,7 +513,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
   }
 
   // Try and determine the 'peer_hostname' from the address we're
-  // connecting to in order to properly verify the SSL connection later.
+  // connecting to in order to properly verify the certificate later.
   const Try<string> hostname = address.hostname();
 
   if (hostname.isError()) {
@@ -522,6 +522,10 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     VLOG(2) << "Connecting to " << hostname.get();
     peer_hostname = hostname.get();
   }
+
+  // Determine the 'peer_ip' from the address we're connecting to in
+  // order to properly verify the certificate later.
+  peer_ip = address.ip;
 
   // Optimistically construct a 'ConnectRequest' and future.
   Owned<ConnectRequest> request(new ConnectRequest());
@@ -1023,8 +1027,10 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
           // post-verification. First, we need to determine the peer
           // hostname.
           Option<string> peer_hostname = None();
+
           if (request->ip.isSome()) {
             Try<string> hostname = net::getHostname(request->ip.get());
+
             if (hostname.isError()) {
               VLOG(2) << "Could not determine hostname of peer: "
                       << hostname.error();
@@ -1037,7 +1043,9 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
           SSL* ssl = bufferevent_openssl_get_ssl(bev);
           CHECK_NOTNULL(ssl);
 
-          Try<Nothing> verify = openssl::verify(ssl, peer_hostname);
+          Try<Nothing> verify =
+            openssl::verify(ssl, peer_hostname, request->ip);
+
           if (verify.isError()) {
             VLOG(1) << "Failed accept, verification error: " << verify.error();
             request->promise.fail(verify.error());
