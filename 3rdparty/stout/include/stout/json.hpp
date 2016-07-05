@@ -160,6 +160,11 @@ struct Object
   // within a field called 'nested' of 'object' (where 'nested' must
   // also be a JSON object).
   //
+  // For 'null' field values, this will return 'Some(Null())' when
+  // looking for a matching type ('Null' or 'Value'). If looking for
+  // any other type (e.g. 'String', 'Object', etc), this will return
+  // 'None' as if the field is not present at all.
+  //
   // Returns an error if a JSON value of the wrong type is found, or
   // an intermediate JSON value is not an object that we can do a
   // recursive find on.
@@ -394,12 +399,17 @@ Result<T> Object::find(const std::string& path) const
   }
 
   if (names.size() == 1) {
-    if (!value.is<T>()) {
+    if (value.is<T>()) {
+      return value.as<T>();
+    } else if (value.is<Null>()) {
+      return None();
+    } else {
       // TODO(benh): Use a visitor to print out the type found.
       return Error("Found JSON value of wrong type");
     }
-    return value.as<T>();
-  } else if (!value.is<Object>()) {
+  }
+
+  if (!value.is<Object>()) {
     // TODO(benh): Use a visitor to print out the intermediate type.
     return Error("Intermediate JSON value not an object");
   }

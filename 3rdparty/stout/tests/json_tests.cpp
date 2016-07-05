@@ -313,10 +313,6 @@ TEST(JsonTest, Find)
       object.find<JSON::Number>("nested1.nested2.double"));
 
   ASSERT_SOME_EQ(
-      JSON::Null(),
-      object.find<JSON::Null>("nested1.nested2.null"));
-
-  ASSERT_SOME_EQ(
       JSON::String("hello"),
       object.find<JSON::String>("nested1.nested2.array[0]"));
 
@@ -336,6 +332,23 @@ TEST(JsonTest, Find)
 
   // Out of bounds is none.
   ASSERT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));
+
+  // Null entries are found when looking for a matching type (Null or Value).
+  ASSERT_SOME_EQ(
+      JSON::Null(),
+      object.find<JSON::Null>("nested1.nested2.null"));
+  ASSERT_SOME_EQ(
+      JSON::Null(),
+      object.find<JSON::Value>("nested1.nested2.null"));
+
+  // Null entries are not found when looking for non-null finds.
+  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::Number>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::Object>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::Array>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::True>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::False>("nested1.nested2.null"));
+  ASSERT_NONE(object.find<JSON::Boolean>("nested1.nested2.null"));
 
   // Also test getting JSON::Value when you don't know the type.
   ASSERT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
