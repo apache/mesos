@@ -208,11 +208,11 @@ entries, each representing an authorizable action:
   </td>
 </tr>
 <tr>
-  <td><code>get_weights</code></td>
+  <td><code>view_roles</code></td>
   <td>Operator username.</td>
-  <td>Resource roles whose weights can be viewed by the operator.</td>
-  <td>Querying
-      <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
+  <td>Resource roles whose information can be viewed by the operator.</td>
+  <td>Querying <a href="/apache/mesos/blob/master/docs/roles.md">roles</a>
+      and <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
   </td>
 </tr>
 <tr>

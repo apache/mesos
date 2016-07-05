@@ -400,7 +400,13 @@ string Master::Http::API_HELP()
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The information returned by this endpoint for certain calls",
+        "might be filtered based on the user accessing it.",
+        "For example a user might only see the subset of frameworks,",
+        "tasks, and executors they are allowed to view.",
+        "See the authorization documentation for details."));
 }
 
 
@@ -615,7 +621,11 @@ string Master::Http::SCHEDULER_HELP()
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The returned frameworks information might be filtered based on the",
+        "users authorization.",
+        "See the authorization documentation for details."));
 }
 
 

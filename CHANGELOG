@@ -41,11 +41,15 @@ This release contains the following new features:
     be allowed.
     NOTE: This is a semantic change for authorizer modules.
 
-  * [MESOS-4931] - Authorization based HTTP endpoint filtering enables operators
-    to restrict what part of the cluster state a user is authorized to see.
+  * [MESOS-4931, MESOS-5709, MESOS-5704] - Authorization based HTTP endpoint
+    filtering enables operators to restrict what part of the cluster state a
+    user is authorized to see.
     Consider for example the `/state` master endpoint: an operator can now
     authorize users to only see a subset of the running frameworks, tasks, or
-    executors.
+    executors. The following endpoints support HTTP endpoint filtering:
+    '/state', '/state-summary', '/tasks', '/frameworks','/weights',
+    and '/roles'. Additonally the following v1 API calls support filtering:
+    'GET_ROLES','GET_WEIGHTS','GET_FRAMEWORKS', 'GET_STATE', and 'GET_TASKS'.
 
   * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
     because machine failures or forcible terminations may occur. Currently, the
