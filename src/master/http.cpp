@@ -2498,11 +2498,8 @@ Future<Response> Master::Http::state(
             });
 
         // Model all of the orphan tasks.
-        // TODO(vinod): Need to filter these tasks based on authorization! This
-        // is currently not possible because we don't have `FrameworkInfo` for
-        // these tasks. We need to either store `FrameworkInfo` for orphan
-        // tasks or persist FrameworkInfo of all frameworks in the registry.
-        writer->field("orphan_tasks", [this](JSON::ArrayWriter* writer) {
+        writer->field("orphan_tasks", [this, &tasksApprover](
+            JSON::ArrayWriter* writer) {
           // Find those orphan tasks.
           foreachvalue (const Slave* slave, master->slaves.registered) {
             typedef hashmap<TaskID, Task*> TaskMap;
@@ -2511,6 +2508,16 @@ Future<Response> Master::Http::state(
                 CHECK_NOTNULL(task);
                 if (!master->frameworks.registered.contains(
                     task->framework_id())) {
+                  CHECK(master->frameworks.recovered.contains(
+                      task->framework_id()));
+
+                  if (!approveViewTask(
+                      tasksApprover,
+                      *task,
+                      master->frameworks.recovered[task->framework_id()])) {
+                    continue;
+                  }
+
                   writer->element(*task);
                 }
               }
