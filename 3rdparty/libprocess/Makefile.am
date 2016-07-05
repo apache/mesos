@@ -297,7 +297,8 @@ BUILT_SOURCES = $(BUNDLED_DEPS)
 check-local: tests
 	./libprocess-tests
 
-tests: all libprocess-tests benchmarks
+tests: all $(BUNDLED_DEPS)
+	$(MAKE) $(AM_MAKEFLAGS) libprocess-tests benchmarks
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
