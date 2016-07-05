@@ -3,16 +3,16 @@
 This document describes the `network/cni` isolator, a network isolator
 for the [MesosContainerizer](mesos-containerizer.md) that implements
 the [Container Network Interface
-(CNI)](https://github.com/containernetworking/cni) specification for
-enabling networking support for Mesos containers.  The `network/cni`
-isolator allows containers launched using the `MesosContainerizer` to
-be attached to several different types of IP networks.  The network
-technologies on which containers can possibly be launched, using the
-`network/cni` isolator, range from traditional layer 3/layer 2
-networks such as VLAN, ipvlan, macvlan, to the new class of networks
-designed for container orchestration such as
-[Calico](https://www.projectcalico.org/), [Weave](https://weave.in/)
-and [Flannel](https://coreos.com/flannel/docs/latest/).  The
+(CNI)](https://github.com/containernetworking/cni) specification.  The
+`network/cni` isolator allows containers launched using the
+`MesosContainerizer` to be attached to several different types of IP
+networks.  The network technologies on which containers can possibly
+be launched range from traditional layer 3/layer 2 networks such as
+VLAN, ipvlan, macvlan, to the new class of networks designed for
+container orchestration such as
+[Calico](https://www.projectcalico.org/),
+[Weave](https://weave.works/) and
+[Flannel](https://coreos.com/flannel/docs/latest/).  The
 `MesosContainerizer` has the `network/cni` isolator enabled by
 default.
 
@@ -26,23 +26,23 @@ default.
 - [Networking Recipes](#networking-recipes)
   - [A bridge network](#a-bridge-network)
   - [A Calico network](#a-calico-network)
+  - [A Weave network](#a-weave-network)
 - [Limitations](#limitations)
 
 
 ### <a name="motivation"></a>Motivation
 
-The idea of having a separate network namespace for
+Having a separate network namespace for
 each container is attractive for orchestration engines such as Mesos,
-since it provides network isolation to containers and allows users to
+since it provides containers with network isolation and allows users to
 operate on containers as if they were operating on an end-host.
 Without network isolation users have to deal with managing
 network resources such as TCP/UDP ports on an end host, complicating
 the design of their application.
 
-The challenge in allocating each container with its own network
-namespace is in implementing the ability in the orchestration engine
+The challenge is in implementing the ability in the orchestration engine
 to communicate with the underlying network in order to configure IP
-connectivity to the container.  This problem arises due  the diversity
+connectivity to the container.  This problem arises due to the diversity
 in terms of the choices of IPAM (IP address management system) and
 networking technologies available for enabling IP connectivity. To
 solve this problem we would need to adopt a driver based network
@@ -62,7 +62,7 @@ container, a unique identifier for the container (container ID),
 and a JSON formatted input to the plugin that defines the
 configuration parameters for a given network. The responsibility of
 the plugin is to create a *veth* pair and attach one of the *veth*
-pair to the network namespace of the container, and the other end to a
+pairs to the network namespace of the container, and the other end to a
 network understood by the plugin.  The CNI specification also allows
 for multiple networks to exist simultaneously, with each network
 represented by a canonical name, and associated with a unique CNI
@@ -260,6 +260,13 @@ to the container by invoking a
 [host-local](https://github.com/containernetworking/cni/blob/master/Documentation/host-local.md)
 IPAM.
 
+First, build the CNI plugin according to the instructions in the
+[CNI repository](https://github.com/containernetworking/cni) then copy
+the bridge binary to the plugins directory on each agent.
+
+Next, create the configuration file and copy this to the CNI
+configuration directory on each agent.
+
 ```{.json}
 {
 "name": "cni-test",
@@ -338,7 +345,7 @@ default via 192.168.0.1 dev eth0
 ```
 
 #### <a name="a-calico-network">A Calico network</a>
-[Calico](https://projectcalico.org/) is an example of an 3rd-party CNI plugin
+[Calico](https://projectcalico.org/) provides 3rd-party CNI plugin
 that works out-of-the-box with Mesos CNI.
 
 Calico takes a pure Layer-3 approach to networking, allocating a unique,
@@ -352,6 +359,21 @@ reachability constraints.
 For information on setting up and using Calico-CNI, see
 [Calico's guide on adding Calico-CNI to Mesos](https://github.com/projectcalico/calico-containers/blob/master/docs/mesos/ManualInstallCalicoCNI.md).
 
+
+#### <a name="a-weave-network">A Weave network</a>
+[Weave](https://weave.works) provides a CNI implementation that works
+out-of-the-box with Mesos.
+
+Weave provides hassle free configuration by assigning an
+ip-per-container and providing a fast DNS on each node. Weave is fast,
+by automatically choosing the fastest path between hosts. Multicast
+addressing and routing is fully supported. It has built in NAT traversal
+and encryption and continues to work even during a network partition.
+Finally, Multi-cloud deployments are easy to setup and maintain, even
+when there are multiple hops.
+
+For more information on setting up and using Weave CNI, see
+[Weave's CNI documentation](https://www.weave.works/docs/net/latest/cni-plugin/)
 
 ### <a name="limitations"></a>Limitations
 
