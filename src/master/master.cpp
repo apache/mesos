@@ -919,6 +919,7 @@ void Master::initialize()
       &ReregisterSlaveMessage::checkpointed_resources,
       &ReregisterSlaveMessage::executor_infos,
       &ReregisterSlaveMessage::tasks,
+      &ReregisterSlaveMessage::frameworks,
       &ReregisterSlaveMessage::completed_frameworks,
       &ReregisterSlaveMessage::version);
 
@@ -4753,6 +4754,7 @@ void Master::reregisterSlave(
     const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
+    const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version)
 {
@@ -4770,6 +4772,7 @@ void Master::reregisterSlave(
                      checkpointedResources,
                      executorInfos,
                      tasks,
+                     frameworks,
                      completedFrameworks,
                      version));
     return;
@@ -4888,7 +4891,7 @@ void Master::reregisterSlave(
 
     // Inform the agent of the master's version of its checkpointed
     // resources and the new framework pids for its tasks.
-    __reregisterSlave(slave, tasks);
+    __reregisterSlave(slave, tasks, frameworks);
 
     return;
   }
@@ -4923,6 +4926,7 @@ void Master::reregisterSlave(
                  checkpointedResources,
                  executorInfos,
                  tasks,
+                 frameworks,
                  completedFrameworks,
                  version,
                  lambda::_1));
@@ -4935,6 +4939,7 @@ void Master::_reregisterSlave(
     const vector<Resource>& checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks,
+    const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version,
     const Future<bool>& readmit)
@@ -4993,18 +4998,26 @@ void Master::_reregisterSlave(
     LOG(INFO) << "Re-registered agent " << *slave
               << " with " << slave->info.resources();
 
-    __reregisterSlave(slave, tasks);
+    __reregisterSlave(slave, tasks, frameworks);
   }
 }
 
 
-void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
+void Master::__reregisterSlave(
+    Slave* slave,
+    const std::vector<Task>& tasks,
+    const vector<FrameworkInfo>& frameworks)
 {
   CHECK_NOTNULL(slave);
 
   // Send the latest framework pids to the slave.
   hashset<FrameworkID> ids;
 
+  // TODO(joerg84): Remove this after a deprecation cycle starting
+  // with the 1.0 release. It is only required if an older
+  // (pre 1.0 agent) reregisters with a newer master.
+  // In that case the agent does not have the 'frameworks' message
+  // set which is used below to retrieve the framework information.
   foreach (const Task& task, tasks) {
     Framework* framework = getFramework(task.framework_id());
 
@@ -5020,6 +5033,31 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
       send(slave->pid, message);
 
       ids.insert(framework->id());
+    }
+  }
+
+  foreach (const FrameworkInfo& frameworkInfo, frameworks) {
+    CHECK(frameworkInfo.has_id());
+    Framework* framework = getFramework(frameworkInfo.id());
+
+    if (framework != nullptr && !ids.contains(framework->id())) {
+      UpdateFrameworkMessage message;
+      message.mutable_framework_id()->MergeFrom(framework->id());
+
+      // TODO(anand): We set 'pid' to UPID() for http frameworks
+      // as 'pid' was made optional in 0.24.0. In 0.25.0, we
+      // no longer have to set pid here for http frameworks.
+      message.set_pid(framework->pid.getOrElse(UPID()));
+
+      send(slave->pid, message);
+
+      ids.insert(framework->id());
+    } else {
+      // The framework hasn't yet reregistered with the master,
+      // hence we store the 'FrameworkInfo' in the recovered list.
+      // TODO(joerg84): Consider recovering this information from
+      // registrar instead of from agents.
+      this->frameworks.recovered[frameworkInfo.id()] = frameworkInfo;
     }
   }
 
@@ -6179,6 +6217,11 @@ void Master::addFramework(Framework* framework)
 
   frameworks.registered[framework->id()] = framework;
 
+  // Remove from 'frameworks.recovered' if necessary.
+  if (frameworks.recovered.contains(framework->id())) {
+    frameworks.recovered.erase(framework->id());
+  }
+
   if (framework->pid.isSome()) {
     link(framework->pid.get());
   } else {
@@ -6511,6 +6554,11 @@ void Master::removeFramework(Framework* framework)
   // Remove the framework.
   frameworks.registered.erase(framework->id());
   allocator->removeFramework(framework->id());
+
+  // Remove from 'frameworks.recovered' if necessary.
+  if (frameworks.recovered.contains(framework->id())) {
+    frameworks.recovered.erase(framework->id());
+  }
 
   // The completedFramework buffer now owns the framework pointer.
   frameworks.completed.push_back(shared_ptr<Framework>(framework));

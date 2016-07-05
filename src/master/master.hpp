@@ -480,6 +480,7 @@ public:
       const std::vector<Resource>& checkpointedResources,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version);
 
@@ -557,6 +558,7 @@ public:
       const std::vector<Resource>& checkpointedResources,
       const std::vector<ExecutorInfo>& executorInfos,
       const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version,
       const process::Future<bool>& readmit);
@@ -612,7 +614,8 @@ protected:
 
   void __reregisterSlave(
       Slave* slave,
-      const std::vector<Task>& tasks);
+      const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks);
 
   // 'authenticate' is the future returned by the authenticator.
   void _authenticate(
@@ -1674,6 +1677,11 @@ private:
       : completed(masterFlags.max_completed_frameworks) {}
 
     hashmap<FrameworkID, Framework*> registered;
+
+    // 'Recovered' contains 'FrameworkInfo's for frameworks which
+    // would otherwise be unknown during recovery after master
+    // failover.
+    hashmap<FrameworkID, FrameworkInfo> recovered;
     boost::circular_buffer<std::shared_ptr<Framework>> completed;
 
     // Principals of frameworks keyed by PID.
