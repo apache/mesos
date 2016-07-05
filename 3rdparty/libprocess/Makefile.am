@@ -32,6 +32,7 @@ GLOG = ../glog-$(GLOG_VERSION)
 GMOCK = ../gmock-$(GMOCK_VERSION)
 GPERFTOOLS = ../gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
+HTTP_PARSER = ../http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = ../libev-$(LIBEV_VERSION)
 PICOJSON = ../picojson-$(PICOJSON_VERSION)
 PROTOBUF = ../protobuf-$(PROTOBUF_VERSION)
@@ -79,7 +80,6 @@ BUNDLED_DEPS += $(GPERFTOOLS)-build-stamp
 endif
 
 if WITH_BUNDLED_HTTP_PARSER
-HTTP_PARSER = ../http-parser-$(HTTP_PARSER_VERSION)
 HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
 LIB_HTTP_PARSER = ../libry_http_parser.la
 $(LIB_HTTP_PARSER): $(HTTP_PARSER)-build-stamp
