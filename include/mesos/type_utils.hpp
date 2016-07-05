@@ -27,10 +27,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/module/module.hpp>
-
-#include <mesos/scheduler/scheduler.hpp>
-
 #include <stout/hashmap.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
