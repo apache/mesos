@@ -2294,20 +2294,14 @@ namespace pressure {
 ostream& operator<<(ostream& stream, Level level)
 {
   switch (level) {
-    case LOW:
-      stream << "low";
-      break;
-    case MEDIUM:
-      stream << "medium";
-      break;
-    case CRITICAL:
-      stream << "critical";
-      break;
-    default:
-      UNREACHABLE();
+    case LOW:      return stream << "low";
+    case MEDIUM:   return stream << "medium";
+    case CRITICAL: return stream << "critical";
+    // We omit the default case because we assume -Wswitch
+    // will trigger a compile-time error if a case is missed.
   }
 
-  return stream;
+  UNREACHABLE();
 }
 
 
