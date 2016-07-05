@@ -40,3 +40,4 @@ layout: documentation
 * [Cassandra](https://github.com/mesosphere/cassandra-mesos) is a performant and highly available distributed database. Linear scalability and proven fault-tolerance on commodity hardware or cloud infrastructure make it the perfect platform for mission-critical data.
 * [ElasticSearch](https://github.com/mesos/elasticsearch) is a distributed search engine. Mesos makes it easy to run and scale.
 * [Hypertable](https://code.google.com/p/hypertable/wiki/Mesos) is a high performance, scalable, distributed storage and processing system for structured and unstructured data.
+* [MrRedis](https://github.com/mesos/mr-redis) an apache mesos framework for provisioning [redis](http://redis.io/) in-memory cache instances.  This provides auto redis master election, auto recovery of slaves and comes with the CLI and a UI. 
