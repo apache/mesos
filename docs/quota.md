@@ -14,12 +14,27 @@ lay away resources for future consumption in an entire cluster. Even though
 to dynamically reserve resources on particular Mesos agents, it does not solve
 the above problem because any individual agents might fail.
 
-Since version 0.27.0 Mesos provides a mechanism to reserve a certain amount of
-resources in an entire cluster, i.e. not tied to a particular agent. _Quota_
-allows operators to lay away resources for a given [role](roles.md). These
-resources cannot be hijacked by other roles and are guaranteed to be available
-for the role if there are enough resources in the cluster. Quota can be viewed
-as a cluster-wide dynamic reservation available for operators only.
+Mesos 0.27 introduced support for _quotas_, which are a mechanism for
+guaranteeing that a [role](roles.md) will receive a certain minimum amount of
+resources. A quota specifies a _minimum_ amount of resources that the role is
+guaranteed to receive (unless the total resources in the cluster are less than
+the configured quota resources, which often indicates a misconfiguration). Of
+course, the role might receive offers for more resources than its configured
+quota, as dictated by the default Mesos DRF allocation scheme.
+
+Quotas are somewhat similar to [reserved resources](reservation.md), but they
+have several differences. Most importantly, quota resources are not tied to a
+particular agent---that is, a quota ensures that a role will receive a certain
+amount of resources somewhere in the cluster, whereas reservations can be used
+to assign specific resources at a particular agent to a given role. Quotas can
+only be configured by operators, via the HTTP endpoint described below; dynamic
+reservations can be made by frameworks, provided the framework's principal is
+[authorized](authorization.md) to make reservations.
+
+Note that reserved resources are considered to satisfy a role's quota. For
+example, if a role has been assigned a quota of 4 CPUs and also has 2 reserved
+resources at a particular agent, the role has a minimum guarantee of 4 CPUs, not
+6.
 
 # Terminology
 
@@ -32,13 +47,13 @@ In computer science, a “quota” usually refers to one of the following:
 * A maximal limit.
 * A pair of both.
 
-In Mesos we understand quota as a **guaranteed** resource allocation that a role
-may rely on; in other words, a minimum share a role is entitled to receive.
+In Mesos, a quota is a **guaranteed** resource allocation that a role may rely
+on; in other words, a minimum share a role is entitled to receive.
 
 # Motivation and Limitations
 
-Consider the following scenarios in a Mesos cluster to better understand what
-use-cases are supported by quota (and what are not).
+Consider the following scenarios in a Mesos cluster to better understand which
+use-cases are supported by quota, and which are not.
 
 ## Scenario 1: Greedy Framework
 There are two frameworks in a cluster, each running in a separate role with
@@ -109,7 +124,7 @@ can use the following `quota.json`:
 
 A set request is only valid for roles for which no quota is currently set.
 However if the master is configured without an explicit
-[role whitelist](roles.md) a set request can introduce new roles.
+[role whitelist](roles.md), a set request can introduce new roles.
 
 In order to bypass the [capacity heuristic](#capacityHeuristic) check the
 operator should set an optional `force` field:
