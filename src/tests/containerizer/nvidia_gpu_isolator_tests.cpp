@@ -31,6 +31,8 @@
 #include <stout/jsonify.hpp>
 #include <stout/os/exists.hpp>
 
+#include "docker/docker.hpp"
+
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"
@@ -480,6 +482,53 @@ TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeCreation)
 
   EXPECT_TRUE(os::exists(volume->HOST_PATH() + "/bin/nvidia-smi"));
   EXPECT_TRUE(os::exists(volume->HOST_PATH() + "/lib64/libnvidia-ml.so.1"));
+}
+
+
+// Tests that we can properly detect when an Nvidia volume should be
+// injected into a Docker container given its ImageManifest.
+TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeShouldInject)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "config": {
+          "Labels": {
+            "com.nvidia.volumes.needed": "nvidia_driver"
+          }
+        }
+      })~");
+
+  ASSERT_SOME(json);
+
+  Try<::docker::spec::v1::ImageManifest> manifest =
+    ::docker::spec::v1::parse(json.get());
+  ASSERT_SOME(manifest);
+
+  Try<NvidiaVolume> volume = NvidiaVolume::create();
+  ASSERT_SOME(volume);
+
+  ASSERT_TRUE(volume->shouldInject(manifest.get()));
+
+  json = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "config": {
+          "Labels": {
+            "com.ati.volumes.needed": "ati_driver"
+          }
+        }
+      })~");
+
+  ASSERT_SOME(json);
+
+  manifest = ::docker::spec::v1::parse(json.get());
+  ASSERT_SOME(manifest);
+
+  volume = NvidiaVolume::create();
+  ASSERT_SOME(volume);
+
+  ASSERT_FALSE(volume->shouldInject(manifest.get()));
 }
 
 } // namespace tests {
