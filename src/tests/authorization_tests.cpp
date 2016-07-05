@@ -2322,14 +2322,14 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
-    {
+  {
     authorization::Request request;
     request.set_action(authorization::VIEW_FLAGS);
     request.mutable_subject()->set_value("bar");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
-  // Test that no authorzer is created with invalid flags.
+  // Test that no authorizer is created with invalid flags.
   {
     ACLs invalid;
 
@@ -2384,7 +2384,7 @@ TYPED_TEST(AuthorizationTest, ValidateEndpoints)
 
     // Create an `Authorizer` with the ACLs.
     Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-    EXPECT_SOME(create);
+    ASSERT_SOME(create);
     delete create.get();
   }
 }
