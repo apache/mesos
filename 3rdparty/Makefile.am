@@ -196,13 +196,16 @@ if OS_FREEBSD
   GLOG_LDFLAGS += "LDFLAGS='-L/usr/local/lib -lexecinfo'"
 endif
 
+$(LIB_GLOG): $(GLOG)-build-stamp
+
 # NOTE: We explicitly set GTEST_CONFIG=no so that we don't attempt to
 # build glog against a system installed gtest (there's no reason to
 # "test" glog and it's highly likely it will cause a compilation bug
 # when building with clang).
-$(LIB_GLOG): $(GLOG)-stamp
+$(GLOG)-build-stamp: $(GLOG)-stamp
 	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS)
+	touch $@
 
 ALL_LOCAL += $(LIB_GLOG)
 endif
@@ -230,13 +233,17 @@ libry_http_parser_la_CPPFLAGS = -I$(HTTP_PARSER) -DHTTP_PARSER_STRICT=0
 BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 
 $(HTTP_PARSER)/http_parser.c: $(HTTP_PARSER)-stamp
+$(HTTP_PARSER)-build-stamp: libry_http_parser.la
+	touch $@
 endif
 
 if WITH_BUNDLED_LIBEV
-$(LIBEV)/libev.la: $(LIBEV)-stamp
+$(LIBEV)/libev.la: $(LIBEV)-build-stamp
+$(LIBEV)-build-stamp: $(LIBEV)-stamp
 	cd $(LIBEV) && ./configure $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
-ALL_LOCAL += $(LIBEV)/libev.la
+           $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+ALL_LOCAL += $(LIBEV)-build-stamp
 endif
 
 if WITH_BUNDLED_NVML
@@ -274,6 +281,10 @@ libgmock_la_CPPFLAGS =			\
   -I$(GMOCK)/include -I$(GMOCK) -I$(GMOCK)/src
 
   gmock_sources.cc: $(GMOCK)-stamp
+
+$(GMOCK)-build-stamp: libgmock.la
+	touch $@
+ALL_LOCAL += $(GMOCK)-build-stamp
 endif
 
 if LINKGTEST
