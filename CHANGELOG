@@ -594,6 +594,8 @@ All Issues:
   * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
   * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
   * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
+  * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters.
+  * [MESOS-5698] - Quota sorter not updated for resource changes at agent.
 
 
 Release Notes - Mesos - Version 0.28.2
