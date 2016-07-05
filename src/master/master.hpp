@@ -1375,6 +1375,9 @@ private:
         Resources required,
         const Offer::Operation& operation) const;
 
+    process::Future<std::vector<std::string>> _roles(
+        const Option<std::string>& principal) const;
+
     // Master API handlers.
 
     process::Future<process::http::Response> getAgents(

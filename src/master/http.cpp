@@ -2916,15 +2916,9 @@ string Master::Http::ROLES_HELP()
 }
 
 
-Future<Response> Master::Http::roles(
-    const Request& request,
-    const Option<string>& principal) const
+Future<vector<string>> Master::Http::_roles(
+        const Option<std::string>& principal) const
 {
-  // When current master is not the leader, redirect to the leading master.
-  if (!master->elected()) {
-    return redirect(request);
-  }
-
   // Retrieve `ObjectApprover`s for authorizing roles.
   Future<Owned<ObjectApprover>> rolesApprover;
 
@@ -2943,8 +2937,8 @@ Future<Response> Master::Http::roles(
 
   return rolesApprover
     .then(defer(master->self(),
-        [this, request](const Owned<ObjectApprover>& rolesApprover)
-          -> Response {
+        [this](const Owned<ObjectApprover>& rolesApprover)
+          -> vector<string> {
       JSON::Object object;
 
       // Compute the role names to return results for. When an explicit
@@ -2974,18 +2968,39 @@ Future<Response> Master::Http::roles(
             master->quotas.keys().end());
       }
 
-      set<string> filteredRoleList;
+      vector<string> filteredRoleList;
+      filteredRoleList.reserve(roleList.size());
 
       foreach (const string& role, roleList) {
         if (approveViewRole(rolesApprover, role)) {
-          filteredRoleList.insert(role);
+          filteredRoleList.push_back(role);
         }
       }
+
+      return filteredRoleList;
+    }));
+}
+
+
+Future<Response> Master::Http::roles(
+    const Request& request,
+    const Option<string>& principal) const
+{
+  // When current master is not the leader, redirect to the leading master.
+  if (!master->elected()) {
+    return redirect(request);
+  }
+
+  return _roles(principal)
+    .then(defer(master->self(),
+        [this, request](const vector<string>& filteredRoles)
+          -> Response {
+      JSON::Object object;
 
       {
         JSON::Array array;
 
-        foreach (const string& name, filteredRoleList) {
+        foreach (const string& name, filteredRoles) {
           Option<double> weight = None();
           if (master->weights.contains(name)) {
             weight = master->weights[name];
@@ -3018,80 +3033,42 @@ Future<Response> Master::Http::getRoles(
 {
   CHECK_EQ(mesos::master::Call::GET_ROLES, call.type());
 
-  // Retrieve `ObjectApprover`s for authorizing roles.
-  Future<Owned<ObjectApprover>> rolesApprover;
-
-  if (master->authorizer.isSome()) {
-    authorization::Subject subject;
-    if (principal.isSome()) {
-      subject.set_value(principal.get());
-    }
-
-    rolesApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_ROLE);
-
-  } else {
-    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
-
-  return rolesApprover
+  return _roles(principal)
     .then(defer(master->self(),
-        [this, contentType](const Owned<ObjectApprover>& rolesApprover)
+        [this, contentType](const vector<string>& filteredRoles)
           -> Response {
-        mesos::master::Response response;
-        response.set_type(mesos::master::Response::GET_ROLES);
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_ROLES);
 
-        mesos::master::Response::GetRoles* getRoles =
-          response.mutable_get_roles();
+      mesos::master::Response::GetRoles* getRoles =
+        response.mutable_get_roles();
 
-        set<string> roleList;
-        if (master->roleWhitelist.isSome()) {
-          const hashset<string>& whitelist = master->roleWhitelist.get();
-          roleList.insert(whitelist.begin(), whitelist.end());
+      foreach (const string& name, filteredRoles) {
+           mesos::Role role;
+
+        if (master->weights.contains(name)) {
+          role.set_weight(master->weights[name]);
         } else {
-          roleList.insert("*"); // Default role.
-          roleList.insert(
-              master->activeRoles.keys().begin(),
-              master->activeRoles.keys().end());
-          roleList.insert(
-              master->weights.keys().begin(),
-              master->weights.keys().end());
-          roleList.insert(
-              master->quotas.keys().begin(),
-              master->quotas.keys().end());
+          role.set_weight(1.0);
         }
 
-        foreach (const string& name, roleList) {
-          // Include only roles the user is authorized to view.
-          if (!approveViewRole(rolesApprover, name)) {
-            continue;
+        if (master->activeRoles.contains(name)) {
+          Role* role_ = master->activeRoles[name];
+
+          role.mutable_resources()->CopyFrom(role_->resources());
+
+          foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
+            role.add_frameworks()->CopyFrom(frameworkId);
           }
-
-          mesos::Role role;
-
-          if (master->weights.contains(name)) {
-            role.set_weight(master->weights[name]);
-          } else {
-            role.set_weight(1.0);
-          }
-
-          if (master->activeRoles.contains(name)) {
-            Role* role_ = master->activeRoles[name];
-
-            role.mutable_resources()->CopyFrom(role_->resources());
-
-            foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
-              role.add_frameworks()->CopyFrom(frameworkId);
-            }
-          }
-
-          role.set_name(name);
-
-          getRoles->add_roles()->CopyFrom(role);
         }
 
-        return OK(serialize(contentType, evolve(response)),
-                  stringify(contentType));
+        role.set_name(name);
+
+        getRoles->add_roles()->CopyFrom(role);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
     }));
 }
 
