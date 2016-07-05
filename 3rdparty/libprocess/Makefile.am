@@ -23,19 +23,22 @@ LIBPROCESS_BUILD_DIR=@abs_builddir@
 # the header files during installation.
 SUBDIRS = . include
 
+BUNDLED_DIR = ..
+
 include ../versions.am
 
 STOUT = ../stout
-BOOST = ../boost-$(BOOST_VERSION)
-ELFIO = ../elfio-$(ELFIO_VERSION)
-GLOG = ../glog-$(GLOG_VERSION)
-GMOCK = ../gmock-$(GMOCK_VERSION)
-GPERFTOOLS = ../gperftools-$(GPERFTOOLS_VERSION)
+
+BOOST = $(BUNDLED_DIR)/boost-$(BOOST_VERSION)
+ELFIO = $(BUNDLED_DIR)/elfio-$(ELFIO_VERSION)
+GLOG = $(BUNDLED_DIR)/glog-$(GLOG_VERSION)
+GMOCK = $(BUNDLED_DIR)/gmock-$(GMOCK_VERSION)
+GPERFTOOLS = $(BUNDLED_DIR)/gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
-HTTP_PARSER = ../http-parser-$(HTTP_PARSER_VERSION)
-LIBEV = ../libev-$(LIBEV_VERSION)
-PICOJSON = ../picojson-$(PICOJSON_VERSION)
-PROTOBUF = ../protobuf-$(PROTOBUF_VERSION)
+HTTP_PARSER = $(BUNDLED_DIR)/http-parser-$(HTTP_PARSER_VERSION)
+LIBEV = $(BUNDLED_DIR)/libev-$(LIBEV_VERSION)
+PICOJSON = $(BUNDLED_DIR)/picojson-$(PICOJSON_VERSION)
+PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
 
 # Dependencies for all-local.
 BUNDLED_DEPS = # Initialize BUNDLED_DEPENDENCIES so we can add to it.
@@ -43,7 +46,7 @@ BUNDLED_DEPS = # Initialize BUNDLED_DEPENDENCIES so we can add to it.
 
 # Ensure bundled software is build properly.
 %-stamp:
-	@cd .. && $(MAKE) $(AM_MAKEFLAGS) $(@F)
+	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@F)
 
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
@@ -67,7 +70,7 @@ endif
 if WITH_BUNDLED_GMOCK
 GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
 GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
-LIB_GMOCK = ../libgmock.la
+LIB_GMOCK = $(BUNDLED_DIR)/libgmock.la
 $(LIB_GMOCK): $(GMOCK)-build-stamp
 BUNDLED_DEPS += $(GMOCK)-build-stamp
 endif
@@ -81,7 +84,7 @@ endif
 
 if WITH_BUNDLED_HTTP_PARSER
 HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
-LIB_HTTP_PARSER = ../libry_http_parser.la
+LIB_HTTP_PARSER = $(BUNDLED_DIR)/libry_http_parser.la
 $(LIB_HTTP_PARSER): $(HTTP_PARSER)-build-stamp
 BUNDLED_DEPS += $(HTTP_PARSER)-build-stamp
 else
