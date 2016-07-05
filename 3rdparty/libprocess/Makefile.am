@@ -34,19 +34,31 @@ GPERFTOOLS = ../gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GMOCK)/gtest
 LIBEV = ../libev-$(LIBEV_VERSION)
 PICOJSON = ../picojson-$(PICOJSON_VERSION)
+PROTOBUF = ../protobuf-$(PROTOBUF_VERSION)
 
+# Dependencies for all-local.
+BUNDLED_DEPS = # Initialize BUNDLED_DEPENDENCIES so we can add to it.
+
+
+# Ensure bundled software is build properly.
+%-stamp:
+	@cd .. && $(MAKE) $(AM_MAKEFLAGS) $(@F)
 
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+BUNDLED_DEPS += $(BOOST)-stamp
 endif
 
 if WITH_BUNDLED_ELFIO
 ELFIO_INCLUDE_FLAGS = -I$(ELFIO)
+BUNDLED_DEPS += $(ELFIO)-stamp
 endif
 
 if WITH_BUNDLED_GLOG
 GLOG_INCLUDE_FLAGS = -I$(GLOG)/src
 LIB_GLOG = $(GLOG)/libglog.la
+$(LIB_GLOG): $(GLOG)-build-stamp
+BUNDLED_DEPS += $(GLOG)-build-stamp
 else
 LIB_GLOG = -lglog
 endif
@@ -55,17 +67,23 @@ if WITH_BUNDLED_GMOCK
 GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
 GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
 LIB_GMOCK = ../libgmock.la
+$(LIB_GMOCK): $(GMOCK)-build-stamp
+BUNDLED_DEPS += $(GMOCK)-build-stamp
 endif
 
 if HAS_GPERFTOOLS
 GPERFTOOLS_INCLUDE_FLAGS = -I$(GPERFTOOLS)/src
 LIB_GPERFTOOLS = $(GPERFTOOLS)/libprofiler.la
+$(LIB_GPERFTOOLS): $(GPERFTOOLS)-build-stamp
+BUNDLED_DEPS += $(GPERFTOOLS)-build-stamp
 endif
 
 if WITH_BUNDLED_HTTP_PARSER
 HTTP_PARSER = ../http-parser-$(HTTP_PARSER_VERSION)
 HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
 LIB_HTTP_PARSER = ../libry_http_parser.la
+$(LIB_HTTP_PARSER): $(HTTP_PARSER)-build-stamp
+BUNDLED_DEPS += $(HTTP_PARSER)-build-stamp
 else
 LIB_HTTP_PARSER = -lhttp_parser
 endif
@@ -74,6 +92,8 @@ if !ENABLE_LIBEVENT
 if WITH_BUNDLED_LIBEV
 LIB_EV_INCLUDE_FLAGS = -I$(LIBEV)
 LIB_EV = $(LIBEV)/libev.la
+$(LIBEV): $(LIBEV)-build-stamp
+BUNDLED_DEPS += $(LIBEV)-build-stamp
 else
 LIB_EV = -lev
 endif
@@ -84,11 +104,17 @@ PICOJSON_INCLUDE_FLAGS =	\
   -D__STDC_FORMAT_MACROS
 if WITH_BUNDLED_PICOJSON
 PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
+BUNDLED_DEPS += $(PICOJSON)-stamp
+endif
+
+if WITH_BUNDLED_PROTOBUF
+BUNDLED_DEPS += $(PROTOBUF)-build-stamp
 endif
 
 if WITH_BUNDLED_STOUT
 STOUT_INCLUDE_FLAGS = -I$(srcdir)/$(STOUT)/include
 endif
+
 
 # Library. It is not installable presently because most people link
 # the libprocess statically into their resulting library or binary and
@@ -262,16 +288,14 @@ libprocess_tests_LDADD +=		\
   $(LIB_EV)
 endif
 
+BUILT_SOURCES = $(BUNDLED_DEPS)
+
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
 	./libprocess-tests
-
-# Both libprocess-tests and benchmarks have a dependency on libgmock.la.
-$(LIB_GMOCK):
-	@cd .. && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
 
 tests: all libprocess-tests benchmarks
 
