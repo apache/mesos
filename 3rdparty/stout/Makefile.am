@@ -200,3 +200,17 @@ EXTRA_DIST = $(stout_tests_SOURCES)
 if !OS_LINUX
 EXTRA_DIST += tests/proc_tests.cpp
 endif
+
+# Make sure we don't recurse into 3rdparty when creating the distribution
+# tarball.
+# When recursing into 3rdparty, it tries to distribute the bundled dependencies
+# such as boost and glog even though they have already been included as part of
+# top-level 3rdparty.
+DIST_SUBDIRS=$(SUBDIRS)
+
+# Explicitly include 3rdparty directory in the distribution tarball since we
+# exclude it from DIST_SUBDIRS (when building it as part of Mesos).
+dist-hook:
+if !STANDALONE_STOUT
+	cp -r $(srcdir)/3rdparty $(distdir)/
+endif
