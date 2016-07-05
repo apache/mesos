@@ -654,6 +654,9 @@ struct Entry
   Access access;
 };
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Entry::Selector::Type& type);
 
 std::ostream& operator<<(
     std::ostream& stream,

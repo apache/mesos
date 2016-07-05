@@ -2420,23 +2420,23 @@ Future<uint64_t> Counter::value() const
 
 namespace devices {
 
-ostream& operator<<(ostream& stream, const Entry::Selector& selector)
+ostream& operator<<(ostream& stream, const Entry::Selector::Type& type)
 {
-  switch (selector.type) {
-    case Entry::Selector::Type::ALL:
-      stream << "a";
-      break;
-    case Entry::Selector::Type::BLOCK:
-      stream << "b";
-      break;
-    case Entry::Selector::Type::CHARACTER:
-      stream << "c";
-      break;
+  switch (type) {
+    case Entry::Selector::Type::ALL:       return stream << "a";
+    case Entry::Selector::Type::BLOCK:     return stream << "b";
+    case Entry::Selector::Type::CHARACTER: return stream << "c";
     // We omit the default case because we assume -Wswitch
     // will trigger a compile-time error if a case is missed.
   }
 
-  stream << " ";
+  UNREACHABLE();
+}
+
+
+ostream& operator<<(ostream& stream, const Entry::Selector& selector)
+{
+  stream << selector.type << " ";
 
   if (selector.major.isSome()) {
     stream << stringify(selector.major.get());
