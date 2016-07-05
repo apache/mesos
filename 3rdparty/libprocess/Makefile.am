@@ -18,12 +18,18 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 LIBPROCESS_BUILD_DIR=@abs_builddir@
 
+if STANDALONE_LIBPROCESS
+MAYBE_3RDPARTY = 3rdparty
+BUNDLED_DIR = 3rdparty
+else
+MAYBE_3RDPARTY =
+BUNDLED_DIR = ..
+endif
+
 # NOTE: The libprocess headers were moved to the Makefile in "include"
 # subdirectory to make it easy to preserve the directory structure of
 # the header files during installation.
-SUBDIRS = . include
-
-BUNDLED_DIR = ..
+SUBDIRS = $(MAYBE_3RDPARTY) . include
 
 include ../versions.am
 

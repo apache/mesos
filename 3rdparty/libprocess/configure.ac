@@ -57,6 +57,8 @@ LT_OUTPUT
 CONFIGURE_ARGS="$ac_configure_args"
 AC_SUBST(CONFIGURE_ARGS)
 
+AM_CONDITIONAL([STANDALONE_LIBPROCESS], [true])
+
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
