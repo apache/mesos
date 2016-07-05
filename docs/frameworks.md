@@ -6,7 +6,7 @@ layout: documentation
 
 ## Long Running Services
 
-* [Aurora](http://aurora.incubator.apache.org) is a service scheduler that runs on top of Mesos, enabling you to run long-running services that take advantage of Mesos' scalability, fault-tolerance, and resource isolation.
+* [Aurora](http://aurora.apache.org) is a service scheduler that runs on top of Mesos, enabling you to run long-running services that take advantage of Mesos' scalability, fault-tolerance, and resource isolation.
 * [Marathon](https://github.com/mesosphere/marathon) is a private PaaS built on Mesos. It automatically handles hardware or software failures and ensures that an app is "always on".
 * [Singularity](https://github.com/HubSpot/Singularity) is a scheduler (HTTP API and web interface) for running Mesos tasks: long running processes, one-off tasks, and scheduled jobs.
 * [SSSP](https://github.com/mesosphere/sssp) is a simple web application that provides a white-label "Megaupload" for storing and sharing files in S3.
