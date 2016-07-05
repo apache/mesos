@@ -612,7 +612,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterActiveFrameworks)
   // active frameworks.
   AWAIT_READY(reregisterSlave);
 
-  EXPECT_EQ(1u, reregisterSlave.get().active_frameworks().size());
+  EXPECT_EQ(1u, reregisterSlave.get().frameworks().size());
 
   Clock::pause();
   Clock::settle();
