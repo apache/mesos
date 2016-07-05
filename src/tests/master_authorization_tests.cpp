@@ -1776,6 +1776,84 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
 }
 
 
+// This test verifies that authorization based endpoint filtering
+// works correctly on the /roles endpoint.
+TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
+{
+  ACLs acls;
+
+  {
+    // Default principal can see all roles.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // Second default principal can see no roles.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->set_type(ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  const string ROLE1 = "role1";
+  const string ROLE2 = "role2";
+
+  master::Flags flags = MesosTest::CreateMasterFlags();
+  flags.roles = strings::join(",", ROLE1, ROLE2);
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(
+      authorizer.get(),
+      flags);
+
+  ASSERT_SOME(master);
+
+  const string rolesEndpoint = "roles";
+
+  // Retrieve endpoint with the user allowed to view all roles.
+  {
+    Future<Response> response = http::get(
+        master.get()->pid,
+        rolesEndpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object tasks = parse.get();
+    ASSERT_TRUE(tasks.values["roles"].is<JSON::Array>());
+    EXPECT_EQ(3u, tasks.values["roles"].as<JSON::Array>().values.size());
+  }
+
+  // Retrieve endpoint with the user not allowed to view the roles.
+  {
+    Future<Response> response = http::get(
+        master.get()->pid,
+        rolesEndpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object tasks = parse.get();
+    ASSERT_TRUE(tasks.values["roles"].is<JSON::Array>());
+    EXPECT_EQ(0u, tasks.values["roles"].as<JSON::Array>().values.size());
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

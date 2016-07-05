@@ -770,4 +770,21 @@ process::Future<bool> authorizeEndpoint(
   return authorizer.get()->authorized(request);
 }
 
+
+bool approveViewRole(
+    const Owned<ObjectApprover>& rolesApprover,
+    const string& role)
+{
+  ObjectApprover::Object object;
+  object.value = &role;
+
+  Try<bool> approved = rolesApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during Roles authorization: " << approved.error();
+    // TODO(joerg84): Consider exposing these errors to the caller.
+    return false;
+  }
+  return approved.get();
+}
+
 }  // namespace mesos {

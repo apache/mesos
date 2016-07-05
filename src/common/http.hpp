@@ -156,6 +156,11 @@ process::Future<bool> authorizeEndpoint(
     const Option<Authorizer*>& authorizer,
     const Option<std::string>& principal);
 
+
+bool approveViewRole(
+    const process::Owned<ObjectApprover>& rolesApprover,
+    const std::string& role);
+
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__

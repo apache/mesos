@@ -2249,7 +2249,7 @@ TYPED_TEST(AuthorizationTest, OptionalObject)
   ACLs acls;
 
   {
-    // "foo" principal can tardown `ANY` framework
+    // "foo" principal can teardown `ANY` framework
     mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
     acl->mutable_principals()->add_values("foo");
     acl->mutable_framework_principals()->set_type(mesos::ACL::Entity::ANY);
@@ -2322,12 +2322,10 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
-
-  {
+    {
     authorization::Request request;
     request.set_action(authorization::VIEW_FLAGS);
     request.mutable_subject()->set_value("bar");
-
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
@@ -2388,6 +2386,69 @@ TYPED_TEST(AuthorizationTest, ValidateEndpoints)
     Try<Authorizer*> create = TypeParam::create(parameterize(acls));
     EXPECT_SOME(create);
     delete create.get();
+  }
+}
+
+
+// This tests the authorization of requests to ViewRole.
+TYPED_TEST(AuthorizationTest, ViewRole)
+{
+    // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can view `ANY` role.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // "bar" principal can view role `bar`.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("bar");
+  }
+
+  {
+    // No other principal can view any role.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Check that principal "foo" can view any role.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" cannot see role `foo`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("foo");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" can see role `bar`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("bar");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
 

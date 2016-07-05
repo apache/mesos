@@ -226,7 +226,7 @@ public:
         case authorization::CREATE_VOLUME_WITH_ROLE:
         case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
         case authorization::GET_QUOTA_WITH_ROLE:
-        case authorization::GET_WEIGHT_WITH_ROLE:
+        case authorization::VIEW_ROLE:
         case authorization::UPDATE_WEIGHT_WITH_ROLE:
         case authorization::GET_ENDPOINT_WITH_PATH: {
           // Check object has the required types set.
@@ -616,8 +616,8 @@ private:
         return GenericACLs(acls_, set_quotas, remove_quotas);
         break;
       }
-      case authorization::GET_WEIGHT_WITH_ROLE:
-        foreach (const ACL::GetWeight& acl, acls.get_weights()) {
+      case authorization::VIEW_ROLE:
+        foreach (const ACL::ViewRole& acl, acls.view_roles()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.roles();

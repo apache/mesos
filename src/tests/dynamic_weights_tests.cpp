@@ -459,11 +459,11 @@ TEST_F(DynamicWeightsTest, AuthorizedGetWeightsRequest)
 
   // Setup ACLs so that default principal can only see ROLE1's weights and
   // default principal 2 can only see ROLE2's weights.
-  mesos::ACL::GetWeight* getACL1 = acls.add_get_weights();
+  mesos::ACL::ViewRole* getACL1 = acls.add_view_roles();
   getACL1->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   getACL1->mutable_roles()->add_values(ROLE1);
 
-  mesos::ACL::GetWeight* getACL2 = acls.add_get_weights();
+  mesos::ACL::ViewRole* getACL2 = acls.add_view_roles();
   getACL2->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
   getACL2->mutable_roles()->add_values(ROLE2);
 
@@ -506,7 +506,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   acl->mutable_roles()->add_values(ROLE2);
 
   // Ensure the get weights check pass under restrictive mode.
-  mesos::ACL::GetWeight* getAcl = acls.add_get_weights();
+  mesos::ACL::ViewRole* getAcl = acls.add_view_roles();
   getAcl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   getAcl->mutable_roles()->add_values(ROLE1);
   getAcl->mutable_roles()->add_values(ROLE2);
@@ -550,7 +550,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   acl->mutable_roles()->add_values(ROLE2);
 
   // Ensure the get weights pass under restrictive mode.
-  mesos::ACL::GetWeight* getAcl = acls.add_get_weights();
+  mesos::ACL::ViewRole* getAcl = acls.add_view_roles();
   getAcl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   getAcl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 

@@ -368,7 +368,7 @@ Future<bool> Master::WeightsHandler::authorizeGetWeight(
             << "' to get weight for role '" << role << "'";
 
   authorization::Request request;
-  request.set_action(authorization::GET_WEIGHT_WITH_ROLE);
+  request.set_action(authorization::VIEW_ROLE);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
