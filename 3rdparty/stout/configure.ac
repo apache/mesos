@@ -49,8 +49,20 @@ LT_INIT
 LT_LANG([C++])
 LT_OUTPUT
 
+# Save the configure arguments so we can pass them to any third-party
+# libraries that we might run configure on (see
+# 3rdparty/Makefile.am). One downside of our strategy for shipping
+# and building third-party libraries is that we can't expose options
+# from nested third-party configure scripts.
+CONFIGURE_ARGS="$ac_configure_args"
+AC_SUBST(CONFIGURE_ARGS)
+
+AM_CONDITIONAL([STANDALONE_STOUT], [true])
+
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([include/Makefile])
+AC_CONFIG_FILES([3rdparty/Makefile])
+AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 
 ###############################################################################
 # Optional features.
@@ -413,6 +425,7 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_GMOCK], [test "x$with_bundled_gmock" = "xyes"])
+AM_CONDITIONAL([LINKGTEST], [test "check_gtest" = "xyes"])
 AC_SUBST([GMOCKSRC])
 AC_SUBST([GTESTSRC])
 

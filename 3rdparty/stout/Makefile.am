@@ -14,14 +14,20 @@
 
 AUTOMAKE_OPTIONS = foreign
 
+if STANDALONE_STOUT
+MAYBE_3RDPARTY = 3rdparty
+BUNDLED_DIR = 3rdparty
+else
+MAYBE_3RDPARTY =
+BUNDLED_DIR = ..
+endif
+
 # NOTE: The stout headers were moved to the Makefile in "include"
 # subdirectory to make it easy to preserve the directory structure of
 # the header files during installation.
-SUBDIRS = . include
+SUBDIRS = $(MAYBE_3RDPARTY) . include
 
-BUNDLED_DIR = ..
-
-include $(BUNDLED_DIR)/versions.am
+include ../versions.am
 
 BOOST = $(BUNDLED_DIR)/boost-$(BOOST_VERSION)
 ELFIO = $(BUNDLED_DIR)/elfio-$(ELFIO_VERSION)
