@@ -311,6 +311,21 @@ tests: all $(BUNDLED_DEPS)
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
+
+# Make sure we don't recurse into 3rdparty when creating the distribution
+# tarball.
+# When recursing into 3rdparty, it tries to distribute the bundled dependencies
+# such as boost and glog even though they have already been included as part of
+# top-level 3rdparty.
+DIST_SUBDIRS=$(SUBDIRS)
+
+# Explicitly include 3rdparty directory in the distribution tarball since we
+# exclude it from DIST_SUBDIRS (when building it as part of Mesos).
+dist-hook:
+if !STANDALONE_LIBPROCESS
+	cp -r $(srcdir)/3rdparty $(distdir)/
+endif
+
 # Using LT_OUTPUT in configure.ac creates config.lt that doesn't get
 # cleaned up by distclean-libtool. See this bug patch (which doesn't
 # appear to be in all versions of libtool.m4):
