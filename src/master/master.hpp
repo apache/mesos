@@ -1559,8 +1559,8 @@ private:
     Option<process::Timer> recoveredTimer;
 
     // Slaves that have been recovered from the registrar but have yet
-    // to re-register. We keep a "reregistrationTimer" above to ensure
-    // we remove these slaves if they do not re-register.
+    // to re-register. We use `recoveredTimer` above to ensure we
+    // remove these slaves if they do not re-register.
     hashset<SlaveID> recovered;
 
     // Slaves that are in the process of registering.

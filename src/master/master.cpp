@@ -5428,8 +5428,9 @@ void Master::shutdown(
 void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
 {
   if (!slaves.registered.contains(slaveId)) {
-    // Possible when the SlaveObserver dispatched to shutdown a slave,
-    // but exited() was already called for this slave.
+    // Possible when the SlaveObserver dispatches a message to
+    // shutdown a slave but the slave is concurrently removed for
+    // another reason (e.g., `UnregisterSlaveMessage` is received).
     LOG(WARNING) << "Unable to shutdown unknown agent " << slaveId;
     return;
   }
