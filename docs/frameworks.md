@@ -6,7 +6,7 @@ layout: documentation
 
 ## DevOps tooling
 
-* [Vamp](http://http://vamp.io) is a deployment and workflow tool for container orchestration systems, including Mesos/Marathon. It brings canary releasing, A/B testing, auto scaling and self healing through a web UI, CLI and REST API.
+* [Vamp](http://vamp.io) is a deployment and workflow tool for container orchestration systems, including Mesos/Marathon. It brings canary releasing, A/B testing, auto scaling and self healing through a web UI, CLI and REST API.
 
 ## Long Running Services
 
