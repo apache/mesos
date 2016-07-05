@@ -4,6 +4,10 @@ layout: documentation
 ---
 # Software Projects Built on Mesos
 
+## DevOps tooling
+
+* [Vamp](http://http://vamp.io) is a deployment and workflow tool for container orchestration systems, including Mesos/Marathon. It brings canary releasing, A/B testing, auto scaling and self healing through a web UI, CLI and REST API.
+
 ## Long Running Services
 
 * [Aurora](http://aurora.incubator.apache.org) is a service scheduler that runs on top of Mesos, enabling you to run long-running services that take advantage of Mesos' scalability, fault-tolerance, and resource isolation.
