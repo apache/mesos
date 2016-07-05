@@ -29,20 +29,32 @@ GTEST = $(GMOCK)/gtest
 PROTOBUF = ../protobuf-$(PROTOBUF_VERSION)
 PICOJSON = ../picojson-$(PICOJSON_VERSION)
 
+# Dependencies for all-local.
+BUNDLED_DEPS = # Initialize BUNDLED_DEPS so we can add to it.
+
+
+# Ensure bundled software is build properly.
+%-stamp:
+	@cd .. && $(MAKE) $(AM_MAKEFLAGS) $(@F)
+
 # We use "-isystem" instead of "-I" to add Boost to the include search
 # path. This disables compiler warnings inside Boost headers since we
 # can't easily fix them. See MESOS-3799.
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+BUNDLED_DEPS += $(BOOST)-stamp
 endif
 
 if WITH_BUNDLED_ELFIO
 ELFIO_INCLUDE_FLAGS = -I$(ELFIO)
+BUNDLED_DEPS += $(ELFIO)-stamp
 endif
 
 if WITH_BUNDLED_GLOG
 GLOG_INCLUDE_FLAGS = -I$(GLOG)/src
 LIB_GLOG = $(GLOG)/libglog.la
+$(LIB_GLOG): $(GLOG)-build-stamp
+BUNDLED_DEPS += $(GLOG)-build-stamp
 else
 LIB_GLOG = -lglog
 endif
@@ -52,6 +64,8 @@ if WITH_BUNDLED_GMOCK
 GMOCK_INCLUDE_FLAGS = -I$(GMOCK)/include
 GTEST_INCLUDE_FLAGS = -I$(GTEST)/include
 LIB_GMOCK = ../libgmock.la
+$(LIB_GMOCK): $(GMOCK)-build-stamp
+BUNDLED_DEPS += $(GMOCK)-build-stamp
 endif
 
 # Enable the INT64 support for PicoJSON.
@@ -61,11 +75,14 @@ PICOJSON_INCLUDE_FLAGS =	\
 
 if WITH_BUNDLED_PICOJSON
 PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
+BUNDLED_DEPS += $(PICOJSON)-stamp
 endif
 
 if WITH_BUNDLED_PROTOBUF
 PROTOBUF_INCLUDE_FLAGS = -I$(PROTOBUF)/src
 LIB_PROTOBUF = $(PROTOBUF)/src/libprotobuf.la
+$(LIB_PROTOBUF): $(PROTOBUF)-build-stamp
+BUNDLED_DEPS += $(PROTOBUF)-build-stamp
 else
 LIB_PROTOBUF = -lprotobuf
 endif
@@ -157,9 +174,7 @@ if !OS_FREEBSD
   stout_tests_LDADD += -ldl
 endif
 
-# Both libprocess-tests and benchmarks have a dependency on libgmock.la.
-$(LIB_GMOCK):
-	@cd .. && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
+BUILT_SOURCES = $(BUNDLED_DEPS)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
