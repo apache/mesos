@@ -105,6 +105,13 @@ extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
 // Name of the default, CRAM-MD5 authenticatee.
 extern const std::string DEFAULT_AUTHENTICATEE;
 
+// The maximum interval the slave waits before retrying authentication.
+extern const Duration AUTHENTICATION_RETRY_INTERVAL_MAX;
+
+// Default backoff interval used by the slave to wait after failed
+// authentication.
+extern const Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR;
+
 // Default maximum storage space to be used by the fetcher cache.
 const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 

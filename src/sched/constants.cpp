@@ -29,6 +29,10 @@ const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 
 const Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 
+const Duration AUTHENTICATION_RETRY_INTERVAL_MAX = Minutes(1);
+
+const Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
+
 const std::string DEFAULT_AUTHENTICATEE = "crammd5";
 
 } // namespace scheduler {

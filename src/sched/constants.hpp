@@ -31,6 +31,14 @@ extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
 // registration.
 extern const Duration REGISTRATION_RETRY_INTERVAL_MAX;
 
+// The maximum interval the scheduler driver waits before retrying
+// authentication.
+extern const Duration AUTHENTICATION_RETRY_INTERVAL_MAX;
+
+// Default backoff interval used by the scheduler to wait after failed
+// authentication.
+extern const Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR;
+
 // Name of the default, CRAM-MD5 authenticatee.
 extern const std::string DEFAULT_AUTHENTICATEE;
 
