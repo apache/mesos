@@ -3381,6 +3381,20 @@ Future<Response> Master::Http::getTasks(
 {
   CHECK_EQ(mesos::master::Call::GET_TASKS, call.type());
 
+  return _getTasks(principal)
+    .then([contentType](const mesos::master::Response::GetTasks& getTasks)
+        -> Future<Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_TASKS);
+      response.mutable_get_tasks()->CopyFrom(getTasks);
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+  });
+}
+
+
+Future<mesos::master::Response::GetTasks> Master::Http::_getTasks(
+    const Option<string>& principal) const {
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
@@ -3404,7 +3418,7 @@ Future<Response> Master::Http::getTasks(
     .then(defer(master->self(),
       [=](const tuple<Owned<ObjectApprover>,
                       Owned<ObjectApprover>>& approvers)
-        -> Future<Response> {
+        -> Future<mesos::master::Response::GetTasks> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
@@ -3431,12 +3445,7 @@ Future<Response> Master::Http::getTasks(
         frameworks.push_back(framework.get());
       }
 
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_TASKS);
-
-      mesos::master::Response::GetTasks* getTasks =
-        response.mutable_get_tasks();
-
+      mesos::master::Response::GetTasks getTasks;
       vector<const Task*> tasks;
       foreach (const Framework* framework, frameworks) {
         // Pending tasks.
@@ -3449,7 +3458,7 @@ Future<Response> Master::Http::getTasks(
           const Task& task =
             protobuf::createTask(taskInfo, TASK_STAGING, framework->id());
 
-          getTasks->add_pending_tasks()->CopyFrom(task);
+          getTasks.add_pending_tasks()->CopyFrom(task);
         }
 
         // Active tasks.
@@ -3460,7 +3469,7 @@ Future<Response> Master::Http::getTasks(
             continue;
           }
 
-          getTasks->add_tasks()->CopyFrom(*task);
+          getTasks.add_tasks()->CopyFrom(*task);
         }
 
         // Completed tasks.
@@ -3470,7 +3479,7 @@ Future<Response> Master::Http::getTasks(
             continue;
           }
 
-          getTasks->add_completed_tasks()->CopyFrom(*task);
+          getTasks.add_completed_tasks()->CopyFrom(*task);
         }
       }
 
@@ -3486,14 +3495,12 @@ Future<Response> Master::Http::getTasks(
             CHECK_NOTNULL(task);
             if (!master->frameworks.registered.contains(
                 task->framework_id())) {
-              getTasks->add_orphan_tasks()->CopyFrom(*task);
+              getTasks.add_orphan_tasks()->CopyFrom(*task);
             }
           }
         }
       }
-
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return getTasks;
   }));
 }
 

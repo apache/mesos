@@ -1458,6 +1458,9 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<mesos::master::Response::GetTasks> _getTasks(
+        const Option<std::string>& principal) const;
+
     process::Future<process::http::Response> createVolumes(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
