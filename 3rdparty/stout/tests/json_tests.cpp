@@ -337,7 +337,10 @@ TEST(JsonTest, Find)
   EXPECT_ERROR(object.find<JSON::String>("nested1[1].nested2.string"));
   EXPECT_ERROR(object.find<JSON::String>("nested1.nested2[1].string"));
   EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.string[1]"));
-  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.null[1]"));
+
+  // Indexing into a null is the same as a non-existent field.
+  EXPECT_NONE(object.find<JSON::String>("nested1.nested2.null[1]"));
+  EXPECT_NONE(object.find<JSON::String>("nested1.nested2.missing[1]"));
 
   // Null entries are found when looking for a matching type (Null or Value).
   EXPECT_SOME_EQ(
