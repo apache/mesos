@@ -35,6 +35,7 @@
 
 #include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/volume.hpp"
 
 namespace mesos {
 namespace internal {
@@ -105,7 +106,11 @@ private:
       const Flags& _flags,
       const std::string& hierarchy,
       const NvidiaGpuAllocator& _allocator,
+      const NvidiaVolume& _volume,
       const map<Path, cgroups::devices::Entry>& _controlDeviceEntries);
+
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
@@ -130,6 +135,7 @@ private:
   hashmap<ContainerID, Info*> infos;
 
   NvidiaGpuAllocator allocator;
+  NvidiaVolume volume;
 
   const map<Path, cgroups::devices::Entry> controlDeviceEntries;
 };

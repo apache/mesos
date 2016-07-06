@@ -48,6 +48,8 @@
 
 using cgroups::devices::Entry;
 
+using docker::spec::v1::ImageManifest;
+
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
@@ -73,10 +75,12 @@ NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const NvidiaGpuAllocator& _allocator,
+    const NvidiaVolume& _volume,
     const map<Path, cgroups::devices::Entry>& _controlDeviceEntries)
   : flags(_flags),
     hierarchy(_hierarchy),
     allocator(_allocator),
+    volume(_volume),
     controlDeviceEntries(_controlDeviceEntries) {}
 
 
@@ -167,6 +171,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
           flags,
           hierarchy.get(),
           components.allocator,
+          components.volume,
           deviceEntries));
 
   return new MesosIsolator(process);
@@ -266,9 +271,61 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
   }
 
   return update(containerId, containerConfig.executor_info().resources())
-    .then([]() -> Future<Option<ContainerLaunchInfo>> {
-      return None();
-    });
+    .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
+                &NvidiaGpuIsolatorProcess::_prepare,
+                containerConfig));
+}
+
+
+// If our `ContainerConfig` specifies a different `rootfs` than the
+// host file system, then we need to prepare a script to inject our
+// `NvidiaVolume` into the container (if required).
+Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
+    const mesos::slave::ContainerConfig& containerConfig)
+{
+  if (!containerConfig.has_rootfs()) {
+     return None();
+  }
+
+  // We only support docker containers at the moment.
+  if (!containerConfig.has_docker()) {
+    // TODO(klueska): Once ContainerConfig has
+    // a type, include that in the error message.
+    return Failure("Nvidia GPU isolator does not support non-Docker images");
+  }
+
+  ContainerLaunchInfo launchInfo;
+  launchInfo.set_namespaces(CLONE_NEWNS);
+
+  // Inject the Nvidia volume into the container.
+  //
+  // TODO(klueska): Inject the Nvidia devices here as well once we
+  // have a way to pass them to `fs:enter()` instead of hardcoding
+  // them in `fs::createStandardDevices()`.
+  if (!containerConfig.docker().has_manifest()) {
+     return Failure("The 'ContainerConfig' for docker is missing a manifest");
+  }
+
+  ImageManifest manifest = containerConfig.docker().manifest();
+
+  if (volume.shouldInject(manifest)) {
+    const string target = path::join(
+        containerConfig.rootfs(),
+        volume.CONTAINER_PATH());
+
+    Try<Nothing> mkdir = os::mkdir(target);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create the container directory at"
+          " '" + target + "': " + mkdir.error());
+    }
+
+    launchInfo.add_pre_exec_commands()->set_value(
+      "mount --no-mtab --rbind --read-only " +
+      volume.HOST_PATH() + " " + target);
+  }
+
+  return launchInfo;
 }
 
 
