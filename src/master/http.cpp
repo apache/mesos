@@ -2089,12 +2089,25 @@ Future<process::http::Response> Master::Http::getAgents(
 {
   CHECK_EQ(mesos::master::Call::GET_AGENTS, call.type());
 
-  mesos::master::Response response;
-  response.set_type(mesos::master::Response::GET_AGENTS);
+  return _getAgents(principal)
+    .then([contentType](const mesos::master::Response::GetAgents& getAgents)
+      -> Future<Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_AGENTS);
+      response.mutable_get_agents()->CopyFrom(getAgents);
 
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+  });
+}
+
+
+Future<mesos::master::Response::GetAgents> Master::Http::_getAgents(
+    const Option<string>& principal) const
+{
+  mesos::master::Response::GetAgents getAgents;
   foreachvalue (const Slave* slave, master->slaves.registered) {
-    mesos::master::Response::GetAgents::Agent* agent =
-        response.mutable_get_agents()->add_agents();
+    mesos::master::Response::GetAgents::Agent* agent = getAgents.add_agents();
 
     agent->mutable_agent_info()->CopyFrom(slave->info);
 
@@ -2123,8 +2136,7 @@ Future<process::http::Response> Master::Http::getAgents(
     }
   }
 
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
+  return getAgents;
 }
 
 

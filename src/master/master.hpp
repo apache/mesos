@@ -1388,6 +1388,9 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<mesos::master::Response::GetAgents> _getAgents(
+        const Option<std::string>& principal) const;
+
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
