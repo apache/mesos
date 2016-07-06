@@ -201,7 +201,8 @@ public:
       permissive_(permissive) {}
 
   virtual Try<bool> approved(
-      const Option<ObjectApprover::Object>& object) const noexcept override {
+      const Option<ObjectApprover::Object>& object) const noexcept override
+  {
     // Construct subject.
     ACL::Entity aclSubject;
     if (subject_.isSome()) {
