@@ -5222,6 +5222,12 @@ Future<ResourceUsage> Slave::usage()
 
   foreachvalue (const Framework* framework, frameworks) {
     foreachvalue (const Executor* executor, framework->executors) {
+      // No need to get statistics and status if we know that the
+      // executor has already terminated.
+      if (executor->state == Executor::TERMINATED) {
+        continue;
+      }
+
       ResourceUsage::Executor* entry = usage->add_executors();
       entry->mutable_executor_info()->CopyFrom(executor->info);
       entry->mutable_allocated()->CopyFrom(executor->resources);

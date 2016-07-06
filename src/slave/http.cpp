@@ -1241,6 +1241,12 @@ Future<JSON::Array> Slave::Http::__containers() const
 
   foreachvalue (const Framework* framework, slave->frameworks) {
     foreachvalue (const Executor* executor, framework->executors) {
+      // No need to get statistics and status if we know that the
+      // executor has already terminated.
+      if (executor->state == Executor::TERMINATED) {
+        continue;
+      }
+
       const ExecutorInfo& info = executor->info;
       const ContainerID& containerId = executor->containerId;
 
