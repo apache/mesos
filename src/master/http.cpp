@@ -2606,15 +2606,24 @@ Future<Response> Master::Http::state(
             foreachvalue (const TaskMap& tasks, slave->tasks) {
               foreachvalue (const Task* task, tasks) {
                 CHECK_NOTNULL(task);
-                if (!master->frameworks.registered.contains(
-                    task->framework_id())) {
-                  CHECK(master->frameworks.recovered.contains(
-                      task->framework_id()));
-
-                  if (!approveViewTask(
-                      tasksApprover,
-                      *task,
-                      master->frameworks.recovered[task->framework_id()])) {
+                const FrameworkID& frameworkId = task->framework_id();
+                if (!master->frameworks.registered.contains(frameworkId)) {
+                  // TODO(joerg84): This logic should be simplified after
+                  // a deprecation cycle starting with 1.0 as after that
+                  // we can rely on 'master->frameworks.recovered' containing
+                  // all FrameworkInfos.
+                  // Until then there are 3 cases:
+                  // - No authorization enabled: show all orphaned tasks.
+                  // - Authorization enabled, but no FrameworkInfo present:
+                  //   do not show orphaned tasks.
+                  // - Authorization enabled, FrameworkInfo present: filter
+                  //   based on 'approveViewTask'.
+                  if (master->authorizer.isSome() &&
+                     (!master->frameworks.recovered.contains(frameworkId) ||
+                      !approveViewTask(
+                          tasksApprover,
+                          *task,
+                          master->frameworks.recovered[frameworkId]))) {
                     continue;
                   }
 
