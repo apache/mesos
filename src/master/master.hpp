@@ -1500,6 +1500,14 @@ private:
     process::Future<mesos::master::Response::GetExecutors> _getExecutors(
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> getState(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    process::Future<mesos::master::Response::GetState> _getState(
+        const Option<std::string>& principal) const;
+
     Master* master;
 
     // NOTE: The quota specific pieces of the Operator API are factored

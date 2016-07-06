@@ -523,7 +523,7 @@ Future<Response> Master::Http::api(
       return NotImplemented();
 
     case mesos::master::Call::GET_STATE:
-      return NotImplemented();
+      return getState(call, principal, acceptType);
 
     case mesos::master::Call::GET_STATE_SUMMARY:
       return NotImplemented();
@@ -1538,6 +1538,54 @@ Future<mesos::master::Response::GetExecutors> Master::Http::_getExecutors(
       }
 
       return getExecutors;
+    }));
+}
+
+
+Future<Response> Master::Http::getState(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_STATE, call.type());
+
+  return _getState(principal)
+    .then([contentType](const mesos::master::Response::GetState& getState)
+      -> Future<Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_STATE);
+      response.mutable_get_state()->CopyFrom(getState);
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
+}
+
+
+Future<mesos::master::Response::GetState> Master::Http::_getState(
+    const Option<string>& principal) const
+{
+  return collect(
+      _getTasks(principal),
+      _getExecutors(principal),
+      _getFrameworks(principal),
+      _getAgents(principal))
+    .then(defer(master->self(),
+      [](const tuple<mesos::master::Response::GetTasks,
+                     mesos::master::Response::GetExecutors,
+                     mesos::master::Response::GetFrameworks,
+                     mesos::master::Response::GetAgents>& results)
+        -> mesos::master::Response::GetState {
+      mesos::master::Response::GetState getState;
+
+      // Use std::get instead of std::tie to avoid
+      // unnecessary copy of large data structs.
+      getState.mutable_get_tasks()->CopyFrom(std::get<0>(results));
+      getState.mutable_get_executors()->CopyFrom(std::get<1>(results));
+      getState.mutable_get_frameworks()->CopyFrom(std::get<2>(results));
+      getState.mutable_get_agents()->CopyFrom(std::get<3>(results));
+
+      return getState;
     }));
 }
 
