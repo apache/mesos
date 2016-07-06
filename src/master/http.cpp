@@ -1422,8 +1422,26 @@ Future<mesos::master::Response::GetFrameworks> Master::Http::_getFrameworks(
       foreachvalue (const Slave* slave, master->slaves.registered) {
         foreachkey (const FrameworkID& frameworkId, slave->tasks) {
           if (!master->frameworks.registered.contains(frameworkId)) {
-            getFrameworks.add_unsubscribed_frameworks()
-                ->set_value(frameworkId.value());
+            // TODO(haosdent): This logic should be simplified after
+            // a deprecation cycle starting with 1.0 as after that
+            // we can rely on `master->frameworks.recovered` containing
+            // all FrameworkInfos.
+            // Until then there are 3 cases:
+            // - No authorization enabled: show all orphaned frameworks.
+            // - Authorization enabled, but no FrameworkInfo present:
+            //   do not show orphaned frameworks.
+            // - Authorization enabled, FrameworkInfo present: filter
+            //   based on `approveViewFrameworkInfo`.
+            if (master->authorizer.isSome() &&
+               (!master->frameworks.recovered.contains(frameworkId) ||
+                !approveViewFrameworkInfo(
+                    frameworksApprover,
+                    master->frameworks.recovered[frameworkId]))) {
+              continue;
+            }
+
+            getFrameworks.add_recovered_frameworks()->CopyFrom(
+                master->frameworks.recovered[frameworkId]);
           }
         }
       }

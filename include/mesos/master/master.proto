@@ -333,7 +333,7 @@ message Response {
 
     // Frameworks that have previously subscribed but haven't yet subscribed
     // after a master failover.
-    repeated FrameworkID unsubscribed_frameworks = 3;
+    repeated FrameworkInfo recovered_frameworks = 3;
   }
 
   // Lists information about all the executors known to the master at the
