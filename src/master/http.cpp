@@ -1549,10 +1549,6 @@ Future<mesos::master::Response::GetExecutors> Master::Http::_getExecutors(
       }
 
       // Orphan executors.
-      // TODO(haosdent): Need to filter these executors based on authorization!
-      // This is currently not possible because we don't have `FrameworkInfo`
-      // for these executors. We need to either store `FrameworkInfo` for orphan
-      // executors or persist FrameworkInfo of all frameworks in the registry.
       foreachvalue (const Slave* slave, master->slaves.registered) {
         typedef hashmap<ExecutorID, ExecutorInfo> ExecutorMap;
         foreachpair (const FrameworkID& frameworkId,
@@ -1560,6 +1556,25 @@ Future<mesos::master::Response::GetExecutors> Master::Http::_getExecutors(
                      slave->executors) {
           foreachvalue (const ExecutorInfo& info, executors) {
             if (!master->frameworks.registered.contains(frameworkId)) {
+              // TODO(haosdent): This logic should be simplified after
+              // a deprecation cycle starting with 1.0 as after that
+              // we can rely on `master->frameworks.recovered` containing
+              // all FrameworkInfos.
+              // Until then there are 3 cases:
+              // - No authorization enabled: show all orphaned executors.
+              // - Authorization enabled, but no FrameworkInfo present:
+              //   do not show orphaned executors.
+              // - Authorization enabled, FrameworkInfo present: filter
+              //   based on `approveViewExecutorInfo`.
+              if (master->authorizer.isSome() &&
+                 (!master->frameworks.recovered.contains(frameworkId) ||
+                  !approveViewExecutorInfo(
+                      executorsApprover,
+                      info,
+                      master->frameworks.recovered[frameworkId]))) {
+                continue;
+              }
+
               mesos::master::Response::GetExecutors::Executor* executor =
                 getExecutors.add_orphan_executors();
 
