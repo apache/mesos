@@ -64,6 +64,7 @@ layout: documentation
 * [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
 * [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
 * [Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
+* [Client Libraries](api-client-libraries.md) contains a list of Mesos HTTP API client libraries.
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Doxygen](/api/latest/c++/namespacemesos.html) documents the Mesos C++ API.
 * [Developer Tools](tools.md) for hacking on Mesos or writing frameworks.
