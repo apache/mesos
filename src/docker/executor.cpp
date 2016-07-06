@@ -208,6 +208,15 @@ public:
         return Nothing();
       }));
 
+    inspect.onFailed(defer(self(), [=](const string& failure) {
+      cerr << "Failed to inspect container '" << containerName << "'"
+           << ": " << failure << endl;
+
+      // TODO(bmahler): This is fatal, try to shut down cleanly.
+      // Since we don't have a container id, we can only discard
+      // the run future.
+    }));
+
     inspect.onReady(
         defer(self(), &Self::launchHealthCheck, containerName, task));
   }
