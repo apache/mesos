@@ -436,10 +436,18 @@ message Response {
 message Event {
   enum Type {
     UNKNOWN = 0;
-    TASK_ADDED = 1; // See `TaskAdded` below.
-    TASK_UPDATED = 2; // See `TaskUpdated` below.
+    SUBSCRIBED = 1; // See `Subscribed` below.
+    TASK_ADDED = 2; // See `TaskAdded` below.
+    TASK_UPDATED = 3; // See `TaskUpdated` below.
 
     // TODO(vinod): Fill in more events.
+  }
+
+  // First event received when a client subscribes.
+  message Subscribed {
+    // Snapshot of the entire cluster state. Further updates to the
+    // cluster state are sent as separate events on the stream.
+    optional Response.GetState get_state = 1;
   }
 
   // Forwarded by the master when a task becomes known to it. This can happen
@@ -460,6 +468,7 @@ message Event {
 
   optional Type type = 1;
 
-  optional TaskAdded task_added = 2;
-  optional TaskUpdated task_updated = 3;
+  optional Subscribed subscribed = 2;
+  optional TaskAdded task_added = 3;
+  optional TaskUpdated task_updated = 4;
 }

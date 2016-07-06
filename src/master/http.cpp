@@ -589,18 +589,33 @@ Future<Response> Master::Http::api(
       return quotaHandler.remove(call, principal);
 
     case mesos::master::Call::SUBSCRIBE: {
-      Pipe pipe;
-      OK ok;
+      return _getState(principal)
+        .then(defer(master->self(),
+            [this, acceptType]
+            (const mesos::master::Response::GetState& getState)
+              -> Future<Response> {
+          // TODO(zhitao): There is a possible race condition here: if an action
+          // like `taskUpdate()` is queued between `_getState()` and this
+          // continuation, neither the event will be sent to the subscriber
+          // (because the connection is not in subscribers yet), nor
+          // the effect of the change would be captured in the snapshot.
+          Pipe pipe;
+          OK ok;
 
-      ok.headers["Content-Type"] = stringify(acceptType);
-      ok.type = Response::PIPE;
-      ok.reader = pipe.reader();
+          ok.headers["Content-Type"] = stringify(acceptType);
+          ok.type = Response::PIPE;
+          ok.reader = pipe.reader();
 
-      HttpConnection http {pipe.writer(), acceptType, UUID::random()};
+          HttpConnection http {pipe.writer(), acceptType, UUID::random()};
+          master->subscribe(http);
 
-      master->subscribe(http);
+          mesos::master::Event event;
+          event.set_type(mesos::master::Event::SUBSCRIBED);
+          event.mutable_subscribed()->mutable_get_state()->CopyFrom(getState);
+          http.send<mesos::master::Event, v1::master::Event>(event);
 
-      return ok;
+          return ok;
+        }));
     }
   }
 
