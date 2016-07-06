@@ -390,12 +390,19 @@ Result<T> Object::find(const std::string& path) const
 
   Value value = entry->second;
 
-  if (value.is<Array>() && subscript.isSome()) {
-    Array array = value.as<Array>();
-    if (subscript.get() >= array.values.size()) {
+  if (subscript.isSome()) {
+    if (value.is<Array>()) {
+      Array array = value.as<Array>();
+      if (subscript.get() >= array.values.size()) {
+        return None();
+      }
+      value = array.values[subscript.get()];
+    } else if (value.is<Null>()) {
       return None();
+    } else {
+      // TODO(benh): Use a visitor to print out the intermediate type.
+      return Error("Intermediate JSON value not an array");
     }
-    value = array.values[subscript.get()];
   }
 
   if (names.size() == 1) {

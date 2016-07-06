@@ -333,6 +333,12 @@ TEST(JsonTest, Find)
   // Out of bounds is none.
   EXPECT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));
 
+  // Indexing into a non-array is an error.
+  EXPECT_ERROR(object.find<JSON::String>("nested1[1].nested2.string"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2[1].string"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.string[1]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.null[1]"));
+
   // Null entries are found when looking for a matching type (Null or Value).
   EXPECT_SOME_EQ(
       JSON::Null(),
