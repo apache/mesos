@@ -39,6 +39,14 @@
   jira_user: dyatlov
   reviewboard_user: dyatlov
 
+- name: Anindya Sinha
+  affiliations:
+    - {organization: Apple}
+  emails:
+    - anindya_sinha@apple.com
+  jira_user: anindya.sinha
+  reviewboard_user: anisinha
+
 - name: Artem Harutyunyan
   affiliations:
     - {organization: Mesosphere}
