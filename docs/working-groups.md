@@ -95,6 +95,9 @@ layout: documentation
 		* [MESOS-4138](https://issues.apache.org/jira/browse/MESOS-4138)
 		* [Mesos: exclusive resources](https://docs.google.com/document/d/1Aby-U3-MPKE51s4aYd41L4Co2S97eM6LPtyzjyR_ecI/edit)
 * **Resource Allocation**
+        * communication:
+                * slack: [#allocator](https://mesos.slack.com/messages/allocator/)
+                * [slack archive](http://mesos.slackarchive.io/allocator/)
 	* members:
 		* Alex Rukletsov
 		* Benjamin Hindman
