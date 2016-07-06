@@ -1521,7 +1521,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
 // one is allowed to view the tasks.
 TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
 {
-  const string stateEndpoint = "tasks";
+  const string tasksEndpoint = "tasks";
   const string user = "bar";
 
   ACLs acls;
@@ -1649,7 +1649,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
   {
     Future<Response> response = http::get(
         master.get()->pid,
-        stateEndpoint,
+        tasksEndpoint,
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
@@ -1669,7 +1669,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
   {
     Future<Response> response = http::get(
         master.get()->pid,
-        stateEndpoint,
+        tasksEndpoint,
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
