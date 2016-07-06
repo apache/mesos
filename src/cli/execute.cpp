@@ -158,6 +158,11 @@ public:
         "Docker image that follows the Docker CLI naming <image>:<tag>\n"
         "(i.e., ubuntu, busybox:latest).");
 
+    add(&framework_capabilities,
+        "framework_capabilities",
+        "Comma separated list of optional framework capabilities to enable.\n"
+        "(the only valid value is currently 'GPU_RESOURCES')");
+
     add(&containerizer,
         "containerizer",
         "Containerizer to be used (i.e., docker, mesos).",
@@ -232,6 +237,7 @@ public:
   bool checkpoint;
   Option<string> appc_image;
   Option<string> docker_image;
+  Option<std::set<string>> framework_capabilities;
   Option<JSON::Array> volumes;
   string containerizer;
   string role;
@@ -800,6 +806,32 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  // We set the TASK_KILLING_STATE capability by default.
+  vector<FrameworkInfo::Capability::Type> capabilities =
+    { FrameworkInfo::Capability::TASK_KILLING_STATE };
+
+  if (flags.framework_capabilities.isSome()) {
+    foreach (const string& capability, flags.framework_capabilities.get()) {
+      FrameworkInfo::Capability::Type type;
+
+      if (!FrameworkInfo::Capability::Type_Parse(capability, &type)) {
+        cerr << "Flags '--framework_capabilities'"
+                " specifes an unknown capability"
+                " '" << capability << "'" << endl;
+        return EXIT_FAILURE;
+      }
+
+      if (type != FrameworkInfo::Capability::GPU_RESOURCES) {
+        cerr << "Flags '--framework_capabilities'"
+                " specifes an unsupported capability"
+                " '" << capability << "'" << endl;
+        return EXIT_FAILURE;
+      }
+
+      capabilities.push_back(type);
+    }
+  }
+
   vector<Volume> volumes;
   if (flags.volumes.isSome()) {
     Try<RepeatedPtrField<Volume>> _volumes =
@@ -821,8 +853,9 @@ int main(int argc, char** argv)
   frameworkInfo.set_name("mesos-execute instance");
   frameworkInfo.set_role(flags.role);
   frameworkInfo.set_checkpoint(flags.checkpoint);
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::TASK_KILLING_STATE);
+  foreach (const FrameworkInfo::Capability::Type& capability, capabilities) {
+    frameworkInfo.add_capabilities()->set_type(capability);
+  }
 
   Option<Credential> credential = None();
 
