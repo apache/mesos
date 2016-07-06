@@ -1221,7 +1221,13 @@ Future<bool> MesosContainerizerProcess::isolate(
     const ContainerID& containerId,
     pid_t _pid)
 {
-  CHECK(containers_.contains(containerId));
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
+
+  if (containers_[containerId]->state == DESTROYING) {
+    return Failure("Container is currently being destroyed");
+  }
 
   containers_[containerId]->state = ISOLATING;
 
