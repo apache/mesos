@@ -275,83 +275,83 @@ TEST(JsonTest, ParseError)
 
 TEST(JsonTest, Find)
 {
-  JSON::Object object;
+  Try<JSON::Value> value = JSON::parse(
+      R"~(
+      {
+          "nested1": {
+            "nested2": {
+              "string": "string",
+              "integer": -1,
+              "double": -1.42,
+              "null": null,
+              "array": ["hello"]
+            }
+          }
+      })~");
 
-  JSON::Object nested1;
+  ASSERT_SOME(value);
+  ASSERT_TRUE(value->is<JSON::Object>());
 
-  JSON::Object nested2;
-  nested2.values["string"] = "string";
-  nested2.values["integer"] = -1;
-  nested2.values["double"] = -1.42;
-  nested2.values["null"] = JSON::Null();
+  JSON::Object object = value->as<JSON::Object>();
 
-  JSON::Array array;
-  array.values.push_back("hello");
+  EXPECT_NONE(object.find<JSON::String>("nested.nested.string"));
+  EXPECT_NONE(object.find<JSON::String>("nested1.nested2.none"));
 
-  nested2.values["array"] = array;
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array.foo"));
 
-  nested1.values["nested2"] = nested2;
-
-  object.values["nested1"] = nested1;
-
-  ASSERT_NONE(object.find<JSON::String>("nested.nested.string"));
-  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.none"));
-
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array.foo"));
-
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::String("string"),
       object.find<JSON::String>("nested1.nested2.string"));
 
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::Number(-1),
       object.find<JSON::Number>("nested1.nested2.integer"));
 
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::Number(-1.42),
       object.find<JSON::Number>("nested1.nested2.double"));
 
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::String("hello"),
       object.find<JSON::String>("nested1.nested2.array[0]"));
 
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array.[1]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[.1]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1.]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[]]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
-  ASSERT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[1"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array.[1]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[.1]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[1.]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[]]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[[]]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[[1]"));
+  EXPECT_ERROR(object.find<JSON::String>("nested1.nested2.array[1]]"));
 
   // Out of bounds is none.
-  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));
+  EXPECT_NONE(object.find<JSON::String>("nested1.nested2.array[1]"));
 
   // Null entries are found when looking for a matching type (Null or Value).
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::Null(),
       object.find<JSON::Null>("nested1.nested2.null"));
-  ASSERT_SOME_EQ(
+  EXPECT_SOME_EQ(
       JSON::Null(),
       object.find<JSON::Value>("nested1.nested2.null"));
 
   // Null entries are not found when looking for non-null finds.
-  ASSERT_NONE(object.find<JSON::String>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::Number>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::Object>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::Array>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::True>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::False>("nested1.nested2.null"));
-  ASSERT_NONE(object.find<JSON::Boolean>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::String>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::Number>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::Object>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::Array>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::True>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::False>("nested1.nested2.null"));
+  EXPECT_NONE(object.find<JSON::Boolean>("nested1.nested2.null"));
 
   // Also test getting JSON::Value when you don't know the type.
-  ASSERT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
+  EXPECT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
 }
 
 
