@@ -79,7 +79,7 @@ This guide describes the process of doing an official release of Mesos.
       `Target Version` set but not `Fix Version`. Also check for any Unresolved
       or `Duplicate`/`Invalid` tickets that incorrectly set the `Fix Version`.
 
-3. If not already done, update and commit `configure.ac` for the release.
+3. If not already done, update and commit `configure.ac` and `CMakeLists.txt` for the release.
 
 4. Run `support/generate-endpoint-help.py` and commit any resulting changes.
 
