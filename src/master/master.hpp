@@ -1489,6 +1489,9 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<mesos::master::Response::GetFrameworks> _getFrameworks(
+        const Option<std::string>& principal) const;
+
     process::Future<process::http::Response> getExecutors(
         const mesos::master::Call& call,
         const Option<std::string>& principal,

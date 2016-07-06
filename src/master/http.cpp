@@ -1346,6 +1346,22 @@ Future<Response> Master::Http::getFrameworks(
 {
   CHECK_EQ(mesos::master::Call::GET_FRAMEWORKS, call.type());
 
+  return _getFrameworks(principal)
+    .then([contentType](
+        const mesos::master::Response::GetFrameworks& getFrameworks)
+          -> Future<Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_FRAMEWORKS);
+      response.mutable_get_frameworks()->CopyFrom(getFrameworks);
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
+}
+
+
+Future<mesos::master::Response::GetFrameworks> Master::Http::_getFrameworks(
+    const Option<string>& principal) const
+{
   // Retrieve `ObjectApprover`s for authorizing frameworks.
   Future<Owned<ObjectApprover>> frameworksApprover;
 
@@ -1364,9 +1380,9 @@ Future<Response> Master::Http::getFrameworks(
 
   return frameworksApprover
     .then(defer(master->self(),
-        [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_FRAMEWORKS);
+        [=](const Owned<ObjectApprover>& frameworksApprover)
+          -> Future<mesos::master::Response::GetFrameworks> {
+      mesos::master::Response::GetFrameworks getFrameworks;
 
       foreachvalue (const Framework* framework,
                     master->frameworks.registered) {
@@ -1375,8 +1391,7 @@ Future<Response> Master::Http::getFrameworks(
           continue;
         }
 
-        response.mutable_get_frameworks()->add_frameworks()
-            ->CopyFrom(model(*framework));
+        getFrameworks.add_frameworks()->CopyFrom(model(*framework));
       }
 
       foreach (const std::shared_ptr<Framework>& framework,
@@ -1386,21 +1401,19 @@ Future<Response> Master::Http::getFrameworks(
           continue;
         }
 
-        response.mutable_get_frameworks()->add_completed_frameworks()
-            ->CopyFrom(model(*framework));
+        getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework));
       }
 
       foreachvalue (const Slave* slave, master->slaves.registered) {
         foreachkey (const FrameworkID& frameworkId, slave->tasks) {
           if (!master->frameworks.registered.contains(frameworkId)) {
-            response.mutable_get_frameworks()->add_unsubscribed_frameworks()
+            getFrameworks.add_unsubscribed_frameworks()
                 ->set_value(frameworkId.value());
           }
         }
       }
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return getFrameworks;
     }));
 }
 
