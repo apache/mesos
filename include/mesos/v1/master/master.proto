@@ -270,8 +270,13 @@ message Response {
     repeated bytes data = 1;
   }
 
+  // Contains full state of the master i.e. information about the tasks,
+  // agents, frameworks and executors running in the cluster.
   message GetState {
-    // TODO(vinod): Fill in the fields.
+    optional GetTasks get_tasks = 1;
+    optional GetExecutors get_executors = 2;
+    optional GetFrameworks get_frameworks = 3;
+    optional GetAgents get_agents = 4;
   }
 
   message GetStateSummary {
