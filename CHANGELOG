@@ -103,9 +103,16 @@ This release contains the following new features:
   * [MESOS-4189] - Weights for resource roles can now be configured dynamically
     via the new '/weights' endpoint on the master.
 
-  * [MESOS-4424] - **Experimental** limited support for using Nvidia GPU as a
-    resource. This initial support works when there is no container filesystem
-    isolation in use. Improvements to the support to come in future releases.
+  * [MESOS-4424] - Support for using Nvidia GPUs as a resource in the
+    Mesos "unified" containerizer. This support includes running containers
+    with and without filesystem isolation (i.e. running both imageless
+    containers as well as containers using a docker image). Frameworks must
+    opt-in to receiving GPU resources via the GPU_RESOURCES framework
+    capability (see the scarce resource problem in MESOS-5377). We support
+    'nvidia-docker'-style docker containers by injecting a volume that
+    contains the Nvidia libraries / binaries when the docker image has
+    the 'com.nvidia.volumes.needed' label. Support for the docker
+    containerizer will come in a future release.
 
   * [MESOS-5724] - SSL certificate validation allows for additional IP address
     subject alternative name extension verification.
