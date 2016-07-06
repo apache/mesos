@@ -548,7 +548,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 
 // This test verifies that when the slave re-registers, we correctly
 // send the information about actively running frameworks.
-TEST_F(MasterSlaveReconciliationTest, SlaveReregisterActiveFrameworks)
+TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
