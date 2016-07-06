@@ -1854,6 +1854,171 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
   }
 }
 
+
+// This test verifies that authorization based endpoint filtering
+// works correctly on the /state endpoint with orphaned tasks.
+// Both default users are allowed to to view high level frameworks, but only
+// one is allowed to view the tasks.
+TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
+{
+  ACLs acls;
+
+  {
+    // Default principal can see all frameworks.
+    mesos::ACL::ViewFramework* acl = acls.add_view_frameworks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // Second default principal can see all frameworks.
+    mesos::ACL::ViewFramework* acl = acls.add_view_frameworks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_users()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // No other principal can see frameworks running under any user.
+    ACL::ViewFramework* acl = acls.add_view_frameworks();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_users()->set_type(ACL::Entity::NONE);
+  }
+
+  {
+    // Default principal can see all executors.
+    mesos::ACL::ViewExecutor* acl = acls.add_view_executors();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // No other principal can see executors running under any user.
+    ACL::ViewExecutor* acl = acls.add_view_executors();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_users()->set_type(ACL::Entity::NONE);
+  }
+
+  {
+    // Default principal can see all tasks.
+    mesos::ACL::ViewTask* acl = acls.add_view_tasks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // No other principal can see tasks running under any user.
+    ACL::ViewTask* acl = acls.add_view_tasks();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_users()->set_type(ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(authorizer.get());
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(
+      &detector, &containerizer);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&statusUpdate));    // TASK_RUNNING.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  // Send an update right away.
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+    // Wait until TASK_RUNNING of the task is received.
+  AWAIT_READY(statusUpdate);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // The master failover.
+  master->reset();
+  master = this->StartMaster(authorizer.get());
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected event to the slave.
+  detector.appoint(master.get()->pid);
+
+  // The framework will not re-register with the new master as the
+  // scheduler is bound to the old master pid.
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  const string stateEndpoint = "state";
+
+  // Retrieve endpoint with the user allowed to view the framework and
+  // tasks.
+  {
+    Future<Response> response = http::get(
+        master.get()->pid,
+        stateEndpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object tasks = parse.get();
+    ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
+    EXPECT_EQ(1u, tasks.values["orphan_tasks"].as<JSON::Array>().values.size());
+  }
+
+  // Retrieve endpoint with the user allowed to view the framework,
+  // but not the tasks.
+  {
+    Future<Response> response = http::get(
+        master.get()->pid,
+        stateEndpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object tasks = parse.get();
+    ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
+    EXPECT_TRUE(tasks.values["orphan_tasks"].as<JSON::Array>().values.empty());
+  }
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
