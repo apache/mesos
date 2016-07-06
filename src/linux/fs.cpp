@@ -21,6 +21,8 @@
 #include <linux/limits.h>
 #include <linux/unistd.h>
 
+#include <list>
+
 #include <stout/adaptor.hpp>
 #include <stout/check.hpp>
 #include <stout/error.hpp>
@@ -37,6 +39,7 @@
 
 #include "linux/fs.hpp"
 
+using std::list;
 using std::string;
 using std::vector;
 
@@ -512,8 +515,26 @@ Try<Nothing> createStandardDevices(const string& root)
     "zero"
   };
 
+  // Glob all Nvidia GPU devices on the system and add them to the
+  // list of devices injected into the chroot environment.
+  //
+  // TODO(klueska): Only inject these devices if the 'gpu/nvidia'
+  // isolator is enabled.
+  Try<list<string>> nvidia = os::glob("/dev/nvidia*");
+  if (nvidia.isError()) {
+    return Error("Failed to glob /dev/nvidia* on the host filesystem:"
+                 " " + nvidia.error());
+  }
+
+  foreach (const string& device, nvidia.get()) {
+    if (os::exists(device)) {
+      devices.push_back(Path(device).basename());
+    }
+  }
+
+  // Inject each device into the chroot environment. Copy both the
+  // mode and the device itself from the corresponding host device.
   foreach (const string& device, devices) {
-    // Copy the mode and device from the corresponding host device.
     Try<Nothing> copy = copyDeviceNode(
         path::join("/",  "dev", device),
         path::join(root, "dev", device));
