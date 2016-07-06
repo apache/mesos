@@ -663,6 +663,9 @@ private:
   // Indicates if a new authentication attempt should be enforced.
   bool reauthenticate;
 
+  // Indicates the number of failed authentication attempts.
+  uint64_t failedAuthentications;
+
   // Maximum age of executor directories. Will be recomputed
   // periodically every flags.disk_watch_interval.
   Duration executorDirectoryMaxAllowedAge;

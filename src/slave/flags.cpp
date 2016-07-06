@@ -230,9 +230,19 @@ mesos::internal::slave::Flags::Flags()
       "Subsequent retries are exponentially backed off based on this\n"
       "interval (e.g., 1st retry uses a random value between `[0, b * 2^1]`,\n"
       "2nd retry between `[0, b * 2^2]`, 3rd retry between `[0, b * 2^3]`,\n"
-      "etc) up to a maximum of " +
-        stringify(REGISTER_RETRY_INTERVAL_MAX),
+      "etc) up to a maximum of " + stringify(REGISTER_RETRY_INTERVAL_MAX),
       DEFAULT_REGISTRATION_BACKOFF_FACTOR);
+
+  add(&Flags::authentication_backoff_factor,
+      "authentication_backoff_factor",
+      "After a failed authentication the agent picks a random amount of time\n"
+      "between `[0, b]`, where `b = authentication_backoff_factor`, to\n"
+      "authenticate with a new master. Subsequent retries are exponentially\n"
+      "backed off based on this interval (e.g., 1st retry uses a random\n"
+      "value between `[0, b * 2^1]`, 2nd retry between `[0, b * 2^2]`, 3rd\n"
+      "retry between `[0, b * 2^3]`, etc up to a maximum of " +
+          stringify(AUTHENTICATION_RETRY_INTERVAL_MAX),
+      DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
 
   add(&Flags::executor_environment_variables,
       "executor_environment_variables",

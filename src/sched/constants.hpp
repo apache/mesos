@@ -38,6 +38,14 @@ constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 // registration.
 constexpr Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 
+// The maximum interval the scheduler driver waits before retrying
+// authentication.
+constexpr Duration AUTHENTICATION_RETRY_INTERVAL_MAX = Minutes(1);
+
+// Default backoff interval used by the scheduler to wait after failed
+// authentication.
+constexpr Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
+
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 

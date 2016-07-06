@@ -19,6 +19,7 @@
 #include <stdlib.h> // For random().
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <list>
 #include <map>
@@ -165,6 +166,7 @@ Slave::Slave(const std::string& id,
     authenticating(None()),
     authenticated(false),
     reauthenticate(false),
+    failedAuthentications(0),
     executorDirectoryMaxAllowedAge(age(0)),
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
@@ -978,11 +980,8 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 
     if (credential.isSome()) {
       // Authenticate with the master.
-      // TODO(vinod): Do a backoff for authentication similar to what
-      // we do for registration. This is a little tricky because, if
-      // we delay 'Slave::authenticate' and a new master is detected
-      // before 'authenticate' event is processed the slave tries to
-      // authenticate with the new master twice.
+      // TODO(adam-mesos): Consider adding an initial delay like we do
+      // for registration, to combat thundering herds on master failover.
       // TODO(vinod): Consider adding an "AUTHENTICATED" state to the
       // slave instead of "authenticate" variable.
       authenticate();
@@ -1093,8 +1092,24 @@ void Slave::_authenticate()
     authenticating = None();
     reauthenticate = false;
 
+    ++failedAuthentications;
+
+    // Backoff.
+    // The backoff is a random duration in the interval [0, b * 2^N)
+    // where `b = authentication_backoff_factor` and `N` the number
+    // of failed authentication attempts. It is capped by
+    // `REGISTER_RETRY_INTERVAL_MAX`.
+    Duration backoff =
+      flags.authentication_backoff_factor * std::pow(2, failedAuthentications);
+    backoff = std::min(backoff, AUTHENTICATION_RETRY_INTERVAL_MAX);
+
+    // Determine the delay for next attempt by picking a random
+    // duration between 0 and 'maxBackoff'.
+    // TODO(vinod): Use random numbers from <random> header.
+    backoff *= double(os::random()) / RAND_MAX;
+
     // TODO(vinod): Add a limit on number of retries.
-    dispatch(self(), &Self::authenticate); // Retry.
+    delay(backoff, self(), &Self::authenticate); // Retry.
     return;
   }
 
@@ -1109,6 +1124,8 @@ void Slave::_authenticate()
 
   authenticated = true;
   authenticating = None();
+
+  failedAuthentications = 0;
 
   // Proceed with registration.
   doReliableRegistration(flags.registration_backoff_factor * 2);

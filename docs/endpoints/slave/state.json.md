@@ -45,6 +45,7 @@ Example (**Note**: this is not exhaustive):
     "frameworks" : [],
     "completed_frameworks" : [],
     "flags" : {
+         "authentication_backoff_factor": "1secs",
          "gc_disk_headroom" : "0.1",
          "isolation" : "posix/cpu,posix/mem",
          "containerizers" : "mesos",

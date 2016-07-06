@@ -966,6 +966,20 @@ load an alternate authenticatee module using <code>--modules</code>. (default: c
 </tr>
 <tr>
   <td>
+    --authentication_backoff_factor=VALUE
+  </td>
+  <td>
+After a failed authentication the agent picks a random amount of time between
+<code>[0, b]</code>, where <code>b = authentication_backoff_factor</code>, to
+authenticate with a new master. Subsequent retries are exponentially backed
+off based on this interval (e.g., 1st retry uses a random value between
+<code>[0, b * 2^1]</code>, 2nd retry between <code>[0, b * 2^2]</code>, 3rd
+retry between <code>[0, b * 2^3]</code>, etc up to a maximum of 1mins
+(default: 1secs)
+  </td>
+</tr>
+<tr>
+  <td>
     --authorizer=VALUE
   </td>
   <td>

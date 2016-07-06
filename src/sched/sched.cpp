@@ -23,12 +23,13 @@
 
 #include <arpa/inet.h>
 
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
@@ -219,7 +220,8 @@ public:
       authenticatee(nullptr),
       authenticating(None()),
       authenticated(false),
-      reauthenticate(false)
+      reauthenticate(false),
+      failedAuthentications(0)
   {
     LOG(INFO) << "Version: " << MESOS_VERSION;
   }
@@ -331,8 +333,8 @@ protected:
 #ifdef HAS_AUTHENTICATION
       if (credential.isSome()) {
         // Authenticate with the master.
-        // TODO(vinod): Do a backoff for authentication similar to what
-        // we do for registration.
+        // TODO(adam-mesos): Consider adding an initial delay like we do for
+        // slave registration, to combat thundering herds on master failover.
         authenticate();
       } else {
         // Proceed with registration without authentication.
@@ -469,8 +471,24 @@ protected:
       authenticating = None();
       reauthenticate = false;
 
+      ++failedAuthentications;
+
+      // Backoff.
+      // The backoff is a random duration in the interval [0, b * 2^N)
+      // where `b = authentication_backoff_factor` and `N` the number
+      // of failed authentication attempts. It is capped by
+      // `REGISTER_RETRY_INTERVAL_MAX`.
+      Duration backoff = flags.authentication_backoff_factor *
+                         std::pow(2, failedAuthentications);
+      backoff = std::min(backoff, scheduler::AUTHENTICATION_RETRY_INTERVAL_MAX);
+
+      // Determine the delay for next attempt by picking a random
+      // duration between 0 and 'maxBackoff'.
+      // TODO(vinod): Use random numbers from <random> header.
+      backoff *= double(os::random()) / RAND_MAX;
+
       // TODO(vinod): Add a limit on number of retries.
-      dispatch(self(), &Self::authenticate); // Retry.
+      delay(backoff, self(), &Self::authenticate);
       return;
     }
 
@@ -486,6 +504,8 @@ protected:
 
     authenticated = true;
     authenticating = None();
+
+    failedAuthentications = 0;
 
     doReliableRegistration(flags.registration_backoff_factor);
   }
@@ -1644,6 +1664,9 @@ private:
 
   // Indicates if a new authentication attempt should be enforced.
   bool reauthenticate;
+
+  // Indicates the number of failed authentication attempts.
+  uint64_t failedAuthentications;
 };
 
 } // namespace internal {

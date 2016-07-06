@@ -36,6 +36,15 @@ class Flags : public logging::Flags
 public:
   Flags()
   {
+    add(&Flags::authentication_backoff_factor,
+        "authentication_backoff_factor",
+        "Scheduler driver authentication retries are exponentially backed\n"
+        "off based on 'b', the authentication backoff factor (e.g., 1st retry\n"
+        "uses a random value between `[0, b * 2^1]`, 2nd retry between\n"
+        "`[0, b * 2^2]`, 3rd retry between `[0, b * 2^3]`, etc up to a\n"
+        "maximum of " + stringify(AUTHENTICATION_RETRY_INTERVAL_MAX),
+        DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
+
     add(&Flags::registration_backoff_factor,
         "registration_backoff_factor",
         "Scheduler driver (re-)registration retries are exponentially backed\n"
@@ -111,6 +120,7 @@ public:
         DEFAULT_AUTHENTICATEE);
   }
 
+  Duration authentication_backoff_factor;
   Duration registration_backoff_factor;
   Option<Modules> modules;
   Option<std::string> modulesDir;
