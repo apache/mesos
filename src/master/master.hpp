@@ -1388,8 +1388,7 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<mesos::master::Response::GetAgents> _getAgents(
-        const Option<std::string>& principal) const;
+    mesos::master::Response::GetAgents _getAgents() const;
 
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
@@ -1461,8 +1460,9 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<mesos::master::Response::GetTasks> _getTasks(
-        const Option<std::string>& principal) const;
+    mesos::master::Response::GetTasks _getTasks(
+        const process::Owned<ObjectApprover>& frameworksApprover,
+        const process::Owned<ObjectApprover>& tasksApprover) const;
 
     process::Future<process::http::Response> createVolumes(
         const mesos::master::Call& call,
@@ -1489,24 +1489,32 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<mesos::master::Response::GetFrameworks> _getFrameworks(
-        const Option<std::string>& principal) const;
+    mesos::master::Response::GetFrameworks _getFrameworks(
+        const process::Owned<ObjectApprover>& frameworksApprover) const;
 
     process::Future<process::http::Response> getExecutors(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<mesos::master::Response::GetExecutors> _getExecutors(
-        const Option<std::string>& principal) const;
+    mesos::master::Response::GetExecutors _getExecutors(
+        const process::Owned<ObjectApprover>& frameworksApprover,
+        const process::Owned<ObjectApprover>& executorsApprover) const;
 
     process::Future<process::http::Response> getState(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<mesos::master::Response::GetState> _getState(
-        const Option<std::string>& principal) const;
+    mesos::master::Response::GetState _getState(
+        const process::Owned<ObjectApprover>& frameworksApprover,
+        const process::Owned<ObjectApprover>& taskApprover,
+        const process::Owned<ObjectApprover>& executorsApprover) const;
+
+    process::Future<process::http::Response> subscribe(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
 
     Master* master;
 
