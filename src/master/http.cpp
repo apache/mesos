@@ -1425,6 +1425,23 @@ Future<Response> Master::Http::getExecutors(
 {
   CHECK_EQ(mesos::master::Call::GET_EXECUTORS, call.type());
 
+  return _getExecutors(principal)
+    .then(
+      [contentType](const mesos::master::Response::GetExecutors& getExecutors)
+        -> Future<Response> {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_EXECUTORS);
+      response.mutable_get_executors()->CopyFrom(getExecutors);
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
+}
+
+
+Future<mesos::master::Response::GetExecutors> Master::Http::_getExecutors(
+    const Option<std::string>& principal) const
+{
   // Retrieve `ObjectApprover`s for authorizing frameworks and executors.
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
@@ -1448,7 +1465,7 @@ Future<Response> Master::Http::getExecutors(
     .then(defer(master->self(),
         [=](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers)
-          -> Response {
+          -> Future<mesos::master::Response::GetExecutors> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> executorsApprover;
@@ -1475,11 +1492,7 @@ Future<Response> Master::Http::getExecutors(
         frameworks.push_back(framework.get());
       }
 
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_EXECUTORS);
-
-      mesos::master::Response::GetExecutors* getExecutors =
-        response.mutable_get_executors();
+      mesos::master::Response::GetExecutors getExecutors;
 
       foreach (const Framework* framework, frameworks) {
         foreachpair (const SlaveID& slaveId,
@@ -1494,7 +1507,7 @@ Future<Response> Master::Http::getExecutors(
             }
 
             mesos::master::Response::GetExecutors::Executor* executor =
-              getExecutors->add_executors();
+              getExecutors.add_executors();
 
             executor->mutable_executor_info()->CopyFrom(info);
             executor->mutable_slave_id()->CopyFrom(slaveId);
@@ -1515,7 +1528,7 @@ Future<Response> Master::Http::getExecutors(
           foreachvalue (const ExecutorInfo& info, executors) {
             if (!master->frameworks.registered.contains(frameworkId)) {
               mesos::master::Response::GetExecutors::Executor* executor =
-                getExecutors->add_orphan_executors();
+                getExecutors.add_orphan_executors();
 
               executor->mutable_executor_info()->CopyFrom(info);
               executor->mutable_slave_id()->CopyFrom(slave->id);
@@ -1524,8 +1537,7 @@ Future<Response> Master::Http::getExecutors(
         }
       }
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return getExecutors;
     }));
 }
 
