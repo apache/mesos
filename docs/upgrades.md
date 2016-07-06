@@ -272,6 +272,7 @@ We categorize the changes as follows:
 * Mesos 1.0 introduces authorization support for several HTTP endpoints. Note that some of these endpoints are used by the web UI, and thus using the web UI in a cluster with authorization enabled will require that ACLs be set appropriately. Please refer to the [authorization documentation](authorization.md) for details.
 
 * The endpoints with coarse grained authorization enabled are:
+  - `/files/debug`
   - `/logging/toggle`
   - `/metrics/snapshot`
   - `/slave(id)/containers`

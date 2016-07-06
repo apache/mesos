@@ -53,11 +53,15 @@
 
 #include <stout/os/constants.hpp>
 
+#include "common/http.hpp"
+
 #include "files/files.hpp"
 
 #include "logging/logging.hpp"
 
 using namespace process;
+
+using mesos::Authorizer;
 
 using process::AUTHENTICATION;
 using process::AUTHORIZATION;
@@ -71,8 +75,6 @@ using process::http::Forbidden;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
-using process::http::Response;
-using process::http::Request;
 
 using std::list;
 using std::map;
@@ -82,10 +84,14 @@ using std::vector;
 namespace mesos {
 namespace internal {
 
+using process::http::Response;
+using process::http::Request;
+
 class FilesProcess : public Process<FilesProcess>
 {
 public:
-  FilesProcess(const Option<string>& _authenticationRealm);
+  FilesProcess(const Option<string>& _authenticationRealm,
+               const Option<Authorizer*>& _authorizer);
 
   // Files implementation.
   Future<Nothing> attach(
@@ -166,12 +172,19 @@ private:
   // The authentication realm, if any, into which this process'
   // endpoints will be installed.
   Option<string> authenticationRealm;
+
+  // FilesProcess needs an authorizer object to add authorization in
+  // `/files/debug` endpoint.
+  Option<Authorizer*> authorizer;
 };
 
 
-FilesProcess::FilesProcess(const Option<string>& _authenticationRealm)
+FilesProcess::FilesProcess(
+    const Option<string>& _authenticationRealm,
+    const Option<Authorizer*>& _authorizer)
   : ProcessBase("files"),
-    authenticationRealm(_authenticationRealm) {}
+    authenticationRealm(_authenticationRealm),
+    authorizer(_authorizer) {}
 
 
 void FilesProcess::initialize()
@@ -691,18 +704,35 @@ const string FilesProcess::DEBUG_HELP = HELP(
     DESCRIPTION(
         "This endpoint shows the internal virtual path map as a",
         "JSON object."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The request principal should be authorized to query this endpoint.",
+        "See the authorization documentation for details."));
 
 
 Future<Response> FilesProcess::debug(
     const Request& request,
-    const Option<string>& /* principal */)
+    const Option<string>&  principal )
 {
   JSON::Object object;
   foreachpair (const string& name, const string& path, paths) {
     object.values[name] = path;
   }
-  return OK(object, request.url.query.get("jsonp"));
+
+  const Option<string>& jsonp = request.url.query.get("jsonp");
+
+  return authorizeEndpoint(
+      request.url.path,
+      request.method,
+      authorizer,
+      principal)
+    .then(defer([object, jsonp](bool authorized) -> Future<Response> {
+          if (!authorized) {
+            return Forbidden();
+          }
+
+          return OK(object, jsonp);
+        }));
 }
 
 
@@ -774,9 +804,10 @@ Result<string> FilesProcess::resolve(const string& path)
 }
 
 
-Files::Files(const Option<string>& authenticationRealm)
+Files::Files(const Option<string>& authenticationRealm,
+             const Option<Authorizer*>& authorizer)
 {
-  process = new FilesProcess(authenticationRealm);
+  process = new FilesProcess(authenticationRealm, authorizer);
   spawn(process);
 }
 

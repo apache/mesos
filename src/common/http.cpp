@@ -71,9 +71,11 @@ ostream& operator<<(ostream& stream, ContentType contentType)
 namespace internal {
 
 // Set of endpoint whose access is protected with the authorization
-// action `GET_EDNPOINTS_WITH_PATH`.
+// action `GET_ENDPOINTS_WITH_PATH`.
 hashset<string> AUTHORIZABLE_ENDPOINTS{
     "/containers",
+    "/files/debug",
+    "/files/debug.json",
     "/logging/toggle",
     "/metrics/snapshot",
     "/monitor/statistics",

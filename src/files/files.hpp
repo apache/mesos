@@ -29,6 +29,8 @@
 
 #include <string>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <process/future.hpp>
 #include <process/http.hpp>
 
@@ -59,7 +61,8 @@ class FilesProcess;
 class Files
 {
 public:
-  Files(const Option<std::string>& authenticationRealm = None());
+  Files(const Option<std::string>& authenticationRealm = None(),
+        const Option<mesos::Authorizer*>& authorizer = None());
   ~Files();
 
   // Returns the result of trying to attach the specified path

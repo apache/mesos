@@ -437,8 +437,6 @@ int main(int argc, char** argv)
   Registrar* registrar =
     new Registrar(flags, state, DEFAULT_HTTP_AUTHENTICATION_REALM);
 
-  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
-
   MasterContender* contender;
   MasterDetector* detector;
 
@@ -505,6 +503,8 @@ int main(int argc, char** argv)
     process::http::authorization::setCallbacks(
         createAuthorizationCallbacks(authorizer_.get()));
   }
+
+  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM, authorizer_);
 
   Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
   if (flags.agent_removal_rate_limit.isSome()) {

@@ -269,6 +269,7 @@ entries, each representing an authorizable action:
 
 The `get_endpoints` action covers:
 
+* `/files/debug`
 * `/logging/toggle`
 * `/metrics/snapshot`
 * `/slave(id)/containers`

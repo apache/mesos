@@ -405,7 +405,7 @@ int main(int argc, char** argv)
         createAuthorizationCallbacks(authorizer_.get()));
   }
 
-  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM);
+  Files files(DEFAULT_HTTP_AUTHENTICATION_REALM, authorizer_);
   GarbageCollector gc;
   StatusUpdateManager statusUpdateManager(flags);
 
