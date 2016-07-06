@@ -392,7 +392,7 @@ elseif (WIN32)
   # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
   set(
     ZOOKEEPER_PATCH_CMD
-    ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
+    ${PATCHEXE_LOCATION} --binary -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
 
   VS_BUILD_CMD(
     ZOOKEEPER
