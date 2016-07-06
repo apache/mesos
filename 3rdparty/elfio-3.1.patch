@@ -1,7 +1,8 @@
+Binary files elfio-3.1/elfio/.elfio_note.hpp.swp and elfio-3.1-repo/elfio/.elfio_note.hpp.swp differ
 diff -ruN elfio-3.1/elfio/elfio_note.hpp elfio-3.1-repo/elfio/elfio_note.hpp
 --- elfio-3.1/elfio/elfio_note.hpp	2016-04-23 07:58:34.000000000 -0700
-+++ elfio-3.1-repo/elfio/elfio_note.hpp	2016-07-02 10:32:59.165999433 -0700
-@@ -66,15 +66,12 @@
++++ elfio-3.1-repo/elfio/elfio_note.hpp	2016-07-05 14:05:12.524951042 -0700
+@@ -66,7 +66,7 @@
               namesz + descSize > max_name_size ) {
              return false;
          }
@@ -10,12 +11,16 @@ diff -ruN elfio-3.1/elfio/elfio_note.hpp elfio-3.1-repo/elfio/elfio_note.hpp
          if ( 0 == descSize ) {
              desc = 0;
          }
-         else {
--            int align = sizeof( Elf_Xword );
--            if ( elf_file.get_class() == ELFCLASS32 ) {
--                align = sizeof( Elf_Word );
--            }
-+            int align = sizeof( Elf_Word );
-             desc = const_cast<char*> ( pData + 3*sizeof( Elf_Word ) +
-                                        ( ( namesz + align - 1 ) / align ) * align );
+@@ -75,8 +75,10 @@
+             if ( elf_file.get_class() == ELFCLASS32 ) {
+                 align = sizeof( Elf_Word );
+             }
+-            desc = const_cast<char*> ( pData + 3*sizeof( Elf_Word ) +
+-                                       ( ( namesz + align - 1 ) / align ) * align );
++
++            size_t offset = ( ( 3*sizeof( Elf_Word ) + namesz + align - 1 ) / align ) * align;
++
++            desc = const_cast<char*> (pData + offset);
          }
+ 
+         return true;
