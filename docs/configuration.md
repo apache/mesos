@@ -242,6 +242,7 @@ Example:
     }
   ]
 }</code></pre>
+<p/> Cannot be used in conjunction with --modules_dir.
   </td>
 </tr>
 </table>
@@ -458,7 +459,9 @@ Example:
 </tr>
 <tr>
   <td>
-    --agent_ping_timeout=VALUE
+    --agent_ping_timeout=VALUE,
+    <p/>
+    --slave_ping_timeout=VALUE
   </td>
   <td>
 The timeout within which each agent is expected to respond to a
@@ -473,6 +476,8 @@ session timeout to prevent useless re-registration attempts.
 <tr>
   <td>
     --agent_removal_rate_limit=VALUE
+    <p/>
+    --slave_removal_rate_limit=VALUE
   </td>
   <td>
 The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc) at which agents
@@ -484,6 +489,8 @@ checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
 <tr>
   <td>
     --agent_reregister_timeout=VALUE
+    <p/>
+    --slave_reregister_timeout=VALUE
   </td>
   <td>
 The timeout within which all agents are expected to re-register
@@ -515,7 +522,9 @@ load an alternate allocator module using <code>--modules</code>.
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_agents
+    --[no-]authenticate_agents,
+    <p/>
+    --[no-]authenticate_slaves
   </td>
   <td>
 If <code>true</code> only authenticated agents are allowed to register.
@@ -524,7 +533,9 @@ If <code>false</code> unauthenticated agents are also allowed to register. (defa
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_frameworks
+    --[no-]authenticate_frameworks,
+    <p/>
+    --[no-]authenticate
   </td>
   <td>
 If <code>true</code>, only authenticated frameworks are allowed to register. If
@@ -538,9 +549,7 @@ HTTP based frameworks use the <code>--authenticate_http_frameworks</code> flag. 
   </td>
   <td>
 If <code>true</code>, only authenticated HTTP based frameworks are allowed to
-register. If <code>false</code>, HTTP frameworks are not authenticated. For more
-about HTTP frameworks see the Scheduler HTTP API
-<a href="/documentation/latest/scheduler-http-api">documentation</a>. (default: false)
+register. If <code>false</code>, HTTP frameworks are not authenticated. (default: false)
   </td>
 </tr>
 <tr>
@@ -666,7 +675,9 @@ conjunction with <code>--zk</code>. Must be used in conjunction with
 </tr>
 <tr>
   <td>
-    --max_agent_ping_timeouts=VALUE
+    --max_agent_ping_timeouts=VALUE,
+    <p/>
+    --max_slave_ping_timeouts=VALUE
   </td>
   <td>
 The number of times a agent can fail to respond to a
@@ -733,7 +744,9 @@ Example:
 </tr>
 <tr>
   <td>
-    --recovery_agent_removal_limit=VALUE
+    --recovery_agent_removal_limit=VALUE,
+    <p/>
+    --recovery_slave_removal_limit=VALUE
   </td>
   <td>
 For failovers, limit on the percentage of agents that can be removed
@@ -876,7 +889,9 @@ ZooKeeper session timeout. (default: 10secs)
   </thead>
 <tr>
   <td>
-    --max_executors_per_agent=VALUE
+    --max_executors_per_agent=VALUE,
+    <p/>
+     --max_executors_per_slave=VALUE
   </td>
   <td>
 Maximum number of executors allowed per agent. The network
@@ -971,7 +986,9 @@ Example:
 </tr>
 <tr>
   <td>
-    --agent_subsystems=VALUE
+    --agent_subsystems=VALUE,
+    <p/>
+    --slave_subsystems=VALUE
   </td>
   <td>
 List of comma-separated cgroup subsystems to run the agent binary
@@ -1508,8 +1525,7 @@ Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
 Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
 <code>cgroups/cpu,cgroups/mem</code>, or network/port_mapping
 (configure with flag: <code>--with-network-isolator</code> to enable),
-or `cgroups/devices/gpus/nvidia` for nvidia specific gpu isolation
-(configure with flag: `--enable-nvidia-gpu-support` to enable),
+or `gpu/nvidia` for nvidia specific gpu isolation,
 or <code>external</code>, or load an alternate isolator module using
 the <code>--modules</code> flag. Note that this flag is only relevant
 for the Mesos Containerizer. (default: posix/cpu,posix/mem)
@@ -1558,8 +1574,7 @@ be made available. The devices should be listed as numbers that
 correspond to Nvidia's NVML device enumeration (as seen by running the
 command `nvidia-smi` on an Nvidia GPU equipped system). The GPUs
 listed will only be isolated if the `--isolation` flag contains the
-string `cgroups/devices/gpus/nvidia`. This flag will only work if
-mesos has been configured with `--enable-nvidia-gpu-support`.
+string `gpu/nvidia`.
   </td>
 </tr>
 <tr>
