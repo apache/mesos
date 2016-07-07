@@ -32,10 +32,13 @@
 #include <process/http.hpp>
 #include <process/pid.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
+
+#include <stout/os/permissions.hpp>
 
 #include "common/http.hpp"
 
@@ -386,6 +389,65 @@ JSON::Object model(const ExecutorInfo& executorInfo)
   return object;
 }
 
+
+// Returns JSON representation of a FileInfo protobuf message.
+// Example JSON:
+// {
+//   'path': '\/some\/file',
+//   'mode': '-rwxrwxrwx',
+//   'nlink': 5,
+//   'uid': 'bmahler',
+//   'gid': 'employee',
+//   'size': 4096,           // Bytes.
+//   'mtime': 1348258116,    // Unix timestamp.
+// }
+JSON::Object model(const FileInfo& fileInfo)
+{
+  JSON::Object file;
+  file.values["path"] = fileInfo.path();
+  file.values["nlink"] = fileInfo.nlink();
+  file.values["size"] = fileInfo.size();
+  file.values["mtime"] = Nanoseconds(fileInfo.mtime().nanoseconds()).secs();
+
+  char filetype;
+  if (S_ISREG(fileInfo.mode())) {
+    filetype = '-';
+  } else if (S_ISDIR(fileInfo.mode())) {
+    filetype = 'd';
+  } else if (S_ISCHR(fileInfo.mode())) {
+    filetype = 'c';
+  } else if (S_ISBLK(fileInfo.mode())) {
+    filetype = 'b';
+  } else if (S_ISFIFO(fileInfo.mode())) {
+    filetype = 'p';
+  } else if (S_ISLNK(fileInfo.mode())) {
+    filetype = 'l';
+  } else if (S_ISSOCK(fileInfo.mode())) {
+    filetype = 's';
+  } else {
+    filetype = '-';
+  }
+
+  struct os::Permissions permissions(fileInfo.mode());
+
+  file.values["mode"] = strings::format(
+      "%c%c%c%c%c%c%c%c%c%c",
+      filetype,
+      permissions.owner.r ? 'r' : '-',
+      permissions.owner.w ? 'w' : '-',
+      permissions.owner.x ? 'x' : '-',
+      permissions.group.r ? 'r' : '-',
+      permissions.group.w ? 'w' : '-',
+      permissions.group.x ? 'x' : '-',
+      permissions.others.r ? 'r' : '-',
+      permissions.others.w ? 'w' : '-',
+      permissions.others.x ? 'x' : '-').get();
+
+  file.values["uid"] = fileInfo.uid();
+  file.values["gid"] = fileInfo.gid();
+
+  return file;
+}
 
 }  // namespace internal {
 

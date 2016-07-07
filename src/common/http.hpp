@@ -87,6 +87,7 @@ JSON::Object model(const CommandInfo& command);
 JSON::Object model(const ExecutorInfo& executorInfo);
 JSON::Array model(const Labels& labels);
 JSON::Object model(const Task& task);
+JSON::Object model(const FileInfo& fileInfo);
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 
