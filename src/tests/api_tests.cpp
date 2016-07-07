@@ -69,6 +69,7 @@ using process::Future;
 using process::Owned;
 
 using process::http::Accepted;
+using process::http::NotFound;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
@@ -776,6 +777,68 @@ TEST_P(MasterAPITest, SetLoggingLevel)
   // Verifies the logging level reverted successfully.
   ASSERT_EQ(originalLevel, static_cast<uint32_t>(FLAGS_v));
   Clock::resume();
+}
+
+
+// This test verifies if we can retrieve the file listing for a directory
+// in the master.
+TEST_P(MasterAPITest, ListFiles)
+{
+  Files files;
+
+  ASSERT_SOME(os::mkdir("1/2"));
+  ASSERT_SOME(os::mkdir("1/3"));
+  ASSERT_SOME(os::write("1/two", "two"));
+
+  AWAIT_EXPECT_READY(files.attach("1", "one"));
+
+  // Get the `FileInfo` for "1/two" file.
+  struct stat s;
+  ASSERT_EQ(0, stat("1/two", &s));
+  FileInfo file = protobuf::createFileInfo("one/two", s);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::LIST_FILES);
+  v1Call.mutable_list_files()->set_path("one/");
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::master::Response::LIST_FILES, v1Response.get().type());
+  ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
+  ASSERT_EQ(internal::evolve(file),
+            v1Response.get().list_files().file_infos(2));
+}
+
+
+// This test verifies that the client will receive a `NotFound` response when it
+// tries to make a `LIST_FILES` call with an invalid path.
+TEST_P(MasterAPITest, ListFilesInvalidPath)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::LIST_FILES);
+  v1Call.mutable_list_files()->set_path("five/");
+
+  ContentType contentType = GetParam();
+
+  Future<Response> response = process::http::post(
+    master.get()->pid,
+    "api/v1",
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+    serialize(contentType, v1Call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
 }
 
 
@@ -2151,6 +2214,86 @@ TEST_P(AgentAPITest, SetLoggingLevel)
   // Verifies the logging level reverted successfully.
   ASSERT_EQ(originalLevel, static_cast<uint32_t>(FLAGS_v));
   Clock::resume();
+}
+
+
+// This test verifies if we can retrieve the file listing for a directory
+// in an agent.
+TEST_P(AgentAPITest, ListFiles)
+{
+  Files files;
+
+  ASSERT_SOME(os::mkdir("1/2"));
+  ASSERT_SOME(os::mkdir("1/3"));
+  ASSERT_SOME(os::write("1/two", "two"));
+
+  AWAIT_EXPECT_READY(files.attach("1", "one"));
+
+  // Get the `FileInfo` for "1/two" file.
+  struct stat s;
+  ASSERT_EQ(0, stat("1/two", &s));
+  FileInfo file = protobuf::createFileInfo("one/two", s);
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::LIST_FILES);
+  v1Call.mutable_list_files()->set_path("one/");
+
+  ContentType contentType = GetParam();
+
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::LIST_FILES, v1Response.get().type());
+  ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
+  ASSERT_EQ(internal::evolve(file),
+            v1Response.get().list_files().file_infos(2));
+}
+
+
+// This test verifies that the client will receive a `NotFound` response when it
+// tries to make a `LIST_FILES` call with an invalid path.
+TEST_P(AgentAPITest, ListFilesInvalidPath)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::LIST_FILES);
+  v1Call.mutable_list_files()->set_path("five/");
+
+  ContentType contentType = GetParam();
+
+  Future<Response> response = process::http::post(
+    slave.get()->pid,
+    "api/v1",
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+    serialize(contentType, v1Call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
 }
 
 
