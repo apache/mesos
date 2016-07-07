@@ -318,6 +318,18 @@ bool operator==(const ExecutorInfo& left, const ExecutorInfo& right)
 }
 
 
+bool operator==(const FileInfo& left, const FileInfo& right)
+{
+  return left.path() == right.path() &&
+    left.nlink() == right.nlink() &&
+    left.size() == right.size() &&
+    left.mtime() == right.mtime() &&
+    left.mode() == right.mode() &&
+    left.uid() == right.uid() &&
+    left.gid() == right.gid();
+}
+
+
 bool operator==(const MasterInfo& left, const MasterInfo& right)
 {
   return left.id() == right.id() &&
