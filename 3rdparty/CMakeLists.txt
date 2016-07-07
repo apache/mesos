@@ -390,9 +390,12 @@ if (NOT WIN32)
     ZOOKEEPER_PATCH_CMD)
 elseif (WIN32)
   # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
+  # NOTE: We do not specify the `--binary` patch option here because the
+  # files being modified are extracted with CRLF (Windows) line endings
+  # already. The `--binary` option will instead fail to apply the patch.
   set(
     ZOOKEEPER_PATCH_CMD
-    ${PATCHEXE_LOCATION} --binary -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
+    ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
 
   VS_BUILD_CMD(
     ZOOKEEPER
