@@ -652,8 +652,9 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
 
       // NOTE: This is to capture the regression in MESOS-2452. The data
       // stored in the executor meta directory should be less than 64K.
-      EXPECT_GT(usage.get().disk_used_bytes(), Kilobytes(64).bytes());
-      break;
+      if (usage.get().disk_used_bytes() > Kilobytes(64).bytes()) {
+        break;
+      }
     }
 
     ASSERT_LT(elapsed, Seconds(15));
