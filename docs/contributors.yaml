@@ -140,6 +140,14 @@
   jira_user: gyliu
   reviewboard_user: gyliu
 
+- name: Ian Downes
+  affiliations:
+    - {organization: Twitter}
+  emails:
+    - idownes@twitter.com
+  jira_user: idownes
+  reviewboard_user: idownes
+
 - name: Isabel Jimenez
   affiliations:
     - {organization: Mesosphere}
