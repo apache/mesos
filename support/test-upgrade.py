@@ -47,7 +47,7 @@ class Process:
 class Agent(Process):
 
     def __init__(self, path, work_dir, credfile):
-        Process.__init__(self, [os.path.join(path, 'bin', 'mesos-agent.sh'),
+        Process.__init__(self, [os.path.join(path, 'bin', 'mesos-slave.sh'),
                                 '--master=127.0.0.1:5050',
                                 '--credential=' + credfile,
                                 '--work_dir=' + work_dir,
@@ -83,7 +83,11 @@ class Framework(Process):
             # here for backwards compatibility.
             'MESOS_BUILD_DIR': path,
             'MESOS_HELPER_DIR': os.path.join(path, 'src'),
+            # MESOS_AUTHENTICATE is deprecated in favor of
+            # MESOS_AUTHENTICATE_FRAMEWORKS, although 0.28.x still expects
+            # previous one, therefore adding both.
             'MESOS_AUTHENTICATE': '1',
+            'MESOS_AUTHENTICATE_FRAMEWORKS': '1',
             'DEFAULT_PRINCIPAL': DEFAULT_PRINCIPAL,
             'DEFAULT_SECRET': DEFAULT_SECRET
         }
