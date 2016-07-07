@@ -15,7 +15,9 @@
 // limitations under the License.
 
 #include <errno.h>
+#ifdef __linux__
 #include <sched.h>
+#endif // __linux__
 #include <string.h>
 
 #include <iostream>
