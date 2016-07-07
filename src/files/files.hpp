@@ -17,16 +17,6 @@
 #ifndef __FILES_HPP__
 #define __FILES_HPP__
 
-#ifdef __WINDOWS__
-#include <stout/internal/windows/grp.hpp>
-#include <stout/internal/windows/pwd.hpp>
-#else
-#include <grp.h>
-#include <pwd.h>
-#endif // __WINDOWS__
-
-#include <sys/stat.h>
-
 #include <string>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -39,11 +29,9 @@
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 
-#include <stout/os/permissions.hpp>
+#include "common/protobuf_utils.hpp"
 
-#ifdef __WINDOWS__
-#include <stout/windows.hpp>
-#endif // __WINDOWS__
+#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {
@@ -100,6 +88,11 @@ public:
 
   // Removes the specified name.
   void detach(const std::string& name);
+
+  // Returns a file listing for a directory similar to `ls -l`.
+  process::Future<Try<std::list<FileInfo>, FilesError>> browse(
+      const std::string& path,
+      const Option<std::string>& principal);
 
 private:
   FilesProcess* process;

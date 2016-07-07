@@ -33,6 +33,9 @@
 
 #include <stout/tests/utils.hpp>
 
+#include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
+
 #include "files/files.hpp"
 
 #include "tests/mesos.hpp"
@@ -331,13 +334,13 @@ TEST_F(FilesTest, BrowseTest)
   struct stat s;
   JSON::Array expected;
   ASSERT_EQ(0, stat("1/2", &s));
-  expected.values.push_back(jsonFileInfo("one/2", s));
+  expected.values.push_back(model(protobuf::createFileInfo("one/2", s)));
   ASSERT_EQ(0, stat("1/3", &s));
-  expected.values.push_back(jsonFileInfo("one/3", s));
+  expected.values.push_back(model(protobuf::createFileInfo("one/3", s)));
   ASSERT_EQ(0, stat("1/three", &s));
-  expected.values.push_back(jsonFileInfo("one/three", s));
+  expected.values.push_back(model(protobuf::createFileInfo("one/three", s)));
   ASSERT_EQ(0, stat("1/two", &s));
-  expected.values.push_back(jsonFileInfo("one/two", s));
+  expected.values.push_back(model(protobuf::createFileInfo("one/two", s)));
 
   Future<Response> response =
       process::http::get(upid, "browse", "path=one/");

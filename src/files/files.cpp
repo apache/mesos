@@ -102,6 +102,10 @@ public:
 
   void detach(const string& name);
 
+  Future<Try<list<FileInfo>, FilesError>> browse(
+    const string& path,
+    const Option<string>& principal);
+
 protected:
   virtual void initialize();
 
@@ -121,14 +125,10 @@ private:
   // Requests have the following parameters:
   //   path: The directory to browse. Required.
   // The response will contain a list of JSON files and directories contained
-  // in the path (see files::jsonFileInfo for the format).
-  Future<Response> browse(
+  // in the path (see `FileInfo` model override for the format).
+  Future<Response> _browse(
       const Request& request,
       const Option<string>& principal);
-
-  Future<Response> _browse(
-      const string& path,
-      const Option<string>& jsonp);
 
   // Reads data from a file at a given offset and for a given length.
   // See the jquery pailer for the expected behavior.
@@ -195,7 +195,7 @@ void FilesProcess::initialize()
     route("/browse.json",
           authenticationRealm.get(),
           FilesProcess::BROWSE_HELP,
-          &FilesProcess::browse);
+          &FilesProcess::_browse);
     route("/read.json",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
@@ -212,7 +212,7 @@ void FilesProcess::initialize()
     route("/browse",
           authenticationRealm.get(),
           FilesProcess::BROWSE_HELP,
-          &FilesProcess::browse);
+          &FilesProcess::_browse);
     route("/read",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
@@ -230,7 +230,7 @@ void FilesProcess::initialize()
     // deprecation cycle on 0.26.
     route("/browse.json",
           FilesProcess::BROWSE_HELP,
-          lambda::bind(&FilesProcess::browse, this, lambda::_1, None()));
+          lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
     route("/read.json",
           FilesProcess::READ_HELP,
           lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
@@ -243,7 +243,7 @@ void FilesProcess::initialize()
 
     route("/browse",
           FilesProcess::BROWSE_HELP,
-          lambda::bind(&FilesProcess::browse, this, lambda::_1, None()));
+          lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
     route("/read",
           FilesProcess::READ_HELP,
           lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
@@ -349,7 +349,8 @@ Future<bool> FilesProcess::authorize(
   return true;
 }
 
-Future<Response> FilesProcess::browse(
+
+Future<Response> FilesProcess::_browse(
     const Request& request,
     const Option<string>& principal)
 {
@@ -362,54 +363,86 @@ Future<Response> FilesProcess::browse(
   string requestedPath = path.get();
   Option<string> jsonp = request.url.query.get("jsonp");
 
-  return authorize(requestedPath, principal)
-    .then(defer(self(),
-        [this, path, jsonp](bool authorized) -> Future<Response> {
-      if (authorized) {
-        return _browse(path.get(), jsonp);
+  return browse(requestedPath, principal)
+  .then([jsonp](const Try<list<FileInfo>, FilesError>& result)
+    -> Future<http::Response> {
+    if (result.isError()) {
+      const FilesError& error = result.error();
+
+      switch (error.type) {
+        case FilesError::Type::INVALID:
+          return BadRequest(error.message);
+
+        case FilesError::Type::NOT_FOUND:
+          return NotFound(error.message);
+
+        case FilesError::Type::UNAUTHORIZED:
+          return Forbidden(error.message);
+
+        case FilesError::Type::UNKNOWN:
+          return InternalServerError(error.message);
       }
 
-      return Forbidden();
-    }));
+      UNREACHABLE();
+    }
+
+    JSON::Array listing;
+    foreach (const FileInfo& fileInfo, result.get()) {
+      listing.values.push_back(model(fileInfo));
+    }
+
+    return OK(listing, jsonp);
+  });
 }
 
 
-Future<Response> FilesProcess::_browse(
+Future<Try<list<FileInfo>, FilesError>> FilesProcess::browse(
     const string& path,
-    const Option<string>& jsonp)
+    const Option<string>& principal)
 {
-  Result<string> resolvedPath = resolve(path);
-
-  if (resolvedPath.isError()) {
-    return InternalServerError(resolvedPath.error() + ".\n");
-  } else if (resolvedPath.isNone()) {
-    return NotFound();
-  }
-
-  // The result will be a sorted (on path) array of files and dirs:
-  // [{"name": "README", "path": "dir/README" "dir":False, "size":42}, ...]
-  map<string, JSON::Object> files;
-  Try<list<string> > entries = os::ls(resolvedPath.get());
-  if (entries.isSome()) {
-    foreach (const string& entry, entries.get()) {
-      struct stat s;
-      string fullPath = path::join(resolvedPath.get(), entry);
-
-      if (stat(fullPath.c_str(), &s) < 0) {
-        PLOG(WARNING) << "Found " << fullPath << " in ls but stat failed";
-        continue;
+  return authorize(path, principal)
+    .then(defer(self(),
+        [this, path](bool authorized)
+          -> Future<Try<list<FileInfo>, FilesError>> {
+      if (!authorized) {
+        return FilesError(FilesError::Type::UNAUTHORIZED);
       }
 
-      files[fullPath] = jsonFileInfo(path::join(path, entry), s);
-    }
-  }
+      Result<string> resolvedPath = resolve(path);
 
-  JSON::Array listing;
-  foreachvalue (const JSON::Object& file, files) {
-    listing.values.push_back(file);
-  }
+      if (resolvedPath.isError()) {
+        return FilesError(
+            FilesError::Type::INVALID,
+            resolvedPath.error() + ".\n");
+      } else if (resolvedPath.isNone()) {
+        return FilesError(FilesError::Type::NOT_FOUND);
+      }
 
-  return OK(listing, jsonp);
+      // The result will be a sorted (on path) list of files and dirs.
+      map<string, FileInfo> files;
+      Try<list<string> > entries = os::ls(resolvedPath.get());
+      if (entries.isSome()) {
+        foreach (const string& entry, entries.get()) {
+          struct stat s;
+          string fullPath = path::join(resolvedPath.get(), entry);
+
+          if (stat(fullPath.c_str(), &s) < 0) {
+            PLOG(WARNING) << "Found " << fullPath << " in ls but stat failed";
+            continue;
+          }
+
+          files[fullPath] =
+            protobuf::createFileInfo(path::join(path, entry), s);
+        }
+      }
+
+      list<FileInfo> listing;
+      foreachvalue (const FileInfo& fileInfo, files) {
+        listing.push_back(fileInfo);
+      }
+
+      return listing;
+    }));
 }
 
 
@@ -833,6 +866,14 @@ Future<Nothing> Files::attach(
 void Files::detach(const string& name)
 {
   dispatch(process, &FilesProcess::detach, name);
+}
+
+
+Future<Try<list<FileInfo>, FilesError>> Files::browse(
+    const string& path,
+    const Option<string>& principal)
+{
+  return dispatch(process, &FilesProcess::browse, path, principal);
 }
 
 } // namespace internal {
