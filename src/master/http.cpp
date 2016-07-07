@@ -517,7 +517,7 @@ Future<Response> Master::Http::api(
       return setLoggingLevel(call, principal, acceptType);
 
     case mesos::master::Call::LIST_FILES:
-      return NotImplemented();
+      return listFiles(call, principal, acceptType);
 
     case mesos::master::Call::READ_FILE:
       return NotImplemented();
@@ -3237,6 +3237,54 @@ Future<Response> Master::Http::roles(
 }
 
 
+Future<Response> Master::Http::listFiles(
+    const mesos::master::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::LIST_FILES, call.type());
+
+  const string& path = call.list_files().path();
+
+  return master->files->browse(path, principal)
+    .then([contentType](const Try<list<FileInfo>, FilesError>& result)
+      -> Future<Response> {
+      if (result.isError()) {
+        const FilesError& error = result.error();
+
+        switch (error.type) {
+          case FilesError::Type::INVALID:
+            return BadRequest(error.message);
+
+          case FilesError::Type::UNAUTHORIZED:
+            return Forbidden(error.message);
+
+          case FilesError::Type::NOT_FOUND:
+            return NotFound(error.message);
+
+          case FilesError::Type::UNKNOWN:
+            return InternalServerError(error.message);
+        }
+
+        UNREACHABLE();
+      }
+
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::LIST_FILES);
+
+      mesos::master::Response::ListFiles* listFiles =
+        response.mutable_list_files();
+
+      foreach (const FileInfo& fileInfo, result.get()) {
+        listFiles->add_file_infos()->CopyFrom(fileInfo);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
+}
+
+
 // This duplicates the functionality offered by `roles()`. This was necessary
 // as the JSON object returned by `roles()` was not specified in a formal way
 // i.e. via a corresponding protobuf object and would have been very hard to
@@ -4229,7 +4277,7 @@ Future<Response> Master::Http::maintenanceStatus(
 
   return _getMaintenanceStatus()
     .then([request](const mesos::maintenance::ClusterStatus& status)
-            -> Response {
+      -> Response {
       return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
     });
 }

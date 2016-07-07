@@ -108,6 +108,7 @@ message Call {
     required DurationInfo duration = 2;
   }
 
+  // Provides the file listing for a directory.
   message ListFiles {
     required string path = 1;
   }
@@ -261,8 +262,9 @@ message Response {
     required uint32 level = 1;
   }
 
+  // Contains the file listing(similar to `ls -l`) for a directory.
   message ListFiles {
-    repeated string files = 1;
+    repeated FileInfo file_infos = 1;
   }
 
   message GetFileContents {

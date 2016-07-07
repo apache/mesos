@@ -1425,6 +1425,11 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> listFiles(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getLeadingMaster(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
