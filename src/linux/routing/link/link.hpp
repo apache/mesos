@@ -19,8 +19,6 @@
 
 #include <stdint.h>
 
-#include <sys/types.h>
-
 #include <string>
 
 #include <process/future.hpp>
@@ -51,17 +49,6 @@ Result<std::string> lo();
 
 // Returns true if the link exists.
 Try<bool> exists(const std::string& link);
-
-
-// Creates a pair of virtual network links. The peer link is put in
-// the network namespace represented by 'pid' upon creation if
-// specified. If 'pid' is None, the peer link will be put into
-// caller's network namespace. Returns false if the virtual network
-// links (with the same name) already exist.
-Try<bool> create(
-    const std::string& veth,
-    const std::string& peer,
-    const Option<pid_t>& pid);
 
 
 // Removes a link. Returns false if the link is not found.

@@ -28,8 +28,6 @@
 
 #include <netlink/route/link.h>
 
-#include <netlink/route/link/veth.h>
-
 #include <set>
 #include <string>
 #include <vector>
@@ -116,33 +114,6 @@ Try<bool> exists(const string& _link)
     return Error(link.error());
   }
   return link.isSome();
-}
-
-
-Try<bool> create(
-    const string& veth,
-    const string& peer,
-    const Option<pid_t>& pid)
-{
-  Try<Netlink<struct nl_sock>> socket = routing::socket();
-  if (socket.isError()) {
-    return Error(socket.error());
-  }
-
-  int error = rtnl_link_veth_add(
-      socket.get().get(),
-      veth.c_str(),
-      peer.c_str(),
-      (pid.isNone() ? getpid() : pid.get()));
-
-  if (error != 0) {
-    if (error == -NLE_EXIST) {
-      return false;
-    }
-    return Error(nl_geterror(error));
-  }
-
-  return true;
 }
 
 

@@ -47,6 +47,7 @@
 #include "linux/routing/filter/ip.hpp"
 
 #include "linux/routing/link/link.hpp"
+#include "linux/routing/link/veth.hpp"
 
 #include "linux/routing/queueing/fq_codel.hpp"
 #include "linux/routing/queueing/htb.hpp"
@@ -256,7 +257,7 @@ TEST_F(RoutingTest, INETSockets)
 
 TEST_F(RoutingVethTest, ROOT_LinkCreate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -265,13 +266,13 @@ TEST_F(RoutingVethTest, ROOT_LinkCreate)
   EXPECT_SOME_NE(0, link::index(TEST_PEER_LINK));
 
   // Test the case where the veth (with the same name) already exists.
-  EXPECT_SOME_FALSE(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  EXPECT_SOME_FALSE(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 }
 
 
 TEST_F(RoutingVethTest, ROOT_LinkRemove)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::remove(TEST_VETH_LINK));
   EXPECT_SOME_FALSE(link::remove(TEST_VETH_LINK));
@@ -307,7 +308,7 @@ TEST_F(RoutingVethTest, ROOT_LinkCreatePid)
   ASSERT_NE(-1, pid);
 
   // In parent process.
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, pid));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, pid));
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
 
   // The peer should not exist in parent network namespace.
@@ -333,7 +334,7 @@ TEST_F(RoutingVethTest, ROOT_LinkWait)
 {
   AWAIT_READY(link::removed(TEST_VETH_LINK));
 
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -348,7 +349,7 @@ TEST_F(RoutingVethTest, ROOT_LinkWait)
 
 TEST_F(RoutingVethTest, ROOT_LinkSetUp)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -368,7 +369,7 @@ TEST_F(RoutingVethTest, ROOT_LinkSetUp)
 
 TEST_F(RoutingVethTest, ROOT_LinkSetMAC)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -399,7 +400,7 @@ TEST_F(RoutingVethTest, ROOT_LinkSetMAC)
 
 TEST_F(RoutingVethTest, ROOT_LinkMTU)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -420,7 +421,7 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
   // Test for a qdisc on a nonexistent interface should fail.
   EXPECT_SOME_FALSE(ingress::exists("noSuchInterface"));
 
-  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  EXPECT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -484,7 +485,7 @@ TEST_F(RoutingVethTest, ROOT_HTBQdisc)
   // Test for a qdisc on a nonexistent interface should fail.
   EXPECT_SOME_FALSE(htb::exists("noSuchInterface", EGRESS_ROOT));
 
-  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  EXPECT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -568,7 +569,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
   // Test for a qdisc on a nonexistent interface should fail.
   EXPECT_SOME_FALSE(fq_codel::exists("noSuchInterface", EGRESS_ROOT));
 
-  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  EXPECT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -649,7 +650,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
 
 TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -725,7 +726,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
 
 TEST_F(RoutingVethTest, ROOT_ARPFilterCreate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -745,7 +746,7 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterCreate)
 
 TEST_F(RoutingVethTest, ROOT_ARPFilterCreateDuplicated)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -775,7 +776,7 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterCreateDuplicated)
 
 TEST_F(RoutingVethTest, ROOT_ARPFilterRemove)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -800,7 +801,7 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterRemove)
 
 TEST_F(RoutingVethTest, ROOT_ARPFilterUpdate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -837,7 +838,7 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterUpdate)
 
 TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -869,7 +870,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
 
 TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateDuplicated)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -902,7 +903,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateDuplicated)
 
 TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -938,7 +939,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
 
 TEST_F(RoutingVethTest, ROOT_ICMPFilterRemove)
 {
-  ASSERT_SOME(link::create(
+  ASSERT_SOME(link::veth::create(
       TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
@@ -972,7 +973,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterRemove)
 
 TEST_F(RoutingVethTest, ROOT_ICMPFilterUpdate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1028,7 +1029,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterUpdate)
 
 TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1086,7 +1087,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
 
 TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1121,7 +1122,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
 
 TEST_F(RoutingVethTest, ROOT_IPFilterCreateDuplicated)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1170,7 +1171,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreateDuplicated)
 
 TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1262,7 +1263,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
 
 TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
@@ -1339,7 +1340,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
 // Test the workaround introduced for MESOS-1617.
 TEST_F(RoutingVethTest, ROOT_HandleGeneration)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  ASSERT_SOME(link::veth::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));

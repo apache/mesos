@@ -70,6 +70,7 @@
 #include "linux/routing/handle.hpp"
 
 #include "linux/routing/link/link.hpp"
+#include "linux/routing/link/veth.hpp"
 
 #include "linux/routing/queueing/fq_codel.hpp"
 #include "linux/routing/queueing/htb.hpp"
@@ -2592,7 +2593,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
             << linker << "' -> '" << target << "'";
 
   // Create a virtual ethernet pair for this container.
-  Try<bool> createVethPair = link::create(veth(pid), eth0, pid);
+  Try<bool> createVethPair = link::veth::create(veth(pid), eth0, pid);
   if (createVethPair.isError()) {
     return Failure(
         "Failed to create virtual ethernet pair: " +

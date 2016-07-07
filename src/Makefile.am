@@ -1111,6 +1111,7 @@ MESOS_NETWORK_ISOLATOR_FILES =						\
   linux/routing/filter/icmp.cpp						\
   linux/routing/filter/ip.cpp						\
   linux/routing/link/link.cpp						\
+  linux/routing/link/veth.cpp						\
   linux/routing/queueing/fq_codel.cpp					\
   linux/routing/queueing/htb.cpp					\
   linux/routing/queueing/ingress.cpp					\
@@ -1132,6 +1133,7 @@ MESOS_NETWORK_ISOLATOR_FILES +=						\
   linux/routing/filter/priority.hpp					\
   linux/routing/link/internal.hpp					\
   linux/routing/link/link.hpp						\
+  linux/routing/link/veth.hpp						\
   linux/routing/queueing/discipline.hpp					\
   linux/routing/queueing/fq_codel.hpp					\
   linux/routing/queueing/htb.hpp					\
