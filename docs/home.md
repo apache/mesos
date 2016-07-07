@@ -52,6 +52,15 @@ layout: documentation
 * [Reservation](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
 * [Replicated Log](replicated-log-internals.md) for information on the Mesos replicated log.
 
+## APIs
+* [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
+* [Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
+* [Operator HTTP API](operator-http-api.md) describes the new HTTP API for communication between operators and Mesos master/agent.
+* [API Client Libraries](api-client-libraries.md) lists client libraries for the HTTP APIs.
+* [Versioning](versioning.md) describes HTTP API and release versioning.
+* [Javadoc](/api/latest/java/) documents the old Java API.
+* [Doxygen](/api/latest/c++/namespacemesos.html) documents the C++ API.
+
 ## Running Mesos Frameworks
 
 * [Mesos frameworks](frameworks.md) for a list of apps built on top of Mesos and instructions on how to run them.
@@ -62,13 +71,7 @@ layout: documentation
 * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
 * [Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
 * [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
-* [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
-* [Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
-* [Client Libraries](api-client-libraries.md) contains a list of Mesos HTTP API client libraries.
-* [Javadoc](/api/latest/java/) documents the Mesos Java API.
-* [Doxygen](/api/latest/c++/namespacemesos.html) documents the Mesos C++ API.
 * [Developer Tools](tools.md) for hacking on Mesos or writing frameworks.
-* [Versioning](versioning.md) describes how Mesos does API and release versioning.
 
 ## Extending Mesos
 
