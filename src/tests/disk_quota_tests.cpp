@@ -656,7 +656,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
       break;
     }
 
-    ASSERT_LT(elapsed, Seconds(5));
+    ASSERT_LT(elapsed, Seconds(15));
 
     os::sleep(Milliseconds(1));
     elapsed += Milliseconds(1);
