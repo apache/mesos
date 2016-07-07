@@ -79,17 +79,6 @@ HTTP endpoints are also allowed. (default: false)
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_http_frameworks
-  </td>
-  <td>
-If <code>true</code>, only authenticated HTTP based frameworks are allowed to
-register. If <code>false</code>, HTTP frameworks are not authenticated. For more
-about HTTP frameworks see the Scheduler HTTP API
-<a href="/documentation/latest/scheduler-http-api">documentation</a>. (default: false)
-  </td>
-</tr>
-<tr>
-  <td>
     --firewall_rules=VALUE
   </td>
   <td>
@@ -134,20 +123,6 @@ Currently there is no support for multiple HTTP authenticators. (default: basic)
 </tr>
 <tr>
   <td>
-    --http_framework_authenticators=VALUE
-  </td>
-  <td>
-HTTP authenticator implementation to use when authenticating HTTP frameworks.
-Use the <code>basic</code> authenticator or load an alternate HTTP authenticator
-module using <code>--modules</code>. This must be used in conjunction with
-<code>--authenticate_http_frameworks</code>.
-<p/>
-Currently there is no support for multiple HTTP authenticators.
-  </td>
-</tr>
-
-<tr>
-  <td>
     --ip=VALUE
   </td>
   <td>
@@ -163,6 +138,16 @@ with <code>--ip_discovery_command</code>. (master default: 5050; agent default: 
 Optional IP discovery binary: if set, it is expected to emit
 the IP address which the master/agent will try to bind to.
 Cannot be used in conjunction with <code>--ip</code>.
+  </td>
+</tr>
+<tr>
+  <td>
+    --modules_dir=VALUE
+  </td>
+  <td>
+Directory path of the module manifest files. The manifest files are processed in
+alphabetical order. (See <code>--modules</code> for more information on module
+manifest files) Cannot be used in conjunction with <code>--modules</code>.
   </td>
 </tr>
 <tr>
@@ -473,6 +458,43 @@ Example:
 </tr>
 <tr>
   <td>
+    --agent_ping_timeout=VALUE
+  </td>
+  <td>
+The timeout within which each agent is expected to respond to a
+ping from the master. Agents that do not respond within
+max_agent_ping_timeouts ping retries will be asked to shutdown.
+<b>NOTE</b>: The total ping timeout (<code>agent_ping_timeout</code> multiplied by
+<code>max_agent_ping_timeouts</code>) should be greater than the ZooKeeper
+session timeout to prevent useless re-registration attempts.
+(default: 15secs)
+  </td>
+</tr>
+<tr>
+  <td>
+    --agent_removal_rate_limit=VALUE
+  </td>
+  <td>
+The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc) at which agents
+will be removed from the master when they fail health checks.
+By default, agents will be removed as soon as they fail the health
+checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
+  </td>
+</tr>
+<tr>
+  <td>
+    --agent_reregister_timeout=VALUE
+  </td>
+  <td>
+The timeout within which all agents are expected to re-register
+when a new master is elected as the leader. Agents that do not
+re-register within the timeout will be removed from the registry
+and will be shutdown if they attempt to communicate with master.
+<b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
+  </td>
+</tr>
+<tr>
+  <td>
     --allocation_interval=VALUE
   </td>
   <td>
@@ -493,7 +515,16 @@ load an alternate allocator module using <code>--modules</code>.
 </tr>
 <tr>
   <td>
-    --[no-]authenticate
+    --[no-]authenticate_agents
+  </td>
+  <td>
+If <code>true</code> only authenticated agents are allowed to register.
+If <code>false</code> unauthenticated agents are also allowed to register. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
+    --[no-]authenticate_frameworks
   </td>
   <td>
 If <code>true</code>, only authenticated frameworks are allowed to register. If
@@ -503,11 +534,13 @@ HTTP based frameworks use the <code>--authenticate_http_frameworks</code> flag. 
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_agents
+    --[no-]authenticate_http_frameworks
   </td>
   <td>
-If <code>true</code> only authenticated agents are allowed to register.
-If <code>false</code> unauthenticated agents are also allowed to register. (default: false)
+If <code>true</code>, only authenticated HTTP based frameworks are allowed to
+register. If <code>false</code>, HTTP frameworks are not authenticated. For more
+about HTTP frameworks see the Scheduler HTTP API
+<a href="/documentation/latest/scheduler-http-api">documentation</a>. (default: false)
   </td>
 </tr>
 <tr>
@@ -565,6 +598,19 @@ Example:
 </tr>
 <tr>
   <td>
+    --fair_sharing_excluded_resource_names=VALUE
+  </td>
+  <td>
+A comma-separated list of the resource names (e.g. 'gpus') that will be excluded
+from fair sharing constraints. This may be useful in cases where the fair
+sharing implementation currently has limitations. E.g. See the problem of
+"scarce" resources:
+    <a href="http://www.mail-archive.com/dev@mesos.apache.org/msg35631.html">msg35631</a>
+    <a href="https://issues.apache.org/jira/browse/MESOS-5377">MESOS-5377</a>
+  </td>
+</tr>
+<tr>
+  <td>
     --framework_sorter=VALUE
   </td>
   <td>
@@ -575,12 +621,58 @@ are the same as for user_allocator. (default: drf)
 </tr>
 <tr>
   <td>
+    --http_framework_authenticators=VALUE
+  </td>
+  <td>
+HTTP authenticator implementation to use when authenticating HTTP frameworks.
+Use the <code>basic</code> authenticator or load an alternate HTTP authenticator
+module using <code>--modules</code>. This must be used in conjunction with
+<code>--authenticate_http_frameworks</code>.
+<p/>
+Currently there is no support for multiple HTTP authenticators.
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]log_auto_initialize
   </td>
   <td>
 Whether to automatically initialize the [replicated log](replicated-log-internals.md)
 used for the registry. If this is set to false, the log has to be manually
 initialized when used for the very first time. (default: true)
+  </td>
+</tr>
+<tr>
+  <td>
+    --master_contender=VALUE
+  </td>
+  <td>
+The symbol name of the master contender to use. This symbol should exist in a
+module specified through the <code>--modules</code> flag. Cannot be used in
+conjunction with <code>--zk</code>. Must be used in conjunction with
+<code>--master_detector</code>.
+  </td>
+</tr>
+<tr>
+  <td>
+    --master_detector=VALUE
+  </td>
+  <td>
+The symbol name of the master detector to use. This symbol should exist in a
+module specified through the <code>--modules</code> flag. Cannot be used in
+conjunction with <code>--zk</code>. Must be used in conjunction with
+<code>--master_contender</code>.
+  </td>
+</tr>
+<tr>
+  <td>
+    --max_agent_ping_timeouts=VALUE
+  </td>
+  <td>
+The number of times a agent can fail to respond to a
+ping from the master. Agents that do not respond within
+<code>max_agent_ping_timeouts</code> ping retries will be asked to shutdown.
+(default: 5)
   </td>
 </tr>
 <tr>
@@ -598,17 +690,6 @@ Maximum number of completed frameworks to store in memory. (default: 50)
   </td>
   <td>
 Maximum number of completed tasks per framework to store in memory. (default: 1000)
-  </td>
-</tr>
-<tr>
-  <td>
-    --max_agent_ping_timeouts=VALUE
-  </td>
-  <td>
-The number of times a agent can fail to respond to a
-ping from the master. Agents that do not respond within
-<code>max_agent_ping_timeouts</code> ping retries will be asked to shutdown.
-(default: 5)
   </td>
 </tr>
 <tr>
@@ -726,43 +807,6 @@ if it is not specified, any role name can be used.
   </td>
   <td>
 Can root submit frameworks? (default: true)
-  </td>
-</tr>
-<tr>
-  <td>
-    --agent_ping_timeout=VALUE
-  </td>
-  <td>
-The timeout within which each agent is expected to respond to a
-ping from the master. Agents that do not respond within
-max_agent_ping_timeouts ping retries will be asked to shutdown.
-<b>NOTE</b>: The total ping timeout (<code>agent_ping_timeout</code> multiplied by
-<code>max_agent_ping_timeouts</code>) should be greater than the ZooKeeper
-session timeout to prevent useless re-registration attempts.
-(default: 15secs)
-  </td>
-</tr>
-<tr>
-  <td>
-    --agent_removal_rate_limit=VALUE
-  </td>
-  <td>
-The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc) at which agents
-will be removed from the master when they fail health checks.
-By default, agents will be removed as soon as they fail the health
-checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
-  </td>
-</tr>
-<tr>
-  <td>
-    --agent_reregister_timeout=VALUE
-  </td>
-  <td>
-The timeout within which all agents are expected to re-register
-when a new master is elected as the leader. Agents that do not
-re-register within the timeout will be removed from the registry
-and will be shutdown if they attempt to communicate with master.
-<b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
   </td>
 </tr>
 <tr>
@@ -923,6 +967,18 @@ Example:
     }
   ]
 }</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
+    --agent_subsystems=VALUE
+  </td>
+  <td>
+List of comma-separated cgroup subsystems to run the agent binary
+in, e.g., <code>memory,cpuacct</code>. The default is none.
+Present functionality is intended for resource monitoring and
+no cgroup limits are set, they are inherited from the root mesos
+cgroup.
   </td>
 </tr>
 <tr>
@@ -1483,6 +1539,16 @@ directory. (default: /usr/local/libexec/mesos)
 </tr>
 <tr>
   <td>
+  --master_detector=VALUE
+  </td>
+  <td>
+The symbol name of the master detector to use. This symbol should exist in a
+module specified through the <code>--modules</code> flag. Cannot be used in
+conjunction with <code>--master</code>.
+  </td>
+</tr>
+<tr>
+  <td>
     --nvidia_gpu_devices=VALUE
   </td>
   <td>
@@ -1680,18 +1746,6 @@ supported by the cgroups/cpu isolator. (default: true)
 The absolute path for the directory in the container where the
 sandbox is mapped to.
 (default: /mnt/mesos/sandbox)
-  </td>
-</tr>
-<tr>
-  <td>
-    --agent_subsystems=VALUE
-  </td>
-  <td>
-List of comma-separated cgroup subsystems to run the agent binary
-in, e.g., <code>memory,cpuacct</code>. The default is none.
-Present functionality is intended for resource monitoring and
-no cgroup limits are set, they are inherited from the root mesos
-cgroup.
   </td>
 </tr>
 <tr>
@@ -1937,6 +1991,16 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      LIBPROCESS_ENABLE_PROFILER
+    </td>
+    <td>
+      To enable the profiler, this variable must be set to 1. Note that this
+      variable will only work if mesos has been configured with
+      <code>--enable-perftools</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>
       LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT
     </td>
     <td>
@@ -1976,14 +2040,6 @@ quotas for container sandbox directories. Valid project IDs range from
   </thead>
   <tr>
     <td>
-      --enable-shared[=PKGS]
-    </td>
-    <td>
-      Build shared libraries. [default=yes]
-    </td>
-  </tr>
-  <tr>
-    <td>
       --enable-static[=PKGS]
     </td>
     <td>
@@ -1992,10 +2048,120 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      --enable-dependency-tracking
+    </td>
+    <td>
+      Do not reject slow dependency extractors.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-dependency-tracking
+    </td>
+    <td>
+      Speeds up one-time build.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-silent-rules
+    </td>
+    <td>
+      Less verbose build output (undo: "make V=1").
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-silent-rules
+    </td>
+    <td>
+      Verbose build output (undo: "make V=0").
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-maintainer-mode
+    </td>
+    <td>
+      Disable make rules and dependencies not useful (and sometimes confusing)
+      to the casual installer.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-shared[=PKGS]
+    </td>
+    <td>
+      Build shared libraries. [default=yes]
+    </td>
+  </tr>
+  <tr>
+    <td>
       --enable-fast-install[=PKGS]
     </td>
     <td>
       Optimize for fast installation. [default=yes]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-libtool-lock
+    </td>
+    <td>
+      Avoid locking. Note that this might break parallel builds.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-bundled
+    </td>
+    <td>
+      Configures Mesos to build against preinstalled dependencies
+      instead of bundled libraries.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-bundled-pip
+    </td>
+    <td>
+      Excludes building and using the bundled pip package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-bundled-setuptools
+    </td>
+    <td>
+      Excludes building and using the bundled setuptools package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-bundled-wheel
+    </td>
+    <td>
+      Excludes building and using the bundled wheel package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-debug
+    </td>
+    <td>
+      Whether debugging is enabled. If CFLAGS/CXXFLAGS are set, this
+      option won't change them. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-java
+    </td>
+    <td>
+      Don't build Java bindings.
     </td>
   </tr>
   <tr>
@@ -2010,45 +2176,11 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --enable-ssl
+      --enable-install-module-dependencies
     </td>
     <td>
-      Enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
-      communication. Note that <code>--enable-libevent</code> is currently
-      required for SSL functionality. [default=no]
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-libtool-lock
-    </td>
-    <td>
-      Avoid locking. Note that this might break parallel builds.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-java
-    </td>
-    <td>
-      Don't build Java bindings.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-python
-    </td>
-    <td>
-      Don't build Python bindings.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --enable-debug
-    </td>
-    <td>
-      Whether debugging is enabled. If CFLAGS/CXXFLAGS are set, this
-      option won't change them. [default=no]
+      Install third-party bundled dependencies required for module development.
+      [default=no]
     </td>
   </tr>
   <tr>
@@ -2070,38 +2202,10 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --disable-bundled
+      --disable-python
     </td>
     <td>
-      Configures Mesos to build against preinstalled dependencies
-      instead of bundled libraries.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-bundled-distribute
-    </td>
-    <td>
-      Excludes building and using the bundled distribute package in lieu of an
-      installed version in <code>PYTHONPATH</code>.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-bundled-pip
-    </td>
-    <td>
-      Excludes building and using the bundled pip package in lieu of an
-      installed version in <code>PYTHONPATH</code>.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --disable-bundled-wheel
-    </td>
-    <td>
-      Excludes building and using the bundled wheel package in lieu of an
-      installed version in <code>PYTHONPATH</code>.
+      Don't build Python bindings.
     </td>
   </tr>
   <tr>
@@ -2111,6 +2215,49 @@ quotas for container sandbox directories. Valid project IDs range from
     <td>
       When the python packages are installed during make install, no external
       dependencies will be downloaded or installed.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-ssl
+    </td>
+    <td>
+      Enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
+      communication. Note that <code>--enable-libevent</code> is currently
+      required for SSL functionality. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-static-unimplemented
+    </td>
+    <td>
+      Generate static assertion errors for unimplemented functions. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-tests-install
+    </td>
+    <td>
+      Build and install tests and their helper tools. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-xfs-disk-isolator
+    </td>
+    <td>
+      Builds the XFS disk isolator. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --disable-zlib
+    </td>
+    <td>
+      Disables zlib compression, which means the webui will be far less
+      responsive; not recommended.
     </td>
   </tr>
 </table>
@@ -2147,19 +2294,35 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --with-zookeeper[=DIR]
+      --with-apr=[=DIR]
     </td>
     <td>
-      Excludes building and using the bundled ZooKeeper package in lieu of an
+      Specify where to locate the apr-1 library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-boost[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled Boost package in lieu of an
       installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
     <td>
-      --with-leveldb[=DIR]
+      --with-curl=[=DIR]
     </td>
     <td>
-      Excludes building and using the bundled LevelDB package in lieu of an
+      Specify where to locate the curl library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-elfio[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled ELFIO package in lieu of an
       installed version at a location prefixed by the given path.
     </td>
   </tr>
@@ -2174,15 +2337,6 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --with-protobuf[=DIR]
-    </td>
-    <td>
-      Excludes building and using the bundled protobuf package in lieu of an
-      installed version at a location prefixed by the given path.
-    </td>
-  </tr>
-  <tr>
-    <td>
       --with-gmock[=DIR]
     </td>
     <td>
@@ -2192,47 +2346,34 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --with-curl[=DIR]
+      --with-http-parser[=DIR]
     </td>
     <td>
-      Specify where to locate the curl library.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --with-sasl[=DIR]
-    </td>
-    <td>
-      Specify where to locate the sasl2 library.
+      Excludes building and using the bundled http-parser package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
     <td>
-      --with-zlib[=DIR]
+      --with-leveldb[=DIR]
     </td>
     <td>
-      Specify where to locate the zlib library.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --with-apr[=DIR]
-    </td>
-    <td>
-      Specify where to locate the apr-1 library.
+      Excludes building and using the bundled LevelDB package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
     <td>
-      --with-svn[=DIR]
+      --with-libev[=DIR]
     </td>
     <td>
-      Specify where to locate the svn-1 library.
+      Excludes building and using the bundled libev package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
     <td>
-      --with-libevent[=DIR]
+      --with-libevent=[=DIR]
     </td>
     <td>
       Specify where to locate the libevent library.
@@ -2240,10 +2381,10 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --with-ssl[=DIR]
+      --with-libprocess=[=DIR]
     </td>
     <td>
-      Specify where to locate the ssl library.
+      Specify where to locate the libprocess library.
     </td>
   </tr>
   <tr>
@@ -2256,12 +2397,88 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
-      --with-nl[=DIR]
+      --with-nl=[DIR]
     </td>
     <td>
       Specify where to locate the
       <a href="https://www.infradead.org/~tgr/libnl/">libnl3</a> library,
       which is required for the network isolator.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-nvml[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled NVML headers in lieu of an
+      installed version at a location prefixed by the given path.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-picojson[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled picojson package in lieu of an
+      installed version at a location prefixed by the given path.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-protobuf[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled protobuf package in lieu of an
+      installed version at a location prefixed by the given path.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-sasl=[=DIR]
+    </td>
+    <td>
+      Specify where to locate the sasl2 library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-ssl=[=DIR]
+    </td>
+    <td>
+      Specify where to locate the ssl library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-stout=[=DIR]
+    </td>
+    <td>
+      Specify where to locate stout library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-svn=[=DIR]
+    </td>
+    <td>
+      Specify where to locate the svn-1 library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-zlib=[=DIR]
+    </td>
+    <td>
+      Specify where to locate the zlib library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-zookeeper[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled ZooKeeper package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
 </table>
