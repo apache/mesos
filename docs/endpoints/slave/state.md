@@ -14,8 +14,6 @@ Information about state of the Agent.
 ### DESCRIPTION ###
 This endpoint shows information about the frameworks, executors
 and the agent's master as a JSON object.
-The information shown might be filtered based on the user
-accessing the endpoint.
 
 Example (**Note**: this is not exhaustive):
 
@@ -45,7 +43,6 @@ Example (**Note**: this is not exhaustive):
     "frameworks" : [],
     "completed_frameworks" : [],
     "flags" : {
-         "authentication_backoff_factor": "1secs",
          "gc_disk_headroom" : "0.1",
          "isolation" : "posix/cpu,posix/mem",
          "containerizers" : "mesos",
@@ -106,9 +103,3 @@ Example (**Note**: this is not exhaustive):
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-This endpoint might be filtered based on the user accessing it.
-For example a user might only see the subset of frameworks,
-tasks, and executors they are allowed to view.
-See the authorization documentation for details.

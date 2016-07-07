@@ -20,16 +20,8 @@ Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
 This endpoint gives a summary of the state of all tasks and
 registered frameworks in the cluster as a JSON object.
-The information shown might be filtered based on the user
-accessing the endpoint.
 
 
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-This endpoint might be filtered based on the user accessing it.
-For example a user might only see the subset of frameworks
-they are allowed to view.
-See the authorization documentation for details.

@@ -30,9 +30,3 @@ the volumes to be created.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-Using this endpoint to create persistent volumes requires that
-the current principal is authorized to create volumes for the
-specific role.
-See the authorization documentation for details.

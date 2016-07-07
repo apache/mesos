@@ -30,9 +30,3 @@ the resources to be reserved.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-Using this endpoint to reserve resources requires that the
-current principal is authorized to reserve resources for the
-specific role.
-See the authorization documentation for details.
