@@ -20,6 +20,8 @@
 #include <initializer_list>
 #include <string>
 
+#include <sys/stat.h>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/maintenance/maintenance.hpp>
@@ -104,6 +106,10 @@ Label createLabel(
 
 // Helper function that fills in a TimeInfo from the current time.
 TimeInfo getCurrentTime();
+
+
+// Helper function that creates a `FileInfo` from data returned by `stat()`.
+FileInfo createFileInfo(const std::string& path, const struct stat& s);
 
 namespace slave {
 
