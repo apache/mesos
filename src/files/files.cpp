@@ -60,15 +60,14 @@
 #include "logging/logging.hpp"
 
 namespace http = process::http;
+namespace io = process::io;
+namespace mime = process::mime;
 
 using http::BadRequest;
 using http::Forbidden;
 using http::InternalServerError;
 using http::NotFound;
 using http::OK;
-
-namespace io = process::io;
-namespace mime = process::mime;
 
 using mesos::Authorizer;
 
