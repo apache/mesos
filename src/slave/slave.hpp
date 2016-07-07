@@ -534,6 +534,11 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> listFiles(
+        const mesos::agent::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getContainers(
         const mesos::agent::Call& call,
         const Option<std::string>& principal,

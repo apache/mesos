@@ -78,6 +78,7 @@ using process::TLDR;
 using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::Forbidden;
+using process::http::NotFound;
 using process::http::InternalServerError;
 using process::http::MethodNotAllowed;
 using process::http::NotAcceptable;
@@ -378,7 +379,7 @@ Future<Response> Slave::Http::api(
       return setLoggingLevel(call, principal, acceptType);
 
     case agent::Call::LIST_FILES:
-      return NotImplemented();
+      return listFiles(call, principal, acceptType);
 
     case agent::Call::READ_FILE:
       return NotImplemented();
@@ -731,6 +732,54 @@ Future<Response> Slave::Http::setLoggingLevel(
       .then([]() -> Response {
         return OK();
       });
+}
+
+
+Future<Response> Slave::Http::listFiles(
+    const mesos::agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::agent::Call::LIST_FILES, call.type());
+
+  const string& path = call.list_files().path();
+
+  return slave->files->browse(path, principal)
+    .then([contentType](const Try<list<FileInfo>, FilesError>& result)
+      -> Future<Response> {
+      if (result.isError()) {
+        const FilesError& error = result.error();
+
+        switch (error.type) {
+          case FilesError::Type::INVALID:
+            return BadRequest(error.message);
+
+          case FilesError::Type::UNAUTHORIZED:
+            return Forbidden(error.message);
+
+          case FilesError::Type::NOT_FOUND:
+            return NotFound(error.message);
+
+          case FilesError::Type::UNKNOWN:
+            return InternalServerError(error.message);
+        }
+
+        UNREACHABLE();
+      }
+
+      mesos::agent::Response response;
+      response.set_type(mesos::agent::Response::LIST_FILES);
+
+      mesos::agent::Response::ListFiles* listFiles =
+        response.mutable_list_files();
+
+      foreach (const FileInfo& fileInfo, result.get()) {
+        listFiles->add_file_infos()->CopyFrom(fileInfo);
+      }
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
 }
 
 
