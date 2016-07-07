@@ -162,6 +162,12 @@ v1::MasterInfo evolve(const MasterInfo& masterInfo)
 }
 
 
+v1::FileInfo evolve(const FileInfo& fileInfo)
+{
+  return evolve<v1::FileInfo>(fileInfo);
+}
+
+
 v1::Resource evolve(const Resource& resource)
 {
   return evolve<v1::Resource>(resource);
