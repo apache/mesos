@@ -52,6 +52,30 @@ namespace internal {
 class FilesProcess;
 
 
+// Represents the various errors that can be returned by methods on the `Files`
+// class via a `Try` that has failed.
+class FilesError : public Error
+{
+public:
+  enum Type
+  {
+    INVALID,        // Invalid argument.
+    NOT_FOUND,      // Not found.
+    UNAUTHORIZED,   // Not authorized to perform the operation.
+    UNKNOWN         // Internal error/all other errors.
+  };
+
+  FilesError(Type _type)
+    : Error(stringify(_type)), type(_type) {}
+
+  FilesError(Type _type, const std::string& _message)
+    : Error(stringify(_type)), type(_type), message(_message) {}
+
+  Type type;
+  std::string message;
+};
+
+
 // Provides an abstraction for browsing and reading files via HTTP
 // endpoints. A path (file or directory) may be "attached" to a name
 // (similar to "mounting" a device) for subsequent browsing and
