@@ -79,8 +79,8 @@
     - {organization: Mesosphere}
   emails:
     - benjamin.bannier@mesosphere.io
-  jira_user: bbanier
-  reviewboard_user: bbanier
+  jira_user: bbannier
+  reviewboard_user: bbannier
 
 - name: Benjamin Hindman
   affiliations:
