@@ -435,3 +435,9 @@
     - charles.allen@metamarkets.com
   jira_user: drcrallen
   reviewboard_user: drcrallen
+
+- name: Tuan-Anh Hoang-Vu
+  emails:
+    - hvtuananh@gmail.com
+  jira_user: tuananh
+  reviewboard_user: tuananh
