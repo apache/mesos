@@ -29,9 +29,7 @@
 
 namespace routing {
 namespace diagnosis {
-
 namespace socket {
-
 namespace state {
 
 // The different connection states of a socket.
@@ -103,7 +101,6 @@ struct Info
 Try<std::vector<Info>> infos(int familiy, int states);
 
 } // namespace socket {
-
 } // namespace diagnosis {
 } // namespace routing {
 

@@ -29,8 +29,14 @@
 using namespace std;
 
 namespace routing {
-namespace diagnosis {
 
+template <>
+inline void cleanup(struct idiagnl_msg* msg)
+{
+  idiagnl_msg_put(msg);
+}
+
+namespace diagnosis {
 namespace socket {
 
 static Option<net::IP> IP(nl_addr* _ip)
@@ -82,6 +88,5 @@ Try<vector<Info>> infos(int family, int states)
 }
 
 } // namespace socket {
-
 } // namespace diagnosis {
 } // namespace routing {

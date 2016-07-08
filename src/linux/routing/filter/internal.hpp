@@ -59,6 +59,13 @@
 #include "linux/routing/link/internal.hpp"
 
 namespace routing {
+
+template <>
+inline void cleanup(struct rtnl_cls* cls)
+{
+  rtnl_cls_put(cls);
+}
+
 namespace filter {
 namespace internal {
 

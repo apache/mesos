@@ -42,6 +42,13 @@
 #include "linux/routing/internal.hpp"
 
 namespace routing {
+
+template <>
+inline void cleanup(struct rtnl_link* link)
+{
+  rtnl_link_put(link);
+}
+
 namespace link {
 namespace internal {
 

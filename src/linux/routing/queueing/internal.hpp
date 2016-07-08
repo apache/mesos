@@ -45,6 +45,13 @@
 #include "linux/routing/queueing/statistics.hpp"
 
 namespace routing {
+
+template <>
+inline void cleanup(struct rtnl_qdisc* qdisc)
+{
+  rtnl_qdisc_put(qdisc);
+}
+
 namespace queueing {
 namespace internal {
 
