@@ -164,6 +164,15 @@
   jira_user: ijimenez
   reviewboard_user: ijimenez
 
+- name: Jacob Janco
+  affiliations:
+    - {organization: Apple}
+  emails:
+    - jjanco.dev@gmail.com
+    - jjanco@apple.com
+  jira_user: jjanco
+  reviewboard_user: jjanco
+
 - name: Jan Schlicht
   affiliations:
     - {organization: Mesosphere}
@@ -407,7 +416,7 @@
     - guilherme.sft@gmail.com
   jira_user: jvanz
   reviewboard_user: jvanz
-  
+
 - name: Xiao Deshi
   affiliations:
     - {organization: Dataman}
