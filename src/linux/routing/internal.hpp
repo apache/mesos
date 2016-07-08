@@ -28,8 +28,6 @@
 #include <stout/error.hpp>
 #include <stout/try.hpp>
 
-#include "linux/routing/utils.hpp"
-
 namespace routing {
 
 // Customized deallocation functions for netlink objects.
@@ -92,11 +90,6 @@ private:
 // TODO(chzhcn): Consider renaming 'routing' to 'netlink'.
 inline Try<Netlink<struct nl_sock>> socket(int protocol = NETLINK_ROUTE)
 {
-  Try<Nothing> checking = check();
-  if (checking.isError()) {
-    return Error(checking.error());
-  }
-
   struct nl_sock* s = nl_socket_alloc();
   if (s == nullptr) {
     return Error("Failed to allocate netlink socket");
