@@ -930,9 +930,10 @@ Future<Response> Slave::Http::state(
       flagsApprover)
     .then(defer(slave->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>>& approvers) -> Response {
+                                    Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>>& approvers)
+          -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
