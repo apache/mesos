@@ -32,6 +32,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
+#include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
@@ -71,6 +72,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Timeout;
 
 using std::list;
 using std::map;
@@ -852,38 +854,10 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
 #ifdef __linux__
 // In Mesos it's possible for tasks and isolators to lay down files
-// that are not deletable by GC. This test fixture verifies that GC
-// behaves correctly and makes sure the undeletable files from tests
-// are cleaned up during teardown.
-class ROOT_GarbageCollectorUndeletableFilesTest
-  : public GarbageCollectorIntegrationTest
-{
-public:
-  virtual void TearDown()
-  {
-    if (mountPoint.isSome()) {
-      Try<Nothing> unmount = fs::unmount(
-          mountPoint.get(),
-          MNT_FORCE | MNT_DETACH);
-      if (unmount.isError()) {
-        LOG(ERROR) << "Failed to unmount '" << mountPoint.get()
-                   << "': " << unmount.error();
-      }
-    }
-
-    GarbageCollectorIntegrationTest::TearDown();
-  }
-
-protected:
-  Option<string> mountPoint;
-};
-
-
-// This test runs a task that creates a busy mount point which is not
-// directly deletable by GC. We verify that GC deletes all files that
-// it's able to delete in the face of such errors.
-TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
-       DISABLED_BusyMountPoint)
+// that are not deletable by GC. This test runs a task that creates a busy
+// mount point which is not directly deletable by GC. We verify that
+// GC deletes all files that it's able to delete in the face of such errors.
+TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -915,21 +889,22 @@ TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
+
   const Offer& offer = offers.get()[0];
   SlaveID slaveId = offer.slave_id();
 
   // The busy mount point goes before the regular file in GC's
   // directory traversal due to their names. This makes sure that
   // an error occurs before all deletable files are GCed.
-  string mountPoint_ = "test1";
+  string mountPoint = "test1";
   string regularFile = "test2.txt";
 
   TaskInfo task = createTask(
       slaveId,
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "touch "+ regularFile + "; "
-      "mkdir " + mountPoint_ + "; "
-      "mount --bind " + mountPoint_ + " " + mountPoint_,
+      "mkdir " + mountPoint + "; "
+      "mount --bind " + mountPoint + " " + mountPoint,
       None(),
       "test-task123",
       "test-task123");
@@ -951,22 +926,28 @@ TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
 
   ExecutorID executorId;
   executorId.set_value("test-task123");
-  Result<string> sandbox_ = os::realpath(slave::paths::getExecutorLatestRunPath(
+  Result<string> _sandbox = os::realpath(slave::paths::getExecutorLatestRunPath(
       flags.work_dir,
       slaveId,
       frameworkId.get(),
       executorId));
-  ASSERT_SOME(sandbox_);
-  string sandbox = sandbox_.get();
-  // Register the mount point for cleanup.
-  mountPoint = Option<string>(path::join(sandbox, mountPoint_));
-
+  ASSERT_SOME(_sandbox);
+  string sandbox = _sandbox.get();
   EXPECT_TRUE(os::exists(sandbox));
-  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint_)));
-  EXPECT_TRUE(os::exists(path::join(sandbox, regularFile)));
+
+  // Wait for the task to create these paths.
+  Timeout timeout = Timeout::in(Seconds(15));
+  while (!os::exists(path::join(sandbox, mountPoint)) ||
+         !os::exists(path::join(sandbox, regularFile)) ||
+         !timeout.expired()) {
+    os::sleep(Milliseconds(10));
+  }
+
+  ASSERT_TRUE(os::exists(path::join(sandbox, mountPoint)));
+  ASSERT_TRUE(os::exists(path::join(sandbox, regularFile)));
 
   AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  ASSERT_EQ(task.task_id(), status2.get().task_id());
   EXPECT_EQ(TASK_FINISHED, status2.get().state());
 
   AWAIT_READY(schedule);
@@ -976,7 +957,7 @@ TEST_F(ROOT_GarbageCollectorUndeletableFilesTest,
   Clock::settle();
 
   EXPECT_TRUE(os::exists(sandbox));
-  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint_)));
+  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint)));
   EXPECT_FALSE(os::exists(path::join(sandbox, regularFile)));
 
   Clock::resume();
