@@ -190,7 +190,7 @@ TEST_P(MasterAPITest, GetAgents)
   ASSERT_EQ("host", v1Agent.agent_info().hostname());
   ASSERT_EQ(agent.get()->pid, v1Agent.pid());
   ASSERT_TRUE(v1Agent.active());
-  ASSERT_EQ("1.0.0", v1Agent.version());
+  ASSERT_EQ(MESOS_VERSION, v1Agent.version());
   ASSERT_EQ(4, v1Agent.total_resources_size());
 }
 
