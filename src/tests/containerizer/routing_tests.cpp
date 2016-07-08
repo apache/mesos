@@ -152,7 +152,7 @@ TEST_F(RoutingTest, PortRange)
 
 TEST_F(RoutingTest, RouteTable)
 {
-  Try<vector<route::Rule> > table = route::table();
+  Try<vector<route::Rule>> table = route::table();
   EXPECT_SOME(table);
 
   Result<net::IP> gateway = route::defaultGateway();
@@ -162,7 +162,7 @@ TEST_F(RoutingTest, RouteTable)
 
 TEST_F(RoutingTest, LinkIndex)
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {
@@ -175,7 +175,7 @@ TEST_F(RoutingTest, LinkIndex)
 
 TEST_F(RoutingTest, LinkName)
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {
@@ -187,11 +187,11 @@ TEST_F(RoutingTest, LinkName)
 
 TEST_F(RoutingTest, LinkStatistics)
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {
-    Result<hashmap<string, uint64_t> > statistics = link::statistics(link);
+    Result<hashmap<string, uint64_t>> statistics = link::statistics(link);
 
     ASSERT_SOME(statistics);
     EXPECT_TRUE(statistics.get().contains("rx_packets"));
@@ -206,7 +206,7 @@ TEST_F(RoutingTest, LinkStatistics)
 
 TEST_F(RoutingTest, LinkExists)
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {
@@ -241,7 +241,7 @@ TEST_F(RoutingTest, Lo)
 
 TEST_F(RoutingTest, INETSockets)
 {
-  Try<vector<diagnosis::socket::Info> > infos =
+  Try<vector<diagnosis::socket::Info>> infos =
     diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
   EXPECT_SOME(infos);
@@ -859,7 +859,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
       ingress::HANDLE,
       icmp::Classifier(ip)));
 
-  Result<vector<icmp::Classifier> > classifiers =
+  Result<vector<icmp::Classifier>> classifiers =
     icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
@@ -927,7 +927,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
       Priority(1, 2),
       action::Redirect(TEST_PEER_LINK)));
 
-  Result<vector<icmp::Classifier> > classifiers =
+  Result<vector<icmp::Classifier>> classifiers =
     icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
@@ -1067,7 +1067,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
 
   EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier));
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
@@ -1108,7 +1108,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
       ingress::HANDLE,
       ip::Classifier(None(), ip, None(), None())));
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
@@ -1231,7 +1231,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
       Priority(2, 2),
       action::Redirect(TEST_PEER_LINK)));
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
@@ -1329,7 +1329,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
   EXPECT_SOME_TRUE(ip::remove(TEST_VETH_LINK, ingress::HANDLE, classifier2));
   EXPECT_SOME_FALSE(ip::exists(TEST_VETH_LINK, ingress::HANDLE, classifier2));
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
