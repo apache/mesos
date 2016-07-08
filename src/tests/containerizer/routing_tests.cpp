@@ -69,47 +69,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-
-static const string TEST_VETH_LINK = "veth-test";
-static const string TEST_PEER_LINK = "veth-peer";
-
-
-class RoutingTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
-    ASSERT_SOME(routing::check())
-      << "-------------------------------------------------------------\n"
-      << "We cannot run any routing tests because either your libnl\n"
-      << "library or kernel is not new enough. You can either upgrade,\n"
-      << "or disable this test case\n"
-      << "-------------------------------------------------------------";
-  }
-};
-
-
-// Tests that require setting up virtual ethernet on host.
-class RoutingVethTest : public RoutingTest
-{
-protected:
-  virtual void SetUp()
-  {
-    RoutingTest::SetUp();
-
-    // Clean up the test links, in case it wasn't cleaned up properly
-    // from previous tests.
-    link::remove(TEST_VETH_LINK);
-
-    ASSERT_SOME_FALSE(link::exists(TEST_VETH_LINK));
-    ASSERT_SOME_FALSE(link::exists(TEST_PEER_LINK));
-  }
-
-  virtual void TearDown()
-  {
-    link::remove(TEST_VETH_LINK);
-  }
-};
+class RoutingTest : public ::testing::Test {};
 
 
 TEST_F(RoutingTest, PortRange)
@@ -147,16 +107,6 @@ TEST_F(RoutingTest, PortRange)
   EXPECT_EQ(1031u, ports.get().end());
   EXPECT_EQ(0xfff8, ports.get().mask());
   EXPECT_EQ("[1024,1031]", stringify(ports.get()));
-}
-
-
-TEST_F(RoutingTest, RouteTable)
-{
-  Try<vector<route::Rule>> table = route::table();
-  EXPECT_SOME(table);
-
-  Result<net::IP> gateway = route::defaultGateway();
-  EXPECT_FALSE(gateway.isError());
 }
 
 
@@ -239,7 +189,32 @@ TEST_F(RoutingTest, Lo)
 }
 
 
-TEST_F(RoutingTest, INETSockets)
+TEST_F(RoutingTest, RouteTable)
+{
+  Try<vector<route::Rule>> table = route::table();
+  EXPECT_SOME(table);
+
+  Result<net::IP> gateway = route::defaultGateway();
+  EXPECT_FALSE(gateway.isError());
+}
+
+
+class RoutingAdvancedTest : public RoutingTest
+{
+protected:
+  virtual void SetUp()
+  {
+    ASSERT_SOME(routing::check())
+      << "-------------------------------------------------------------\n"
+      << "We cannot run any routing advanced tests because either your\n"
+      << "libnl library or kernel is not new enough. You can either\n"
+      << "upgrade, or disable this test case\n"
+      << "-------------------------------------------------------------";
+  }
+};
+
+
+TEST_F(RoutingAdvancedTest, INETSockets)
 {
   Try<vector<diagnosis::socket::Info>> infos =
     diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
@@ -253,6 +228,33 @@ TEST_F(RoutingTest, INETSockets)
     EXPECT_SOME(info.destinationIP);
   }
 }
+
+
+constexpr char TEST_VETH_LINK[] = "veth-test";
+constexpr char TEST_PEER_LINK[] = "veth-peer";
+
+
+// Tests that require setting up virtual ethernet on host.
+class RoutingVethTest : public RoutingAdvancedTest
+{
+protected:
+  virtual void SetUp()
+  {
+    RoutingAdvancedTest::SetUp();
+
+    // Clean up the test links, in case it wasn't cleaned up properly
+    // from previous tests.
+    link::remove(TEST_VETH_LINK);
+
+    ASSERT_SOME_FALSE(link::exists(TEST_VETH_LINK));
+    ASSERT_SOME_FALSE(link::exists(TEST_PEER_LINK));
+  }
+
+  virtual void TearDown()
+  {
+    link::remove(TEST_VETH_LINK);
+  }
+};
 
 
 TEST_F(RoutingVethTest, ROOT_LinkCreate)
