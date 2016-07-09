@@ -2130,8 +2130,11 @@ TEST_P(AgentAPITest, GetFlags)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::GET_FLAGS);
@@ -2155,8 +2158,11 @@ TEST_P(AgentAPITest, GetHealth)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::GET_HEALTH);
@@ -2181,8 +2187,11 @@ TEST_P(AgentAPITest, GetVersion)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::GET_VERSION);
@@ -2209,8 +2218,11 @@ TEST_P(AgentAPITest, GetMetrics)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   Duration timeout = Seconds(5);
 
@@ -2249,8 +2261,11 @@ TEST_P(AgentAPITest, GetLoggingLevel)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::GET_LOGGING_LEVEL);
@@ -2279,8 +2294,11 @@ TEST_P(AgentAPITest, SetLoggingLevel)
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector);
   ASSERT_SOME(slave);
 
-  // Wait until the agent has finished recovery.
   AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
 
   // We capture the original logging level first; it would be used to verify
   // the logging level revert works.
