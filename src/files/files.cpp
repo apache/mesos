@@ -107,8 +107,8 @@ public:
   void detach(const string& name);
 
   Future<Try<list<FileInfo>, FilesError>> browse(
-    const string& path,
-    const Option<string>& principal);
+      const string& path,
+      const Option<string>& principal);
 
   Future<Try<tuple<size_t, string>, FilesError>> read(
       const size_t offset,
