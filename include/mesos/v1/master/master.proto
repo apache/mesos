@@ -223,7 +223,7 @@ message Response {
     GET_LOGGING_LEVEL = 5;         // See 'GetLoggingLevel' below.
 
     LIST_FILES = 6;
-    READ_FILE = 7;
+    READ_FILE = 7;                 // See 'ReadFile' below.
 
     GET_STATE = 8;
     GET_STATE_SUMMARY = 9;
@@ -275,8 +275,12 @@ message Response {
     repeated FileInfo file_infos = 1;
   }
 
-  message GetFileContents {
-    repeated bytes data = 1;
+  // Contains the file data.
+  message ReadFile {
+    // The size of file (in bytes).
+    required uint64 size = 1;
+
+    required bytes data = 2;
   }
 
   // Contains full state of the master i.e. information about the tasks,
@@ -423,7 +427,7 @@ message Response {
   optional GetMetrics get_metrics = 5;
   optional GetLoggingLevel get_logging_level = 6;
   optional ListFiles list_files = 7;
-  optional GetFileContents get_file_contents = 8;
+  optional ReadFile read_file = 8;
   optional GetState get_state = 9;
   optional GetStateSummary get_state_summary = 10;
   optional GetAgents get_agents = 11;
