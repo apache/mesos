@@ -544,6 +544,11 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> readFile(
+        const mesos::agent::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.

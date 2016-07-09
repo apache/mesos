@@ -382,7 +382,7 @@ Future<Response> Slave::Http::api(
       return listFiles(call, principal, acceptType);
 
     case agent::Call::READ_FILE:
-      return NotImplemented();
+      return readFile(call, principal, acceptType);
 
     case agent::Call::GET_STATE:
       return NotImplemented();
@@ -1385,6 +1385,56 @@ Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
   }
 
   return "/" + pathComponents[1];
+}
+
+
+Future<Response> Slave::Http::readFile(
+    const mesos::agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::agent::Call::READ_FILE, call.type());
+
+  const size_t offset = call.read_file().offset();
+  const string& path = call.read_file().path();
+
+  Option<size_t> length;
+  if (call.read_file().has_length()) {
+    length = call.read_file().length();
+  }
+
+  return slave->files->read(offset, length, path, principal)
+    .then([contentType](const Try<tuple<size_t, string>, FilesError>& result)
+        -> Future<Response> {
+      if (result.isError()) {
+        const FilesError& error = result.error();
+
+        switch (error.type) {
+          case FilesError::Type::INVALID:
+            return BadRequest(error.message);
+
+          case FilesError::Type::UNAUTHORIZED:
+            return Forbidden(error.message);
+
+          case FilesError::Type::NOT_FOUND:
+            return NotFound(error.message);
+
+          case FilesError::Type::UNKNOWN:
+            return InternalServerError(error.message);
+        }
+
+        UNREACHABLE();
+      }
+
+      mesos::agent::Response response;
+      response.set_type(mesos::agent::Response::READ_FILE);
+
+      response.mutable_read_file()->set_size(std::get<0>(result.get()));
+      response.mutable_read_file()->set_data(std::get<1>(result.get()));
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
 }
 
 } // namespace slave {
