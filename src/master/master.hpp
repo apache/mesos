@@ -1521,6 +1521,11 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> readFile(
+        const mesos::master::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
     Master* master;
 
     // NOTE: The quota specific pieces of the Operator API are factored
