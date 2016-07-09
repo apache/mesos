@@ -85,6 +85,7 @@ using process::wait; // Necessary on some OS's to disambiguate.
 using std::list;
 using std::map;
 using std::string;
+using std::tuple;
 using std::vector;
 
 namespace mesos {
@@ -108,6 +109,12 @@ public:
   Future<Try<list<FileInfo>, FilesError>> browse(
     const string& path,
     const Option<string>& principal);
+
+  Future<Try<tuple<size_t, string>, FilesError>> read(
+      const size_t offset,
+      const Option<size_t>& length,
+      const string& path,
+      const Option<string>& principal);
 
 protected:
   virtual void initialize();
@@ -133,17 +140,17 @@ private:
       const http::Request& request,
       const Option<string>& principal);
 
+  // Continuation of `read()`.
+  Future<Try<tuple<size_t, string>, FilesError>> _read(
+      size_t offset,
+      Option<size_t> length,
+      const string& path);
+
   // Reads data from a file at a given offset and for a given length.
   // See the jquery pailer for the expected behavior.
-  Future<http::Response> read(
+  Future<http::Response> __read(
       const http::Request& request,
       const Option<string>& principal);
-
-  Future<http::Response> _read(
-      off_t offset,
-      Option<size_t> length,
-      const string& path,
-      const Option<string>& jsonp);
 
   // Returns the raw file contents for a given path.
   // Requests have the following parameters:
@@ -202,7 +209,7 @@ void FilesProcess::initialize()
     route("/read.json",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
-          &FilesProcess::read);
+          &FilesProcess::__read);
     route("/download.json",
           authenticationRealm.get(),
           FilesProcess::DOWNLOAD_HELP,
@@ -219,7 +226,7 @@ void FilesProcess::initialize()
     route("/read",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
-          &FilesProcess::read);
+          &FilesProcess::__read);
     route("/download",
           authenticationRealm.get(),
           FilesProcess::DOWNLOAD_HELP,
@@ -236,7 +243,7 @@ void FilesProcess::initialize()
           lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
     route("/read.json",
           FilesProcess::READ_HELP,
-          lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
+          lambda::bind(&FilesProcess::__read, this, lambda::_1, None()));
     route("/download.json",
           FilesProcess::DOWNLOAD_HELP,
           lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
@@ -249,7 +256,7 @@ void FilesProcess::initialize()
           lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
     route("/read",
           FilesProcess::READ_HELP,
-          lambda::bind(&FilesProcess::read, this, lambda::_1, None()));
+          lambda::bind(&FilesProcess::__read, this, lambda::_1, None()));
     route("/download",
           FilesProcess::DOWNLOAD_HELP,
           lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
@@ -449,21 +456,6 @@ Future<Try<list<FileInfo>, FilesError>> FilesProcess::browse(
 }
 
 
-// TODO(benh): Remove 'const &' from size after fixing libprocess.
-Future<http::Response> __read(int fd,
-                       const size_t& size,
-                       off_t offset,
-                       const boost::shared_array<char>& data,
-                       const Option<string>& jsonp) {
-  JSON::Object object;
-
-  object.values["offset"] = offset;
-  object.values["data"] = string(data.get(), size);
-
-  return OK(object, jsonp);
-}
-
-
 const string FilesProcess::READ_HELP = HELP(
     TLDR(
         "Reads data from a file."),
@@ -489,7 +481,7 @@ const string FilesProcess::READ_HELP = HELP(
         "See authorization documentation for details."));
 
 
-Future<http::Response> FilesProcess::read(
+Future<http::Response> FilesProcess::__read(
     const http::Request& request,
     const Option<string>& principal)
 {
@@ -541,39 +533,87 @@ Future<http::Response> FilesProcess::read(
     }
   }
 
-  string requestedPath = path.get();
+  size_t offset_ = offset;
+
+  // The pailer in the webui sends `offset=-1` initially to determine the length
+  // of the file. This is equivalent to making a call to `read()` with an
+  // `offset`/`length` of 0.
+  if (offset == -1) {
+    offset_ = 0;
+    length = 0;
+  }
+
   Option<string> jsonp = request.url.query.get("jsonp");
 
-  return authorize(requestedPath, principal)
-    .then(defer(self(),
-        [this, offset, length, path, jsonp](bool authorized)
-          -> Future<http::Response> {
-      if (authorized) {
-        return _read(offset, length, path.get(), jsonp);
+  return read(offset_, length, path.get(), principal)
+    .then([offset, jsonp](const Try<tuple<size_t, string>, FilesError>& result)
+        -> Future<http::Response> {
+      if (result.isError()) {
+        const FilesError& error = result.error();
+
+        switch (error.type) {
+          case FilesError::Type::INVALID:
+            return BadRequest(error.message);
+
+          case FilesError::Type::NOT_FOUND:
+            return NotFound(error.message);
+
+          case FilesError::Type::UNAUTHORIZED:
+            return Forbidden(error.message);
+
+          case FilesError::Type::UNKNOWN:
+            return InternalServerError(error.message);
+        }
+
+        UNREACHABLE();
       }
 
-      return Forbidden();
+      const tuple<size_t, string>& contents = result.get();
+
+      JSON::Object object;
+      object.values["offset"] = (offset == -1) ? std::get<0>(contents) : offset;
+      object.values["data"] = std::get<1>(contents);
+
+      return OK(object, jsonp);
+    });
+}
+
+
+Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::read(
+    const size_t offset,
+    const Option<size_t>& length,
+    const string& path,
+    const Option<string>& principal)
+{
+  return authorize(path, principal)
+    .then(defer(self(),
+        [this, offset, length, path](bool authorized)
+          -> Future<Try<tuple<size_t, string>, FilesError>> {
+      if (!authorized) {
+        return FilesError(FilesError::Type::UNAUTHORIZED);
+      }
+
+      return _read(offset, length, path);
     }));
 }
 
 
-Future<http::Response> FilesProcess::_read(
-    off_t offset,
+Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
+    size_t offset,
     Option<size_t> length,
-    const string& path,
-    const Option<string>& jsonp)
+    const string& path)
 {
   Result<string> resolvedPath = resolve(path);
 
   if (resolvedPath.isError()) {
-    return BadRequest(resolvedPath.error() + ".\n");
+    return FilesError(FilesError::Type::INVALID, resolvedPath.error() + ".\n");
   } else if (!resolvedPath.isSome()) {
-    return NotFound();
+    return FilesError(FilesError::Type::NOT_FOUND);
   }
 
   // Don't read directories.
   if (os::stat::isdir(resolvedPath.get())) {
-    return BadRequest("Cannot read a directory.\n");
+    return FilesError(FilesError::Type::INVALID, "Cannot read a directory.\n");
   }
 
   // TODO(benh): Cache file descriptors so we aren't constantly
@@ -586,10 +626,10 @@ Future<http::Response> FilesProcess::_read(
         resolvedPath.get(),
         fd.error()).get();
     LOG(WARNING) << error;
-    return InternalServerError(error + ".\n");
+    return FilesError(FilesError::Type::UNKNOWN, error + ".\n");
   }
 
-  off_t size = lseek(fd.get(), 0, SEEK_END);
+  const off_t size = lseek(fd.get(), 0, SEEK_END);
 
   if (size == -1) {
     string error = strings::format(
@@ -599,28 +639,25 @@ Future<http::Response> FilesProcess::_read(
 
     LOG(WARNING) << error;
     os::close(fd.get());
-    return InternalServerError(error + ".\n");
+    return FilesError(FilesError::Type::UNKNOWN, error + ".\n");
   }
 
-  if (offset == -1) {
-    offset = size;
+  if (offset >= static_cast<size_t>(size)) {
+    os::close(fd.get());
+    return std::make_tuple(size, "");
   }
 
   if (length.isNone()) {
     length = size - offset;
   }
 
+  // Return the size of file if length is 0.
+  if (length == 0) {
+    return std::make_tuple(size, "");
+  }
+
   // Cap the read length at 16 pages.
   length = std::min<size_t>(length.get(), os::pagesize() * 16);
-
-  if (offset >= size) {
-    os::close(fd.get());
-
-    JSON::Object object;
-    object.values["offset"] = size;
-    object.values["data"] = "";
-    return OK(object, jsonp);
-  }
 
   // Seek to the offset we want to read from.
   if (lseek(fd.get(), offset, SEEK_SET) == -1) {
@@ -631,7 +668,7 @@ Future<http::Response> FilesProcess::_read(
 
     LOG(WARNING) << error;
     os::close(fd.get());
-    return InternalServerError(error);
+    return FilesError(FilesError::Type::UNKNOWN, error);
   }
 
   Try<Nothing> nonblock = os::nonblock(fd.get());
@@ -640,21 +677,16 @@ Future<http::Response> FilesProcess::_read(
         "Failed to set file descriptor nonblocking: " + nonblock.error();
     LOG(WARNING) << error;
     os::close(fd.get());
-    return InternalServerError(error);
+    return FilesError(FilesError::Type::UNKNOWN, error);
   }
 
   // Read 'length' bytes (or to EOF).
   boost::shared_array<char> data(new char[length.get()]);
 
   return io::read(fd.get(), data.get(), length.get())
-    .then(lambda::bind(
-        __read,
-        fd.get(),
-        lambda::_1,
-        offset,
-        data,
-        jsonp))
-    .onAny([fd]() { os::close(fd.get()); });
+    .then([size, data, length]() -> Try<tuple<size_t, string>, FilesError> {
+      return std::make_tuple(size, string(data.get(), length.get()));
+    });
 }
 
 
@@ -883,6 +915,21 @@ Future<Try<list<FileInfo>, FilesError>> Files::browse(
     const Option<string>& principal)
 {
   return dispatch(process, &FilesProcess::browse, path, principal);
+}
+
+
+Future<Try<tuple<size_t, string>, FilesError>> Files::read(
+    const size_t offset,
+    const Option<size_t>& length,
+    const string& path,
+    const Option<string>& principal)
+{
+  return dispatch(process,
+                  &FilesProcess::read,
+                  offset,
+                  length,
+                  path,
+                  principal);
 }
 
 } // namespace internal {

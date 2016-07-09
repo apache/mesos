@@ -94,6 +94,13 @@ public:
       const std::string& path,
       const Option<std::string>& principal);
 
+  // Returns the size and data of file.
+  process::Future<Try<std::tuple<size_t, std::string>, FilesError>> read(
+      const size_t offset,
+      const Option<size_t>& length,
+      const std::string& path,
+      const Option<std::string>& principal);
+
 private:
   FilesProcess* process;
 };
