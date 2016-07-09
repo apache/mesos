@@ -508,6 +508,11 @@ Future<http::Response> FilesProcess::read(
       return BadRequest("Failed to parse offset: " + result.error() + ".\n");
     }
 
+    if (result.get() < -1) {
+      return BadRequest(strings::format(
+          "Negative offset provided: %d.\n", result.get()).get());
+    }
+
     offset = result.get();
   }
 
@@ -527,8 +532,8 @@ Future<http::Response> FilesProcess::read(
     // read to the end of the file, up to the maximum read length.
     // Will change this logic in MESOS-5334.
     if (result.get() < -1) {
-      return BadRequest(
-        strings::format("Negative length provided: %d.\n", result.get()).get());
+      return BadRequest(strings::format(
+          "Negative length provided: %d.\n", result.get()).get());
     }
 
     if (result.get() > -1){
