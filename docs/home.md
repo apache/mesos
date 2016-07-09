@@ -82,6 +82,7 @@ layout: documentation
 
 * [Reporting an Issue, Improvement, or Feature](reporting-a-bug.md) for getting started with JIRA.
 * [Submitting a Patch](submitting-a-patch.md) for getting started with ReviewBoard and our tooling around it.
+* [Reopening a Review](reopening-reviews.md) for our policy around reviving reviews on ReviewBoard.
 * [Testing Patterns](testing-patterns.md) for tips and tricks used in Mesos tests.
 * [Effective Code Reviewing](effective-code-reviewing.md) guidelines, tips, and learnings for how to do effective code reviews.
 * [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
