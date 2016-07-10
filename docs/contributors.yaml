@@ -148,6 +148,12 @@
   jira_user: gyliu
   reviewboard_user: gyliu
 
+- name: Haosdent Huang
+  emails:
+    - haosdent@gmail.com
+  jira_user: haosdent
+  reviewboard_user: haosdent
+
 - name: Ian Downes
   affiliations:
     - {organization: Twitter}
@@ -407,7 +413,7 @@
     - guilherme.sft@gmail.com
   jira_user: jvanz
   reviewboard_user: jvanz
-  
+
 - name: Xiao Deshi
   affiliations:
     - {organization: Dataman}
