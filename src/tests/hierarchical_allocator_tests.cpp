@@ -2389,6 +2389,108 @@ TEST_F(HierarchicalAllocatorTest, ReservationWithinQuota)
 }
 
 
+// This test checks that when setting aside unallocated resources to
+// ensure that a quota guarantee can be met, we don't use resources
+// that have been reserved for a different role.
+//
+// We setup a scenario with 8 CPUs, where role X has quota for 4 CPUs
+// and role Y has 4 CPUs reserved. All offers are declined; the 4
+// unreserved CPUs should not be offered to role Y.
+TEST_F(HierarchicalAllocatorTest, QuotaSetAsideReservedResources)
+{
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
+
+  initialize();
+
+  // Create two agents.
+  SlaveInfo agent1 = createSlaveInfo("cpus:4;mem:512;disk:0");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:4;mem:512;disk:0");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+
+  // Reserve 4 CPUs and 512MB of memory on `agent2` for non-quota'ed role.
+  Resources unreserved = Resources::parse("cpus:4;mem:512").get();
+  Resources dynamicallyReserved =
+    unreserved.flatten(NO_QUOTA_ROLE, createReservationInfo("ops"));
+
+  Offer::Operation reserve = RESERVE(dynamicallyReserved);
+
+  Future<Nothing> updateAgent2 =
+    allocator->updateAvailable(agent2.id(), {reserve});
+
+  AWAIT_EXPECT_READY(updateAgent2);
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, {});
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:4");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // `framework1` will be offered resources at `agent1` because the
+  // resources at `agent2` are reserved for a different role.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  // `framework1` declines the resources on `agent1` for the duration
+  // of the test.
+  Filters longFilter;
+  longFilter.set_refuse_seconds(flags.allocation_interval.secs() * 10);
+
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      agent1.resources(),
+      longFilter);
+
+  // Trigger a batch allocation for good measure, but don't expect any
+  // allocations.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Create `framework2` in a non-quota'ed role.
+  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(framework2.id(), framework2, {});
+
+  // `framework2` will be offered the reserved resources at `agent2`
+  // because those resources are reserved for its role.
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(dynamicallyReserved, Resources::sum(allocation.get().resources));
+
+  // `framework2` declines the resources on `agent2` for the duration
+  // of the test.
+  allocator->recoverResources(
+      framework2.id(),
+      agent2.id(),
+      dynamicallyReserved,
+      longFilter);
+
+  // No more resource offers should be made until the filters expire:
+  // `framework1` should not be offered the resources at `agent2`
+  // (because they are reserved for a different role), and
+  // `framework2` should not be offered the resources at `agent1`
+  // (because this would risk violating quota guarantees).
+
+  // Trigger a batch allocation for good measure, but don't expect any
+  // allocations.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+}
+
+
 // This test checks that if a framework suppresses offers, disconnects and
 // reconnects again, it will start receiving resource offers again.
 TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
