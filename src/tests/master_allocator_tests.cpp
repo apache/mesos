@@ -427,7 +427,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   EXPECT_CALL(sched1, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers()); // For subsequent offers.
 
-  // Initially, all of slave1's resources are avaliable.
+  // Initially, all of slave1's resources are available.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 256, "*"));
 
@@ -556,7 +556,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
     .WillRepeatedly(DeclineOffers());
 
   // The first time the framework is offered resources, all of the
-  // cluster's resources should be avaliable.
+  // cluster's resources should be available.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(LaunchTasks(executor1, 1, 2, 512, "*"));
 
@@ -815,7 +815,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers());
 
-  // Initially, all of slave1's resources are avaliable.
+  // Initially, all of slave1's resources are available.
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 512, "*"));
 

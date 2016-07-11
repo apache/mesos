@@ -2570,7 +2570,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
   // framework's redundant REVIVE calls.
   allocator->reviveOffers(framework.id());
 
-  // Nothing is allocated because of no additinal resources.
+  // Nothing is allocated because of no additional resources.
   allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
