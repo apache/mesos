@@ -50,8 +50,8 @@ inline Result<Credentials> read(const Path& path)
                  << "': " << permissions.error();
   } else if (permissions.get().others.rwx) {
     LOG(WARNING) << "Permissions on credentials file '" << path
-                 << "' are too open. It is recommended that your "
-                 << "credentials file is NOT accessible by others.";
+                 << "' are too open; it is recommended that your"
+                 << " credentials file is NOT accessible by others";
   }
 
   // TODO(nfnt): Remove text format support at the end of the deprecation cycle
@@ -99,8 +99,8 @@ inline Result<Credential> readCredential(const Path& path)
                  << "': " << permissions.error();
   } else if (permissions.get().others.rwx) {
     LOG(WARNING) << "Permissions on credential file '" << path
-                 << "' are too open. It is recommended that your "
-                 << "credential file is NOT accessible by others.";
+                 << "' are too open; it is recommended that your"
+                 << " credential file is NOT accessible by others";
   }
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
