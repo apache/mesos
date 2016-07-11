@@ -815,7 +815,6 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
 
   // Trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   // Since the filter is removed, resources are offered to `framework2`.
   allocation = allocations.get();
@@ -1616,7 +1615,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   // Ensure the offer filter times out (2x the allocation interval)
   // and the next batch allocation occurs.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   // Previously declined resources should be offered to the quota'ed role.
   AWAIT_READY(allocation);
@@ -1696,7 +1694,6 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 
   // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1827,7 +1824,6 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
 
   // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -2093,7 +2089,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 
   // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -2541,7 +2536,6 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
 
   // Framework will be offered all of agent's resources again
   // after getting activated.
-  Clock::settle();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
@@ -2590,7 +2584,6 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
 
   // Advance the clock and trigger a background allocation cycle.
   Clock::advance(flags.allocation_interval);
-
   Clock::settle();
 
   // Still pending because the framework has suppressed offers.
@@ -2601,7 +2594,6 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
 
   // Framework will be offered all of agent's resources again after
   // reviving offers.
-  Clock::settle();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
@@ -3104,7 +3096,6 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
   {
     // Advance the clock and trigger a batch allocation.
     Clock::advance(flags.allocation_interval);
-    Clock::settle();
 
     // role1 share = 0.5 (cpus=6, mem=3072)
     //   framework1 share = 1
@@ -3143,7 +3134,6 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
 
     // 'updateWeights' will trigger the allocation immediately, so it does not
     // need to manually advance the clock here.
-    Clock::settle();
 
     // role1 share = 0.33 (cpus=4, mem=2048)
     //   framework1 share = 1
@@ -3190,7 +3180,6 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
 
     // 'addFramework' will trigger the allocation immediately, so it does not
     // need to manually advance the clock here.
-    Clock::settle();
 
     // role1 share = 0.166 (cpus=2, mem=1024)
     //   framework1 share = 1
@@ -3271,9 +3260,6 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
   EXPECT_TRUE(allocation.isPending());
 
   allocator->reviveOffers(framework.id());
-
-  // Wait for the `reviveOffers` operation to be processed.
-  Clock::settle();
 
   // Framework will be offered all of agent's resources again
   // after reviving offers.
