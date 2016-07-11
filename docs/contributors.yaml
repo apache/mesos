@@ -479,3 +479,11 @@
     - hvtuananh@gmail.com
   jira_user: tuananh
   reviewboard_user: tuananh
+
+- name: Timothy Chen
+  affiliations:
+    - {organization: Mesosphere, end_date: 2016-05-01}
+  emails:
+    - tnachen@apache.org
+  jira_user: tnachen
+  reviewboard_user: tnachen
