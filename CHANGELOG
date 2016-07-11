@@ -756,6 +756,8 @@ All Issues:
   * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
   * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters.
   * [MESOS-5698] - Quota sorter not updated for resource changes at agent.
+  * [MESOS-5740] - Consider adding `relink` functionality to libprocess.
+  * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition.
 
 
 Release Notes - Mesos - Version 0.28.2
