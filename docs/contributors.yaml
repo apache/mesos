@@ -355,6 +355,12 @@
   jira_user: gradywang
   reviewboard_user: JamesYongQiaoWang
 
+- name: Yong Tang
+  emails:
+    - yong.tang.github@outlook.com
+  jira_user: yongtang
+  reviewboard_user: yongtang
+
 - name: zhou xing
   affiliations:
     - {organization: IBM}
