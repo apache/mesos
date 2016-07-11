@@ -64,7 +64,7 @@ function(PROTOC_TO_INCLUDE_DIR BASE_NAME BASE_DIR_STRUCTURE)
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CC} ${H}
     COMMAND ${PROTOC} ${TO_INCLUDE_DIR} ${PROTO}
-    DEPENDS make_bin_include_dir
+    DEPENDS make_bin_include_dir ${PROTO}
     WORKING_DIRECTORY ${MESOS_BIN})
 endfunction()
 
@@ -97,6 +97,6 @@ function(PROTOC_TO_SRC_DIR BASE_NAME BASE_DIR_STRUCTURE)
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CC} ${H}
     COMMAND ${PROTOC} ${TO_SRC_DIR} ${PROTO}
-    DEPENDS make_bin_src_dir
+    DEPENDS make_bin_src_dir ${PROTO}
     WORKING_DIRECTORY ${MESOS_BIN})
 endfunction()
