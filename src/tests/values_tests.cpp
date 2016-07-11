@@ -21,6 +21,7 @@
 #include <mesos/values.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/interval.hpp>
 #include <stout/try.hpp>
 
 #include "master/master.hpp"
@@ -30,6 +31,9 @@ using namespace mesos::internal::values;
 namespace mesos {
   extern void coalesce(Value::Ranges* ranges);
   extern void coalesce(Value::Ranges* ranges, const Value::Range& range);
+
+  extern IntervalSet<uint64_t> rangesToIntervalSet(const Value::Ranges& ranges);
+  extern Value::Ranges intervalSetToRanges(const IntervalSet<uint64_t>& set);
 } // namespace mesos {
 
 namespace mesos {
@@ -308,6 +312,69 @@ TEST(ValuesTest, AddRangeCoalesce)
   EXPECT_EQ(20U, ranges.range(1).begin());
   EXPECT_EQ(21U, ranges.range(1).end());
 }
+
+
+// Test converting Ranges to IntervalSet.
+TEST(ValuesTest, RangesToIntervalSet)
+{
+  Value::Ranges ranges;
+  IntervalSet<uint64_t> set;
+  IntervalSet<uint64_t>::iterator interval;
+
+  // Initialize Ranges value as [1-1, 3-5, 7-8].
+  Value::Range* range = ranges.add_range();
+  range->set_begin(1);
+  range->set_end(1);
+  range = ranges.add_range();
+  range->set_begin(3);
+  range->set_end(5);
+  range = ranges.add_range();
+  range->set_begin(7);
+  range->set_end(8);
+
+  // Convert Ranges value to IntervalSet value.
+  set = mesos::rangesToIntervalSet(ranges);
+
+  // Verify converting result which should be {[1,2), [3-6), [7-9)}.
+  ASSERT_EQ(3U, set.intervalCount());
+  interval = set.begin();
+  EXPECT_EQ(1U, interval->lower());
+  EXPECT_EQ(2U, interval->upper());
+  interval++;
+  EXPECT_EQ(3U, interval->lower());
+  EXPECT_EQ(6U, interval->upper());
+  interval++;
+  EXPECT_EQ(7U, interval->lower());
+  EXPECT_EQ(9U, interval->upper());
+  interval++;
+  EXPECT_EQ(set.end(), interval);
+}
+
+
+// Test converting IntervalSet to Ranges.
+TEST(ValuesTest, IntervalSetToRanges)
+{
+  Value::Ranges ranges;
+  IntervalSet<uint64_t> set;
+
+  // Initialize IntervalSet value as {[1-1], [3-4], [7-9]}.
+  set += (Bound<uint64_t>::closed(1), Bound<uint64_t>::closed(1));
+  set += (Bound<uint64_t>::closed(3), Bound<uint64_t>::closed(4));
+  set += (Bound<uint64_t>::closed(7), Bound<uint64_t>::closed(9));
+
+  // Convert IntervalSet value to Ranges value.
+  ranges = mesos::intervalSetToRanges(set);
+
+  // Verify converting result which should be [1-1, 3-4, 7-9].
+  ASSERT_EQ(3, ranges.range_size());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(1U, ranges.range(0).end());
+  EXPECT_EQ(3U, ranges.range(1).begin());
+  EXPECT_EQ(4U, ranges.range(1).end());
+  EXPECT_EQ(7U, ranges.range(2).begin());
+  EXPECT_EQ(9U, ranges.range(2).end());
+}
+
 
 // Test adding two ranges.
 TEST(ValuesTest, RangesAddition)

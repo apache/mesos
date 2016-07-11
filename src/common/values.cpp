@@ -33,6 +33,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/interval.hpp>
 #include <stout/strings.hpp>
 
 using std::max;
@@ -266,46 +267,32 @@ void coalesce(Value::Ranges* result, const Value::Range& addedRange)
 }
 
 
-// Removes a range from already coalesced ranges.
-// The algorithms constructs a new vector of ranges which is then
-// coalesced into a Value::Ranges instance.
-static void remove(Value::Ranges* _ranges, const Value::Range& removal)
+// Convert Ranges value to IntervalSet value.
+IntervalSet<uint64_t> rangesToIntervalSet(const Value::Ranges& ranges)
 {
-  vector<internal::Range> ranges;
-  ranges.reserve(_ranges->range_size());
+  IntervalSet<uint64_t> set;
 
-  foreach (const Value::Range& range, _ranges->range()) {
-    // Skip if the entire range is subsumed by `removal`.
-    if (range.begin() >= removal.begin() && range.end() <= removal.end()) {
-      continue;
-    }
-
-    // Divide if the range subsumes the `removal`.
-    if (range.begin() < removal.begin() && range.end() > removal.end()) {
-      // Front.
-      ranges.emplace_back(internal::Range{range.begin(), removal.begin() - 1});
-      // Back.
-      ranges.emplace_back(internal::Range{removal.end() + 1, range.end()});
-    }
-
-    // Fully Emplace if the range doesn't intersect.
-    if (range.end() < removal.begin() || range.begin() > removal.end()) {
-      ranges.emplace_back(internal::Range{range.begin(), range.end()});
-    } else {
-      // Trim if the range does intersect.
-      if (range.end() > removal.end()) {
-        // Trim front.
-        ranges.emplace_back(internal::Range{removal.end() + 1, range.end()});
-      } else {
-        // Trim back.
-        CHECK(range.begin() < removal.begin());
-        ranges.emplace_back(
-            internal::Range{range.begin(), removal.begin() - 1});
-      }
-    }
+  foreach (const Value::Range& range, ranges.range()) {
+    set += (Bound<uint64_t>::closed(range.begin()),
+            Bound<uint64_t>::closed(range.end()));
   }
 
-  internal::coalesce(_ranges, std::move(ranges));
+  return set;
+}
+
+
+// Convert IntervalSet value to Ranges value.
+Value::Ranges intervalSetToRanges(const IntervalSet<uint64_t>& set)
+{
+  Value::Ranges ranges;
+
+  foreach (const Interval<uint64_t>& interval, set) {
+    Value::Range* range = ranges.add_range();
+    range->set_begin(interval.lower());
+    range->set_end(interval.upper() - 1);
+  }
+
+  return ranges;
 }
 
 
@@ -405,13 +392,15 @@ Value::Ranges& operator+=(Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-Value::Ranges& operator-=(Value::Ranges& left, const Value::Ranges& right)
+Value::Ranges& operator-=(Value::Ranges& _left, const Value::Ranges& _right)
 {
-  coalesce(&left);
-  for (int i = 0; i < right.range_size(); ++i) {
-    remove(&left, right.range(i));
-  }
-  return left;
+  IntervalSet<uint64_t> left, right;
+
+  left = rangesToIntervalSet(_left);
+  right = rangesToIntervalSet(_right);
+  _left = intervalSetToRanges(left - right);
+
+  return _left;
 }
 
 
