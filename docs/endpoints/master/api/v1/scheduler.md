@@ -22,3 +22,8 @@ found.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+The returned frameworks information might be filtered based on the
+users authorization.
+See the authorization documentation for details.
