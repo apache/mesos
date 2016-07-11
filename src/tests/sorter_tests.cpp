@@ -451,12 +451,12 @@ TEST(SorterTest, RevocableResources)
   sorter.add("b");
 
   // Create a total resource pool of 10 revocable cpus and 10 cpus and
-  // 10 MB mem.
+  // 100 MB mem.
   Resource revocable = Resources::parse("cpus", "10", "*").get();
   revocable.mutable_revocable();
   Resources total = Resources::parse("cpus:10;mem:100").get() + revocable;
 
-  sorter.add(slaveId, revocable);
+  sorter.add(slaveId, total);
 
   // Dominant share of "a" is 0.1 (cpus).
   Resources a = Resources::parse("cpus:2;mem:1").get();
