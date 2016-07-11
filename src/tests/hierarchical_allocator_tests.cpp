@@ -243,35 +243,6 @@ protected:
     return weightInfo;
   }
 
-  void handleAllocationsAndRecoverResources(
-      Resources& totalAllocatedResources,
-      hashmap<FrameworkID, Allocation>& frameworkAllocations,
-      int allocationsCount,
-      bool recoverResources)
-  {
-    for (int i = 0; i < allocationsCount; i++) {
-      Future<Allocation> allocation = allocations.get();
-      AWAIT_READY(allocation);
-
-      frameworkAllocations[allocation.get().frameworkId] = allocation.get();
-      totalAllocatedResources += Resources::sum(allocation.get().resources);
-
-      if (recoverResources) {
-        // Recover the allocated resources so they can be offered again
-        // next time.
-        foreachpair (const SlaveID& slaveId,
-                     const Resources& resources,
-                     allocation.get().resources) {
-          allocator->recoverResources(
-              allocation.get().frameworkId,
-              slaveId,
-              resources,
-              None());
-        }
-      }
-    }
-  }
-
 protected:
   master::Flags flags;
 
@@ -3045,6 +3016,34 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
   const string FOURFOLD_RESOURCES = "cpus:8;mem:4096";
   const string TOTAL_RESOURCES = "cpus:12;mem:6144";
 
+  auto awaitAllocationsAndRecoverResources = [this](
+      Resources& totalAllocatedResources,
+      hashmap<FrameworkID, Allocation>& frameworkAllocations,
+      int allocationsCount,
+      bool recoverResources) {
+    for (int i = 0; i < allocationsCount; i++) {
+      Future<Allocation> allocation = allocations.get();
+      AWAIT_READY(allocation);
+
+      frameworkAllocations[allocation.get().frameworkId] = allocation.get();
+      totalAllocatedResources += Resources::sum(allocation.get().resources);
+
+      if (recoverResources) {
+        // Recover the allocated resources so they can be offered
+        // again next time.
+        foreachpair (const SlaveID& slaveId,
+                     const Resources& resources,
+                     allocation.get().resources) {
+          allocator->recoverResources(
+              allocation.get().frameworkId,
+              slaveId,
+              resources,
+              None());
+        }
+      }
+    }
+  };
+
   // Register six agents with the same resources (cpus:2;mem:1024).
   vector<SlaveInfo> agents;
   for (unsigned i = 0; i < 6; i++) {
@@ -3106,7 +3105,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
     // since each framework's role has a weight of 1.0 by default.
     hashmap<FrameworkID, Allocation> frameworkAllocations;
     Resources totalAllocatedResources;
-    handleAllocationsAndRecoverResources(totalAllocatedResources,
+    awaitAllocationsAndRecoverResources(totalAllocatedResources,
         frameworkAllocations, 2, true);
 
     // Framework1 should get one allocation with three agents.
@@ -3144,7 +3143,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
     // resources are offered with a ratio of 1:2 between both frameworks.
     hashmap<FrameworkID, Allocation> frameworkAllocations;
     Resources totalAllocatedResources;
-    handleAllocationsAndRecoverResources(totalAllocatedResources,
+    awaitAllocationsAndRecoverResources(totalAllocatedResources,
         frameworkAllocations, 2, true);
 
     // Framework1 should get one allocation with two agents.
@@ -3193,7 +3192,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
     // will get the proper resource ratio of 1:2:3.
     hashmap<FrameworkID, Allocation> frameworkAllocations;
     Resources totalAllocatedResources;
-    handleAllocationsAndRecoverResources(totalAllocatedResources,
+    awaitAllocationsAndRecoverResources(totalAllocatedResources,
         frameworkAllocations, 3, false);
 
     // Framework1 should get one allocation with one agent.
