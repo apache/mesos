@@ -1568,10 +1568,10 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
     foreachpair (const SlaveID& slaveId,
                  const auto& executorsMap,
                  framework->executors) {
-      foreachvalue (const ExecutorInfo& info, executorsMap) {
+      foreachvalue (const ExecutorInfo& executorInfo, executorsMap) {
         // Skip unauthorized executors.
         if (!approveViewExecutorInfo(executorsApprover,
-                                     info,
+                                     executorInfo,
                                      framework->info)) {
           continue;
         }
@@ -1579,7 +1579,7 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
         mesos::master::Response::GetExecutors::Executor* executor =
           getExecutors.add_executors();
 
-        executor->mutable_executor_info()->CopyFrom(info);
+        executor->mutable_executor_info()->CopyFrom(executorInfo);
         executor->mutable_slave_id()->CopyFrom(slaveId);
       }
     }
@@ -1591,7 +1591,7 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
     foreachpair (const FrameworkID& frameworkId,
                  const ExecutorMap& executors,
                  slave->executors) {
-      foreachvalue (const ExecutorInfo& info, executors) {
+      foreachvalue (const ExecutorInfo& executorInfo, executors) {
         if (!master->frameworks.registered.contains(frameworkId)) {
           // TODO(haosdent): This logic should be simplified after
           // a deprecation cycle starting with 1.0 as after that
@@ -1607,7 +1607,7 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
              (!master->frameworks.recovered.contains(frameworkId) ||
               !approveViewExecutorInfo(
                   executorsApprover,
-                  info,
+                  executorInfo,
                   master->frameworks.recovered[frameworkId]))) {
             continue;
           }
@@ -1615,7 +1615,7 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
           mesos::master::Response::GetExecutors::Executor* executor =
             getExecutors.add_orphan_executors();
 
-          executor->mutable_executor_info()->CopyFrom(info);
+          executor->mutable_executor_info()->CopyFrom(executorInfo);
           executor->mutable_slave_id()->CopyFrom(slave->id);
         }
       }
