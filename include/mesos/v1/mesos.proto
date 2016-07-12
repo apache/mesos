@@ -288,6 +288,10 @@ message FrameworkInfo {
       // TODO(bmahler): As we add revocation we can relax the
       // restriction here. See MESOS-5634 for more information.
       GPU_RESOURCES = 3;
+
+      // Receive offers with resources that are shared.
+      // TODO(anindya_sinha): This is currently a no-op.
+      SHARED_RESOURCES = 4;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
