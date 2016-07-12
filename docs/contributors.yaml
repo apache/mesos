@@ -288,6 +288,14 @@
   jira_user: magedm
   reviewboard_user: magedm
 
+- name: Megha Sharma
+  affiliations:
+    - {organization: Apple}
+  emails:
+    - msharma3@apple.com
+  jira_user: megha.sharma
+  reviewboard_user: megha.sharma
+
 - name: Michael Lunoe
   affiliations:
     - {organization: Mesosphere}
