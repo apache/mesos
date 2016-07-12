@@ -680,7 +680,7 @@ conjunction with <code>--zk</code>. Must be used in conjunction with
     --max_slave_ping_timeouts=VALUE
   </td>
   <td>
-The number of times a agent can fail to respond to a
+The number of times an agent can fail to respond to a
 ping from the master. Agents that do not respond within
 <code>max_agent_ping_timeouts</code> ping retries will be asked to shutdown.
 (default: 5)

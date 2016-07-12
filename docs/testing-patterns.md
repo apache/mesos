@@ -115,7 +115,7 @@ Future<SlaveReregisteredMessage> slaveReregisteredMessage =
 AWAIT_READY(slaveReregisteredMessage);
 ~~~
 
-However, this won't work if we want to intercept a message sent to an actor (technically a `UPID`) that lives in another OS process. For example, `CommandExecutor` spawned by a agent will live in a separate OS process, though master and agent instances live in the same OS process together with our test (see `mesos/src/tests/cluster.hpp`). The wait in this code will fail:
+However, this won't work if we want to intercept a message sent to an actor (technically a `UPID`) that lives in another OS process. For example, `CommandExecutor` spawned by an agent will live in a separate OS process, though master and agent instances live in the same OS process together with our test (see `mesos/src/tests/cluster.hpp`). The wait in this code will fail:
 
 ~~~{.cpp}
 Future<ExecutorRegisteredMessage> executorRegisteredMessage =

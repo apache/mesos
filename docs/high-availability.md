@@ -35,7 +35,7 @@ Refer to the [Scheduler API](app-framework-development-guide.md) for how to deal
 ## Component Disconnection Handling
 When a network partition disconnects a component (master, agent, or scheduler driver) from ZooKeeper, the component's Master Detector induces a timeout event. This notifies the component that it has no leading master. Depending on the component, the following happens. (Note that while a component is disconnected from ZooKeeper, a master may still be in communication with agents or schedulers and vice versa.)
 
-* Agents disconnected from ZooKeeper no longer know which master is the leader. They ignore messages from masters to ensure they don't act on a non-leader's decisions. When a agent reconnects to ZooKeeper, ZooKeeper informs it of the current leader and the agent stops ignoring messages from the leader.
+* Agents disconnected from ZooKeeper no longer know which master is the leader. They ignore messages from masters to ensure they don't act on a non-leader's decisions. When an agent reconnects to ZooKeeper, ZooKeeper informs it of the current leader and the agent stops ignoring messages from the leader.
 
 * Masters enter leaderless state irrespective of whether they are a leader or not before the disconnection.
 
@@ -46,7 +46,7 @@ When a network partition disconnects a component (master, agent, or scheduler dr
 
 * Scheduler drivers disconnected from the leading master notify the scheduler about their disconnection from the leader.
 
-When a network partition disconnects a agent from the leader:
+When a network partition disconnects an agent from the leader:
 
 * The agent fails health checks from the leader.
 

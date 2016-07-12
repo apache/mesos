@@ -137,21 +137,21 @@ The Docker Runtime isolator is used for supporting runtime
 configurations from the docker image (e.g., Entrypoint/Cmd, Env,
 etc.). This isolator is tied with `--image_providers=docker`. If
 `--image_providers` contains `docker`, this isolator must be used.
-Otherwise, agent will refuse to start.
+Otherwise, the agent will refuse to start.
 
 To enable the Docker Runtime isolator, append `docker/runtime` to the
 `--isolation` flag when starting the agent.
 
-Currently, docker image default `Entrypoint`, `Cmd`, `Env` and
-`WorkingDir` are supported with docker runtime isolator. Users can
-specify `CommandInfo` to override the default `Entrypoint` and `Cmd`
-in the image (see below for details). The `CommandInfo` should be
-inside of either `TaskInfo` or `ExecutorInfo` (depending on running
-command task or custom executor respectively).
+Currently, docker image default `Entrypoint`, `Cmd`, `Env`, and `WorkingDir` are
+supported with docker runtime isolator. Users can specify `CommandInfo` to
+override the default `Entrypoint` and `Cmd` in the image (see below for
+details). The `CommandInfo` should be inside of either `TaskInfo` or
+`ExecutorInfo` (depending on whether the task is a command task or uses a custom
+executor, respectively).
 
 #### Determine the Launch Command
 
-If user specifies a command in `CommandInfo`, that will override the
+If the user specifies a command in `CommandInfo`, that will override the
 default Entrypoint/Cmd in the docker image. Otherwise, we will use the
 default Entrypoint/Cmd and append arguments specified in `CommandInfo`
 accordingly. The details are explained in the following table.
@@ -260,14 +260,14 @@ handle 0xBBBB. You can read more about the use cases for the primary
 and secondary handles in the [Linux kernel documentation for
 net_cls](https://www.kernel.org/doc/Documentation/cgroup-v1/net_cls.txt).
 
-By default the cgroups/net_cls isolator does not manage the net_cls
+By default, the cgroups/net_cls isolator does not manage the net_cls
 handles, and assumes the operator is going to manage/assign these
 handles. To enable the management of net_cls handles by the
 cgroups/net_cls isolator you need to specify a 16-bit primary handle,
 of the form 0xAAAA, using the `--cgroups_net_cls_primary_handle` flag at
 agent startup.
 
-Once a primary handle has been specified for a agent, for each
+Once a primary handle has been specified for an agent, for each
 container the cgroups/net_cls isolator allocates a 16-bit secondary
 handle. It then assigns the 32-bit combination of the primary and
 secondary handle to the net_cls cgroup associated with the container

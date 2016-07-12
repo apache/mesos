@@ -14,7 +14,7 @@ for others. Network statistics for each active container are published
 through the
 [/monitor/statistics](endpoints/slave/monitor/statistics.md) endpoint
 on the agent. The port mapping network isolator is transparent for the
-majority of tasks running on a agent (those that bind to port 0 and
+majority of tasks running on an agent (those that bind to port 0 and
 let the kernel allocate their port).
 
 ## Installation
@@ -125,7 +125,7 @@ number of containers on the agent will therefore be limited to approximately:
     number of ephemeral_ports / ephemeral_ports_per_container
 
 The master `--max_executors_per_agent` flag is be used to prevent allocation of
-more executors on a agent when the ephemeral port range has been exhausted.
+more executors on an agent when the ephemeral port range has been exhausted.
 
 It is recommended (but not required) that `ephemeral_ports_per_container` be set
 to a power of 2 (e.g., 512, 1024) and the lower bound of the ephemeral port
@@ -296,7 +296,7 @@ for each of these elements includes:
 
 [3] Currently always reported as 0 by the underlying Traffic Control element.
 
-For example, these are the statistics you will get by hitting the `/monitor/statistics` endpoint on a agent with network monitoring turned on:
+For example, these are the statistics you will get by hitting the `/monitor/statistics` endpoint on an agent with network monitoring turned on:
 
     $ curl -s http://localhost:5051/monitor/statistics | python2.6 -mjson.tool
     [

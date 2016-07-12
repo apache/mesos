@@ -37,7 +37,7 @@ Attributes are key-value pairs (where value is optional) that Mesos passes along
 
 ## Resources
 
-Mesos can manage three different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos agent has to offer.  For example, a scalar resource type could be used to represent the amount of memory on a agent. Scalar resources are represented using floating point numbers to allow fractional values to be specified (e.g., "1.5 CPUs"). Mesos only supports three decimal digits of precision for scalar resources (e.g., reserving "1.5123 CPUs" is considered equivalent to reserving "1.512 CPUs"). For GPUs, Mesos only supports whole number values.
+Mesos can manage three different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos agent has to offer.  For example, a scalar resource type could be used to represent the amount of memory on an agent. Scalar resources are represented using floating point numbers to allow fractional values to be specified (e.g., "1.5 CPUs"). Mesos only supports three decimal digits of precision for scalar resources (e.g., reserving "1.5123 CPUs" is considered equivalent to reserving "1.512 CPUs"). For GPUs, Mesos only supports whole number values.
 
 Resources can be specified either with a JSON array or a semicolon-delimited string of key-value pairs.  If, after examining the examples below, you have questions about the format of the JSON, inspect the `Resource` protobuf message definition in `include/mesos/mesos.proto`.
 
@@ -102,11 +102,11 @@ There are several kinds of resources that have predefined behavior:
 
 Note that `disk` and `mem` resources are specified in megabytes. The master's user interface will convert resource values into a more human-readable format: for example, the value `15000` will be displayed as `14.65GB`.
 
-A agent without `cpus` and `mem` resources will not have its resources advertised to any frameworks.
+An agent without `cpus` and `mem` resources will not have its resources advertised to any frameworks.
 
 ## Examples
 
-By default, Mesos will try to autodetect the resources available at the local machine when `mesos-agent` starts up. Alternatively, you can explicitly configure which resources a agent should make available.
+By default, Mesos will try to autodetect the resources available at the local machine when `mesos-agent` starts up. Alternatively, you can explicitly configure which resources an agent should make available.
 
 Here are some examples of how to configure the resources at a Mesos agent:
 

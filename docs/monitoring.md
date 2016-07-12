@@ -360,7 +360,7 @@ unhealthy or that they are not able to connect to the elected master.
   <code>master/slave_shutdowns_canceled</code>
   </td>
   <td>Number of cancelled agent shutdowns. This happens when the agent removal
-      rate limit allows for a agent to reconnect and send a <code>PONG</code>
+      rate limit allows for an agent to reconnect and send a <code>PONG</code>
       to the master before being removed.</td>
   <td>Counter</td>
 </tr>
@@ -1312,7 +1312,7 @@ the agent and their current usage.
 
 #### Agent
 
-The following metrics provide information about whether a agent is currently
+The following metrics provide information about whether an agent is currently
 registered with a master and for how long it has been running.
 
 <table class="table table-striped">
