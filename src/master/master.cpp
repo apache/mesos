@@ -1432,7 +1432,7 @@ void Master::_exited(Framework* framework)
 }
 
 
-Future<bool> Master::authorizeLogAccess(const Option<std::string>& principal)
+Future<bool> Master::authorizeLogAccess(const Option<string>& principal)
 {
   if (authorizer.isNone()) {
     return true;
@@ -1723,7 +1723,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   if (registry.weights_size() != 0) {
     vector<WeightInfo> weightInfos;
-    hashmap<std::string, double> registry_weights;
+    hashmap<string, double> registry_weights;
 
     // Save the weights.
     foreach (const Registry::Weight& weight, registry.weights()) {
@@ -1745,7 +1745,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
       // Before recovering weights from the registry, the allocator was already
       // initialized with `--weights`, so here we need to reset (to 1.0)
       // weights in the allocator that are not overridden by the registry.
-      foreachkey (const std::string& role, weights) {
+      foreachkey (const string& role, weights) {
         if (!registry_weights.contains(role)) {
           WeightInfo weightInfo;
           weightInfo.set_role(role);
@@ -1768,7 +1768,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
     // Initialize the registry with `--weights` flag when bootstrapping
     // the cluster.
     vector<WeightInfo> weightInfos;
-    foreachpair (const std::string& role, double weight, weights) {
+    foreachpair (const string& role, double weight, weights) {
       WeightInfo weightInfo;
       weightInfo.set_role(role);
       weightInfo.set_weight(weight);
@@ -3155,7 +3155,7 @@ Future<bool> Master::authorizeReserveResources(
   }
 
   return await(authorizations)
-      .then([](const std::list<Future<bool>>& authorizations)
+      .then([](const list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3208,7 +3208,7 @@ Future<bool> Master::authorizeUnreserveResources(
   }
 
   return await(authorizations)
-      .then([](const std::list<Future<bool>>& authorizations)
+      .then([](const list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3260,7 +3260,7 @@ Future<bool> Master::authorizeCreateVolume(
   }
 
   return await(authorizations)
-      .then([](const std::list<Future<bool>>& authorizations)
+      .then([](const list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3312,7 +3312,7 @@ Future<bool> Master::authorizeDestroyVolume(
   }
 
   return await(authorizations)
-      .then([](const std::list<Future<bool>>& authorizations)
+      .then([](const list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -5005,7 +5005,7 @@ void Master::_reregisterSlave(
 
 void Master::__reregisterSlave(
     Slave* slave,
-    const std::vector<Task>& tasks,
+    const vector<Task>& tasks,
     const vector<FrameworkInfo>& frameworks)
 {
   CHECK_NOTNULL(slave);
