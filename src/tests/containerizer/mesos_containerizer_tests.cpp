@@ -38,6 +38,7 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
+#include "slave/containerizer/mesos/constants.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
@@ -56,6 +57,7 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
+using mesos::internal::slave::MESOS_CONTAINERIZER;
 using mesos::internal::slave::PosixLauncher;
 using mesos::internal::slave::Provisioner;
 using mesos::internal::slave::ProvisionInfo;
@@ -1291,7 +1293,7 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
 
   Try<pid_t> forked = launcher.get()->fork(
       containerId,
-      flags.launcher_dir,
+      path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
       vector<string>(),
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
