@@ -782,6 +782,15 @@ message Resource {
   // guarantees. Note that if this is set, 'disk' or 'reservation'
   // cannot be set.
   optional RevocableInfo revocable = 9;
+
+  // Allow the resource to be shared across tasks.
+  message SharedInfo {}
+
+  // If this is set, the resources are shared, i.e. multiple tasks
+  // can be launched using this resource and all of them shall refer
+  // to the same physical resource on the cluster. Note that only
+  // persistent volumes can be shared currently.
+  optional SharedInfo shared = 10;
 }
 
 /**
