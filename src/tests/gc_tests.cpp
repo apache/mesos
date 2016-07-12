@@ -274,6 +274,10 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   // we (re)start the slave below.
   slave::Flags flags = CreateSlaveFlags();
 
+  // Set the `executor_shutdown_grace_period` to a small value so that
+  // the agent does not wait for executors to clean up for too long.
+  flags.executor_shutdown_grace_period = Milliseconds(50);
+
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
