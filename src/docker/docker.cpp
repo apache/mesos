@@ -555,6 +555,7 @@ Future<Option<int>> Docker::run(
   argv.push_back("-e");
   argv.push_back("MESOS_CONTAINER_NAME=" + name);
 
+  Option<string> volumeDriver;
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
 
@@ -587,8 +588,14 @@ Future<Option<int>> Docker::run(
                      ":" + volumeConfig;
 
       if (volume.source().docker_volume().has_driver()) {
-        argv.push_back("--volume-driver=" +
-                       volume.source().docker_volume().driver());
+        const string& currentDriver = volume.source().docker_volume().driver();
+
+        if (volumeDriver.isSome() &&
+            volumeDriver.get() != currentDriver) {
+          return Failure("Only one volume driver is supported");
+        }
+
+        volumeDriver = currentDriver;
       }
 
       switch (volume.mode()) {
@@ -611,6 +618,15 @@ Future<Option<int>> Docker::run(
   // TODO(gyliu513): Deprecate this after the release cycle of 1.0.
   // It will be replaced by Volume.Source.DockerVolume.driver.
   if (dockerInfo.has_volume_driver()) {
+    if (volumeDriver.isSome() &&
+        volumeDriver.get() != dockerInfo.volume_driver()) {
+      return Failure("Only one volume driver per task is supported");
+    }
+
+    volumeDriver = dockerInfo.volume_driver();
+  }
+
+  if (volumeDriver.isSome()) {
     argv.push_back("--volume-driver=" + dockerInfo.volume_driver());
   }
 
