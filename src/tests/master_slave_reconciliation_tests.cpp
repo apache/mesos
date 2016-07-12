@@ -614,9 +614,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 
   EXPECT_EQ(1u, reregisterSlave.get().frameworks().size());
 
-  Clock::pause();
-  Clock::settle();
-
   AWAIT_READY(status);
 
   EXPECT_CALL(exec, shutdown(_))
