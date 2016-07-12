@@ -24,6 +24,15 @@
   jira_user: alexr
   reviewboard_user: alexr
 
+- name: Ammar Askar
+  affiliations:
+    - {organization: Yelp}
+  emails:
+    - ammar@ammaraskar.com
+    - ammar@yelp.com
+  jira_user: ammar2
+  reviewboard_user: ammar2
+
 - name: Anand Mazumdar
   affiliations:
     - {organization: Mesosphere}
