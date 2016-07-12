@@ -267,7 +267,6 @@ message FrameworkInfo {
 
       // Receive offers with revocable resources. See 'Resource'
       // message for details.
-      // TODO(vinod): This is currently a no-op.
       REVOCABLE_RESOURCES = 1;
 
       // Receive the TASK_KILLING TaskState when a task is being
