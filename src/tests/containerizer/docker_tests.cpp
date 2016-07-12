@@ -67,6 +67,26 @@ class DockerTest : public MesosTest
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
   }
+
+protected:
+  Volume createDockerVolume(
+      const string& driver,
+      const string& name,
+      const string& containerPath)
+  {
+    Volume volume;
+    volume.set_mode(Volume::RW);
+    volume.set_container_path(containerPath);
+
+    Volume::Source* source = volume.mutable_source();
+    source->set_type(Volume::Source::DOCKER_VOLUME);
+
+    Volume::Source::DockerVolume* docker = source->mutable_docker_volume();
+    docker->set_driver(driver);
+    docker->set_name(name);
+
+    return volume;
+  }
 };
 
 
@@ -781,6 +801,77 @@ TEST_F(DockerTest, ROOT_DOCKER_NVIDIA_GPU_InspectDevices)
   ASSERT_SOME(status.get());
   EXPECT_TRUE(WIFEXITED(status->get())) << status->get();
   EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(status->get())) << status->get();
+}
+
+
+// This tests verifies that a task requiring more than one volume driver (in
+// multiple Volumes) is rejected.
+TEST_F(DockerTest, ROOT_DOCKER_ConflictingVolumeDriversInMultipleVolumes)
+{
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Volume volume1 = createDockerVolume("driver1", "name1", "/tmp/test1");
+  containerInfo.add_volumes()->CopyFrom(volume1);
+
+  Volume volume2 = createDockerVolume("driver2", "name2", "/tmp/test2");
+  containerInfo.add_volumes()->CopyFrom(volume2);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(false);
+
+  Future<Option<int>> run = docker->run(
+      containerInfo,
+      commandInfo,
+      "testContainer",
+      "dir",
+      "/mnt/mesos/sandbox");
+
+  ASSERT_TRUE(run.isFailed());
+}
+
+
+// This tests verifies that a task requiring more than one volume driver (via
+// Volume.Source.DockerInfo.driver and ContainerInfo.DockerInfo.volume_driver)
+// is rejected.
+TEST_F(DockerTest, ROOT_DOCKER_ConflictingVolumeDrivers)
+{
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Volume volume1 = createDockerVolume("driver", "name1", "/tmp/test1");
+  containerInfo.add_volumes()->CopyFrom(volume1);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  dockerInfo.set_volume_driver("driver1");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(false);
+
+  Future<Option<int>> run = docker->run(
+      containerInfo,
+      commandInfo,
+      "testContainer",
+      "dir",
+      "/mnt/mesos/sandbox");
+
+  ASSERT_TRUE(run.isFailed());
 }
 
 } // namespace tests {
