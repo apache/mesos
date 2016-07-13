@@ -496,3 +496,9 @@
     - tnachen@apache.org
   jira_user: tnachen
   reviewboard_user: tnachen
+
+- name: Lijun Tang
+  emails:
+    - hercule2400@gmail.com
+  jira_user: hercule24
+  reviewboard_user: hercule24
