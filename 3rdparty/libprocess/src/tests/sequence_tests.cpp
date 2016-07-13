@@ -17,8 +17,9 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
-#include <process/gtest.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/sequence.hpp>
 
@@ -27,6 +28,7 @@
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::Process;
 using process::Promise;
 using process::Sequence;
@@ -168,7 +170,7 @@ TEST(SequenceTest, DiscardAll)
   DiscardProcess process;
   spawn(process);
 
-  Sequence* sequence = new Sequence();
+  Owned<Sequence> sequence(new Sequence());
 
   lambda::function<Future<Nothing>()> f;
 
@@ -200,7 +202,7 @@ TEST(SequenceTest, DiscardAll)
   Clock::resume();
 
   // This should cancel all pending callbacks.
-  delete sequence;
+  sequence.reset();
 
   // Start the sequence of calls.
   process.promise.set(Nothing());

@@ -105,11 +105,10 @@ using testing::ReturnArg;
 
 TEST(ProcessTest, Event)
 {
-  Event* event = new TerminateEvent(UPID());
+  Owned<Event> event(new TerminateEvent(UPID()));
   EXPECT_FALSE(event->is<MessageEvent>());
   EXPECT_FALSE(event->is<ExitedEvent>());
   EXPECT_TRUE(event->is<TerminateEvent>());
-  delete event;
 }
 
 
