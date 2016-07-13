@@ -50,9 +50,6 @@ private:
   std::map<UPID, const ProcessBase*> processes;
 };
 
-
-extern PID<GarbageCollector> gc;
-
 } // namespace process {
 
 #endif // __PROCESS_GC_HPP__

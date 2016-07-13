@@ -509,7 +509,7 @@ static Filter* filterer = nullptr;
 static std::recursive_mutex* filterer_mutex = new std::recursive_mutex();
 
 // Global garbage collector.
-PID<GarbageCollector> gc;
+GarbageCollector* gc = nullptr;
 
 // Global help.
 PID<Help> help;
@@ -1037,7 +1037,8 @@ bool initialize(
   //   |--authentication_manager
 
   // Create global garbage collector process.
-  gc = spawn(new GarbageCollector());
+  gc = new GarbageCollector();
+  spawn(gc);
 
   // Create global help process.
   help = spawn(new Help(delegate), true);
@@ -1096,6 +1097,12 @@ void finalize()
 
   delete process_manager;
   process_manager = nullptr;
+
+  // TODO(neilc): We currently don't cleanup or deallocate the
+  // socket_manager (MESOS-3910).
+
+  delete gc;
+  gc = nullptr;
 
   // The clock must be cleaned up after the `process_manager` as processes
   // may otherwise add timers after cleaning up.
@@ -2657,7 +2664,7 @@ UPID ProcessManager::spawn(ProcessBase* process, bool manage)
 
   // Use the garbage collector if requested.
   if (manage) {
-    dispatch(gc, &GarbageCollector::manage<ProcessBase>, process);
+    dispatch(gc->self(), &GarbageCollector::manage<ProcessBase>, process);
   }
 
   // We save the PID before enqueueing the process to avoid the race
