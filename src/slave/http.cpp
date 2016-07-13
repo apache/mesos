@@ -385,7 +385,7 @@ Future<Response> Slave::Http::api(
       return readFile(call, principal, acceptType);
 
     case agent::Call::GET_STATE:
-      return NotImplemented();
+      return getState(call, principal, acceptType);
 
     case agent::Call::GET_CONTAINERS:
       return getContainers(call, principal, acceptType);
@@ -1408,6 +1408,82 @@ agent::Response::GetTasks Slave::Http::_getTasks(
   }
 
   return getTasks;
+}
+
+
+Future<Response> Slave::Http::getState(
+    const agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(agent::Call::GET_STATE, call.type());
+
+  // Retrieve Approvers for authorizing frameworks and tasks.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> tasksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    frameworksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    tasksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_TASK);
+
+    executorsApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return collect(frameworksApprover, tasksApprover, executorsApprover)
+    .then(defer(slave->self(),
+      [=](const tuple<Owned<ObjectApprover>,
+                      Owned<ObjectApprover>,
+                      Owned<ObjectApprover>>& approvers)
+        -> Future<Response> {
+      // Get approver from tuple.
+      Owned<ObjectApprover> frameworksApprover;
+      Owned<ObjectApprover> tasksApprover;
+      Owned<ObjectApprover> executorsApprover;
+      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+
+      agent::Response response;
+      response.set_type(agent::Response::GET_STATE);
+      response.mutable_get_state()->CopyFrom(
+          _getState(frameworksApprover,
+                    tasksApprover,
+                    executorsApprover));
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    }));
+}
+
+
+agent::Response::GetState Slave::Http::_getState(
+    const Owned<ObjectApprover>& frameworksApprover,
+    const Owned<ObjectApprover>& tasksApprover,
+    const Owned<ObjectApprover>& executorsApprover) const
+{
+  agent::Response::GetState getState;
+
+  getState.mutable_get_tasks()->CopyFrom(
+    _getTasks(frameworksApprover, tasksApprover, executorsApprover));
+
+  getState.mutable_get_executors()->CopyFrom(
+    _getExecutors(frameworksApprover, executorsApprover));
+
+  getState.mutable_get_frameworks()->CopyFrom(
+    _getFrameworks(frameworksApprover));
+
+  return getState;
 }
 
 

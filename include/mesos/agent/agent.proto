@@ -167,8 +167,12 @@ message Response {
     required bytes data = 2;
   }
 
+  // Contains full state of the agent i.e. information about the tasks,
+  // frameworks and executors running in the cluster.
   message GetState {
-    // TODO(vinod): Fill in the fields.
+    optional GetTasks get_tasks = 1;
+    optional GetExecutors get_executors = 2;
+    optional GetFrameworks get_frameworks = 3;
   }
 
   // Information about containers running on this agent. It contains
