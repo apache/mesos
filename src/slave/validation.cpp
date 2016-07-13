@@ -90,6 +90,9 @@ Option<Error> validate(
 
     case mesos::agent::Call::GET_CONTAINERS:
       return None();
+
+    case mesos::agent::Call::GET_FRAMEWORKS:
+      return None();
   }
 
   UNREACHABLE();

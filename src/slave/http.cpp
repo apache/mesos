@@ -389,6 +389,9 @@ Future<Response> Slave::Http::api(
 
     case agent::Call::GET_CONTAINERS:
       return getContainers(call, principal, acceptType);
+
+    case agent::Call::GET_FRAMEWORKS:
+      return getFrameworks(call, principal, acceptType);
   }
 
   UNREACHABLE();
@@ -1048,6 +1051,72 @@ Future<Response> Slave::Http::state(
 
       return OK(jsonify(state), request.url.query.get("jsonp"));
     }));
+}
+
+
+Future<Response> Slave::Http::getFrameworks(
+    const agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(agent::Call::GET_FRAMEWORKS, call.type());
+
+  // Retrieve `ObjectApprover`s for authorizing frameworks.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    frameworksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return frameworksApprover
+    .then(defer(slave->self(),
+        [this, contentType](const Owned<ObjectApprover>& frameworksApprover)
+          -> Future<Response> {
+      agent::Response response;
+      response.set_type(agent::Response::GET_FRAMEWORKS);
+      response.mutable_get_frameworks()->CopyFrom(
+          _getFrameworks(frameworksApprover));
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    }));
+}
+
+
+agent::Response::GetFrameworks Slave::Http::_getFrameworks(
+    const Owned<ObjectApprover>& frameworksApprover) const
+{
+  agent::Response::GetFrameworks getFrameworks;
+  foreachvalue (const Framework* framework, slave->frameworks) {
+    // Skip unauthorized frameworks.
+    if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+      continue;
+    }
+
+    getFrameworks.add_frameworks()->mutable_framework_info()
+      ->CopyFrom(framework->info);
+  }
+
+  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
+    // Skip unauthorized frameworks.
+    if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+      continue;
+    }
+
+    getFrameworks.add_completed_frameworks()->mutable_framework_info()
+      ->CopyFrom(framework->info);
+  }
+
+  return getFrameworks;
 }
 
 

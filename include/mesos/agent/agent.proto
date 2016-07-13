@@ -33,7 +33,7 @@ message Call {
    // included in the corresponding `Call::Foo` message. Similarly, if a call
    // receives a synchronous response it will be returned as a `Response`
    // message of type `Response::FOO`.
-   enum Type {
+  enum Type {
     UNKNOWN = 0;
 
     GET_HEALTH = 1;         // Retrieves the agent's health status.
@@ -50,6 +50,7 @@ message Call {
     GET_STATE = 9;
 
     GET_CONTAINERS = 10;
+    GET_FRAMEWORKS = 11;    // Retrieves the information about known frameworks.
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -120,6 +121,7 @@ message Response {
     GET_STATE = 8;
 
     GET_CONTAINERS = 9;
+    GET_FRAMEWORKS = 10;           // See 'GetFrameworks' below.
   }
 
   // `healthy` would be true if the agent is healthy. Delayed responses are also
@@ -181,6 +183,17 @@ message Response {
     repeated Container containers = 1;
   }
 
+  // Information about all the frameworks known to the agent at the current
+  // time.
+  message GetFrameworks {
+    message Framework {
+      required FrameworkInfo framework_info = 1;
+    }
+
+    repeated Framework frameworks = 1;
+    repeated Framework completed_frameworks = 2;
+  }
+
   optional Type type = 1;
 
   optional GetHealth get_health = 2;
@@ -192,4 +205,5 @@ message Response {
   optional ReadFile read_file = 8;
   optional GetState get_state = 9;
   optional GetContainers get_containers = 10;
+  optional GetFrameworks get_frameworks = 11;
 }

@@ -549,6 +549,14 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> getFrameworks(
+        const mesos::agent::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    mesos::agent::Response::GetFrameworks _getFrameworks(
+        const process::Owned<ObjectApprover>& frameworksApprover) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.
