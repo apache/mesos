@@ -51,7 +51,6 @@
 namespace http = process::http;
 namespace paths = mesos::internal::slave::appc::paths;
 namespace slave = mesos::internal::slave;
-namespace spec = ::appc::spec;
 
 using std::list;
 using std::string;
@@ -106,76 +105,6 @@ static Image::Appc getAppcImage(
   appc.mutable_labels()->CopyFrom(labels);
 
   return appc;
-}
-
-
-// TODO(jojy): Move AppcSpecTest to its own test file.
-class AppcSpecTest : public TemporaryDirectoryTest {};
-
-
-TEST_F(AppcSpecTest, ValidateImageManifest)
-{
-  JSON::Value manifest = JSON::parse(
-      "{"
-      "  \"acKind\": \"ImageManifest\","
-      "  \"acVersion\": \"0.6.1\","
-      "  \"name\": \"foo.com/bar\","
-      "  \"labels\": ["
-      "    {"
-      "      \"name\": \"version\","
-      "      \"value\": \"1.0.0\""
-      "    },"
-      "    {"
-      "      \"name\": \"arch\","
-      "      \"value\": \"amd64\""
-      "    },"
-      "    {"
-      "      \"name\": \"os\","
-      "      \"value\": \"linux\""
-      "    }"
-      "  ],"
-      "  \"annotations\": ["
-      "    {"
-      "      \"name\": \"created\","
-      "      \"value\": \"1438983392\""
-      "    }"
-      "  ]"
-      "}").get();
-
-  EXPECT_SOME(spec::parse(stringify(manifest)));
-
-  // Incorrect acKind for image manifest.
-  manifest = JSON::parse(
-      "{"
-      "  \"acKind\": \"PodManifest\","
-      "  \"acVersion\": \"0.6.1\","
-      "  \"name\": \"foo.com/bar\""
-      "}").get();
-
-  EXPECT_ERROR(spec::parse(stringify(manifest)));
-}
-
-
-TEST_F(AppcSpecTest, ValidateLayout)
-{
-  string image = os::getcwd();
-
-  JSON::Value manifest = JSON::parse(
-      "{"
-      "  \"acKind\": \"ImageManifest\","
-      "  \"acVersion\": \"0.6.1\","
-      "  \"name\": \"foo.com/bar\""
-      "}").get();
-
-  ASSERT_SOME(os::write(path::join(image, "manifest"), stringify(manifest)));
-
-  // Missing rootfs.
-  EXPECT_SOME(spec::validateLayout(image));
-
-  ASSERT_SOME(os::mkdir(path::join(image, "rootfs", "tmp")));
-  ASSERT_SOME(os::write(path::join(image, "rootfs", "tmp", "test"), "test"));
-
-  EXPECT_NONE(spec::validateLayout(image));
 }
 
 
