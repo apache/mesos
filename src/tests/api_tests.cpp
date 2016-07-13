@@ -2995,6 +2995,140 @@ TEST_P(AgentAPITest, GetTasks)
   driver.join();
 }
 
+
+TEST_P(AgentAPITest, GetState)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+  task.mutable_command()->MergeFrom(command);
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  ContentType contentType = GetParam();
+
+  // GetState before task launch, we should expect zero
+  // frameworks/tasks/executors in Response.
+  {
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::GET_STATE);
+
+    Future<v1::agent::Response> v1Response =
+      post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+
+    const v1::agent::Response::GetState& getState = v1Response->get_state();
+    ASSERT_EQ(0u, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(0u, getState.get_tasks().launched_tasks_size());
+    ASSERT_EQ(0u, getState.get_executors().executors_size());
+  }
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // GetState after task launch and check we have a running
+  // framework/task/executor.
+  {
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::GET_STATE);
+
+    Future<v1::agent::Response> v1Response =
+      post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+
+    const v1::agent::Response::GetState& getState = v1Response->get_state();
+    ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(0u, getState.get_frameworks().completed_frameworks_size());
+    ASSERT_EQ(1u, getState.get_tasks().launched_tasks_size());
+    ASSERT_EQ(0u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(1u, getState.get_executors().executors_size());
+    ASSERT_EQ(0u, getState.get_executors().completed_executors_size());
+  }
+
+  // Kill the task.
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.killTask(statusRunning->task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+
+  // Make sure the executor terminated.
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(executorTerminated);
+
+  // Make sure `Framework::destroyExecutor()` is processed.
+  Clock::pause();
+  Clock::settle();
+
+  // After the executor terminated, we should expect a completed
+  // framework/task/executor.
+  {
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::GET_STATE);
+
+    Future<v1::agent::Response> v1Response =
+      post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+
+    const v1::agent::Response::GetState& getState = v1Response->get_state();
+    ASSERT_EQ(0u, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(1u, getState.get_frameworks().completed_frameworks_size());
+    ASSERT_EQ(0u, getState.get_tasks().launched_tasks_size());
+    ASSERT_EQ(1u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(0u, getState.get_executors().executors_size());
+    ASSERT_EQ(1u, getState.get_executors().completed_executors_size());
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
