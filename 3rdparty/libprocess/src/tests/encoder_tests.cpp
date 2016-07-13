@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <process/http.hpp>
+#include <process/owned.hpp>
 #include <process/socket.hpp>
 
 #include <stout/gtest.hpp>
@@ -27,6 +28,7 @@
 namespace http = process::http;
 
 using process::HttpResponseEncoder;
+using process::Owned;
 using process::ResponseDecoder;
 
 using std::deque;
@@ -50,7 +52,7 @@ TEST(EncoderTest, Response)
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, responses.size());
 
-  http::Response* decoded = responses[0];
+  Owned<http::Response> decoded(responses[0]);
   EXPECT_EQ("200 OK", decoded->status);
   EXPECT_EQ("body", decoded->body);
 

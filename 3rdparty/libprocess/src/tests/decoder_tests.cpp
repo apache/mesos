@@ -15,6 +15,7 @@
 #include <deque>
 #include <string>
 
+#include <process/owned.hpp>
 #include <process/socket.hpp>
 
 #include <stout/gtest.hpp>
@@ -25,6 +26,7 @@ namespace http = process::http;
 
 using process::DataDecoder;
 using process::Future;
+using process::Owned;
 using process::ResponseDecoder;
 using process::StreamingResponseDecoder;
 
@@ -170,7 +172,7 @@ TEST(DecoderTest, StreamingResponse)
   EXPECT_TRUE(decoder.writingBody());
   ASSERT_EQ(1, responses.size());
 
-  http::Response* response = responses[0];
+  Owned<http::Response> response(responses[0]);
 
   EXPECT_EQ("200 OK", response->status);
   EXPECT_EQ(3, response->headers.size());
@@ -222,7 +224,7 @@ TEST(DecoderTest, StreamingResponseFailure)
   EXPECT_TRUE(decoder.writingBody());
 
   ASSERT_EQ(1, responses.size());
-  http::Response* response = responses[0];
+  Owned<http::Response> response(responses[0]);
 
   EXPECT_EQ("200 OK", response->status);
   EXPECT_EQ(3, response->headers.size());
