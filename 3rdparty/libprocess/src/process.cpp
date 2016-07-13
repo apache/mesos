@@ -1101,9 +1101,6 @@ void finalize()
   // TODO(neilc): We currently don't cleanup or deallocate the
   // socket_manager (MESOS-3910).
 
-  delete gc;
-  gc = nullptr;
-
   // The clock must be cleaned up after the `process_manager` as processes
   // may otherwise add timers after cleaning up.
   Clock::finalize();
@@ -2305,22 +2302,44 @@ ProcessManager::ProcessManager(const Option<string>& _delegate)
 
 ProcessManager::~ProcessManager()
 {
-  ProcessBase* process = nullptr;
-  // Terminate the first process in the queue. Events are deleted
-  // and the process is erased in ProcessManager::cleanup(). Don't
-  // hold the lock or process the whole map as terminating one process
-  // might trigger other terminations. Deal with them one at a time.
-  do {
+  CHECK(gc != nullptr);
+
+  // Terminate one process at a time. Events are deleted and the process
+  // is erased from `processes` in ProcessManager::cleanup(). Don't hold
+  // the lock or process the whole map as terminating one process might
+  // trigger other terminations.
+  //
+  // We skip the GC process here and instead terminate it below. This
+  // ensures that the GC process is running whenever we terminate any
+  // GC-managed process, which is necessary to ensure GC is performed.
+  while (true) {
+    ProcessBase* process = nullptr;
+
     synchronized (processes_mutex) {
-      process = !processes.empty() ? processes.begin()->second : nullptr;
+      foreachvalue (ProcessBase* candidate, processes) {
+        if (candidate == gc) {
+          continue;
+        }
+        process = candidate;
+        break;
+      }
     }
-    if (process != nullptr) {
-      // Terminate this process but do not inject the message,
-      // i.e. allow it to finish its work first.
-      process::terminate(process, false);
-      process::wait(process);
+
+    if (process == nullptr) {
+      break;
     }
-  } while (process != nullptr);
+
+    // Terminate this process but do not inject the message,
+    // i.e. allow it to finish its work first.
+    process::terminate(process, false);
+    process::wait(process);
+  }
+
+  process::terminate(gc, false);
+  process::wait(gc);
+
+  delete gc;
+  gc = nullptr;
 
   // Send signal to all processing threads to stop running.
   joining_threads.store(true);
