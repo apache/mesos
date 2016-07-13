@@ -558,6 +558,53 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
 }
 
 
+// This test verifies mounting in an absolute host path to
+// a relative container path when running a docker container
+// works.
+TEST_F(DockerTest, ROOT_DOCKER_MountRelativeContainerPath)
+{
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  const string testFile = path::join(directory.get(), "test_file");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  Volume* volume = containerInfo.add_volumes();
+  volume->set_host_path(testFile);
+  volume->set_container_path("tmp/test_file");
+  volume->set_mode(Volume::RO);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(true);
+  commandInfo.set_value("ls /mnt/mesos/sandbox/tmp/test_file");
+
+  Future<Option<int>> run = docker->run(
+      containerInfo,
+      commandInfo,
+      NAME_PREFIX + "-mount-relative-container-path-test",
+      directory.get(),
+      "/mnt/mesos/sandbox");
+
+  AWAIT_READY(run);
+  ASSERT_SOME(run.get());
+  EXPECT_TRUE(WIFEXITED(run->get())) << run->get();
+  EXPECT_EQ(0, WEXITSTATUS(run->get())) << run->get();
+}
+
+
 class DockerImageTest : public MesosTest {};
 
 
