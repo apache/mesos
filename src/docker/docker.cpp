@@ -557,10 +557,24 @@ Future<Option<int>> Docker::run(
 
   Option<string> volumeDriver;
   foreach (const Volume& volume, containerInfo.volumes()) {
-    string volumeConfig = volume.container_path();
+    // The 'container_path' can be either an absolute path or a
+    // relative path. If it is a relative path, it would be prefixed
+    // with the container sandbox directory.
+    string volumeConfig = strings::startsWith(volume.container_path(), "/")
+      ? volume.container_path()
+      : path::join(mappedDirectory, volume.container_path());
 
     // TODO(gyliu513): Set `host_path` as source.
     if (volume.has_host_path()) {
+      // If both 'host_path' and 'container_path' are relative paths,
+      // return a failure because the user can just directly access the
+      // volume in the sandbox.
+      if (!strings::startsWith(volume.host_path(), "/") &&
+          !strings::startsWith(volume.container_path(), "/")) {
+        return Failure(
+            "Both 'host_path' and 'container_path' of a volume are relative");
+      }
+
       if (!strings::startsWith(volume.host_path(), "/") &&
           !dockerInfo.has_volume_driver()) {
         // When volume dirver is empty and host path is a relative path, mapping
