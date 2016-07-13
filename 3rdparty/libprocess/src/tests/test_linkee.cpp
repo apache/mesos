@@ -63,7 +63,7 @@ void on_accept(const Future<Socket>& incoming)
 
     incoming->recv(data, size)
       .then([data](const size_t size) -> Future<Nothing> {
-        delete data;
+        delete[] data;
 
         // If there was any content at all, assume this is a message
         // telling the linkee to terminate.
