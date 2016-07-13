@@ -466,9 +466,9 @@ TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
 }
 
 
-// This test verifies mounting in a relative path when running a
+// This test verifies mounting in a relative host path when running a
 // docker container works.
-TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
+TEST_F(DockerTest, ROOT_DOCKER_MountRelativeHostPath)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -501,9 +501,9 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
   Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
-      NAME_PREFIX + "-mount-relative-test",
+      NAME_PREFIX + "-mount-relative-host-path-test",
       directory.get(),
-      directory.get());
+      "/mnt/mesos/sandbox");
 
   AWAIT_READY(run);
   ASSERT_SOME(run.get());
@@ -512,9 +512,9 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
 }
 
 
-// This test verifies mounting in an absolute path when running a
+// This test verifies mounting in an absolute host path when running a
 // docker container works.
-TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
+TEST_F(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -547,9 +547,9 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
   Future<Option<int>> run = docker->run(
       containerInfo,
       commandInfo,
-      NAME_PREFIX + "-mount-absolute-test",
+      NAME_PREFIX + "-mount-absolute-host-path-test",
       directory.get(),
-      directory.get());
+      "/mnt/mesos/sandbox");
 
   AWAIT_READY(run);
   ASSERT_SOME(run.get());
