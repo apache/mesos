@@ -556,12 +556,12 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_config,
       "docker_config",
-      "The default docker config file for agent. Can be provided either as a\n"
-      "path pointing to the agent local docker config file, or as a\n"
+      "The default docker config file for agent. Can be provided either as an\n"
+      "absolute path pointing to the agent local docker config file, or as a\n"
       "JSON-formatted string. The format of the docker config file should be\n"
       "identical to docker's default one (e.g., either\n"
-      "`~/.docker/config.json` or `~/.dockercfg`).\n"
-      "Example JSON (`~/.docker/config.json`):\n"
+      "`$HOME/.docker/config.json` or `$HOME/.dockercfg`).\n"
+      "Example JSON (`$HOME/.docker/config.json`):\n"
       "{\n"
       "  \"auths\": {\n"
       "    \"https://index.docker.io/v1/\": {\n"

@@ -1256,12 +1256,12 @@ containerizer.
     --docker_config=VALUE
   </td>
   <td>
-The default docker config file for agent. Can be provided either as a
-path pointing to the agent local docker config file, or as a JSON-formatted
-string. The format of the docker config file should be identical to docker's
-default one (e.g., either <code>~/.docker/config.json</code> or
-<code>~/.dockercfg</code>).
-Example JSON (<code>~/.docker/config.json</code>):
+The default docker config file for agent. Can be provided either as an
+absolute path pointing to the agent local docker config file, or as a
+JSON-formatted string. The format of the docker config file should be
+identical to docker's default one (e.g., either
+<code>$HOME/.docker/config.json</code> or <code>$HOME/.dockercfg</code>).
+Example JSON (<code>$HOME/.docker/config.json</code>):
 <pre><code>{
   "auths": {
     "https://index.docker.io/v1/": {

@@ -183,12 +183,39 @@ API](https://docs.docker.com/registry/spec/api/) to fetch Docker
 images/layers. The fetching is based on `curl`, therefore SSL is
 automatically handled. For private registries, the operator needs to
 configure `curl` accordingly so that it knows where to find the
-additional certificate files. Fetching requiring authentication is
-currently not supported yet (coming soon).
+additional certificate files.
 
-Private registry is supported through the `--docker_registry` agent
-flag. Specifying private registry for each container using
-`Image.Docker.name` is not supported yet (coming soon).
+Fetching requiring authentication is supported through the
+`--docker_config` agent flag. Starting from 1.0, operators can use
+this agent flag to specify a shared docker config file, which is
+used for pulling private repositories with authentication. Per
+container credential is not supported yet (coming soon).
+
+Operators can either specify the flag as an absolute path pointing to
+the docker config file (need to manually configure
+`.docker/config.json` or `.dockercfg` on each agent), or specify the
+flag as a JSON-formatted string. See [configuration
+documentation](configuration.md) for detail. For example:
+
+    --docker_config=file:///home/vagrant/.docker/config.json
+
+or as a JSON object,
+
+    --docker_config="{ \
+      \"auths\": { \
+        \"https://index.docker.io/v1/\": { \
+          \"auth\": \"xXxXxXxXxXx=\", \
+          \"email\": \"username@example.com\" \
+        } \
+      } \
+    }"
+
+Private registry is supported either through the `--docker_registry`
+agent flag, or specifying private registry for each container using
+image name `<REGISTRY>/<REPOSITORY>` (e.g.,
+`localhost:80/gilbert/inky:latest`). If `<REGISTRY>` is included as
+a prefix in the image name, the registry specified through the agent
+flag `--docker_registry` will be ignored.
 
 If the `--docker_registry` agent flag points to a local directory
 (e.g., `/tmp/mesos/images/docker`), the provisioner will pull Docker
@@ -223,6 +250,12 @@ could either be a Docker registry server URL (i.e:
 `--docker_store_dir`: Directory the Docker provisioner will store
 images in. All the Docker images are cached under this directory. The
 default value is `/tmp/mesos/store/docker`.
+
+`--docker_config`: The default docker config file for agent. Can
+be provided either as an absolute path pointing to the agent local
+docker config file, or as a JSON-formatted string. The format of
+the docker config file should be identical to docker's default one
+(e.g., either `$HOME/.docker/config.json` or `$HOME/.dockercfg`).
 
 
 ## Appc Support and Current Limitations
