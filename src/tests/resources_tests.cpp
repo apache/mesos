@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -32,11 +33,14 @@
 
 using namespace mesos::internal::master;
 
+using std::cout;
+using std::endl;
 using std::map;
 using std::ostringstream;
 using std::pair;
 using std::set;
 using std::string;
+using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -2403,6 +2407,157 @@ TEST(RevocableResourceTest, Filter)
 
   EXPECT_EQ(r1, (r1 + r2).revocable());
   EXPECT_EQ(r2, (r1 + r2).nonRevocable());
+}
+
+
+struct Parameter
+{
+  Resources resources;
+  size_t totalOperations;
+};
+
+
+class Resources_BENCHMARK_Test
+  : public ::testing::Test,
+    public ::testing::WithParamInterface<Parameter>
+{
+public:
+  // Returns the 'Resources' parameters to run the benchmarks against.
+  static vector<Parameter> parameters()
+  {
+    vector<Parameter> parameters_;
+
+    // Test a typical vector of scalars.
+    Parameter scalars;
+    scalars.resources =
+      Resources::parse("cpus:1;gpus:1;mem:128;disk:256").get();
+    scalars.totalOperations = 50000;
+
+    // Note that the benchmark incorrectly sums together
+    // identity-based resources, because the allocator
+    // incorrectly sums resources across slaves. In
+    // particular, for identity based resources like sets
+    // and range, this means that a+a = a rather than 2a.
+    //
+    // TODO(bmahler): As we introduce a notion of a
+    // ResourceQuantity, we can disallow summation
+    // of identical resources and update this benchmark
+    // accordingly.
+
+    // Test a large amount of unique reservations. This can
+    // occur when aggregating across agents in a cluster.
+    Parameter reservations;
+    for (int i = 0; i < 1000; ++i) {
+      Label label;
+      label.set_key("key_" + stringify(i));
+      label.set_value("value_" + stringify(i));
+
+      Resource::ReservationInfo reservation;
+      reservation.set_principal("principal_" + stringify(i));
+      reservation.mutable_labels()->add_labels()->CopyFrom(label);
+
+      reservations.resources +=
+        scalars.resources.flatten(stringify(i), reservation);
+    }
+    reservations.totalOperations = 10;
+
+    // Test the performance of ranges using a fragmented range of
+    // ports: [1-2,4-5,7-9,...,1000]. Note that the benchmark will
+    // continuously sum together the same port range, which does
+    // not preserve arithmetic invariants (a+a-a != a).
+    string ports;
+    for (int portBegin = 1; portBegin < 1000-1; portBegin = portBegin + 3) {
+      if (!ports.empty()) {
+        ports += ",";
+      }
+      ports += stringify(portBegin) + "-" + stringify(portBegin+1);
+    }
+
+    Parameter ranges;
+    ranges.resources = Resources::parse("ports:[" + ports + "]").get();
+    ranges.totalOperations = 1000;
+
+    parameters_.push_back(std::move(scalars));
+    parameters_.push_back(std::move(reservations));
+    parameters_.push_back(std::move(ranges));
+
+    return parameters_;
+  }
+};
+
+
+// The Resources benchmark tests are parameterized by the
+// 'Resources' object to apply operations to, and the number
+// of times to run the operation.
+INSTANTIATE_TEST_CASE_P(
+    ResourcesOperators,
+    Resources_BENCHMARK_Test,
+    ::testing::ValuesIn(Resources_BENCHMARK_Test::parameters()));
+
+
+static string abbreviate(string s, size_t max)
+{
+  string ellipses = "...";
+
+  if (s.size() > max) {
+    return s.substr(0, max-ellipses.size()) + "...";
+  } else {
+    return s;
+  }
+}
+
+
+TEST_P(Resources_BENCHMARK_Test, Arithmetic)
+{
+  const Resources& resources = GetParam().resources;
+  size_t totalOperations = GetParam().totalOperations;
+
+  Resources total;
+  Stopwatch watch;
+
+  watch.start();
+  for (size_t i = 0; i < totalOperations; i++) {
+    total += resources;
+  }
+  watch.stop();
+
+  cout << "Took " << watch.elapsed()
+       << " to perform " << totalOperations << " 'total += r' operations"
+       << " on " << abbreviate(stringify(resources), 50) << endl;
+
+  watch.start();
+  for (size_t i = 0; i < totalOperations; i++) {
+    total -= resources;
+  }
+  watch.stop();
+
+  cout << "Took " << watch.elapsed()
+       << " to perform " << totalOperations << " 'total -= r' operations"
+       << " on " << abbreviate(stringify(resources), 50) << endl;
+
+  ASSERT_TRUE(total.empty()) << total;
+
+  watch.start();
+  for (size_t i = 0; i < totalOperations; i++) {
+    total = total + resources;
+  }
+  watch.stop();
+
+  cout << "Took " << watch.elapsed()
+       << " to perform " << totalOperations << " 'total = total + r' operations"
+       << " on " << abbreviate(stringify(resources), 50) << endl;
+
+  watch.start();
+  for (size_t i = 0; i < totalOperations; i++) {
+    total = total - resources;
+  }
+  watch.stop();
+
+  cout << "Took " << watch.elapsed()
+       << " to perform " << totalOperations << " 'total = total - r' operations"
+       << " on " << abbreviate(stringify(resources), 50) << endl;
+
+  ASSERT_TRUE(total.empty()) << total;
 }
 
 } // namespace tests {
