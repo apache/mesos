@@ -52,6 +52,7 @@ message Call {
     GET_CONTAINERS = 10;
     GET_FRAMEWORKS = 11;    // Retrieves the information about known frameworks.
     GET_EXECUTORS = 12;     // Retrieves the information about known executors.
+    GET_TASKS = 13;         // Retrieves the information about known tasks.
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -124,6 +125,7 @@ message Response {
     GET_CONTAINERS = 9;
     GET_FRAMEWORKS = 10;           // See 'GetFrameworks' below.
     GET_EXECUTORS = 11;            // See 'GetExecutors' below.
+    GET_TASKS = 12;                // See 'GetTasks' below.
   }
 
   // `healthy` would be true if the agent is healthy. Delayed responses are also
@@ -207,6 +209,27 @@ message Response {
     repeated Executor completed_executors = 2;
   }
 
+  // Lists information about all the tasks known to the agent at the current
+  // time.
+  message GetTasks {
+    // Tasks that are pending in the agent's queue before an executor is
+    // launched.
+    repeated Task pending_tasks = 1;
+
+    // Tasks that are enqueued for a launched executor that has not yet
+    // registered.
+    repeated Task queued_tasks = 2;
+
+    // Tasks that are running.
+    repeated Task launched_tasks = 3;
+
+    // Tasks that are terminated but pending updates.
+    repeated Task terminated_tasks = 4;
+
+    // Tasks that are terminated and updates acked.
+    repeated Task completed_tasks = 5;
+  }
+
   optional Type type = 1;
 
   optional GetHealth get_health = 2;
@@ -220,4 +243,5 @@ message Response {
   optional GetContainers get_containers = 10;
   optional GetFrameworks get_frameworks = 11;
   optional GetExecutors get_executors = 12;
+  optional GetTasks get_tasks = 13;
 }
