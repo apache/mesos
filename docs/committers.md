@@ -249,13 +249,54 @@ We'd like to thank the following committers to the Apache Mesos project who have
 If you're interested in becoming a committer yourself, the best way to do so is by participating in developer discussions and contributing patches to the project.
 
 
-## Component Maintainers
+# Maintainers
 
-We currently make no distinction between committers and PMC members. As such, **every committer is responsible for the quality of the entire codebase**. Some components are widely maintained (e.g. build and support tooling, tests, etc), whereas some components are inherently more critical / complex and have committers with increased context, interest, and long-term perspective.
+**Maintainers are committers that have spent a significant amount of time and effort
+in the maintenance of a component in the project.** Since maintainers have generally
+lived through the experience of maintaining a part of the project, they tend to have
+additional context, a sense of direction, a long-term outlook, and an increased
+incentive to ensure that development is done in a sustainable manner. Maintainers are
+responsible for the following:
 
-We aim to have more than one maintainer for each component, in order to ensure that contributors can obtain timely feedback. To avoid information silos, we encourage committers to learn about areas of the code that they are unfamiliar with.
+* Providing timely feedback on bug reports and review requests.
+* Ensuring the code is straightforward, easy to read / understand.
+* Keeping technical debt within reasonable levels.
+* Ensuring the code is generally covered by tests.
+* Ensuring the code follows the style guidelines.
+* Ensuring that any unintuitive or difficult pieces of code are explained with
+  comments.
+* Ensuring that any hacks, known limitations, or future considerations are
+  accompanied with TODOs as appropriate.
 
-When sending reviews, it can be valuable to consult the component maintainers, as specified below. Component maintainers do not have any special "ownership" over the code, but merely serve as a resource for obtaining valuable feedback in a timely manner. We trust every committer to use good judgement to determine when to obtain feedback from component maintainers.
+We’re here to build great software together! Maintainers are a means to ensure that
+we can continue to build great software while scaling the amount of contributors and
+committers in the project. The responsibilities listed above are expected from all
+committers in the project in the work that they do, no matter which component they
+touch. Maintainers additionally carry the above responsibilities for all changes
+going into a particular component, no matter who is doing the work.
+
+**All committers of the Mesos project are expected to use good judgement when
+committing patches as to whether the maintainers should be consulted.**
+
+Examples of changes that would benefit from maintainer consultation:
+
+* Changing or adding functionality.
+* Fixing a non-trivial bug.
+* Non-trivial refactoring.
+* Non-trivial performance improvements.
+* Substantial additions or updates to documentation.
+
+Examples of changes that do not generally require maintainer consultation:
+
+* Fixing typos.
+* Trivial bug fixes.
+* Trivial cleanups, e.g. cleaning up headers.
+
+We aim to have more than one maintainer for each component, in order to ensure that
+contributors can obtain timely feedback. To avoid information silos, we encourage
+committers to learn about areas of the code that they are unfamiliar with.
+
+## Current Maintainers
 
 <table class="table table-hover table-condensed">
   <thead>
