@@ -392,6 +392,9 @@ Future<Response> Slave::Http::api(
 
     case agent::Call::GET_FRAMEWORKS:
       return getFrameworks(call, principal, acceptType);
+
+    case agent::Call::GET_EXECUTORS:
+      return getExecutors(call, principal, acceptType);
   }
 
   UNREACHABLE();
@@ -1117,6 +1120,110 @@ agent::Response::GetFrameworks Slave::Http::_getFrameworks(
   }
 
   return getFrameworks;
+}
+
+
+Future<Response> Slave::Http::getExecutors(
+    const agent::Call& call,
+    const Option<string>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(agent::Call::GET_EXECUTORS, call.type());
+
+  // Retrieve `ObjectApprover`s for authorizing frameworks and executors.
+  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<ObjectApprover>> executorsApprover;
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    frameworksApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FRAMEWORK);
+
+    executorsApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_EXECUTOR);
+  } else {
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return collect(frameworksApprover, executorsApprover)
+    .then(defer(slave->self(),
+        [this, contentType](const tuple<Owned<ObjectApprover>,
+                                        Owned<ObjectApprover>>& approvers)
+          -> Future<Response> {
+      // Get approver from tuple.
+      Owned<ObjectApprover> frameworksApprover;
+      Owned<ObjectApprover> executorsApprover;
+      tie(frameworksApprover, executorsApprover) = approvers;
+
+      agent::Response response;
+      response.set_type(agent::Response::GET_EXECUTORS);
+
+      response.mutable_get_executors()->CopyFrom(
+          _getExecutors(frameworksApprover, executorsApprover));
+
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    }));
+}
+
+
+agent::Response::GetExecutors Slave::Http::_getExecutors(
+    const Owned<ObjectApprover>& frameworksApprover,
+    const Owned<ObjectApprover>& executorsApprover) const
+{
+  // Construct framework list with both active and completed frameworks.
+  vector<const Framework*> frameworks;
+  foreachvalue (Framework* framework, slave->frameworks) {
+    // Skip unauthorized frameworks.
+    if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+      continue;
+    }
+
+    frameworks.push_back(framework);
+  }
+
+  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
+    // Skip unauthorized frameworks.
+    if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
+      continue;
+    }
+
+    frameworks.push_back(framework.get());
+  }
+
+  agent::Response::GetExecutors getExecutors;
+
+  foreach (const Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      // Skip unauthorized executors.
+      if (!approveViewExecutorInfo(executorsApprover,
+                                   executor->info,
+                                   framework->info)) {
+        continue;
+      }
+
+      getExecutors.add_executors()->mutable_executor_info()->CopyFrom(
+          executor->info);
+    }
+
+    foreach (const Owned<Executor>& executor, framework->completedExecutors) {
+      // Skip unauthorized executors.
+      if (!approveViewExecutorInfo(executorsApprover,
+                                   executor->info,
+                                   framework->info)) {
+        continue;
+      }
+
+      getExecutors.add_completed_executors()->mutable_executor_info()->CopyFrom(
+          executor->info);
+    }
+  }
+
+  return getExecutors;
 }
 
 

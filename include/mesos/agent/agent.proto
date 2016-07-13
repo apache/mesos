@@ -51,6 +51,7 @@ message Call {
 
     GET_CONTAINERS = 10;
     GET_FRAMEWORKS = 11;    // Retrieves the information about known frameworks.
+    GET_EXECUTORS = 12;     // Retrieves the information about known executors.
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -122,6 +123,7 @@ message Response {
 
     GET_CONTAINERS = 9;
     GET_FRAMEWORKS = 10;           // See 'GetFrameworks' below.
+    GET_EXECUTORS = 11;            // See 'GetExecutors' below.
   }
 
   // `healthy` would be true if the agent is healthy. Delayed responses are also
@@ -194,6 +196,17 @@ message Response {
     repeated Framework completed_frameworks = 2;
   }
 
+  // Lists information about all the executors known to the agent at the
+  // current time.
+  message GetExecutors {
+    message Executor {
+      required ExecutorInfo executor_info = 1;
+    }
+
+    repeated Executor executors = 1;
+    repeated Executor completed_executors = 2;
+  }
+
   optional Type type = 1;
 
   optional GetHealth get_health = 2;
@@ -206,4 +219,5 @@ message Response {
   optional GetState get_state = 9;
   optional GetContainers get_containers = 10;
   optional GetFrameworks get_frameworks = 11;
+  optional GetExecutors get_executors = 12;
 }

@@ -557,6 +557,15 @@ private:
     mesos::agent::Response::GetFrameworks _getFrameworks(
         const process::Owned<ObjectApprover>& frameworksApprover) const;
 
+    process::Future<process::http::Response> getExecutors(
+        const mesos::agent::Call& call,
+        const Option<std::string>& principal,
+        ContentType contentType) const;
+
+    mesos::agent::Response::GetExecutors _getExecutors(
+        const process::Owned<ObjectApprover>& frameworksApprover,
+        const process::Owned<ObjectApprover>& executorsApprover) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.

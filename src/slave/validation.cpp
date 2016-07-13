@@ -93,6 +93,9 @@ Option<Error> validate(
 
     case mesos::agent::Call::GET_FRAMEWORKS:
       return None();
+
+    case mesos::agent::Call::GET_EXECUTORS:
+      return None();
   }
 
   UNREACHABLE();
