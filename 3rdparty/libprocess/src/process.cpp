@@ -499,6 +499,9 @@ static AuthenticatorManager* authenticator_manager = nullptr;
 // Authorization callbacks for HTTP endpoints.
 static AuthorizationCallbacks* authorization_callbacks = nullptr;
 
+// Global route that returns process information.
+static Route* processes_route = nullptr;
+
 // Filter. Synchronized support for using the filterer needs to be
 // recursive in case a filterer wants to do anything fancy (which is
 // possible and likely given that filters will get used for testing).
@@ -1061,7 +1064,7 @@ bool initialize(
   lambda::function<Future<Response>(const Request&)> __processes__ =
     lambda::bind(&ProcessManager::__processes__, process_manager, lambda::_1);
 
-  new Route("/__processes__", None(), __processes__);
+  processes_route = new Route("/__processes__", None(), __processes__);
 
   VLOG(1) << "libprocess is initialized on " << address() << " with "
           << num_worker_threads << " worker threads";
@@ -1087,6 +1090,9 @@ void finalize()
   // TODO(arojas): The HTTP authentication logic in ProcessManager
   // does not handle the case where the process_manager is deleted
   // while authentication was in progress!!
+
+  delete processes_route;
+  processes_route = nullptr;
 
   delete process_manager;
   process_manager = nullptr;
