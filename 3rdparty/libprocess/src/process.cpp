@@ -255,8 +255,8 @@ public:
   Route(const string& name,
         const Option<string>& help,
         const lambda::function<Future<Response>(const Request&)>& handler)
+    : process(name, help, handler)
   {
-    process = new RouteProcess(name, help, handler);
     spawn(process);
   }
 
@@ -293,7 +293,7 @@ private:
     const lambda::function<Future<Response>(const Request&)> handler;
   };
 
-  RouteProcess* process;
+  RouteProcess process;
 };
 
 
