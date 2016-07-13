@@ -605,6 +605,49 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelativeContainerPath)
 }
 
 
+// This test verifies a docker container mounting relative host
+// path to a relative container path fails.
+TEST_F(DockerTest, ROOT_DOCKER_MountRelativeHostPathRelativeContainerPath)
+{
+  Owned<Docker> docker = Docker::create(
+      tests::flags.docker,
+      tests::flags.docker_socket,
+      false).get();
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Volume* volume = containerInfo.add_volumes();
+  volume->set_host_path("test_file");
+  volume->set_container_path("tmp/test_file");
+  volume->set_mode(Volume::RO);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(true);
+  commandInfo.set_value("ls /mnt/mesos/sandbox/tmp/test_file");
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  const string testFile = path::join(directory.get(), "test_file");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  Future<Option<int>> run = docker->run(
+      containerInfo,
+      commandInfo,
+      NAME_PREFIX + "-mount-relative-host-path/container-path-test",
+      directory.get(),
+      "/mnt/mesos/sandbox");
+
+  ASSERT_TRUE(run.isFailed());
+}
+
+
 class DockerImageTest : public MesosTest {};
 
 
