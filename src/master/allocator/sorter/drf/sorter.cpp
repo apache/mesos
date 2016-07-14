@@ -15,9 +15,9 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <list>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -32,9 +32,9 @@
 
 #include "master/allocator/sorter/drf/sorter.hpp"
 
-using std::list;
 using std::set;
 using std::string;
+using std::vector;
 
 using process::UPID;
 
@@ -310,7 +310,7 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 }
 
 
-list<string> DRFSorter::sort()
+vector<string> DRFSorter::sort()
 {
   if (dirty) {
     set<Client, DRFComparator> temp;
@@ -332,7 +332,8 @@ list<string> DRFSorter::sort()
     dirty = false;
   }
 
-  list<string> result;
+  vector<string> result;
+  result.reserve(clients.size());
 
   set<Client, DRFComparator>::iterator it;
   for (it = clients.begin(); it != clients.end(); it++) {

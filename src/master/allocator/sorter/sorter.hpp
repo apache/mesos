@@ -18,8 +18,8 @@
 #define __MASTER_ALLOCATOR_SORTER_SORTER_HPP__
 
 #include <functional>
-#include <list>
 #include <string>
+#include <vector>
 
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
@@ -128,9 +128,9 @@ public:
   // Remove resources from the total pool.
   virtual void remove(const SlaveID& slaveId, const Resources& resources) = 0;
 
-  // Returns a list of all clients, in the order that they
-  // should be allocated to, according to this Sorter's policy.
-  virtual std::list<std::string> sort() = 0;
+  // Returns all of the clients in the order that they should
+  // be allocated to, according to this Sorter's policy.
+  virtual std::vector<std::string> sort() = 0;
 
   // Returns true if this Sorter contains the specified client,
   // either active or deactivated.

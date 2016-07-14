@@ -19,6 +19,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -117,7 +118,7 @@ public:
 
   virtual void remove(const SlaveID& slaveId, const Resources& resources);
 
-  virtual std::list<std::string> sort();
+  virtual std::vector<std::string> sort();
 
   virtual bool contains(const std::string& name);
 
