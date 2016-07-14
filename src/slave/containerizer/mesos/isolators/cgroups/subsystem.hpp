@@ -36,10 +36,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Forward declarations.
-class CgroupsIsolatorProcess;
-
-
 /**
  * An abstraction for cgroups subsystem.
  */

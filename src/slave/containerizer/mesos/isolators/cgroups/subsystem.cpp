@@ -18,7 +18,6 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
-#include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
 
 using mesos::slave::ContainerLimitation;
