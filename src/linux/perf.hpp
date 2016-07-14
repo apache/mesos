@@ -26,6 +26,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/version.hpp>
 
 // For PerfStatistics protobuf.
 #include "mesos/mesos.hpp"
