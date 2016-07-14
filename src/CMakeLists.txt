@@ -159,11 +159,13 @@ set(LINUX_SRC
   linux/systemd.cpp
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/appc/runtime.cpp
+  slave/containerizer/mesos/isolators/cgroups/cgroups.cpp
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
   slave/containerizer/mesos/isolators/cgroups/devices.cpp
   slave/containerizer/mesos/isolators/cgroups/mem.cpp
   slave/containerizer/mesos/isolators/cgroups/net_cls.cpp
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystem.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp

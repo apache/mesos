@@ -1045,11 +1045,13 @@ MESOS_LINUX_FILES =							\
   linux/systemd.cpp							\
   slave/containerizer/mesos/linux_launcher.cpp				\
   slave/containerizer/mesos/isolators/appc/runtime.cpp			\
+  slave/containerizer/mesos/isolators/cgroups/cgroups.cpp		\
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp		\
   slave/containerizer/mesos/isolators/cgroups/devices.cpp		\
   slave/containerizer/mesos/isolators/cgroups/mem.cpp			\
   slave/containerizer/mesos/isolators/cgroups/net_cls.cpp		\
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp		\
+  slave/containerizer/mesos/isolators/cgroups/subsystem.cpp		\
   slave/containerizer/mesos/isolators/docker/runtime.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
@@ -1074,12 +1076,14 @@ MESOS_LINUX_FILES +=							\
   linux/systemd.hpp							\
   slave/containerizer/mesos/linux_launcher.hpp				\
   slave/containerizer/mesos/isolators/appc/runtime.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/cgroups.hpp		\
   slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
   slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
   slave/containerizer/mesos/isolators/cgroups/devices.hpp		\
   slave/containerizer/mesos/isolators/cgroups/mem.hpp			\
   slave/containerizer/mesos/isolators/cgroups/net_cls.hpp		\
   slave/containerizer/mesos/isolators/cgroups/perf_event.hpp		\
+  slave/containerizer/mesos/isolators/cgroups/subsystem.hpp		\
   slave/containerizer/mesos/isolators/docker/runtime.hpp		\
   slave/containerizer/mesos/isolators/docker/volume/isolator.hpp	\
   slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
