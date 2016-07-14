@@ -166,7 +166,6 @@ default entrypoint and cmd specified in the Docker image.
       --master=<MASTER_IP>:5050 \
       --name=test \
       --docker_image=library/redis \
-      --containerizer=docker \
       --shell=false
 
 Verify if your container is running by launching a redis client:
