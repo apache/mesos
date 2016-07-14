@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include <iostream>
 #include <list>
 #include <string>
 
@@ -32,8 +33,13 @@
 
 using mesos::internal::master::allocator::DRFSorter;
 
+using ::testing::WithParamInterface;
+
+using std::cout;
+using std::endl;
 using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -477,6 +483,140 @@ TEST(SorterTest, RevocableResources)
   ASSERT_EQ(2u, sorted.size());
   EXPECT_EQ("a", sorted.front());
   EXPECT_EQ("b", sorted.back());
+}
+
+
+class Sorter_BENCHMARK_Test
+  : public ::testing::Test,
+    public ::testing::WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
+
+
+// The sorter benchmark tests are parameterized by
+// the number of clients and agents.
+INSTANTIATE_TEST_CASE_P(
+    AgentAndClientCount,
+    Sorter_BENCHMARK_Test,
+    ::testing::Combine(
+      ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
+      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U))
+    );
+
+
+// Returns a "ports" resource with the number of ranges
+// specified as: [1-2, 4-5, 7-8, 10-11, ...]
+static Resource makePortRanges(size_t numRanges)
+{
+  ::mesos::Value::Ranges ranges;
+
+  for (size_t i = 0; i < numRanges; ++i) {
+    Value::Range* range = ranges.add_range();
+    range->set_begin((3 * i) + 1);
+    range->set_end(range->begin() + 1);
+  }
+
+  Value value;
+  value.set_type(Value::RANGES);
+  value.mutable_ranges()->CopyFrom(ranges);
+
+  Resource resource;
+  resource.set_role("*");
+  resource.set_name("ports");
+  resource.set_type(Value::RANGES);
+  resource.mutable_ranges()->CopyFrom(value.ranges());
+
+  return resource;
+}
+
+
+// This benchmark simulates sorting a number of clients that have
+// different amount of allocations.
+TEST_P(Sorter_BENCHMARK_Test, FullSort)
+{
+  size_t agentCount = std::tr1::get<0>(GetParam());
+  size_t clientCount = std::tr1::get<1>(GetParam());
+
+  cout << "Using " << agentCount << " agents and "
+       << clientCount << " clients" << endl;
+
+  vector<SlaveID> agents;
+  agents.reserve(agentCount);
+
+  vector<string> clients;
+  clients.reserve(clientCount);
+
+  DRFSorter sorter;
+  Stopwatch watch;
+
+  watch.start();
+  {
+    for (size_t i = 0; i < clientCount; i++) {
+      const string clientId = stringify(i);
+
+      clients.push_back(clientId);
+
+      sorter.add(clientId);
+    }
+  }
+  watch.stop();
+
+  cout << "Added " << clientCount << " clients in "
+       << watch.elapsed() << endl;
+
+  Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
+  watch.start();
+  {
+    for (size_t i = 0; i < agentCount; i++) {
+      SlaveID slaveId;
+      slaveId.set_value("agent" + stringify(i));
+
+      agents.push_back(slaveId);
+
+      sorter.add(slaveId, agentResources);
+    }
+  }
+  watch.stop();
+
+  cout << "Added " << agentCount << " agents in "
+       << watch.elapsed() << endl;
+
+  Resources allocated = Resources::parse(
+      "cpus:16;mem:2014;disk:1024").get();
+
+  allocated += makePortRanges(100);
+
+  watch.start();
+  {
+    // Allocate resources on all agents, round-robin through the clients.
+    size_t clientIndex = 0;
+    foreach (const SlaveID& slaveId, agents) {
+      const string& client = clients[clientIndex++ % clients.size()];
+      sorter.allocated(client, slaveId, allocated);
+    }
+  }
+  watch.stop();
+
+  cout << "Added allocations for " << agentCount << " agents in "
+         << watch.elapsed() << endl;
+
+  watch.start();
+  {
+    sorter.sort();
+  }
+  watch.stop();
+
+  cout << "Full sort of " << clientCount << " clients took "
+       << watch.elapsed() << endl;
+
+  watch.start();
+  {
+    sorter.sort();
+  }
+  watch.stop();
+
+  cout << "No-op sort of " << clientCount << " clients took "
+       << watch.elapsed() << endl;
 }
 
 } // namespace tests {
