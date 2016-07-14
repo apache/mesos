@@ -1044,6 +1044,7 @@ MESOS_LINUX_FILES =							\
   linux/perf.cpp							\
   linux/systemd.cpp							\
   slave/containerizer/mesos/linux_launcher.cpp				\
+  slave/containerizer/mesos/isolators/appc/runtime.cpp			\
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp		\
   slave/containerizer/mesos/isolators/cgroups/devices.cpp		\
   slave/containerizer/mesos/isolators/cgroups/mem.cpp			\
@@ -1072,6 +1073,7 @@ MESOS_LINUX_FILES +=							\
   linux/sched.hpp							\
   linux/systemd.hpp							\
   slave/containerizer/mesos/linux_launcher.hpp				\
+  slave/containerizer/mesos/isolators/appc/runtime.hpp			\
   slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
   slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
   slave/containerizer/mesos/isolators/cgroups/devices.hpp		\

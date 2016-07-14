@@ -158,6 +158,7 @@ set(LINUX_SRC
   linux/perf.cpp
   linux/systemd.cpp
   slave/containerizer/mesos/linux_launcher.cpp
+  slave/containerizer/mesos/isolators/appc/runtime.cpp
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
   slave/containerizer/mesos/isolators/cgroups/devices.cpp
   slave/containerizer/mesos/isolators/cgroups/mem.cpp
