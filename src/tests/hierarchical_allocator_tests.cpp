@@ -3280,7 +3280,7 @@ INSTANTIATE_TEST_CASE_P(
     HierarchicalAllocator_BENCHMARK_Test,
     ::testing::Combine(
       ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
-      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U))
+      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U, 3000U, 6000U))
     );
 
 
