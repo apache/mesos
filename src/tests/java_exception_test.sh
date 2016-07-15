@@ -21,6 +21,10 @@ MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 atexit "rm -rf ${MESOS_WORK_DIR}"
 export MESOS_WORK_DIR=${MESOS_WORK_DIR}
 
+# Lower the authentication timeout to speed up the test (the master
+# may drop the authentication message while it is recovering).
+export MESOS_AUTHENTICATION_TIMEOUT=200ms
+
 # Check that the JavaException framework crashes and prints an
 # ArrayIndexOutOfBoundsExcpetion. This is a test to be sure that Java
 # exceptions are getting propagated. Th exit status of grep should be 0.
