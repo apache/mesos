@@ -21,6 +21,14 @@ if (NOT WIN32)
   find_package(Svn REQUIRED)
 endif (NOT WIN32)
 
+set(QOS_CONTROLLER_TARGET load_qos_controller
+  CACHE STRING "Library containing the load qos controller."
+  )
+
+set(RESOURCE_ESTIMATOR_TARGET fixed_resource_estimator
+  CACHE STRING "Library containing the fixed resource estimator."
+  )
+
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################

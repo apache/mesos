@@ -14,34 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# THE AGENT SOURCE.
-###################
-set(AGENT_EXECUTABLE_SRC
-  ${AGENT_EXECUTABLE_SRC}
-  main.cpp
+# THE RESOURCE_ESTIMATOR SOURCE.
+################################
+set(RESOURCE_ESTIMATOR_SRC
+  ${RESOURCE_ESTIMATOR_SRC}
+  fixed.cpp
   )
-
-add_subdirectory(qos_controllers)
-add_subdirectory(resource_estimators)
-
-# INCLUDE DIRECTIVES FOR AGENT EXECUTABLE (generates, e.g., -I/path/to/thing
-# on Linux).
-############################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
-
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
 
 # THE AGENT EXECUTABLE.
 #######################
-add_executable(${AGENT_TARGET} ${AGENT_EXECUTABLE_SRC})
+add_library(${RESOURCE_ESTIMATOR_TARGET} SHARED ${RESOURCE_ESTIMATOR_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${AGENT_TARGET} ${AGENT_LIBS} ${MESOS_TARGET})
+target_link_libraries(${RESOURCE_ESTIMATOR_TARGET} ${AGENT_LIBS} ${MESOS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${AGENT_TARGET} ${MESOS_TARGET})
+add_dependencies(${RESOURCE_ESTIMATOR_TARGET} ${MESOS_TARGET})

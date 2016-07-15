@@ -14,34 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# THE AGENT SOURCE.
-###################
-set(AGENT_EXECUTABLE_SRC
-  ${AGENT_EXECUTABLE_SRC}
-  main.cpp
+# THE QOS_CONTROLLER SOURCE.
+############################
+set(QOS_CONTROLLER_SRC
+  ${QOS_CONTROLLER_SRC}
+  load.cpp
   )
-
-add_subdirectory(qos_controllers)
-add_subdirectory(resource_estimators)
-
-# INCLUDE DIRECTIVES FOR AGENT EXECUTABLE (generates, e.g., -I/path/to/thing
-# on Linux).
-############################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
-
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
 
 # THE AGENT EXECUTABLE.
 #######################
-add_executable(${AGENT_TARGET} ${AGENT_EXECUTABLE_SRC})
+add_library(${QOS_CONTROLLER_TARGET} SHARED ${QOS_CONTROLLER_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${AGENT_TARGET} ${AGENT_LIBS} ${MESOS_TARGET})
+target_link_libraries(${QOS_CONTROLLER_TARGET} ${AGENT_LIBS} ${MESOS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${AGENT_TARGET} ${MESOS_TARGET})
+add_dependencies(${QOS_CONTROLLER_TARGET} ${MESOS_TARGET})
