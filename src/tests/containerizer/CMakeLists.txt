@@ -48,4 +48,4 @@ add_dependencies(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_TEST_DEPEN
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME MesosContainerizerMemoryTests COMMAND ./${CONTAINERIZER_MEMORY_TESTS_TARGET})
+add_test(NAME MesosContainerizerMemoryTests COMMAND ${CMAKE_BINARY_DIR}/src/${CONTAINERIZER_MEMORY_TESTS_TARGET})

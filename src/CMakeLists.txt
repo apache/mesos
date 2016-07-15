@@ -470,6 +470,13 @@ add_definitions(-DUSE_STATIC_LIB -DBUILD_DATE=${BUILD_DATE} -DBUILD_TIME=${BUILD
 #########################################################################
 include_directories(${AGENT_INCLUDE_DIRS})
 
+# Generate all binaries in the same folder.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/src)
+if (WIN32)
+  SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/src)
+  SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/src)
+endif (WIN32)
+
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
 # Linux).
 ###########################################################################
