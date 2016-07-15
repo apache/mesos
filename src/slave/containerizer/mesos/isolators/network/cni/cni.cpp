@@ -67,9 +67,9 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
   // If both '--network_cni_plugins_dir' and '--network_cni_config_dir' are not
   // specified when operator starts agent, then the 'network/cni' isolator will
   // behave as follows:
-  // 1. For the container without 'NetworkInfo.name' specified, 'network/cni'
-  //    isolator will act as no-op, i.e., the container will just use agent host
-  //    network namespace.
+  // 1. For the container without 'NetworkInfo.name' specified, it will join
+  //    host network. And if it has an image, 'network/cni' isolator will make
+  //    sure it has access to host /etc/* files.
   // 2. For the container with 'NetworkInfo.name' specified, it will be
   //    rejected by the 'network/cni' isolator since it has not loaded any CNI
   //    plugins or network configurations.
@@ -355,11 +355,11 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
     const hashset<ContainerID>& orphans)
 {
   // If the `network/cni` isolator is providing network isolation to a
-  // container its `rootDir`should always be set.  This property of
-  // the isolator will not be set only if the operator does not
-  // specify the '--network_cni_plugins_dir' and
-  // '--network_cni_config_dir' flags at Agent startup. In this
-  // particular case the `network/cni` isolator should be a no-op.
+  // container its `rootDir` should always be set. This property of the
+  // isolator will not be set only if the operator does not specify
+  // the '--network_cni_plugins_dir' and '--network_cni_config_dir'
+  // flags at agent startup, please see the comments in `create()` method
+  // for how `network/cni` isolator will behave in this particular case.
   if (rootDir.isNone()) {
     return Nothing();
   }
@@ -432,7 +432,8 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
     //      directory in '_cleanup()' but agent dies before noticing this.
     //   2. Agent dies before the isolator creates the container directory
     //      in 'isolate()'.
-    //   3. The container joined the host network.
+    //   3. The container joined the host network (both with or without
+    //      container rootfs).
     // For the above cases, we do not need to do anything since there is nothing
     // to clean up after agent restarts.
     return Nothing();
@@ -559,10 +560,6 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     return Failure("Can only prepare CNI networks for a MESOS container");
   }
 
-  if (executorInfo.container().network_infos_size() == 0) {
-    return None();
-  }
-
   int ifIndex = 0;
   hashset<string> networkNames;
   hashmap<string, ContainerNetwork> containerNetworks;
@@ -592,7 +589,21 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     containerNetworks.put(name, containerNetwork);
   }
 
-  if (!containerNetworks.empty()) {
+  if (containerNetworks.empty()) {
+    // This is for the case where the container has an image and wants
+    // to join host network, we will make sure it has access to host
+    // /etc/* files.
+    if (containerConfig.has_rootfs()) {
+      Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
+      infos.put(containerId, info);
+    }
+
+    // NOTE: No additional namespace needed. The container shares the
+    // same network and UTS namesapces with the host. If container has
+    // a rootfs, the filesystem/linux isolator will put the container
+    // in a new mount namespace.
+    return None();
+  } else {
     if (containerConfig.has_rootfs()) {
       Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
       infos.put(containerId, info);
@@ -626,8 +637,6 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
 
     return launchInfo;
   }
-
-  return None();
 }
 
 
@@ -636,17 +645,31 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     pid_t pid)
 {
   // NOTE: We return 'Nothing()' here because some container might not
-  // specify 'NetworkInfo.name' (i.e., wants to join the host
-  // network). In that case, we don't create an Info struct.
+  // specify 'NetworkInfo.name' (i.e., wants to join the host network)
+  // and has no image. In that case, we don't create an Info struct.
   if (!infos.contains(containerId)) {
     return Nothing();
+  }
+
+  // For the container which has an image and wants to join host
+  // network, we will make sure it has access to host /etc/* files.
+  if (infos[containerId]->containerNetworks.empty() &&
+      infos[containerId]->rootfs.isSome()) {
+    NetworkCniIsolatorSetup setup;
+    setup.flags.pid = pid;
+    setup.flags.rootfs = infos[containerId]->rootfs;
+    setup.flags.etc_hosts_path = "/etc/hosts";
+    setup.flags.etc_hostname_path = "/etc/hostname";
+    setup.flags.etc_resolv_conf = "/etc/resolv.conf";
+
+    return __isolate(setup);
   }
 
   // If the `network/cni` isolator is providing network isolation to a
   // container its `rootDir` and `pluginDir` should always be set.
   // These properties of the isolator will not be set only if the
   // operator does not specify the '--network_cni_plugins_dir' and
-  // '--network_cni_config_dir' flags at Agent startup.
+  // '--network_cni_config_dir' flags at agent startup.
   CHECK_SOME(rootDir);
   CHECK_SOME(pluginDir);
 
@@ -826,6 +849,13 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
   setup.flags.etc_hostname_path = hostnamePath;
   setup.flags.etc_resolv_conf = resolvPath;
 
+  return __isolate(setup);
+}
+
+
+Future<Nothing> NetworkCniIsolatorProcess::__isolate(
+    const NetworkCniIsolatorSetup& setup)
+{
   vector<string> argv(2);
   argv[0] = "mesos-containerizer";
   argv[1] = NetworkCniIsolatorSetup::NAME;
@@ -1106,9 +1136,9 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     const ContainerID& containerId)
 {
-  // TODO(jieyu): We don't create 'Info' struct for containers that
-  // want to join the host network. Currently, we rely on the
-  // slave/containerizer to set the IP addresses in ContainerStatus.
+  // TODO(jieyu): We don't create 'Info' struct for containers that want
+  // to join the host network and have no image. Currently, we rely on
+  // the slave/containerizer to set the IP addresses in ContainerStatus.
   // Consider returning the IP address of the slave here.
   if (!infos.contains(containerId)) {
     return ContainerStatus();
@@ -1161,11 +1191,20 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  // NOTE: We don't keep an Info struct if the container is on the host network,
-  // or if during recovery, we found that the cleanup for this container is not
-  // required anymore (e.g., cleanup is done already, but the slave crashed and
-  // didn't realize that it's done).
+  // NOTE: We don't keep an Info struct if the container is on the host network
+  // and has no image, or if during recovery, we found that the cleanup for
+  // this container is not required anymore (e.g., cleanup is done already, but
+  // the slave crashed and didn't realize that it's done).
   if (!infos.contains(containerId)) {
+    return Nothing();
+  }
+
+  // For the container that joins the host network and has an image,
+  // we just need to remove it from the `infos` hashmap, no need for
+  // further cleanup.
+  if (infos[containerId]->containerNetworks.empty() &&
+      infos[containerId]->rootfs.isSome()) {
+    infos.erase(containerId);
     return Nothing();
   }
 
@@ -1402,11 +1441,6 @@ int NetworkCniIsolatorSetup::execute()
     return EXIT_SUCCESS;
   }
 
-  if (flags.hostname.isNone()) {
-    cerr << "Hostname not specified" << endl;
-    return EXIT_FAILURE;
-  }
-
   if (flags.pid.isNone()) {
     cerr << "Container PID not specified" << endl;
     return EXIT_FAILURE;
@@ -1443,24 +1477,6 @@ int NetworkCniIsolatorSetup::execute()
          << flags.pid.get() << ": " << setns.error() << endl;
     return EXIT_FAILURE;
   }
-
-  // Enter the UTS namespace.
-  setns = ns::setns(flags.pid.get(), "uts");
-  if (setns.isError()) {
-    cerr << "Failed to enter the UTS namespace of pid "
-         << flags.pid.get() << ": " << setns.error() << endl;
-    return EXIT_FAILURE;
-  }
-
-  // Setup hostname in container's UTS namespace.
-  Try<Nothing> setHostname = net::setHostname(flags.hostname.get());
-  if (setHostname.isError()) {
-    cerr << "Failed to set the hostname of the container to '"
-         << flags.hostname.get() << "': " << setHostname.error() << endl;
-    return EXIT_FAILURE;
-  }
-
-  LOG(INFO) << "Set hostname to '" << flags.hostname.get() << "'" << endl;
 
   // TODO(jieyu): Currently there seems to be a race between the
   // filesystem isolator and other isolators to execute the `isolate`
@@ -1552,6 +1568,26 @@ int NetworkCniIsolatorSetup::execute()
         return EXIT_FAILURE;
       }
     }
+  }
+
+  if (flags.hostname.isSome()) {
+    // Enter the UTS namespace.
+    setns = ns::setns(flags.pid.get(), "uts");
+    if (setns.isError()) {
+      cerr << "Failed to enter the UTS namespace of pid "
+           << flags.pid.get() << ": " << setns.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    // Setup hostname in container's UTS namespace.
+    Try<Nothing> setHostname = net::setHostname(flags.hostname.get());
+    if (setHostname.isError()) {
+      cerr << "Failed to set the hostname of the container to '"
+           << flags.hostname.get() << "': " << setHostname.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    LOG(INFO) << "Set hostname to '" << flags.hostname.get() << "'" << endl;
   }
 
   return EXIT_SUCCESS;
