@@ -32,6 +32,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Forward declarations.
+class NetworkCniIsolatorSetup;
+
+
 // This isolator implements support for Container Network Interface (CNI)
 // specification <https://github.com/appc/cni/blob/master/SPEC.md> . It
 // provides network isolation to containers by creating a network namespace
@@ -119,6 +123,9 @@ private:
       const ContainerID& containerId,
       pid_t pid,
       const list<process::Future<Nothing>>& attaches);
+
+  process::Future<Nothing> __isolate(
+      const NetworkCniIsolatorSetup& setup);
 
   Try<Nothing> _recover(
       const ContainerID& containerId,
