@@ -118,6 +118,11 @@ public:
         "master. Use the default '" + std::string(DEFAULT_AUTHENTICATEE) + "'\n"
         "or load an alternate authenticatee module using MESOS_MODULES.",
         DEFAULT_AUTHENTICATEE);
+
+    add(&Flags::authentication_timeout,
+        "authentication_timeout",
+        "Timeout after which authentication will be retried.",
+        DEFAULT_AUTHENTICATION_TIMEOUT);
   }
 
   Duration authentication_backoff_factor;
@@ -125,6 +130,7 @@ public:
   Option<Modules> modules;
   Option<std::string> modulesDir;
   std::string authenticatee;
+  Duration authentication_timeout;
 };
 
 } // namespace scheduler {

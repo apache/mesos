@@ -431,7 +431,7 @@ protected:
       authenticatee->authenticate(master.get().pid(), self(), credential.get())
         .onAny(defer(self(), &Self::_authenticate));
 
-    delay(Seconds(5),
+    delay(flags.authentication_timeout,
           self(),
           &Self::authenticationTimeout,
           authenticating.get());

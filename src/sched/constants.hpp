@@ -49,6 +49,9 @@ constexpr Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
+// Default value for `--authentication_timeout`.
+constexpr Duration DEFAULT_AUTHENTICATION_TIMEOUT = Seconds(5);
+
 } // namespace scheduler {
 } // namespace internal {
 } // namespace mesos {
