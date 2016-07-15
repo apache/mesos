@@ -3292,7 +3292,10 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   size_t frameworkCount = std::tr1::get<1>(GetParam());
 
   vector<SlaveInfo> slaves;
+  slaves.reserve(slaveCount);
+
   vector<FrameworkInfo> frameworks;
+  frameworks.reserve(frameworkCount);
 
   for (unsigned i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(
