@@ -24,6 +24,7 @@
 
 #include <stout/adaptor.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/net.hpp>
 
 #include "linux/fs.hpp"
@@ -1551,8 +1552,31 @@ int NetworkCniIsolatorSetup::execute()
     // Do the bind mount in the container filesystem.
     if (flags.rootfs.isSome()) {
       const string target = path::join(flags.rootfs.get(), file);
+
       if (!os::exists(target)) {
+        // Create the parent directory of the mount point.
+        Try<Nothing> mkdir = os::mkdir(Path(target).dirname());
+        if (mkdir.isError()) {
+          cerr << "Failed to create directory '" << Path(target).dirname()
+               << "' for the mount point: " << mkdir.error() << endl;
+          return EXIT_FAILURE;
+        }
+
         // Create the mount point in the container filesystem.
+        Try<Nothing> touch = os::touch(target);
+        if (touch.isError()) {
+          cerr << "Failed to create the mount point '" << target
+               << "' in the container filesystem" << endl;
+          return EXIT_FAILURE;
+        }
+      } else if (os::stat::islink(target)) {
+        Try<Nothing> remove = os::rm(target);
+        if (remove.isError()) {
+          cerr << "Failed to remove '" << target << "' "
+               << "as it's a symbolic link" << endl;
+          return EXIT_FAILURE;
+        }
+
         Try<Nothing> touch = os::touch(target);
         if (touch.isError()) {
           cerr << "Failed to create the mount point '" << target
