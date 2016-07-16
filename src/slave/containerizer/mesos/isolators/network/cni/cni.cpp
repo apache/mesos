@@ -660,8 +660,13 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     setup.flags.pid = pid;
     setup.flags.rootfs = infos[containerId]->rootfs;
     setup.flags.etc_hosts_path = "/etc/hosts";
-    setup.flags.etc_hostname_path = "/etc/hostname";
     setup.flags.etc_resolv_conf = "/etc/resolv.conf";
+
+    // NOTE: On some Linux distributions, `/etc/hostname` might not
+    // exist, but hostname is still accessible by `getHostname()`.
+    if (os::exists("/etc/hostname")) {
+      setup.flags.etc_hostname_path = "/etc/hostname";
+    }
 
     return __isolate(setup);
   }
@@ -1447,20 +1452,28 @@ int NetworkCniIsolatorSetup::execute()
     return EXIT_FAILURE;
   }
 
+  // Initialize the host path and container path for the set of files
+  // that need to be setup in the container file system.
+  hashmap<string, string> files;
+
   if (flags.etc_hosts_path.isNone()) {
     cerr << "Path to 'hosts' not specified" <<endl;
     return EXIT_FAILURE;
   } else if (!os::exists(flags.etc_hosts_path.get())) {
     cerr << "Unable to find '" << flags.etc_hosts_path.get() << "'" << endl;
     return EXIT_FAILURE;
+  } else {
+    files["/etc/hosts"] = flags.etc_hosts_path.get();
   }
 
   if (flags.etc_hostname_path.isNone()) {
-    cerr << "Path to 'hostname' not specified" << endl;
-    return EXIT_FAILURE;
+    // This is the case where host network is used, container has an
+    // image, and `/etc/hostname` does not exist in the system.
   } else if (!os::exists(flags.etc_hostname_path.get())) {
     cerr << "Unable to find '" << flags.etc_hostname_path.get() << "'" << endl;
     return EXIT_FAILURE;
+  } else {
+    files["/etc/hostname"] = flags.etc_hostname_path.get();
   }
 
   if (flags.etc_resolv_conf.isNone()) {
@@ -1469,6 +1482,8 @@ int NetworkCniIsolatorSetup::execute()
   } else if (!os::exists(flags.etc_resolv_conf.get())) {
     cerr << "Unable to find '" << flags.etc_resolv_conf.get() << "'" << endl;
     return EXIT_FAILURE;
+  } else {
+    files["/etc/resolv.conf"] = flags.etc_resolv_conf.get();
   }
 
   // Enter the mount namespace.
@@ -1501,13 +1516,6 @@ int NetworkCniIsolatorSetup::execute()
     cerr << "Failed to mark `/` as a SLAVE mount: " << mount.error() << endl;
     return EXIT_FAILURE;
   }
-
-  // Initialize the host path and container path for the set of files
-  // that need to be setup in the container file system.
-  hashmap<string, string> files;
-  files["/etc/hosts"] = flags.etc_hosts_path.get();
-  files["/etc/hostname"] = flags.etc_hostname_path.get();
-  files["/etc/resolv.conf"] = flags.etc_resolv_conf.get();
 
   foreachpair (const string& file, const string& source, files) {
     // Do the bind mount in the host filesystem since no process in
