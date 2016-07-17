@@ -1493,8 +1493,9 @@ TEST_P(MasterAPITest, Subscribe)
 
   TaskInfo task = createTask(internal::devolve(offer), "", executorId);
 
+  Future<Nothing> update;
   EXPECT_CALL(*scheduler, update(_, _))
-    .Times(2);
+    .WillOnce(FutureSatisfy(&update));
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(executor::SendSubscribe(
@@ -1527,6 +1528,7 @@ TEST_P(MasterAPITest, Subscribe)
   }
 
   AWAIT_READY(event);
+  AWAIT_READY(update);
 
   ASSERT_EQ(v1::master::Event::TASK_ADDED, event.get().get().type());
   ASSERT_EQ(internal::evolve(task.task_id()),
@@ -1541,12 +1543,18 @@ TEST_P(MasterAPITest, Subscribe)
 
   event = decoder.read();
 
+  Future<Nothing> update2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureSatisfy(&update2));
+
   // After we advance the clock, the status update manager would retry the
   // `TASK_RUNNING` update. Since, the state of the task is not changed, this
   // should not result in another `TASK_UPDATED` event.
   Clock::pause();
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
+
+  AWAIT_READY(update2);
 
   EXPECT_TRUE(event.isPending());
 
