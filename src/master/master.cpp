@@ -7573,8 +7573,8 @@ void Master::Subscribers::send(const mesos::master::Event& event)
   VLOG(1) << "Notifying all active subscribers about " << event.type() << " "
           << "event";
 
-  foreachvalue (Subscriber subscriber, subscribed) {
-    subscriber.http.send<mesos::master::Event, v1::master::Event>(event);
+  foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
+    subscriber->http.send<mesos::master::Event, v1::master::Event>(event);
   }
 }
 
@@ -7592,18 +7592,18 @@ void Master::exited(const UUID& id)
 
 void Master::subscribe(HttpConnection http)
 {
-  Subscribers::Subscriber subscriber{http};
-
-  subscribers.subscribed.put(http.streamId, subscriber);
-
-  LOG(INFO) << "Added subscriber: " << subscriber.http.streamId << " to the "
+  LOG(INFO) << "Added subscriber: " << http.streamId << " to the "
             << "list of active subscribers";
 
-  subscriber.http.closed()
+  http.closed()
     .onAny(defer(self(),
-           [this, subscriber](const Future<Nothing>&) {
-             exited(subscriber.http.streamId);
+           [this, http](const Future<Nothing>&) {
+             exited(http.streamId);
            }));
+
+  subscribers.subscribed.put(
+      http.streamId,
+      Owned<Subscribers::Subscriber>(new Subscribers::Subscriber{http}));
 }
 
 } // namespace master {

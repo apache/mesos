@@ -1754,6 +1754,19 @@ private:
       Subscriber(const HttpConnection& _http)
         : http(_http) {}
 
+      // Not copyable, not assignable.
+      Subscriber(const Subscriber&) = delete;
+      Subscriber& operator=(const Subscriber&) = delete;
+
+      ~Subscriber()
+      {
+        // TODO(anand): Refactor `HttpConnection` to being a RAII class instead.
+        // It is possible that a caller might accidently invoke `close()` after
+        // passing ownership to the `Subscriber` object. See MESOS-5843 for more
+        // details.
+        http.close();
+      }
+
       HttpConnection http;
     };
 
@@ -1762,7 +1775,7 @@ private:
 
     // Active subscribers to the 'api/vX' endpoint keyed by the stream
     // identifier.
-    hashmap<UUID, Subscriber> subscribed;
+    hashmap<UUID, process::Owned<Subscriber>> subscribed;
   } subscribers;
 
   hashmap<OfferID, Offer*> offers;
