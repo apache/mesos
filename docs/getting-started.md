@@ -172,10 +172,15 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
 Following are the instructions for stock Windows 10 and Windows Server 2012 or newer.
 
 1. Install the latest version of [Visual Studio Community 2015](https://www.visualstudio.com/post-download-vs?sku=community).
+   Make sure to select the Common Tools for Visual C++ and the Windows 10 SDK.
    Start Visual Studio Community to complete the setup and configuration.
 2. Install [CMake 3.5.2 or later](https://cmake.org/files/v3.5/cmake-3.5.2-win32-x86.msi).
    Do not run CMake before finishing the Visual Studio Community setup.
 3. Install [Gnu Patch 2.5.9-7 or later](http://downloads.sourceforge.net/project/gnuwin32/patch/2.5.9-7/patch-2.5.9-7-setup.exe).
+4. If building from git, make sure you have Windows-style line endings.
+   i.e. `git config core.autocrlf true`.
+5. Make sure there are no spaces in your build directory.
+   For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
 
 ## Building Mesos (Posix)
 
@@ -223,13 +228,13 @@ In order to speed up the build and reduce verbosity of the logs, you can append 
     # NOTE: `PreferredToolArchitecture` can be set system-wide via Control Panel.
     $ msbuild Mesos.sln /p:PreferredToolArchitecture=x64
 
-    # mesos-agent.exe can be found in the <repository>\build\src\Debug folder.
-    $ cd src\Debug
+    # mesos-agent.exe can be found in the <repository>\build\src folder.
+    $ cd src
 
     # The Windows agent exposes new isolators that must be used as with
     # the `--isolation` flag. To get started point the agent to a working
     # master, using eiher an IP address or zookeeper information.
-    $ mesos-agent.exe --master=<master> --work_dir=<work folder> --isolation=windows/cpu,filesystem/windows --launcher_dir=<repository>\build\src\Debug
+    $ mesos-agent.exe --master=<master> --work_dir=<work folder> --isolation=windows/cpu,filesystem/windows --launcher_dir=<repository>\build\src
 
 ## Examples
 
