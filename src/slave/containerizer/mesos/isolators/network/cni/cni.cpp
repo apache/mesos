@@ -659,14 +659,18 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     NetworkCniIsolatorSetup setup;
     setup.flags.pid = pid;
     setup.flags.rootfs = infos[containerId]->rootfs;
-    setup.flags.etc_hosts_path = "/etc/hosts";
-    setup.flags.etc_resolv_conf = "/etc/resolv.conf";
 
-    // NOTE: On some Linux distributions, `/etc/hostname` might not
-    // exist, but hostname is still accessible by `getHostname()`.
+    // NOTE: On some Linux distributions, `/etc/hostname` and
+    // `/etc/hosts` might not exist.
+    if (os::exists("/etc/hosts")) {
+      setup.flags.etc_hosts_path = "/etc/hosts";
+    }
+
     if (os::exists("/etc/hostname")) {
       setup.flags.etc_hostname_path = "/etc/hostname";
     }
+
+    setup.flags.etc_resolv_conf = "/etc/resolv.conf";
 
     return __isolate(setup);
   }
@@ -1457,8 +1461,8 @@ int NetworkCniIsolatorSetup::execute()
   hashmap<string, string> files;
 
   if (flags.etc_hosts_path.isNone()) {
-    cerr << "Path to 'hosts' not specified" <<endl;
-    return EXIT_FAILURE;
+    // This is the case where host network is used, container has an
+    // image, and `/etc/hosts` does not exist in the system.
   } else if (!os::exists(flags.etc_hosts_path.get())) {
     cerr << "Unable to find '" << flags.etc_hosts_path.get() << "'" << endl;
     return EXIT_FAILURE;
@@ -1526,14 +1530,13 @@ int NetworkCniIsolatorSetup::execute()
     // the container filesystem, when launching the task.
     //
     // NOTE: We only need to do this if non host network is used.
-    // Currently, we use `flags.hostname1 to distinguish if a host
+    // Currently, we use `flags.hostname` to distinguish if a host
     // network is being used or not.
     if (flags.hostname.isSome()) {
       if (!os::exists(file)) {
-        // Make an exception for `/etc/hostname`, because it may not
-        // exist on every system but hostname is still accessible by
-        // `getHostname()`.
-        if (file != "/etc/hostname") {
+        // Make an exception for `/etc/hostname` and `/etc/hosts`,
+        // because it may not exist on every system.
+        if (file != "/etc/hostname" && file != "/etc/hosts") {
           // NOTE: We just fail if the mount point does not exist on
           // the host filesystem because we don't want to pollute the
           // host filesystem.
