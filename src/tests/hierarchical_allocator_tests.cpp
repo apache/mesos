@@ -3441,7 +3441,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   }
 
   Resources resources = Resources::parse(
-      "cpus:16;mem:2014;disk:1024;").get();
+      "cpus:16;mem:2014;disk:1024").get();
 
   Resources ports = makePortRanges(makeRange(31000, 32000), 16);
   resources += ports;
@@ -3580,7 +3580,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   // worst-case for the equality operator. We also ensure that the
   // labels at any two nodes are distinct, which means they can't be
   // aggregated easily by the master/allocator.
-  Resources resources = Resources::parse("mem:2014;disk:1024;").get();
+  Resources resources = Resources::parse("mem:2014;disk:1024").get();
 
   Resources ports = makePortRanges(makeRange(31000, 32000), 16);
   resources += ports;

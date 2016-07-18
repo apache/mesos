@@ -127,7 +127,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
 
   TaskInfo task1 = createTask(
       offers1.get()[0].slave_id(),
-      Resources::parse("cpus:0.1;mem:128;").get(),
+      Resources::parse("cpus:0.1;mem:128").get(),
       "nvidia-smi");
 
   Future<TaskStatus> statusRunning1, statusFailed1;

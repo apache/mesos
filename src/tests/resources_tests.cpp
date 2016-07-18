@@ -1458,9 +1458,9 @@ TEST(ResourcesTest, Reservations)
   Resources unreserved = Resources::parse(
       "cpus:1;mem:2;disk:4").get();
   Resources role1 = Resources::parse(
-      "cpus(role1):2;mem(role1):4;disk(role1):8;").get();
+      "cpus(role1):2;mem(role1):4;disk(role1):8").get();
   Resources role2 = Resources::parse(
-      "cpus(role2):4;mem(role2):8;disk(role2):6;").get();
+      "cpus(role2):4;mem(role2):8;disk(role2):6").get();
 
   Resources resources = unreserved + role1 + role2;
 

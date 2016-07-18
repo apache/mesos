@@ -1513,7 +1513,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64;").get() + volume);
+      Resources::parse("cpus:1;mem:64").get() + volume);
 
   CommandInfo command;
   command.set_value("echo abc > " +
@@ -1673,7 +1673,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64;").get() + volume);
+      Resources::parse("cpus:1;mem:64").get() + volume);
 
   CommandInfo command;
   command.set_value("sleep 1000");
@@ -1835,7 +1835,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64;").get() + volume);
+      Resources::parse("cpus:1;mem:64").get() + volume);
 
   CommandInfo command;
   command.set_value("sleep 1000");
