@@ -2520,11 +2520,53 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
   //      offers they get.
   Resources newCheckpointedResources = _checkpointedResources;
 
+  // Store the target checkpoint resources. We commit the checkpoint
+  // only after all operations are successful. If any of the operations
+  // fail, the agent exits and the update to checkpointed resources
+  // is re-attempted after the agent restarts before agent reregistration.
+  //
+  // Since we commit the checkpoint after all operations are successful,
+  // we avoid a case of inconsistency between the master and the agent if
+  // the agent restarts during handling of CheckpointResourcesMessage.
   CHECK_SOME(state::checkpoint(
-      paths::getResourcesInfoPath(metaDir),
+      paths::getResourcesTargetPath(metaDir),
       newCheckpointedResources))
-    << "Failed to checkpoint resources " << newCheckpointedResources;
+    << "Failed to checkpoint resources target " << newCheckpointedResources;
 
+  Try<Nothing> syncResult = syncCheckpointedResources(
+      newCheckpointedResources);
+
+  if (syncResult.isError()) {
+    // Exit the agent (without committing the checkpoint) on failure.
+    EXIT(EXIT_FAILURE)
+      << "Failed to sync checkpointed resources: "
+      << syncResult.error();
+  }
+
+  // Rename the target checkpoint to the committed checkpoint.
+  Try<Nothing> renameResult = os::rename(
+      paths::getResourcesTargetPath(metaDir),
+      paths::getResourcesInfoPath(metaDir));
+
+  if (renameResult.isError()) {
+    // Exit the agent since the checkpoint could not be committed.
+    EXIT(EXIT_FAILURE)
+      << "Failed to checkpoint resources " << newCheckpointedResources
+      << ": " << renameResult.error();
+  }
+
+  LOG(INFO) << "Updated checkpointed resources from "
+            << checkpointedResources << " to "
+            << newCheckpointedResources;
+
+  checkpointedResources = newCheckpointedResources;
+}
+
+
+Try<Nothing> Slave::syncCheckpointedResources(
+    const Resources& newCheckpointedResources)
+{
+  Resources oldVolumes = checkpointedResources.persistentVolumes();
   Resources newVolumes = newCheckpointedResources.persistentVolumes();
 
   // Create persistent volumes that do not already exist.
@@ -2537,13 +2579,24 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
     // This is validated in master.
     CHECK_NE(volume.role(), "*");
 
+    if (oldVolumes.contains(volume)) {
+      continue;
+    }
+
     string path = paths::getPersistentVolumePath(flags.work_dir, volume);
 
+    // If creation of persistent volume fails, the agent exits.
+    string volumeDescription = "persistent volume " +
+      volume.disk().persistence().id() + " at '" + path + "'";
+
     if (!os::exists(path)) {
-      CHECK_SOME(os::mkdir(path, true))
-        << "Failed to create persistent volume '"
-        << volume.disk().persistence().id()
-        << "' at '" << path << "'";
+      // If the directory does not exist, we should proceed only if the
+      // target directory is successfully created.
+      Try<Nothing> result = os::mkdir(path, true);
+      if (result.isError()) {
+        return Error("Failed to create the " +
+            volumeDescription + ": " + result.error());
+      }
     }
   }
 
@@ -2553,18 +2606,6 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
   // remove the filesystem objects for the removed volume. Note that
   // for MOUNT disks, we don't remove the root directory (mount point)
   // of the volume.
-  //
-  // TODO(neilc): There is a window during which the filesystem
-  // content for destroyed persistent volumes might be orphaned if we
-  // crash after checkpointing the new resources to disk but before we
-  // finish removing the associated filesystem objects. Particularly
-  // for MOUNT disks, this might result in exposing data from a
-  // previous persistent volume on the disk to a framework that
-  // creates a new volume. We might address this by doing a "cleanup"
-  // operation to remove data from MOUNT disks before creating
-  // persistent volumes on them.
-  Resources oldVolumes = checkpointedResources.persistentVolumes();
-
   foreach (const Resource& volume, oldVolumes) {
     if (newVolumes.contains(volume)) {
       continue;
@@ -2588,20 +2629,19 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
         removeRoot = false;
       }
 
+      // We should proceed only if the directory is removed.
       Try<Nothing> result = os::rmdir(path, true, removeRoot);
+
       if (result.isError()) {
-        LOG(ERROR) << "Failed to remove persistent volume '"
-                   << volume.disk().persistence().id()
-                   << "' at '" << path << "'";
+        return Error(
+            "Failed to remove persistent volume '" +
+            stringify(volume.disk().persistence().id()) +
+            "' at '" + path + "': " + result.error());
       }
     }
   }
 
-  LOG(INFO) << "Updated checkpointed resources from "
-            << checkpointedResources << " to "
-            << newCheckpointedResources;
-
-  checkpointedResources = newCheckpointedResources;
+  return Nothing();
 }
 
 
@@ -4700,23 +4740,70 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
       metrics.recovery_errors += resourcesState.get().errors;
     }
 
+    checkpointedResources = resourcesState.get().resources;
+
+    if (resourcesState.get().target.isSome()) {
+      Resources targetResources = resourcesState.get().target.get();
+
+      // If targetResources does not match with resources, then we attempt
+      // to sync the checkpointed resources from the target. If
+      // there is any failure, the checkpoint is not committed and the
+      // agent exits. In that case, sync of checkpoints will be reattempted
+      // on the next agent restart (before agent reregistration).
+      if (checkpointedResources != targetResources) {
+        Try<Nothing> syncResult = syncCheckpointedResources(targetResources);
+
+        if (syncResult.isError()) {
+          return Failure(
+              "Target checkpointed resources " +
+              stringify(targetResources) +
+              " failed to sync from current checkpointed resources " +
+              stringify(checkpointedResources) + ": " +
+              syncResult.error());
+        }
+
+        // Rename the target checkpoint to the committed checkpoint.
+        Try<Nothing> renameResult = os::rename(
+            paths::getResourcesTargetPath(metaDir),
+            paths::getResourcesInfoPath(metaDir));
+
+        if (renameResult.isError()) {
+          return Failure(
+              "Failed to checkpoint resources " +
+              stringify(targetResources) + ": " +
+              renameResult.error());
+        }
+
+        // Since we synced the target resources to the committed resources, we
+        // check resource compatibility with `--resources` command line flag
+        // based on the committed checkpoint.
+        checkpointedResources = targetResources;
+      } else {
+        // Remove the target checkpoint resources that are no longer needed
+        // since they are same as the committed checkpointed resources.
+        Try<Nothing> rmResult = os::rm(paths::getResourcesTargetPath(metaDir));
+
+        if (rmResult.isError()) {
+          LOG(ERROR) << "Failed to clean up target checkpointed resources: "
+                     << rmResult.error();
+        }
+      }
+    }
+
     // This is to verify that the checkpointed resources are
     // compatible with the slave resources specified through the
     // '--resources' command line flag.
     Try<Resources> totalResources = applyCheckpointedResources(
-        info.resources(),
-        resourcesState.get().resources);
+        info.resources(), checkpointedResources);
 
     if (totalResources.isError()) {
       return Failure(
           "Checkpointed resources " +
-          stringify(resourcesState.get().resources) +
+          stringify(checkpointedResources) +
           " are incompatible with agent resources " +
           stringify(info.resources()) + ": " +
           totalResources.error());
     }
-
-    checkpointedResources = resourcesState.get().resources;
   }
 
   if (slaveState.isSome() && slaveState.get().info.isSome()) {

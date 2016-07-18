@@ -421,6 +421,13 @@ private:
   // exited.
   void _shutdownExecutor(Framework* framework, Executor* executor);
 
+  // Process creation of persistent volumes (for CREATE) and/or deletion
+  // of persistent volumes (for DESTROY) as a part of handling
+  // checkpointed resources, and commit the checkpointed resources on
+  // successful completion of all the operations.
+  Try<Nothing> syncCheckpointedResources(
+      const Resources& newCheckpointedResources);
+
   process::Future<bool> authorizeLogAccess(
       const Option<std::string>& principal);
 

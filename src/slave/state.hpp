@@ -274,7 +274,13 @@ struct ResourcesState
       const std::string& rootDir,
       bool strict);
 
+  static Try<Resources> recoverResources(
+      const std::string& path,
+      bool strict,
+      unsigned int& errors);
+
   Resources resources;
+  Option<Resources> target;
   unsigned int errors;
 };
 
