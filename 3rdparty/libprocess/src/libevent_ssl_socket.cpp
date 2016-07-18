@@ -711,6 +711,11 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
     std::swap(request, send_request);
   }
 
+  evbuffer* buffer = CHECK_NOTNULL(evbuffer_new());
+
+  int result = evbuffer_add(buffer, data, size);
+  CHECK_EQ(0, result);
+
   // Extend the life-time of 'this' through the execution of the
   // lambda in the event loop. Note: The 'self' needs to be explicitly
   // captured because we're not using it in the body of the lambda. We
@@ -719,7 +724,7 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
   auto self = shared(this);
 
   run_in_event_loop(
-      [self, data, size]() {
+      [self, buffer]() {
         CHECK(__in_event_loop__);
         CHECK(self);
 
@@ -730,7 +735,10 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
           CHECK_NOTNULL(self->send_request.get());
         }
 
-        bufferevent_write(self->bev, data, size);
+        int result = bufferevent_write_buffer(self->bev, buffer);
+        CHECK_EQ(0, result);
+
+        evbuffer_free(buffer);
       },
       DISALLOW_SHORT_CIRCUIT);
 
