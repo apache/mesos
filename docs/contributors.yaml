@@ -502,3 +502,12 @@
     - hercule2400@gmail.com
   jira_user: hercule24
   reviewboard_user: hercule24
+
+- name: Dhilip Kumar S
+  affiliations:
+    - {organization: Huawei}
+  emails:
+    - dhilip.kumar.s@huawei.com
+    - s.dhilipkumar@gmail.com
+  jira_user: dhilipkumars
+  reviewboard_user: dhilipkumars
