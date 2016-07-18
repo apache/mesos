@@ -201,6 +201,8 @@ public:
 
             NetworkInfo::IPAddress* ipAddress = networkInfo->add_ip_addresses();
             ipAddress->set_ip_address(container.ipAddress.get());
+
+            containerNetworkInfo = *networkInfo;
           }
           driver->sendStatusUpdate(status);
         }
@@ -295,6 +297,12 @@ protected:
     status.mutable_task_id()->CopyFrom(taskID);
     status.set_healthy(healthy);
     status.set_state(TASK_RUNNING);
+
+    if (containerNetworkInfo.isSome()) {
+      status.mutable_container_status()->add_network_infos()->CopyFrom(
+          containerNetworkInfo.get());
+    }
+
     driver.get()->sendStatusUpdate(status);
 
     if (initiateTaskKill) {
@@ -575,6 +583,7 @@ private:
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
+  Option<NetworkInfo> containerNetworkInfo;
 };
 
 
