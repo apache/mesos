@@ -780,7 +780,7 @@ Future<bool> MesosContainerizerProcess::launch(
 
   LOG(INFO) << "Starting container '" << containerId
             << "' for executor '" << executorInfo.executor_id()
-            << "' of framework '" << executorInfo.framework_id() << "'";
+            << "' of framework " << executorInfo.framework_id();
 
   Container* container = new Container();
   container->directory = directory;

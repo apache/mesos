@@ -468,7 +468,7 @@ protected:
 
           state = SUBSCRIBED;
 
-          cout << "Subscribed with ID '" << frameworkInfo.id() << "'" << endl;
+          cout << "Subscribed with ID " << frameworkInfo.id() << endl;
           break;
         }
 

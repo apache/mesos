@@ -1184,7 +1184,7 @@ protected:
 
   void stop(bool failover)
   {
-    LOG(INFO) << "Stopping framework '" << framework.id() << "'";
+    LOG(INFO) << "Stopping framework " << framework.id();
 
     // Whether or not we send an unregister message, we want to
     // terminate this process.
@@ -1214,7 +1214,7 @@ protected:
   // SchedulerProcess::stop.
   void abort()
   {
-    LOG(INFO) << "Aborting framework '" << framework.id() << "'";
+    LOG(INFO) << "Aborting framework " << framework.id();
 
     CHECK(!running.load());
 

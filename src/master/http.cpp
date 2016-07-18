@@ -846,8 +846,8 @@ Future<Response> Master::Http::scheduler(
       framework->http.get().streamId.toString()) {
     return BadRequest(
         "The stream ID included in this request didn't match the stream ID "
-        "currently associated with framework ID '"
-        + framework->id().value() + "'");
+        "currently associated with framework ID "
+        + framework->id().value());
   }
 
   switch (call.type()) {

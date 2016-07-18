@@ -116,7 +116,7 @@ public:
           framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
           state = SUBSCRIBED;
 
-          cout << "Subscribed with ID '" << framework.id() << endl;
+          cout << "Subscribed with ID " << framework.id() << endl;
           break;
         }
 
