@@ -3332,14 +3332,16 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     allocator->addFramework(framework.id(), framework, {});
   }
 
+  watch.stop();
+
   cout << "Added " << frameworkCount << " frameworks"
        << " in " << watch.elapsed() << endl;
-
-  watch.start();
 
   const Resources slaveResources = Resources::parse(
       "cpus:1;mem:128;disk:1024;"
       "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
+
+  watch.start();
 
   // Add the slaves, use round-robin to choose which framework
   // to allocate a slice of the slave's resources to.
@@ -3361,6 +3363,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     os::sleep(Milliseconds(10));
   }
 
+  watch.stop();
+
   cout << "Added " << slaveCount << " agents"
        << " in " << watch.elapsed() << endl;
 
@@ -3378,6 +3382,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   while (finished.load() != 2 * slaveCount) {
     os::sleep(Milliseconds(10));
   }
+
+  watch.stop();
 
   cout << "Updated " << slaveCount << " agents in " << watch.elapsed() << endl;
 }
@@ -3477,6 +3483,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
     // Advance the clock and trigger a background allocation cycle.
     Clock::advance(flags.allocation_interval);
     Clock::settle();
+
+    watch.stop();
 
     cout << "round " << i
          << " allocate() took " << watch.elapsed()
@@ -3629,6 +3637,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
     // Advance the clock and trigger a background allocation cycle.
     Clock::advance(flags.allocation_interval);
     Clock::settle();
+
+    watch.stop();
 
     cout << "round " << i
          << " allocate() took " << watch.elapsed()
