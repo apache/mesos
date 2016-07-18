@@ -2520,6 +2520,12 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
   //      offers they get.
   Resources newCheckpointedResources = _checkpointedResources;
 
+  if (newCheckpointedResources == checkpointedResources) {
+    VLOG(1) << "Ignoring new checkpointed resources identical to the current "
+            << "version: " << checkpointedResources;
+    return;
+  }
+
   // Store the target checkpoint resources. We commit the checkpoint
   // only after all operations are successful. If any of the operations
   // fail, the agent exits and the update to checkpointed resources
@@ -2589,6 +2595,13 @@ Try<Nothing> Slave::syncCheckpointedResources(
     string volumeDescription = "persistent volume " +
       volume.disk().persistence().id() + " at '" + path + "'";
 
+    // We don't take any action if the directory already exists.
+    // If the volume is on a MOUNT disk then the directory would
+    // be a mount point that already exists. Otherwise it is possible
+    // that pre-existing data exists at this path before it's managed
+    // by Mesos agent. In any case because we make sure volume destroy
+    // is retried until successful, here we are not concerned about
+    // them being leaked from previous persistent volumes.
     if (!os::exists(path)) {
       // If the directory does not exist, we should proceed only if the
       // target directory is successfully created.
@@ -4745,49 +4758,39 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
     if (resourcesState.get().target.isSome()) {
       Resources targetResources = resourcesState.get().target.get();
 
-      // If targetResources does not match with resources, then we attempt
-      // to sync the checkpointed resources from the target. If
-      // there is any failure, the checkpoint is not committed and the
-      // agent exits. In that case, sync of checkpoints will be reattempted
-      // on the next agent restart (before agent reregistration).
-      if (checkpointedResources != targetResources) {
-        Try<Nothing> syncResult = syncCheckpointedResources(targetResources);
+      // Sync the checkpointed resources from the target (which was
+      // only created when there are pending changes in the
+      // checkpointed resources). If there is any failure, the
+      // checkpoint is not committed and the agent exits. In that
+      // case, sync of checkpoints will be reattempted on the next
+      // agent restart (before agent reregistration).
+      Try<Nothing> syncResult = syncCheckpointedResources(targetResources);
 
-        if (syncResult.isError()) {
-          return Failure(
-              "Target checkpointed resources " +
-              stringify(targetResources) +
-              " failed to sync from current checkpointed resources " +
-              stringify(checkpointedResources) + ": " +
-              syncResult.error());
-        }
-
-        // Rename the target checkpoint to the committed checkpoint.
-        Try<Nothing> renameResult = os::rename(
-            paths::getResourcesTargetPath(metaDir),
-            paths::getResourcesInfoPath(metaDir));
-
-        if (renameResult.isError()) {
-          return Failure(
-              "Failed to checkpoint resources " +
-              stringify(targetResources) + ": " +
-              renameResult.error());
-        }
-
-        // Since we synced the target resources to the committed resources, we
-        // check resource compatibility with `--resources` command line flag
-        // based on the committed checkpoint.
-        checkpointedResources = targetResources;
-      } else {
-        // Remove the target checkpoint resources that are no longer needed
-        // since they are same as the committed checkpointed resources.
-        Try<Nothing> rmResult = os::rm(paths::getResourcesTargetPath(metaDir));
-
-        if (rmResult.isError()) {
-          LOG(ERROR) << "Failed to clean up target checkpointed resources: "
-                     << rmResult.error();
-        }
+      if (syncResult.isError()) {
+        return Failure(
+            "Target checkpointed resources " +
+            stringify(targetResources) +
+            " failed to sync from current checkpointed resources " +
+            stringify(checkpointedResources) + ": " +
+            syncResult.error());
       }
+
+      // Rename the target checkpoint to the committed checkpoint.
+      Try<Nothing> renameResult = os::rename(
+          paths::getResourcesTargetPath(metaDir),
+          paths::getResourcesInfoPath(metaDir));
+
+      if (renameResult.isError()) {
+        return Failure(
+            "Failed to checkpoint resources " +
+            stringify(targetResources) + ": " +
+            renameResult.error());
+      }
+
+      // Since we synced the target resources to the committed resources, we
+      // check resource compatibility with `--resources` command line flag
+      // based on the committed checkpoint.
+      checkpointedResources = targetResources;
     }
 
     // This is to verify that the checkpointed resources are
