@@ -407,6 +407,7 @@ All Issues:
     * [MESOS-5766] - Missing License Information for Bundled NVML headers
     * [MESOS-5794] - Agent's /containers endpoint should skip terminated executors.
     * [MESOS-5799] - docker::inspect() may get wrong output when a docker container is not in "running" state
+    * [MESOS-5806] - CNI isolator should prepare network related /etc/* files for containers using host mode but specify container images
 
 ** Documentation
     * [MESOS-4381] - Improve upgrade compatibility documentation.
