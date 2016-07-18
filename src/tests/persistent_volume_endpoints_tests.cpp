@@ -1588,7 +1588,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Reserve the resources.
   driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
 
-  // In the next offer, expect an offer with reserved resources.
+  // Expect an offer with reserved resources.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1607,13 +1607,12 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
       frameworkInfo.principal());
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   // Create the volume.
   driver.acceptOffers({offer.id()}, {CREATE(volume)}, filters);
 
-  // In the next offer, expect an offer with a persistent volume.
+  // Expect an offer with a persistent volume.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1626,6 +1625,10 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
 
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Destroy the volume using HTTP operator endpoint.
   Future<Response> destroyResponse = process::http::post(
       master.get()->pid,
       "destroy-volumes",
@@ -1635,13 +1638,23 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, destroyResponse);
 
   AWAIT_READY(rescindedOfferId);
-
   EXPECT_EQ(rescindedOfferId.get(), offer.id());
 
-  // Expect an offer containing only unreserved resources.
+  // Expect an offer containing reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureArg<1>(&rescindedOfferId));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
+  // Unreserve the resources using HTTP operator endpoint.
   Future<Response> unreserveResponse = process::http::post(
       master.get()->pid,
       "unreserve",
@@ -1650,6 +1663,10 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, unreserveResponse);
 
+  AWAIT_READY(rescindedOfferId);
+  EXPECT_EQ(rescindedOfferId.get(), offer.id());
+
+  // Expect an offer containing only unreserved resources.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1728,12 +1745,12 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  // Expect an offer containing the persistent volume.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
+  // Expect an offer containing the persistent volume.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1746,7 +1763,6 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   Filters filters;
   filters.set_refuse_seconds(0);
 
-  // Expect an offer containing the dynamic reservation.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -1755,6 +1771,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
       {DESTROY(volume)},
       filters);
 
+  // Expect an offer containing the dynamic reservation.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1762,13 +1779,13 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
 
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
 
-  // Expect an offer containing only unreserved resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
   // Unreserve the resources.
   driver.acceptOffers({offer.id()}, {UNRESERVE(dynamicallyReserved)}, filters);
 
+  // Expect an offer containing only unreserved resources.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
