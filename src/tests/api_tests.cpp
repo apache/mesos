@@ -92,6 +92,14 @@ class MasterAPITest
     public WithParamInterface<ContentType>
 {
 public:
+  virtual master::Flags CreateMasterFlags()
+  {
+    // Set a low allocation interval to speed up tests.
+    master::Flags flags = MesosTest::CreateMasterFlags();
+    flags.allocation_interval = Milliseconds(50);
+    return flags;
+  }
+
   // Helper function to post a request to "/api/v1" master endpoint and return
   // the response.
   Future<v1::master::Response> post(
