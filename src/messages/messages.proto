@@ -641,10 +641,13 @@ message Archive {
 
 /**
  * Message describing a task's current health status, which is sent by
- * the health check program to the executor.
- * On each receive, if the number of consecutive failed health checks
- * meets the `consecutive_failure` configuration, then `kill_task`
- * flag will be set to true.
+ * the health check library or program to the executor.
+ *
+ * The `kill_task` flag is set to true when the health check library or
+ * program deems the task to be irrevocably unhealthy, for example, if
+ * the number of consecutive failed health checks meets the configured
+ * `consecutive_failure` value. If this flag is set, executor should
+ * consider killing the associated task.
  */
 message TaskHealthStatus {
   required TaskID task_id = 1;
