@@ -412,7 +412,6 @@ set(MESOS_SRC
   ${AUTHORIZER_SRC}
   ${AGENT_SRC}
   ${APPC_SRC}
-  ${MESOS_PROTOBUF_SRC}
   ${MODULE_SRC}
   ${COMMON_SRC}
   ${EXECUTOR_SRC}
@@ -491,11 +490,24 @@ set_target_properties(
   SOVERSION ${MESOS_PACKAGE_SOVERSION}
   COMPILE_FLAGS "-fPIC"
   )
-add_dependencies(${MESOS_TARGET} ${AGENT_DEPENDENCIES})
+
+add_library(${MESOS_PROTOBUF_TARGET} STATIC ${MESOS_PROTOBUF_SRC})
+set_target_properties(
+  ${MESOS_PROTOBUF_TARGET} PROPERTIES
+  VERSION ${MESOS_PACKAGE_VERSION}
+  SOVERSION ${MESOS_PACKAGE_SOVERSION}
+  COMPILE_FLAGS "-fPIC"
+  )
+
+# ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
+####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_PROTOBUF_TARGET})
+add_dependencies(${MESOS_PROTOBUF_TARGET} ${AGENT_DEPENDENCIES})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_TARGET} ${AGENT_LIBS})
+target_link_libraries(${MESOS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
+target_link_libraries(${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################

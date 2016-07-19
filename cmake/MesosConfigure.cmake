@@ -94,3 +94,6 @@ include(MasterConfigure)
 # MESOS LIBRARY CONFIGURATION.
 ##############################
 set(MESOS_TARGET mesos-${MESOS_PACKAGE_VERSION})
+set(MESOS_PROTOBUF_TARGET mesos-protobufs
+    CACHE STRING "Library of protobuf definitions used by Mesos"
+    )
