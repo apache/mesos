@@ -3091,15 +3091,25 @@ TEST_P(AgentAPITest, GetState)
     ASSERT_EQ(0u, getState.get_executors().completed_executors_size());
   }
 
+  Clock::pause();
+
   // Kill the task.
   Future<TaskStatus> statusKilled;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusKilled));
 
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
   driver.killTask(statusRunning->task_id());
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled->state());
+
+  // Make sure the agent receives and properly handles the ACK of `TASK_KILLED`.
+  AWAIT_READY(_statusUpdateAcknowledgement);
+  Clock::settle();
+  Clock::resume();
 
   // Make sure the executor terminated.
   Future<Nothing> executorTerminated =
