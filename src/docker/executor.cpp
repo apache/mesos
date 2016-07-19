@@ -493,28 +493,29 @@ private:
       return;
     }
 
-    vector<string> argv;
-    argv.push_back(docker->getPath());
-    argv.push_back("exec");
-    argv.push_back(containerName);
+    vector<string> commandArguments;
+    commandArguments.push_back(docker->getPath());
+    commandArguments.push_back("exec");
+    commandArguments.push_back(containerName);
 
     if (command.shell()) {
-      argv.push_back("sh");
-      argv.push_back("-c");
-      argv.push_back("\"");
-      argv.push_back(command.value());
-      argv.push_back("\"");
+      commandArguments.push_back("sh");
+      commandArguments.push_back("-c");
+      commandArguments.push_back("\"");
+      commandArguments.push_back(command.value());
+      commandArguments.push_back("\"");
     } else {
-      argv.push_back(command.value());
+      commandArguments.push_back(command.value());
 
       foreach (const string& argument, command.arguments()) {
-        argv.push_back(argument);
+        commandArguments.push_back(argument);
       }
     }
 
     healthCheck.mutable_command()->set_shell(true);
     healthCheck.mutable_command()->clear_arguments();
-    healthCheck.mutable_command()->set_value(strings::join(" ", argv));
+    healthCheck.mutable_command()->set_value(
+        strings::join(" ", commandArguments));
 
     JSON::Object json = JSON::protobuf(healthCheck);
 
@@ -522,19 +523,19 @@ private:
 
     // Launch the subprocess using 'exec' style so that quotes can
     // be properly handled.
-    argv.push_back(path);
-    argv.push_back("--executor=" + stringify(self()));
-    argv.push_back("--health_check_json=" + stringify(json));
-    argv.push_back("--task_id=" + task.task_id().value());
+    vector<string> checkerArguments;
+    checkerArguments.push_back(path);
+    checkerArguments.push_back("--executor=" + stringify(self()));
+    checkerArguments.push_back("--health_check_json=" + stringify(json));
+    checkerArguments.push_back("--task_id=" + task.task_id().value());
 
-    const string cmd = strings::join(" ", argv);
-
-    cout << "Launching health check process: " << cmd << endl;
+    cout << "Launching health check process: "
+         << strings::join(" ", checkerArguments) << endl;
 
     Try<Subprocess> healthProcess =
       process::subprocess(
         path,
-        argv,
+        checkerArguments,
         // Intentionally not sending STDIN to avoid health check
         // commands that expect STDIN input to block.
         Subprocess::PATH("/dev/null"),
