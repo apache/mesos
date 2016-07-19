@@ -1047,32 +1047,6 @@ TEST_P(MasterAPITest, UnreserveResources)
       frameworkInfo.role(),
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
-
-  Future<vector<Offer>> offers;
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  driver.start();
-
-  AWAIT_READY(offers);
-
-  ASSERT_EQ(1u, offers->size());
-  Offer offer = offers.get()[0];
-
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  // Expect an offer to be rescinded!
-  EXPECT_CALL(sched, offerRescinded(_, _));
-
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::RESERVE_RESOURCES);
 
@@ -1097,10 +1071,23 @@ TEST_P(MasterAPITest, UnreserveResources)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, reserveResponse);
 
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers->size());
-  offer = offers.get()[0];
+  Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
 
@@ -1110,7 +1097,6 @@ TEST_P(MasterAPITest, UnreserveResources)
   // Expect an offer to be rescinded!
   EXPECT_CALL(sched, offerRescinded(_, _));
 
-  // Unreserve the resources.
   v1Call.set_type(v1::master::Call::UNRESERVE_RESOURCES);
 
   v1::master::Call::UnreserveResources* unreserveResources =
@@ -1137,6 +1123,7 @@ TEST_P(MasterAPITest, UnreserveResources)
   ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
+  // Verifies if the resources are unreserved.
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
 
   driver.stop();
