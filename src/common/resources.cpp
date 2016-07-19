@@ -569,9 +569,6 @@ Try<Resources> Resources::parse(
 
     result = resources.get();
   } else {
-    VLOG(1) << "Parsing resources as JSON failed: " << text << "\n"
-            << "Trying semicolon-delimited string format instead";
-
     foreach (const string& token, strings::tokenize(text, ";")) {
       vector<string> pair = strings::tokenize(token, ":");
       if (pair.size() != 2) {
