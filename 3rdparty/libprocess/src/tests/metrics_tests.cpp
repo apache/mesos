@@ -314,6 +314,10 @@ TEST_F(MetricsTest, SnapshotTimeout)
   Future<Response> response = http::get(upid, "snapshot", "timeout=2secs");
 
   // Make sure the request is pending before the timeout is exceeded.
+  //
+  // TODO(neilc): Replace the `sleep` here with a less flaky
+  // synchronization method.
+  os::sleep(Milliseconds(10));
   Clock::settle();
 
   ASSERT_TRUE(response.isPending());

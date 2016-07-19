@@ -3129,20 +3129,6 @@ void ProcessManager::settle()
 {
   bool done = true;
   do {
-    // While refactoring in order to isolate libev behind abstractions
-    // it became evident that this os::sleep is vital for tests to
-    // pass. In particular, there are certain tests that assume too
-    // much before they attempt to do a settle. One such example is
-    // tests doing http::get followed by Clock::settle, where they
-    // expect the http::get will have properly enqueued a process on
-    // the run queue but http::get is just sending bytes on a
-    // socket. Without sleeping at the beginning of this function we
-    // can get unlucky and appear settled when in actuality the
-    // kernel just hasn't copied the bytes to a socket or we haven't
-    // yet read the bytes and enqueued an event on a process (and the
-    // process on the run queue).
-    os::sleep(Milliseconds(10));
-
     done = true; // Assume to start that we are settled.
 
     synchronized (runq_mutex) {
