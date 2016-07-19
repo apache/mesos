@@ -326,7 +326,7 @@ void Clock::pause()
     if (!clock::paused) {
       *clock::initial = *clock::current = now();
       clock::paused = true;
-      VLOG(2) << "Clock paused at " << clock::initial;
+      VLOG(2) << "Clock paused at " << *clock::initial;
 
       // When the clock is paused, we clear the scheduled 'ticks'
       // since they no longer accurately represent when a 'tick'
@@ -356,7 +356,7 @@ void Clock::resume()
 
   synchronized (timers_mutex) {
     if (clock::paused) {
-      VLOG(2) << "Clock resumed at " << clock::current;
+      VLOG(2) << "Clock resumed at " << *clock::current;
 
       clock::paused = false;
       clock::settling = false;
@@ -376,7 +376,7 @@ void Clock::advance(const Duration& duration)
       *clock::advanced += duration;
       *clock::current += duration;
 
-      VLOG(2) << "Clock advanced ("  << duration << ") to " << clock::current;
+      VLOG(2) << "Clock advanced ("  << duration << ") to " << *clock::current;
 
       // Schedule another "tick" if necessary. Only "ticks" that
       // fire immediately will be scheduled here, since the clock
@@ -413,7 +413,7 @@ void Clock::update(const Time& time)
       if (*clock::current < time) {
         *clock::advanced += (time - *clock::current);
         *clock::current = Time(time);
-        VLOG(2) << "Clock updated to " << clock::current;
+        VLOG(2) << "Clock updated to " << *clock::current;
 
         // Schedule another "tick" if necessary. Only "ticks" that
         // fire immediately will be scheduled here, since the clock
