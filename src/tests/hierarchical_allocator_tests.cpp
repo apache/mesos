@@ -3313,14 +3313,12 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   Clock::pause();
 
-  // Number of allocations. This is used to determine
-  // the termination condition.
-  atomic<size_t> finished(0);
+  atomic<size_t> offerCallbacks(0);
 
-  auto offerCallback = [&finished](
+  auto offerCallback = [&offerCallbacks](
       const FrameworkID& frameworkId,
       const hashmap<SlaveID, Resources>& resources) {
-    finished++;
+    offerCallbacks++;
   };
 
   initialize(master::Flags(), offerCallback);
@@ -3331,6 +3329,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   foreach (const FrameworkInfo& framework, frameworks) {
     allocator->addFramework(framework.id(), framework, {});
   }
+
+  // Wait for all the `addFramework` operations to be processed.
+  Clock::settle();
 
   watch.stop();
 
@@ -3359,11 +3360,11 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   }
 
   // Wait for all the `addSlave` operations to be processed.
-  while (finished.load() != slaveCount) {
-    os::sleep(Milliseconds(10));
-  }
+  Clock::settle();
 
   watch.stop();
+
+  ASSERT_EQ(slaveCount, offerCallbacks.load());
 
   cout << "Added " << slaveCount << " agents"
        << " in " << watch.elapsed() << endl;
@@ -3379,11 +3380,11 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   }
 
   // Wait for all the `updateSlave` operations to be processed.
-  while (finished.load() != 2 * slaveCount) {
-    os::sleep(Milliseconds(10));
-  }
+  Clock::settle();
 
   watch.stop();
+
+  ASSERT_EQ(slaveCount * 2, offerCallbacks.load());
 
   cout << "Updated " << slaveCount << " agents in " << watch.elapsed() << endl;
 }
