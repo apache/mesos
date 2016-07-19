@@ -130,7 +130,7 @@ are declined.
 Currently the local authorizer configuration format supports the following
 entries, each representing an authorizable action:
 
-<table>
+<table class="table table-striped">
 <thead>
 <tr>
   <th>Action Name</th>

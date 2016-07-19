@@ -180,7 +180,7 @@ Mesos 0.23.0.
 
 The Result<T> return values before and after Mesos 0.23.0 means:
 
-<table>
+<table class="table table-striped">
 <tr>
 <th>State</th>
 <th>Before (0.22.x)</th>
@@ -331,7 +331,7 @@ package naming scheme
 
 For example:
 
-<table>
+<table class="table table-striped">
 <tr>
 <th> Module Name </th> <th> Module Domain name </th> <th> Module Symbol Name </th>
 </tr>
@@ -376,7 +376,7 @@ must exist between the various versions:
 
 `  kind version <= Library version <= Mesos version`
 
-<table>
+<table class="table table-striped">
 <tr>
 <td>Mesos </td> <td>kind version </td> <td> Library </td> <td>Is module loadable </td> <td>Reason </td>
 </tr>
