@@ -590,8 +590,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  Future<Nothing> _statusUpdate = FUTURE_DISPATCH(_, &Slave::_statusUpdate);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status))
@@ -599,7 +597,9 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(_statusUpdate);
+  // Wait until TASK_RUNNING of the task is received.
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -613,8 +613,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   AWAIT_READY(reregisterSlave);
 
   EXPECT_EQ(1u, reregisterSlave.get().frameworks().size());
-
-  AWAIT_READY(status);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
