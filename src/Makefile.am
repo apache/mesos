@@ -1515,7 +1515,10 @@ MESOS_JAR_SOURCE =							\
   $(srcdir)/java/src/org/apache/mesos/state/LogState.java		\
   $(srcdir)/java/src/org/apache/mesos/state/State.java			\
   $(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
-  $(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java
+  $(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java		\
+  $(srcdir)/java/src/org/apache/mesos/v1/scheduler/JNIMesos.java		\
+  $(srcdir)/java/src/org/apache/mesos/v1/scheduler/Mesos.java		\
+  $(srcdir)/java/src/org/apache/mesos/v1/scheduler/Scheduler.java
 MESOS_JAR_GENERATED = $(JAVA_PROTOS) $(V1_JAVA_PROTOS)			\
   java/generated/org/apache/mesos/MesosNativeLibrary.java
 EXTRA_DIST += $(MESOS_JAR_SOURCE)					\
