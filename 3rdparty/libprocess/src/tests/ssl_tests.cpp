@@ -110,7 +110,7 @@ INSTANTIATE_TEST_CASE_P(SSLVerifyIPAdd,
 // Ensure that we can't create an SSL socket when SSL is not enabled.
 TEST(SSL, Disabled)
 {
-  os::setenv("SSL_ENABLED", "false");
+  os::setenv("LIBPROCESS_SSL_ENABLED", "false");
   openssl::reinitialize();
   EXPECT_ERROR(Socket::create(Socket::SSL));
 }
@@ -120,13 +120,13 @@ TEST(SSL, Disabled)
 // process.
 TEST_P(SSLTest, BasicSameProcess)
 {
-  os::setenv("SSL_ENABLED", "true");
-  os::setenv("SSL_KEY_FILE", key_path().string());
-  os::setenv("SSL_CERT_FILE", certificate_path().string());
-  os::setenv("SSL_REQUIRE_CERT", "true");
-  os::setenv("SSL_CA_DIR", os::getcwd());
-  os::setenv("SSL_CA_FILE", certificate_path().string());
-  os::setenv("SSL_VERIFY_IPADD", GetParam());
+  os::setenv("LIBPROCESS_SSL_ENABLED", "true");
+  os::setenv("LIBPROCESS_SSL_KEY_FILE", key_path().string());
+  os::setenv("LIBPROCESS_SSL_CERT_FILE", certificate_path().string());
+  os::setenv("LIBPROCESS_SSL_REQUIRE_CERT", "true");
+  os::setenv("LIBPROCESS_SSL_CA_DIR", os::getcwd());
+  os::setenv("LIBPROCESS_SSL_CA_FILE", certificate_path().string());
+  os::setenv("LIBPROCESS_SSL_VERIFY_IPADD", GetParam());
 
   openssl::reinitialize();
 
@@ -180,15 +180,15 @@ TEST_P(SSLTest, BasicSameProcess)
 TEST_F(SSLTest, SSLSocket)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -209,15 +209,15 @@ TEST_F(SSLTest, SSLSocket)
 TEST_F(SSLTest, NonSSLSocket)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}},
       server.get(),
       false);
   ASSERT_SOME(client);
@@ -231,23 +231,24 @@ TEST_F(SSLTest, NonSSLSocket)
 
 // Ensure that a certificate that was not generated using the
 // certificate authority is still allowed to communicate as long as
-// the SSL_VERIFY_CERT and SSL_REQUIRE_CERT flags are disabled.
+// the LIBPROCESS_SSL_VERIFY_CERT and LIBPROCESS_SSL_REQUIRE_CERT
+// flags are disabled.
 TEST_F(SSLTest, NoVerifyBadCA)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_VERIFY_CERT", "false"},
-      {"SSL_REQUIRE_CERT", "false"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_CERT", "false"},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "false"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().string()},
-      {"SSL_CERT_FILE", scrap_certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"},
-      {"SSL_CA_FILE", certificate_path().string()}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -265,21 +266,21 @@ TEST_F(SSLTest, NoVerifyBadCA)
 
 // Ensure that a certificate that was not generated using the
 // certificate authority is NOT allowed to communicate when the
-// SSL_REQUIRE_CERT flag is enabled.
+// LIBPROCESS_SSL_REQUIRE_CERT flag is enabled.
 TEST_F(SSLTest, RequireBadCA)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().string()},
-      {"SSL_CERT_FILE", scrap_certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "false"}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "false"}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -293,21 +294,21 @@ TEST_F(SSLTest, RequireBadCA)
 
 // Ensure that a certificate that was not generated using the
 // certificate authority is NOT allowed to communicate when the
-// SSL_VERIFY_CERT flag is enabled.
+// LIBPROCESS_SSL_VERIFY_CERT flag is enabled.
 TEST_F(SSLTest, VerifyBadCA)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_VERIFY_CERT", "true"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", scrap_key_path().string()},
-      {"SSL_CERT_FILE", scrap_certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "false"}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "false"}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -320,22 +321,24 @@ TEST_F(SSLTest, VerifyBadCA)
 
 
 // Ensure that a certificate that WAS generated using the certificate
-// authority is NOT allowed to communicate when the SSL_VERIFY_CERT
-// flag is enabled.
+// authority IS allowed to communicate when the
+// LIBPROCESS_SSL_VERIFY_CERT flag is enabled.
 TEST_F(SSLTest, VerifyCertificate)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_VERIFY_CERT", "true"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -352,24 +355,26 @@ TEST_F(SSLTest, VerifyCertificate)
 
 
 // Ensure that a certificate that WAS generated using the certificate
-// authority is NOT allowed to communicate when the SSL_REQUIRE_CERT
-// flag is enabled.
+// authority IS allowed to communicate when the
+// LIBPROCESS_SSL_REQUIRE_CERT flag is enabled.
 TEST_P(SSLTest, RequireCertificate)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"},
-      {"SSL_VERIFY_IPADD", GetParam()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"},
+      {"LIBPROCESS_SSL_VERIFY_IPADD", GetParam()}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"},
-      {"SSL_VERIFY_IPADD", GetParam()}},
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"},
+      {"LIBPROCESS_SSL_VERIFY_IPADD", GetParam()}},
       server.get(),
       true);
   ASSERT_SOME(client);
@@ -390,11 +395,11 @@ static const vector<string> protocols = {
   // OpenSSL can be compiled with SSLV3 disabled completely, so we
   // conditionally test for this protocol.
 #ifndef OPENSSL_NO_SSL3
-  "SSL_ENABLE_SSL_V3",
+  "LIBPROCESS_SSL_ENABLE_SSL_V3",
 #endif
-  "SSL_ENABLE_TLS_V1_0",
-  "SSL_ENABLE_TLS_V1_1",
-  "SSL_ENABLE_TLS_V1_2"
+  "LIBPROCESS_SSL_ENABLE_TLS_V1_0",
+  "LIBPROCESS_SSL_ENABLE_TLS_V1_1",
+  "LIBPROCESS_SSL_ENABLE_TLS_V1_2"
 };
 
 
@@ -412,16 +417,16 @@ TEST_F(SSLTest, ProtocolMismatch)
 
       // Set up the default server environment variables.
       map<string, string> server_environment = {
-        {"SSL_ENABLED", "true"},
-        {"SSL_KEY_FILE", key_path().string()},
-        {"SSL_CERT_FILE", certificate_path().string()}
+        {"LIBPROCESS_SSL_ENABLED", "true"},
+        {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+        {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}
       };
 
       // Set up the default client environment variables.
       map<string, string> client_environment = {
-        {"SSL_ENABLED", "true"},
-        {"SSL_KEY_FILE", key_path().string()},
-        {"SSL_CERT_FILE", certificate_path().string()},
+        {"LIBPROCESS_SSL_ENABLED", "true"},
+        {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+        {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
       };
 
       // Disable all protocols except for the one we're testing.
@@ -471,15 +476,15 @@ TEST_F(SSLTest, ProtocolMismatch)
 TEST_F(SSLTest, ValidDowngrade)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_SUPPORT_DOWNGRADE", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_SUPPORT_DOWNGRADE", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "false"}},
+      {"LIBPROCESS_SSL_ENABLED", "false"}},
       server.get(),
       false);
   ASSERT_SOME(client);
@@ -500,15 +505,15 @@ TEST_F(SSLTest, ValidDowngrade)
 TEST_F(SSLTest, NoValidDowngrade)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_SUPPORT_DOWNGRADE", "false"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()},
-      {"SSL_REQUIRE_CERT", "true"}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_SUPPORT_DOWNGRADE", "false"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
-      {"SSL_ENABLED", "false"}},
+      {"LIBPROCESS_SSL_ENABLED", "false"}},
       server.get(),
       false);
   ASSERT_SOME(client);
@@ -530,10 +535,10 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
 
     // Set up the default server environment variables.
     map<string, string> server_environment = {
-      {"SSL_ENABLED", "true"},
-      {"SSL_SUPPORT_DOWNGRADE", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_SUPPORT_DOWNGRADE", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}
     };
 
     // Disable all protocols except for the one we're testing.
@@ -549,7 +554,7 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
 
     // Launch the client with a POLL socket.
     Try<Subprocess> client = launch_client({
-        {"SSL_ENABLED", "false"}},
+        {"LIBPROCESS_SSL_ENABLED", "false"}},
         server.get(),
         false);
     ASSERT_SOME(client);
@@ -577,10 +582,10 @@ TEST_F(SSLTest, NoValidDowngradeEachProtocol)
 
     // Set up the default server environment variables.
     map<string, string> server_environment = {
-      {"SSL_ENABLED", "true"},
-      {"SSL_SUPPORT_DOWNGRADE", "false"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_SUPPORT_DOWNGRADE", "false"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}
     };
 
     // Disable all protocols except for the one we're testing.
@@ -596,7 +601,7 @@ TEST_F(SSLTest, NoValidDowngradeEachProtocol)
 
     // Launch the client with a POLL socket.
     Try<Subprocess> client = launch_client({
-        {"SSL_ENABLED", "false"}},
+        {"LIBPROCESS_SSL_ENABLED", "false"}},
         server.get(),
         false);
     ASSERT_SOME(client);
@@ -613,9 +618,9 @@ TEST_F(SSLTest, NoValidDowngradeEachProtocol)
 TEST_F(SSLTest, PeerAddress)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
   const Try<Socket> client_create = Socket::create(Socket::SSL);
@@ -650,9 +655,9 @@ TEST_F(SSLTest, PeerAddress)
 TEST_F(SSLTest, HTTPSGet)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -690,9 +695,9 @@ TEST_F(SSLTest, HTTPSGet)
 TEST_F(SSLTest, HTTPSPost)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -734,9 +739,9 @@ TEST_F(SSLTest, HTTPSPost)
 TEST_F(SSLTest, SilentSocket)
 {
   Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().string()},
-      {"SSL_CERT_FILE", certificate_path().string()}});
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());

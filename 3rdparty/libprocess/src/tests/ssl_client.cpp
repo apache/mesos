@@ -45,8 +45,9 @@ using std::string;
 /**
  * The flags that control the test SSL client behavior.
  *
- * These flags augment the environment variables prefixed by 'SSL_'
- * that are introduced by @see process::network::openssl::Flags.
+ * These flags augment the environment variables prefixed by
+ * 'LIBPROCESS_SSL_' that are introduced by @see
+ * process::network::openssl::Flags.
  */
 class Flags : public virtual flags::FlagsBase
 {
@@ -56,8 +57,8 @@ public:
     add(&Flags::use_ssl,
       "use_ssl",
       "Whether to try and connect using an SSL based socket. This is "
-      "separate from whether SSL_ENABLED is set. We use this for "
-      "testing failure cases.",
+      "separate from whether LIBPROCESS_SSL_ENABLED is set. We use "
+      "this for testing failure cases.",
       true);
 
     add(&Flags::data,

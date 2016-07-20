@@ -57,21 +57,21 @@ const Flags& flags();
 // crypto library in order to support multi-threading. The global
 // context gets initialized using the environment variables:
 //
-//    SSL_ENABLED=(false|0,true|1)
-//    SSL_SUPPORT_DOWNGRADE=(false|0,true|1)
-//    SSL_CERT_FILE=(path to certificate)
-//    SSL_KEY_FILE=(path to key)
-//    SSL_VERIFY_CERT=(false|0,true|1)
-//    SSL_REQUIRE_CERT=(false|0,true|1)
-//    SSL_VERIFY_IPADD=(false|0,true|1)
-//    SSL_VERIFY_DEPTH=(4)
-//    SSL_CA_DIR=(path to CA directory)
-//    SSL_CA_FILE=(path to CA file)
-//    SSL_CIPHERS=(accepted ciphers separated by ':')
-//    SSL_ENABLE_SSL_V3=(false|0,true|1)
-//    SSL_ENABLE_TLS_V1_0=(false|0,true|1)
-//    SSL_ENABLE_TLS_V1_1=(false|0,true|1)
-//    SSL_ENABLE_TLS_V1_2=(false|0,true|1)
+//    LIBPROCESS_SSL_ENABLED=(false|0,true|1)
+//    LIBPROCESS_SSL_SUPPORT_DOWNGRADE=(false|0,true|1)
+//    LIBPROCESS_SSL_CERT_FILE=(path to certificate)
+//    LIBPROCESS_SSL_KEY_FILE=(path to key)
+//    LIBPROCESS_SSL_VERIFY_CERT=(false|0,true|1)
+//    LIBPROCESS_SSL_REQUIRE_CERT=(false|0,true|1)
+//    LIBPROCESS_SSL_VERIFY_IPADD=(false|0,true|1)
+//    LIBPROCESS_SSL_VERIFY_DEPTH=(4)
+//    LIBPROCESS_SSL_CA_DIR=(path to CA directory)
+//    LIBPROCESS_SSL_CA_FILE=(path to CA file)
+//    LIBPROCESS_SSL_CIPHERS=(accepted ciphers separated by ':')
+//    LIBPROCESS_SSL_ENABLE_SSL_V3=(false|0,true|1)
+//    LIBPROCESS_SSL_ENABLE_TLS_V1_0=(false|0,true|1)
+//    LIBPROCESS_SSL_ENABLE_TLS_V1_1=(false|0,true|1)
+//    LIBPROCESS_SSL_ENABLE_TLS_V1_2=(false|0,true|1)
 //
 // TODO(benh): When/If we need to support multiple contexts in the
 // same process, for example for Server Name Indication (SNI), then
