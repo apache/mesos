@@ -21,6 +21,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/v1/scheduler/scheduler.hpp>
+
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
@@ -485,6 +487,30 @@ jobject convert(JNIEnv* env, const Status& status)
   jobject jstate = env->CallStaticObjectMethod(clazz, valueOf, jvalue);
 
   return jstate;
+}
+
+
+template <>
+jobject convert(JNIEnv* env, const v1::scheduler::Event& event)
+{
+  string data;
+  event.SerializeToString(&data);
+
+  // byte[] data = ..;
+  jbyteArray jdata = env->NewByteArray(data.size());
+  env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*) data.data());
+
+  // Event event = Event.parseFrom(data);
+  jclass clazz =
+    FindMesosClass(env, "org/apache/mesos/v1/scheduler/Protos$Event");
+
+  jmethodID parseFrom =
+    env->GetStaticMethodID(clazz, "parseFrom",
+                           "([B)Lorg/apache/mesos/v1/scheduler/Protos$Event;");
+
+  jobject jevent = env->CallStaticObjectMethod(clazz, parseFrom, jdata);
+
+  return jevent;
 }
 
 

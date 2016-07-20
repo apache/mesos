@@ -25,6 +25,10 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/v1/mesos.hpp>
+
+#include <mesos/v1/scheduler/scheduler.hpp>
+
 #include "construct.hpp"
 
 using namespace mesos;
@@ -398,4 +402,67 @@ Offer::Operation construct(JNIEnv* env, jobject jobj)
   env->ReleaseByteArrayElements(jdata, data, 0);
 
   return operation;
+}
+
+
+template <>
+v1::Credential construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
+  jsize length = env->GetArrayLength(jdata);
+
+  const v1::Credential& credential = parse<v1::Credential>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return credential;
+}
+
+
+template <>
+v1::FrameworkInfo construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
+  jsize length = env->GetArrayLength(jdata);
+
+  const v1::FrameworkInfo& framework = parse<v1::FrameworkInfo>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return framework;
+}
+
+
+template<>
+v1::scheduler::Call construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, nullptr);
+  jsize length = env->GetArrayLength(jdata);
+
+  const v1::scheduler::Call& call = parse<v1::scheduler::Call>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return call;
 }
