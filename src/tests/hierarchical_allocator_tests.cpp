@@ -3513,28 +3513,18 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 }
 
 
-// This returns a `Labels` that has 12 key-value pairs, which should
-// be more than we expect most frameworks to use in practice. We
-// ensure that the first 11 key-value pairs are equal, which results
-// in pessimal performance for the equality operator between
-// Labels. Finally, we add `labelId` to allow the caller to ensure
-// that all labels in the cluster are distinct, which can trigger
-// allocator performance bottlenecks.
-static Labels makeLabels(bool first, size_t labelId)
+// Returns the requested number of labels:
+//   [{"<key>_1": "<value>_1"}, ..., {"<key>_<count>":"<value>_<count>"}]
+static Labels createLabels(
+    const string& key,
+    const string& value,
+    size_t count)
 {
   Labels labels;
 
-  for (int i = 1; i <= 11; i++) {
-    string index = stringify(i);
-    labels.add_labels()->CopyFrom(createLabel("foo" + index, "bar" + index));
-  }
-
-  string suffix = stringify(labelId);
-
-  if (first) {
-    labels.add_labels()->CopyFrom(createLabel("bar1", suffix));
-  } else {
-    labels.add_labels()->CopyFrom(createLabel("baz1", suffix));
+  for (size_t i = 0; i < count; i++) {
+    const string index = stringify(i);
+    labels.add_labels()->CopyFrom(createLabel(key + index, value + index));
   }
 
   return labels;
@@ -3621,8 +3611,25 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 
     Resources agentResources = resources;
 
-    Labels labels1 = makeLabels(true, i);
-    Labels labels2 = makeLabels(false, i);
+    // We create reservations with 12 labels as we expect this is
+    // more than most frameworks use. Note that only the 12th
+    // label differs between the two sets of labels as this triggers
+    // the pathological performance path in the Labels equality
+    // operator.
+    //
+    // We add a unique id to each agent's reservation labels to
+    // ensure that any aggregation across agents leads to
+    // pathological performance (reservations with distinct labels
+    // cannot be merged).
+    //
+    // TODO(neilc): Test with longer key / value lengths.
+    Labels labels1 = createLabels("key", "value", 11);
+    labels1.add_labels()->CopyFrom(
+        createLabel("unique_key_1", "value_" + stringify(i)));
+
+    Labels labels2 = createLabels("key", "value", 11);
+    labels1.add_labels()->CopyFrom(
+        createLabel("unique_key_2", "value_" + stringify(i)));
 
     Resources reserved1 =
       createReservedResource("cpus", "8", "role1",
