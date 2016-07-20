@@ -21,13 +21,15 @@ Before building Mesos 0.23.0 from source, assuming you have installed the requir
 # Running
 Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Agent`, `Framework Scheduler/Executor`, or any `libprocess process`:
 
-#### SSL_ENABLED=(false|0,true|1) [default=false|0]
-Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `SSL_CERT_FILE` and `SSL_KEY_FILE` must be supplied.
+NOTE: Prior to 1.0, the SSL related environment variables used to be prefixed by `SSL_`. However, we found that they may collide with other programs and lead to unexpected results (e.g., openssl, see [MESOS-5863](https://issues.apache.org/jira/browse/MESOS-5863) for details). To be backward compatible, we accept environment variables prefixed by both `SSL_` or `LIBPROCESS_SSL_`. New users should use the `LIBPROCESS_SSL_` version.
 
-#### SSL_SUPPORT_DOWNGRADE=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_ENABLED=(false|0,true|1) [default=false|0]
+Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `LIBPROCESS_SSL_CERT_FILE` and `LIBPROCESS_SSL_KEY_FILE` must be supplied.
+
+#### LIBPROCESS_SSL_SUPPORT_DOWNGRADE=(false|0,true|1) [default=false|0]
 Control whether or not non-SSL connections can be established. If this is enabled __on the accepting side__, then the accepting side will downgrade to a non-SSL socket if the connecting side is attempting to communicate via non-SSL. (e.g. HTTP). See [Upgrading Your Cluster](#Upgrading) for more details.
 
-#### SSL_KEY_FILE=(path to key)
+#### LIBPROCESS_SSL_KEY_FILE=(path to key)
 The location of the private key used by OpenSSL.
 
 ~~~
@@ -35,7 +37,7 @@ The location of the private key used by OpenSSL.
 openssl genrsa -des3 -f4 -passout pass:some_password -out key.pem 4096
 ~~~
 
-#### SSL_CERT_FILE=(path to certificate)
+#### LIBPROCESS_SSL_CERT_FILE=(path to certificate)
 The location of the certificate that will be presented.
 
 ~~~
@@ -43,31 +45,31 @@ The location of the certificate that will be presented.
 openssl req -new -x509 -passin pass:some_password -days 365 -key key.pem -out cert.pem
 ~~~
 
-#### SSL_VERIFY_CERT=(false|0,true|1) [default=false|0]
-Control whether certificates are verified when presented. If this is false, even when a certificate is presented, it will not be verified. When `SSL_REQUIRE_CERT` is true, `SSL_VERIFY_CERT` is overridden and all certificates will be verified _and_ required.
+#### LIBPROCESS_SSL_VERIFY_CERT=(false|0,true|1) [default=false|0]
+Control whether certificates are verified when presented. If this is false, even when a certificate is presented, it will not be verified. When `LIBPROCESS_SSL_REQUIRE_CERT` is true, `LIBPROCESS_SSL_VERIFY_CERT` is overridden and all certificates will be verified _and_ required.
 
-#### SSL_REQUIRE_CERT=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_REQUIRE_CERT=(false|0,true|1) [default=false|0]
 Enforce that certificates must be presented by connecting clients. This means all connections (including tools hitting endpoints) must present valid certificates in order to establish a connection.
 
-#### SSL_VERIFY_DEPTH=(N) [default=4]
+#### LIBPROCESS_SSL_VERIFY_DEPTH=(N) [default=4]
 The maximum depth used to verify certificates. The default is 4. See the OpenSSL documentation or contact your system administrator to learn why you may want to change this.
 
-#### SSL_VERIFY_IPADD=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_VERIFY_IPADD=(false|0,true|1) [default=false|0]
 Enable IP address verification in the certificate subject alternative name extension. When set to `true` the peer certificate verification will additionally use the IP address of a peer connection. When a hostname of the peer as well as its IP address are available, the validation will succeed when either the hostname or the IP match.
 
-#### SSL_CA_DIR=(path to CA directory)
-The directory used to find the certificate authority / authorities. You can specify `SSL_CA_DIR` or `SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
+#### LIBPROCESS_SSL_CA_DIR=(path to CA directory)
+The directory used to find the certificate authority / authorities. You can specify `LIBPROCESS_SSL_CA_DIR` or `LIBPROCESS_SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
 
-#### SSL_CA_FILE=(path to CA file)
-The file used to find the certificate authority. You can specify `SSL_CA_DIR` or `SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
+#### LIBPROCESS_SSL_CA_FILE=(path to CA file)
+The file used to find the certificate authority. You can specify `LIBPROCESS_SSL_CA_DIR` or `LIBPROCESS_SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
 
-#### SSL_CIPHERS=(accepted ciphers separated by ':') [default=AES128-SHA:AES256-SHA:RC4-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA]
+#### LIBPROCESS_SSL_CIPHERS=(accepted ciphers separated by ':') [default=AES128-SHA:AES256-SHA:RC4-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA]
 A list of `:`-separated ciphers. Use these if you want to restrict or open up the accepted ciphers for OpenSSL. Read the OpenSSL documentation or contact your system administrators to see whether you want to override the default values.
 
-#### SSL_ENABLE_SSL_V3=(false|0,true|1) [default=false|0]
-#### SSL_ENABLE_TLS_V1_0=(false|0,true|1) [default=false|0]
-#### SSL_ENABLE_TLS_V1_1=(false|0,true|1) [default=false|0]
-#### SSL_ENABLE_TLS_V1_2=(false|0,true|1) [default=true|1]
+#### LIBPROCESS_SSL_ENABLE_SSL_V3=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_ENABLE_TLS_V1_0=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_ENABLE_TLS_V1_1=(false|0,true|1) [default=false|0]
+#### LIBPROCESS_SSL_ENABLE_TLS_V1_2=(false|0,true|1) [default=true|1]
 The above switches enable / disable the specified protocols. By default only TLS V1.2 is enabled. SSL V2 is always disabled; there is no switch to enable it. The mentality here is to restrict security by default, and force users to open it up explicitly. Many older version of the protocols have known vulnerabilities, so only enable these if you fully understand the risks.
 _SSLv2 is disabled completely because modern versions of OpenSSL disable it using multiple compile time configuration options._
 #<a name="Dependencies"></a>Dependencies
@@ -96,19 +98,19 @@ The recommended strategy is to restart all your components to enable SSL with do
 
 ~~~
 // Restart each component with downgrade support (master, agent, framework):
-SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=true SSL_KEY_FILE=<path-to-your-private-key> SSL_CERT_FILE=<path-to-your-certificate> <Any other SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
+LIBPROCESS_SSL_ENABLED=true LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true LIBPROCESS_SSL_KEY_FILE=<path-to-your-private-key> LIBPROCESS_SSL_CERT_FILE=<path-to-your-certificate> <Any other LIBPROCESS_SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
 
 // Restart each component WITHOUT downgrade support (master, agent, framework):
-SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=false SSL_KEY_FILE=<path-to-your-private-key> SSL_CERT_FILE=<path-to-your-certificate> <Any other SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
+LIBPROCESS_SSL_ENABLED=true LIBPROCESS_SSL_SUPPORT_DOWNGRADE=false LIBPROCESS_SSL_KEY_FILE=<path-to-your-private-key> LIBPROCESS_SSL_CERT_FILE=<path-to-your-certificate> <Any other LIBPROCESS_SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
 ~~~
 Executors must be able to access the SSL environment variables and the files referred to by those variables. Environment variables can be provided to an executor by specifying `CommandInfo.environment` or by using the agent's `--executor_environment_variables` command line flag. If the agent and the executor are running in separate containers, `ContainerInfo.volumes` can be used to mount SSL files from the host into the executor's container.
 
 The end state is a cluster that is only communicating with SSL.
 
-__NOTE:__ Any tools you may use that communicate with your components must be able to speak SSL, or they will be denied. You may choose to maintain `SSL_SUPPORT_DOWNGRADE=true` for some time as you upgrade your internal tooling. The advantage of `SSL_SUPPORT_DOWNGRADE=true` is that all components that speak SSL will do so, while other components may still communicate over insecure channels.
+__NOTE:__ Any tools you may use that communicate with your components must be able to speak SSL, or they will be denied. You may choose to maintain `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` for some time as you upgrade your internal tooling. The advantage of `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` is that all components that speak SSL will do so, while other components may still communicate over insecure channels.
 
 # <a name="WebUI"></a>WebUI
-The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and agents. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `SSL_SUPPORT_DOWNGRADE` option is set to true.
+The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and agents. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `LIBPROCESS_SSL_SUPPORT_DOWNGRADE` option is set to true.
 
 __NOTE:__ Frameworks with their own WebUI will need to add HTTPS support separately.
 
