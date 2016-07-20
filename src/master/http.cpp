@@ -525,9 +525,6 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::GET_STATE:
       return getState(call, principal, acceptType);
 
-    case mesos::master::Call::GET_STATE_SUMMARY:
-      return NotImplemented();
-
     case mesos::master::Call::GET_AGENTS:
       return getAgents(call, principal, acceptType);
 

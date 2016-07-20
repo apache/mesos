@@ -108,9 +108,6 @@ Option<Error> validate(
     case mesos::master::Call::GET_STATE:
       return None();
 
-    case mesos::master::Call::GET_STATE_SUMMARY:
-      return None();
-
     case mesos::master::Call::GET_AGENTS:
       return None();
 
