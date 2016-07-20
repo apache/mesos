@@ -41,8 +41,19 @@ namespace scheduler {
 
 class MesosProcess; // Forward declaration.
 
-// Interface to Mesos for a scheduler. Abstracts master detection
-// (connection and disconnection).
+// Abstract interface for connecting a scheduler to Mesos.
+class MesosBase
+{
+public:
+  // Empty virtual destructor (necessary to instantiate subclasses).
+  virtual ~MesosBase() {}
+  virtual void send(const Call& call) = 0;
+  virtual void reconnect() = 0;
+};
+
+
+// Concrete implementation that connects a scheduler to a Mesos master.
+// Abstracts master detection (connection and disconnection).
 //
 // Expects three callbacks, 'connected', 'disconnected', and
 // 'received' which will get invoked _serially_ when it's determined
@@ -51,7 +62,7 @@ class MesosProcess; // Forward declaration.
 // The library reconnects with the master upon a disconnection.
 //
 // NOTE: All calls and events are dropped while disconnected.
-class Mesos
+class Mesos : public MesosBase
 {
 public:
   // The credential will be used for authenticating with the master. Currently,
@@ -81,7 +92,7 @@ public:
   // events without ever being sent to the master. This includes when
   // calls are sent but no master is currently detected (i.e., we're
   // disconnected).
-  virtual void send(const Call& call);
+  virtual void send(const Call& call) override;
 
   // Force a reconnection with the master.
   //
@@ -94,7 +105,7 @@ public:
   // This call would be ignored if the scheduler is already disconnected with
   // the master (e.g., no new master has been elected). Otherwise, the scheduler
   // would get a 'disconnected' callback followed by a 'connected' callback.
-  virtual void reconnect();
+  virtual void reconnect() override;
 
 protected:
   // NOTE: This constructor is used for testing.
