@@ -900,13 +900,13 @@ TEST_P(MasterAPITest, GetRoles)
 }
 
 
-TEST_P(MasterAPITest, GetLeadingMaster)
+TEST_P(MasterAPITest, GetMaster)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   v1::master::Call v1Call;
-  v1Call.set_type(v1::master::Call::GET_LEADING_MASTER);
+  v1Call.set_type(v1::master::Call::GET_MASTER);
 
   ContentType contentType = GetParam();
 
@@ -915,9 +915,9 @@ TEST_P(MasterAPITest, GetLeadingMaster)
 
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response->IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_LEADING_MASTER, v1Response->type());
+  ASSERT_EQ(v1::master::Response::GET_MASTER, v1Response->type());
   ASSERT_EQ(master.get()->getMasterInfo().ip(),
-            v1Response->get_leading_master().master_info().ip());
+            v1Response->get_master().master_info().ip());
 }
 
 

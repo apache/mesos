@@ -135,7 +135,7 @@ Option<Error> validate(
       }
       return None();
 
-    case mesos::master::Call::GET_LEADING_MASTER:
+    case mesos::master::Call::GET_MASTER:
       return None();
 
     case mesos::master::Call::RESERVE_RESOURCES: {
