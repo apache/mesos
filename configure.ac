@@ -1069,6 +1069,8 @@ __EOF__
                   [chmod +x src/examples/java/test-multiple-executors-framework])
   AC_CONFIG_FILES([src/examples/java/test-log],
                   [chmod +x src/examples/java/test-log])
+  AC_CONFIG_FILES([src/examples/java/v1-test-framework],
+                  [chmod +x src/examples/java/v1-test-framework])
   AC_CONFIG_FILES([src/java/mesos.pom])
 
   AC_DEFINE([MESOS_HAS_JAVA])
