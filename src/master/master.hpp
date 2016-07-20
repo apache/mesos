@@ -1430,7 +1430,7 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
-    process::Future<process::http::Response> getLeadingMaster(
+    process::Future<process::http::Response> getMaster(
         const mesos::master::Call& call,
         const Option<std::string>& principal,
         ContentType contentType) const;

@@ -65,7 +65,7 @@ message Call {
     GET_WEIGHTS = 16;       // Retrieves the information about role weights.
     UPDATE_WEIGHTS = 17;
 
-    GET_LEADING_MASTER = 18; // Retrieves the leading master information.
+    GET_MASTER = 18;        // Retrieves the master's information.
 
     SUBSCRIBE = 19;          // Subscribes the master to receive events.
 
@@ -236,7 +236,7 @@ message Response {
 
     GET_WEIGHTS = 15;              // See 'GetWeights' below.
 
-    GET_LEADING_MASTER = 16;       // See 'GetLeadingMaster' below.
+    GET_MASTER = 16;               // See 'GetMaster' below.
 
     GET_MAINTENANCE_STATUS = 17;   // See 'GetMaintenanceStatus' below.
     GET_MAINTENANCE_SCHEDULE = 18; // See 'GetMaintenanceSchedule' below.
@@ -396,11 +396,8 @@ message Response {
     repeated WeightInfo weight_infos = 1;
   }
 
-  // Contains the leading master information.
-  // NOTE: This is broken currently "on the cloud" (e.g. EC2) as it stores the
-  // private IP address, unless advertise_ip points to an externally accessible
-  // IP.
-  message GetLeadingMaster {
+  // Contains the master's information.
+  message GetMaster {
     optional MasterInfo master_info = 1;
   }
 
@@ -436,7 +433,7 @@ message Response {
   optional GetTasks get_tasks = 14;
   optional GetRoles get_roles = 15;
   optional GetWeights get_weights = 16;
-  optional GetLeadingMaster get_leading_master = 17;
+  optional GetMaster get_master = 17;
   optional GetMaintenanceStatus get_maintenance_status = 18;
   optional GetMaintenanceSchedule get_maintenance_schedule = 19;
   optional GetQuota get_quota = 20;
