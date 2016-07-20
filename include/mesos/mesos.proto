@@ -2072,9 +2072,9 @@ message WeightInfo {
  */
 message VersionInfo {
   required string version = 1;
-  required string build_date = 2;
-  required double build_time = 3;
-  required string build_user = 4;
+  optional string build_date = 2;
+  optional double build_time = 3;
+  optional string build_user = 4;
   optional string git_sha = 5;
   optional string git_branch = 6;
   optional string git_tag = 7;
