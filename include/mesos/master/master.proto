@@ -54,38 +54,37 @@ message Call {
     READ_FILE = 8;          // See 'ReadFile' below.
 
     GET_STATE = 9;
-    GET_STATE_SUMMARY = 10;
 
-    GET_AGENTS = 11;
-    GET_FRAMEWORKS = 12;
-    GET_EXECUTORS = 13;     // Retrieves the information about all executors.
-    GET_TASKS = 14;         // Retrieves the information about all known tasks.
-    GET_ROLES = 15;         // Retrieves the information about roles.
+    GET_AGENTS = 10;
+    GET_FRAMEWORKS = 11;
+    GET_EXECUTORS = 12;     // Retrieves the information about all executors.
+    GET_TASKS = 13;         // Retrieves the information about all known tasks.
+    GET_ROLES = 14;         // Retrieves the information about roles.
 
-    GET_WEIGHTS = 16;       // Retrieves the information about role weights.
-    UPDATE_WEIGHTS = 17;
+    GET_WEIGHTS = 15;       // Retrieves the information about role weights.
+    UPDATE_WEIGHTS = 16;
 
-    GET_MASTER = 18;        // Retrieves the master's information.
+    GET_MASTER = 17;        // Retrieves the master's information.
 
-    SUBSCRIBE = 19;          // Subscribes the master to receive events.
+    SUBSCRIBE = 18;          // Subscribes the master to receive events.
 
-    RESERVE_RESOURCES = 20;
-    UNRESERVE_RESOURCES = 21;
+    RESERVE_RESOURCES = 19;
+    UNRESERVE_RESOURCES = 20;
 
-    CREATE_VOLUMES = 22;     // See 'CreateVolumes' below.
-    DESTROY_VOLUMES = 23;    // See 'DestroyVolumes' below.
+    CREATE_VOLUMES = 21;     // See 'CreateVolumes' below.
+    DESTROY_VOLUMES = 22;    // See 'DestroyVolumes' below.
 
     // Retrieves the cluster's maintenance status.
-    GET_MAINTENANCE_STATUS = 24;
+    GET_MAINTENANCE_STATUS = 23;
     // Retrieves the cluster's maintenance schedule.
-    GET_MAINTENANCE_SCHEDULE = 25;
-    UPDATE_MAINTENANCE_SCHEDULE = 26; // See 'UpdateMaintenanceSchedule' below.
-    START_MAINTENANCE = 27;           // See 'StartMaintenance' below.
-    STOP_MAINTENANCE = 28;            // See 'StopMaintenance' below.
+    GET_MAINTENANCE_SCHEDULE = 24;
+    UPDATE_MAINTENANCE_SCHEDULE = 25; // See 'UpdateMaintenanceSchedule' below.
+    START_MAINTENANCE = 26;           // See 'StartMaintenance' below.
+    STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
 
-    GET_QUOTA = 29;
-    SET_QUOTA = 30;          // See 'SetQuota' below.
-    REMOVE_QUOTA = 31;
+    GET_QUOTA = 28;
+    SET_QUOTA = 29;          // See 'SetQuota' below.
+    REMOVE_QUOTA = 30;
   }
 
   // Provides a snapshot of the current metrics tracked by the master.
@@ -225,22 +224,21 @@ message Response {
     READ_FILE = 7;                 // See 'ReadFile' below.
 
     GET_STATE = 8;
-    GET_STATE_SUMMARY = 9;
 
-    GET_AGENTS = 10;
-    GET_FRAMEWORKS = 11;
-    GET_EXECUTORS = 12;            // See 'GetExecutors' below.
-    GET_TASKS = 13;                // See 'GetTasks' below.
-    GET_ROLES = 14;                // See 'GetRoles' below.
+    GET_AGENTS = 9;
+    GET_FRAMEWORKS = 10;
+    GET_EXECUTORS = 11;            // See 'GetExecutors' below.
+    GET_TASKS = 12;                // See 'GetTasks' below.
+    GET_ROLES = 13;                // See 'GetRoles' below.
 
-    GET_WEIGHTS = 15;              // See 'GetWeights' below.
+    GET_WEIGHTS = 14;              // See 'GetWeights' below.
 
-    GET_MASTER = 16;               // See 'GetMaster' below.
+    GET_MASTER = 15;               // See 'GetMaster' below.
 
-    GET_MAINTENANCE_STATUS = 17;   // See 'GetMaintenanceStatus' below.
-    GET_MAINTENANCE_SCHEDULE = 18; // See 'GetMaintenanceSchedule' below.
+    GET_MAINTENANCE_STATUS = 16;   // See 'GetMaintenanceStatus' below.
+    GET_MAINTENANCE_SCHEDULE = 17; // See 'GetMaintenanceSchedule' below.
 
-    GET_QUOTA = 19;
+    GET_QUOTA = 18;
   }
 
   // `healthy` would be true if the master is healthy. Delayed responses are
@@ -289,10 +287,6 @@ message Response {
     optional GetExecutors get_executors = 2;
     optional GetFrameworks get_frameworks = 3;
     optional GetAgents get_agents = 4;
-  }
-
-  message GetStateSummary {
-    // TODO(vinod): Fill in the fields.
   }
 
   message GetAgents {
@@ -425,17 +419,16 @@ message Response {
   optional ListFiles list_files = 7;
   optional ReadFile read_file = 8;
   optional GetState get_state = 9;
-  optional GetStateSummary get_state_summary = 10;
-  optional GetAgents get_agents = 11;
-  optional GetFrameworks get_frameworks = 12;
-  optional GetExecutors get_executors = 13;
-  optional GetTasks get_tasks = 14;
-  optional GetRoles get_roles = 15;
-  optional GetWeights get_weights = 16;
-  optional GetMaster get_master = 17;
-  optional GetMaintenanceStatus get_maintenance_status = 18;
-  optional GetMaintenanceSchedule get_maintenance_schedule = 19;
-  optional GetQuota get_quota = 20;
+  optional GetAgents get_agents = 10;
+  optional GetFrameworks get_frameworks = 11;
+  optional GetExecutors get_executors = 12;
+  optional GetTasks get_tasks = 13;
+  optional GetRoles get_roles = 14;
+  optional GetWeights get_weights = 15;
+  optional GetMaster get_master = 16;
+  optional GetMaintenanceStatus get_maintenance_status = 17;
+  optional GetMaintenanceSchedule get_maintenance_schedule = 18;
+  optional GetQuota get_quota = 19;
 }
 
 
