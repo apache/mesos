@@ -62,6 +62,7 @@ We categorize the changes as follows:
       <li>D <a href="#1-0-x-credentials-file">credential(s) (plain text format)</a></li>
       <li>C <a href="#1-0-x-slave">Slave to Agent rename</a></li>
       <li>R <a href="#1-0-x-workdir">work_dir default value</a></li>
+      <li>D <a href="#1-0-x-deprecated-ssl-env-variables">SSL environment variables</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
@@ -175,6 +176,10 @@ We categorize the changes as follows:
 
 
 ## Upgrading from 0.28.x to 1.0.x ##
+
+<a name="1-0-x-deprecated-ssl-env-variables"</a>
+
+* Prior to Mesos 1.0, environment variables prefixed by `SSL_` are used to control libprocess SSL support. However, it was found that those environment variables may collide with some libraries or programs (e.g., openssl, curl). From Mesos 1.0, `SSL_*` environment variables are deprecated in favor of the corresponding `LIBPROCESS_SSL_*` variables.
 
 <a name="1-0-x-persistent-volume-ownership"</a>
 
