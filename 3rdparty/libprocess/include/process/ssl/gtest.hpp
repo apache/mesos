@@ -115,20 +115,20 @@ protected:
   {
     // This unsets all the SSL environment variables. Necessary for
     // ensuring a clean starting slate between tests.
-    os::unsetenv("SSL_ENABLED");
-    os::unsetenv("SSL_SUPPORT_DOWNGRADE");
-    os::unsetenv("SSL_CERT_FILE");
-    os::unsetenv("SSL_KEY_FILE");
-    os::unsetenv("SSL_VERIFY_CERT");
-    os::unsetenv("SSL_REQUIRE_CERT");
-    os::unsetenv("SSL_VERIFY_DEPTH");
-    os::unsetenv("SSL_CA_DIR");
-    os::unsetenv("SSL_CA_FILE");
-    os::unsetenv("SSL_CIPHERS");
-    os::unsetenv("SSL_ENABLE_SSL_V3");
-    os::unsetenv("SSL_ENABLE_TLS_V1_0");
-    os::unsetenv("SSL_ENABLE_TLS_V1_1");
-    os::unsetenv("SSL_ENABLE_TLS_V1_2");
+    os::unsetenv("LIBPROCESS_SSL_ENABLED");
+    os::unsetenv("LIBPROCESS_SSL_SUPPORT_DOWNGRADE");
+    os::unsetenv("LIBPROCESS_SSL_CERT_FILE");
+    os::unsetenv("LIBPROCESS_SSL_KEY_FILE");
+    os::unsetenv("LIBPROCESS_SSL_VERIFY_CERT");
+    os::unsetenv("LIBPROCESS_SSL_REQUIRE_CERT");
+    os::unsetenv("LIBPROCESS_SSL_VERIFY_DEPTH");
+    os::unsetenv("LIBPROCESS_SSL_CA_DIR");
+    os::unsetenv("LIBPROCESS_SSL_CA_FILE");
+    os::unsetenv("LIBPROCESS_SSL_CIPHERS");
+    os::unsetenv("LIBPROCESS_SSL_ENABLE_SSL_V3");
+    os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_0");
+    os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_1");
+    os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_2");
 
     // Copy the given map into the clean slate.
     foreachpair (

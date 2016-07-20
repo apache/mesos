@@ -877,8 +877,8 @@ bool initialize(
   signal(SIGPIPE, SIG_IGN);
 
 #ifdef USE_SSL_SOCKET
-  // Notify users of the 'SSL_SUPPORT_DOWNGRADE' flag that this
-  // setting allows insecure connections.
+  // Notify users of the 'LIBPROCESS_SSL_SUPPORT_DOWNGRADE' flag that
+  // this setting allows insecure connections.
   if (network::openssl::flags().support_downgrade) {
     LOG(WARNING) <<
       "Failed SSL connections will be downgraded to a non-SSL socket";

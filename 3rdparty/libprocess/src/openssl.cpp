@@ -19,6 +19,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -26,7 +27,10 @@
 #include <process/once.hpp>
 
 #include <stout/flags.hpp>
+#include <stout/os.hpp>
+#include <stout/strings.hpp>
 
+using std::map;
 using std::ostringstream;
 using std::string;
 
@@ -288,12 +292,32 @@ void reinitialize()
   // change environment variables and call `reinitialize`.
   *ssl_flags = Flags();
 
-  // Load all the flags prefixed by SSL_ from the environment. See
-  // comment at top of openssl.hpp for a full list.
-  Try<flags::Warnings> load = ssl_flags->load("SSL_");
+  // Load all the flags prefixed by LIBPROCESS_SSL_ from the
+  // environment. See comment at top of openssl.hpp for a full list.
+  //
+  // NOTE: We used to look for environment variables prefixed by SSL_.
+  // To be backward compatible, for each environment variable prefixed
+  // by SSL_, we generate the corresponding LIBPROCESS_SSL_ version.
+  // See details in MESOS-5863.
+  map<string, string> environments = os::environment();
+  foreachpair (const string& key, const string& value, environments) {
+    if (strings::startsWith(key, "SSL_")) {
+      const string new_key = "LIBPROCESS_" + key;
+      if (environments.count(new_key) == 0) {
+        os::setenv(new_key, value);
+      } else if (environments[new_key] != value) {
+        LOG(WARNING) << "Mismatched SSL environment variables: "
+                     << key << "=" << value << ", "
+                     << new_key << "=" << environments[new_key];
+      }
+    }
+  }
+
+  Try<flags::Warnings> load = ssl_flags->load("LIBPROCESS_SSL_");
   if (load.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Failed to load flags from environment variables (prefixed by SSL_):"
+      << "Failed to load flags from environment variables "
+      << "prefixed by LIBPROCESS_SSL_ or SSL_ (deprecated):"
       << load.error();
   }
 
@@ -377,34 +401,36 @@ void reinitialize()
 
   // Now do some validation of the flags/environment variables.
   if (ssl_flags->key_file.isNone()) {
-    EXIT(EXIT_FAILURE) << "SSL requires key! NOTE: Set path with SSL_KEY_FILE";
+    EXIT(EXIT_FAILURE)
+      << "SSL requires key! NOTE: Set path with LIBPROCESS_SSL_KEY_FILE";
   }
 
   if (ssl_flags->cert_file.isNone()) {
     EXIT(EXIT_FAILURE)
-      << "SSL requires certificate! NOTE: Set path with SSL_CERT_FILE";
+      << "SSL requires certificate! NOTE: Set path with "
+      << "LIBPROCESS_SSL_CERT_FILE";
   }
 
   if (ssl_flags->ca_file.isNone()) {
     VLOG(2) << "CA file path is unspecified! NOTE: "
-            << "Set CA file path with SSL_CA_FILE=<filepath>";
+            << "Set CA file path with LIBPROCESS_SSL_CA_FILE=<filepath>";
   }
 
   if (ssl_flags->ca_dir.isNone()) {
     VLOG(2) << "CA directory path unspecified! NOTE: "
-            << "Set CA directory path with SSL_CA_DIR=<dirpath>";
+            << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
   }
 
   if (!ssl_flags->verify_cert) {
     VLOG(2) << "Will not verify peer certificate!\n"
-            << "NOTE: Set SSL_VERIFY_CERT=1 to enable peer certificate "
-            << "verification";
+            << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
+            << "peer certificate verification";
   }
 
   if (!ssl_flags->require_cert) {
     VLOG(2) << "Will only verify peer certificate if presented!\n"
-            << "NOTE: Set SSL_REQUIRE_CERT=1 to require peer certificate "
-            << "verification";
+            << "NOTE: Set LIBPROCESS_SSL_REQUIRE_CERT=1 to require "
+            << "peer certificate verification";
   }
 
   if (ssl_flags->verify_ipadd) {
@@ -416,8 +442,9 @@ void reinitialize()
     // Requiring a certificate implies that is should be verified.
     ssl_flags->verify_cert = true;
 
-    VLOG(2) << "SSL_REQUIRE_CERT implies peer certificate verification.\n"
-            << "SSL_VERIFY_CERT set to true";
+    VLOG(2) << "LIBPROCESS_SSL_REQUIRE_CERT implies "
+            << "peer certificate verification.\n"
+            << "LIBPROCESS_SSL_VERIFY_CERT set to true";
   }
 
   // Initialize OpenSSL if we've been asked to do verification of peer
