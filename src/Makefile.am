@@ -1563,6 +1563,7 @@ libjava_la_SOURCES =							\
   java/jni/org_apache_mesos_state_Variable.cpp				\
   java/jni/org_apache_mesos_state_ZooKeeperState.cpp			\
   java/jni/org_apache_mesos_v1_scheduler_JNIMesos.cpp			\
+  java/jni/org_apache_mesos_v1_scheduler_V0Mesos.cpp			\
   jvm/jvm.cpp								\
   jvm/jvm.hpp								\
   jvm/java/io.hpp							\
@@ -1605,7 +1606,8 @@ nodist_libjava_la_SOURCES =						\
   java/jni/org_apache_mesos_state_LogState.h				\
   java/jni/org_apache_mesos_state_Variable.h				\
   java/jni/org_apache_mesos_state_ZooKeeperState.h			\
-  java/jni/org_apache_mesos_v1_scheduler_JNIMesos.h
+  java/jni/org_apache_mesos_v1_scheduler_JNIMesos.h			\
+  java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h
 
 BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 
@@ -1653,6 +1655,11 @@ java/jni/org_apache_mesos_v1_scheduler_JNIMesos.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
 	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.v1.scheduler.JNIMesos
+
+java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h: $(MESOS_JAR)
+	$(JAVA_HOME)/bin/javah -d java/jni				\
+	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
+	  org.apache.mesos.v1.scheduler.V0Mesos
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
