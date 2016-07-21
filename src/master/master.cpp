@@ -7056,7 +7056,7 @@ void Master::removeExecutor(
             << " of framework " << frameworkId << " on agent " << *slave;
 
   allocator->recoverResources(
-    frameworkId, slave->id, executor.resources(), None());
+      frameworkId, slave->id, executor.resources(), None());
 
   Framework* framework = getFramework(frameworkId);
   if (framework != nullptr) { // The framework might not be re-registered yet.
