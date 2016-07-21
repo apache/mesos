@@ -3378,6 +3378,9 @@ void Master::accept(
         ++metrics->messages_launch_tasks;
       } else {
         ++metrics->messages_decline_offers;
+        LOG(WARNING) << "Implicitly declining offers: " << accept.offer_ids()
+                     << " in ACCEPT call for framework " << framework->id()
+                     << " as the launch operation specified no tasks";
       }
     }
 
