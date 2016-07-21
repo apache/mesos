@@ -1999,7 +1999,7 @@ TEST_P(MasterAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::master::Response> v1Response =
-        post(master.get()->pid, v1Call, contentType);
+      post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2022,7 +2022,7 @@ TEST_P(MasterAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::master::Response> v1Response =
-        post(master.get()->pid, v1Call, contentType);
+      post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2044,7 +2044,7 @@ TEST_P(MasterAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::master::Response> v1Response =
-        post(master.get()->pid, v1Call, contentType);
+      post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2052,6 +2052,29 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
 
     ASSERT_EQ("body", v1Response.get().read_file().data());
+    ASSERT_EQ(4, v1Response.get().read_file().size());
+  }
+
+  // Read the file with `length > size - offset`. This should return the
+  // data actually read.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::READ_FILE);
+
+    v1::master::Call::ReadFile* readFile = v1Call.mutable_read_file();
+    readFile->set_offset(1);
+    readFile->set_length(6);
+    readFile->set_path("myname");
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
+
+    ASSERT_EQ("ody", v1Response.get().read_file().data());
     ASSERT_EQ(4, v1Response.get().read_file().size());
   }
 }
@@ -2567,7 +2590,7 @@ TEST_P(AgentAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::agent::Response> v1Response =
-        post(slave.get()->pid, v1Call, contentType);
+      post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2590,7 +2613,7 @@ TEST_P(AgentAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::agent::Response> v1Response =
-        post(slave.get()->pid, v1Call, contentType);
+      post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2612,7 +2635,7 @@ TEST_P(AgentAPITest, ReadFile)
     readFile->set_path("myname");
 
     Future<v1::agent::Response> v1Response =
-        post(slave.get()->pid, v1Call, contentType);
+      post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
 
@@ -2620,6 +2643,29 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
 
     ASSERT_EQ("body", v1Response.get().read_file().data());
+    ASSERT_EQ(4, v1Response.get().read_file().size());
+  }
+
+  // Read the file with `length > size - offset`. This should return the
+  // data actually read.
+  {
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::READ_FILE);
+
+    v1::agent::Call::ReadFile* readFile = v1Call.mutable_read_file();
+    readFile->set_offset(1);
+    readFile->set_length(6);
+    readFile->set_path("myname");
+
+    Future<v1::agent::Response> v1Response =
+      post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
+
+    ASSERT_EQ("ody", v1Response.get().read_file().data());
     ASSERT_EQ(4, v1Response.get().read_file().size());
   }
 }

@@ -684,8 +684,9 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
   boost::shared_array<char> data(new char[length.get()]);
 
   return io::read(fd.get(), data.get(), length.get())
-    .then([size, data, length]() -> Try<tuple<size_t, string>, FilesError> {
-      return std::make_tuple(size, string(data.get(), length.get()));
+    .then([size, data](const size_t dataLength)
+        -> Try<tuple<size_t, string>, FilesError> {
+      return std::make_tuple(size, string(data.get(), dataLength));
     });
 }
 
