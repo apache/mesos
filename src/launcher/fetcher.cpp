@@ -515,6 +515,17 @@ int main(int argc, char* argv[])
       << "Could not create the fetcher cache directory: " << result.error();
   }
 
+  // If the `FetcherInfo` specifies a user, use `os::su()` to fetch files as the
+  // task's user to ensure that filesystem permissions are enforced.
+  if (fetcherInfo.get().has_user()) {
+    result = os::su(fetcherInfo.get().user());
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Fetcher could not execute `os::su()` for user '"
+        << fetcherInfo.get().user() << "'";
+    }
+  }
+
   const Option<string> cacheDirectory =
     fetcherInfo.get().has_cache_directory() ?
       Option<string>::some(fetcherInfo.get().cache_directory()) :
@@ -525,7 +536,7 @@ int main(int argc, char* argv[])
       Option<string>::some(fetcherInfo.get().frameworks_home()) :
         Option<string>::none();
 
-  // Fetch each URI to a local file, chmod, then chown if a user is provided.
+  // Fetch each URI to a local file and chmod if necessary.
   foreach (const FetcherInfo::Item& item, fetcherInfo.get().items()) {
     Try<string> fetched =
       fetch(item, cacheDirectory, sandboxDirectory, frameworksHome);
@@ -535,17 +546,6 @@ int main(int argc, char* argv[])
     } else {
       LOG(INFO) << "Fetched '" << item.uri().value()
                 << "' to '" << fetched.get() << "'";
-    }
-  }
-
-  // Recursively chown the sandbox directory if a user is provided.
-  if (fetcherInfo.get().has_user()) {
-    Try<Nothing> chowned = os::chown(
-        fetcherInfo.get().user(),
-        sandboxDirectory);
-    if (chowned.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Failed to chown " << sandboxDirectory << ": " << chowned.error();
     }
   }
 
