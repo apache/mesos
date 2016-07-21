@@ -26,8 +26,6 @@
 
 #include <glog/logging.h>
 
-#include <boost/lexical_cast.hpp>
-
 #include <mesos/resources.hpp>
 #include <mesos/values.hpp>
 
@@ -601,13 +599,15 @@ Try<Value> parse(const string& text)
         Value::Range* range = ranges->add_range();
 
         int j = i;
-        try {
-          range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
-          range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
-        } catch (const boost::bad_lexical_cast&) {
+        Try<uint64_t> begin = numify<uint64_t>(tokens[j++]);
+        Try<uint64_t> end = numify<uint64_t>(tokens[j++]);
+        if (begin.isError() || end.isError()) {
           return Error(
               "Expecting non-negative integers in '" + tokens[j - 1] + "'");
         }
+
+        range->set_begin(begin.get());
+        range->set_end(end.get());
       }
 
       coalesce(ranges);
@@ -626,13 +626,14 @@ Try<Value> parse(const string& text)
       }
       return value;
     } else if (index == string::npos) {
-      try {
+      Try<double> value_ = numify<double>(temp);
+      if (!value_.isError()) {
         // This is a scalar.
-        value.set_type(Value::SCALAR);
         Value::Scalar* scalar = value.mutable_scalar();
-        scalar->set_value(boost::lexical_cast<double>(temp));
+        value.set_type(Value::SCALAR);
+        scalar->set_value(value_.get());
         return value;
-      } catch (const boost::bad_lexical_cast&) {
+      } else {
         // This is a text.
         value.set_type(Value::TEXT);
         Value::Text* text = value.mutable_text();
