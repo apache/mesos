@@ -574,13 +574,8 @@ Try<Value> parse(const string& text)
 {
   Value value;
 
-  // Remove any spaces from the text.
-  string temp;
-  foreach (const char c, text) {
-    if (c != ' ') {
-      temp += c;
-    }
-  }
+  // Remove all spaces.
+  string temp = strings::replace(text, " ", "");
 
   if (temp.length() == 0) {
     return Error("Expecting non-empty string");
