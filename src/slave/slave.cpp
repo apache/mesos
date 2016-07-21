@@ -1429,7 +1429,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
       // TODO(bmahler): We need to send the executors for these
       // pending tasks, and we need to send exited events if they
-      // cannot be launched: MESOS-1715 MESOS-1720.
+      // cannot be launched, see MESOS-1715, MESOS-1720, MESOS-1800.
       typedef hashmap<TaskID, TaskInfo> TaskMap;
       foreachvalue (const TaskMap& tasks, framework->pending) {
         foreachvalue (const TaskInfo& task, tasks) {
