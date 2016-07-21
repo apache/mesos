@@ -54,6 +54,7 @@ We categorize the changes as follows:
       <li>R <a href="#1-0-x-executor-environment-variables">Executor environment variables inheritance</a></li>
       <li>R <a href="#1-0-x-deprecated-fields-in-container-config">Deprecated fields in ContainerConfig</a></li>
       <li>C <a href="#1-0-x-persistent-volume-ownership">Persistent volume ownership</a></li>
+      <li>C <a href="#1-0-x-fetcher-user">Fetcher assumes same user as task</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
@@ -271,6 +272,10 @@ We categorize the changes as follows:
 <a name="1-0-x-allocator"></a>
 
 * Namespace and header file of `Allocator` has been moved to be consistent with other packages.
+
+<a name="1-0-x-fetcher-user"></a>
+
+* When a task is run as a particular user, the fetcher now fetches files as that user also. Note, this means that filesystem permissions for that user will be enforced when fetching local files.
 
 <a name="1-0-x-endpoint-authorization"></a>
 
