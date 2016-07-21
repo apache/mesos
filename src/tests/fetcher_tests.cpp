@@ -100,6 +100,44 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
+// Tests that non-root users are unable to fetch root-protected files on the
+// local filesystem.
+TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
+{
+  const string user = "nobody";
+  ASSERT_SOME(os::getuid(user));
+
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+  EXPECT_SOME(os::chmod(testFile, 600));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  commandInfo.set_user(user);
+
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  AWAIT_FAILED(fetcher.fetch(
+      containerId,
+      commandInfo,
+      os::getcwd(),
+      None(),
+      slaveId,
+      flags));
+}
+
+
 TEST_F(FetcherTest, CustomOutputFileSubdirectory)
 {
   string testFile = path::join(os::getcwd(), "test");
