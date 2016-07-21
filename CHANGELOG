@@ -411,6 +411,7 @@ All Issues:
     * [MESOS-5794] - Agent's /containers endpoint should skip terminated executors.
     * [MESOS-5799] - docker::inspect() may get wrong output when a docker container is not in "running" state
     * [MESOS-5806] - CNI isolator should prepare network related /etc/* files for containers using host mode but specify container images
+    * [MESOS-5845] - The fetcher can access any local file as root
     * [MESOS-5863] - Enabling SSL causes fetcher fail to fetch from HTTPS sites.
 
 ** Documentation
