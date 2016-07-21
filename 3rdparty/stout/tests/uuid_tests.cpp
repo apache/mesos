@@ -48,6 +48,10 @@ TEST(UUIDTest, Test)
   EXPECT_EQ(string1, string2);
   EXPECT_EQ(string2, string3);
   EXPECT_EQ(string1, string3);
+
+  EXPECT_EQ(uuid1, UUID::fromString(string1));
+  EXPECT_EQ(uuid2, UUID::fromString(string2));
+  EXPECT_EQ(uuid3, UUID::fromString(string3));
 }
 
 
