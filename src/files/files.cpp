@@ -653,6 +653,7 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
 
   // Return the size of file if length is 0.
   if (length == 0) {
+    os::close(fd.get());
     return std::make_tuple(size, "");
   }
 
@@ -687,7 +688,8 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
     .then([size, data](const size_t dataLength)
         -> Try<tuple<size_t, string>, FilesError> {
       return std::make_tuple(size, string(data.get(), dataLength));
-    });
+    })
+    .onAny([fd]() { os::close(fd.get()); });
 }
 
 
