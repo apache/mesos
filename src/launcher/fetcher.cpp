@@ -378,14 +378,11 @@ static Try<string> fetchThroughCache(
   CHECK_NE(FetcherInfo::Item::BYPASS_CACHE, item.action())
     << "Unexpected fetcher action selector";
 
+  CHECK(os::exists(cacheDirectory.get()))
+    << "Fetcher cache directory was expected to exist but was not found";
+
   if (item.action() == FetcherInfo::Item::DOWNLOAD_AND_CACHE) {
     LOG(INFO) << "Downloading into cache";
-
-    Try<Nothing> mkdir = os::mkdir(cacheDirectory.get());
-    if (mkdir.isError()) {
-      return Error("Failed to create fetcher cache directory '" +
-                   cacheDirectory.get() + "': " + mkdir.error());
-    }
 
     Try<string> downloaded = download(
         item.uri().value(),
@@ -423,6 +420,45 @@ static Try<string> fetch(
       cacheDirectory,
       sandboxDirectory,
       frameworksHome);
+}
+
+
+// Checks to see if it's necessary to create a fetcher cache directory for this
+// user, and creates it if so.
+static Try<Nothing> createCacheDirectory(const FetcherInfo& fetcherInfo)
+{
+  if (!fetcherInfo.has_cache_directory()) {
+    return Nothing();
+  }
+
+  foreach (const FetcherInfo::Item& item, fetcherInfo.items()) {
+    if (item.action() != FetcherInfo::Item::BYPASS_CACHE) {
+      // If this user has fetched anything into the cache before, their cache
+      // directory will already exist. Set `recursive = true` when calling
+      // `os::mkdir` to ensure no error is returned in this case.
+      Try<Nothing> mkdir = os::mkdir(fetcherInfo.cache_directory(), true);
+      if (mkdir.isError()) {
+        return mkdir;
+      }
+
+      if (fetcherInfo.has_user()) {
+        // Fetching is performed as the task's user,
+        // so chown the cache directory.
+        Try<Nothing> chown = os::chown(
+            fetcherInfo.user(),
+            fetcherInfo.cache_directory(),
+            false);
+
+        if (chown.isError()) {
+          return chown;
+        }
+      }
+
+      break;
+    }
+  }
+
+  return Nothing();
 }
 
 
@@ -472,6 +508,12 @@ int main(int argc, char* argv[])
     << "Missing sandbox directory";
 
   const string sandboxDirectory = fetcherInfo.get().sandbox_directory();
+
+  Try<Nothing> result = createCacheDirectory(fetcherInfo.get());
+  if (result.isError()) {
+    EXIT(EXIT_FAILURE)
+      << "Could not create the fetcher cache directory: " << result.error();
+  }
 
   const Option<string> cacheDirectory =
     fetcherInfo.get().has_cache_directory() ?
