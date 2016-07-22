@@ -22,3 +22,7 @@ found.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+This endpoint might be filtered based on the user accessing it.
+See the authorization documentation for details.
