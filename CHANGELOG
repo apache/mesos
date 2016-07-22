@@ -222,9 +222,12 @@ All Issues:
     * [MESOS-2201] - ReplicaTest.Restore fails with leveldb greater than v1.7.
     * [MESOS-2331] - MasterSlaveReconciliationTest.ReconcileRace is flaky
     * [MESOS-2858] - FetcherCacheHttpTest.HttpMixed is flaky.
+    * [MESOS-3181] - Implement package rebundling for Windows
     * [MESOS-3319] - Mesos will not build when configured with gperftools enabled
     * [MESOS-3402] - mesos-execute does not support credentials
     * [MESOS-3573] - Mesos does not kill orphaned docker containers
+    * [MESOS-3714] - `os::environ` collides with the `environ` macro in Windows headers.
+    * [MESOS-3737] - `limiter.hpp` causes template specialization error on Windows 10/MSVC 1900
     * [MESOS-3739] - Mesos does not set Content-Type for 400 Bad Request
     * [MESOS-3881] - Implement `stout/os/pstree.hpp` on Windows
     * [MESOS-3902] - The Location header when non-leading master redirects to leading master is incomplete.
@@ -237,10 +240,16 @@ All Issues:
     * [MESOS-4434] - Install 3rdparty package boost, glog, protobuf and picojson when installing Mesos
     * [MESOS-4447] - Renamed reserved() API to reservations()
     * [MESOS-4462] - Port `gmtime_r`
+    * [MESOS-4463] - Implement `hsterror`
+    * [MESOS-4464] - Implement cpu count facilities on Windows
     * [MESOS-4465] - Implement pagesize facilities in Windows
     * [MESOS-4466] - Implement `waitpid` in Windows
+    * [MESOS-4469] - Implement memory querying in Windows
     * [MESOS-4470] - Implement `uname` in Windows
     * [MESOS-4471] - Implement process querying/counting in Windows
+    * [MESOS-4472] - Implement `getenv` in Windows
+    * [MESOS-4473] - Implement `shell` in Windows
+    * [MESOS-4474] - Implement `sendfile` in Windows
     * [MESOS-4580] - Consider returning `202` (Accepted) for /reserve and related endpoints
     * [MESOS-4611] - Passing a lambda to dispatch() always matches the template returning void
     * [MESOS-4633] - Tests will dereference stack allocated agent objects upon assertion/expectation failure.
@@ -271,6 +280,7 @@ All Issues:
     * [MESOS-4957] - Typo in Mesos portal
     * [MESOS-4961] - ContainerLoggerTest.LOGROTATE_RotateInSandbox is flaky
     * [MESOS-4963] - Incorrect CXXFLAGS with GCC 6
+    * [MESOS-4972] - Implement `os::rename`
     * [MESOS-4978] - Update mesos-execute with Appc changes.
     * [MESOS-4981] - Framework (re-)register metric counters broken for calls made via scheduler driver
     * [MESOS-4984] - MasterTest.SlavesEndpointTwoSlaves is flaky
@@ -324,6 +334,7 @@ All Issues:
     * [MESOS-5282] - Destroy container while provisioning volume images may lead to a race.
     * [MESOS-5287] - boto is no longer a Mesos dependency.
     * [MESOS-5293] - Endpoint handlers for master and agent are implemented surprisingly differently.
+    * [MESOS-5294] - Status updates after a health check are incomplete or invalid
     * [MESOS-5295] - The task launched by non-checkpointed HTTP command executor will keep running till executor shutdown grace period (5s) after agent process exits.
     * [MESOS-5304] - /metrics/snapshot endpoint help disappeared on agent.
     * [MESOS-5308] - ROOT_XFS_QuotaTest.NoCheckpointRecovery failed.
@@ -353,6 +364,7 @@ All Issues:
     * [MESOS-5416] - make check of stout fails.
     * [MESOS-5422] - Website README.md is out of dated
     * [MESOS-5423] - Updating the website section in release-guide is out of dated
+    * [MESOS-5428] - Update the mechanism to define flags in FlagsBase derived clases
     * [MESOS-5429] - Enhance error message for mesos-ps
     * [MESOS-5432] - Javadoc in project website didn't include the generated protobuf
     * [MESOS-5434] - Incomplete bootstrap 3.3.6 upgrade in webui
@@ -419,9 +431,11 @@ All Issues:
     * [MESOS-5766] - Missing License Information for Bundled NVML headers
     * [MESOS-5794] - Agent's /containers endpoint should skip terminated executors.
     * [MESOS-5799] - docker::inspect() may get wrong output when a docker container is not in "running" state
-    * [MESOS-5806] - CNI isolator should prepare network related /etc/* files for containers using host mode but specify container images
+    * [MESOS-5806] - CNI isolator should prepare network related /etc/* files for containers using host mode but specify container images.
+    * [MESOS-5844] - PersistentVolumeEndpointsTest.OfferCreateThenEndpointRemove test is flaky
     * [MESOS-5845] - The fetcher can access any local file as root
     * [MESOS-5848] - Docker health checks are malformed.
+    * [MESOS-5851] - Create mechanism to control authentication between different HTTP endpoints
     * [MESOS-5863] - Enabling SSL causes fetcher fail to fetch from HTTPS sites.
 
 ** Documentation
@@ -457,6 +471,7 @@ All Issues:
     * [MESOS-2154] - Port CFS quota support to Docker Containerizer
     * [MESOS-2281] - Deprecate plain text Credential format.
     * [MESOS-2372] - Test script for verifying compatibility between Mesos components
+    * [MESOS-2602] - Provide a way to "push" cluster state updates to a registered service.
     * [MESOS-2720] - Publish the schema for operator endpoints
     * [MESOS-3243] - Replace NULL with nullptr
     * [MESOS-3690] - Make Apache Mesos' website mobile friendly
@@ -570,6 +585,7 @@ All Issues:
     * [MESOS-5457] - Create a small testing doc for the v1 Scheduler/Executor API
     * [MESOS-5459] - Update RUN_TASK_WITH_USER to use additional metadata
     * [MESOS-5519] - Refresh Mesos project website homepage
+    * [MESOS-5532] - Maven build is too verbose for batch builds
     * [MESOS-5540] - Support building with non-GNU libc
     * [MESOS-5550] - Remove Nvidia GPU Isolator's link-time dependence on `libnvidia-ml`
     * [MESOS-5551] - Move the Nvidia GPU isolator from `cgroups/devices/gpu/nvidia` to `gpu/nvidia`
@@ -604,6 +620,7 @@ All Issues:
     * [MESOS-5782] - Renamed 'commands' to 'pre_exec_commands' in ContainerLaunchInfo.
     * [MESOS-5787] - Add ability to set framework capabilities in 'mesos-execute'
     * [MESOS-5793] - Add ability to inject Nvidia devices into a container
+    * [MESOS-5833] - Disable '--registry_strict' master flag
 
 ** Task
     * [MESOS-338] - Mesos 1.0
@@ -611,21 +628,66 @@ All Issues:
     * [MESOS-2408] - Slave should reclaim storage for destroyed persistent volumes.
     * [MESOS-2950] - Implement current mesos Authorizer in terms of generalized Authorizer interface
     * [MESOS-3063] - Add an example framework using dynamic reservation
+    * [MESOS-3103] - Separate OS-specific code in the libprocess library
     * [MESOS-3214] - Replace boost foreach with range-based for
     * [MESOS-3368] - Add device support in cgroups abstraction
+    * [MESOS-3371] - Implement process::subprocess on Windows
+    * [MESOS-3436] - Port dynamiclibrary_test.cpp to Windows
+    * [MESOS-3438] - Port gzip_test to Windows
+    * [MESOS-3439] - Port ip_tests
     * [MESOS-3443] - Windows: Port protobuf_tests.hpp
     * [MESOS-3541] - Add CMakeLists that builds the Mesos master
     * [MESOS-3558] - Implement  HTTPCommandExecutor that uses the Executor Library 
     * [MESOS-3559] - Make the Command Scheduler use the HTTP Scheduler Library
+    * [MESOS-3609] - Port slave/gc.cpp
+    * [MESOS-3610] - Port slave/flags.cpp to Windows
+    * [MESOS-3611] - Port slave/http.cpp to Windows
+    * [MESOS-3612] - Port slave/metrics.cpp to Windows
+    * [MESOS-3614] - Port slave/slave.cpp to Windows
+    * [MESOS-3616] - Port slave/status_update_manager.cpp to Windows
+    * [MESOS-3617] - Port slave/containerizer/containerizer.cpp to Windows
     * [MESOS-3618] - Port slave/containerizer/fetcher.cpp
     * [MESOS-3619] - Port slave/containerizer/isolator.cpp to Windows
     * [MESOS-3620] - Create slave/containerizer/isolators/filesystem/windows.cpp
+    * [MESOS-3622] - Port slave/containerizer/launcher.cpp to Windows
     * [MESOS-3623] - Port slave/containerizer/mesos/containerizer.cpp to Windows
     * [MESOS-3624] - Port slave/containerizer/mesos/launch.cpp to Windows
+    * [MESOS-3634] - Port process/protobuf.hpp
+    * [MESOS-3635] - Port process/defer.hpp to Windows
+    * [MESOS-3636] - Port process/dispatch.hpp
     * [MESOS-3637] - Port process/process.hpp to Windows
     * [MESOS-3639] - Implement stout/os/windows/killtree.hpp
     * [MESOS-3641] - Implement stout/os/windows/read.hpp and write.hpp
+    * [MESOS-3642] - Implement stout/os/windows/sendfile.hpp
+    * [MESOS-3646] - Port process/clock.hpp to Windows
+    * [MESOS-3647] - Port process/time.hpp to Windows
+    * [MESOS-3648] - Port stout/duration.hpp to Windows
+    * [MESOS-3649] - Port process/future.hpp to Windows
+    * [MESOS-3650] - Port process/event.hpp to Windows
+    * [MESOS-3651] - Port process/latch.hpp to Windows
+    * [MESOS-3652] - Port process/http.hpp to Windows
+    * [MESOS-3653] - Port process/message.hpp to Windows
+    * [MESOS-3654] - Port process/filter.hpp to Windows
+    * [MESOS-3657] - Port process/deferred.hpp to Windows
+    * [MESOS-3661] - Port slave/metrics.hpp to Windows
+    * [MESOS-3662] - Port slave/slave.hpp to Windows
+    * [MESOS-3663] - Port process/metrics/gauge.hpp to Windows
+    * [MESOS-3664] - Port process/metrics/metric.hpp to Windows
+    * [MESOS-3666] - Port process/metrics/metrics.hpp to Windows
+    * [MESOS-3668] - Port process/delay.hpp to Windows
+    * [MESOS-3669] - Port process/clock.hpp to Windows
+    * [MESOS-3670] - Port process/time.hpp to Windows
+    * [MESOS-3671] - Port stout/duration.hpp to Windows
+    * [MESOS-3672] - Port process/timer.hpp to Windows
+    * [MESOS-3673] - Port process/timeout.hpp to Windows
+    * [MESOS-3674] - Port process/async.hpp to Windows
+    * [MESOS-3675] - Port process/check.hpp to Windows
+    * [MESOS-3679] - Port slave/containerizer/containerizer.hpp to Windows
+    * [MESOS-3680] - Port process/subprocess.hpp to Windows
+    * [MESOS-3681] - Port slave/containerizer/fetcher.hpp to Windows
+    * [MESOS-3682] - Port slave/containerizer/launcher.hpp to Windows
     * [MESOS-3683] - Port slave/containerizer/isolator.hpp to Windows
+    * [MESOS-3685] - Port process/io.hpp to Windows
     * [MESOS-3779] - Slave/Agent Rename Phase I - Update terms in Web UI.
     * [MESOS-3781] - Replace Master/Slave Terminology Phase I - Rename flag names and deprecate old ones
     * [MESOS-3782] - Slave/Agent Rename Phase I - Add duplicate binaries (or create symlinks)
@@ -720,7 +782,7 @@ All Issues:
     * [MESOS-5494] - Implement GET_ROLES Call in v1 master API.
     * [MESOS-5495] - Implement GET_WEIGHTS Call in v1 master API.
     * [MESOS-5496] - Implement UPDATE_WEIGHTS Call in v1 master API.
-    * [MESOS-5497] - Implement GET_LEADING_MASTER Call in v1 master API.
+    * [MESOS-5497] - Implement GET_MASTER Call in v1 master API.
     * [MESOS-5498] - Implement SUBSCRIBE Call in v1 master API.
     * [MESOS-5499] - Implement RESERVE_RESOURCES Call in v1 master API.
     * [MESOS-5500] - Implement UNRESERVE_RESOURCES Call in v1 master API.
@@ -737,6 +799,7 @@ All Issues:
     * [MESOS-5511] - Implement GET_METRICS Call in v1 agent API.
     * [MESOS-5512] - Implement GET_LOGGING_LEVEL Call in v1 agent API.
     * [MESOS-5513] - Implement SET_LOGGING_LEVEL Call in v1 agent API.
+    * [MESOS-5514] - Implement LIST_FILES Call in v1 agent API.
     * [MESOS-5517] - Implement GET_RESOURCE_STATISTICS Call in v1 agent API.
     * [MESOS-5518] - Implement GET_CONTAINERS Call in v1 agent API.
     * [MESOS-5549] - Document aufs provisioner backend.
@@ -772,6 +835,8 @@ All Issues:
   * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
   * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters.
   * [MESOS-5698] - Quota sorter not updated for resource changes at agent.
+  * [MESOS-5740] - Consider adding `relink` functionality to libprocess.
+  * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition.
 
 
 Release Notes - Mesos - Version 0.28.2
