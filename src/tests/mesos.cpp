@@ -107,7 +107,8 @@ master::Flags MesosTest::CreateMasterFlags()
 
   CHECK_SOME(os::mkdir(flags.work_dir.get()));
 
-  flags.authenticate_http = true;
+  flags.authenticate_http_readonly = true;
+  flags.authenticate_http_readwrite = true;
   flags.authenticate_frameworks = true;
   flags.authenticate_agents = true;
 
@@ -196,7 +197,8 @@ slave::Flags MesosTest::CreateSlaveFlags()
     flags.acls = ACLs();
   }
 
-  flags.authenticate_http = true;
+  flags.authenticate_http_readonly = true;
+  flags.authenticate_http_readwrite = true;
 
   {
     // Create a default HTTP credentials file.
@@ -529,7 +531,7 @@ MockSlave::MockSlave(
         &resourceEstimator,
         _qosController.isSome() ? _qosController.get() : &qosController,
         authorizer),
-    files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM)
+    files(slave::READONLY_HTTP_AUTHENTICATION_REALM)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))

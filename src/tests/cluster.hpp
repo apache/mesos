@@ -102,7 +102,7 @@ public:
   void setAuthorizationCallbacks(Authorizer* authorizer);
 
 private:
-  Master() : files(master::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
+  Master() : files(master::READONLY_HTTP_AUTHENTICATION_REALM) {};
 
   // Not copyable, not assignable.
   Master(const Master&) = delete;
@@ -175,7 +175,7 @@ public:
   void setAuthorizationCallbacks(Authorizer* authorizer);
 
 private:
-  Slave() : files(slave::DEFAULT_HTTP_AUTHENTICATION_REALM) {};
+  Slave() : files(slave::READONLY_HTTP_AUTHENTICATION_REALM) {};
 
   // Not copyable, not assignable.
   Slave(const Slave&) = delete;

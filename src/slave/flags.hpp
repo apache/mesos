@@ -139,7 +139,8 @@ public:
   std::string authenticatee;
   std::string authorizer;
   std::string http_authenticators;
-  bool authenticate_http;
+  bool authenticate_http_readonly;
+  bool authenticate_http_readwrite;
   Option<Path> http_credentials;
   Option<std::string> hooks;
   Option<std::string> resource_estimator;

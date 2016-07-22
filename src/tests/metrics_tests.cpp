@@ -276,8 +276,8 @@ TEST_F(MetricsTest, MasterAuthenticationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READONLY_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READONLY_HTTP_AUTHENTICATION_REALM, credentials);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -301,8 +301,8 @@ TEST_F(MetricsTest, AgentAuthenticationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READONLY_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READONLY_HTTP_AUTHENTICATION_REALM, credentials);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -330,8 +330,8 @@ TEST_F(MetricsTest, MasterAuthorizationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READONLY_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READONLY_HTTP_AUTHENTICATION_REALM, credentials);
 
   ACLs acls;
 
@@ -370,8 +370,8 @@ TEST_F(MetricsTest, AgentAuthorizationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READONLY_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READONLY_HTTP_AUTHENTICATION_REALM, credentials);
 
   ACLs acls;
 

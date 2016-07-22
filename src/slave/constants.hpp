@@ -127,8 +127,11 @@ constexpr char DEFAULT_AUTHORIZER[] = "local";
 // Name of the default HTTP authenticator.
 constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 
-// Name of the default agent HTTP authentication realm.
-constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos-agent";
+// Name of the agent HTTP authentication realm for read-only endpoints.
+constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-readonly";
+
+// Name of the agent HTTP authentication realm for read-write endpoints.
+constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-readwrite";
 
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);

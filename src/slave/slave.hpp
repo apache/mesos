@@ -411,6 +411,13 @@ public:
       const ContainerID& containerId);
 
 private:
+  // Helper function to create HTTP authenticator
+  // for a given realm and register in libprocess.
+  void registerHttpAuthenticator(
+      const std::string& realm,
+      const Option<Credentials>& credentials,
+      const std::vector<std::string>& authenticatorNames);
+
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
 

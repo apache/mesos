@@ -1043,15 +1043,13 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
-  // Disable authentication and authorization.
+  // Disable http_readwrite authentication and authorization.
   // TODO(alexr): Setting master `--acls` flag to `ACLs()` or `None()` seems
   // to be semantically equal, however, the test harness currently does not
   // allow `None()`. Once MESOS-4196 is resolved, use `None()` for clarity.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = ACLs();
-  masterFlags.authenticate_http = false;
-  masterFlags.authenticate_http_frameworks = false;
-  masterFlags.credentials = None();
+  masterFlags.authenticate_http_readwrite = false;
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -1538,7 +1536,8 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_readonly = false;
+  masterFlags.authenticate_http_readwrite = false;
   masterFlags.authenticate_http_frameworks = false;
   masterFlags.credentials = None();
 
@@ -1632,7 +1631,8 @@ TEST_F(MasterQuotaTest, AuthorizeSetRemoveQuotaRequestsWithoutPrincipal)
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_readonly = false;
+  masterFlags.authenticate_http_readwrite = false;
   masterFlags.authenticate_http_frameworks = false;
   masterFlags.credentials = None();
 

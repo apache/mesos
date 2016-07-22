@@ -1353,7 +1353,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoAuthentication)
 
   // Create master flags that will disable authentication.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_readwrite = false;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 

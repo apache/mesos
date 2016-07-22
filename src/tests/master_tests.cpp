@@ -4451,7 +4451,7 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
 }
 
 
-// Test get requests on various endpoints without authentication and
+// Test GET requests on various endpoints without authentication and
 // with bad credentials.
 // Note that we have similar checks for the maintenance, roles, quota, teardown,
 // reserve, unreserve, create-volumes, destroy-volumes, observe endpoints in the
@@ -4570,6 +4570,62 @@ TEST_F(MasterTest, EndpointsBadAuthentication)
       "tasks",
       None(),
       createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+}
+
+
+// Test unauthenticated GET requests on various endpoints
+// when authentication is disabled for read-only endpoints.
+TEST_F(MasterTest, ReadonlyEndpointsNoAuthentication)
+{
+  // Set up a master with authentication disabled for read-only endpoints.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_http_readonly = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // `state` endpoint from master should be allowed without authentication.
+  {
+    Future<Response> response = process::http::get(master.get()->pid, "state");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // `quota` endpoint from master is controlled by `authenticate_http_readwrite`
+  // flag which is set to true, so an unauthenticated request will be rejected.
+  {
+    Future<Response> response = process::http::get(master.get()->pid, "quota");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+}
+
+
+// Test GET requests on various endpoints without authentication
+// when authentication for read-write endpoints is disabled.
+TEST_F(MasterTest, ReadwriteEndpointsNoAuthentication)
+{
+  // Set up a master with authentication disabled for read-write endpoints.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_http_readwrite = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // `quota` endpoint from master should be allowed without authentication.
+  {
+    Future<Response> response = process::http::get(master.get()->pid, "quota");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // `state` endpoint from master is controlled by `authenticate_http_readonly`
+  // flag which is set to true, so an unauthenticated request will be rejected.
+  {
+    Future<Response> response = process::http::get(master.get()->pid, "state");
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
   }

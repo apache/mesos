@@ -1450,7 +1450,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.authenticate_frameworks = false;
-  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_readwrite = false;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 

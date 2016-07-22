@@ -124,8 +124,13 @@ constexpr char DEFAULT_AUTHORIZER[] = "local";
 // Name of the default, basic authenticator.
 constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 
-// Name of the default master HTTP authentication realm.
-constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos-master";
+// Name of the master HTTP authentication realm for read-only endpoints.
+constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] =
+  "mesos-master-readonly";
+
+// Name of the master HTTP authentication realm for read-write endpoints.
+constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] =
+  "mesos-master-readwrite";
 
 // Name of the default authentication realm for HTTP frameworks.
 constexpr char DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM[] =

@@ -226,7 +226,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     state = new mesos::state::protobuf::State(storage);
     registrar =
-      new Registrar(flags, state, master::DEFAULT_HTTP_AUTHENTICATION_REALM);
+      new Registrar(flags, state, master::READONLY_HTTP_AUTHENTICATION_REALM);
 
     contender = new StandaloneMasterContender();
     detector = new StandaloneMasterDetector();

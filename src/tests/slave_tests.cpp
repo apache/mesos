@@ -1504,6 +1504,44 @@ TEST_F(SlaveTest, HTTPEndpointsBadAuthentication)
 }
 
 
+// Tests that a client can talk to read-only endpoints when read-only
+// authentication is disabled.
+TEST_F(SlaveTest, ReadonlyHTTPEndpointsNoAuthentication)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Capture the start time deterministically.
+  Clock::pause();
+
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readonly = false;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Ensure slave has finished recovery.
+  AWAIT_READY(recover);
+  Clock::settle();
+
+  // Requests containing no authentication headers.
+  {
+    Future<Response> response = process::http::get(slave.get()->pid, "state");
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    response = process::http::get(slave.get()->pid, "flags");
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    response = process::http::get(slave.get()->pid, "containers");
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+}
+
+
 // This test verifies correct handling of statistics endpoint when
 // there is no exeuctor running.
 TEST_F(SlaveTest, StatisticsEndpointNoExecutor)
