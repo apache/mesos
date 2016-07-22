@@ -188,6 +188,13 @@ Additional API Changes:
   * [MESOS-5642] - Namespace and header file of `Allocator` has been moved to
     be consistent with other packages.
 
+  * [MESOS-5851] - The flag `--authenticate_http` has been deprecated in favor
+    of `--authenticate_http_readwrite`. This new flag enables authentication for
+    all HTTP endpoints which support authentication and allow modification of
+    the state of the cluster. A new flag has also been added,
+    `--authenticate_http_readonly`, which enables authentication for those
+    authenticatable endpoints that cannot be used to modify the cluster state.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
