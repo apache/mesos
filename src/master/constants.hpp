@@ -121,9 +121,6 @@ constexpr Duration DEFAULT_ALLOCATION_INTERVAL = Seconds(1);
 // Name of the default, local authorizer.
 constexpr char DEFAULT_AUTHORIZER[] = "local";
 
-// Name of the default, basic authenticator.
-constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
-
 // Name of the master HTTP authentication realm for read-only endpoints.
 constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] =
   "mesos-master-readonly";

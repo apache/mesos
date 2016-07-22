@@ -29,8 +29,6 @@
 
 #include <mesos/authentication/authenticator.hpp>
 
-#include <mesos/authentication/http/basic_authenticator_factory.hpp>
-
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/allocator/allocator.hpp>
@@ -38,7 +36,6 @@
 #include <mesos/master/detector.hpp>
 
 #include <mesos/module/authenticator.hpp>
-#include <mesos/module/http_authenticator.hpp>
 
 #include <mesos/scheduler/scheduler.hpp>
 
@@ -122,15 +119,11 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-namespace authentication = process::http::authentication;
-
 using mesos::allocator::Allocator;
 
 using mesos::master::contender::MasterContender;
 
 using mesos::master::detector::MasterDetector;
-
-using mesos::http::authentication::BasicAuthenticatorFactory;
 
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkinfo);
 
@@ -377,78 +370,6 @@ struct BoundedRateLimiter
 };
 
 
-void Master::registerHttpAuthenticator(
-    const string& realm,
-    const Option<Credentials>& credentials,
-    const vector<string>& httpAuthenticatorNames)
-{
-  // At least the default authenticator is always specified.
-  // Passing an empty string into the `http_authenticators`
-  // flag is considered an error.
-  if (httpAuthenticatorNames.empty()) {
-    EXIT(EXIT_FAILURE)
-      << "No HTTP authenticator specified for realm '" << realm << "'";
-  }
-
-  if (httpAuthenticatorNames.size() > 1) {
-    EXIT(EXIT_FAILURE) << "Multiple HTTP authenticators not supported";
-  }
-
-  if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
-      !modules::ModuleManager::contains<authentication::Authenticator>(
-          httpAuthenticatorNames[0])) {
-    EXIT(EXIT_FAILURE)
-      << "HTTP authenticator '" << httpAuthenticatorNames[0] << "' not"
-      << " found. Check the spelling (compare to '"
-      << DEFAULT_HTTP_AUTHENTICATOR << "') or verify that the"
-      << " authenticator was loaded successfully (see --modules)";
-  }
-
-  Option<authentication::Authenticator*> httpAuthenticator;
-  if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR) {
-    if (credentials.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "No credentials provided for the default '"
-        << DEFAULT_HTTP_AUTHENTICATOR << "' HTTP authenticator for realm '"
-        << realm << "'";
-    }
-
-    LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
-              << "' HTTP authenticator for realm '" << realm << "'";
-
-    Try<authentication::Authenticator*> authenticator =
-      BasicAuthenticatorFactory::create(realm, credentials.get());
-    if (authenticator.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Could not create HTTP authenticator module '"
-        << httpAuthenticatorNames[0] << "': " << authenticator.error();
-    }
-
-    httpAuthenticator = authenticator.get();
-  } else {
-    Try<authentication::Authenticator*> module =
-      modules::ModuleManager::create<authentication::Authenticator>(
-          httpAuthenticatorNames[0]);
-    if (module.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Could not create HTTP authenticator module '"
-        << httpAuthenticatorNames[0] << "': " << module.error();
-    }
-    LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
-              << "' HTTP authenticator for realm '" << realm << "'";
-    httpAuthenticator = module.get();
-  }
-
-  if (httpAuthenticator.isSome() && httpAuthenticator.get() != nullptr) {
-    // Ownership of the `httpAuthenticator` is passed to libprocess.
-    process::http::authentication::setAuthenticator(
-        realm,
-        Owned<authentication::Authenticator>(httpAuthenticator.get()));
-    httpAuthenticator = None();
-  }
-}
-
-
 void Master::initialize()
 {
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
@@ -614,17 +535,25 @@ void Master::initialize()
 #endif // HAS_AUTHENTICATION
 
   if (flags.authenticate_http_readonly) {
-    registerHttpAuthenticator(
-      READONLY_HTTP_AUTHENTICATION_REALM,
-      credentials,
-      strings::split(flags.http_authenticators, ","));
+    Try<Nothing> result = initializeHttpAuthenticators(
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        strings::split(flags.http_authenticators, ","),
+        credentials);
+
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << result.error();
+    }
   }
 
   if (flags.authenticate_http_readwrite) {
-    registerHttpAuthenticator(
-      READWRITE_HTTP_AUTHENTICATION_REALM,
-      credentials,
-      strings::split(flags.http_authenticators, ","));
+    Try<Nothing> result = initializeHttpAuthenticators(
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        strings::split(flags.http_authenticators, ","),
+        credentials);
+
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << result.error();
+    }
   }
 
   if (flags.authenticate_http_frameworks) {
@@ -636,10 +565,14 @@ void Master::initialize()
         << "in conjunction with `--authenticate_http_frameworks`";
     }
 
-    registerHttpAuthenticator(
-      DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
-      credentials,
-      strings::split(flags.http_framework_authenticators.get(), ","));
+    Try<Nothing> result = initializeHttpAuthenticators(
+        DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM,
+        strings::split(flags.http_framework_authenticators.get(), ","),
+        credentials);
+
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << result.error();
+    }
   }
 
   if (authorizer.isSome()) {

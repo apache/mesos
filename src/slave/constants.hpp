@@ -124,9 +124,6 @@ constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 // Name of the default, local authorizer.
 constexpr char DEFAULT_AUTHORIZER[] = "local";
 
-// Name of the default HTTP authenticator.
-constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
-
 // Name of the agent HTTP authentication realm for read-only endpoints.
 constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-readonly";
 

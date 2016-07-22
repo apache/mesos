@@ -25,6 +25,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include "common/http.hpp"
 #include "common/parse.hpp"
 
 #include "slave/constants.hpp"
