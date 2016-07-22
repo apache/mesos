@@ -65,6 +65,7 @@ We categorize the changes as follows:
       <li>R <a href="#1-0-x-workdir">work_dir default value</a></li>
       <li>D <a href="#1-0-x-deprecated-ssl-env-variables">SSL environment variables</a></li>
       <li>ACD <a href="#1-0-x-http-authentication-flags">HTTP authentication</a></li>
+      <li>R <a href="#1-0-x-registry-strict">registry_strict</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
@@ -219,6 +220,10 @@ We categorize the changes as follows:
 <a name="1-0-x-workdir"></a>
 
 * Mesos 1.0 removes the default value for the agent's `work_dir` command-line flag. This flag is now required; the agent will exit immediately if it is not provided.
+
+<a name="1-0-x-registry-strict"></a>
+
+* Mesos 1.0 disables support for the master's `registry_strict` command-line flag. If this flag is specified, the master will exit immediately. Note that this flag was previously marked as experimental and not recommended for production use.
 
 <a name="1-0-x-credentials-file"></a>
 

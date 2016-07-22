@@ -373,11 +373,6 @@ int main(int argc, char** argv)
   Log* log = nullptr;
 
   if (flags.registry == "in_memory") {
-    if (flags.registry_strict) {
-      EXIT(EXIT_FAILURE)
-        << "Cannot use '--registry_strict' when using in-memory storage"
-        << " based registry";
-    }
     storage = new InMemoryStorage();
   } else if (flags.registry == "replicated_log" ||
              flags.registry == "log_storage") {

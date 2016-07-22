@@ -84,7 +84,8 @@ mesos::internal::master::Flags::Flags()
       "ZooKeeper session timeout.",
       ZOOKEEPER_SESSION_TIMEOUT);
 
-  // TODO(bmahler): Set the default to true in 0.20.0.
+  // TODO(neilc): This flag is deprecated in 1.0 and will be removed 6
+  // months later.
   add(&Flags::registry_strict,
       "registry_strict",
       "Whether the master will take actions based on the persistent\n"
@@ -92,9 +93,17 @@ mesos::internal::master::Flags::Flags()
       "that the Registrar will never reject the admission, readmission,\n"
       "or removal of an agent. Consequently, `false` can be used to\n"
       "bootstrap the persistent state on a running cluster.\n"
-      "NOTE: This flag is *experimental* and should not be used in\n"
-      "production yet.",
-      false);
+      "NOTE: This flag is *disabled* and will be removed in a future\n"
+      "version of Mesos.",
+      false,
+      [](bool value) -> Option<Error> {
+        if (value) {
+          return Error("Support for '--registry_strict' has been "
+                       "disabled and will be removed in a future "
+                       "version of Mesos");
+        }
+        return None();
+      });
 
   add(&Flags::registry_fetch_timeout,
       "registry_fetch_timeout",

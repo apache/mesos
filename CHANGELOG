@@ -195,6 +195,8 @@ Additional API Changes:
     `--authenticate_http_readonly`, which enables authentication for those
     authenticatable endpoints that cannot be used to modify the cluster state.
 
+  * [MESOS-5833] - Disable the experimental `registry_strict` master flag.
+
 3rd Party Upgrades:
   * [MESOS-4805] - Upgraded vendored ry-http-parser-1c3624a to nodejs/http-parser 2.6.1.
   * [MESOS-4678] - Upgraded vendored protobuf 2.5.0 to 2.6.1.
