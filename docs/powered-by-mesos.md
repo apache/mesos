@@ -43,6 +43,7 @@ layout: documentation
 * [Gigawatt IO](http://gigawatt.io)
 * [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
+* [Grovo Learning](http://www.grovo.com)
 * [GSShop](http://www.gsshop.com)
 * [Gutefrage.net](http://www.gutefrage.net)
 * [Hootsuite](https://hootsuite.com)
