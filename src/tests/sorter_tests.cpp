@@ -501,18 +501,9 @@ INSTANTIATE_TEST_CASE_P(
     );
 
 
-// Returns a "ports" resource with the number of ranges
-// specified as: [1-2, 4-5, 7-8, 10-11, ...]
-static Resource makePortRanges(size_t numRanges)
+// Creates a "ports(*)" resource for the given ranges.
+static Resource createPorts(const ::mesos::Value::Ranges& ranges)
 {
-  ::mesos::Value::Ranges ranges;
-
-  for (size_t i = 0; i < numRanges; ++i) {
-    Value::Range* range = ranges.add_range();
-    range->set_begin((3 * i) + 1);
-    range->set_end(range->begin() + 1);
-  }
-
   Value value;
   value.set_type(Value::RANGES);
   value.mutable_ranges()->CopyFrom(ranges);
@@ -524,6 +515,78 @@ static Resource makePortRanges(size_t numRanges)
   resource.mutable_ranges()->CopyFrom(value.ranges());
 
   return resource;
+}
+
+
+// Fragments the given range bounds into a number of subranges.
+// Returns an Error if 'numRanges' is too large. E.g.
+//
+//   [1-10], 1 -> [1-10]
+//   [1-10], 2 -> [1-1,3-10]
+//   [1-10], 3 -> [1-1,3-3,5-10]
+//   [1-10], 4 -> [1-1,3-3,5-5,7-10]
+//   [1-10], 5 -> [1-1,3-3,5-5,7-7,9-10]
+//   [1-10], 6 -> Error
+//
+static Try<::mesos::Value::Ranges> fragment(
+    const ::mesos::Value::Range& bounds,
+    size_t numRanges)
+{
+  uint64_t numValues = bounds.end() - bounds.begin() + 1;
+
+  // Compute the max number of ranges.
+  //
+  // If `numValues` is even, then the maximum number of ranges is
+  // `numValues / 2`:
+  //   [1-2] -> 2 values, maximum 1 range:  [1-2]
+  //   [1-4] -> 4 values, maximum 2 ranges: [1-1,3-4]
+  //   [1-6] -> 6 values, maximum 3 ranges: [1-1,3-3,5-6]
+  //
+  // If `numValues` is odd, then the maximum number of ranges is
+  // `(numValues + 1) / 2`:
+  //   [1-1] -> 1 values, maximum 1 range:  [1-1]
+  //   [1-3] -> 3 values, maximum 2 ranges: [1-1,3-3]
+  //   [1-5] -> 5 values, maximum 3 ranges: [1-1,3-3,5-5]
+  //
+  uint64_t maxRanges;
+  if (numValues % 2 == 0) {
+    maxRanges = numValues / 2;
+  } else {
+    maxRanges = (numValues + 1) / 2;
+  }
+
+  if (numRanges > maxRanges) {
+    return Error("Requested more distinct ranges than possible");
+  }
+
+  // See the documentation above for the fragmentation technique.
+  // We fragment from the front of the bounds until we have the
+  // desired number of ranges.
+  ::mesos::Value::Ranges ranges;
+  ranges.mutable_range()->Reserve(numRanges);
+
+  for (size_t i = 0; i < numRanges; ++i) {
+    Value::Range* range = ranges.add_range();
+
+    range->set_begin(bounds.begin() + (i * 2));
+    range->set_end(range->begin());
+  }
+
+  // Make sure the last range covers the end of the bounds.
+  if (!ranges.range().empty()) {
+    ranges.mutable_range()->rbegin()->set_end(bounds.end());
+  }
+
+  return ranges;
+}
+
+
+static ::mesos::Value::Range createRange(uint64_t begin, uint64_t end)
+{
+  ::mesos::Value::Range range;
+  range.set_begin(begin);
+  range.set_end(end);
+  return range;
 }
 
 
@@ -583,7 +646,11 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
   Resources allocated = Resources::parse(
       "cpus:16;mem:2014;disk:1024").get();
 
-  allocated += makePortRanges(100);
+  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
+  ASSERT_SOME(ranges);
+  ASSERT_EQ(16, ranges->range_size());
+
+  allocated += createPorts(ranges.get());
 
   watch.start();
   {
