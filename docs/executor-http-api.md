@@ -325,7 +325,8 @@ The following environment variables are set by the agent that can be used by the
 
 * `MESOS_FRAMEWORK_ID`: `FrameworkID` of the scheduler needed as part of the `SUBSCRIBE` call.
 * `MESOS_EXECUTOR_ID`: `ExecutorID` of the executor needed as part of the `SUBSCRIBE` call.
-* `MESOS_DIRECTORY`: Path to the working directory for the executor.
+* `MESOS_DIRECTORY`: Path to the working directory for the executor on the host filesystem (deprecated).
+* `MESOS_SANDBOX`: Path to the mapped sandbox inside of the container (determined by the agent flag `sandbox_directory`) for either mesos container with image or docker container. For the case of command task without image specified, it is the path to the sandbox on the host filesystem, which is identical to `MESOS_DIRECTORY`. `MESOS_DIRECTORY` is always the sandbox on the host filesystem.
 * `MESOS_AGENT_ENDPOINT`: agent endpoint i.e. ip:port to be used by the executor to connect to the agent.
 * `MESOS_CHECKPOINT`: If set to true, denotes that framework has checkpointing enabled.
 * `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60secs, 3mins etc.) after sending a `SHUTDOWN` event.
