@@ -48,9 +48,17 @@ Mesos master and agent processes. For more information, refer to the
   to register. If `false` (the default), unauthenticated frameworks are also
   allowed to register.
 
-* `--[no-]authenticate_http` - If `true`, authentication is required to make
-  HTTP requests to the HTTP endpoints that support authentication. If `false`
-  (the default), all endpoints can be used without authentication.
+* `--[no-]authenticate_http_readonly` - If `true`, authentication is required to
+  make HTTP requests to the read-only HTTP endpoints that support
+  authentication. If `false` (the default), these endpoints can be used without
+  authentication. Read-only endpoints are those which cannot be used to modify
+  the state of the cluster.
+
+* `--[no-]authenticate_http_readwrite` - If `true`, authentication is required
+  to make HTTP requests to the read-write HTTP endpoints that support
+  authentication. If `false` (the default), these endpoints can be used without
+  authentication. Read-write endpoints are those which can be used to modify the
+  state of the cluster.
 
 * `--[no-]authenticate_agents` - If `true`, only authenticated agents are
   allowed to register. If `false` (the default), unauthenticated agents are also
@@ -76,9 +84,17 @@ Mesos master and agent processes. For more information, refer to the
   only one credential is allowed. This credential is used to identify the agent
   to the master.
 
-* `--[no-]authenticate_http` - If `true`, authentication is required to make
-  HTTP requests to the HTTP endpoints that support authentication. If `false`
-  (the default), all endpoints can be used without authentication.
+* `--[no-]authenticate_http_readonly` - If `true`, authentication is required to
+  make HTTP requests to the read-only HTTP endpoints that support
+  authentication. If `false` (the default), these endpoints can be used without
+  authentication. Read-only endpoints are those which cannot be used to modify
+  the state of the agent.
+
+* `--[no-]authenticate_http_readwrite` - If `true`, authentication is required
+  to make HTTP requests to the read-write HTTP endpoints that support
+  authentication. If `false` (the default), these endpoints can be used without
+  authentication. Read-write endpoints are those which can be used to modify the
+  state of the agent.
 
 * `--http_authenticators` - Specifies which HTTP authenticator module to use.
   The default is `basic`, but additional modules can be added using the

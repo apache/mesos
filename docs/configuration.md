@@ -69,12 +69,22 @@ access Mesos master/agent.
 </tr>
 <tr>
   <td>
-    --[no-]authenticate_http
+    --[no-]authenticate_http_readonly
   </td>
   <td>
-If <code>true</code>, only authenticated requests for HTTP endpoints supporting
-authentication are allowed. If <code>false</code>, unauthenticated requests to
-HTTP endpoints are also allowed. (default: false)
+If <code>true</code>, only authenticated requests for read-only HTTP endpoints
+supporting authentication are allowed. If <code>false</code>, unauthenticated
+requests to such HTTP endpoints are also allowed.
+  </td>
+</tr>
+<tr>
+  <td>
+    --[no-]authenticate_http_readwrite
+  </td>
+  <td>
+If <code>true</code>, only authenticated requests for read-write HTTP endpoints
+supporting authentication are allowed. If <code>false</code>, unauthenticated
+requests to such HTTP endpoints are also allowed.
   </td>
 </tr>
 <tr>
