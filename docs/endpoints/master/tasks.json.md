@@ -18,8 +18,6 @@ current master is not the leader.
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
 Lists known tasks.
-The information shown might be filtered based on the user
-accessing the endpoint.
 
 Query parameters:
 
@@ -31,9 +29,3 @@ Query parameters:
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-This endpoint might be filtered based on the user accessing it.
-For example a user might only see the subset of tasks they are
-allowed to view.
-See the authorization documentation for details.

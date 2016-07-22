@@ -30,9 +30,3 @@ the volumes to be destroyed.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-Using this endpoint to destroy persistent volumes requires that
-the current principal is authorized to destroy volumes created
-by the principal who created the volume.
-See the authorization documentation for details.

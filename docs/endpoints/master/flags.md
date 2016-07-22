@@ -17,5 +17,5 @@ enabled.
 
 ### AUTHORIZATION ###
 Querying this endpoint requires that the current principal
-is authorized to view all flags.
+is authorized to query the path.
 See the authorization documentation for details.

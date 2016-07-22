@@ -30,9 +30,3 @@ the resources to be unreserved.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
-
-### AUTHORIZATION ###
-Using this endpoint to unreserve resources requires that the
-current principal is authorized to unreserve resources created
-by the principal who reserved the resources.
-See the authorization documentation for details.
