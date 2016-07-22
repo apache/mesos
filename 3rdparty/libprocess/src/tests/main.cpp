@@ -51,7 +51,10 @@ int main(int argc, char** argv)
   testing::InitGoogleMock(&argc, argv);
 
   // Initialize libprocess.
-  process::initialize(None(), process::DEFAULT_HTTP_AUTHENTICATION_REALM);
+  process::initialize(
+      None(),
+      process::READWRITE_HTTP_AUTHENTICATION_REALM,
+      process::READONLY_HTTP_AUTHENTICATION_REALM);
 
   // NOTE: Windows does not support signal semantics required for these
   // handlers to be useful.

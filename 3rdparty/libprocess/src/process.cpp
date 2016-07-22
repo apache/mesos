@@ -817,7 +817,8 @@ void install(vector<Owned<FirewallRule>>&& rules)
 
 bool initialize(
     const Option<string>& delegate,
-    const Option<string>& authenticationRealm)
+    const Option<string>& readwriteAuthenticationRealm,
+    const Option<string>& readonlyAuthenticationRealm)
 {
   // TODO(benh): Return an error if attempting to initialize again
   // with a different delegate than originally specified.
@@ -1044,13 +1045,13 @@ bool initialize(
   help = spawn(new Help(delegate), true);
 
   // Initialize the global metrics process.
-  metrics::initialize(authenticationRealm);
+  metrics::initialize(readonlyAuthenticationRealm);
 
   // Create the global logging process.
-  _logging = spawn(new Logging(authenticationRealm), true);
+  _logging = spawn(new Logging(readwriteAuthenticationRealm), true);
 
   // Create the global profiler process.
-  spawn(new Profiler(authenticationRealm), true);
+  spawn(new Profiler(readwriteAuthenticationRealm), true);
 
   // Create the global system statistics process.
   spawn(new System(), true);

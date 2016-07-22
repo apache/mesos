@@ -50,11 +50,11 @@ using metrics::Gauge;
 using metrics::Timer;
 
 using process::Clock;
-using process::DEFAULT_HTTP_AUTHENTICATION_REALM;
 using process::Failure;
 using process::Future;
 using process::PID;
 using process::Process;
+using process::READONLY_HTTP_AUTHENTICATION_REALM;
 using process::Statistics;
 using process::UPID;
 
@@ -513,10 +513,10 @@ TEST_F(MetricsTest, SnapshotAuthenticationEnabled)
 
   process::Owned<Authenticator> authenticator(
     new BasicAuthenticator(
-        DEFAULT_HTTP_AUTHENTICATION_REALM, {{"foo", "bar"}}));
+        READONLY_HTTP_AUTHENTICATION_REALM, {{"foo", "bar"}}));
 
   AWAIT_READY(
-      setAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, authenticator));
+      setAuthenticator(READONLY_HTTP_AUTHENTICATION_REALM, authenticator));
 
   UPID upid("metrics", process::address());
 
