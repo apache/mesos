@@ -21,6 +21,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/appc/spec.hpp>
+
 #include <mesos/docker/v1.hpp>
 
 #include <mesos/slave/isolator.hpp> // For ContainerState.
@@ -58,6 +60,9 @@ struct ProvisionInfo
 
   // Docker v1 image manifest.
   Option<::docker::spec::v1::ImageManifest> dockerManifest;
+
+  // Appc image manifest.
+  Option<::appc::spec::ImageManifest> appcManifest;
 };
 
 

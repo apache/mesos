@@ -68,6 +68,10 @@
 #endif
 
 #ifdef __linux__
+#include "slave/containerizer/mesos/isolators/appc/runtime.hpp"
+#endif // __linux__
+
+#ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/devices.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
@@ -304,6 +308,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
     {"cgroups/net_cls", &CgroupsNetClsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
+    {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
 
@@ -1018,9 +1023,19 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
   if (provisionInfo.isSome()) {
     containerConfig.set_rootfs(provisionInfo->rootfs);
 
+    if (provisionInfo->dockerManifest.isSome() &&
+        provisionInfo->appcManifest.isSome()) {
+      return Failure("Container cannot have both Docker and Appc manifests");
+    }
+
     if (provisionInfo->dockerManifest.isSome()) {
       ContainerConfig::Docker* docker = containerConfig.mutable_docker();
       docker->mutable_manifest()->CopyFrom(provisionInfo->dockerManifest.get());
+    }
+
+    if (provisionInfo->appcManifest.isSome()) {
+      ContainerConfig::Appc* appc = containerConfig.mutable_appc();
+      appc->mutable_manifest()->CopyFrom(provisionInfo->appcManifest.get());
     }
   }
 

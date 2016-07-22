@@ -22,6 +22,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/appc/spec.hpp>
+
 #include <mesos/docker/v1.hpp>
 
 #include <process/future.hpp>
@@ -43,6 +45,9 @@ struct ImageInfo
 
   // Docker v1 image manifest.
   Option<::docker::spec::v1::ImageManifest> dockerManifest;
+
+  // Appc image manifest.
+  Option<::appc::spec::ImageManifest> appcManifest;
 };
 
 

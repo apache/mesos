@@ -332,7 +332,8 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
   // to be handled, and this excludes any image using the bind
   // backend.
   if (imageInfo.layers.size() == 1 || image.type() != Image::DOCKER) {
-    return ProvisionInfo{rootfs, imageInfo.dockerManifest};
+      return ProvisionInfo{
+          rootfs, imageInfo.dockerManifest, imageInfo.appcManifest};
   }
 
 #ifndef __WINDOWS__
@@ -398,7 +399,8 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
     }
   }
 
-  return ProvisionInfo{rootfs, imageInfo.dockerManifest};
+  return ProvisionInfo{
+      rootfs, imageInfo.dockerManifest, None()};
 #else
   return ProvisionInfo{ rootfs, imageInfo.dockerManifest };
 #endif // __WINDOWS__
