@@ -274,7 +274,7 @@ Future<http::Response> Help::help(const http::Request& request)
 
   // Provide some JavaScript to render the Markdown into some aesthetically
   // pleasing HTML. ;)
-  return http::OK(
+  http::Response response = http::OK(
       "<html>"
       "<head>"
       "<title>Help</title>"
@@ -316,6 +316,9 @@ Future<http::Response> Help::help(const http::Request& request)
       "<body onload=\"loaded()\">"
       "</body>"
       "</html>");
+
+  response.headers["Content-Type"] = "text/html";
+  return response;
 }
 
 } // namespace process {
