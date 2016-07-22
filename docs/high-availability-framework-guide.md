@@ -349,5 +349,4 @@ one difference: by default, agents are _allowed to reconnect_ following master
 failover, even after the `agent_reregister_timeout` has fired. This means that
 frameworks might see a `TASK_LOST` update for a task but then later discover
 that the task is running (because the agent where it was running was allowed to
-reconnect). This behavior can be avoided by enabling the `--registry_strict`
-configuration flag, which will be the default in a future version of Mesos.
+reconnect).
