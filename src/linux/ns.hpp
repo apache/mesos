@@ -150,14 +150,6 @@ inline Try<Nothing> setns(const std::string& path, const std::string& ns)
     return Error("Failed to open '" + path + "': " + fd.error());
   }
 
-#ifndef O_CLOEXEC
-  Try<Nothing> cloexec = os::cloexec(fd.get());
-  if (cloexec.isError()) {
-    os::close(fd.get());
-    return Error("Failed to cloexec: " + cloexec.error());
-  }
-#endif
-
   Try<int> nstype = ns::nstype(ns);
   if (nstype.isError()) {
     return Error(nstype.error());
