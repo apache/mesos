@@ -66,7 +66,8 @@ public:
   Option<std::string> weights;
   bool authenticate_frameworks;
   bool authenticate_agents;
-  bool authenticate_http;
+  bool authenticate_http_readonly;
+  bool authenticate_http_readwrite;
   bool authenticate_http_frameworks;
   Option<Path> credentials;
   Option<ACLs> acls;

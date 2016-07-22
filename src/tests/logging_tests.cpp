@@ -144,8 +144,8 @@ TEST_F(LoggingTest, ToggleAuthenticationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READWRITE_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READWRITE_HTTP_AUTHENTICATION_REALM, credentials);
 
   process::PID<> pid;
   pid.id = "logging";
@@ -165,8 +165,8 @@ TEST_F(LoggingTest, ToggleAuthorizationEnabled)
   credentials.add_credentials()->CopyFrom(DEFAULT_CREDENTIAL);
 
   // Create a basic HTTP authenticator with the specified credentials and set it
-  // as the authenticator for `DEFAULT_HTTP_AUTHENTICATION_REALM`.
-  setBasicHttpAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, credentials);
+  // as the authenticator for `READWRITE_HTTP_AUTHENTICATION_REALM`.
+  setBasicHttpAuthenticator(READWRITE_HTTP_AUTHENTICATION_REALM, credentials);
 
   ACLs acls;
 

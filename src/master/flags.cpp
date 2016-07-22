@@ -222,11 +222,21 @@ mesos::internal::master::Flags::Flags()
       "If `false`, unauthenticated agents are also allowed to register.",
       false);
 
-  add(&Flags::authenticate_http,
-      "authenticate_http",
-      "If `true`, only authenticated requests for HTTP endpoints supporting\n"
-      "authentication are allowed. If `false`, unauthenticated requests to\n"
-      "HTTP endpoints are also allowed.\n",
+  // TODO(zhitao): Remove deprecated `--authenticate_http` flag name after
+  // the deprecation cycle which started with Mesos 1.0.
+  add(&Flags::authenticate_http_readwrite,
+      "authenticate_http_readwrite",
+      flags::DeprecatedName("authenticate_http"),
+      "If `true`, only authenticated requests for read-write HTTP endpoints\n"
+      "supporting authentication are allowed. If `false`, unauthenticated\n"
+      "requests to such HTTP endpoints are also allowed.",
+      false);
+
+  add(&Flags::authenticate_http_readonly,
+      "authenticate_http_readonly",
+      "If `true`, only authenticated requests for read-only HTTP endpoints\n"
+      "supporting authentication are allowed. If `false`, unauthenticated\n"
+      "requests to such HTTP endpoints are also allowed.",
       false);
 
   add(&Flags::authenticate_http_frameworks,

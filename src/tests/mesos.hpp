@@ -98,7 +98,8 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "test-realm";
+constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "test-readonly-realm";
+constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "test-readwrite-realm";
 
 // Forward declarations.
 class MockExecutor;

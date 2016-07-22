@@ -556,7 +556,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
 
   // Disable authentication and set acls.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.authenticate_http = false;
+  masterFlags.authenticate_http_readwrite = false;
   masterFlags.acls = acls;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);

@@ -1888,6 +1888,13 @@ private:
   process::Future<Option<Error>> validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
+
+  // Helper function to create HTTP authenticator
+  // for a given realm and register in libprocess.
+  void registerHttpAuthenticator(
+      const std::string& realm,
+      const Option<Credentials>& credentials,
+      const std::vector<std::string>& authenticatorNames);
 };
 
 
