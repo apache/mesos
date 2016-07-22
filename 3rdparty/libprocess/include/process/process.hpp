@@ -483,9 +483,14 @@ protected:
  * for it (e.g., a logging directory) via environment variables.
  *
  * @param delegate Process to receive root HTTP requests.
- * @param authenticationRealm The authentication realm that libprocess-level
- *     HTTP endpoints will be installed under, if any. If this realm is not
- *     specified, endpoints will be installed without authentication.
+ * @param readwriteAuthenticationRealm The authentication realm that read-write
+ *     libprocess-level HTTP endpoints will be installed under, if any.
+ *     If this realm is not specified, read-write endpoints will be installed
+ *     without authentication.
+ * @param readonlyAuthenticationRealm The authentication realm that read-only
+ *     libprocess-level HTTP endpoints will be installed under, if any.
+ *     If this realm is not specified, read-only endpoints will be installed
+ *     without authentication.
  * @return `true` if this was the first invocation of `process::initialize()`,
  *     or `false` if it was not the first invocation.
  *
@@ -493,7 +498,8 @@ protected:
  */
 bool initialize(
     const Option<std::string>& delegate = None(),
-    const Option<std::string>& authenticationRealm = None());
+    const Option<std::string>& readwriteAuthenticationRealm = None(),
+    const Option<std::string>& readonlyAuthenticationRealm = None());
 
 
 /**

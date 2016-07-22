@@ -35,8 +35,8 @@ using http::OK;
 using http::Response;
 using http::Unauthorized;
 
-using process::DEFAULT_HTTP_AUTHENTICATION_REALM;
 using process::Future;
+using process::READWRITE_HTTP_AUTHENTICATION_REALM;
 using process::UPID;
 
 using std::string;
@@ -121,10 +121,10 @@ TEST_F(ProfilerTest, StartAndStopAuthenticationEnabled)
 {
   process::Owned<Authenticator> authenticator(
     new BasicAuthenticator(
-        DEFAULT_HTTP_AUTHENTICATION_REALM, {{"foo", "bar"}}));
+        READWRITE_HTTP_AUTHENTICATION_REALM, {{"foo", "bar"}}));
 
   AWAIT_READY(
-      setAuthenticator(DEFAULT_HTTP_AUTHENTICATION_REALM, authenticator));
+      setAuthenticator(READWRITE_HTTP_AUTHENTICATION_REALM, authenticator));
 
   UPID upid("profiler", process::address());
 

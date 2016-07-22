@@ -28,7 +28,8 @@
 
 namespace process {
 
-constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "libprocess-realm";
+constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "libprocess-readonly";
+constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "libprocess-readwrite";
 
 // A simple test event listener that makes sure to resume the clock
 // after each test even if the previous test had a partial result
