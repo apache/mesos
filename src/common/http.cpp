@@ -25,7 +25,9 @@
 #include <mesos/http.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
 #include <mesos/authorizer/authorizer.hpp>
+#include <mesos/module/http_authenticator.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -43,6 +45,7 @@
 #include "common/http.hpp"
 
 #include "messages/messages.hpp"
+#include "module/manager.hpp"
 
 using std::map;
 using std::ostream;
@@ -53,7 +56,10 @@ using std::vector;
 using process::Failure;
 using process::Owned;
 
+using process::http::authentication::Authenticator;
 using process::http::authorization::AuthorizationCallbacks;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
 
 namespace mesos {
 
@@ -850,5 +856,73 @@ bool approveViewRole(
   }
   return approved.get();
 }
+
+
+Try<Nothing> initializeHttpAuthenticators(
+    const string& realm,
+    const vector<string>& httpAuthenticatorNames,
+    const Option<Credentials>& credentials)
+{
+  if (httpAuthenticatorNames.empty()) {
+    return Error("No HTTP authenticator specified for realm '" + realm + "'");
+  }
+
+  if (httpAuthenticatorNames.size() > 1) {
+    return Error("Multiple HTTP authenticators not supported");
+  }
+
+  Option<Authenticator*> httpAuthenticator;
+  if (httpAuthenticatorNames[0] == internal::DEFAULT_HTTP_AUTHENTICATOR) {
+    if (credentials.isNone()) {
+      return Error(
+          "No credentials provided for the default '" +
+          string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+          "' HTTP authenticator for realm '" + realm + "'");
+    }
+
+    LOG(INFO) << "Using default '" << internal::DEFAULT_HTTP_AUTHENTICATOR
+              << "' HTTP authenticator for realm '" << realm << "'";
+
+    Try<Authenticator*> authenticator =
+      BasicAuthenticatorFactory::create(realm, credentials.get());
+    if (authenticator.isError()) {
+      return Error(
+          "Could not create HTTP authenticator module '" +
+          httpAuthenticatorNames[0] + "': " + authenticator.error());
+    }
+
+    httpAuthenticator = authenticator.get();
+  } else {
+    if (!modules::ModuleManager::contains<Authenticator>(
+          httpAuthenticatorNames[0])) {
+      return Error(
+          "HTTP authenticator '" + httpAuthenticatorNames[0] +
+          "' not found. Check the spelling (compare to '" +
+          string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+          "') or verify that the authenticator was loaded "
+          "successfully (see --modules)");
+    }
+
+    Try<Authenticator*> module =
+      modules::ModuleManager::create<Authenticator>(httpAuthenticatorNames[0]);
+    if (module.isError()) {
+      return Error(
+          "Could not create HTTP authenticator module '" +
+          httpAuthenticatorNames[0] + "': " + module.error());
+    }
+    LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
+              << "' HTTP authenticator for realm '" << realm << "'";
+    httpAuthenticator = module.get();
+  }
+
+  CHECK(httpAuthenticator.isSome());
+
+  // Ownership of the `httpAuthenticator` is passed to libprocess.
+  process::http::authentication::setAuthenticator(
+    realm, Owned<Authenticator>(httpAuthenticator.get()));
+
+  return Nothing();
+}
+
 
 }  // namespace mesos {

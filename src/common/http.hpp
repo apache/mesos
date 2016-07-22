@@ -42,6 +42,9 @@ class Task;
 
 namespace internal {
 
+// Name of the default, basic authenticator.
+constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
+
 extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 
 // Serializes a protobuf message for transmission
@@ -161,6 +164,23 @@ process::Future<bool> authorizeEndpoint(
 bool approveViewRole(
     const process::Owned<ObjectApprover>& rolesApprover,
     const std::string& role);
+
+
+/**
+ * Helper function to create HTTP authenticators
+ * for a given realm and register in libprocess.
+ *
+ * @param realm name of the realm.
+ * @param authenticatorNames a vector of authenticator names.
+ * @param credentials optional credentials for BasicAuthenticator only.
+ * @return nothing if authenticators are initialized and registered to
+ *         libprocess successfully, or error if authenticators cannot
+ *         be initialized.
+ */
+Try<Nothing> initializeHttpAuthenticators(
+    const std::string& realm,
+    const std::vector<std::string>& authenticatorNames,
+    const Option<Credentials>& credentials);
 
 } // namespace mesos {
 
