@@ -48,6 +48,7 @@ layout: documentation
 * [Hootsuite](https://hootsuite.com)
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
+* [Jusbrasil](http://www.jusbrasil.com.br)
 * [Jobrapido](http://www.jobrapido.com)
 * [iQIYI](http://www.iqiyi.com/)
 * [Learnium](http://www.learnium.net/)
