@@ -1376,22 +1376,32 @@ Resources Resources::operator+(const Resources& that) const
 }
 
 
+void Resources::add(const Resource& that)
+{
+  if (isEmpty(that)) {
+    return;
+  }
+
+  bool found = false;
+  foreach (Resource& resource, resources) {
+    if (internal::addable(resource, that)) {
+      resource += that;
+      found = true;
+      break;
+    }
+  }
+
+  // Cannot be combined with any existing Resource object.
+  if (!found) {
+    resources.Add()->CopyFrom(that);
+  }
+}
+
+
 Resources& Resources::operator+=(const Resource& that)
 {
-  if (validate(that).isNone() && !isEmpty(that)) {
-    bool found = false;
-    foreach (Resource& resource, resources) {
-      if (internal::addable(resource, that)) {
-        resource += that;
-        found = true;
-        break;
-      }
-    }
-
-    // Cannot be combined with any existing Resource object.
-    if (!found) {
-      resources.Add()->CopyFrom(that);
-    }
+  if (validate(that).isNone()) {
+    add(that);
   }
 
   return *this;
@@ -1401,7 +1411,7 @@ Resources& Resources::operator+=(const Resource& that)
 Resources& Resources::operator+=(const Resources& that)
 {
   foreach (const Resource& resource, that.resources) {
-    *this += resource;
+    add(resource);
   }
 
   return *this;
@@ -1424,30 +1434,40 @@ Resources Resources::operator-(const Resources& that) const
 }
 
 
+void Resources::subtract(const Resource& that)
+{
+  if (isEmpty(that)) {
+    return;
+  }
+
+  for (int i = 0; i < resources.size(); i++) {
+    Resource* resource = resources.Mutable(i);
+
+    if (internal::subtractable(*resource, that)) {
+      *resource -= that;
+
+      // Remove the resource if it becomes invalid or zero. We need
+      // to do the validation because we want to strip negative
+      // scalar Resource object.
+      if (validate(*resource).isSome() || isEmpty(*resource)) {
+        // As `resources` is not ordered, and erasing an element
+        // from the middle using `DeleteSubrange` is expensive, we
+        // swap with the last element and then shrink the
+        // 'RepeatedPtrField' by one.
+        resources.Mutable(i)->Swap(resources.Mutable(resources.size() - 1));
+        resources.RemoveLast();
+      }
+
+      break;
+    }
+  }
+}
+
+
 Resources& Resources::operator-=(const Resource& that)
 {
-  if (validate(that).isNone() && !isEmpty(that)) {
-    for (int i = 0; i < resources.size(); i++) {
-      Resource* resource = resources.Mutable(i);
-
-      if (internal::subtractable(*resource, that)) {
-        *resource -= that;
-
-        // Remove the resource if it becomes invalid or zero. We need
-        // to do the validation because we want to strip negative
-        // scalar Resource object.
-        if (validate(*resource).isSome() || isEmpty(*resource)) {
-          // As `resources` is not ordered, and erasing an element
-          // from the middle using `DeleteSubrange` is expensive, we
-          // swap with the last element and then shrink the
-          // 'RepeatedPtrField' by one.
-          resources.Mutable(i)->Swap(resources.Mutable(resources.size() - 1));
-          resources.RemoveLast();
-        }
-
-        break;
-      }
-    }
+  if (validate(that).isNone()) {
+    subtract(that);
   }
 
   return *this;
@@ -1457,7 +1477,7 @@ Resources& Resources::operator-=(const Resource& that)
 Resources& Resources::operator-=(const Resources& that)
 {
   foreach (const Resource& resource, that.resources) {
-    *this -= resource;
+    subtract(resource);
   }
 
   return *this;

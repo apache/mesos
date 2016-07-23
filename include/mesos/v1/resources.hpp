@@ -396,6 +396,11 @@ private:
   // returns Resources.
   Option<Resources> find(const Resource& target) const;
 
+  // Validation-free versions of += and -= `Resource` operators.
+  // These can be used when `r` is already validated.
+  void add(const Resource& r);
+  void subtract(const Resource& r);
+
   google::protobuf::RepeatedPtrField<Resource> resources;
 };
 
