@@ -403,7 +403,7 @@ class LocalAuthorizerProcess : public ProtobufProcess<LocalAuthorizerProcess>
 {
 public:
   LocalAuthorizerProcess(const ACLs& _acls)
-    : ProcessBase(process::ID::generate("authorizer")), acls(_acls) {}
+    : ProcessBase(process::ID::generate("local-authorizer")), acls(_acls) {}
 
   virtual void initialize()
   {
