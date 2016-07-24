@@ -28,6 +28,7 @@
 
 #include <process/collect.hpp>
 #include <process/executor.hpp>
+#include <process/id.hpp>
 #include <process/protobuf.hpp>
 
 #include <stout/duration.hpp>
@@ -147,9 +148,10 @@ private:
 class NetworkProcess : public ProtobufProcess<NetworkProcess>
 {
 public:
-  NetworkProcess() {}
+  NetworkProcess() : ProcessBase(process::ID::generate("log-network")) {}
 
   explicit NetworkProcess(const std::set<process::UPID>& pids)
+    : ProcessBase(process::ID::generate("log-network"))
   {
     set(pids);
   }

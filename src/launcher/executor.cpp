@@ -37,6 +37,7 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -143,7 +144,8 @@ public:
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
-    : state(DISCONNECTED),
+    : ProcessBase(process::ID::generate("command-executor")),
+      state(DISCONNECTED),
       launched(false),
       killed(false),
       killedByHealthCheck(false),

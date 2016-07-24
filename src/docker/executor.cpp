@@ -22,6 +22,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/executor.hpp>
 
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/subprocess.hpp>
@@ -83,7 +84,8 @@ public:
       const Duration& shutdownGracePeriod,
       const string& healthCheckDir,
       const map<string, string>& taskEnvironment)
-    : killed(false),
+    : ProcessBase(ID::generate("docker-executor")),
+      killed(false),
       killedByHealthCheck(false),
       terminated(false),
       healthPid(-1),

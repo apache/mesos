@@ -31,6 +31,7 @@
 
 #include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -87,10 +88,11 @@ class HealthCheckerProcess : public ProtobufProcess<HealthCheckerProcess>
 {
 public:
   HealthCheckerProcess(
-    const HealthCheck& _check,
-    const UPID& _executor,
-    const TaskID& _taskID)
-    : check(_check),
+      const HealthCheck& _check,
+      const UPID& _executor,
+      const TaskID& _taskID)
+    : ProcessBase(process::ID::generate("health-checker")),
+      check(_check),
       initializing(true),
       executor(_executor),
       taskID(_taskID),

@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <process/delay.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/timer.hpp>
 
@@ -148,7 +149,9 @@ private:
 
 
 StatusUpdateManagerProcess::StatusUpdateManagerProcess(const Flags& _flags)
-  : flags(_flags), paused(false) {}
+  : ProcessBase(process::ID::generate("status-update-manager")),
+    flags(_flags),
+    paused(false) {}
 
 
 StatusUpdateManagerProcess::~StatusUpdateManagerProcess()
