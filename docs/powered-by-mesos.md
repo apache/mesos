@@ -12,6 +12,7 @@ layout: documentation
 * [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
 * [Artirix](http://www.artirix.com)
+* [Arukas](https://arukas.io)
 * [Astronomer](http://www.astronomer.io)
 * [Atigeo](http://www.atigeo.com)
 * [Atlassian](http://www.atlassian.com)
