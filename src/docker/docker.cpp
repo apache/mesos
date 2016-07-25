@@ -104,7 +104,7 @@ Try<Owned<Docker>> Docker::create(
     bool validate,
     const Option<JSON::Object>& config)
 {
-  if (!strings::startsWith(socket, "/")) {
+  if (!path::absolute(socket)) {
     return Error("Invalid Docker socket path: " + socket);
   }
 
@@ -560,7 +560,7 @@ Future<Option<int>> Docker::run(
     // The 'container_path' can be either an absolute path or a
     // relative path. If it is a relative path, it would be prefixed
     // with the container sandbox directory.
-    string volumeConfig = strings::startsWith(volume.container_path(), "/")
+    string volumeConfig = path::absolute(volume.container_path())
       ? volume.container_path()
       : path::join(mappedDirectory, volume.container_path());
 
@@ -569,15 +569,17 @@ Future<Option<int>> Docker::run(
       // If both 'host_path' and 'container_path' are relative paths,
       // return a failure because the user can just directly access the
       // volume in the sandbox.
-      if (!strings::startsWith(volume.host_path(), "/") &&
-          !strings::startsWith(volume.container_path(), "/")) {
+      if (!path::absolute(volume.host_path()) &&
+          !path::absolute(volume.container_path())) {
         return Failure(
-            "Both 'host_path' and 'container_path' of a volume are relative");
+            "Both host_path '" + volume.host_path() + "' " +
+            "and container_path '" + volume.container_path() + "' " +
+            "of a volume are relative");
       }
 
-      if (!strings::startsWith(volume.host_path(), "/") &&
+      if (!path::absolute(volume.host_path()) &&
           !dockerInfo.has_volume_driver()) {
-        // When volume dirver is empty and host path is a relative path, mapping
+        // When volume driver is empty and host path is a relative path, mapping
         // host path from the sandbox.
         volumeConfig =
           path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
