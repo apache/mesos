@@ -132,7 +132,7 @@ public interface SchedulerDriver {
    * @param filters     The filters to set for any remaining resources.
    *
    * @return            The state of the driver after the call.
-  *
+   *
    * @see OfferID
    * @see TaskInfo
    * @see Filters
