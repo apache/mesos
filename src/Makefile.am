@@ -2247,14 +2247,15 @@ EXTRA_DIST +=							\
 
 dist_check_SCRIPTS +=						\
   tests/balloon_framework_test.sh				\
+  tests/disk_full_framework_test.sh				\
   tests/dynamic_reservation_framework_test.sh			\
-  tests/test_http_framework_test.sh				\
   tests/java_exception_test.sh					\
   tests/java_framework_test.sh					\
   tests/java_log_test.sh					\
   tests/no_executor_framework_test.sh				\
   tests/persistent_volume_framework_test.sh			\
   tests/python_framework_test.sh				\
+  tests/test_http_framework_test.sh				\
   tests/test_framework_test.sh
 
 ../3rdparty/libgmock.la:
@@ -2264,13 +2265,14 @@ if INSTALL_TESTS
 testlibexec_PROGRAMS = $(check_PROGRAMS)
 dist_testlibexec_SCRIPTS =			\
   tests/balloon_framework_test.sh		\
-  tests/test_http_framework_test.sh		\
+  tests/disk_full_framework_test.sh		\
   tests/java_exception_test.sh			\
   tests/java_framework_test.sh			\
   tests/java_log_test.sh			\
   tests/no_executor_framework_test.sh		\
   tests/persistent_volume_framework_test.sh	\
   tests/python_framework_test.sh		\
+  tests/test_http_framework_test.sh		\
   tests/test_framework_test.sh
 
 endif
