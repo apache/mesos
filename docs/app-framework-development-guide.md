@@ -15,7 +15,7 @@ and Scala.
 
 ## Create your Framework Scheduler
 
-You can write a framework scheduler in C, C++, Java/Scala, or Python. Your
+You can write a framework scheduler in C++, Java/Scala, or Python. Your
 framework scheduler should inherit from the `Scheduler` class (see API below).
 Your scheduler should create a SchedulerDriver (which will mediate communication
 between your scheduler and the Mesos master) and then call
