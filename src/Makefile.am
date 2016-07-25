@@ -1895,6 +1895,11 @@ persistent_volume_framework_SOURCES = examples/persistent_volume_framework.cpp
 persistent_volume_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 persistent_volume_framework_LDADD = libmesos.la $(LDADD)
 
+check_PROGRAMS += disk-full-framework
+disk_full_framework_SOURCES = examples/disk_full_framework.cpp
+disk_full_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+disk_full_framework_LDADD = libmesos.la $(LDADD)
+
 if OS_LINUX
 check_PROGRAMS += setns-test-helper
 setns_test_helper_SOURCES =					\
