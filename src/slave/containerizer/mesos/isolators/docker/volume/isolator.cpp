@@ -491,7 +491,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target  << "' for container " << containerId;
 
-    const string command = "mount -n --rbind " + source + " " + target;
+    const string command = "mount -n --rbind '" + source + "' '" + target + "'";
 
     launchInfo.add_pre_exec_commands()->set_value(command);
   }
