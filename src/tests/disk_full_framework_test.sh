@@ -59,6 +59,11 @@ if [[ ${STATUS} -ne 0 ]]; then
   exit 2
 fi
 
+# Disable support for systemd as this test does not run as root.
+# This flag must be set as an environment variable because the flag
+# does not exist on non-Linux builds.
+export MESOS_SYSTEMD_ENABLE_SUPPORT=false
+
 # Launch agent.
 ${AGENT} \
     --work_dir=${MESOS_WORK_DIR} \
