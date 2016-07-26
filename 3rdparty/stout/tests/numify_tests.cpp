@@ -38,8 +38,9 @@ TEST(NumifyTest, HexNumberTest)
   Try<unsigned int> num2 = numify<unsigned int>("0x10");
   EXPECT_SOME_EQ(16u, num2);
 
-  // TODO(neilc): This is inconsistent with the handling of non-hex numbers.
-  EXPECT_ERROR(numify<int>("-0x10"));
+  // Keep it consistent with the handling of non-hex numbers.
+  Try<int> num3 = numify<int>("-0x10");
+  EXPECT_SOME_EQ(-0x10, num3);
 
   EXPECT_ERROR(numify<unsigned int>(""));
   EXPECT_ERROR(numify<unsigned int>("0xxyz"));
