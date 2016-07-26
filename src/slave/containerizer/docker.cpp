@@ -286,7 +286,7 @@ DockerContainerizerProcess::Container::create(
   bool symlinked = false;
   string containerWorkdir = directory;
   // We need to symlink the sandbox directory if the directory
-  // path has a colon, as Docker CLI uses the colon as a seperator.
+  // path has a colon, as Docker CLI uses the colon as a separator.
   if (strings::contains(directory, ":")) {
     containerWorkdir = path::join(dockerSymlinkPath, id.value());
 
