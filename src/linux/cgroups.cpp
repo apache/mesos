@@ -429,7 +429,7 @@ Try<string> prepare(
   if (hierarchy.isError()) {
     return Error(
         "Failed to determine the hierarchy where the subsystem " +
-        subsystem + " is attached");
+        subsystem + " is attached: " + hierarchy.error());
   }
 
   if (hierarchy.isNone()) {
