@@ -205,9 +205,14 @@ message MachineInfo {
  * Describes a framework.
  */
 message FrameworkInfo {
-  // Used to determine the Unix user that an executor or task should
-  // be launched as. If the user field is set to an empty string Mesos
-  // will automagically set it to the current user.
+  // Used to determine the Unix user that an executor or task should be
+  // launched as.
+  //
+  // When using the MesosSchedulerDriver, if the field is set to an
+  // empty string, it will automagically set it to the current user.
+  //
+  // When using the HTTP Scheduler API, the user has to be set
+  // explicitly.
   required string user = 1;
 
   // Name of the framework that shows up in the Mesos Web UI.
