@@ -315,7 +315,31 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
 Future<ContainerStatus> CgroupsIsolatorProcess::status(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Future<ContainerStatus>> statuses;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    statuses.push_back(subsystem->status(containerId));
+  }
+
+  return await(statuses)
+    .then([containerId](const list<Future<ContainerStatus>>& _statuses) {
+      ContainerStatus result;
+
+      foreach (const Future<ContainerStatus>& status, _statuses) {
+        if (status.isReady()) {
+          result.MergeFrom(status.get());
+        } else {
+          LOG(WARNING) << "Skipping status for container " << containerId
+                       << " because: "
+                       << (status.isFailed() ? status.failure() : "discarded");
+        }
+      }
+
+      return result;
+    });
 }
 
 
