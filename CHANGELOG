@@ -352,7 +352,6 @@ All Issues:
     * [MESOS-5382] - Implement os::fsync
     * [MESOS-5383] - Implement os::setHostname
     * [MESOS-5386] - Add `HANDLE` overloads for functions that take a file descriptor
-    * [MESOS-5388] - MesosContainerizerLaunch flags execute arbitrary commands via shell
     * [MESOS-5389] - docker containerizer should prefix relative volume.container_path values with the path to the sandbox.
     * [MESOS-5390] - v1 Executor Protos not included in maven jar
     * [MESOS-5397] - Slave/Agent Rename Phase 1: Update terms in the website
