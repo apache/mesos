@@ -64,7 +64,7 @@ Duration MAX_REAP_INTERVAL() { return Seconds(1); }
 class ReaperProcess : public Process<ReaperProcess>
 {
 public:
-  ReaperProcess() : ProcessBase(ID::generate("reaper")) {}
+  ReaperProcess() : ProcessBase(ID::generate("__reaper__")) {}
 
   Future<Option<int> > reap(pid_t pid)
   {

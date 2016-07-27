@@ -25,7 +25,7 @@ class Profiler : public Process<Profiler>
 {
 public:
   Profiler(const Option<std::string>& _authenticationRealm)
-    : ProcessBase("profiler"),
+    : ProcessBase("__profiler__"),
       started(false),
       authenticationRealm(_authenticationRealm) {}
 
