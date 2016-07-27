@@ -1583,14 +1583,14 @@ TYPED_TEST(AuthorizationTest, ViewFramework)
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
-  // Create FrameworkInfo with a generic user as object to authorized.
+  // Create FrameworkInfo with a generic user as object to be authorized.
   FrameworkInfo frameworkInfo;
   {
     frameworkInfo.set_user("user");
     frameworkInfo.set_name("f");
   }
 
-  // Create FrameworkInfo with user "bar" as object to authorized.
+  // Create FrameworkInfo with user "bar" as object to be authorized.
   FrameworkInfo frameworkInfoBar;
   {
     frameworkInfoBar.set_user("bar");
@@ -1768,14 +1768,14 @@ TYPED_TEST(AuthorizationTest, ViewTask)
     taskBar.set_user("bar");
   }
 
-  // Create FrameworkInfo with a generic user as object to authorized.
+  // Create FrameworkInfo with a generic user as object to be authorized.
   FrameworkInfo frameworkInfo;
   {
     frameworkInfo.set_user("user");
     frameworkInfo.set_name("f");
   }
 
-  // Create FrameworkInfo with user "bar" as object to authorized.
+  // Create FrameworkInfo with user "bar" as object to be authorized.
   FrameworkInfo frameworkInfoBar;
   {
     frameworkInfoBar.set_user("bar");
@@ -2001,14 +2001,14 @@ TYPED_TEST(AuthorizationTest, ViewExecutor)
     executorInfoNoUser.mutable_command()->set_value("echo hello");
   }
 
-  // Create FrameworkInfo with a generic user as object to authorized.
+  // Create FrameworkInfo with a generic user as object to be authorized.
   FrameworkInfo frameworkInfo;
   {
     frameworkInfo.set_user("user");
     frameworkInfo.set_name("f");
   }
 
-  // Create FrameworkInfo with user "bar" as object to authorized.
+  // Create FrameworkInfo with user "bar" as object to be authorized.
   FrameworkInfo frameworkInfoBar;
   {
     frameworkInfoBar.set_user("bar");
@@ -2086,7 +2086,7 @@ TYPED_TEST(AuthorizationTest, ViewExecutor)
 }
 
 
-// This tests the authorization of sandboxe access.
+// This tests the authorization of sandbox access.
 TYPED_TEST(AuthorizationTest, SandBoxAccess)
 {
   // Setup ACLs.
@@ -2154,14 +2154,14 @@ TYPED_TEST(AuthorizationTest, SandBoxAccess)
     executorInfoNoUser.mutable_command()->set_value("echo hello");
   }
 
-  // Create FrameworkInfo with a generic user as object to authorized.
+  // Create FrameworkInfo with a generic user as object to be authorized.
   FrameworkInfo frameworkInfo;
   {
     frameworkInfo.set_user("user");
     frameworkInfo.set_name("f");
   }
 
-  // Create FrameworkInfo with user "bar" as object to authorized.
+  // Create FrameworkInfo with user "bar" as object to be authorized.
   FrameworkInfo frameworkInfoBar;
   {
     frameworkInfoBar.set_user("bar");
@@ -2313,7 +2313,6 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
-
   {
     authorization::Request request;
     request.set_action(authorization::VIEW_FLAGS);
@@ -2393,7 +2392,7 @@ TYPED_TEST(AuthorizationTest, ValidateEndpoints)
 // This tests the authorization of requests to ViewRole.
 TYPED_TEST(AuthorizationTest, ViewRole)
 {
-    // Setup ACLs.
+  // Setup ACLs.
   ACLs acls;
 
   {

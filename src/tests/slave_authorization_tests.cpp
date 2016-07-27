@@ -142,7 +142,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   Try<Owned<cluster::Master>> master = this->StartMaster(authorizer.get());
   ASSERT_SOME(master);
 
-  // Resgister framework with user "bar".
+  // Register framework with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");
   frameworkInfo.set_user("bar");
