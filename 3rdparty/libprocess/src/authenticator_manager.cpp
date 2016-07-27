@@ -55,7 +55,7 @@ private:
 
 
 AuthenticatorManagerProcess::AuthenticatorManagerProcess()
-  : ProcessBase(ID::generate("AuthenticationRouter")) {}
+  : ProcessBase(ID::generate("authentication-router")) {}
 
 
 Future<Nothing> AuthenticatorManagerProcess::setAuthenticator(
