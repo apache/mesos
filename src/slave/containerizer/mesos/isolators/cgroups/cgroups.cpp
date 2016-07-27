@@ -267,7 +267,16 @@ Future<Nothing> CgroupsIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Future<Nothing>> updates;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    updates.push_back(subsystem->update(containerId, resources));
+  }
+
+  return collect(updates).then([]() { return Nothing(); });
 }
 
 
