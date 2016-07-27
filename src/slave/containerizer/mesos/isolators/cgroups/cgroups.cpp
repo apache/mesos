@@ -14,8 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
+#include <process/collect.hpp>
+#include <process/defer.hpp>
+#include <process/pid.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
@@ -31,9 +40,11 @@ using mesos::slave::Isolator;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::PID;
 
 using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -125,7 +136,83 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  return Failure("Not implemented.");
+  if (infos.contains(containerId)) {
+    return Failure("Container has already been prepared");
+  }
+
+  // We save 'Info' into 'infos' first so that even if 'prepare'
+  // fails, we can properly cleanup the *side effects* created below.
+  infos[containerId] = Owned<Info>(new Info(
+      containerId,
+      path::join(flags.cgroups_root, containerId.value())));
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    string path = path::join(hierarchy, infos[containerId]->cgroup);
+
+    VLOG(1) << "Creating cgroup at '" << path << "' "
+            << "for container " << containerId;
+
+    Try<bool> exists = cgroups::exists(
+        hierarchy,
+        infos[containerId]->cgroup);
+
+    if (exists.isError()) {
+      return Failure(
+          "Failed to check the existence of cgroup at "
+          "'" + path + "': " + exists.error());
+    } else if (exists.get()) {
+      return Failure("The cgroup at '" + path + "' already exists");
+    }
+
+    Try<Nothing> create = cgroups::create(
+        hierarchy,
+        infos[containerId]->cgroup);
+
+    if (create.isError()) {
+      return Failure(
+          "Failed to create the cgroup at "
+          "'" + path + "': " + create.error());
+    }
+
+    // Chown the cgroup so the executor can create nested cgroups. Do
+    // not recurse so the control files are still owned by the slave
+    // user and thus cannot be changed by the executor.
+    //
+    // TODO(haosdent): Multiple tasks under the same user can change
+    // cgroups settings for each other. A better solution is using
+    // cgroups namespaces and user namespaces to achieve the goal.
+    if (containerConfig.has_user()) {
+      Try<Nothing> chown = os::chown(
+          containerConfig.user(),
+          path,
+          false);
+
+      if (chown.isError()) {
+        return Failure(
+            "Failed to chown the cgroup at "
+            "'" + path + "': " + chown.error());
+      }
+    }
+  }
+
+  list<Future<Nothing>> prepares;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    prepares.push_back(subsystem->prepare(containerId));
+  }
+
+  // TODO(haosdent): Here we assume the command executor's resources
+  // include the task's resources. Revisit here if this semantics
+  // changes.
+  return collect(prepares)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::update,
+        containerId,
+        containerConfig.executor_info().resources()))
+    .then([]() -> Future<Option<ContainerLaunchInfo>> {
+      return None();
+    });
 }
 
 
