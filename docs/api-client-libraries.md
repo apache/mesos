@@ -42,6 +42,11 @@ run into any issues, file them with the library maintainers.*
   mesos-go</a></td>
   <td>Go</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/nokia/mesos-scala-api">
+  mesos-scala-api</a></td>
+  <td>Scala</td>
+</tr>
 </table>
 
 ## Executor API
