@@ -59,7 +59,7 @@ class CRAMMD5AuthenticatorSessionProcess :
 {
 public:
   explicit CRAMMD5AuthenticatorSessionProcess(const UPID& _pid)
-    : ProcessBase(ID::generate("crammd5_authenticator_session")),
+    : ProcessBase(ID::generate("crammd5-authenticator-session")),
       status(READY),
       pid(_pid),
       connection(nullptr) {}
@@ -405,7 +405,7 @@ class CRAMMD5AuthenticatorProcess :
 {
 public:
   CRAMMD5AuthenticatorProcess() :
-    ProcessBase(ID::generate("crammd5_authenticator")) {}
+    ProcessBase(ID::generate("crammd5-authenticator")) {}
 
   virtual ~CRAMMD5AuthenticatorProcess() {}
 

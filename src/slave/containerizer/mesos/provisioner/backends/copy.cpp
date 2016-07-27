@@ -19,6 +19,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
@@ -45,6 +46,9 @@ namespace slave {
 class CopyBackendProcess : public Process<CopyBackendProcess>
 {
 public:
+  CopyBackendProcess()
+    : ProcessBase(process::ID::generate("copy-provisioner-backend")) {}
+
   Future<Nothing> provision(const vector<string>& layers, const string& rootfs);
 
   Future<bool> destroy(const string& rootfs);

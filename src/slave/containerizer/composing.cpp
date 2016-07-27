@@ -20,6 +20,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -48,7 +49,8 @@ class ComposingContainerizerProcess
 public:
   ComposingContainerizerProcess(
       const vector<Containerizer*>& containerizers)
-    : containerizers_(containerizers) {}
+    : ProcessBase(process::ID::generate("composing-containerizer")),
+      containerizers_(containerizers) {}
 
   virtual ~ComposingContainerizerProcess();
 

@@ -23,6 +23,7 @@
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
+#include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
@@ -278,7 +279,8 @@ class DockerFetcherPluginProcess : public Process<DockerFetcherPluginProcess>
 public:
   DockerFetcherPluginProcess(
       const hashmap<string, spec::Config::Auth>& _auths)
-    : auths(_auths) {}
+    : ProcessBase(process::ID::generate("docker-fetcher-plugin")),
+      auths(_auths) {}
 
   Future<Nothing> fetch(const URI& uri, const string& directory);
 

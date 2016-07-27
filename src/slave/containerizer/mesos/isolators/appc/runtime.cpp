@@ -19,6 +19,8 @@
 
 #include <glog/logging.h>
 
+#include <process/id.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
@@ -47,7 +49,8 @@ namespace internal {
 namespace slave {
 
 AppcRuntimeIsolatorProcess::AppcRuntimeIsolatorProcess(const Flags& _flags)
-  : flags(_flags) {}
+  : ProcessBase(process::ID::generate("appc-runtime-isolator")),
+    flags(_flags) {}
 
 
 AppcRuntimeIsolatorProcess::~AppcRuntimeIsolatorProcess() {}

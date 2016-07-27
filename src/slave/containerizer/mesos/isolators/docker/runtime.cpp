@@ -19,6 +19,8 @@
 
 #include <glog/logging.h>
 
+#include <process/id.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
@@ -50,7 +52,8 @@ namespace slave {
 
 DockerRuntimeIsolatorProcess::DockerRuntimeIsolatorProcess(
     const Flags& _flags)
-  : flags(_flags) {}
+  : ProcessBase(process::ID::generate("docker-runtime-isolator")),
+    flags(_flags) {}
 
 
 DockerRuntimeIsolatorProcess::~DockerRuntimeIsolatorProcess() {}

@@ -22,6 +22,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -57,7 +58,8 @@ public:
       const lambda::function<Try<os::Load>()>& _loadAverage,
       const Option<double>& _loadThreshold5Min,
       const Option<double>& _loadThreshold15Min)
-    : usage(_usage),
+    : ProcessBase(process::ID::generate("qos-load-controller")),
+      usage(_usage),
       loadAverage(_loadAverage),
       loadThreshold5Min(_loadThreshold5Min),
       loadThreshold15Min(_loadThreshold15Min) {}

@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <process/id.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
@@ -43,7 +45,8 @@ CgroupsIsolatorProcess::CgroupsIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
     const multihashmap<string, Owned<Subsystem>>& _subsystems)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-isolator")),
+    flags(_flags),
     hierarchies(_hierarchies),
     subsystems(_subsystems) {}
 

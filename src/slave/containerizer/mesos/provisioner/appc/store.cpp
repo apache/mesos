@@ -21,6 +21,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 
 #include <stout/check.hpp>
 #include <stout/hashmap.hpp>
@@ -163,7 +164,8 @@ StoreProcess::StoreProcess(
     const string& _rootDir,
     Owned<Cache> _cache,
     Owned<Fetcher> _fetcher)
-  : rootDir(_rootDir),
+  : ProcessBase(process::ID::generate("appc-provisioner-store")),
+    rootDir(_rootDir),
     cache(_cache),
     fetcher(_fetcher) {}
 

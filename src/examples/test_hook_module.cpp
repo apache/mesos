@@ -21,6 +21,7 @@
 #include <mesos/module/hook.hpp>
 
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -48,6 +49,8 @@ const char* testErrorLabelKey = "MESOS_Test_Error_Label";
 class HookProcess : public ProtobufProcess<HookProcess>
 {
 public:
+  HookProcess() : ProcessBase(process::ID::generate("example-hook")) {}
+
   void initialize()
   {
     install<internal::HookExecuted>(

@@ -30,6 +30,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
+#include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
 
@@ -99,7 +100,9 @@ PosixDiskIsolatorProcess::Info::PathInfo::~PathInfo()
 
 
 PosixDiskIsolatorProcess::PosixDiskIsolatorProcess(const Flags& _flags)
-  : flags(_flags), collector(flags.container_disk_watch_interval) {}
+  : ProcessBase(process::ID::generate("posix-disk-isolator")),
+    flags(_flags),
+    collector(flags.container_disk_watch_interval) {}
 
 
 PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
@@ -380,7 +383,9 @@ Future<Nothing> PosixDiskIsolatorProcess::cleanup(
 class DiskUsageCollectorProcess : public Process<DiskUsageCollectorProcess>
 {
 public:
-  DiskUsageCollectorProcess(const Duration& _interval) : interval(_interval) {}
+  DiskUsageCollectorProcess(const Duration& _interval)
+    : ProcessBase(process::ID::generate("posix-disk-usage-collector")),
+      interval(_interval) {}
   virtual ~DiskUsageCollectorProcess() {}
 
   Future<Bytes> usage(
