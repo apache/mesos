@@ -220,7 +220,35 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Failed to isolate the container: Unknown container");
+  }
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    Try<Nothing> assign = cgroups::assign(
+        hierarchy,
+        infos[containerId]->cgroup,
+        pid);
+
+    if (assign.isError()) {
+      string message =
+        "Failed to assign pid " + stringify(pid) + " to cgroup at "
+        "'" + path::join(hierarchy, infos[containerId]->cgroup) + "'"
+        ": " + assign.error();
+
+      LOG(ERROR) << message;
+
+      return Failure(message);
+    }
+  }
+
+  list<Future<Nothing>> isolates;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    isolates.push_back(subsystem->isolate(containerId, pid));
+  }
+
+  return collect(isolates).then([]() { return Nothing(); });
 }
 
 
