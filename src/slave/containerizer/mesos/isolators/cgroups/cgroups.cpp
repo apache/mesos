@@ -255,7 +255,11 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
 Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  return infos[containerId]->limitation.future();
 }
 
 
