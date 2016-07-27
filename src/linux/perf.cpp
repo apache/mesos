@@ -79,7 +79,9 @@ inline string normalize(const string& s)
 class Perf : public Process<Perf>
 {
 public:
-  Perf(const vector<string>& _argv) : argv(_argv)
+  Perf(const vector<string>& _argv)
+    : ProcessBase(process::ID::generate("perf")),
+      argv(_argv)
   {
     // The first argument should be 'perf'. Note that this is
     // a bit hacky because this class is specialized to only

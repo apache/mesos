@@ -24,6 +24,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
@@ -51,6 +52,9 @@ class SandboxContainerLoggerProcess :
   public Process<SandboxContainerLoggerProcess>
 {
 public:
+  SandboxContainerLoggerProcess()
+    : ProcessBase(process::ID::generate("sandbox-logger")) {}
+
   Future<Nothing> recover(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory)

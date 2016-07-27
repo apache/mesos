@@ -48,6 +48,8 @@ const char* testErrorLabelKey = "MESOS_Test_Error_Label";
 class HookProcess : public ProtobufProcess<HookProcess>
 {
 public:
+  HookProcess() : ProcessBase(process::ID::generate("example-hook")) {}
+
   void initialize()
   {
     install<internal::HookExecuted>(

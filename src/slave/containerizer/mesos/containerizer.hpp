@@ -126,7 +126,8 @@ public:
       const process::Owned<Launcher>& _launcher,
       const process::Owned<Provisioner>& _provisioner,
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("mesos-containerizer")),
+      flags(_flags),
       local(_local),
       fetcher(_fetcher),
       logger(_logger),
@@ -298,6 +299,9 @@ private:
 
   struct Container
   {
+    Container() :
+      sequence("mesos-container-status-updates-sequence") {}
+
     // Promise for futures returned from wait().
     process::Promise<containerizer::Termination> promise;
 

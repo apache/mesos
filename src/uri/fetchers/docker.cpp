@@ -278,7 +278,8 @@ class DockerFetcherPluginProcess : public Process<DockerFetcherPluginProcess>
 public:
   DockerFetcherPluginProcess(
       const hashmap<string, spec::Config::Auth>& _auths)
-    : auths(_auths) {}
+    : ProcessBase(process::ID::generate("docker-fetcher-plugin")),
+      auths(_auths) {}
 
   Future<Nothing> fetch(const URI& uri, const string& directory);
 

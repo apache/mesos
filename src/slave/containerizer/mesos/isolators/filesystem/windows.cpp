@@ -28,7 +28,8 @@ namespace slave {
 
 WindowsFilesystemIsolatorProcess::WindowsFilesystemIsolatorProcess(
     const Flags& _flags)
-  : PosixFilesystemIsolatorProcess(_flags) {}
+  : ProcessBase(process::ID::generate("windows-filesystem-isolator")),
+    PosixFilesystemIsolatorProcess(_flags) {}
 
 Try<Isolator*> WindowsFilesystemIsolatorProcess::create(const Flags& flags)
 {

@@ -95,7 +95,8 @@ static const char* DEFAULT_WHITELIST_ENTRIES[] = {
 CgroupsDevicesIsolatorProcess::CgroupsDevicesIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-devices-isolator")),
+    flags(_flags),
     hierarchy(_hierarchy) {}
 
 

@@ -1192,7 +1192,8 @@ public:
            const string& _cgroup,
            const string& _control,
            const Option<string>& _args)
-    : hierarchy(_hierarchy),
+    : ProcessBase(process::ID::generate("cgroups-listener")),
+      hierarchy(_hierarchy),
       cgroup(_cgroup),
       control(_control),
       args(_args),
@@ -1382,7 +1383,8 @@ public:
   Freezer(
       const string& _hierarchy,
       const string& _cgroup)
-    : hierarchy(_hierarchy),
+    : ProcessBase(process::ID::generate("cgroups-freezer")),
+      hierarchy(_hierarchy),
       cgroup(_cgroup),
       start(Clock::now()) {}
 
@@ -1482,7 +1484,9 @@ class TasksKiller : public Process<TasksKiller>
 {
 public:
   TasksKiller(const string& _hierarchy, const string& _cgroup)
-    : hierarchy(_hierarchy), cgroup(_cgroup) {}
+    : ProcessBase(process::ID::generate("cgroups-tasks-killer")),
+      hierarchy(_hierarchy),
+      cgroup(_cgroup) {}
 
   virtual ~TasksKiller() {}
 
@@ -1621,7 +1625,9 @@ class Destroyer : public Process<Destroyer>
 {
 public:
   Destroyer(const string& _hierarchy, const vector<string>& _cgroups)
-    : hierarchy(_hierarchy), cgroups(_cgroups) {}
+    : ProcessBase(process::ID::generate("cgroups-destroyer")),
+      hierarchy(_hierarchy),
+      cgroups(_cgroups) {}
 
   virtual ~Destroyer() {}
 
@@ -2313,7 +2319,8 @@ public:
   CounterProcess(const string& hierarchy,
                  const string& cgroup,
                  Level level)
-    : value_(0),
+    : ProcessBase(process::ID::generate("cgroups-counter")),
+      value_(0),
       error(None()),
       process(new event::Listener(
           hierarchy,

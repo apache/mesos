@@ -56,7 +56,8 @@ public:
       const Flags& _flags,
       const Owned<MetadataManager>& _metadataManager,
       const Owned<Puller>& _puller)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("docker-provisioner-store")),
+      flags(_flags),
       metadataManager(_metadataManager),
       puller(_puller) {}
 

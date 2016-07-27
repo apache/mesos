@@ -50,7 +50,8 @@ DockerVolumeIsolatorProcess::DockerVolumeIsolatorProcess(
     const Flags& _flags,
     const string& _rootDir,
     const Owned<DriverClient>& _client)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("docker-volume-isolator")),
+    flags(_flags),
     rootDir(_rootDir),
     client(_client) {}
 

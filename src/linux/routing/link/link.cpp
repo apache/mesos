@@ -149,7 +149,9 @@ namespace internal {
 class ExistenceChecker : public Process<ExistenceChecker>
 {
 public:
-  ExistenceChecker(const string& _link) : link(_link) {}
+  ExistenceChecker(const string& _link)
+    : ProcessBase(process::ID::generate("link-existence-checker")),
+      link(_link) {}
 
   virtual ~ExistenceChecker() {}
 

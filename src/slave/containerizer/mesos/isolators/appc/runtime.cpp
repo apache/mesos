@@ -47,7 +47,8 @@ namespace internal {
 namespace slave {
 
 AppcRuntimeIsolatorProcess::AppcRuntimeIsolatorProcess(const Flags& _flags)
-  : flags(_flags) {}
+  : ProcessBase(process::ID::generate("appc-runtime-isolator")),
+    flags(_flags) {}
 
 
 AppcRuntimeIsolatorProcess::~AppcRuntimeIsolatorProcess() {}

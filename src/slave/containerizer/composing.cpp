@@ -48,7 +48,8 @@ class ComposingContainerizerProcess
 public:
   ComposingContainerizerProcess(
       const vector<Containerizer*>& containerizers)
-    : containerizers_(containerizers) {}
+    : ProcessBase(process::ID::generate("composing-containerizer")),
+      containerizers_(containerizers) {}
 
   virtual ~ComposingContainerizerProcess();
 

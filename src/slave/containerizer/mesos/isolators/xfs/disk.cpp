@@ -150,7 +150,8 @@ Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
 XfsDiskIsolatorProcess::XfsDiskIsolatorProcess(
     const Flags& _flags,
     const IntervalSet<prid_t>& projectIds)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("xfs-disk-isolator")),
+    flags(_flags),
     totalProjectIds(projectIds),
     freeProjectIds(projectIds)
 {

@@ -50,7 +50,8 @@ namespace slave {
 
 DockerRuntimeIsolatorProcess::DockerRuntimeIsolatorProcess(
     const Flags& _flags)
-  : flags(_flags) {}
+  : ProcessBase(process::ID::generate("docker-runtime-isolator")),
+    flags(_flags) {}
 
 
 DockerRuntimeIsolatorProcess::~DockerRuntimeIsolatorProcess() {}

@@ -57,7 +57,8 @@ public:
   }
 
 private:
-  WindowsCpuIsolatorProcess() {}
+  WindowsCpuIsolatorProcess()
+    : ProcessBase(process::ID::generate("windows-cpu-isolator")) {}
 };
 
 
@@ -78,7 +79,8 @@ public:
   }
 
 private:
-  WindowsMemIsolatorProcess() {}
+  WindowsMemIsolatorProcess()
+    : ProcessBase(process::ID::generate("windows-mem-isolator")) {}
 };
 
 } // namespace slave {
