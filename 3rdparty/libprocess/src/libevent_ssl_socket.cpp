@@ -97,19 +97,18 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
   // calls and structures. This is a safety against the socket being
   // destroyed before existing event loop calls have completed since
   // they require valid data structures (the weak pointer).
+  //
+  // Release ownership of the file descriptor so that
+  // we can defer closing the socket.
+  int fd = release();
+  CHECK(fd >= 0);
 
-  // Copy the members that we are interested in. This is necessary
-  // because 'this' points to memory that may be re-allocated and
-  // invalidate any reference to 'this->XXX'. We want to manipulate
-  // or use these data structures within the finalization lambda
-  // below.
   evconnlistener* _listener = listener;
   bufferevent* _bev = bev;
   std::weak_ptr<LibeventSSLSocketImpl>* _event_loop_handle = event_loop_handle;
-  int ssl_socket_fd = ssl_connect_fd;
 
   run_in_event_loop(
-      [_listener, _bev, _event_loop_handle, ssl_socket_fd]() {
+      [_listener, _bev, _event_loop_handle, fd]() {
         // Once this lambda is called, it should not be possible for
         // more event loop callbacks to be triggered with 'this->bev'.
         // This is important because we delete event_loop_handle which
@@ -133,22 +132,11 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
           // NOTE: Removes all future callbacks using 'this->bev'.
           bufferevent_disable(_bev, EV_READ | EV_WRITE);
 
-          // Clean up the ssl object.
           SSL_free(ssl);
-
-          // Clean up the buffer event. Since we don't set
-          // 'BEV_OPT_CLOSE_ON_FREE' we rely on the base class
-          // 'Socket::Impl' to clean up the fd.
           bufferevent_free(_bev);
         }
 
-        if (ssl_socket_fd >= 0) {
-          Try<Nothing> close = os::close(ssl_socket_fd);
-          if (close.isError()) {
-            LOG(WARNING) << "Failed to close socket "
-                         << stringify(ssl_socket_fd) << ": " << close.error();
-          }
-        }
+        CHECK_SOME(os::close(fd)) << "Failed to close socket";
 
         delete _event_loop_handle;
       },
@@ -447,8 +435,7 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
     recv_request(nullptr),
     send_request(nullptr),
     connect_request(nullptr),
-    event_loop_handle(nullptr),
-    ssl_connect_fd(-1) {}
+    event_loop_handle(nullptr) {}
 
 
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(
@@ -462,8 +449,7 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     send_request(nullptr),
     connect_request(nullptr),
     event_loop_handle(nullptr),
-    peer_hostname(std::move(_peer_hostname)),
-    ssl_connect_fd(-1) {}
+    peer_hostname(std::move(_peer_hostname)) {}
 
 
 Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
@@ -481,26 +467,13 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     return Failure("Failed to connect: SSL_new");
   }
 
-  ssl_connect_fd = ::dup(get());
-  if (ssl_connect_fd < 0) {
-    return Failure("Failed to 'dup' socket for new openssl socket handle");
-  }
-
-  // Reapply FD_CLOEXEC on the duplicate file descriptor.
-  Try<Nothing> closeexec = os::cloexec(ssl_connect_fd);
-  if (closeexec.isError()) {
-    return Failure(
-        "Failed to set FD_CLOEXEC flag for the dup'ed openssl socket handle: " +
-        closeexec.error());
-  }
-
   // Construct the bufferevent in the connecting state.
   // We set 'BEV_OPT_DEFER_CALLBACKS' to avoid calling the
   // 'event_callback' before 'bufferevent_socket_connect' returns.
   CHECK(bev == nullptr);
   bev = bufferevent_openssl_socket_new(
       base,
-      ssl_connect_fd,
+      s,
       ssl,
       BUFFEREVENT_SSL_CONNECTING,
       BEV_OPT_THREADSAFE | BEV_OPT_DEFER_CALLBACKS);
