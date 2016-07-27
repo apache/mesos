@@ -24,6 +24,7 @@
 
 #include <mesos/module/authorizer.hpp>
 
+#include <process/clock.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
@@ -46,6 +47,7 @@ using mesos::internal::slave::Slave;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 
@@ -295,6 +297,11 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
     this->StartSlave(&detector, authorizer.get());
 
   ASSERT_SOME(agent);
+
+  // Ensure that the slave has finished recovery.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   // The default principal should be able to access the flags.
   {
