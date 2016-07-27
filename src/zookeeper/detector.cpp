@@ -63,7 +63,7 @@ private:
 
 
 LeaderDetectorProcess::LeaderDetectorProcess(Group* _group)
-  : ProcessBase(ID::generate("leader-detector")),
+  : ProcessBase(ID::generate("zookeeper-leader-detector")),
     group(_group),
     leader(None()) {}
 
