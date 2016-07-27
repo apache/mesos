@@ -18,6 +18,7 @@
 #define __POSIX_ISOLATOR_HPP__
 
 #include <process/future.hpp>
+#include <process/id.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
@@ -165,7 +166,8 @@ public:
   }
 
 protected:
-  PosixCpuIsolatorProcess() {}
+  PosixCpuIsolatorProcess()
+    : ProcessBase(process::ID::generate("posix-cpu-isolator")) {}
 };
 
 class PosixMemIsolatorProcess : public PosixIsolatorProcess
@@ -198,7 +200,8 @@ public:
   }
 
 protected:
-  PosixMemIsolatorProcess() {}
+  PosixMemIsolatorProcess()
+    : ProcessBase(process::ID::generate("posix-mem-isolator")) {}
 };
 
 } // namespace slave {

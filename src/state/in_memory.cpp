@@ -22,6 +22,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
@@ -43,6 +44,9 @@ namespace state {
 class InMemoryStorageProcess : public Process<InMemoryStorageProcess>
 {
 public:
+  InMemoryStorageProcess()
+    : ProcessBase(process::ID::generate("in-memory-storage")) {}
+
   Option<Entry> get(const string& name)
   {
     return entries.get(name);

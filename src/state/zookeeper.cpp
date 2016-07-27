@@ -32,6 +32,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/duration.hpp>
@@ -179,7 +180,8 @@ ZooKeeperStorageProcess::ZooKeeperStorageProcess(
     const Duration& _timeout,
     const string& _znode,
     const Option<Authentication>& _auth)
-  : servers(_servers),
+  : ProcessBase(process::ID::generate("zookeeper-storage")),
+    servers(_servers),
     timeout(_timeout),
     znode(strings::remove(_znode, "/", strings::SUFFIX)),
     auth(_auth),

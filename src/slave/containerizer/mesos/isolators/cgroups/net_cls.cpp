@@ -353,7 +353,8 @@ CgroupsNetClsIsolatorProcess::CgroupsNetClsIsolatorProcess(
     const string& _hierarchy,
     const IntervalSet<uint32_t>& primaries,
     const IntervalSet<uint32_t>& secondaries)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-net-cls-isolator")),
+    flags(_flags),
     hierarchy(_hierarchy)
 {
   if (!primaries.empty()) {

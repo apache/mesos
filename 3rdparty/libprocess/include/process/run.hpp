@@ -15,6 +15,7 @@
 
 #include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/lambda.hpp>
@@ -30,7 +31,8 @@ class ThunkProcess : public Process<ThunkProcess<R>>
 public:
   ThunkProcess(std::shared_ptr<lambda::function<R()>> _thunk,
                std::shared_ptr<Promise<R>> _promise)
-    : thunk(_thunk),
+    : ProcessBase(ID::generate("__thunk__")),
+      thunk(_thunk),
       promise(_promise) {}
 
   virtual ~ThunkProcess() {}

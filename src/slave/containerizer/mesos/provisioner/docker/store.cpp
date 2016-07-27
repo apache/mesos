@@ -26,6 +26,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 
 #include <mesos/docker/spec.hpp>
 
@@ -56,7 +57,8 @@ public:
       const Flags& _flags,
       const Owned<MetadataManager>& _metadataManager,
       const Owned<Puller>& _puller)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("docker-provisioner-store")),
+      flags(_flags),
       metadataManager(_metadataManager),
       puller(_puller) {}
 

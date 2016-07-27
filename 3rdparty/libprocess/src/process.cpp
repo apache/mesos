@@ -1176,7 +1176,7 @@ void HttpProxy::initialize()
   // constructor in order to prevent a deadlock between the
   // SocketManager and the ProcessManager (see the comment in
   // SocketManager::proxy).
-  authentications.reset(new Sequence());
+  authentications.reset(new Sequence("__authentications__"));
 }
 
 
@@ -3344,7 +3344,7 @@ void ProcessBase::visit(const HttpEvent& event)
   // Lazily initialize the Sequence needed for ordering requests
   // across authentication and authorization.
   if (handlers.httpSequence.get() == nullptr) {
-    handlers.httpSequence.reset(new Sequence());
+    handlers.httpSequence.reset(new Sequence("__auth_handlers__"));
   }
 
   CHECK(event.request->url.path.find('/') == 0); // See ProcessManager::handle.

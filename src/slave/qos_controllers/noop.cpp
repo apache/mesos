@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/error.hpp>
@@ -36,7 +37,8 @@ class NoopQoSControllerProcess : public Process<NoopQoSControllerProcess>
 public:
   virtual ~NoopQoSControllerProcess() {}
 
-  NoopQoSControllerProcess() {}
+  NoopQoSControllerProcess()
+    : ProcessBase(process::ID::generate("qos-noop-controller")) {}
 };
 
 

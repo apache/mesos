@@ -17,6 +17,8 @@
 #include <list>
 #include <string>
 
+#include <process/id.hpp>
+
 #include <stout/fs.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -42,7 +44,8 @@ namespace slave {
 
 PosixFilesystemIsolatorProcess::PosixFilesystemIsolatorProcess(
     const Flags& _flags)
-  : flags(_flags) {}
+  : ProcessBase(process::ID::generate("posix-filesystem-isolator")),
+    flags(_flags) {}
 
 
 PosixFilesystemIsolatorProcess::~PosixFilesystemIsolatorProcess() {}

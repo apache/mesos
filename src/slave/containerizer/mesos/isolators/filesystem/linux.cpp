@@ -21,6 +21,7 @@
 #include <glog/logging.h>
 
 #include <process/collect.hpp>
+#include <process/id.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -199,7 +200,8 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
 
 LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
     const Flags& _flags)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("linux-filesystem-isolator")),
+    flags(_flags),
     metrics(PID<LinuxFilesystemIsolatorProcess>(this)) {}
 
 

@@ -20,6 +20,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -40,7 +41,8 @@ public:
   FixedResourceEstimatorProcess(
       const lambda::function<Future<ResourceUsage>()>& _usage,
       const Resources& _totalRevocable)
-    : usage(_usage),
+    : ProcessBase(process::ID::generate("fixed-resource-estimator")),
+      usage(_usage),
       totalRevocable(_totalRevocable) {}
 
   Future<Resources> oversubscribable()
