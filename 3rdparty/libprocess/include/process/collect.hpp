@@ -65,7 +65,8 @@ public:
   CollectProcess(
       const std::list<Future<T>>& _futures,
       Promise<std::list<T>>* _promise)
-    : futures(_futures),
+    : ProcessBase(ID::generate("__collect__")),
+      futures(_futures),
       promise(_promise),
       ready(0) {}
 
@@ -131,7 +132,8 @@ public:
   AwaitProcess(
       const std::list<Future<T>>& _futures,
       Promise<std::list<Future<T>>>* _promise)
-    : futures(_futures),
+    : ProcessBase(process::ID::generate("__await__")),
+      futures(_futures),
       promise(_promise),
       ready(0) {}
 
