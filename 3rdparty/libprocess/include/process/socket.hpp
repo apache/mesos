@@ -106,11 +106,9 @@ public:
   public:
     virtual ~Impl()
     {
-      CHECK(s >= 0);
-      Try<Nothing> close = os::close(s);
-      if (close.isError()) {
-        ABORT("Failed to close socket " +
-              stringify(s) + ": " + close.error());
+      // Don't close if the socket was released.
+      if (s >= 0) {
+        CHECK_SOME(os::close(s)) << "Failed to close socket";
       }
     }
 
@@ -227,6 +225,19 @@ public:
 
   protected:
     explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
+
+    /**
+     * Releases ownership of the file descriptor. Not exposed
+     * via the `Socket` interface as this is only intended to
+     * support `Socket::Impl` implementations that need to
+     * override the file descriptor ownership.
+     */
+    int release()
+    {
+      int released = s;
+      s = -1;
+      return released;
+    }
 
     /**
      * Construct a `Socket` wrapper from this implementation.
