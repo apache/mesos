@@ -18,6 +18,7 @@ These tools make it easy to set up and run a Mesos cluster.
 * [Vagrant setup by Everpeace](https://github.com/everpeace/vagrant-mesos) Spin up your Mesos Cluster with Vagrant!
 * [Vagrant setup by Mesosphere](https://github.com/mesosphere/playa-mesos) Quickly build Mesos sandbox environments using Vagrant.
 * [Vagrant and Ansible setup by WooRank](https://github.com/Woorank/vagrant-mesos-cluster) Mesos, Marathon, Docker, HAProxy and service discovery, using Ansible and Vagrant.
+* [Vagrant and Puppet setup by Tayzlor](https://github.com/tayzlor/vagrant-puppet-mesosphere) Build a Mesos Cluster with Vagrant and Puppet (and optionally Consul.io)!
 
 ## Developer Tools
 
