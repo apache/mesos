@@ -102,3 +102,26 @@ layout: documentation
 * [Powered by Mesos](powered-by-mesos.md) lists organizations and software that are powered by Apache Mesos.
 * [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
 * [Design docs](design-docs.md) list of design documents for various Mesos features
+
+## Books on Mesos
+
+<div class="row">
+  <div class="col-xs-6 col-md-4">
+    <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-essentials" class="thumbnail">
+      <img src="https://www.packtpub.com/sites/default/files/9781783288762.png" alt="Apache Mesos Essentials by Dharmesh Kakadia">
+    </a>
+    <p class="text-center">Apache Mesos Essentials by Dharmesh Kakadia (Packt, 2015)</p>
+  </div>
+  <div class="col-xs-6 col-md-4">
+    <a href="http://shop.oreilly.com/product/0636920039952.do" class="thumbnail">
+      <img src="http://akamaicovers.oreilly.com/images/0636920039952/lrg.jpg" alt="Building Applications on Mesos by David Greenberg">
+    </a>
+    <p class="text-center">Building Applications on Mesos by David Greenberg (O'Reilly, 2015)</p>
+  </div>
+  <div class="col-xs-6 col-md-4">
+    <a href="https://www.manning.com/books/mesos-in-action" class="thumbnail">
+      <img src="https://images.manning.com/255/340/resize/book/d/62f5c9b-0946-4569-ad50-ffdb84876ddc/Ignazio-Mesos-HI.png" alt="Mesos in Action by Roger Ignazio">
+    </a>
+  <p class="text-center">Mesos in Action by Roger Ignazio (Manning, 2016)
+  </div>
+</div>
