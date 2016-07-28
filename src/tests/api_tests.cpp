@@ -92,14 +92,6 @@ class MasterAPITest
     public WithParamInterface<ContentType>
 {
 public:
-  virtual master::Flags CreateMasterFlags()
-  {
-    // Set a low allocation interval to speed up tests.
-    master::Flags flags = MesosTest::CreateMasterFlags();
-    flags.allocation_interval = Milliseconds(50);
-    return flags;
-  }
-
   // Helper function to post a request to "/api/v1" master endpoint and return
   // the response.
   Future<v1::master::Response> post(
@@ -470,6 +462,7 @@ TEST_P(MasterAPITest, GetState)
   EXPECT_NE(0u, offers.get().size());
 
   ContentType contentType = GetParam();
+
   {
     // GetState before task launch and check we have one framework, one agent
     // and zero tasks/executors.
@@ -496,6 +489,12 @@ TEST_P(MasterAPITest, GetState)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
+  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
+    FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(),
+        Eq(master.get()->pid),
+        Eq(slave.get()->pid));
+
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -506,6 +505,8 @@ TEST_P(MasterAPITest, GetState)
   AWAIT_READY(status);
 
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(acknowledgement);
 
   {
     // GetState after task launch and check we have a running task.
@@ -521,11 +522,10 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(0u, getState.get_tasks().completed_tasks_size());
   }
 
-  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
-    FUTURE_PROTOBUF(
-        StatusUpdateAcknowledgementMessage(),
-        _,
-        Eq(slave.get()->pid));
+  acknowledgement = FUTURE_PROTOBUF(
+      StatusUpdateAcknowledgementMessage(),
+      Eq(master.get()->pid),
+      Eq(slave.get()->pid));
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -634,6 +634,12 @@ TEST_P(MasterAPITest, GetTasks)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
+  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
+    FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(),
+        Eq(master.get()->pid),
+        Eq(slave.get()->pid));
+
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -646,6 +652,8 @@ TEST_P(MasterAPITest, GetTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
   EXPECT_TRUE(status.get().has_executor_id());
   EXPECT_EQ(exec.id, status.get().executor_id());
+
+  AWAIT_READY(acknowledgement);
 
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::GET_TASKS);
@@ -666,11 +674,10 @@ TEST_P(MasterAPITest, GetTasks)
     ASSERT_EQ("1", v1Response.get().get_tasks().tasks(0).task_id().value());
   }
 
-  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
-    FUTURE_PROTOBUF(
-        StatusUpdateAcknowledgementMessage(),
-        _,
-        Eq(slave.get()->pid));
+  acknowledgement = FUTURE_PROTOBUF(
+      StatusUpdateAcknowledgementMessage(),
+      Eq(master.get()->pid),
+      Eq(slave.get()->pid));
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -937,7 +944,11 @@ TEST_P(MasterAPITest, ReserveResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
-  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  // Set a low allocation interval to speed up this test.
+  master::Flags flags = MesosTest::CreateMasterFlags();
+  flags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, flags);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1027,7 +1038,11 @@ TEST_P(MasterAPITest, UnreserveResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
-  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  // Set a low allocation interval to speed up this test.
+  master::Flags flags = MesosTest::CreateMasterFlags();
+  flags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, flags);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;

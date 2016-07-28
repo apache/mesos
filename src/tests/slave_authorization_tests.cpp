@@ -24,6 +24,7 @@
 
 #include <mesos/module/authorizer.hpp>
 
+#include <process/clock.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
@@ -46,6 +47,7 @@ using mesos::internal::slave::Slave;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 
@@ -140,7 +142,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   Try<Owned<cluster::Master>> master = this->StartMaster(authorizer.get());
   ASSERT_SOME(master);
 
-  // Resgister framework with user "bar".
+  // Register framework with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");
   frameworkInfo.set_user("bar");
@@ -295,6 +297,11 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
     this->StartSlave(&detector, authorizer.get());
 
   ASSERT_SOME(agent);
+
+  // Ensure that the slave has finished recovery.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   // The default principal should be able to access the flags.
   {

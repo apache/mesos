@@ -14,8 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
+#include <process/collect.hpp>
+#include <process/defer.hpp>
+#include <process/pid.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "linux/cgroups.hpp"
@@ -31,9 +40,11 @@ using mesos::slave::Isolator;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::PID;
 
 using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -125,7 +136,83 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  return Failure("Not implemented.");
+  if (infos.contains(containerId)) {
+    return Failure("Container has already been prepared");
+  }
+
+  // We save 'Info' into 'infos' first so that even if 'prepare'
+  // fails, we can properly cleanup the *side effects* created below.
+  infos[containerId] = Owned<Info>(new Info(
+      containerId,
+      path::join(flags.cgroups_root, containerId.value())));
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    string path = path::join(hierarchy, infos[containerId]->cgroup);
+
+    VLOG(1) << "Creating cgroup at '" << path << "' "
+            << "for container " << containerId;
+
+    Try<bool> exists = cgroups::exists(
+        hierarchy,
+        infos[containerId]->cgroup);
+
+    if (exists.isError()) {
+      return Failure(
+          "Failed to check the existence of cgroup at "
+          "'" + path + "': " + exists.error());
+    } else if (exists.get()) {
+      return Failure("The cgroup at '" + path + "' already exists");
+    }
+
+    Try<Nothing> create = cgroups::create(
+        hierarchy,
+        infos[containerId]->cgroup);
+
+    if (create.isError()) {
+      return Failure(
+          "Failed to create the cgroup at "
+          "'" + path + "': " + create.error());
+    }
+
+    // Chown the cgroup so the executor can create nested cgroups. Do
+    // not recurse so the control files are still owned by the slave
+    // user and thus cannot be changed by the executor.
+    //
+    // TODO(haosdent): Multiple tasks under the same user can change
+    // cgroups settings for each other. A better solution is using
+    // cgroups namespaces and user namespaces to achieve the goal.
+    if (containerConfig.has_user()) {
+      Try<Nothing> chown = os::chown(
+          containerConfig.user(),
+          path,
+          false);
+
+      if (chown.isError()) {
+        return Failure(
+            "Failed to chown the cgroup at "
+            "'" + path + "': " + chown.error());
+      }
+    }
+  }
+
+  list<Future<Nothing>> prepares;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    prepares.push_back(subsystem->prepare(containerId));
+  }
+
+  // TODO(haosdent): Here we assume the command executor's resources
+  // include the task's resources. Revisit here if this semantics
+  // changes.
+  return collect(prepares)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::update,
+        containerId,
+        containerConfig.executor_info().resources()))
+    .then([]() -> Future<Option<ContainerLaunchInfo>> {
+      return None();
+    });
 }
 
 
@@ -133,14 +220,46 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Failed to isolate the container: Unknown container");
+  }
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    Try<Nothing> assign = cgroups::assign(
+        hierarchy,
+        infos[containerId]->cgroup,
+        pid);
+
+    if (assign.isError()) {
+      string message =
+        "Failed to assign pid " + stringify(pid) + " to cgroup at "
+        "'" + path::join(hierarchy, infos[containerId]->cgroup) + "'"
+        ": " + assign.error();
+
+      LOG(ERROR) << message;
+
+      return Failure(message);
+    }
+  }
+
+  list<Future<Nothing>> isolates;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    isolates.push_back(subsystem->isolate(containerId, pid));
+  }
+
+  return collect(isolates).then([]() { return Nothing(); });
 }
 
 
 Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  return infos[containerId]->limitation.future();
 }
 
 
@@ -148,21 +267,79 @@ Future<Nothing> CgroupsIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Future<Nothing>> updates;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    updates.push_back(subsystem->update(containerId, resources));
+  }
+
+  return collect(updates).then([]() { return Nothing(); });
 }
 
 
 Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Future<ResourceStatistics>> usages;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    usages.push_back(subsystem->usage(containerId));
+  }
+
+  return await(usages)
+    .then([containerId](const list<Future<ResourceStatistics>>& _usages) {
+      ResourceStatistics result;
+
+      foreach (const Future<ResourceStatistics>& statistics, _usages) {
+        if (statistics.isReady()) {
+          result.MergeFrom(statistics.get());
+        } else {
+          LOG(WARNING) << "Skipping resource statistic for container "
+                       << containerId << " because: "
+                       << (statistics.isFailed() ? statistics.failure()
+                                                 : "discarded");
+        }
+      }
+
+      return result;
+    });
 }
 
 
 Future<ContainerStatus> CgroupsIsolatorProcess::status(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  list<Future<ContainerStatus>> statuses;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    statuses.push_back(subsystem->status(containerId));
+  }
+
+  return await(statuses)
+    .then([containerId](const list<Future<ContainerStatus>>& _statuses) {
+      ContainerStatus result;
+
+      foreach (const Future<ContainerStatus>& status, _statuses) {
+        if (status.isReady()) {
+          result.MergeFrom(status.get());
+        } else {
+          LOG(WARNING) << "Skipping status for container " << containerId
+                       << " because: "
+                       << (status.isFailed() ? status.failure() : "discarded");
+        }
+      }
+
+      return result;
+    });
 }
 
 
