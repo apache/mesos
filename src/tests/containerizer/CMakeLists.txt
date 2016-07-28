@@ -24,6 +24,14 @@ set(CONTAINERIZER_MEMORY_TESTS_SRC
   memory_test_helper.cpp
   )
 
+if (LINUX)
+  set(SETNS_TEST_HELPER_SRC
+    ${SETNS_TEST_HELPER_SRC}
+    setns_test_helper_main.cpp
+    setns_test_helper.cpp
+    )
+endif (LINUX)
+
 # INCLUDE DIRECTIVES FOR CONTAINERIZER TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #############################################################################
@@ -38,13 +46,25 @@ link_directories(${CONTAINERIZER_TEST_LIB_DIRS})
 ###########################################################################
 add_executable(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_MEMORY_TESTS_SRC})
 
+if (LINUX)
+  add_executable(${SETNS_TEST_HELPER_TARGET} ${SETNS_TEST_HELPER_SRC})
+endif (LINUX)
+
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_TEST_LIBS})
 
+if (LINUX)
+  target_link_libraries(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_LIBS})
+endif (LINUX)
+
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
+
+if (LINUX)
+  add_dependencies(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
+endif (LINUX)
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################

@@ -16,7 +16,20 @@
 
 set(
   CONTAINERIZER_MEMORY_TESTS_TARGET mesos-containerizer-memory_test
-  CACHE STRING "Target we use to refer to tests for mesos containerizer tests")
+  CACHE STRING "Target we use to refer to tests for mesos containerizer tests"
+  )
+
+set(
+  ACTIVE_USER_TEST_HELPER_TARGET active-user-test-helper
+  CACHE STRING "Test helper target required to run tests with a user."
+  )
+
+if (LINUX)
+  set(
+    SETNS_TEST_HELPER_TARGET setns-test-helper
+    CACHE STRING "Test helper target that allows changing the test to its parent namespace."
+    )
+endif (LINUX)
 
 # COMPILER CONFIGURATION.
 #########################

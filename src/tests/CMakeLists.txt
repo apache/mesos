@@ -16,5 +16,16 @@
 
 include(MesosTestsConfigure)
 
+######################
+set(ACTIVE_USER_TEST_HELPER_SRC
+  ${ACTIVE_USER_TEST_HELPER_SRC}
+  active_user_test_helper.cpp
+  )
+
 add_subdirectory(containerizer/)
+
 # TODO(hausdorff): Add the other tests here.
+
+# THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
+#################################$###############################################
+add_executable(${ACTIVE_USER_TEST_HELPER_TARGET} ${ACTIVE_USER_TEST_HELPER_SRC})
