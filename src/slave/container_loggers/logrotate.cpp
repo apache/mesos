@@ -22,6 +22,7 @@
 #include <string>
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
 
@@ -47,7 +48,8 @@ class LogrotateLoggerProcess : public Process<LogrotateLoggerProcess>
 {
 public:
   LogrotateLoggerProcess(const Flags& _flags)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("logrotate-logger")),
+      flags(_flags),
       leading(None()),
       bytesWritten(0)
   {

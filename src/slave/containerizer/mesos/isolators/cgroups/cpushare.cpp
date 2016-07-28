@@ -59,7 +59,8 @@ CgroupsCpushareIsolatorProcess::CgroupsCpushareIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
     const vector<string>& _subsystems)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-cpushare-isolator")),
+    flags(_flags),
     hierarchies(_hierarchies),
     subsystems(_subsystems) {}
 

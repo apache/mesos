@@ -88,7 +88,7 @@ string HELP(
 
 
 Help::Help(const Option<string>& _delegate)
-  : ProcessBase("help"),
+  : ProcessBase("__help__"),
     delegate(_delegate) {}
 
 

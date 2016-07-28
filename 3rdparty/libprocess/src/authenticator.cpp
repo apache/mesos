@@ -11,6 +11,7 @@
 // limitations under the License
 
 #include <process/authenticator.hpp>
+#include <process/id.hpp>
 
 #include <string>
 #include <vector>
@@ -53,7 +54,9 @@ private:
 BasicAuthenticatorProcess::BasicAuthenticatorProcess(
     const string& realm,
     const hashmap<string, string>& credentials)
-  : realm_(realm), credentials_(credentials) {}
+  : ProcessBase(ID::generate("__basic_authenticator__")),
+    realm_(realm),
+    credentials_(credentials) {}
 
 
 Future<AuthenticationResult> BasicAuthenticatorProcess::authenticate(

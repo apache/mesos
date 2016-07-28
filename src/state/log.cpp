@@ -222,7 +222,8 @@ private:
 
 
 LogStorageProcess::LogStorageProcess(Log* log, size_t diffsBetweenSnapshots)
-  : reader(log),
+  : ProcessBase(process::ID::generate("log-storage")),
+    reader(log),
     writer(log),
     diffsBetweenSnapshots(diffsBetweenSnapshots) {}
 

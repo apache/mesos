@@ -54,7 +54,8 @@ CgroupsIsolatorProcess::CgroupsIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
     const multihashmap<string, Owned<Subsystem>>& _subsystems)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-isolator")),
+    flags(_flags),
     hierarchies(_hierarchies),
     subsystems(_subsystems) {}
 

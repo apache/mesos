@@ -28,6 +28,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/error.hpp>
@@ -78,7 +79,9 @@ private:
 
 
 LevelDBStorageProcess::LevelDBStorageProcess(const string& _path)
-  : path(_path), db(nullptr) {}
+  : ProcessBase(process::ID::generate("leveldb-storage")),
+    path(_path),
+    db(nullptr) {}
 
 
 LevelDBStorageProcess::~LevelDBStorageProcess()

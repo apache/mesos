@@ -50,7 +50,8 @@ public:
   // subsequently restarted with namespaces/pid enabled.
   static Result<ino_t> getNamespace(const ContainerID& container);
 
-  NamespacesPidIsolatorProcess() {}
+  NamespacesPidIsolatorProcess()
+    : ProcessBase(process::ID::generate("mesos-pid-isolator")) {}
 
   virtual ~NamespacesPidIsolatorProcess() {}
 

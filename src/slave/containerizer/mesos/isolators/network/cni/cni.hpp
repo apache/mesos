@@ -114,7 +114,8 @@ private:
       const hashmap<std::string, NetworkConfigInfo>& _networkConfigs,
       const Option<std::string>& _rootDir = None(),
       const Option<std::string>& _pluginDir = None())
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("mesos-network-cni-isolator")),
+      flags(_flags),
       networkConfigs(_networkConfigs),
       rootDir(_rootDir),
       pluginDir(_pluginDir) {}

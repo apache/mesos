@@ -45,6 +45,9 @@ namespace slave {
 class OverlayBackendProcess : public Process<OverlayBackendProcess>
 {
 public:
+  OverlayBackendProcess()
+    : ProcessBase(process::ID::generate("overlay-provisioner-backend")) {}
+
   Future<Nothing> provision(
       const vector<string>& layers,
       const string& rootfs,

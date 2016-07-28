@@ -45,6 +45,9 @@ namespace slave {
 class AufsBackendProcess : public Process<AufsBackendProcess>
 {
 public:
+  AufsBackendProcess()
+    : ProcessBase(process::ID::generate("aufs-provisioner-backend")) {}
+
   Future<Nothing> provision(
       const vector<string>& layers,
       const string& rootfs,

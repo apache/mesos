@@ -65,7 +65,8 @@ private:
       const Flags& _flags,
       const std::string& _hierarchy,
       const std::set<std::string>& _events)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("cgroups-perf-event-isolator")),
+      flags(_flags),
       hierarchy(_hierarchy),
       events(_events) {}
 

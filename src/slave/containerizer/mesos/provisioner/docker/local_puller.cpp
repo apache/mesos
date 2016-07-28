@@ -51,7 +51,8 @@ class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
   LocalPullerProcess(const string& _archivesDir)
-    : archivesDir(_archivesDir) {}
+    : ProcessBase(process::ID::generate("docker-provisioner-local_puller")),
+      archivesDir(_archivesDir) {}
 
   ~LocalPullerProcess() {}
 

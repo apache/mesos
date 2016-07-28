@@ -950,7 +950,9 @@ class ReqResProcess : public ProtobufProcess<ReqResProcess<Req, Res> >
 {
 public:
   ReqResProcess(const process::UPID& _pid, const Req& _req)
-    : pid(_pid), req(_req)
+    : process::ProcessBase(process::ID::generate(_pid.id + "-__req_res__")),
+      pid(_pid),
+      req(_req)
   {
     ProtobufProcess<ReqResProcess<Req, Res> >::template
       install<Res>(&ReqResProcess<Req, Res>::response);

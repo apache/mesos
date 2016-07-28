@@ -56,7 +56,7 @@ private:
   MetricsProcess(
       const Option<Owned<RateLimiter>>& _limiter,
       const Option<std::string>& _authenticationRealm)
-    : ProcessBase("metrics"),
+    : ProcessBase("__metrics__"),
       limiter(_limiter),
       authenticationRealm(_authenticationRealm)
   {}

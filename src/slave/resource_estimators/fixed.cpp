@@ -40,7 +40,8 @@ public:
   FixedResourceEstimatorProcess(
       const lambda::function<Future<ResourceUsage>()>& _usage,
       const Resources& _totalRevocable)
-    : usage(_usage),
+    : ProcessBase(process::ID::generate("fixed-resource-estimator")),
+      usage(_usage),
       totalRevocable(_totalRevocable) {}
 
   Future<Resources> oversubscribable()

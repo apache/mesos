@@ -34,7 +34,7 @@ class System : public Process<System>
 {
 public:
   System()
-    : ProcessBase("system"),
+    : ProcessBase("__system__"),
       load_1min(
           self().id + "/load_1min",
           defer(self(), &System::_load_1min)),

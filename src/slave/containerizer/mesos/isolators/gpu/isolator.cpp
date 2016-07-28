@@ -77,7 +77,8 @@ NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const NvidiaGpuAllocator& _allocator,
     const NvidiaVolume& _volume,
     const map<Path, cgroups::devices::Entry>& _controlDeviceEntries)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("mesos-nvidia-gpu-isolator")),
+    flags(_flags),
     hierarchy(_hierarchy),
     allocator(_allocator),
     volume(_volume),
