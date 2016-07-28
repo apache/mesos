@@ -348,6 +348,7 @@ TEST_F(ReplicaTest, Promise)
   AWAIT_READY(future);
 
   response = future.get();
+  EXPECT_EQ(PromiseResponse::ACCEPT, response.type());
   EXPECT_TRUE(response.okay());
   EXPECT_EQ(2u, response.proposal());
   EXPECT_TRUE(response.has_position());
@@ -361,6 +362,7 @@ TEST_F(ReplicaTest, Promise)
   AWAIT_READY(future);
 
   response = future.get();
+  EXPECT_EQ(PromiseResponse::REJECT, response.type());
   EXPECT_FALSE(response.okay());
   EXPECT_EQ(2u, response.proposal()); // Highest proposal seen so far.
   EXPECT_FALSE(response.has_position());
@@ -373,6 +375,7 @@ TEST_F(ReplicaTest, Promise)
   AWAIT_READY(future);
 
   response = future.get();
+  EXPECT_EQ(PromiseResponse::ACCEPT, response.type());
   EXPECT_TRUE(response.okay());
   EXPECT_EQ(3u, response.proposal());
   EXPECT_TRUE(response.has_position());
@@ -400,6 +403,7 @@ TEST_F(ReplicaTest, Append)
   AWAIT_READY(future1);
 
   PromiseResponse response1 = future1.get();
+  EXPECT_EQ(PromiseResponse::ACCEPT, response1.type());
   EXPECT_TRUE(response1.okay());
   EXPECT_EQ(proposal, response1.proposal());
   EXPECT_TRUE(response1.has_position());
@@ -418,6 +422,7 @@ TEST_F(ReplicaTest, Append)
   AWAIT_READY(future2);
 
   WriteResponse response2 = future2.get();
+  EXPECT_EQ(WriteResponse::ACCEPT, response2.type());
   EXPECT_TRUE(response2.okay());
   EXPECT_EQ(proposal, response2.proposal());
   EXPECT_EQ(1u, response2.position());
@@ -467,6 +472,7 @@ TEST_F(ReplicaTest, Restore)
     AWAIT_READY(future1);
 
     PromiseResponse response1 = future1.get();
+    EXPECT_EQ(PromiseResponse::ACCEPT, response1.type());
     EXPECT_TRUE(response1.okay());
     EXPECT_EQ(proposal, response1.proposal());
     EXPECT_TRUE(response1.has_position());
@@ -485,6 +491,7 @@ TEST_F(ReplicaTest, Restore)
     AWAIT_READY(future2);
 
     WriteResponse response2 = future2.get();
+    EXPECT_EQ(WriteResponse::ACCEPT, response2.type());
     EXPECT_TRUE(response2.okay());
     EXPECT_EQ(proposal, response2.proposal());
     EXPECT_EQ(1u, response2.position());
