@@ -3534,6 +3534,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   cout << "Added " << slaveCount << " agents in "
        << watch.elapsed() << endl;
 
+  size_t declinedOfferCount = 0;
+
   // Loop enough times for all the frameworks to get offered all the resources.
   for (size_t i = 0; i < frameworkCount * 2; i++) {
     // Permanently decline any offered resources.
@@ -3544,6 +3546,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
       allocator->recoverResources(
           offer.frameworkId, offer.slaveId, offer.resources, filters);
     }
+
+    declinedOfferCount += offers.size();
 
     // Wait for the declined offers.
     Clock::settle();
@@ -3560,7 +3564,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
     cout << "round " << i
          << " allocate() took " << watch.elapsed()
          << " to make " << offers.size() << " offers"
-         << endl;
+         << " after filtering  " << declinedOfferCount << " offers" << endl;
   }
 
   Clock::resume();
@@ -3714,6 +3718,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   cout << "Added " << slaveCount << " agents in "
        << watch.elapsed() << endl;
 
+  size_t declinedOfferCount = 0;
+
   // Loop enough times for all the frameworks to get offered all the resources.
   for (size_t i = 0; i < frameworkCount * 2; i++) {
     // Permanently decline any offered resources.
@@ -3724,6 +3730,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
       allocator->recoverResources(
           offer.frameworkId, offer.slaveId, offer.resources, filters);
     }
+
+    declinedOfferCount += offers.size();
 
     // Wait for the declined offers.
     Clock::settle();
@@ -3740,7 +3748,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
     cout << "round " << i
          << " allocate() took " << watch.elapsed()
          << " to make " << offers.size() << " offers"
-         << endl;
+         << " after filtering " << declinedOfferCount << " offers" << endl;
   }
 
   Clock::resume();
