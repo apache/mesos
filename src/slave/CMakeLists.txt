@@ -21,6 +21,14 @@ set(AGENT_EXECUTABLE_SRC
   main.cpp
   )
 
+# TODO(josephw): Port this to Windows.
+if (NOT WIN32)
+  set(MESOS_LOGROTATE_LOGGER_SRC
+    ${MESOS_LOGROTATE_LOGGER_SRC}
+    container_loggers/logrotate.cpp
+    )
+endif (NOT WIN32)
+
 add_subdirectory(qos_controllers)
 add_subdirectory(resource_estimators)
 
@@ -38,10 +46,25 @@ link_directories(${AGENT_LIB_DIRS})
 #######################
 add_executable(${AGENT_TARGET} ${AGENT_EXECUTABLE_SRC})
 
+if (NOT WIN32)
+  add_executable(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LOGROTATE_LOGGER_SRC})
+endif (NOT WIN32)
+
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${AGENT_TARGET} ${AGENT_LIBS} ${MESOS_TARGET})
 
+if (NOT WIN32)
+  target_link_libraries(${MESOS_LOGROTATE_LOGGER_TARGET}
+    ${AGENT_LIBS}
+    ${MESOS_TARGET}
+    )
+endif (NOT WIN32)
+
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${AGENT_TARGET} ${MESOS_TARGET})
+
+if (NOT WIN32)
+  add_dependencies(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_TARGET})
+endif (NOT WIN32)

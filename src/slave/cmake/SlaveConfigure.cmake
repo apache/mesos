@@ -29,6 +29,10 @@ set(RESOURCE_ESTIMATOR_TARGET fixed_resource_estimator
   CACHE STRING "Library containing the fixed resource estimator."
   )
 
+set(MESOS_LOGROTATE_LOGGER_TARGET mesos-logrotate-logger
+  CACHE STRING "Executable used by the logrotate container logger."
+  )
+
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
