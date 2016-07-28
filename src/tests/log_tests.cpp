@@ -324,7 +324,7 @@ TYPED_TEST(LogStorageTest, TruncateWithManyHoles)
 class ReplicaTest : public TemporaryDirectoryTest
 {
 protected:
-  // For initializing the log.
+  // Used to change the status of a replicated log from `EMPTY` to `VOTING`.
   tool::Initialize initializer;
 };
 
@@ -333,7 +333,7 @@ TEST_F(ReplicaTest, Promise)
 {
   const string path = os::getcwd() + "/.log";
   initializer.flags.path = path;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Replica replica(path);
 
@@ -385,7 +385,7 @@ TEST_F(ReplicaTest, Append)
 {
   const string path = os::getcwd() + "/.log";
   initializer.flags.path = path;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Replica replica(path);
 
@@ -446,7 +446,7 @@ TEST_F(ReplicaTest, Restore)
 {
   const string path = os::getcwd() + "/.log";
   initializer.flags.path = path;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   // By design only a single process can access leveldb at a time. In
   // this test, two instances of log replica need to open a connection
@@ -577,7 +577,7 @@ TEST_F(ReplicaTest, NonVoting)
 class CoordinatorTest : public TemporaryDirectoryTest
 {
 protected:
-  // For initializing the log.
+  // Used to change the status of a replicated log from `EMPTY` to `VOTING`.
   tool::Initialize initializer;
 };
 
@@ -586,11 +586,11 @@ TEST_F(CoordinatorTest, Elect)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -628,11 +628,11 @@ TEST_F(CoordinatorTest, ElectWithClockPaused)
 
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -659,11 +659,11 @@ TEST_F(CoordinatorTest, AppendRead)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -708,11 +708,11 @@ TEST_F(CoordinatorTest, AppendReadError)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -754,11 +754,11 @@ TEST_F(CoordinatorTest, AppendDiscarded)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -803,7 +803,7 @@ TEST_F(CoordinatorTest, ElectNoQuorum)
 {
   const string path = os::getcwd() + "/.log";
   initializer.flags.path = path;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica(new Replica(path));
 
@@ -831,11 +831,11 @@ TEST_F(CoordinatorTest, AppendNoQuorum)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -875,11 +875,11 @@ TEST_F(CoordinatorTest, Failover)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -934,11 +934,11 @@ TEST_F(CoordinatorTest, Demoted)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1009,15 +1009,15 @@ TEST_F(CoordinatorTest, Fill)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1085,15 +1085,15 @@ TEST_F(CoordinatorTest, NotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1165,11 +1165,11 @@ TEST_F(CoordinatorTest, MultipleAppends)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1211,15 +1211,15 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1288,11 +1288,11 @@ TEST_F(CoordinatorTest, Truncate)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1346,15 +1346,15 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1435,15 +1435,15 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Shared<Replica> replica1(new Replica(path1));
   Shared<Replica> replica2(new Replica(path2));
@@ -1655,7 +1655,7 @@ TEST_F(CoordinatorTest, RecoveryRace)
 class RecoverTest : public TemporaryDirectoryTest
 {
 protected:
-  // For initializing the log.
+  // Used to change the status of a replicated log from `EMPTY` to `VOTING`.
   tool::Initialize initializer;
 };
 
@@ -1665,15 +1665,15 @@ TEST_F(RecoverTest, RacingCatchup)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
   initializer.flags.path = path3;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path4 = os::getcwd() + "/.log4";
   const string path5 = os::getcwd() + "/.log5";
@@ -1769,11 +1769,11 @@ TEST_F(RecoverTest, CatchupRetry)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path3 = os::getcwd() + "/.log3";
 
@@ -1997,7 +1997,7 @@ TEST_F(RecoverTest, AutoInitializationRetry)
 class LogTest : public TemporaryDirectoryTest
 {
 protected:
-  // For initializing the log.
+  // Used to change the status of a replicated log from `EMPTY` to `VOTING`.
   tool::Initialize initializer;
 };
 
@@ -2006,11 +2006,11 @@ TEST_F(LogTest, WriteRead)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Replica replica1(path1);
 
@@ -2048,11 +2048,11 @@ TEST_F(LogTest, Position)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   Replica replica1(path1);
 
@@ -2145,7 +2145,7 @@ protected:
     }
   }
 
-  // For initializing the log.
+  // Used to change the status of a replicated log from `EMPTY` to `VOTING`.
   tool::Initialize initializer;
 
 private:
@@ -2158,11 +2158,11 @@ TEST_F(LogZooKeeperTest, WriteRead)
 {
   const string path1 = os::getcwd() + "/.log1";
   initializer.flags.path = path1;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   const string path2 = os::getcwd() + "/.log2";
   initializer.flags.path = path2;
-  initializer.execute();
+  ASSERT_SOME(initializer.execute());
 
   string servers = server->connectString();
 
