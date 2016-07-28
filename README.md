@@ -26,3 +26,7 @@ Instructions are included on the [Getting Started](http://mesos.apache.org/getti
 Apache Mesos is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 For additional information, see the LICENSE and NOTICE files.
+
+# Books
+
+[Mesos in Action](https://www.manning.com/books/mesos-in-action) by Roger Ignazio (Manning Publications). [Chapter 1](https://manning-content.s3.amazonaws.com/download/2/c79863e-1021-4274-abcc-63b748548f24/Mesos_MEAP_ch1.pdf)
