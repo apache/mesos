@@ -1,8 +1,8 @@
-# About Apache Mesos
+# Apache Mesos
 
 Apache Mesos is a cluster manager that provides efficient resource isolation 
 and sharing across distributed applications, or frameworks. It can run Hadoop, 
-MPI, Hypertable, Spark, and other frameworks on a dynamically shared pool of 
+Jenkins, Spark, Aurora, and other frameworks on a dynamically shared pool of 
 nodes.
 
 Visit us at [mesos.apache.org](http://mesos.apache.org).
