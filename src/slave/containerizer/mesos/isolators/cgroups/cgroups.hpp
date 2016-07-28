@@ -101,7 +101,7 @@ private:
   // Map from subsystem name to hierarchy path.
   hashmap<std::string, std::string> hierarchies;
 
-  // We map hierarchy path and `Subsytem` in subsystems. Same hierarchy may
+  // We map hierarchy path and `Subsystem` in subsystems. Same hierarchy may
   // map to multiple Subsystems. For example, our cgroups hierarchies may
   // mount like below in the machine:
   //   /cgroup/cpu,cpuacct -> cpu
