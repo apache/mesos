@@ -3097,7 +3097,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
 
   // Register six agents with the same resources (cpus:2;mem:1024).
   vector<SlaveInfo> agents;
-  for (unsigned i = 0; i < 6; i++) {
+  for (size_t i = 0; i < 6; i++) {
     SlaveInfo agent = createSlaveInfo(SINGLE_RESOURCE);
     agents.push_back(agent);
     allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
@@ -3348,12 +3348,12 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   vector<FrameworkInfo> frameworks;
   frameworks.reserve(frameworkCount);
 
-  for (unsigned i = 0; i < slaveCount; i++) {
+  for (size_t i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(
         "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
   }
 
-  for (unsigned i = 0; i < frameworkCount; i++) {
+  for (size_t i = 0; i < frameworkCount; i++) {
     frameworks.push_back(createFrameworkInfo(
         "*",
         {FrameworkInfo::Capability::REVOCABLE_RESOURCES}));
@@ -3397,7 +3397,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   // Add the slaves, use round-robin to choose which framework
   // to allocate a slice of the slave's resources to.
-  for (unsigned i = 0; i < slaves.size(); i++) {
+  for (size_t i = 0; i < slaves.size(); i++) {
     hashmap<FrameworkID, Resources> used;
 
     used[frameworks[i % frameworkCount].id()] = slaveResources;
@@ -3490,7 +3490,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   Stopwatch watch;
   watch.start();
 
-  for (unsigned i = 0; i < frameworkCount; i++) {
+  for (size_t i = 0; i < frameworkCount; i++) {
     frameworks.push_back(createFrameworkInfo("*"));
     allocator->addFramework(frameworks[i].id(), frameworks[i], {});
   }
@@ -3514,7 +3514,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 
   watch.start();
 
-  for (unsigned i = 0; i < slaveCount; i++) {
+  for (size_t i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(
         "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
 
@@ -3535,7 +3535,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
        << watch.elapsed() << endl;
 
   // Loop enough times for all the frameworks to get offered all the resources.
-  for (unsigned i = 0; i < frameworkCount * 2; i++) {
+  for (size_t i = 0; i < frameworkCount * 2; i++) {
     // Permanently decline any offered resources.
     foreach (auto offer, offers) {
       Filters filters;
@@ -3632,7 +3632,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   Stopwatch watch;
   watch.start();
 
-  for (unsigned i = 0; i < frameworkCount; i++) {
+  for (size_t i = 0; i < frameworkCount; i++) {
     frameworks.push_back(createFrameworkInfo("role1"));
     allocator->addFramework(frameworks[i].id(), frameworks[i], {});
   }
@@ -3662,7 +3662,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 
   watch.start();
 
-  for (unsigned i = 0; i < slaveCount; i++) {
+  for (size_t i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(
         "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
 
@@ -3715,7 +3715,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
        << watch.elapsed() << endl;
 
   // Loop enough times for all the frameworks to get offered all the resources.
-  for (unsigned i = 0; i < frameworkCount * 2; i++) {
+  for (size_t i = 0; i < frameworkCount * 2; i++) {
     // Permanently decline any offered resources.
     foreach (auto offer, offers) {
       Filters filters;

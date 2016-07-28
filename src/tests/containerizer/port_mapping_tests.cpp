@@ -1049,7 +1049,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
   ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
-  for (unsigned int i = 0; i < nameServers.size(); i++) {
+  for (size_t i = 0; i < nameServers.size(); i++) {
     const string& IP = nameServers[i];
     command << "ping -c1 " << IP;
     if (i + 1 < nameServers.size()) {
@@ -1226,7 +1226,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
   ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
-  for (unsigned int i = 0; i < nameServers.size(); i++) {
+  for (size_t i = 0; i < nameServers.size(); i++) {
     const string& IP = nameServers[i];
     // Time out after 1s and terminate upon receiving the first reply.
     command << "arping -f -w1 " << IP << " -I " << eth0;
@@ -1322,7 +1322,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
   ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
 
   ostringstream command;
-  for (unsigned int i = 0; i < nameServers.size(); i++) {
+  for (size_t i = 0; i < nameServers.size(); i++) {
     const string& IP = nameServers[i];
     command << "host " << IP;
     if (i + 1 < nameServers.size()) {

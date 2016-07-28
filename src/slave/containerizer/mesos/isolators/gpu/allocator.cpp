@@ -85,7 +85,7 @@ static Try<set<Gpu>> enumerateGpus(
   if (flags.nvidia_gpu_devices.isSome()) {
     indices = flags.nvidia_gpu_devices.get();
   } else {
-    for (unsigned int i = 0; i < resources.gpus().getOrElse(0); ++i) {
+    for (size_t i = 0; i < resources.gpus().getOrElse(0); ++i) {
       indices.push_back(i);
     }
   }
