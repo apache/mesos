@@ -525,16 +525,3 @@ add_subdirectory(usage/)
 if (NOT WIN32)
   add_subdirectory(tests/)
 endif (NOT WIN32)
-
-
-# mesos-log
-###############################################################################
-#add_executable(${MESOS_LOG} log/main.cpp)
-#target_link_libraries(${MESOS_LOG} ${PROCESS_AGENT_LIBS})
-#add_dependencies(${MESOS_LOG} ${MESOS_FETCHER})
-
-# mesos-master
-###############################################################################
-#add_executable(${MESOS_MASTER} master/main.cpp)
-#target_link_libraries(${MESOS_MASTER} ${PROCESS_AGENT_LIBS})
-#add_dependencies(${MESOS_MASTER} ${MESOS_FETCHER})
