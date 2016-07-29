@@ -830,7 +830,7 @@ bool Resources::contains(const Resources& that) const
       return false;
     }
 
-    remaining -= resource;
+    remaining.subtract(resource);
   }
 
   return true;
