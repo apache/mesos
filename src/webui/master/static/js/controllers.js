@@ -51,35 +51,13 @@
 
 
   // Update the outermost scope with the new state.
-  function updateState($scope, $timeout, data) {
-    // Don't do anything if the data hasn't changed.
-    if ($scope.data == data) {
+  function updateState($scope, $timeout, state) {
+    // Don't do anything if the state hasn't changed.
+    if ($scope.state == state) {
       return true; // Continue polling.
     }
 
-    $scope.state = JSON.parse(data);
-
-    // Determine if there is a leader (and redirect if not the leader).
-    if ($scope.state.leader) {
-
-      // Redirect if we aren't the leader.
-      if ($scope.state.leader != $scope.state.pid) {
-        $scope.redirect = 6000;
-        $("#not-leader-alert").removeClass("hide");
-
-        var countdown = function() {
-          if ($scope.redirect == 0) {
-            // TODO(benh): Use '$window'.
-            window.location = '/master/redirect';
-          } else {
-            $scope.redirect = $scope.redirect - 1000;
-            $timeout(countdown, 1000);
-          }
-        };
-        countdown();
-        return false; // Don't continue polling.
-      }
-    }
+    $scope.state = state;
 
     // A cluster is named if the state returns a non-empty string name.
     // Track whether this cluster is named in a Boolean for display purposes.
@@ -95,8 +73,6 @@
     if (hasSelectedText() && $scope.time_since_update < 20000) {
       return true;
     }
-
-    $scope.data = data;
 
     // Pass this pollTime to all relativeDate calls to make them all relative to
     // the same moment in time.
@@ -396,10 +372,13 @@
     };
 
     var pollState = function() {
-      $http.get('master/state',
-                {transformResponse: function(data) { return data; }})
-        .success(function(data) {
-          if (updateState($scope, $timeout, data)) {
+      // When the current master is not the leader, the request is redirected to
+      // the leading master automatically. This would cause a CORS error if we
+      // use XMLHttpRequest here. To avoid the CORS error, we use JSONP as a
+      // workaround. Please refer to MESOS-5911 for further details.
+      $http.jsonp('master/state?jsonp=JSON_CALLBACK')
+        .success(function(response) {
+          if (updateState($scope, $timeout, response)) {
             $scope.delay = updateInterval(_.size($scope.agents));
             $timeout(pollState, $scope.delay);
           }
