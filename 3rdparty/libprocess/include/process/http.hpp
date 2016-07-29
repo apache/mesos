@@ -153,6 +153,12 @@ struct URL
 
   static Try<URL> parse(const std::string& urlString);
 
+  /**
+   * Returns whether the URL is absolute.
+   * See https://tools.ietf.org/html/rfc3986#section-4.3 for details.
+   */
+  bool isAbsolute() const;
+
   Option<std::string> scheme;
 
   // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.

@@ -243,6 +243,12 @@ Try<URL> URL::parse(const string& urlString)
 }
 
 
+bool URL::isAbsolute() const
+{
+  return scheme.isSome();
+}
+
+
 bool Request::acceptsEncoding(const string& encoding) const
 {
   // From RFC 2616:
