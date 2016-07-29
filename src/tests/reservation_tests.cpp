@@ -1146,8 +1146,7 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
@@ -1170,6 +1169,10 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   Filters filters;
   filters.set_refuse_seconds(0);
 
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
   // Reserve the resources and create the volume.
   driver.acceptOffers(
       {offer.id()},
@@ -1184,8 +1187,24 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   AWAIT_READY(message2);
   EXPECT_EQ(Resources(message2.get().resources()), reserved + volume);
 
+  // Expect an offer containing the volume.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(reserved + volume));
+
+  Future<OfferID> rescindedOfferId;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureArg<1>(&rescindedOfferId));
+
   terminate(slave1);
   wait(slave1);
+
+  AWAIT_READY(rescindedOfferId);
+  EXPECT_EQ(rescindedOfferId.get(), offer.id());
 
   // Simulate a reboot of the slave machine by modifying the boot ID.
   ASSERT_SOME(os::write(slave::paths::getBootIdPath(
