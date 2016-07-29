@@ -849,7 +849,7 @@ Resources Resources::filter(
   Resources result;
   foreach (const Resource& resource, resources) {
     if (predicate(resource)) {
-      result += resource;
+      result.add(resource);
     }
   }
   return result;
