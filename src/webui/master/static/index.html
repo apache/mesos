@@ -57,11 +57,6 @@
         <div class="alert" data-ng-show="state &amp;&amp; !state.leader">
           <strong>No master is currently leading ...</strong>
         </div>
-        <div class="alert alert-warning hide" id="not-leader-alert">
-          <button class="close" data-dismiss="alert">×</button>
-          <strong>This master is <u>not the leader</u>, redirecting in {{redirect / 1000}} seconds ...</strong>
-          <a href="/master/redirect">go now</a>
-        </div>
 
         <div data-ng-repeat="alert in currentAlerts" class="alert alert-{{ alert.type }}">
           <p data-ng-show="alert.title">
