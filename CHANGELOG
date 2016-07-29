@@ -1,3 +1,12 @@
+Release Notes - Mesos - Version 1.0.1
+--------------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+  * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
+
+
 Release Notes - Mesos - Version 1.0.0
 --------------------------------------------
 This release contains the following new features:
