@@ -381,6 +381,11 @@ public:
   Resources& operator-=(const Resource& that);
   Resources& operator-=(const Resources& that);
 
+  // Validation-free versions of += and -= `Resource` operators.
+  // These can be used when `r` is already validated.
+  void add(const Resource& r);
+  void subtract(const Resource& r);
+
 private:
   // Similar to 'contains(const Resource&)' but skips the validity
   // check. This can be used to avoid the performance overhead of
@@ -395,11 +400,6 @@ private:
   // object. The target resource may span multiple roles, so this
   // returns Resources.
   Option<Resources> find(const Resource& target) const;
-
-  // Validation-free versions of += and -= `Resource` operators.
-  // These can be used when `r` is already validated.
-  void add(const Resource& r);
-  void subtract(const Resource& r);
 
   google::protobuf::RepeatedPtrField<Resource> resources;
 };

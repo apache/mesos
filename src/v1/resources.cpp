@@ -457,7 +457,7 @@ static Try<Resources> convertJSON(
       return Error("Some JSON resources were empty: " + stringify(resource));
     }
 
-    result += resource;
+    result.add(resource);
   }
 
   return result;
@@ -865,7 +865,7 @@ hashmap<string, Resources> Resources::reservations() const
 
   foreach (const Resource& resource, resources) {
     if (isReserved(resource)) {
-      result[resource.role()] += resource;
+      result[resource.role()].add(resource);
     }
   }
 
@@ -933,7 +933,7 @@ Resources Resources::createStrippedScalarQuantity() const
       Resource scalar = resource;
       scalar.clear_reservation();
       scalar.clear_disk();
-      stripped += scalar;
+      stripped.add(scalar);
     }
   }
 
@@ -990,7 +990,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
         }
 
         result -= unreserved;
-        result += reserved;
+        result.add(reserved);
       }
       break;
     }
@@ -1015,7 +1015,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
 
         Resources unreserved = Resources(reserved).flatten();
 
-        result -= reserved;
+        result.subtract(reserved);
         result += unreserved;
       }
       break;
@@ -1053,8 +1053,8 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
           return Error("Invalid CREATE Operation: Insufficient disk resources");
         }
 
-        result -= stripped;
-        result += volume;
+        result.subtract(stripped);
+        result.add(volume);
       }
       break;
     }
@@ -1088,8 +1088,8 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
           stripped.clear_disk();
         }
 
-        result -= volume;
-        result += stripped;
+        result.subtract(volume);
+        result.add(stripped);
       }
       break;
     }
@@ -1326,8 +1326,8 @@ Option<Resources> Resources::find(const Resource& target) const
                  remaining.flatten(resource.role(), resource.reservation());
         }
       } else if (remaining.contains(flattened)) {
-        found += resource;
-        total -= resource;
+        found.add(resource);
+        total.subtract(resource);
         remaining -= flattened;
         break;
       }
