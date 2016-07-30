@@ -102,6 +102,7 @@ private:
     decoder->field.clear();
     decoder->value.clear();
     decoder->query.clear();
+    decoder->url.clear();
 
     CHECK(decoder->request == NULL);
 
@@ -145,35 +146,17 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
-    int result = 0;
 
 #if (HTTP_PARSER_VERSION_MAJOR >= 2)
     // Reworked parsing for version >= 2.0.
-    http_parser_url url;
-    result = http_parser_parse_url(data, length, 0, &url);
-
-    if (result == 0) {
-      if (url.field_set & (1 << UF_PATH)) {
-        decoder->request->url.path.append(
-            data + url.field_data[UF_PATH].off,
-            url.field_data[UF_PATH].len);
-      }
-
-      if (url.field_set & (1 << UF_FRAGMENT)) {
-        decoder->request->url.fragment->append(
-            data + url.field_data[UF_FRAGMENT].off,
-            url.field_data[UF_FRAGMENT].len);
-      }
-
-      if (url.field_set & (1 << UF_QUERY)) {
-        decoder->query.append(
-            data + url.field_data[UF_QUERY].off,
-            url.field_data[UF_QUERY].len);
-      }
-    }
+    // The current http_parser library (version 2.6.2 and below)
+    // does not support incremental parsing of URLs. To compensate
+    // we incrementally collect the data and parse it in
+    // `on_message_complete`.
+    decoder->url.append(data, length);
 #endif
 
-    return result;
+    return 0;
   }
 
   static int on_header_field(http_parser* p, const char* data, size_t length)
@@ -233,6 +216,39 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
 
+    CHECK_NOTNULL(decoder->request);
+
+#if (HTTP_PARSER_VERSION_MAJOR >= 2)
+    // Parse the URL. This data was incrementally built up during calls
+    // to `on_url`.
+    http_parser_url url;
+    http_parser_url_init(&url);
+    int parse_url =
+      http_parser_parse_url(decoder->url.data(), decoder->url.size(), 0, &url);
+
+    if (parse_url != 0) {
+      return parse_url;
+    }
+
+    if (url.field_set & (1 << UF_PATH)) {
+      decoder->request->url.path = std::string(
+          decoder->url.data() + url.field_data[UF_PATH].off,
+          url.field_data[UF_PATH].len);
+    }
+
+    if (url.field_set & (1 << UF_FRAGMENT)) {
+      decoder->request->url.fragment = std::string(
+          decoder->url.data() + url.field_data[UF_FRAGMENT].off,
+          url.field_data[UF_FRAGMENT].len);
+    }
+
+    if (url.field_set & (1 << UF_QUERY)) {
+      decoder->query = std::string(
+          decoder->url.data() + url.field_data[UF_QUERY].off,
+          url.field_data[UF_QUERY].len);
+    }
+#endif
+
     // Parse the query key/values.
     Try<hashmap<std::string, std::string>> decoded =
       http::query::decode(decoder->query);
@@ -240,8 +256,6 @@ private:
     if (decoded.isError()) {
       return 1;
     }
-
-    CHECK_NOTNULL(decoder->request);
 
     decoder->request->url.query = decoded.get();
 
@@ -279,6 +293,7 @@ private:
   std::string field;
   std::string value;
   std::string query;
+  std::string url;
 
   http::Request* request;
 
