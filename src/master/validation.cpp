@@ -445,12 +445,12 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
 // Validates the uniqueness of the persistence IDs used in the given
 // resources. They need to be unique per role on each slave.
 Option<Error> validateUniquePersistenceID(
-    const RepeatedPtrField<Resource>& resources)
+    const Resources& resources)
 {
   hashmap<string, hashset<string>> persistenceIds;
 
   // Check duplicated persistence ID within the given resources.
-  Resources volumes = Resources(resources).persistentVolumes();
+  Resources volumes = resources.persistentVolumes();
 
   foreach (const Resource& volume, volumes) {
     const string& role = volume.role();

@@ -594,13 +594,18 @@ inline Resource createDiskResource(
     const std::string& role,
     const Option<std::string>& persistenceID,
     const Option<std::string>& containerPath,
-    const Option<Resource::DiskInfo::Source>& source = None())
+    const Option<Resource::DiskInfo::Source>& source = None(),
+    bool isShared = false)
 {
   Resource resource = Resources::parse("disk", value, role).get();
 
   if (persistenceID.isSome() || containerPath.isSome() || source.isSome()) {
     resource.mutable_disk()->CopyFrom(
         createDiskInfo(persistenceID, containerPath, None(), None(), source));
+
+    if (isShared) {
+      resource.mutable_shared();
+    }
   }
 
   return resource;
@@ -616,7 +621,8 @@ inline Resource createPersistentVolume(
     const std::string& containerPath,
     const Option<std::string>& reservationPrincipal = None(),
     const Option<Resource::DiskInfo::Source>& source = None(),
-    const Option<std::string>& creatorPrincipal = None())
+    const Option<std::string>& creatorPrincipal = None(),
+    bool isShared = false)
 {
   Resource volume = Resources::parse(
       "disk",
@@ -636,6 +642,10 @@ inline Resource createPersistentVolume(
     volume.mutable_reservation()->set_principal(reservationPrincipal.get());
   }
 
+  if (isShared) {
+    volume.mutable_shared();
+  }
+
   return volume;
 }
 
@@ -647,7 +657,8 @@ inline Resource createPersistentVolume(
     const std::string& persistenceId,
     const std::string& containerPath,
     const Option<std::string>& reservationPrincipal = None(),
-    const Option<std::string>& creatorPrincipal = None())
+    const Option<std::string>& creatorPrincipal = None(),
+    bool isShared = false)
 {
   Option<Resource::DiskInfo::Source> source = None();
   if (volume.has_disk() && volume.disk().has_source()) {
@@ -665,6 +676,10 @@ inline Resource createPersistentVolume(
 
   if (reservationPrincipal.isSome()) {
     volume.mutable_reservation()->set_principal(reservationPrincipal.get());
+  }
+
+  if (isShared) {
+    volume.mutable_shared();
   }
 
   return volume;

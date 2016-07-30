@@ -61,6 +61,74 @@ namespace mesos {
 // +=, -=, etc.).
 class Resources
 {
+private:
+  // An internal abstraction to facilitate managing shared resources.
+  // It allows 'Resources' to group identical shared resource objects
+  // together into a single 'Resource_' object and tracked by its internal
+  // counter. Non-shared resource objects are not grouped.
+  //
+  // The rest of the private section is below the public section. We
+  // need to define Resource_ first because the public typedefs below
+  // depend on it.
+  class Resource_
+  {
+  public:
+    /*implicit*/ Resource_(const Resource& _resource)
+      : resource(_resource),
+        sharedCount(None())
+    {
+      // Setting the counter to 1 to denote "one copy" of the shared resource.
+      if (resource.has_shared()) {
+        sharedCount = 1;
+      }
+    }
+
+    // By implicitly converting to Resource we are able to keep Resource_
+    // logic internal and expose only the protobuf object.
+    operator const Resource&() const { return resource; }
+
+    // Check whether this Resource_ object corresponds to a shared resource.
+    bool isShared() const { return sharedCount.isSome(); }
+
+    // Validates this Resource_ object.
+    Option<Error> validate() const;
+
+    // Check whether this Resource_ object is empty.
+    bool isEmpty() const;
+
+    // The `Resource_` arithmetric, comparison operators and `contains()`
+    // method require the wrapped `resource` protobuf to have the same
+    // sharedness.
+    //
+    // For shared resources, the `resource` protobuf needs to be equal,
+    // and only the shared counters are adjusted or compared.
+    // For non-shared resources, the shared counters are none and the
+    // semantics of the Resource_ object's operators/contains() method
+    // are the same as those of the Resource objects.
+
+    // Checks if this Resource_ is a superset of the given Resource_.
+    bool contains(const Resource_& that) const;
+
+    Resource_& operator+=(const Resource_& that);
+    Resource_& operator-=(const Resource_& that);
+    bool operator==(const Resource_& that) const;
+    bool operator!=(const Resource_& that) const;
+
+    // Friend classes and functions for access to private members.
+    friend class Resources;
+    friend std::ostream& operator<<(
+        std::ostream& stream, const Resource_& resource_);
+
+  private:
+    // The protobuf Resource that is being managed.
+    Resource resource;
+
+    // The counter for grouping shared 'resource' objects, None if the
+    // 'resource' is non-shared. This is an int so as to support arithmetic
+    // operations involving subtraction.
+    Option<int> sharedCount;
+  };
+
 public:
   /**
    * Returns a Resource with the given name, value, and role.
@@ -217,6 +285,15 @@ public:
   // Checks if this Resources contains the given Resource.
   bool contains(const Resource& that) const;
 
+  // Count the Resource objects that match the specified value.
+  //
+  // NOTE:
+  // - For a non-shared resource the count can be at most 1 because all
+  //   non-shared Resource objects in Resources are unique.
+  // - For a shared resource the count can be greater than 1.
+  // - If the resource is not in the Resources object, the count is 0.
+  size_t count(const Resource& that) const;
+
   // Filter resources based on the given predicate.
   Resources filter(
       const lambda::function<bool(const Resource&)>& predicate) const;
@@ -338,22 +415,17 @@ public:
   // NOTE: Non-`const` `iterator`, `begin()` and `end()` are __intentionally__
   // defined with `const` semantics in order to prevent mutable access to the
   // `Resource` objects within `resources`.
-  typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
-  iterator;
-
-  typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
-  const_iterator;
+  typedef std::vector<Resource_>::const_iterator iterator;
+  typedef std::vector<Resource_>::const_iterator const_iterator;
 
   const_iterator begin()
   {
-    using google::protobuf::RepeatedPtrField;
-    return static_cast<const RepeatedPtrField<Resource>&>(resources).begin();
+    return static_cast<const std::vector<Resource_>&>(resources).begin();
   }
 
   const_iterator end()
   {
-    using google::protobuf::RepeatedPtrField;
-    return static_cast<const RepeatedPtrField<Resource>&>(resources).end();
+    return static_cast<const std::vector<Resource_>&>(resources).end();
   }
 
   const_iterator begin() const { return resources.begin(); }
@@ -361,7 +433,9 @@ public:
 
   // Using this operator makes it easy to copy a resources object into
   // a protocol buffer field.
-  operator const google::protobuf::RepeatedPtrField<Resource>&() const;
+  // Note that the google::protobuf::RepeatedPtrField<Resource> is
+  // generated at runtime.
+  operator const google::protobuf::RepeatedPtrField<Resource>() const;
 
   bool operator==(const Resources& that) const;
   bool operator!=(const Resources& that) const;
@@ -386,6 +460,9 @@ public:
   void add(const Resource& r);
   void subtract(const Resource& r);
 
+  friend std::ostream& operator<<(
+      std::ostream& stream, const Resource_& resource_);
+
 private:
   // Similar to 'contains(const Resource&)' but skips the validity
   // check. This can be used to avoid the performance overhead of
@@ -394,15 +471,34 @@ private:
   //
   // TODO(jieyu): Measure performance overhead of validity check to
   // ensure this is warranted.
-  bool _contains(const Resource& that) const;
+  bool _contains(const Resource_& that) const;
 
   // Similar to the public 'find', but only for a single Resource
   // object. The target resource may span multiple roles, so this
   // returns Resources.
   Option<Resources> find(const Resource& target) const;
 
-  google::protobuf::RepeatedPtrField<Resource> resources;
+  // The add and subtract methods and operators on Resource_ are only
+  // allowed from within Resources class so we hide them.
+
+  // Validation-free versions of += and -= `Resource_` operators.
+  // These can be used when `r` is already validated.
+  void add(const Resource_& r);
+  void subtract(const Resource_& r);
+
+  Resources operator+(const Resource_& that) const;
+  Resources& operator+=(const Resource_& that);
+
+  Resources operator-(const Resource_& that) const;
+  Resources& operator-=(const Resource_& that);
+
+  std::vector<Resource_> resources;
 };
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Resources::Resource_& resource);
 
 
 std::ostream& operator<<(std::ostream& stream, const Resource& resource);
