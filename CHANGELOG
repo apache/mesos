@@ -4,17 +4,18 @@ Release Notes - Mesos - Version 0.28.3
 
 All Issues:
 ** Bug
-  * [MESOS-5673] - Port mapping isolator may cause segfault if it bind mount root does not exist.
-  * [MESOS-5330] - Agent should backoff before connecting to the master.
-  * [MESOS-5543] - /dev/fd is missing in the Mesos containerizer environment.
-  * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
-  * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
-  * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
+  * [MESOS-2043] - Framework auth fail with timeout error and never get authenticated
   * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters.
-  * [MESOS-5698] - Quota sorter not updated for resource changes at agent.
-  * [MESOS-5740] - Consider adding `relink` functionality to libprocess.
-  * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition.
+  * [MESOS-5330] - Agent should backoff before connecting to the master.
   * [MESOS-5390] - v1 Executor Protos not included in maven jar
+  * [MESOS-5543] - /dev/fd is missing in the Mesos containerizer environment.
+  * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition.
+  * [MESOS-5673] - Port mapping isolator may cause segfault if it bind mount root does not exist.
+  * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
+  * [MESOS-5698] - Quota sorter not updated for resource changes at agent.
+  * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
+  * [MESOS-5740] - Consider adding `relink` functionality to libprocess.
+  * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
 
 
 Release Notes - Mesos - Version 0.28.2
