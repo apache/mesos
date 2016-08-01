@@ -225,28 +225,48 @@ Try<Containerizer*> Containerizer::create(
 
 #ifdef __linux__
   if (nvml::isAvailable()) {
-    Try<Resources> gpus = NvidiaGpuAllocator::resources(flags);
+    // If we are using the docker containerizer (either alone or in
+    // conjunction with the mesos containerizer), unconditionally
+    // create the Nvidia components and pass them through. If we are
+    // using the mesos containerizer alone, make sure we also have the
+    // `gpu/nvidia` isolator flag set before creating these components.
+    bool shouldCreate = false;
 
-    if (gpus.isError()) {
-      return Error("Failed call to NvidiaGpuAllocator::resources: " +
-                   gpus.error());
+    if (containerizerTypes.count("docker") > 0) {
+      shouldCreate = true;
+    } else if (containerizerTypes.count("mesos") > 0) {
+      const vector<string> _isolators = strings::tokenize(flags.isolation, ",");
+      const set<string> isolators(_isolators.begin(), _isolators.end());
+
+      if (isolators.count("gpu/nvidia") > 0) {
+        shouldCreate = true;
+      }
     }
 
-    Try<NvidiaGpuAllocator> allocator =
-      NvidiaGpuAllocator::create(flags, gpus.get());
+    if (shouldCreate) {
+      Try<Resources> gpus = NvidiaGpuAllocator::resources(flags);
 
-    if (allocator.isError()) {
-      return Error("Failed to NvidiaGpuAllocator::create: " +
-                   allocator.error());
+      if (gpus.isError()) {
+        return Error("Failed call to NvidiaGpuAllocator::resources: " +
+                     gpus.error());
+      }
+
+      Try<NvidiaGpuAllocator> allocator =
+        NvidiaGpuAllocator::create(flags, gpus.get());
+
+      if (allocator.isError()) {
+        return Error("Failed to NvidiaGpuAllocator::create: " +
+                     allocator.error());
+      }
+
+      Try<NvidiaVolume> volume = NvidiaVolume::create();
+
+      if (volume.isError()) {
+        return Error("Failed to NvidiaVolume::create: " + volume.error());
+      }
+
+      nvidia = NvidiaComponents(allocator.get(), volume.get());
     }
-
-    Try<NvidiaVolume> volume = NvidiaVolume::create();
-
-    if (volume.isError()) {
-      return Error("Failed to NvidiaVolume::create: " + volume.error());
-    }
-
-    nvidia = NvidiaComponents(allocator.get(), volume.get());
   }
 #endif
 
