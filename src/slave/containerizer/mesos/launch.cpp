@@ -22,6 +22,8 @@
 
 #include <iostream>
 
+#include <process/subprocess.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -41,6 +43,8 @@ using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
+
+using process::Subprocess;
 
 namespace mesos {
 namespace internal {
@@ -208,23 +212,43 @@ int MesosContainerizerLaunch::execute()
         return 1;
       }
 
-      // TODO(jieyu): Currently, we only accept shell commands for the
-      // preparation commands.
-      if (!parse.get().shell()) {
-        cerr << "Preparation commands need to be shell commands" << endl;
-        return 1;
-      }
-
       if (!parse.get().has_value()) {
         cerr << "The 'value' of a preparation command is not specified" << endl;
         return 1;
       }
 
-      // Block until the command completes.
-      int status = os::system(parse.get().value());
-      if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-        cerr << "Failed to execute a preparation shell command" << endl;
-        return 1;
+      Try<Subprocess> s = Error("Not launched");
+
+      if (parse->shell()) {
+        s = subprocess(parse->value(), Subprocess::PATH("/dev/null"));
+      } else {
+        // Launch non-shell command as a subprocess to avoid injecting
+        // arbitrary shell commands.
+        vector<string> args;
+        foreach (const string& arg, parse->arguments()) {
+          args.push_back(arg);
+        }
+
+        s = subprocess(parse->value(), args, Subprocess::PATH("/dev/null"));
+      }
+
+      if (s.isError()) {
+        cerr << "Failed to create the pre-exec subprocess: "
+             << s.error() << endl;
+        return EXIT_FAILURE;
+      }
+
+      s->status().await();
+
+      Option<int> status = s->status().get();
+      if (status.isNone()) {
+        cerr << "Failed to reap the pre-exec subprocess "
+             << "'" << value << "'" << endl;
+        return EXIT_FAILURE;
+      } else if (status.get() != 0) {
+        cerr << "The pre-exec subprocess '" << value << "' "
+             << "failed" << endl;
+        return EXIT_FAILURE;
       }
     }
   }
