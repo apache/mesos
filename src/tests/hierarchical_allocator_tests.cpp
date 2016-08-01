@@ -3449,12 +3449,6 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   size_t slaveCount = std::tr1::get<0>(GetParam());
   size_t frameworkCount = std::tr1::get<1>(GetParam());
 
-  master::Flags flags;
-
-  // Choose an interval longer than the time we expect a single cycle to take so
-  // that we don't back up the process queue.
-  flags.allocation_interval = Hours(1);
-
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
 
@@ -3485,7 +3479,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   vector<FrameworkInfo> frameworks;
   frameworks.reserve(frameworkCount);
 
-  initialize(flags, offerCallback);
+  initialize(master::Flags(), offerCallback);
 
   Stopwatch watch;
   watch.start();
@@ -3595,12 +3589,6 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   size_t slaveCount = std::tr1::get<0>(GetParam());
   size_t frameworkCount = std::tr1::get<1>(GetParam());
 
-  master::Flags flags;
-
-  // Choose an interval longer than the time we expect a single cycle to take so
-  // that we don't back up the process queue.
-  flags.allocation_interval = Hours(1);
-
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
 
@@ -3631,7 +3619,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   vector<FrameworkInfo> frameworks;
   frameworks.reserve(frameworkCount);
 
-  initialize(flags, offerCallback);
+  initialize(master::Flags(), offerCallback);
 
   Stopwatch watch;
   watch.start();
