@@ -23,6 +23,7 @@
 
 #include <process/owned.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/elf.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
@@ -38,6 +39,7 @@
 #include <stout/os/rmdir.hpp>
 #include <stout/os/shell.hpp>
 
+#include "linux/fs.hpp"
 #include "linux/ldcache.hpp"
 
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
@@ -222,6 +224,45 @@ Try<NvidiaVolume> NvidiaVolume::create()
     }
   }
 
+  // If the filesystem where we are creating this volume has the
+  // `noexec` bit set, we will not be able to execute any of the
+  // nvidia binaries we place in the volume (e.g. `nvidia-smi`). To
+  // fix this, we mount a `tmpfs` over the volume `hostPath` without
+  // the `noexec` bit set. See MESOS-5923 for more information.
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  Result<string> realpath = os::realpath(hostPath);
+  if (!realpath.isSome()) {
+    return Error("Failed to os::realpath '" + hostPath + "':"
+                 " " + (realpath.isError()
+                        ? realpath.error()
+                        : "No such file or directory"));
+  }
+
+  // Do a reverse search through the list of mounted filesystems to
+  // find the filesystem that is mounted with the longest overlapping
+  // path to our `hostPath` (which may include the `hostPath` itself).
+  // Only mount a new `tmpfs` over the `hostPath` if the filesysem we
+  // find is marked as `noexec`.
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table->entries)) {
+    if (strings::startsWith(realpath.get(), entry.target)) {
+      if (strings::contains(entry.vfsOptions, "noexec")) {
+        Try<Nothing> mnt = fs::mount(
+            "tmpfs", hostPath, "tmpfs", MS_NOSUID | MS_NODEV, "mode=755");
+
+        if (mnt.isError()) {
+          return Error("Failed to mount '" + hostPath + "': " + mnt.error());
+        }
+      }
+
+      break;
+    }
+  }
+
   // Create some directories in the volume if they don't yet exist.
   string directories[] = {"bin", "lib", "lib64" };
   foreach (const string& directory, directories) {
@@ -345,7 +386,7 @@ Try<NvidiaVolume> NvidiaVolume::create()
 
         if (!os::exists(symlinkPath)) {
           Try<Nothing> symlink =
-            fs::symlink(Path(realpath.get()).basename(), symlinkPath);
+            ::fs::symlink(Path(realpath.get()).basename(), symlinkPath);
           if (symlink.isError()) {
             return Error("Failed to fs::symlink"
                          " '" + symlinkPath + "'"
@@ -370,7 +411,7 @@ Try<NvidiaVolume> NvidiaVolume::create()
 
           if (!os::exists(symlinkPath)) {
             Try<Nothing> symlink =
-              fs::symlink(Path(realpath.get()).basename(), symlinkPath);
+              ::fs::symlink(Path(realpath.get()).basename(), symlinkPath);
             if (symlink.isError()) {
               return Error("Failed to fs::symlink"
                            " '" + symlinkPath + "'"
