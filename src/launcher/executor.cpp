@@ -433,7 +433,7 @@ protected:
           .onAny([](const Future<Nothing>& future) {
             // Only possible to be a failure.
             if (future.isFailed()) {
-              cerr << "Healh check failed" << endl;
+              cerr << "Health check failed" << endl;
             }
           });
       }
