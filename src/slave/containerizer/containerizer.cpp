@@ -211,6 +211,15 @@ Try<Containerizer*> Containerizer::create(
     return containerizer.get();
   }
 
+  // Get the set of containerizer types.
+  const vector<string> _types = strings::split(flags.containerizers, ",");
+  const set<string> containerizerTypes(_types.begin(), _types.end());
+
+  if (containerizerTypes.size() != _types.size()) {
+    return Error("Duplicate entries found in --containerizer flag"
+                 " '" + flags.containerizers + "'");
+  }
+
   // Optionally create the Nvidia components.
   Option<NvidiaComponents> nvidia;
 
@@ -247,7 +256,7 @@ Try<Containerizer*> Containerizer::create(
   // Create containerizer(s).
   vector<Containerizer*> containerizers;
 
-  foreach (const string& type, strings::split(flags.containerizers, ",")) {
+  foreach (const string& type, containerizerTypes) {
     if (type == "mesos") {
       Try<MesosContainerizer*> containerizer =
         MesosContainerizer::create(flags, local, fetcher, nvidia);
