@@ -491,9 +491,18 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target  << "' for container " << containerId;
 
-    const string command = "mount -n --rbind '" + source + "' '" + target + "'";
-
-    launchInfo.add_pre_exec_commands()->set_value(command);
+    // Launch mount command as a non-shell subprocess to avoid
+    // injecting arbitrary shell commands (e.g., user defined
+    // 'container_path' in volume can be postfixed with any
+    // unsafe arbitrary commands).
+    CommandInfo* command = launchInfo.add_pre_exec_commands();
+    command->set_shell(false);
+    command->set_value("mount");
+    command->add_arguments("mount");
+    command->add_arguments("-n");
+    command->add_arguments("--rbind");
+    command->add_arguments(source);
+    command->add_arguments(target);
   }
 
   return launchInfo;
