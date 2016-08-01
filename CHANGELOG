@@ -4,6 +4,7 @@ Release Notes - Mesos - Version 1.0.1
 
 All Issues:
 ** Bug
+  * [MESOS-5911] - Webui redirection to leader in browser does not work.
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
 
 
