@@ -584,7 +584,7 @@ TEST_F(NvidiaGpuTest, NVIDIA_GPU_Allocator)
 
 // Tests that we can create the volume that consolidates
 // the Nvidia libraries and binaries.
-TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeCreation)
+TEST_F(NvidiaGpuTest, ROOT_NVIDIA_GPU_VolumeCreation)
 {
   Try<NvidiaVolume> volume = NvidiaVolume::create();
   ASSERT_SOME(volume);
@@ -603,7 +603,7 @@ TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeCreation)
 
 // Tests that we can properly detect when an Nvidia volume should be
 // injected into a Docker container given its ImageManifest.
-TEST_F(NvidiaGpuTest, NVIDIA_GPU_VolumeShouldInject)
+TEST_F(NvidiaGpuTest, ROOT_NVIDIA_GPU_VolumeShouldInject)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(
       R"~(
