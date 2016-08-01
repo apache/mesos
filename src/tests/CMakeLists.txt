@@ -29,3 +29,7 @@ add_subdirectory(containerizer/)
 # THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
 #################################$###############################################
 add_executable(${ACTIVE_USER_TEST_HELPER_TARGET} ${ACTIVE_USER_TEST_HELPER_SRC})
+
+# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
+####################################################################
+add_dependencies(${ACTIVE_USER_TEST_HELPER_TARGET} ${STOUT_DEPENDENCIES})
