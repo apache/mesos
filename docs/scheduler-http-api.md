@@ -42,8 +42,8 @@ For example, a stream may look like:
 
 ```
 128\n
-{"type": "SUBSCRIBED","subscribed": {"framework_id": {"value":"12220-3440-12532-2345"},...}104\n
-{"framework_id": {"value": "12220-3440-12532-2345"},...{"value" : "12220-3440-12532-O12"},}208\n
+{"type": "SUBSCRIBED","subscribed": {"framework_id": {"value":"12220-3440-12532-2345"},"heartbeat_interval_seconds":15.0}20\n
+{"type":"HEARTBEAT"}675\n
 ...
 ```
 
@@ -152,15 +152,48 @@ Content-Type: application/json
 Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
-  "framework_id"	: {"value" : "12220-3440-12532-2345"},
-  "type"			: "ACCEPT",
-  "accept"			: {
-    "offer_ids"		: [
-                       {"value" : "12220-3440-12532-O12"},
-                       {"value" : "12220-3440-12532-O12"}
-                      ],
-    "operations"	: [ {"type" : "LAUNCH", "launch" : {...}} ],
-    "filters"		: {...}
+  "framework_id"   : {"value" : "12220-3440-12532-2345"},
+  "type"           : "ACCEPT",
+  "accept"         : {
+    "offer_ids"    : [
+                      {"value" : "12220-3440-12532-O12"}
+                     ],
+     "operations"  : [
+                      {
+                       "type"         : "LAUNCH",
+                       "launch"       : {
+                         "task_infos" : [
+                                         {
+                                          "name"        : "My Task",
+                                          "task_id"     : {"value" : "12220-3440-12532-my-task"},
+                                          "agent_id"    : {"value" : "12220-3440-12532-S1233"},
+                                          "executor"    : {
+                                            "command"     : {
+                                              "shell"     : true,
+                                              "value"     : "sleep 1000"
+                                            },
+                                            "executor_id" : {"value" : "12214-23523-my-executor"}
+                                          },
+                                          "resources"   : [
+                                                           {
+                                                            "name"  : "cpus",
+						            "role"  : "*",
+						            "type"  : "SCALAR",
+						            "scalar": {"value": 1.0}
+					                   },
+                                                           {
+						            "name"  : "mem",
+						            "role"  : "*",
+						            "type"  : "SCALAR",
+						            "scalar": {"value": 128.0}
+					                   }
+                                                          ]
+                                         }
+                                        ]
+                       }
+                      }
+                     ],
+     "filters"     : {"refuse_seconds" : 5.0}
   }
 }
 
@@ -188,7 +221,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
                    {"value" : "12220-3440-12532-O12"},
                    {"value" : "12220-3440-12532-O13"}
                   ],
-    "filters"	: {...}
+    "filters"	: {"refuse_seconds" : 5.0}
   }
 }
 
@@ -396,13 +429,28 @@ OFFERS Event (JSON)
   "type"	: "OFFERS",
   "offers"	: [
     {
-      "offer_id":{"value": "12214-23523-O235235"},
-      "framework_id":{"value": "12124-235325-32425"},
-      "agent_id":{"value": "12325-23523-S23523"},
-      "hostname":"agent.host",
-      "resources":[...],
-      "attributes":[...],
-      "executor_ids":[]
+      "offer_id"     : {"value": "12214-23523-O235235"},
+      "framework_id" : {"value": "12124-235325-32425"},
+      "agent_id"     : {"value": "12325-23523-S23523"},
+      "hostname"     : "agent.host",
+      "resources"    : [
+                        {
+                         "name"   : "cpus",
+                         "type"   : "SCALAR",
+                         "scalar" : {"value" : 2},
+                         "role"   : "*"
+                        }
+                       ],
+      "attributes"   : [
+                        {
+                         "name"   : "os",
+                         "type"   : "TEXT",
+                         "text"   : {"value" : "ubuntu16.04"}
+                        }
+                       ],
+      "executor_ids" : [
+                        {"value" : "12214-23523-my-executor"}
+                       ]
     }
   ]
 }
