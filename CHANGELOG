@@ -6,6 +6,8 @@ All Issues:
 ** Bug
   * [MESOS-5911] - webUI redirection to leader in browser does not work.
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
+  * [MESOS-5923] - Ubuntu 14.04 LTS GPU Isolator "/run" directory is noexec.
+  * [MESOS-5959] - All non-root tests fail on GPU machine.
 
 
 Release Notes - Mesos - Version 1.0.0
