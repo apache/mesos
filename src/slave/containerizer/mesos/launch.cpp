@@ -217,6 +217,8 @@ int MesosContainerizerLaunch::execute()
         return EXIT_FAILURE;
       }
 
+      cout << "Executing pre-exec command '" << value << "'" << endl;
+
       Try<Subprocess> s = Error("Not launched");
 
       if (parse->shell()) {
