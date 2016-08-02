@@ -64,7 +64,7 @@ public:
 private:
   LinuxFilesystemIsolatorProcess(const Flags& flags);
 
-  Try<std::string> script(
+  Try<std::vector<CommandInfo>> getPreExecCommands(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 

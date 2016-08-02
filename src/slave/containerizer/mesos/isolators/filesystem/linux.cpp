@@ -49,6 +49,7 @@ using namespace process;
 using std::list;
 using std::ostringstream;
 using std::string;
+using std::vector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerState;
@@ -286,13 +287,16 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   // namespace right after forking the executor process. We use these
   // commands to mount those volumes specified in the container info
   // so that they don't pollute the host mount namespace.
-  Try<string> _script = script(containerId, containerConfig);
-  if (_script.isError()) {
-    return Failure("Failed to generate isolation script: " + _script.error());
+  Try<vector<CommandInfo>> commands =
+    getPreExecCommands(containerId, containerConfig);
+
+  if (commands.isError()) {
+    return Failure("Failed to get pre-exec commands: " + commands.error());
   }
 
-  CommandInfo* command = launchInfo.add_pre_exec_commands();
-  command->set_value(_script.get());
+  foreach (const CommandInfo& command, commands.get()) {
+    launchInfo.add_pre_exec_commands()->CopyFrom(command);
+  }
 
   return update(containerId, containerConfig.executor_info().resources())
     .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
@@ -301,27 +305,38 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 }
 
 
-Try<string> LinuxFilesystemIsolatorProcess::script(
+Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  ostringstream out;
-  out << "#!/bin/sh\n";
-  out << "set -x -e\n";
+  vector<CommandInfo> commands;
 
   // Make sure mounts in the container mount namespace do not
   // propagate back to the host mount namespace.
   // NOTE: We cannot simply run `mount --make-rslave /`, for more info
   // please refer to comments in mount.hpp.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value(path::join(flags.launcher_dir, "mesos-containerizer"));
+  command.add_arguments("mesos-containerizer");
+  command.add_arguments(MesosContainerizerMount::NAME);
+
   MesosContainerizerMount::Flags mountFlags;
   mountFlags.operation = MesosContainerizerMount::MAKE_RSLAVE;
   mountFlags.path = "/";
-  out << path::join(flags.launcher_dir, "mesos-containerizer") << " "
-      << MesosContainerizerMount::NAME << " "
-      << stringify(mountFlags) << "\n";
+
+  foreachvalue (const flags::Flag& flag, mountFlags) {
+    const Option<string> value = flag.stringify(flags);
+    if (value.isSome()) {
+      command.add_arguments(
+          "--" + flag.effective_name().value + "=" + value.get());
+    }
+  }
+
+  commands.push_back(command);
 
   if (!containerConfig.executor_info().has_container()) {
-    return out.str();
+    return commands;
   }
 
   // Bind mount the sandbox if the container specifies a rootfs.
@@ -337,8 +352,16 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
           sandbox + "': " + mkdir.error());
     }
 
-    out << "mount -n --rbind '" << containerConfig.directory()
-        << "' '" << sandbox << "'\n";
+    CommandInfo command;
+    command.set_shell(false);
+    command.set_value("mount");
+    command.add_arguments("mount");
+    command.add_arguments("-n");
+    command.add_arguments("--rbind");
+    command.add_arguments(containerConfig.directory());
+    command.add_arguments(sandbox);
+
+    commands.push_back(command);
   }
 
   foreach (const Volume& volume,
@@ -490,10 +513,19 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     }
 
     // TODO(jieyu): Consider the mode in the volume.
-    out << "mount -n --rbind '" << source << "' '" << target << "'\n";
+    CommandInfo command;
+    command.set_shell(false);
+    command.set_value("mount");
+    command.add_arguments("mount");
+    command.add_arguments("-n");
+    command.add_arguments("--rbind");
+    command.add_arguments(source);
+    command.add_arguments(target);
+
+    commands.push_back(command);
   }
 
-  return out.str();
+  return commands;
 }
 
 
