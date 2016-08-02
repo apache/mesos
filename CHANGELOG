@@ -4,7 +4,8 @@ Release Notes - Mesos - Version 1.0.1
 
 All Issues:
 ** Bug
-  * [MESOS-5911] - webUI redirection to leader in browser does not work.
+  * [MESOS-5388] - MesosContainerizerLaunch flags execute arbitrary commands via shell.
+  * [MESOS-5911] - Webui redirection to leader in browser does not work.
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
   * [MESOS-5923] - Ubuntu 14.04 LTS GPU Isolator "/run" directory is noexec.
   * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
