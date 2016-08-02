@@ -430,9 +430,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-
-  LOG(INFO) << "Starting Mesos agent";
-
   Slave* slave = new Slave(
       id,
       flags,

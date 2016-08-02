@@ -195,7 +195,7 @@ void Slave::signaled(int signal, int uid)
 
 void Slave::initialize()
 {
-  LOG(INFO) << "Agent started on " << string(self()).substr(6);
+  LOG(INFO) << "Mesos agent started on " << string(self()).substr(5);
   LOG(INFO) << "Flags at startup: " << flags;
 
   if (self().address.ip.isLoopback()) {
@@ -3782,7 +3782,7 @@ void Slave::pingTimeout(Future<Option<MasterInfo>> future)
 
 void Slave::exited(const UPID& pid)
 {
-  LOG(INFO) << pid << " exited";
+  LOG(INFO) << "Got exited event for " << pid;
 
   if (master.isNone() || master.get() == pid) {
     // TODO(neilc): Try to re-link to the master (MESOS-1963).
