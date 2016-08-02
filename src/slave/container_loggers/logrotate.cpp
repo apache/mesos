@@ -21,6 +21,7 @@
 #include <functional>
 #include <string>
 
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp>
@@ -107,7 +108,7 @@ public:
   void loop()
   {
     io::read(STDIN_FILENO, buffer, length)
-      .then([&](size_t readSize) -> Future<Nothing> {
+      .then(defer(self(), [&](size_t readSize) -> Future<Nothing> {
         // Check if EOF has been reached on the input stream.
         // This indicates that the container (whose logs are being
         // piped to this process) has exited.
@@ -128,7 +129,7 @@ public:
         dispatch(self(), &LogrotateLoggerProcess::loop);
 
         return Nothing();
-      });
+      }));
   }
 
   // Writes the buffer from stdin to the leading log file.
