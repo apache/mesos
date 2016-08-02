@@ -2416,19 +2416,20 @@ TEST(ResourcesTest, Count)
   // the result is reflected in the count.
   Resource sharedDisk = createDiskResource(
       "100", "role1", "1", "path1", None(), true);
-  EXPECT_EQ(1, (Resources(sharedDisk)).count(sharedDisk));
-  EXPECT_EQ(2, (Resources(sharedDisk) + sharedDisk).count(sharedDisk));
+  EXPECT_EQ(1u, (Resources(sharedDisk)).count(sharedDisk));
+  EXPECT_EQ(2u, (Resources(sharedDisk) + sharedDisk).count(sharedDisk));
 
   // The summation is invalid and a no-op for non-shared disks so the
   // count remains 1.
   Resource nonSharedDisk = createDiskResource("100", "role1", "1", "path1");
-  EXPECT_EQ(1, (Resources(nonSharedDisk)).count(nonSharedDisk));
-  EXPECT_EQ(1, (Resources(nonSharedDisk) + nonSharedDisk).count(nonSharedDisk));
+  EXPECT_EQ(1u, (Resources(nonSharedDisk)).count(nonSharedDisk));
+  EXPECT_EQ(
+      1u, (Resources(nonSharedDisk) + nonSharedDisk).count(nonSharedDisk));
 
   // After the summation the scalar changes so the count is 0.
   Resource cpus = Resources::parse("cpus", "1", "*").get();
-  EXPECT_EQ(1, Resources(cpus).count(cpus));
-  EXPECT_EQ(0, (Resources(cpus) + cpus).count(cpus));
+  EXPECT_EQ(1u, Resources(cpus).count(cpus));
+  EXPECT_EQ(0u, (Resources(cpus) + cpus).count(cpus));
 }
 
 
@@ -2443,11 +2444,11 @@ TEST(SharedResourcesTest, ScalarAdditionShared)
   r1 += Resources::parse("mem", "5", "*").get();
   r1 += disk;
 
-  EXPECT_EQ(1, r1.count(disk));
+  EXPECT_EQ(1u, r1.count(disk));
 
   Resources r2 = Resources::parse("cpus:2;mem:10").get() + disk;
 
-  EXPECT_EQ(1, r2.count(disk));
+  EXPECT_EQ(1u, r2.count(disk));
 
   // Verify addition (operator+) on Resources.
   Resources sum = r1 + r2;
@@ -2457,7 +2458,7 @@ TEST(SharedResourcesTest, ScalarAdditionShared)
   EXPECT_EQ(3, sum.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, sum.get<Value::Scalar>("mem").get().value());
   EXPECT_EQ(50, sum.get<Value::Scalar>("disk").get().value());
-  EXPECT_EQ(2, sum.count(disk));
+  EXPECT_EQ(2u, sum.count(disk));
 
   // Verify operator+= on Resources is the same as operator+.
   Resources r = r1;
@@ -2483,7 +2484,7 @@ TEST(SharedResourcesTest, ScalarSubtractionShared)
   EXPECT_EQ(35, diff.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(3584, diff.get<Value::Scalar>("mem").get().value());
   EXPECT_EQ(8192, diff.get<Value::Scalar>("disk").get().value());
-  EXPECT_EQ(1, diff.count(disk));
+  EXPECT_EQ(1u, diff.count(disk));
   EXPECT_TRUE(diff.contains(disk));
 
   // Verify operator-= on Resources is the same as operator-.
@@ -2493,14 +2494,14 @@ TEST(SharedResourcesTest, ScalarSubtractionShared)
 
   // Verify that when all copies of shared resource is removed, that specific
   // shared resource is no longer contained in the Resources object.
-  EXPECT_EQ(2, r1.count(disk));
+  EXPECT_EQ(2u, r1.count(disk));
   EXPECT_TRUE(r1.contains(disk));
-  EXPECT_EQ(1, r2.count(disk));
+  EXPECT_EQ(1u, r2.count(disk));
   EXPECT_TRUE(r2.contains(disk));
 
-  EXPECT_EQ(0, (r1 - r2 - r2).count(disk));
+  EXPECT_EQ(0u, (r1 - r2 - r2).count(disk));
   EXPECT_FALSE((r1 - r2 - r2).contains(disk));
-  EXPECT_EQ(0, (r2 - r1).count(disk));
+  EXPECT_EQ(0u, (r2 - r1).count(disk));
   EXPECT_FALSE((r2 - r1).contains(disk));
 }
 
@@ -2515,8 +2516,8 @@ TEST(SharedResourcesTest, ScalarSharedCompoundExpressions)
     disk + disk + disk + disk;
   Resources r2 = Resources::parse("cpus:2;mem:10").get() + disk + disk + disk;
 
-  EXPECT_EQ(4, r1.count(disk));
-  EXPECT_EQ(3, r2.count(disk));
+  EXPECT_EQ(4u, r1.count(disk));
+  EXPECT_EQ(3u, r2.count(disk));
 
   // Verify multiple arithmetic operations on shared resources.
   EXPECT_EQ(r1 + r1 - r1, r1);
@@ -2544,19 +2545,19 @@ TEST(SharedResourcesTest, ScalarNonEqualSharedOperations)
 
   Resources r1 = Resources(disk1) + disk2;
 
-  EXPECT_EQ(1, r1.count(disk1));
-  EXPECT_EQ(1, r1.count(disk2));
+  EXPECT_EQ(1u, r1.count(disk1));
+  EXPECT_EQ(1u, r1.count(disk2));
 
   Resources r2 = Resources(disk1) + disk2 - disk1;
 
-  EXPECT_EQ(0, r2.count(disk1));
-  EXPECT_EQ(1, r2.count(disk2));
+  EXPECT_EQ(0u, r2.count(disk1));
+  EXPECT_EQ(1u, r2.count(disk2));
 
   // Cannot subtract nonequal shared resources.
   Resources r3 = Resources(disk1) - disk2;
 
-  EXPECT_EQ(1, r3.count(disk1));
-  EXPECT_EQ(0, r3.count(disk2));
+  EXPECT_EQ(1u, r3.count(disk1));
+  EXPECT_EQ(0u, r3.count(disk2));
 }
 
 
@@ -2585,8 +2586,8 @@ TEST(SharedResourcesTest, ScalarSharedAndNonSharedOperations)
   EXPECT_FALSE(r3.empty());
   EXPECT_EQ(2u, r3.size());
   EXPECT_EQ(200, r3.get<Value::Scalar>("disk").get().value());
-  EXPECT_EQ(2, r3.count(sharedDisk));
-  EXPECT_EQ(1, r3.count(nonSharedDisk));
+  EXPECT_EQ(2u, r3.count(sharedDisk));
+  EXPECT_EQ(1u, r3.count(nonSharedDisk));
 
   // Cannot subtract resources with non-matching sharedness.
   Resources r4 = nonSharedDisk;
