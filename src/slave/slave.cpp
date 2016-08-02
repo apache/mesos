@@ -3488,11 +3488,11 @@ void Slave::_statusUpdate(
   } else {
     // Immediately send the status update.
     __statusUpdate(None(),
-                  update,
-                  pid,
-                  executor->id,
-                  executor->containerId,
-                  executor->checkpoint);
+                   update,
+                   pid,
+                   executor->id,
+                   executor->containerId,
+                   executor->checkpoint);
   }
 }
 
