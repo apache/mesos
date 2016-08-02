@@ -1622,10 +1622,18 @@ void Resources::subtract(const Resource_& that)
     if (internal::subtractable(resource_.resource, that)) {
       resource_ -= that;
 
-      // Remove the resource if it becomes invalid or zero. We need
-      // to do the validation because we want to strip negative
-      // scalar Resource object.
-      if (resource_.validate().isSome() || resource_.isEmpty()) {
+      // Remove the resource if it has become negative or empty.
+      // Note that a negative resource means the caller is
+      // subtracting more than they should!
+      //
+      // TODO(gyliu513): Provide a stronger interface to avoid
+      // silently allowing this to occur.
+
+      bool negative =
+        resource_.resource.type() == Value::SCALAR &&
+        resource_.resource.scalar().value() < 0;
+
+      if (negative || resource_.isEmpty()) {
         // As `resources` is not ordered, and erasing an element
         // from the middle is expensive, we swap with the last element
         // and then shrink the vector by one.
