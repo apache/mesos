@@ -601,8 +601,15 @@ Try<Nothing> enter(const string& root)
   // new root is writable (i.e., it could be a read only filesystem).
   // Therefore, we always mount a tmpfs on /tmp in the new root so
   // that we can create the mount point for the old root.
-  if (!os::exists(path::join(root, "tmp"))) {
-    return Error("/tmp in chroot does not exist");
+  //
+  // NOTE: If the new root is a read-only filesystem (e.g., using bind
+  // backend), the 'tmpfs' mount point '/tmp' must already exist in the
+  // new root. Otherwise, mkdir would return an error because of unable
+  // to create it in read-only filesystem.
+  Try<Nothing> mkdir = os::mkdir(path::join(root, "tmp"));
+  if (mkdir.isError()) {
+    return Error("Failed to create 'tmpfs' mount point at '" +
+                 path::join(root, "tmp") + "': " + mkdir.error());
   }
 
   // TODO(jieyu): Consider limiting the size of the tmpfs.
