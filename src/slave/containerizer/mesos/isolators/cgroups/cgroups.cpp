@@ -346,7 +346,92 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
 Future<Nothing> CgroupsIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  // Multiple calls may occur during test clean up.
+  if (!infos.contains(containerId)) {
+    VLOG(1) << "Ignoring cleanup request for unknown container: "
+            << containerId;
+
+    return Nothing();
+  }
+
+  list<Future<Nothing>> cleanups;
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    cleanups.push_back(subsystem->cleanup(containerId));
+  }
+
+  return await(cleanups)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::_cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::_cleanup(
+    const ContainerID& containerId,
+    const list<Future<Nothing>>& futures)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to cleanup subsystems: " +
+        strings::join(";", errors));
+  }
+
+  list<Future<Nothing>> destroys;
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    destroys.push_back(cgroups::destroy(
+        hierarchy,
+        infos[containerId]->cgroup,
+        cgroups::DESTROY_TIMEOUT));
+  }
+
+  return await(destroys)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::__cleanup,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::__cleanup(
+    const ContainerID& containerId,
+    const list<Future<Nothing>>& futures)
+{
+  CHECK(infos.contains(containerId));
+
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to destroy cgroups: " +
+        strings::join(";", errors));
+  }
+
+  infos.erase(containerId);
+
+  return Nothing();
 }
 
 } // namespace slave {

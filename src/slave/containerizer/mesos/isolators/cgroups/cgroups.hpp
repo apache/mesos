@@ -79,12 +79,8 @@ public:
       const ContainerID& containerId);
 
 private:
-  CgroupsIsolatorProcess(
-      const Flags& _flags,
-      const hashmap<std::string, std::string>& _hierarchies,
-      const multihashmap<std::string, process::Owned<Subsystem>>& _subsystems);
-
-  struct Info {
+  struct Info
+  {
     Info(const ContainerID& _containerId, const std::string& _cgroup)
       : containerId(_containerId), cgroup(_cgroup) {}
 
@@ -95,6 +91,19 @@ private:
     // limitation and should be terminated.
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
+
+  CgroupsIsolatorProcess(
+      const Flags& _flags,
+      const hashmap<std::string, std::string>& _hierarchies,
+      const multihashmap<std::string, process::Owned<Subsystem>>& _subsystems);
+
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId,
+      const std::list<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> __cleanup(
+      const ContainerID& containerId,
+      const std::list<process::Future<Nothing>>& futures);
 
   const Flags flags;
 
