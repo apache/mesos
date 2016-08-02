@@ -111,7 +111,10 @@ message ContainerLaunchInfo {
   optional Environment environment = 2;
 
   // The root filesystem for the container.
-  optional string rootfs = 3;
+  //
+  // This field is not used since 0.28, and it is deprecated
+  // since 1.0.1.
+  optional string rootfs = 3 [deprecated = true]; // Since 1.0.1.
 
   // (Linux only) The namespaces required for the container.
   // The namespaces are created while launching the executor.
