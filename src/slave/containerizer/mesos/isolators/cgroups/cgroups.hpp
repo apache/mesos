@@ -81,6 +81,8 @@ public:
 protected:
   virtual void initialize();
 
+  virtual void finalize();
+
 private:
   struct Info
   {
