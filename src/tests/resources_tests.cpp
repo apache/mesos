@@ -2664,9 +2664,19 @@ public:
     ranges.resources = Resources::parse("ports:[" + ports + "]").get();
     ranges.totalOperations = 1000;
 
+    // Test a typical vector of scalars which include shared resources
+    // (viz, shared persistent volumes).
+    Resource disk = createDiskResource(
+        "256", "test", "persistentId", "/volume", None(), true);
+
+    Parameter shared;
+    shared.resources = Resources::parse("cpus:1;mem:128").get() + disk;
+    shared.totalOperations = 50000;
+
     parameters_.push_back(std::move(scalars));
     parameters_.push_back(std::move(reservations));
     parameters_.push_back(std::move(ranges));
+    parameters_.push_back(std::move(shared));
 
     return parameters_;
   }
