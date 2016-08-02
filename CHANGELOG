@@ -7,6 +7,7 @@ All Issues:
   * [MESOS-5911] - Webui redirection to leader in browser does not work.
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
   * [MESOS-5923] - Ubuntu 14.04 LTS GPU Isolator "/run" directory is noexec.
+  * [MESOS-5945] - NvidiaVolume::create() should check for root before creating volume.
   * [MESOS-5959] - All non-root tests fail on GPU machine.
 
 
