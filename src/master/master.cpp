@@ -1653,8 +1653,8 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " agents"
-            << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
-            << " ; allowing " << flags.agent_reregister_timeout
+            << " from the registry (" << Bytes(registry.ByteSize()) << ")"
+            << "; allowing " << flags.agent_reregister_timeout
             << " for agents to re-register";
 
   return Nothing();
@@ -1844,15 +1844,6 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
   bool wasElected = elected();
   leader = _leader.get();
 
-  LOG(INFO) << "The newly elected leader is "
-            << (leader.isSome()
-                ? (leader.get().pid() + " with id " + leader.get().id())
-                : "None");
-
-  if (wasElected && !elected()) {
-    EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
-  }
-
   if (elected()) {
     electedTime = Clock::now();
 
@@ -1867,6 +1858,16 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
       // This happens if there is a ZK blip that causes a re-election
       // but the same leading master is elected as leader.
       LOG(INFO) << "Re-elected as the leading master";
+    }
+  } else {
+    // A different node has been elected as the leading master.
+    LOG(INFO) << "The newly elected leader is "
+              << (leader.isSome()
+                  ? (leader.get().pid() + " with id " + leader.get().id())
+                  : "None");
+
+    if (wasElected) {
+      EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
     }
   }
 

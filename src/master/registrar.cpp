@@ -329,7 +329,7 @@ string RegistrarProcess::registryHelp()
 Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
 {
   if (recovered.isNone()) {
-    LOG(INFO) << "Recovering registrar";
+    VLOG(1) << "Recovering registrar";
 
     metrics.state_fetch.start();
     state->fetch<Registry>("registry")
