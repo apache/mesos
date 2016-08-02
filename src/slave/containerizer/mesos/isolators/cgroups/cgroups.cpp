@@ -201,18 +201,41 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     prepares.push_back(subsystem->prepare(containerId));
   }
 
+  return await(prepares)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::_prepare,
+        containerId,
+        containerConfig,
+        lambda::_1));
+}
+
+
+Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::_prepare(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig,
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to prepare subsystems: " +
+        strings::join(";", errors));
+  }
+
   // TODO(haosdent): Here we assume the command executor's resources
   // include the task's resources. Revisit here if this semantics
   // changes.
-  return collect(prepares)
-    .then(defer(
-        PID<CgroupsIsolatorProcess>(this),
-        &CgroupsIsolatorProcess::update,
-        containerId,
-        containerConfig.executor_info().resources()))
-    .then([]() -> Future<Option<ContainerLaunchInfo>> {
-      return None();
-    });
+  return update(containerId, containerConfig.executor_info().resources())
+    .then([]() { return Option<ContainerLaunchInfo>::none(); });
 }
 
 
@@ -248,7 +271,33 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     isolates.push_back(subsystem->isolate(containerId, pid));
   }
 
-  return collect(isolates).then([]() { return Nothing(); });
+  return await(isolates)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::_isolate,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::_isolate(
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to isolate subsystems: " +
+        strings::join(";", errors));
+  }
+
+  return Nothing();
 }
 
 
@@ -276,7 +325,33 @@ Future<Nothing> CgroupsIsolatorProcess::update(
     updates.push_back(subsystem->update(containerId, resources));
   }
 
-  return collect(updates).then([]() { return Nothing(); });
+  return await(updates)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::_update,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::_update(
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to update subsystems: " +
+        strings::join(";", errors));
+  }
+
+  return Nothing();
 }
 
 

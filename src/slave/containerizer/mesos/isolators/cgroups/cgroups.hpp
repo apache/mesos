@@ -97,6 +97,17 @@ private:
       const hashmap<std::string, std::string>& _hierarchies,
       const multihashmap<std::string, process::Owned<Subsystem>>& _subsystems);
 
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig,
+      const std::list<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> _isolate(
+      const std::list<process::Future<Nothing>>& futures);
+
+  process::Future<Nothing> _update(
+      const std::list<process::Future<Nothing>>& futures);
+
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
       const std::list<process::Future<Nothing>>& futures);
