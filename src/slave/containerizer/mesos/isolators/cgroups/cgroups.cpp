@@ -124,6 +124,14 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 }
 
 
+void CgroupsIsolatorProcess::initialize()
+{
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    spawn(subsystem.get());
+  }
+}
+
+
 Future<Nothing> CgroupsIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)

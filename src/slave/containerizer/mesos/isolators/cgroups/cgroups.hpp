@@ -78,6 +78,9 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+protected:
+  virtual void initialize();
+
 private:
   struct Info
   {
