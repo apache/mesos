@@ -30,6 +30,11 @@
 #include <stout/try.hpp>
 
 
+#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
+#error HTTP Parser version >= 2 required.
+#endif
+
+
 namespace process {
 
 // TODO(benh): Make DataDecoder abstract and make RequestDecoder a
@@ -41,13 +46,6 @@ public:
     : s(_s), failure(false), request(nullptr)
   {
     settings.on_message_begin = &DataDecoder::on_message_begin;
-
-#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
-    settings.on_path = &DataDecoder::on_path;
-    settings.on_fragment = &DataDecoder::on_fragment;
-    settings.on_query_string = &DataDecoder::on_query_string;
-#endif
-
     settings.on_url = &DataDecoder::on_url;
     settings.on_header_field = &DataDecoder::on_header_field;
     settings.on_header_value = &DataDecoder::on_header_value;
@@ -120,50 +118,16 @@ private:
     return 0;
   }
 
-#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
-  static int on_path(http_parser* p, const char* data, size_t length)
-  {
-    DataDecoder* decoder = (DataDecoder*) p->data;
-    CHECK_NOTNULL(decoder->request);
-    decoder->request->url.path.append(data, length);
-    return 0;
-  }
-
-  static int on_query_string(http_parser* p, const char* data, size_t length)
-  {
-    DataDecoder* decoder = (DataDecoder*) p->data;
-    CHECK_NOTNULL(decoder->request);
-    decoder->query.append(data, length);
-    return 0;
-  }
-
-  static int on_fragment(http_parser* p, const char* data, size_t length)
-  {
-    DataDecoder* decoder = (DataDecoder*) p->data;
-    CHECK_NOTNULL(decoder->request);
-
-    if (decoder->request->url.fragment.isNone()) {
-      decoder->request->url.fragment = "";
-    }
-
-    decoder->request->url.fragment->append(data, length);
-    return 0;
-  }
-#endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
-
   static int on_url(http_parser* p, const char* data, size_t length)
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
 
-#if (HTTP_PARSER_VERSION_MAJOR >= 2)
-    // Reworked parsing for version >= 2.0.
     // The current http_parser library (version 2.6.2 and below)
     // does not support incremental parsing of URLs. To compensate
     // we incrementally collect the data and parse it in
     // `on_message_complete`.
     decoder->url.append(data, length);
-#endif
 
     return 0;
   }
@@ -227,7 +191,6 @@ private:
 
     CHECK_NOTNULL(decoder->request);
 
-#if (HTTP_PARSER_VERSION_MAJOR >= 2)
     // Parse the URL. This data was incrementally built up during calls
     // to `on_url`.
     http_parser_url url;
@@ -256,7 +219,6 @@ private:
           decoder->url.data() + url.field_data[UF_QUERY].off,
           url.field_data[UF_QUERY].len);
     }
-#endif
 
     // Parse the query key/values.
     Try<hashmap<std::string, std::string>> decoded =
@@ -317,13 +279,6 @@ public:
     : failure(false), header(HEADER_FIELD), response(nullptr)
   {
     settings.on_message_begin = &ResponseDecoder::on_message_begin;
-
-#if !(HTTP_PARSER_VERSION_MAJOR >=2)
-    settings.on_path = &ResponseDecoder::on_path;
-    settings.on_fragment = &ResponseDecoder::on_fragment;
-    settings.on_query_string = &ResponseDecoder::on_query_string;
-#endif
-
     settings.on_url = &ResponseDecoder::on_url;
     settings.on_header_field = &ResponseDecoder::on_header_field;
     settings.on_header_value = &ResponseDecoder::on_header_value;
@@ -394,23 +349,6 @@ private:
   {
     return 0;
   }
-
-#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
-  static int on_path(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-
-  static int on_query_string(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-
-  static int on_fragment(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-#endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
 
   static int on_url(http_parser* p, const char* data, size_t length)
   {
@@ -541,16 +479,6 @@ public:
   {
     settings.on_message_begin =
       &StreamingResponseDecoder::on_message_begin;
-
-#if !(HTTP_PARSER_VERSION_MAJOR >=2)
-    settings.on_path =
-      &StreamingResponseDecoder::on_path;
-    settings.on_fragment =
-      &StreamingResponseDecoder::on_fragment;
-    settings.on_query_string =
-      &StreamingResponseDecoder::on_query_string;
-#endif
-
     settings.on_url =
       &StreamingResponseDecoder::on_url;
     settings.on_header_field =
@@ -642,23 +570,6 @@ private:
   {
     return 0;
   }
-
-#if !(HTTP_PARSER_VERSION_MAJOR >= 2)
-  static int on_path(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-
-  static int on_query_string(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-
-  static int on_fragment(http_parser* p, const char* data, size_t length)
-  {
-    return 0;
-  }
-#endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
 
   static int on_status(http_parser* p, const char* data, size_t length)
   {
