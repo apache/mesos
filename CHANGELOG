@@ -584,7 +584,7 @@ All Issues:
     * [MESOS-5356] - Add Windows support for StopWatch
     * [MESOS-5360] - Set death signal for dvdcli subprocess in docker volume isolator.
     * [MESOS-5370] - Add deprecation support for Flags
-    * [MESOS-5372] - Add random() to os:: namespace 
+    * [MESOS-5372] - Add random() to os:: namespace
     * [MESOS-5373] - Remove `Zookeeper's` NTDDI_VERSION define
     * [MESOS-5374] - Add support for Console Ctrl handling in `slave.cpp`
     * [MESOS-5375] - Implement stout/os/windows/kill.hpp
@@ -655,7 +655,7 @@ All Issues:
     * [MESOS-3439] - Port ip_tests
     * [MESOS-3443] - Windows: Port protobuf_tests.hpp
     * [MESOS-3541] - Add CMakeLists that builds the Mesos master
-    * [MESOS-3558] - Implement  HTTPCommandExecutor that uses the Executor Library 
+    * [MESOS-3558] - Implement  HTTPCommandExecutor that uses the Executor Library
     * [MESOS-3559] - Make the Command Scheduler use the HTTP Scheduler Library
     * [MESOS-3609] - Port slave/gc.cpp
     * [MESOS-3610] - Port slave/flags.cpp to Windows
@@ -709,8 +709,8 @@ All Issues:
     * [MESOS-3779] - Slave/Agent Rename Phase I - Update terms in Web UI.
     * [MESOS-3781] - Replace Master/Slave Terminology Phase I - Rename flag names and deprecate old ones
     * [MESOS-3782] - Slave/Agent Rename Phase I - Add duplicate binaries (or create symlinks)
-    * [MESOS-3783] - Replace Master/Slave Terminology Phase I - Update documentation 
-    * [MESOS-3784] - Replace Master/Slave Terminology Phase I - Update mesos-cli 
+    * [MESOS-3783] - Replace Master/Slave Terminology Phase I - Update documentation
+    * [MESOS-3784] - Replace Master/Slave Terminology Phase I - Update mesos-cli
     * [MESOS-3854] - Finalize design for generalized Authorizer interface
     * [MESOS-3945] - Add operator documentation for /weight endpoint
     * [MESOS-4033] - Add a commit hook for non-ascii characters.
@@ -727,7 +727,7 @@ All Issues:
     * [MESOS-4758] - Add a 'name' field into NetworkInfo.
     * [MESOS-4759] - Add network/cni isolator for Mesos containerizer.
     * [MESOS-4761] - Add agent flags to allow operators to specify CNI plugin and config directories.
-    * [MESOS-4764] - The network/cni isolator should report assigned IP address. 
+    * [MESOS-4764] - The network/cni isolator should report assigned IP address.
     * [MESOS-4771] - Document the network/cni isolator.
     * [MESOS-4788] - Mesos UI should show the role and principal of a framework
     * [MESOS-4797] - Add a couple of registrar tests for /weights endpoint
