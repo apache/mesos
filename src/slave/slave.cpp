@@ -1964,7 +1964,7 @@ void Slave::runTasks(
   // when the original instance of the executor was shutting down.
   if (executor->containerId != containerId) {
     LOG(WARNING) << "Ignoring sending queued tasks '" << taskIds
-                 << " to executor " << *executor
+                 << "' to executor " << *executor
                  << " because the target container " << containerId
                  << " has exited";
     return;
@@ -5757,12 +5757,12 @@ Executor* Framework::launchExecutor(
   }
 
   CHECK(!executors.contains(executorInfo.executor_id()))
-    << "Unknown executor " << executorInfo.executor_id();
+    << "Unknown executor '" << executorInfo.executor_id() << "'";
 
   executors[executorInfo.executor_id()] = executor;
 
-  LOG(INFO) << "Launching executor " << executorInfo.executor_id()
-            << " of framework " << id()
+  LOG(INFO) << "Launching executor '" << executorInfo.executor_id()
+            << "' of framework " << id()
             << " with resources " << executorInfo.resources()
             << " in work directory '" << directory << "'";
 

@@ -645,9 +645,9 @@ Option<Error> validateResourceUsage(
     Option<double> cpus =  executorResources.cpus();
     if (cpus.isNone() || cpus.get() < MIN_CPUS) {
       LOG(WARNING)
-        << "Executor " << stringify(task.executor().executor_id())
-        << " for task " << stringify(task.task_id())
-        << " uses less CPUs ("
+        << "Executor '" << task.executor().executor_id()
+        << "' for task '" << task.task_id()
+        << "' uses less CPUs ("
         << (cpus.isSome() ? stringify(cpus.get()) : "None")
         << ") than the minimum required (" << MIN_CPUS
         << "). Please update your executor, as this will be mandatory "
@@ -657,9 +657,9 @@ Option<Error> validateResourceUsage(
     Option<Bytes> mem = executorResources.mem();
     if (mem.isNone() || mem.get() < MIN_MEM) {
       LOG(WARNING)
-        << "Executor " << stringify(task.executor().executor_id())
-        << " for task " << stringify(task.task_id())
-        << " uses less memory ("
+        << "Executor '" << task.executor().executor_id()
+        << "' for task '" << task.task_id()
+        << "' uses less memory ("
         << (mem.isSome() ? stringify(mem.get().megabytes()) : "None")
         << ") than the minimum required (" << MIN_MEM
         << "). Please update your executor, as this will be mandatory "
