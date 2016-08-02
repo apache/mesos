@@ -265,11 +265,6 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 {
   const string& directory = containerConfig.directory();
 
-  Option<string> user;
-  if (containerConfig.has_user()) {
-    user = containerConfig.user();
-  }
-
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
