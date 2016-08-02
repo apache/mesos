@@ -311,10 +311,10 @@ share the source. Select writable areas can be achieved by mounting
 read-write volumes to places like `/tmp`, `/var/tmp`, `/home`, etc.
 using the `ContainerInfo`. These can be relative to the executor work
 directory. Since the filesystem is read-only, `--sandbox_directory`
-must already exist within the filesystem because the filesystem
-isolator is unable to create it (e.g., either the image writer needs
-to create the mount point in the image, or the operator needs to set
-agent flag `--sandbox_directory` properly).
+and `/tmp` must already exist within the filesystem because the
+filesystem isolator is unable to create it (e.g., either the image
+writer needs to create the mount point in the image, or the operator
+needs to set agent flag `--sandbox_directory` properly).
 
 ### Overlay
 
