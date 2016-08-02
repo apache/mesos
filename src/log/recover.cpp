@@ -463,7 +463,7 @@ protected:
 
   virtual void finalize()
   {
-    LOG(INFO) << "Recover process terminated";
+    VLOG(1) << "Recover process terminated";
   }
 
 private:

@@ -692,11 +692,7 @@ void ReplicaProcess::learned(const UPID& from, const Action& action)
             << action.position() << " from " << from;
 
   CHECK(action.learned());
-
-  if (persist(action)) {
-    LOG(INFO) << "Replica learned " << action.type()
-              << " action at position " << action.position();
-  }
+  persist(action);
 }
 
 
@@ -709,7 +705,8 @@ bool ReplicaProcess::persist(const Action& action)
     return false;
   }
 
-  LOG(INFO) << "Persisted action at " << action.position();
+  VLOG(1) << "Persisted action " << action.type()
+          << " at position " << action.position();
 
   // No longer a hole here (if there even was one).
   holes -= action.position();

@@ -574,7 +574,7 @@ Option<Log::Position> LogWriterProcess::__start(
 
 Future<Option<Log::Position> > LogWriterProcess::append(const string& bytes)
 {
-  LOG(INFO) << "Attempting to append " << bytes.size() << " bytes to the log";
+  VLOG(1) << "Attempting to append " << bytes.size() << " bytes to the log";
 
   if (coordinator == nullptr) {
     return Failure("No election has been performed");
@@ -593,7 +593,7 @@ Future<Option<Log::Position> > LogWriterProcess::append(const string& bytes)
 Future<Option<Log::Position> > LogWriterProcess::truncate(
     const Log::Position& to)
 {
-  LOG(INFO) << "Attempting to truncate the log to " << to.value;
+  VLOG(1) << "Attempting to truncate the log to " << to.value;
 
   if (coordinator == nullptr) {
     return Failure("No election has been performed");

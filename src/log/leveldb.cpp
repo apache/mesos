@@ -171,14 +171,14 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
     return Error(status.ToString());
   }
 
-  LOG(INFO) << "Opened db in " << stopwatch.elapsed();
+  VLOG(1) << "Opened db in " << stopwatch.elapsed();
 
   stopwatch.start(); // Restart the stopwatch.
 
   // TODO(benh): Conditionally compact to avoid long recovery times?
   db->CompactRange(nullptr, nullptr);
 
-  LOG(INFO) << "Compacted db in " << stopwatch.elapsed();
+  VLOG(1) << "Compacted db in " << stopwatch.elapsed();
 
   State state;
   state.begin = 0;
@@ -193,13 +193,13 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
 
   leveldb::Iterator* iterator = db->NewIterator(leveldb::ReadOptions());
 
-  LOG(INFO) << "Created db iterator in " << stopwatch.elapsed();
+  VLOG(1) << "Created db iterator in " << stopwatch.elapsed();
 
   stopwatch.start(); // Restart the stopwatch.
 
   iterator->SeekToFirst();
 
-  LOG(INFO) << "Seeked to beginning of db in " << stopwatch.elapsed();
+  VLOG(1) << "Seeked to beginning of db in " << stopwatch.elapsed();
 
   stopwatch.start(); // Restart the stopwatch.
 
@@ -268,8 +268,8 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
     iterator->Next();
   }
 
-  LOG(INFO) << "Iterated through " << keys
-            << " keys in the db in " << stopwatch.elapsed();
+  VLOG(1) << "Iterated through " << keys
+          << " keys in the db in " << stopwatch.elapsed();
 
   delete iterator;
 
@@ -301,8 +301,8 @@ Try<Nothing> LevelDBStorage::persist(const Metadata& metadata)
     return Error(status.ToString());
   }
 
-  LOG(INFO) << "Persisting metadata (" << value.size()
-            << " bytes) to leveldb took " << stopwatch.elapsed();
+  VLOG(1) << "Persisting metadata (" << value.size()
+          << " bytes) to leveldb took " << stopwatch.elapsed();
 
   return Nothing();
 }
@@ -338,8 +338,8 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
   // catch-up policy is used).
   first = min(first, action.position());
 
-  LOG(INFO) << "Persisting action (" << value.size()
-            << " bytes) to leveldb took " << stopwatch.elapsed();
+  VLOG(1) << "Persisting action (" << value.size()
+          << " bytes) to leveldb took " << stopwatch.elapsed();
 
   // Delete positions if a truncate action has been *learned*. Note
   // that we do this in a best-effort fashion (i.e., we ignore any
@@ -396,8 +396,8 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
         CHECK_LT(first.get(), action.truncate().to());
         first = action.truncate().to();
 
-        LOG(INFO) << "Deleting ~" << index
-                  << " keys from leveldb took " << stopwatch.elapsed();
+        VLOG(1) << "Deleting ~" << index
+                << " keys from leveldb took " << stopwatch.elapsed();
       }
     }
   }
@@ -433,7 +433,7 @@ Try<Action> LevelDBStorage::read(uint64_t position)
     return Error("Bad record");
   }
 
-  LOG(INFO) << "Reading position from leveldb took " << stopwatch.elapsed();
+  VLOG(1) << "Reading position from leveldb took " << stopwatch.elapsed();
 
   return record.action();
 }
