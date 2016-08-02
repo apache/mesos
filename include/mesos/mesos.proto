@@ -1956,7 +1956,7 @@ message ContainerStatus {
   // Information about Linux control group (cgroup).
   optional CgroupInfo cgroup_info = 2;
 
-  //Information about Executor PID.
+  // Information about Executor PID.
   optional uint32 executor_pid = 3;
 }
 
