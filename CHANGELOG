@@ -1153,7 +1153,7 @@ All Issues:
   * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
   * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
   * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
-
+  * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
 
 Release Notes - Mesos - Version 0.27.3
 --------------------------------------
