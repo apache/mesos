@@ -23,6 +23,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/hashmap.hpp>
@@ -950,7 +951,9 @@ class ReqResProcess : public ProtobufProcess<ReqResProcess<Req, Res> >
 {
 public:
   ReqResProcess(const process::UPID& _pid, const Req& _req)
-    : pid(_pid), req(_req)
+    : process::ProcessBase(process::ID::generate("__req_res__")),
+      pid(_pid),
+      req(_req)
   {
     ProtobufProcess<ReqResProcess<Req, Res> >::template
       install<Res>(&ReqResProcess<Req, Res>::response);
