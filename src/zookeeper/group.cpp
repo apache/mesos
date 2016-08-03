@@ -90,7 +90,7 @@ GroupProcess::GroupProcess(
     const Duration& _sessionTimeout,
     const string& _znode,
     const Option<Authentication>& _auth)
-  : ProcessBase(ID::generate("group")),
+  : ProcessBase(ID::generate("zookeeper-group")),
     servers(_servers),
     sessionTimeout(_sessionTimeout),
     znode(strings::remove(_znode, "/", strings::SUFFIX)),
@@ -110,7 +110,7 @@ GroupProcess::GroupProcess(
 GroupProcess::GroupProcess(
     const URL& url,
     const Duration& _sessionTimeout)
-  : ProcessBase(ID::generate("group")),
+  : ProcessBase(ID::generate("zookeeper-group")),
     servers(url.servers),
     sessionTimeout(_sessionTimeout),
     znode(strings::remove(url.path, "/", strings::SUFFIX)),

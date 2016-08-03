@@ -100,7 +100,7 @@ LeaderContenderProcess::LeaderContenderProcess(
     Group* _group,
     const string& _data,
     const Option<string>& _label)
-  : ProcessBase(process::ID::generate("leader-contender")),
+  : ProcessBase(process::ID::generate("zookeeper-leader-contender")),
     group(_group),
     data(_data),
     label(_label) {}
