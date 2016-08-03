@@ -75,8 +75,7 @@ public:
       const std::function<Sorter*()>& _roleSorterFactory,
       const std::function<Sorter*()>& _frameworkSorterFactory,
       const std::function<Sorter*()>& _quotaRoleSorterFactory)
-    : ProcessBase(process::ID::generate("hierarchical-allocator")),
-      initialized(false),
+    : initialized(false),
       paused(true),
       metrics(*this),
       roleSorter(nullptr),
@@ -485,7 +484,8 @@ class HierarchicalAllocatorProcess
 {
 public:
   HierarchicalAllocatorProcess()
-    : internal::HierarchicalAllocatorProcess(
+    : ProcessBase(process::ID::generate("hierarchical-allocator")),
+      internal::HierarchicalAllocatorProcess(
           [this]() -> Sorter* {
             return new RoleSorter(this->self(), "allocator/mesos/roles/");
           },
