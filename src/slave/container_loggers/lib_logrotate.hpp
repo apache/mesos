@@ -26,6 +26,7 @@
 #include <stout/option.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/pagesize.hpp>
 #include <stout/os/shell.hpp>
 
 #include "slave/container_loggers/logrotate.hpp"
@@ -131,10 +132,10 @@ struct Flags : public virtual flags::FlagsBase
 
   static Option<Error> validateSize(const Bytes& value)
   {
-    if (value.bytes() < (size_t) sysconf(_SC_PAGE_SIZE)) {
+    if (value.bytes() < os::pagesize()) {
       return Error(
           "Expected --max_stdout_size and --max_stderr_size of "
-          "at least " + stringify(sysconf(_SC_PAGE_SIZE)) + " bytes");
+          "at least " + stringify(os::pagesize()) + " bytes");
     }
 
     return None();

@@ -26,6 +26,8 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/pagesize.hpp>
+
 
 namespace mesos {
 namespace internal {
@@ -55,10 +57,10 @@ struct Flags : public virtual flags::FlagsBase
         "Defaults to 10 MB.  Must be at least 1 (memory) page.",
         Megabytes(10),
         [](const Bytes& value) -> Option<Error> {
-          if (value.bytes() < (size_t) sysconf(_SC_PAGE_SIZE)) {
+          if (value.bytes() < os::pagesize()) {
             return Error(
                 "Expected --max_size of at least " +
-                stringify(sysconf(_SC_PAGE_SIZE)) + " bytes");
+                stringify(os::pagesize()) + " bytes");
           }
           return None();
         });

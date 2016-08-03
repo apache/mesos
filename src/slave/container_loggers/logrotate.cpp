@@ -35,6 +35,7 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/pagesize.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/write.hpp>
 
@@ -55,7 +56,7 @@ public:
       bytesWritten(0)
   {
     // Prepare a buffer for reading from the `incoming` pipe.
-    length = sysconf(_SC_PAGE_SIZE);
+    length = os::pagesize();
     buffer = new char[length];
   }
 
