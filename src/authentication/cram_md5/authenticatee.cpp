@@ -56,7 +56,7 @@ public:
   CRAMMD5AuthenticateeProcess(
       const Credential& _credential,
       const UPID& _client)
-    : ProcessBase(ID::generate("crammd5_authenticatee")),
+    : ProcessBase(ID::generate("crammd5-authenticatee")),
       credential(_credential),
       client(_client),
       status(READY),

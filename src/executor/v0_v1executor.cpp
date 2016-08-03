@@ -50,7 +50,7 @@ public:
       const function<void(void)>& connected,
       const function<void(void)>& disconnected,
       const function<void(const queue<Event>&)>& received)
-    : ProcessBase(process::ID::generate("v0ToV1Adapter")),
+    : ProcessBase(process::ID::generate("v0-to-v1-adapter")),
       callbacks {connected, disconnected, received},
       subscribeCall(false) {}
 
