@@ -113,6 +113,20 @@ struct Flags : public virtual flags::FlagsBase
 
           return None();
         });
+
+    add(&libprocess_num_worker_threads,
+        "libprocess_num_worker_threads",
+        "Number of Libprocess worker threads.\n"
+        "Defaults to 8.  Must be at least 1.",
+        8u,
+        [](const size_t& value) -> Option<Error> {
+          if (value < 1u) {
+            return Error(
+                "Expected --libprocess_num_worker_threads of at least 1");
+          }
+
+          return None();
+        });
   }
 
   static Option<Error> validateSize(const Bytes& value)
@@ -134,6 +148,8 @@ struct Flags : public virtual flags::FlagsBase
 
   std::string launcher_dir;
   std::string logrotate_path;
+
+  size_t libprocess_num_worker_threads;
 };
 
 

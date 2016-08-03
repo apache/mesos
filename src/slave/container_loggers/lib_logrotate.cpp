@@ -91,6 +91,12 @@ public:
     environment.erase("LIBPROCESS_PORT");
     environment.erase("LIBPROCESS_ADVERTISE_PORT");
 
+    // Use the number of worker threads for libprocess that was passed
+    // in through the flags.
+    CHECK_GT(flags.libprocess_num_worker_threads, 0u);
+    environment["LIBPROCESS_NUM_WORKER_THREADS"] =
+      stringify(flags.libprocess_num_worker_threads);
+
     // NOTE: We manually construct a pipe here instead of using
     // `Subprocess::PIPE` so that the ownership of the FDs is properly
     // represented.  The `Subprocess` spawned below owns the read-end
