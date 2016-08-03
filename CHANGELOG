@@ -857,6 +857,7 @@ All Issues:
   * [MESOS-5740] - Consider adding `relink` functionality to libprocess.
   * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition.
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
+  * [MESOS-5927] - Unable to run "scratch" Dockerfiles with Unified Containerizer.
   * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
 
 
