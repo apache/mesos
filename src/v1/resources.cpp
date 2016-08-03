@@ -1629,9 +1629,12 @@ void Resources::subtract(const Resource_& that)
       // TODO(gyliu513): Provide a stronger interface to avoid
       // silently allowing this to occur.
 
+      // A "negative" Resource_ either has a negative sharedCount or
+      // a negative scalar value.
       bool negative =
-        resource_.resource.type() == Value::SCALAR &&
-        resource_.resource.scalar().value() < 0;
+        (resource_.isShared() && resource_.sharedCount.get() < 0) ||
+        (resource_.resource.type() == Value::SCALAR &&
+         resource_.resource.scalar().value() < 0);
 
       if (negative || resource_.isEmpty()) {
         // As `resources` is not ordered, and erasing an element
