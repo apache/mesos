@@ -283,24 +283,23 @@ Try<NvidiaVolume> NvidiaVolume::create()
     if (!os::exists(path)) {
       string command = "which " + binary;
       Try<string> which = os::shell(command);
-      if (which.isError()) {
-        return Error("Failed to os::shell '" + command + "': " + which.error());
-      }
 
-      which = strings::trim(which.get());
+      if (which.isSome()) {
+        which = strings::trim(which.get());
 
-      Result<string> realpath = os::realpath(which.get());
-      if (!realpath.isSome()) {
-        return Error("Failed to os::realpath '" + which.get() + "':"
-                     " " + (realpath.isError()
-                            ? realpath.error()
-                            : "No such file or directory"));
-      }
+        Result<string> realpath = os::realpath(which.get());
+        if (!realpath.isSome()) {
+          return Error("Failed to os::realpath '" + which.get() + "':"
+                       " " + (realpath.isError()
+                              ? realpath.error()
+                              : "No such file or directory"));
+        }
 
-      command = "cp " + realpath.get() + " " + path;
-      Try<string> cp = os::shell(command);
-      if (cp.isError()) {
-        return Error("Failed to os::shell '" + command + "': " + cp.error());
+        command = "cp " + realpath.get() + " " + path;
+        Try<string> cp = os::shell(command);
+        if (cp.isError()) {
+          return Error("Failed to os::shell '" + command + "': " + cp.error());
+        }
       }
     }
   }
