@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
@@ -86,6 +87,9 @@ class GarbageCollectorProcess :
     public process::Process<GarbageCollectorProcess>
 {
 public:
+  GarbageCollectorProcess()
+    : ProcessBase(process::ID::generate("agent-garbage-collector")) {}
+
   virtual ~GarbageCollectorProcess();
 
   process::Future<Nothing> schedule(

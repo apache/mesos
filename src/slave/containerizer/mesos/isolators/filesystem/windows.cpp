@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <process/id.hpp>
+
 #include "slave/paths.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/windows.hpp"
@@ -28,7 +30,8 @@ namespace slave {
 
 WindowsFilesystemIsolatorProcess::WindowsFilesystemIsolatorProcess(
     const Flags& _flags)
-  : PosixFilesystemIsolatorProcess(_flags) {}
+  : ProcessBase(process::ID::generate("windows-filesystem-isolator")),
+    PosixFilesystemIsolatorProcess(_flags) {}
 
 Try<Isolator*> WindowsFilesystemIsolatorProcess::create(const Flags& flags)
 {

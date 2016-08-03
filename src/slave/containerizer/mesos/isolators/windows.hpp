@@ -18,6 +18,7 @@
 #define __WINDOWS_ISOLATOR_HPP__
 
 #include <process/future.hpp>
+#include <process/id.hpp>
 
 #include "slave/flags.hpp"
 
@@ -57,7 +58,8 @@ public:
   }
 
 private:
-  WindowsCpuIsolatorProcess() {}
+  WindowsCpuIsolatorProcess()
+    : ProcessBase(process::ID::generate("windows-cpu-isolator")) {}
 };
 
 
@@ -78,7 +80,8 @@ public:
   }
 
 private:
-  WindowsMemIsolatorProcess() {}
+  WindowsMemIsolatorProcess()
+    : ProcessBase(process::ID::generate("windows-mem-isolator")) {}
 };
 
 } // namespace slave {

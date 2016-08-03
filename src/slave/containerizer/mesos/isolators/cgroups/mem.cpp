@@ -24,6 +24,7 @@
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/id.hpp>
 #include <process/pid.hpp>
 
 #include <stout/bytes.hpp>
@@ -73,7 +74,8 @@ CgroupsMemIsolatorProcess::CgroupsMemIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const bool _limitSwap)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-mem-isolator")),
+    flags(_flags),
     hierarchy(_hierarchy),
     limitSwap(_limitSwap) {}
 

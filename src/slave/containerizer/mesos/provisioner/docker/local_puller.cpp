@@ -27,6 +27,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include "common/command_utils.hpp"
@@ -51,7 +52,8 @@ class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
   LocalPullerProcess(const string& _archivesDir)
-    : archivesDir(_archivesDir) {}
+    : ProcessBase(process::ID::generate("docker-provisioner-local-puller")),
+      archivesDir(_archivesDir) {}
 
   ~LocalPullerProcess() {}
 

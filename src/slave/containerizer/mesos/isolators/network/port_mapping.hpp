@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
@@ -260,7 +261,8 @@ private:
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
       const std::set<uint16_t>& _flowIDs)
-    : flags(_flags),
+    : ProcessBase(process::ID::generate("mesos-port-mapping-isolator")),
+      flags(_flags),
       bindMountRoot(_bindMountRoot),
       eth0(_eth0),
       lo(_lo),

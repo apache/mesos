@@ -151,7 +151,8 @@ RegistryPullerProcess::RegistryPullerProcess(
     const string& _storeDir,
     const http::URL& _defaultRegistryUrl,
     const Shared<uri::Fetcher>& _fetcher)
-  : storeDir(_storeDir),
+  : ProcessBase(process::ID::generate("docker-provisioner-registry-puller")),
+    storeDir(_storeDir),
     defaultRegistryUrl(_defaultRegistryUrl),
     fetcher(_fetcher) {}
 

@@ -154,7 +154,8 @@ ProvisionerProcess::ProvisionerProcess(
     const string& _rootDir,
     const hashmap<Image::Type, Owned<Store>>& _stores,
     const hashmap<string, Owned<Backend>>& _backends)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("mesos-provisioner")),
+    flags(_flags),
     rootDir(_rootDir),
     stores(_stores),
     backends(_backends) {}

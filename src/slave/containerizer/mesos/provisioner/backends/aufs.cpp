@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/adaptor.hpp>
@@ -45,6 +46,9 @@ namespace slave {
 class AufsBackendProcess : public Process<AufsBackendProcess>
 {
 public:
+  AufsBackendProcess()
+    : ProcessBase(process::ID::generate("aufs-provisioner-backend")) {}
+
   Future<Nothing> provision(
       const vector<string>& layers,
       const string& rootfs,

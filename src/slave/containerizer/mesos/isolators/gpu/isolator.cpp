@@ -26,6 +26,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
@@ -77,7 +78,8 @@ NvidiaGpuIsolatorProcess::NvidiaGpuIsolatorProcess(
     const NvidiaGpuAllocator& _allocator,
     const NvidiaVolume& _volume,
     const map<Path, cgroups::devices::Entry>& _controlDeviceEntries)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("mesos-nvidia-gpu-isolator")),
+    flags(_flags),
     hierarchy(_hierarchy),
     allocator(_allocator),
     volume(_volume),

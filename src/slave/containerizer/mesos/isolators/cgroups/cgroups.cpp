@@ -18,6 +18,7 @@
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/id.hpp>
 #include <process/pid.hpp>
 
 #include <stout/error.hpp>
@@ -54,7 +55,8 @@ CgroupsIsolatorProcess::CgroupsIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
     const multihashmap<string, Owned<Subsystem>>& _subsystems)
-  : flags(_flags),
+  : ProcessBase(process::ID::generate("cgroups-isolator")),
+    flags(_flags),
     hierarchies(_hierarchies),
     subsystems(_subsystems) {}
 
