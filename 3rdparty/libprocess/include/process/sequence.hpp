@@ -16,6 +16,7 @@
 #include <glog/logging.h>
 
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -32,7 +33,7 @@ class SequenceProcess;
 class Sequence
 {
 public:
-  Sequence();
+  Sequence(const std::string& id = "sequence");
   ~Sequence();
 
   // Registers a callback that will be invoked when all the futures
@@ -62,7 +63,9 @@ private:
 class SequenceProcess : public Process<SequenceProcess>
 {
 public:
-  SequenceProcess() : last(Nothing()) {}
+  SequenceProcess(const std::string& id)
+    : ProcessBase(ID::generate(id)),
+      last(Nothing()) {}
 
   template <typename T>
   Future<T> add(const lambda::function<Future<T>()>& callback)
@@ -163,9 +166,9 @@ private:
 };
 
 
-inline Sequence::Sequence()
+inline Sequence::Sequence(const std::string& id)
 {
-  process = new SequenceProcess();
+  process = new SequenceProcess(id);
   process::spawn(process);
 }
 
