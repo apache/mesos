@@ -862,17 +862,17 @@ bool Resources::Resource_::contains(const Resource_& that) const
 
 Resources::Resource_& Resources::Resource_::operator+=(const Resource_& that)
 {
-  if (internal::addable(resource, that.resource)) {
-    if (!isShared()) {
-      resource += that.resource;
-    } else {
-      // 'addable' makes sure both 'resource' fields are shared and
-      // equal, so we just need to sum up the counters here.
-      CHECK_SOME(sharedCount);
-      CHECK_SOME(that.sharedCount);
+  // This function assumes that the 'resource' fields are addable.
 
-      sharedCount = sharedCount.get() + that.sharedCount.get();
-    }
+  if (!isShared()) {
+    resource += that.resource;
+  } else {
+    // 'addable' makes sure both 'resource' fields are shared and
+    // equal, so we just need to sum up the counters here.
+    CHECK_SOME(sharedCount);
+    CHECK_SOME(that.sharedCount);
+
+    sharedCount = sharedCount.get() + that.sharedCount.get();
   }
 
   return *this;
@@ -881,17 +881,17 @@ Resources::Resource_& Resources::Resource_::operator+=(const Resource_& that)
 
 Resources::Resource_& Resources::Resource_::operator-=(const Resource_& that)
 {
-  if (internal::subtractable(resource, that.resource)) {
-    if (!isShared()) {
-      resource -= that.resource;
-    } else {
-      // 'subtractable' makes sure both 'resource' fields are shared and
-      // equal, so we just need to subtract the counters here.
-      CHECK_SOME(sharedCount);
-      CHECK_SOME(that.sharedCount);
+  // This function assumes that the 'resource' fields are subtractable.
 
-      sharedCount = sharedCount.get() - that.sharedCount.get();
-    }
+  if (!isShared()) {
+    resource -= that.resource;
+  } else {
+    // 'subtractable' makes sure both 'resource' fields are shared and
+    // equal, so we just need to subtract the counters here.
+    CHECK_SOME(sharedCount);
+    CHECK_SOME(that.sharedCount);
+
+    sharedCount = sharedCount.get() - that.sharedCount.get();
   }
 
   return *this;

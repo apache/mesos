@@ -109,8 +109,11 @@ private:
     // Checks if this Resource_ is a superset of the given Resource_.
     bool contains(const Resource_& that) const;
 
+    // The arithmetic operators, viz. += and -= assume that the corresponding
+    // Resource objects are addable or subtractable already.
     Resource_& operator+=(const Resource_& that);
     Resource_& operator-=(const Resource_& that);
+
     bool operator==(const Resource_& that) const;
     bool operator!=(const Resource_& that) const;
 
