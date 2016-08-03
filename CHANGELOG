@@ -12,6 +12,7 @@ All Issues:
   * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
   * [MESOS-5945] - NvidiaVolume::create() should check for root before creating volume.
   * [MESOS-5959] - All non-root tests fail on GPU machine.
+  * [MESOS-5982] - NvidiaVolume errors out if any Nvidia binary is missing.
 
 
 Release Notes - Mesos - Version 1.0.0
