@@ -132,7 +132,7 @@ struct Flags : public virtual flags::FlagsBase
 
   static Option<Error> validateSize(const Bytes& value)
   {
-    if (value.bytes() < os::pagesize()) {
+    if (value.bytes() < static_cast<uint64_t>(os::pagesize())) {
       return Error(
           "Expected --max_stdout_size and --max_stderr_size of "
           "at least " + stringify(os::pagesize()) + " bytes");
