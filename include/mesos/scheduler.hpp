@@ -25,7 +25,7 @@
 #include <mesos/mesos.hpp>
 
 // Mesos scheduler interface and scheduler driver. A scheduler is used
-// to interact with Mesos in order run distributed computations.
+// to interact with Mesos in order to run distributed computations.
 //
 // IF YOU FIND YOURSELF MODIFYING COMMENTS HERE PLEASE CONSIDER MAKING
 // THE SAME MODIFICATIONS FOR OTHER LANGUAGE BINDINGS (e.g., Java:
