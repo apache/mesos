@@ -202,9 +202,9 @@ int main(int argc, char** argv)
 
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
-  if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   if (flags.version) {
@@ -212,9 +212,9 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
-  if (flags.help) {
-    cout << flags.usage() << endl;
-    return EXIT_SUCCESS;
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
   if (ip_discovery_command.isSome() && ip.isSome()) {
