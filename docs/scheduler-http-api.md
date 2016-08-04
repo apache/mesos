@@ -5,7 +5,27 @@ layout: documentation
 
 # Scheduler HTTP API
 
-Mesos 0.24.0 added **experimental** support for v1 Scheduler HTTP API.
+A Mesos scheduler can be built in two different ways:
+
+1. By using the `SchedulerDriver` C++ interface. The `SchedulerDriver` handles
+the details of communicating with the Mesos master. Scheduler developers
+implement custom scheduling logic by registering callbacks with the
+`SchedulerDriver` for significant events, such as receiving a new resource offer
+or a status update on a task. Because the `SchedulerDriver` interface is written
+in C++, this typically requires that scheduler developers either use C++ or use
+a C++ binding to their language of choice (e.g., JNI when using JVM-based
+languages).
+
+2. By using the new HTTP API. This allows Mesos schedulers to be developed
+without using C++ or a native client library; instead, a custom scheduler
+interacts with the Mesos master via HTTP requests, as described below. Although
+it is theoretically possible to use the HTTP scheduler API "directly" (e.g., by
+using a generic HTTP library), most scheduler developers should use a library for
+their language of choice that manages the details of the HTTP API; see the
+document on [HTTP API client libraries](api-client-libraries.md) for a list.
+
+The v1 Scheduler HTTP API was introduced in Mesos 0.24.0. As of Mesos 1.0, it is
+considered stable and is the recommended way to develop new Mesos schedulers.
 
 
 ## Overview
