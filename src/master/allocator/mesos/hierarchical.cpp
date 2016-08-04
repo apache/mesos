@@ -999,6 +999,14 @@ void HierarchicalAllocatorProcess::suppressOffers(
 
   frameworks[frameworkId].suppressed = true;
 
+  const string& role = frameworks[frameworkId].role;
+
+  CHECK(frameworkSorters.contains(role));
+  // Deactivating the framework in the sorter is fine as long as
+  // SUPPRESS is not parameterized. When parameterization is added,
+  // we have to differentiate between the cases here.
+  frameworkSorters[role]->deactivate(frameworkId.value());
+
   LOG(INFO) << "Suppressed offers for framework " << frameworkId;
 }
 
@@ -1010,7 +1018,19 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
   frameworks[frameworkId].offerFilters.clear();
   frameworks[frameworkId].inverseOfferFilters.clear();
-  frameworks[frameworkId].suppressed = false;
+
+  if (frameworks[frameworkId].suppressed) {
+    frameworks[frameworkId].suppressed = false;
+
+    const string& role = frameworks[frameworkId].role;
+
+    CHECK(frameworkSorters.contains(role));
+
+    // Activating the framework in the sorter on REVIVE is fine as long as
+    // SUPPRESS is not parameterized. When parameterization is added,
+    // we may need to differentiate between the cases here.
+    frameworkSorters[role]->activate(frameworkId.value());
+  }
 
   // We delete each actual `OfferFilter` when
   // `HierarchicalAllocatorProcess::expire` gets invoked. If we delete the
@@ -1286,15 +1306,10 @@ void HierarchicalAllocatorProcess::allocate(
       }
 
       // Fetch frameworks according to their fair share.
+      // NOTE: Suppressed frameworks are not included in the sort.
       foreach (const string& frameworkId_, frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
-
-        // If the framework has suppressed offers, ignore. The unallocated
-        // part of the quota will not be allocated to other roles.
-        if (frameworks[frameworkId].suppressed) {
-          continue;
-        }
 
         // Only offer resources from slaves that have GPUs to
         // frameworks that are capable of receiving GPUs.
@@ -1425,15 +1440,11 @@ void HierarchicalAllocatorProcess::allocate(
     }
 
     foreach (const string& role, roleSorter->sort()) {
+      // NOTE: Suppressed frameworks are not included in the sort.
       foreach (const string& frameworkId_,
                frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
-
-        // If the framework has suppressed offers, ignore.
-        if (frameworks[frameworkId].suppressed) {
-          continue;
-        }
 
         // Only offer resources from slaves that have GPUs to
         // frameworks that are capable of receiving GPUs.
