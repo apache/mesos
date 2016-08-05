@@ -2377,10 +2377,10 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
 }
 
 
-// This test ensures that when slave removal rate limit is specified
-// a slave that fails health checks is removed after a permit is
-// provided by the rate limiter.
-TEST_F(SlaveTest, RateLimitSlaveShutdown)
+// This test ensures that when a slave removal rate limit is
+// specified, the master only removes a slave that fails health checks
+// when it is permitted to do so by the rate limiter.
+TEST_F(SlaveTest, RateLimitSlaveRemoval)
 {
   // Start a master.
   auto slaveRemovalLimiter = std::make_shared<MockRateLimiter>();
@@ -2398,16 +2398,29 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
   // Drop all the PONGs to simulate health check timeout.
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Start a slave.
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  // Start a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
 
   // Return a pending future from the rate limiter.
   Future<Nothing> acquire;
@@ -2416,7 +2429,12 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
     .WillOnce(DoAll(FutureSatisfy(&acquire),
                     Return(promise.future())));
 
-  Future<ShutdownMessage> shutdown = FUTURE_PROTOBUF(ShutdownMessage(), _, _);
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(Return()); // Expect a single offer to be rescinded.
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
 
   // Induce a health check failure of the slave.
   Clock::pause();
@@ -2436,21 +2454,25 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
 
-  // The shutdown should not occur before the permit is satisfied.
+  // The slave should not be removed before the permit is satisfied;
+  // that means the scheduler shouldn't receive `slaveLost` yet.
   Clock::settle();
-  ASSERT_TRUE(shutdown.isPending());
+  ASSERT_TRUE(slaveLost.isPending());
 
-  // Once the permit is satisfied, the shutdown message
-  // should be sent.
+  // Once the permit is satisfied, the `slaveLost` scheduler callback
+  // should be invoked.
   promise.set(Nothing());
-  AWAIT_READY(shutdown);
+  AWAIT_READY(slaveLost);
+
+  driver.stop();
+  driver.join();
 }
 
 
 // This test verifies that when a slave responds to pings after the
-// slave observer has scheduled it for shutdown (due to health check
-// failure), the shutdown is cancelled.
-TEST_F(SlaveTest, CancelSlaveShutdown)
+// slave observer has scheduled it for removal (due to health check
+// failure), the slave removal is cancelled.
+TEST_F(SlaveTest, CancelSlaveRemoval)
 {
   // Start a master.
   auto slaveRemovalLimiter = std::make_shared<MockRateLimiter>();
@@ -2468,19 +2490,32 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   // Drop all the PONGs to simulate health check timeout.
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  // No shutdown should occur during the test!
-  EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);
-
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Start a slave.
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  // Start a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .Times(0); // The `slaveLost` callback should not be invoked.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
 
   // Return a pending future from the rate limiter.
   Future<Nothing> acquire;
@@ -2507,7 +2542,7 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
 
-  // Settle to make sure the shutdown does not occur.
+  // Settle to make sure the slave removal does not occur.
   Clock::settle();
 
   // Reset the filters to allow pongs from the slave.
@@ -2518,10 +2553,10 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   Clock::settle();
 
   // The master should have tried to cancel the removal.
-  ASSERT_TRUE(promise.future().hasDiscard());
+  EXPECT_TRUE(promise.future().hasDiscard());
 
-  // Allow the cancelation and settle the clock to ensure a shutdown
-  // does not occur.
+  // Allow the cancellation and settle the clock to ensure the
+  // `slaveLost` scheduler callback is not invoked.
   promise.discard();
   Clock::settle();
 }
