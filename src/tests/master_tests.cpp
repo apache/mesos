@@ -461,7 +461,10 @@ TEST_F(MasterTest, KillUnknownTask)
   driver.killTask(unknownTaskId);
 
   AWAIT_READY(status);
+
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1815,8 +1818,11 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   AWAIT_READY(slaveLost);
 
   JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/recovery_slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(1, stats.values["master/slave_shutdowns_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_shutdowns_scheduled"]);
 
   Clock::resume();
 

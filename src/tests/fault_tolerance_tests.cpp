@@ -907,6 +907,7 @@ TEST_F(FaultToleranceTest, TaskLost)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_MASTER_DISCONNECTED, status.get().reason());
 
   driver.stop();
   driver.join();

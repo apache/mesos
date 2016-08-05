@@ -698,7 +698,10 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   // Verify that we received a TASK_LOST.
   AWAIT_READY(lostStatus);
+
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, lostStatus.get().source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
 
   // Verify that the framework received the slave lost message.
   AWAIT_READY(slaveLost);

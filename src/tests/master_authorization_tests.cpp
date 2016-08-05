@@ -373,7 +373,10 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
 
   // Framework should get a TASK_LOST.
   AWAIT_READY(status);
+
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
@@ -464,7 +467,10 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
 
   // Framework should get a TASK_LOST.
   AWAIT_READY(status);
+
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.

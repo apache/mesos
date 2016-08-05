@@ -278,6 +278,7 @@ TEST_P(PartitionTest, PartitionedSlaveReregistration)
   // The master will have notified the framework of the lost task.
   AWAIT_READY(lostStatus);
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
 
   // Wait for the master to attempt to shut down the slave.
   AWAIT_READY(shutdownMessage);
@@ -555,6 +556,7 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
   // The master will have notified the framework of the lost task.
   AWAIT_READY(lostStatus);
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
 
   // Wait for the master to attempt to shut down the slave.
   AWAIT_READY(shutdownMessage);

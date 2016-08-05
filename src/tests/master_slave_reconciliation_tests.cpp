@@ -233,8 +233,10 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   AWAIT_READY(status);
 
-  ASSERT_EQ(task.task_id(), status.get().task_id());
-  ASSERT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
 
   // Before we obtain the metrics, ensure that the master has finished
   // processing the status update so metrics have been updated.
