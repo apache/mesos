@@ -120,6 +120,9 @@
       var BYTES_PER_KB = Math.pow(2, 10);
       var BYTES_PER_MB = Math.pow(2, 20);
       var BYTES_PER_GB = Math.pow(2, 30);
+      var BYTES_PER_TB = Math.pow(2, 40);
+      var BYTES_PER_PB = Math.pow(2, 50);
+      // NOTE: Number.MAX_SAFE_INTEGER is 2^53 - 1
 
       return function(bytes) {
         if (bytes == null || isNaN(bytes)) {
@@ -130,8 +133,12 @@
           return (bytes / BYTES_PER_KB).toFixed() + ' KB';
         } else if (bytes < BYTES_PER_GB) {
           return (bytes / BYTES_PER_MB).toFixed() + ' MB';
-        } else {
+        } else if (bytes < BYTES_PER_TB) {
           return (bytes / BYTES_PER_GB).toFixed(1) + ' GB';
+        } else if (bytes < BYTES_PER_PB) {
+          return (bytes / BYTES_PER_TB).toFixed(1) + ' TB';
+        } else {
+          return (bytes / BYTES_PER_PB).toFixed(1) + ' PB';
         }
       };
     })
