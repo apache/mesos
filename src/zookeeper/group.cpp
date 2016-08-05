@@ -105,23 +105,14 @@ GroupProcess::GroupProcess(
 {}
 
 
-// TODO(xujyan): Reuse the peer constructor above once we switch to
-// C++ 11.
 GroupProcess::GroupProcess(
     const URL& url,
-    const Duration& _sessionTimeout)
-  : ProcessBase(ID::generate("zookeeper-group")),
-    servers(url.servers),
-    sessionTimeout(_sessionTimeout),
-    znode(strings::remove(url.path, "/", strings::SUFFIX)),
-    auth(url.authentication),
-    acl(url.authentication.isSome()
-        ? EVERYONE_READ_CREATOR_ALL
-        : ZOO_OPEN_ACL_UNSAFE),
-    watcher(nullptr),
-    zk(nullptr),
-    state(DISCONNECTED),
-    retrying(false)
+    const Duration& sessionTimeout)
+  : GroupProcess(
+        url.servers,
+        sessionTimeout,
+        strings::remove(url.path, "/", strings::SUFFIX),
+        url.authentication)
 {}
 
 
