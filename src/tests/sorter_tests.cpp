@@ -646,9 +646,10 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
   Resources allocated = Resources::parse(
       "cpus:16;mem:2014;disk:1024").get();
 
-  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
+  // TODO(gyliu513): Parameterize the number of range for the fragment.
+  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 100);
   ASSERT_SOME(ranges);
-  ASSERT_EQ(16, ranges->range_size());
+  ASSERT_EQ(100, ranges->range_size());
 
   allocated += createPorts(ranges.get());
 
