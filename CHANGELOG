@@ -11,6 +11,7 @@ All Issues:
   * [MESOS-5923] - Ubuntu 14.04 LTS GPU Isolator "/run" directory is noexec.
   * [MESOS-5927] - Unable to run "scratch" Dockerfiles with Unified Containerizer.
   * [MESOS-5928] - Agent's '--version' flag doesn't work
+  * [MESOS-5930] - Orphan tasks can shown up as running after they have finished.
   * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
   * [MESOS-5945] - NvidiaVolume::create() should check for root before creating volume.
   * [MESOS-5959] - All non-root tests fail on GPU machine.
