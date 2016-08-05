@@ -40,7 +40,7 @@ namespace tests {
 class PerfTest : public ::testing::Test {};
 
 
-TEST_F(PerfTest, ROOT_Events)
+TEST_F(PerfTest, ROOT_PERF_Events)
 {
   // Valid events.
   EXPECT_TRUE(perf::valid({"cycles", "task-clock"}));
@@ -50,7 +50,7 @@ TEST_F(PerfTest, ROOT_Events)
 }
 
 
-TEST_F(PerfTest, ROOT_Sample)
+TEST_F(PerfTest, ROOT_PERF_Sample)
 {
   // Sampling an empty set of cgroups should be a no-op.
   Future<hashmap<string, PerfStatistics>> sample =

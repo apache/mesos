@@ -588,11 +588,11 @@ public:
   bool disable(const ::testing::TestInfo* test) const
   {
     // Disable all tests that try to sample 'cpu-cycles' events using 'perf'.
-    return (matches(test, "ROOT_CGROUPS_Perf") ||
-            matches(test, "ROOT_CGROUPS_Sample") ||
-            matches(test, "ROOT_CGROUPS_UserCgroup") ||
-            matches(test, "CGROUPS_ROOT_PerfRollForward") ||
-            matches(test, "ROOT_Sample")) && perfError.isSome();
+    return (matches(test, "ROOT_CGROUPS_PERF_PerfTest") ||
+            matches(test, "ROOT_CGROUPS_PERF_Sample") ||
+            matches(test, "ROOT_CGROUPS_PERF_UserCgroup") ||
+            matches(test, "CGROUPS_ROOT_PERF_RollForward") ||
+            matches(test, "ROOT_CGROUPS_PERF_Sample")) && perfError.isSome();
   }
 
 private:
@@ -621,13 +621,7 @@ public:
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    // Currently all tests that require 'perf' are part of the
-    // 'PerfTest' test fixture, hence we check for 'Perf' here.
-    //
-    // TODO(ijimenez): Replace all tests which require 'perf' with
-    // the prefix 'PERF_' to be more consistent with the filter
-    // naming we've done (i.e., ROOT_, CGROUPS_, etc).
-    return matches(test, "Perf") && perfError;
+    return matches(test, "PERF_") && perfError;
   }
 
 private:

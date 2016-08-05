@@ -971,7 +971,7 @@ public:
 };
 
 
-TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
+TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_PERF_PerfTest)
 {
   int pipes[2];
   int dummy;

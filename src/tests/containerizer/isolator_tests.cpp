@@ -1218,7 +1218,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 class PerfEventIsolatorTest : public MesosTest {};
 
 
-TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
+TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_PERF_Sample)
 {
   slave::Flags flags;
 
@@ -1602,7 +1602,7 @@ typedef ::testing::Types<
 TYPED_TEST_CASE(UserCgroupIsolatorTest, CgroupsIsolatorTypes);
 
 
-TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
+TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_PERF_UserCgroup)
 {
   slave::Flags flags = UserCgroupIsolatorTest<TypeParam>::CreateSlaveFlags();
   flags.perf_events = "cpu-cycles"; // Needed for CgroupsPerfEventIsolator.
