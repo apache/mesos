@@ -4572,6 +4572,7 @@ void Master::_registerSlave(
     const string& version,
     const Future<bool>& admit)
 {
+  CHECK(slaves.registering.contains(pid));
   slaves.registering.erase(pid);
 
   CHECK(!admit.isDiscarded());
@@ -4822,6 +4823,7 @@ void Master::_reregisterSlave(
     const string& version,
     const Future<bool>& readmit)
 {
+  CHECK(slaves.reregistering.contains(slaveInfo.id()));
   slaves.reregistering.erase(slaveInfo.id());
 
   CHECK(!readmit.isDiscarded());
@@ -5933,6 +5935,7 @@ void Master::_authenticate(
     authenticated.put(pid, future.get().get());
   }
 
+  CHECK(authenticating.contains(pid));
   authenticating.erase(pid);
 }
 
@@ -6720,6 +6723,7 @@ void Master::_removeSlave(
     const string& message,
     Option<Counter> reason)
 {
+  CHECK(slaves.removing.contains(slaveInfo.id()));
   slaves.removing.erase(slaveInfo.id());
 
   CHECK(!removed.isDiscarded());
