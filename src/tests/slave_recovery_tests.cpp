@@ -3276,15 +3276,13 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
     AWAIT_READY(ping);
     pings++;
     if (pings == masterFlags.max_agent_ping_timeouts) {
-     break;
+      break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.agent_ping_timeout);
-    Clock::settle();
   }
 
   Clock::advance(masterFlags.agent_ping_timeout);
-  Clock::settle();
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);

@@ -2425,12 +2425,13 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
     AWAIT_READY(ping);
     pings++;
     if (pings == masterFlags.max_agent_ping_timeouts) {
-      Clock::advance(masterFlags.agent_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.agent_ping_timeout);
   }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
 
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
@@ -2495,12 +2496,13 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
     AWAIT_READY(ping);
     pings++;
     if (pings == masterFlags.max_agent_ping_timeouts) {
-      Clock::advance(masterFlags.agent_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.agent_ping_timeout);
   }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
 
   // The master should attempt to acquire a permit.
   AWAIT_READY(acquire);
