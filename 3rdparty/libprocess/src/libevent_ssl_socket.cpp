@@ -337,6 +337,12 @@ void LibeventSSLSocketImpl::event_callback(short events)
   // In all of the following conditions, we're interested in swapping
   // the value of the requests with null (if they are already null,
   // then there's no harm).
+  //
+  // TODO(bmahler): If we receive an EOF because the receiving
+  // side only shutdown writes on its socket, we can technically
+  // still send data on the socket!
+  //   See: http://www.unixguide.net/network/socketfaq/2.6.shtml
+  //   Related JIRA: MESOS-5999
   if (events & BEV_EVENT_EOF ||
       events & BEV_EVENT_CONNECTED ||
       events & BEV_EVENT_ERROR) {
@@ -701,15 +707,21 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
         CHECK(__in_event_loop__);
         CHECK(self);
 
-        // We check that send_request is valid, because we do not
-        // allow discards. This means there is no race between the
-        // entry of 'send' and the execution of this lambda.
+        // Check if the socket is closed or the write end has
+        // encountered an error in the interim (i.e. we received
+        // a BEV_EVENT_ERROR with BEV_EVENT_WRITING).
+        bool write = false;
+
         synchronized (self->lock) {
-          CHECK_NOTNULL(self->send_request.get());
+          if (self->send_request.get() != nullptr) {
+            write = true;
+          }
         }
 
-        int result = bufferevent_write_buffer(self->bev, buffer);
-        CHECK_EQ(0, result);
+        if (write) {
+          int result = bufferevent_write_buffer(self->bev, buffer);
+          CHECK_EQ(0, result);
+        }
 
         evbuffer_free(buffer);
       },
@@ -748,18 +760,25 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
         CHECK(__in_event_loop__);
         CHECK(self);
 
-        // We check that send_request is valid, because we do not
-        // allow discards. This means there is no race between the
-        // entry of 'sendfile' and the execution of this lambda.
+        // Check if the socket is closed or the write end has
+        // encountered an error in the interim (i.e. we received
+        // a BEV_EVENT_ERROR with BEV_EVENT_WRITING).
+        bool write = false;
+
         synchronized (self->lock) {
-          CHECK_NOTNULL(self->send_request.get());
+          if (self->send_request.get() != nullptr) {
+            write = true;
+          }
         }
 
-        evbuffer_add_file(
-            bufferevent_get_output(self->bev),
-            fd,
-            offset,
-            size);
+        if (write) {
+          int result = evbuffer_add_file(
+              bufferevent_get_output(self->bev),
+              fd,
+              offset,
+              size);
+          CHECK_EQ(0, result);
+        }
       },
       DISALLOW_SHORT_CIRCUIT);
 
