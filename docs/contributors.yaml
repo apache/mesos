@@ -511,3 +511,11 @@
     - s.dhilipkumar@gmail.com
   jira_user: dhilipkumars
   reviewboard_user: dhilipkumars
+
+- name: Gaojin CAO
+  affiliations:
+    - {organization: chinamobile}
+  emails:
+    - caogaojin@cmss.chinamobile.com
+  jira_user: cgj
+  reviewboard_user: cgj
