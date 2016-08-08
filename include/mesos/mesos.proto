@@ -318,40 +318,55 @@ message FrameworkInfo {
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
- * optional fields; currently only 'command' is supported.
- * Specifying more than one strategy is an error.
+ * optional fields. Specifying more than one strategy is an error.
  */
 message HealthCheck {
-  // Describes an HTTP health check. This is not fully implemented and not
-  // recommended for use - see MESOS-2533.
-  message HTTP {
+  enum Type {
+    UNKNOWN = 0;
+    COMMAND = 1;
+    HTTP = 2;
+    TCP = 3;
+  }
+
+  // Describes an HTTP health check. Sends a GET request to
+  // scheme://<host>:port/path. Return codes between 200 and 399 are treated
+  // as success, failure otherwise. Note that <host> is not configurable
+  // and is resolved automatically, in most cases to localhost.
+  message HTTPCheckInfo {
+    // Currently "http" and "https" are supported.
+    optional string scheme = 1;
+
     // Port to send the HTTP request.
-    required uint32 port = 1;
+    required uint32 port = 2;
 
     // HTTP request path.
-    optional string path = 2 [default = "/"];
+    optional string path = 3;
 
-    // TODO(benh): Implement:
-    // Whether or not to use HTTPS.
-    // optional bool ssl = 3 [default = false];
+    // TODO(alexr): Add support for HTTP method. While adding POST
+    // and PUT is simple, supporting payload is more involved.
 
-    // Expected response statuses. Not specifying any statuses implies
-    // that any returned status is acceptable.
-    repeated uint32 statuses = 4;
+    // TODO(alexr): Add support for custom HTTP headers.
+
+    // TODO(alexr): Add support for success and possibly failure
+    // statuses.
+
+    // TODO(haosdent): Consider adding a flag to enable task's certificate
+    // validation for HTTPS health checks, see MESOS-5997.
 
     // TODO(benh): Include an 'optional bytes data' field for checking
     // for specific data in the response.
   }
 
-  // HTTP health check - not yet recommended for use, see MESOS-2533.
-  optional HTTP http = 1;
+  // Describes a TCP health check, i.e. based on establishing
+  // a TCP connection to the specified port.
+  message TCPCheckInfo {
+    // Port expected to be open.
+    required uint32 port = 1;
+  }
 
   // TODO(benh): Consider adding a URL health check strategy which
   // allows doing something similar to the HTTP strategy but
   // encapsulates all the details in a single string field.
-
-  // TODO(benh): Other possible health check strategies could include
-  // one for TCP/UDP.
 
   // Amount of time to wait until starting the health checks.
   optional double delay_seconds = 2 [default = 15.0];
@@ -371,8 +386,17 @@ message HealthCheck {
   // TODO(alexr): Add an optional `KillPolicy` that should be used
   // if the task is killed because of a health check failure.
 
+  // The type of health check.
+  optional Type type = 8;
+
   // Command health check.
   optional CommandInfo command = 7;
+
+  // HTTP health check.
+  optional HTTPCheckInfo http = 1;
+
+  // TCP health check.
+  optional TCPCheckInfo tcp = 9;
 }
 
 
