@@ -125,6 +125,14 @@
   jira_user: darroyo
   reviewboard_user: darroyo
 
+- name: Gaojin CAO
+  affiliations:
+    - {organization: chinamobile}
+  emails:
+    - caogaojin@cmss.chinamobile.com
+  jira_user: cgj
+  reviewboard_user: cgj
+
 - name: Gaston Kleiman
   affiliations:
     - {organization: Mesosphere}
