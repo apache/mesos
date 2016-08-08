@@ -1502,7 +1502,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   // neither 'ports' nor 'ephemeral_ports', which makes it a good port
   // to use on the host.
   ostringstream command1;
-  command1 << "nc -l localhost " << invalidPort << " > /devnull";
+  command1 << "nc -l localhost " << invalidPort << " > /dev/null";
   Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
@@ -1666,7 +1666,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
   ostringstream command1;
-  command1 << "nc -l " << hostIP << " " << invalidPort << " > /devnull";
+  command1 << "nc -l " << hostIP << " " << invalidPort << " > /dev/null";
   Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
