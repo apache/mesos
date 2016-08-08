@@ -511,3 +511,9 @@
     - s.dhilipkumar@gmail.com
   jira_user: dhilipkumars
   reviewboard_user: dhilipkumars
+
+- name: Will Rouesnel
+  emails:
+    - w.rouesnel@gmail.com
+  jira_user: wrouesnel
+  reviewboard_user: wrouesnel
