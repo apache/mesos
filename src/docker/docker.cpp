@@ -699,7 +699,7 @@ Future<Option<int>> Docker::run(
   }
 
   if (dockerInfo.port_mappings().size() > 0) {
-    if (network == "host" || network == "none"  ) {
+    if (network == "host" || network == "none") {
       return Failure("Port mappings are only supported for bridge and "
                      "user-defined networks");
     }
