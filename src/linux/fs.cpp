@@ -22,10 +22,13 @@
 #include <linux/unistd.h>
 
 #include <list>
+#include <set>
+#include <utility>
 
 #include <stout/adaptor.hpp>
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -40,6 +43,7 @@
 #include "linux/fs.hpp"
 
 using std::list;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -82,7 +86,9 @@ Try<bool> supported(const std::string& fsname)
 }
 
 
-Try<MountInfoTable> MountInfoTable::read(const Option<pid_t>& pid)
+Try<MountInfoTable> MountInfoTable::read(
+    const Option<pid_t>& pid,
+    bool hierarchicalSort)
 {
   MountInfoTable table;
 
@@ -103,6 +109,48 @@ Try<MountInfoTable> MountInfoTable::read(const Option<pid_t>& pid)
     }
 
     table.entries.push_back(parse.get());
+  }
+
+  // If `hierarchicalSort == true`, then sort the entries in
+  // the newly constructed table hierarchically. That is, sort
+  // them according to the invariant that all parent entries
+  // appear before their child entries.
+  if (hierarchicalSort) {
+    int rootParentId;
+
+    // Construct a representation of the mount hierarchy using a hashmap.
+    hashmap<int, vector<MountInfoTable::Entry>> parentToChildren;
+
+    foreach (const MountInfoTable::Entry& entry, table.entries) {
+      if (entry.target == "/") {
+        rootParentId = entry.parent;
+      }
+      parentToChildren[entry.parent].push_back(std::move(entry));
+    }
+
+    // Walk the hashmap and construct a list of entries sorted
+    // hierarchically. The recursion eventually terminates because
+    // entries in MountInfoTable are guaranteed to have no cycles.
+    // We double check though, just to make sure.
+    set<int> visitedParents;
+    vector<MountInfoTable::Entry> sortedEntries;
+
+    std::function<void(int)> sortFrom = [&](int parentId) {
+      CHECK(visitedParents.count(parentId) == 0);
+      visitedParents.insert(parentId);
+
+      foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
+        int newParentId = entry.id;
+        sortedEntries.push_back(std::move(entry));
+        sortFrom(newParentId);
+      }
+    };
+
+    // We know the node with a parent id of
+    // `rootParentId` is the root mount point.
+    sortFrom(rootParentId);
+
+    table.entries = std::move(sortedEntries);
   }
 
   return table;

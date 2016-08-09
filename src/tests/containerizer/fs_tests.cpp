@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <set>
+
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
@@ -29,6 +31,7 @@
 
 #include "linux/fs.hpp"
 
+using std::set;
 using std::string;
 
 using mesos::internal::fs::MountTable;
@@ -157,6 +160,27 @@ TEST_F(FsTest, DISABLED_MountInfoTableRead)
   }
 
   EXPECT_SOME(root);
+}
+
+
+TEST_F(FsTest, MountInfoTableReadSorted)
+{
+  // Examine the calling process's mountinfo table.
+  Try<MountInfoTable> table = MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  set<int> ids;
+
+  // Verify that all parent entries appear *before* their children.
+  foreach (const MountInfoTable::Entry& entry, table->entries) {
+    if (entry.target != "/") {
+      ASSERT_TRUE(ids.count(entry.parent) == 1);
+    }
+
+    ASSERT_TRUE(ids.count(entry.id) == 0);
+
+    ids.insert(entry.id);
+  }
 }
 
 
