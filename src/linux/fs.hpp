@@ -204,9 +204,23 @@ struct MountInfoTable {
     std::string source;         // mountinfo[10]: source dev, other.
   };
 
-  // If pid is None() the "self" is used, i.e., the mountinfo table
-  // for the calling process.
-  static Try<MountInfoTable> read(const Option<pid_t>& pid = None());
+  // Read the mountinfo table for a process.
+  // @param   pid     The `pid` of the process for which we should
+  //                  read the mountinfo table. If `pid` is None(),
+  //                  then "self" is used, i.e., the mountinfo table
+  //                  for the calling process.
+  // @param   hierarchicalSort
+  //                  A boolean indicating whether the entries in the
+  //                  mountinfo table should be sorted according to
+  //                  their parent / child relationship (as opposed to
+  //                  the temporal ordering of when they were
+  //                  mounted). The two orderings may differ (for
+  //                  example) if a filesystem is remounted after some
+  //                  of its children have been mounted.
+  // @return  An instance of MountInfoTable if success.
+  static Try<MountInfoTable> read(
+      const Option<pid_t>& pid = None(),
+      bool hierarchicalSort = true);
 
   // TODO(jieyu): Introduce 'find' methods to find entries that match
   // the given conditions (e.g., target, root, devno, etc.).
