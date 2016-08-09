@@ -63,7 +63,8 @@ inline void post(const process::UPID& from,
 // Note that this header file assumes you will be linking
 // against BOTH libprotobuf and libglog.
 
-namespace google { namespace protobuf {
+namespace google {
+namespace protobuf {
 
 // Type conversions helpful for changing between protocol buffer types
 // and standard C++ types (for parameters).
