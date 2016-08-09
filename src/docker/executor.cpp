@@ -19,15 +19,15 @@
 #include <map>
 #include <string>
 
-#include <mesos/mesos.hpp>
 #include <mesos/executor.hpp>
+#include <mesos/mesos.hpp>
 
 #include <process/id.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/subprocess.hpp>
 #include <process/reap.hpp>
-#include <process/owned.hpp>
+#include <process/subprocess.hpp>
 
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
@@ -38,8 +38,8 @@
 
 #include <stout/os/killtree.hpp>
 
-#include "common/status_utils.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"
 #include "docker/executor.hpp"
