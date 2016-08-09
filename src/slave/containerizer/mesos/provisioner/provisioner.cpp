@@ -329,6 +329,10 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
     const Image& image,
     const ImageInfo& imageInfo)
 {
+#ifdef __WINDOWS__
+  return ProvisionInfo{
+      rootfs, imageInfo.dockerManifest, imageInfo.appcManifest};
+#else
   // Skip single-layered images since no 'whiteout' files needs
   // to be handled, and this excludes any image using the bind
   // backend.
@@ -337,7 +341,6 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
           rootfs, imageInfo.dockerManifest, imageInfo.appcManifest};
   }
 
-#ifndef __WINDOWS__
   // TODO(hausdorff): The FTS API is not available on some platforms, such as
   // Windows. We will need to either (1) prove that this is not necessary for
   // Windows Containers, which use much of the Docker spec themselves, or (2)
@@ -400,10 +403,7 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
     }
   }
 
-  return ProvisionInfo{
-      rootfs, imageInfo.dockerManifest, None()};
-#else
-  return ProvisionInfo{ rootfs, imageInfo.dockerManifest };
+  return ProvisionInfo{rootfs, imageInfo.dockerManifest, None()};
 #endif // __WINDOWS__
 }
 
