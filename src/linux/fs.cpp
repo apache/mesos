@@ -29,6 +29,7 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/numify.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -132,11 +133,11 @@ Try<MountInfoTable> MountInfoTable::read(
     // hierarchically. The recursion eventually terminates because
     // entries in MountInfoTable are guaranteed to have no cycles.
     // We double check though, just to make sure.
-    set<int> visitedParents;
+    hashset<int> visitedParents;
     vector<MountInfoTable::Entry> sortedEntries;
 
     std::function<void(int)> sortFrom = [&](int parentId) {
-      CHECK(visitedParents.count(parentId) == 0);
+      CHECK(!visitedParents.contains(parentId));
       visitedParents.insert(parentId);
 
       foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
