@@ -971,7 +971,19 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
       foreach (const string& cgroup, cgroups.get()) {
         // Remove any cgroups that start with TEST_CGROUPS_ROOT.
         if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+          // Cgroup destruction relies on `delay`s,
+          // so we must ensure the clock is resumed.
+          bool paused = Clock::paused();
+
+          if (paused) {
+            Clock::resume();
+          }
+
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
+
+          if (paused) {
+            Clock::pause();
+          }
         }
       }
     }
