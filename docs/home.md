@@ -22,7 +22,6 @@ layout: documentation
     * [Docker Volume Support](docker-volume.md)
     * [CNI support](cni.md)
   * [Docker Containerizer](docker-containerizer.md) for launching a Docker image as a Task, or as an Executor.
-  * [External Containerizer](external-containerizer.md) for custom containerization implementations (deprecated).
 * [Roles](roles.md)
 * [Weights](weights.md)
 * [Authentication](authentication.md)

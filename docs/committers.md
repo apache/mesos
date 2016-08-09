@@ -371,10 +371,6 @@ committers to learn about areas of the code that they are unfamiliar with.
         <td>Docker Containerizer</td>
         <td>Tim Chen, Benjamin Hindman</td>
       </tr>
-      <tr>
-        <td>External Containerizer</td>
-        <td>Till Toenshoff, Benjamin Hindman</td>
-      </tr>
     </tbody>
   </thead>
 </table>

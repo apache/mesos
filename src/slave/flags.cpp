@@ -94,9 +94,9 @@ mesos::internal::slave::Flags::Flags()
       "`cgroups/cpu,cgroups/mem`, or network/port_mapping\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
       "or `gpu/nvidia` for nvidia specific gpu isolation,\n"
-      "or `external`, or load an alternate isolator module using\n"
-      "the `--modules` flag. Note that this flag is only relevant\n"
-      "for the Mesos Containerizer.",
+      "or load an alternate isolator module using the `--modules`\n"
+      "flag. Note that this flag is only relevant for the Mesos\n"
+      "Containerizer.",
       "posix/cpu,posix/mem");
 
   add(&Flags::launcher,
@@ -500,24 +500,14 @@ mesos::internal::slave::Flags::Flags()
       "  ]\n"
       "}");
 
-  add(&Flags::containerizer_path,
-      "containerizer_path",
-      "The path to the external containerizer executable used when\n"
-      "external isolation is activated (`--isolation=external`).");
-
   add(&Flags::containerizers,
       "containerizers",
       "Comma-separated list of containerizer implementations\n"
       "to compose in order to provide containerization.\n"
-      "Available options are `mesos`, `external`, and\n"
-      "`docker` (on Linux). The order the containerizers\n"
-      "are specified is the order they are tried.\n",
+      "Available options are `mesos` and `docker` (on Linux).\n"
+      "The order the containerizers are specified is the order\n"
+      "they are tried.\n",
       "mesos");
-
-  add(&Flags::default_container_image,
-      "default_container_image",
-      "The default container image to use if not specified by a task,\n"
-      "when using external containerizer.");
 
   // Docker containerizer flags.
   add(&Flags::docker,

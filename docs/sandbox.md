@@ -150,7 +150,6 @@ executor and isolators:
 * Docker containerizer - As of Docker `1.9.1`, the Docker containerizer
   does not enforce nor support a disk quota.  See the
   [Docker issue](https://github.com/docker/docker/issues/3804).
-* [External containerizer](external-containerizer.md).
 
 ## Sandbox lifecycle
 

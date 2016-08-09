@@ -37,7 +37,6 @@
 #include "slave/containerizer/composing.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
-#include "slave/containerizer/external_containerizer.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
@@ -59,8 +58,7 @@ namespace internal {
 namespace slave {
 
 // TODO(idownes): Move this to the Containerizer interface to complete
-// the delegation of containerization, i.e., external containerizers should be
-// able to report the resources they can isolate.
+// the delegation of containerization.
 Try<Resources> Containerizer::resources(const Flags& flags)
 {
   Try<Resources> parsed = Resources::parse(
@@ -189,28 +187,6 @@ Try<Containerizer*> Containerizer::create(
     bool local,
     Fetcher* fetcher)
 {
-  if (flags.isolation == "external") {
-    LOG(WARNING) << "The 'external' isolation flag is deprecated, "
-                 << "please update your flags to"
-                 << " '--containerizers=external'.";
-
-    if (flags.container_logger.isSome()) {
-      return Error(
-          "The external containerizer does not support custom container "
-          "logger modules.  The '--isolation=external' flag cannot be "
-          " set along with '--container_logger=...'");
-    }
-
-    Try<ExternalContainerizer*> containerizer =
-      ExternalContainerizer::create(flags);
-    if (containerizer.isError()) {
-      return Error("Could not create ExternalContainerizer: " +
-                   containerizer.error());
-    }
-
-    return containerizer.get();
-  }
-
   // Get the set of containerizer types.
   const vector<string> _types = strings::split(flags.containerizers, ",");
   const set<string> containerizerTypes(_types.begin(), _types.end());
@@ -291,22 +267,6 @@ Try<Containerizer*> Containerizer::create(
         DockerContainerizer::create(flags, fetcher, nvidia);
       if (containerizer.isError()) {
         return Error("Could not create DockerContainerizer: " +
-                     containerizer.error());
-      } else {
-        containerizers.push_back(containerizer.get());
-      }
-    } else if (type == "external") {
-      if (flags.container_logger.isSome()) {
-        return Error(
-            "The external containerizer does not support custom container "
-            "logger modules.  The '--containerizers=external' flag cannot be "
-            "set along with '--container_logger=...'");
-      }
-
-      Try<ExternalContainerizer*> containerizer =
-        ExternalContainerizer::create(flags);
-      if (containerizer.isError()) {
-        return Error("Could not create ExternalContainerizer: " +
                      containerizer.error());
       } else {
         containerizers.push_back(containerizer.get());

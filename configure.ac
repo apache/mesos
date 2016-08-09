@@ -1656,8 +1656,6 @@ There are two possible workarounds for this issue:
                   [chmod +x src/examples/python/test-executor])
   AC_CONFIG_FILES([src/examples/python/test-framework],
                   [chmod +x src/examples/python/test-framework])
-  AC_CONFIG_FILES([src/examples/python/test-containerizer],
-                  [chmod +x src/examples/python/test-containerizer])
   AC_CONFIG_FILES([src/python/setup.py])
   AC_CONFIG_FILES([src/python/cli/setup.py])
   AC_CONFIG_FILES([src/python/interface/setup.py])

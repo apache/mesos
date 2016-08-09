@@ -33,7 +33,6 @@ Mesos currently supports the following containerizers:
 * Composing
 * [Docker](docker-containerizer.md)
 * [Mesos](containerizer.md)
-* [External](external-containerizer.md) (deprecated)
 
 #### Composing Containerizer
 

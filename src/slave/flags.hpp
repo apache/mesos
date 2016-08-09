@@ -103,9 +103,7 @@ public:
   Option<Firewall> firewall_rules;
   Option<Path> credential;
   Option<ACLs> acls;
-  Option<std::string> containerizer_path;
   std::string containerizers;
-  Option<std::string> default_container_image;
   std::string docker;
   Option<std::string> docker_mesos_image;
   Duration docker_remove_delay;

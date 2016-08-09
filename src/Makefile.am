@@ -843,7 +843,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/composing.cpp					\
   slave/containerizer/containerizer.cpp					\
   slave/containerizer/docker.cpp					\
-  slave/containerizer/external_containerizer.cpp			\
   slave/containerizer/fetcher.cpp					\
   slave/containerizer/mesos/containerizer.cpp				\
   slave/containerizer/mesos/isolator.cpp				\
@@ -967,7 +966,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/composing.hpp					\
   slave/containerizer/containerizer.hpp					\
   slave/containerizer/docker.hpp					\
-  slave/containerizer/external_containerizer.hpp			\
   slave/containerizer/fetcher.hpp					\
   slave/containerizer/mesos/constants.hpp				\
   slave/containerizer/mesos/containerizer.hpp				\
@@ -2156,7 +2154,6 @@ mesos_tests_SOURCES =						\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_spec_tests.cpp			\
   tests/containerizer/docker_tests.cpp				\
-  tests/containerizer/external_containerizer_test.cpp		\
   tests/containerizer/isolator_tests.cpp			\
   tests/containerizer/launcher.cpp				\
   tests/containerizer/memory_test_helper.cpp			\
@@ -2248,8 +2245,6 @@ if HAS_PYTHON
 mesos_tests_DEPENDENCIES += $(MESOS_EGG)
 
 EXAMPLESCRIPTSPYTHON =						\
-  examples/python/test_containerizer.py				\
-  examples/python/test-containerizer				\
   examples/python/test_executor.py				\
   examples/python/test-executor					\
   examples/python/test_framework.py				\

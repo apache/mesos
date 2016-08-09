@@ -1146,21 +1146,12 @@ in the sandbox directory.
 </tr>
 <tr>
   <td>
-    --containerizer_path=VALUE
-  </td>
-  <td>
-The path to the external containerizer executable used when
-external isolation is activated (<code>--isolation=external</code>).
-  </td>
-</tr>
-<tr>
-  <td>
     --containerizers=VALUE
   </td>
   <td>
 Comma-separated list of containerizer implementations
 to compose in order to provide containerization.
-Available options are <code>mesos</code>, <code>external</code>, and
+Available options are <code>mesos</code> and
 <code>docker</code> (on Linux). The order the containerizers
 are specified is the order they are tried.
 (default: mesos)
@@ -1179,15 +1170,6 @@ Example:
   "principal": "username",
   "secret": "secret"
 }</code></pre>
-  </td>
-</tr>
-<tr>
-  <td>
-    --default_container_image=VALUE
-  </td>
-  <td>
-The default container image to use if not specified by a task,
-when using external containerizer.
   </td>
 </tr>
 <tr>
@@ -1521,10 +1503,10 @@ Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
 Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
 <code>cgroups/cpu,cgroups/mem</code>, or network/port_mapping
 (configure with flag: <code>--with-network-isolator</code> to enable),
-or `gpu/nvidia` for nvidia specific gpu isolation,
-or <code>external</code>, or load an alternate isolator module using
-the <code>--modules</code> flag. Note that this flag is only relevant
-for the Mesos Containerizer. (default: posix/cpu,posix/mem)
+or `gpu/nvidia` for nvidia specific gpu isolation, or load an alternate
+isolator module using the <code>--modules</code> flag. Note that this
+flag is only relevant for the Mesos Containerizer.
+(default: posix/cpu,posix/mem)
   </td>
 </tr>
 <tr>

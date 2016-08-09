@@ -315,7 +315,6 @@ set(AGENT_SRC
   slave/containerizer/mesos/launch.cpp
   slave/containerizer/fetcher.cpp
   slave/containerizer/containerizer.cpp
-  slave/containerizer/external_containerizer.cpp
   slave/containerizer/composing.cpp
   slave/containerizer/mesos/containerizer.cpp
   slave/container_logger.cpp

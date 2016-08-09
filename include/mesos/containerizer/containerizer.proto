@@ -23,59 +23,6 @@ option java_outer_classname = "Protos";
 
 
 /**
- * Encodes the launch command sent to the external containerizer
- * program.
- */
-message Launch {
-  required ContainerID container_id = 1;
-  optional TaskInfo task_info = 2;
-  optional ExecutorInfo executor_info = 3;
-  optional string directory = 4;
-  optional string user = 5;
-  optional SlaveID slave_id = 6;
-  optional string slave_pid = 7;
-  optional bool checkpoint = 8;
-}
-
-
-/**
- * Encodes the update command sent to the external containerizer
- * program.
- */
-message Update {
-  required ContainerID container_id = 1;
-  repeated Resource resources = 2;
-}
-
-
-/**
- * Encodes the wait command sent to the external containerizer
- * program.
- */
-message Wait {
-  required ContainerID container_id = 1;
-}
-
-
-/**
- * Encodes the destroy command sent to the external containerizer
- * program.
- */
-message Destroy {
-  required ContainerID container_id = 1;
-}
-
-
-/**
- * Encodes the usage command sent to the external containerizer
- * program.
- */
-message Usage {
-  required ContainerID container_id = 1;
-}
-
-
-/**
  * Information about a container termination, returned by the
  * containerizer to the slave.
  */
@@ -88,13 +35,4 @@ message Termination {
   optional TaskState state = 4;
   repeated TaskStatus.Reason reasons = 5;
   optional string message = 2;
-}
-
-
-/**
- * Information on all active containers returned by the containerizer
- * to the slave.
- */
-message Containers {
-  repeated ContainerID containers = 1;
 }
