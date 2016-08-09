@@ -216,6 +216,6 @@ Upload the mesos.interface package to PyPi.
 
 Update the Mesos Homebrew package.
 
-  1. Update the [Homebrew formula for Mesos](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/mesos.rb) and test.
-  1. Submit a PR to the [Homebrew repo](https://github.com/Homebrew/homebrew).
+  1. Update the [Homebrew formula for Mesos](https://github.com/Homebrew/homebrew-core/blob/master/Formula/mesos.rb) and test.
+  1. Submit a PR to the [Homebrew repo](https://github.com/Homebrew/homebrew-core).
   1. Once accepted, verify that `brew install mesos` works.
