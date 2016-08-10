@@ -19,10 +19,16 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/time.hpp>
+
+#include <stout/nothing.hpp>
 
 #include "messages/messages.hpp"
 

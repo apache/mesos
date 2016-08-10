@@ -30,11 +30,16 @@
 #include <mesos/mesos.hpp>
 
 #include <process/delay.hpp>
-#include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/duration.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"
 
