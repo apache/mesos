@@ -139,6 +139,12 @@ executor::Call devolve(const v1::executor::Call& call)
 }
 
 
+executor::Event devolve(const v1::executor::Event& event)
+{
+  return devolve<executor::Event>(event);
+}
+
+
 scheduler::Call devolve(const v1::scheduler::Call& call)
 {
   return devolve<scheduler::Call>(call);

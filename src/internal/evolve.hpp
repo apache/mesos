@@ -111,7 +111,7 @@ v1::scheduler::Event evolve(const ExitedExecutorMessage& message);
 v1::scheduler::Event evolve(const ExecutorToFrameworkMessage& message);
 v1::scheduler::Event evolve(const FrameworkErrorMessage& message);
 
-
+v1::executor::Call evolve(const executor::Call& call);
 v1::executor::Event evolve(const executor::Event& event);
 
 
