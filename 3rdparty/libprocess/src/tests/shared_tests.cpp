@@ -90,7 +90,7 @@ TEST(SharedTest, Own)
   EXPECT_EQ(42, shared.get()->get());
   EXPECT_TRUE(shared.unique());
 
-  Future<Owned<Foo> > future;
+  Future<Owned<Foo>> future;
 
   {
     Shared<Foo> shared2(shared);

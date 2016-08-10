@@ -182,7 +182,7 @@ TEST_F(MetricsTest, Statistics)
     ++counter;
   }
 
-  Option<Statistics<double> > statistics = counter.statistics();
+  Option<Statistics<double>> statistics = counter.statistics();
   EXPECT_SOME(statistics);
 
   EXPECT_EQ(11u, statistics.get().count);

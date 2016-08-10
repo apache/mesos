@@ -62,7 +62,7 @@ TEST(ReapTest, NonChildProcess)
   pid_t grandchild = tree.get().children.front();
 
   // Reap the grandchild process.
-  Future<Option<int> > status = process::reap(grandchild);
+  Future<Option<int>> status = process::reap(grandchild);
 
   EXPECT_TRUE(status.isPending());
 
@@ -118,7 +118,7 @@ TEST(ReapTest, ChildProcess)
   pid_t child = tree.get();
 
   // Reap the child process.
-  Future<Option<int> > status = process::reap(child);
+  Future<Option<int>> status = process::reap(child);
 
   // Now kill the child.
   EXPECT_EQ(0, kill(child, SIGKILL));
@@ -171,7 +171,7 @@ TEST(ReapTest, TerminatedChildProcess)
   }
 
   // Now that it's terminated, attempt to reap it.
-  Future<Option<int> > status = process::reap(child);
+  Future<Option<int>> status = process::reap(child);
 
   // Advance time until the reaper sends the notification.
   Clock::pause();

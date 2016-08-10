@@ -29,7 +29,7 @@ Duration MAX_REAP_INTERVAL();
 // Otherwise, returns None once the process has been reaped elsewhere
 // (or does not exist, which is indistinguishable from being reaped
 // elsewhere). This will never discard the returned future.
-Future<Option<int> > reap(pid_t pid);
+Future<Option<int>> reap(pid_t pid);
 
 } // namespace process {
 

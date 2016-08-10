@@ -439,7 +439,7 @@ TEST(HTTPTest, PathParse)
 {
   const string pattern = "/books/{isbn}/chapters/{chapter}";
 
-  Try<hashmap<string, string> > parse =
+  Try<hashmap<string, string>> parse =
     http::path::parse(pattern, "/books/0304827484/chapters/3");
 
   ASSERT_SOME(parse);

@@ -66,11 +66,11 @@ class ReaperProcess : public Process<ReaperProcess>
 public:
   ReaperProcess() : ProcessBase(ID::generate("__reaper__")) {}
 
-  Future<Option<int> > reap(pid_t pid)
+  Future<Option<int>> reap(pid_t pid)
   {
     // Check to see if this pid exists.
     if (os::exists(pid)) {
-      Owned<Promise<Option<int> > > promise(new Promise<Option<int> >());
+      Owned<Promise<Option<int>>> promise(new Promise<Option<int>>());
       promises.put(pid, promise);
       return promise->future();
     } else {
@@ -110,7 +110,7 @@ protected:
 
   void notify(pid_t pid, Result<int> status)
   {
-    foreach (const Owned<Promise<Option<int> > >& promise, promises.get(pid)) {
+    foreach (const Owned<Promise<Option<int>>>& promise, promises.get(pid)) {
       if (status.isError()) {
         promise->fail(status.error());
       } else if (status.isNone()) {
@@ -141,7 +141,7 @@ private:
             (MAX_REAP_INTERVAL() - MIN_REAP_INTERVAL()) * fraction);
   }
 
-  multihashmap<pid_t, Owned<Promise<Option<int> > > > promises;
+  multihashmap<pid_t, Owned<Promise<Option<int>>>> promises;
 };
 
 
@@ -149,7 +149,7 @@ private:
 static ReaperProcess* reaper = nullptr;
 
 
-Future<Option<int> > reap(pid_t pid)
+Future<Option<int>> reap(pid_t pid)
 {
   static Once* initialized = new Once();
 

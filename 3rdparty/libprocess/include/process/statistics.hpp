@@ -33,7 +33,7 @@ struct Statistics
   // TimeSeries is empty.
   // TODO(dhamon): Consider adding a histogram abstraction for better
   // performance.
-  static Option<Statistics<T> > from(const TimeSeries<T>& timeseries)
+  static Option<Statistics<T>> from(const TimeSeries<T>& timeseries)
   {
     std::vector<typename TimeSeries<T>::Value> values_ = timeseries.get();
 

@@ -53,7 +53,7 @@ TEST(StatisticsTest, Statistics)
     timeseries.set(i, now);
   }
 
-  Option<Statistics<double> > statistics = Statistics<double>::from(timeseries);
+  Option<Statistics<double>> statistics = Statistics<double>::from(timeseries);
 
   EXPECT_SOME(statistics);
 

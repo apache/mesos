@@ -72,11 +72,11 @@ public:
   {
     // This is the future that is used to notify the next callback
     // (denoted by 'N' in the following graph).
-    Owned<Promise<Nothing> > notifier(new Promise<Nothing>());
+    Owned<Promise<Nothing>> notifier(new Promise<Nothing>());
 
     // This is the future that will be returned to the user (denoted
     // by 'F' in the following graph).
-    Owned<Promise<T> > promise(new Promise<T>());
+    Owned<Promise<T>> promise(new Promise<T>());
 
     // We use a graph to show how we hook these futures. Each box in
     // the graph represents a future. As mentioned above, 'F' denotes
@@ -141,7 +141,7 @@ protected:
 
 private:
   // Invoked when a callback is done.
-  static void completed(Owned<Promise<Nothing> > notifier)
+  static void completed(Owned<Promise<Nothing>> notifier)
   {
     notifier->set(Nothing());
   }
@@ -149,7 +149,7 @@ private:
   // Invoked when a notifier is set.
   template <typename T>
   static void notified(
-      Owned<Promise<T> > promise,
+      Owned<Promise<T>> promise,
       const lambda::function<Future<T>()>& callback)
   {
     if (promise->future().hasDiscard()) {

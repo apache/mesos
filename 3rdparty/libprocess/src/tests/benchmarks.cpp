@@ -148,7 +148,7 @@ private:
 
   Future<Duration> _run()
   {
-    duration = Owned<Promise<Duration> >(new Promise<Duration>());
+    duration = Owned<Promise<Duration>>(new Promise<Duration>());
 
     watch.start();
 
