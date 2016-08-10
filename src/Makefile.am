@@ -2255,7 +2255,6 @@ mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
 endif
 
 EXTRA_DIST +=							\
-  examples/python/test_containerizer.py				\
   examples/python/test_executor.py				\
   examples/python/test_framework.py
 
