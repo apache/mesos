@@ -64,6 +64,7 @@ case $OS in
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool cmake"
     append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
+    append_dockerfile "RUN apt-get -y install wget curl sed"
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
@@ -121,42 +122,54 @@ append_dockerfile "ENV DISTCHECK_CONFIGURE_FLAGS $CONFIGURATION"
 # Set the environment for build.
 append_dockerfile "ENV $ENVIRONMENT"
 
-# Build and check Mesos.
-case $BUILDTOOL in
-  autotools)
-    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck"
-    ;;
-  cmake)
-    # Transform autotools-like parameters to cmake-like.
-    # Remove "'".
-    CONFIGURATION=${CONFIGURATION//\'/""}
-    # Replace "-" with "_".
-    CONFIGURATION=${CONFIGURATION//-/"_"}
-    # Replace "__" with "-D".
-    CONFIGURATION=${CONFIGURATION//__/"-D"}
-    # To Upper Case.
-    CONFIGURATION=${CONFIGURATION^^}
+# Perform coverity build if requested.
+if [ -n "$COVERITY_TOKEN" ]
+ then
+   # Note currently the coverity build is only tested with ubuntu:14:04, autotools, and gcc.
 
-    # Add "=1" suffix to each variable.
-    IFS=' ' read -r  -a array <<< "$CONFIGURATION"
+    # Download coverity tools, build using coverity wrapper and upload results.
+    append_dockerfile "ENV MESOS_VERSION $(grep "AC_INIT" configure.ac | sed 's/AC_INIT[(]\[mesos\], \[\(.*\)\][)]/\1/')"
+    append_dockerfile "RUN wget https://scan.coverity.com/download/linux64  --post-data \"token=$COVERITY_TOKEN&project=Mesos\" -O coverity_tool.tgz"
+    append_dockerfile "RUN tar xvf coverity_tool.tgz; mv cov-analysis-linux* cov-analysis"
+    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION &&  cov-analysis/bin/cov-build -dir cov-int make -j8 && tar czcf mesos.tgz cov-int && tail cov-int/build-log.txt && curl --form \"token=$COVERITY_TOKEN\" --form \"email=dev@mesos.apache.org\"  --form \"file=@mesos.tgz\" --form \"version=$MESOS_VERSION\" --form \"description='Continious Coverity Build'\"   https://scan.coverity.com/builds?project=Mesos"
+else
+    # Build and check Mesos.
+    case $BUILDTOOL in
+      autotools)
+	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck"
+	;;
+      cmake)
+	# Transform autotools-like parameters to cmake-like.
+	# Remove "'".
+	CONFIGURATION=${CONFIGURATION//\'/""}
+	# Replace "-" with "_".
+	CONFIGURATION=${CONFIGURATION//-/"_"}
+	# Replace "__" with "-D".
+	CONFIGURATION=${CONFIGURATION//__/"-D"}
+	# To Upper Case.
+	CONFIGURATION=${CONFIGURATION^^}
 
-    CONFIGURATION=""
-    for element in "${array[@]}"
-    do
-        CONFIGURATION="$CONFIGURATION $element=1"
-    done
+	# Add "=1" suffix to each variable.
+	IFS=' ' read -r  -a array <<< "$CONFIGURATION"
 
-    # MESOS-5433: `distcheck` is not currently supported by our CMake scripts.
-    # MESOS-5624: In source build is not yet supported.
-    # Also, we run `make` in addition to `make check` because the latter only
-    # compiles stout and libprocess sources and tests.
-    append_dockerfile "CMD ./bootstrap && mkdir build && cd build && cmake $CONFIGURATION .. && make -j8 check && make -j8"
-    ;;
-  *)
-    echo "Unknown build tool $BUILDTOOL"
-    exit 1
-    ;;
-esac
+	CONFIGURATION=""
+	for element in "${array[@]}"
+	do
+	    CONFIGURATION="$CONFIGURATION $element=1"
+	done
+
+	# MESOS-5433: `distcheck` is not currently supported by our CMake scripts.
+	# MESOS-5624: In source build is not yet supported.
+	# Also, we run `make` in addition to `make check` because the latter only
+	# compiles stout and libprocess sources and tests.
+	append_dockerfile "CMD ./bootstrap && mkdir build && cd build && cmake $CONFIGURATION .. && make -j8 check && make -j8"
+	;;
+      *)
+	echo "Unknown build tool $BUILDTOOL"
+	exit 1
+	;;
+    esac
+fi
 
 # Generate a random image tag.
 TAG=mesos-`date +%s`-$RANDOM
