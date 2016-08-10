@@ -43,7 +43,7 @@ public:
   virtual void initialize();
 
   // LeaderDetector implementation.
-  Future<Option<Group::Membership> > detect(
+  Future<Option<Group::Membership>> detect(
       const Option<Group::Membership>& previous);
 
 private:
@@ -51,11 +51,11 @@ private:
   void watch(const set<Group::Membership>& expected);
 
   // Invoked when the group memberships have changed.
-  void watched(const Future<set<Group::Membership> >& memberships);
+  void watched(const Future<set<Group::Membership>>& memberships);
 
   Group* group;
   Option<Group::Membership> leader;
-  set<Promise<Option<Group::Membership> >*> promises;
+  set<Promise<Option<Group::Membership>>*> promises;
 
   // Potential non-retryable error.
   Option<Error> error;
@@ -70,7 +70,7 @@ LeaderDetectorProcess::LeaderDetectorProcess(Group* _group)
 
 LeaderDetectorProcess::~LeaderDetectorProcess()
 {
-  foreach (Promise<Option<Group::Membership> >* promise, promises) {
+  foreach (Promise<Option<Group::Membership>>* promise, promises) {
     promise->future().discard();
     delete promise;
   }
@@ -84,7 +84,7 @@ void LeaderDetectorProcess::initialize()
 }
 
 
-Future<Option<Group::Membership> > LeaderDetectorProcess::detect(
+Future<Option<Group::Membership>> LeaderDetectorProcess::detect(
     const Option<Group::Membership>& previous)
 {
   // Return immediately if the detector is no longer operational due
@@ -100,8 +100,8 @@ Future<Option<Group::Membership> > LeaderDetectorProcess::detect(
   }
 
   // Otherwise wait for the next election result.
-  Promise<Option<Group::Membership> >* promise =
-    new Promise<Option<Group::Membership> >();
+  Promise<Option<Group::Membership>>* promise =
+    new Promise<Option<Group::Membership>>();
   promises.insert(promise);
   return promise->future();
 }
@@ -115,7 +115,7 @@ void LeaderDetectorProcess::watch(const set<Group::Membership>& expected)
 
 
 void LeaderDetectorProcess::watched(
-    const Future<set<Group::Membership> >& memberships)
+    const Future<set<Group::Membership>>& memberships)
 {
   CHECK(!memberships.isDiscarded());
 
@@ -127,7 +127,7 @@ void LeaderDetectorProcess::watched(
     // will directly fail as a result.
     error = Error(memberships.failure());
     leader = None();
-    foreach (Promise<Option<Group::Membership> >* promise, promises) {
+    foreach (Promise<Option<Group::Membership>>* promise, promises) {
       promise->fail(memberships.failure());
       delete promise;
     }
@@ -154,7 +154,7 @@ void LeaderDetectorProcess::watched(
                   ? "(id='" + stringify(current.get().id()) + "')"
                   : "None");
 
-    foreach (Promise<Option<Group::Membership> >* promise, promises) {
+    foreach (Promise<Option<Group::Membership>>* promise, promises) {
       promise->set(current);
       delete promise;
     }
@@ -181,7 +181,7 @@ LeaderDetector::~LeaderDetector()
 }
 
 
-Future<Option<Group::Membership> > LeaderDetector::detect(
+Future<Option<Group::Membership>> LeaderDetector::detect(
     const Option<Group::Membership>& membership)
 {
   return dispatch(process, &LeaderDetectorProcess::detect, membership);

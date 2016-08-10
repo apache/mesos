@@ -144,7 +144,7 @@ private:
 
   function<void(StatusUpdate)> forward_;
 
-  hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*> > streams;
+  hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*>> streams;
 };
 
 

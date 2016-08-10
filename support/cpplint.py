@@ -1962,7 +1962,7 @@ class _NestingState(object):
     # Templates with class arguments may confuse the parser, for example:
     #   template <class T
     #             class Comparator = less<T>,
-    #             class Vector = vector<T> >
+    #             class Vector = vector<T>>
     #   class HeapQueue {
     #
     # Because this parser has no nesting state about templates, by the

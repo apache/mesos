@@ -151,7 +151,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_read
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Future<std::list<Log::Entry> > entries = reader->read(from, to);
+  Future<std::list<Log::Entry>> entries = reader->read(from, to);
 
   if (!entries.await(Seconds(jseconds))) {
     // Timed out while trying to read the log.
@@ -306,7 +306,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_append
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Future<Option<Log::Position> > position = writer->append(data);
+  Future<Option<Log::Position>> position = writer->append(data);
 
   if (!position.await(Seconds(jseconds))) {
     // Timed out while trying to append the log.
@@ -372,7 +372,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Writer_truncate
 
   jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
 
-  Future<Option<Log::Position> > position = writer->truncate(to);
+  Future<Option<Log::Position>> position = writer->truncate(to);
 
   if (!position.await(Seconds(jseconds))) {
     // Timed out while trying to truncate the log.
@@ -450,7 +450,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_Log_00024Writer_initialize
 
   // Try to start the writer.
   while (retries-- > 0) {
-    Future<Option<Log::Position> > position = writer->start();
+    Future<Option<Log::Position>> position = writer->start();
 
     if (!position.await(seconds)) {
       // Cancel the pending start. It is likely that we'll retry right

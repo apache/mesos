@@ -101,7 +101,7 @@ public:
 
   MOCK_METHOD0(
       containers,
-      process::Future<hashset<ContainerID> >());
+      process::Future<hashset<ContainerID>>());
 };
 
 

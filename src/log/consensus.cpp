@@ -130,7 +130,7 @@ private:
       .onAny(defer(self(), &Self::broadcasted, lambda::_1));
   }
 
-  void broadcasted(const Future<set<Future<PromiseResponse> > >& future)
+  void broadcasted(const Future<set<Future<PromiseResponse>>>& future)
   {
     if (!future.isReady()) {
       promise.fail(
@@ -260,7 +260,7 @@ private:
   const uint64_t position;
 
   PromiseRequest request;
-  set<Future<PromiseResponse> > responses;
+  set<Future<PromiseResponse>> responses;
   size_t responsesReceived;
   size_t ignoresReceived;
   Option<uint64_t> highestNackProposal;
@@ -333,7 +333,7 @@ private:
       .onAny(defer(self(), &Self::broadcasted, lambda::_1));
   }
 
-  void broadcasted(const Future<set<Future<PromiseResponse> > >& future)
+  void broadcasted(const Future<set<Future<PromiseResponse>>>& future)
   {
     if (!future.isReady()) {
       promise.fail(
@@ -422,7 +422,7 @@ private:
   const uint64_t proposal;
 
   PromiseRequest request;
-  set<Future<PromiseResponse> > responses;
+  set<Future<PromiseResponse>> responses;
   size_t responsesReceived;
   size_t ignoresReceived;
   Option<uint64_t> highestNackProposal;
@@ -515,7 +515,7 @@ private:
       .onAny(defer(self(), &Self::broadcasted, lambda::_1));
   }
 
-  void broadcasted(const Future<set<Future<WriteResponse> > >& future)
+  void broadcasted(const Future<set<Future<WriteResponse>>>& future)
   {
     if (!future.isReady()) {
       promise.fail(
@@ -593,7 +593,7 @@ private:
   const Action action;
 
   WriteRequest request;
-  set<Future<WriteResponse> > responses;
+  set<Future<WriteResponse>> responses;
   size_t responsesReceived;
   size_t ignoresReceived;
   Option<uint64_t> highestNackProposal;

@@ -49,7 +49,7 @@ namespace log {
 // an empty replica will be allowed to vote if ALL replicas (i.e.,
 // quorum * 2 - 1) are empty. This allows us to bootstrap the
 // replicated log without explicitly using an initialization tool.
-extern process::Future<process::Owned<Replica> > recover(
+extern process::Future<process::Owned<Replica>> recover(
     size_t quorum,
     const process::Owned<Replica>& replica,
     const process::Shared<Network>& network,

@@ -60,7 +60,7 @@ Future<Nothing> GarbageCollectorProcess::schedule(
     CHECK(unschedule(path));
   }
 
-  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
 
   Timeout removalTime = Timeout::in(d);
 

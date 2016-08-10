@@ -61,7 +61,7 @@ void ZooKeeperTest::SetUpTestCase()
       path::join(zkHome, "zookeeper-" ZOOKEEPER_VERSION ".jar");
 
     // Now add all the libraries in 'lib' too.
-    Try<list<string> > jars = fs::list(path::join(zkHome, "lib", "*.jar"));
+    Try<list<string>> jars = fs::list(path::join(zkHome, "lib", "*.jar"));
 
     CHECK_SOME(jars);
 

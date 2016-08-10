@@ -41,7 +41,7 @@ using std::endl;
 using std::string;
 
 // All the registered tools.
-static hashmap<string, Owned<tool::Tool> > tools;
+static hashmap<string, Owned<tool::Tool>> tools;
 
 
 static void add(const Owned<tool::Tool>& tool)

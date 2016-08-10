@@ -102,7 +102,7 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
       false).get();
 
   // Verify that we do not see the container.
-  Future<list<Docker::Container> > containers = docker->ps(true, containerName);
+  Future<list<Docker::Container>> containers = docker->ps(true, containerName);
   AWAIT_READY(containers);
   foreach (const Docker::Container& container, containers.get()) {
     EXPECT_NE("/" + containerName, container.name);

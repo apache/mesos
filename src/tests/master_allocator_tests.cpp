@@ -748,7 +748,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
   // and none of slave1's resources.
-  Future<vector<Offer> > resourceOffers;
+  Future<vector<Offer>> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
     .WillOnce(FutureArg<1>(&resourceOffers));
 

@@ -84,7 +84,7 @@ public:
   // Sends a request to each member of the network and returns a set
   // of futures that represent their responses.
   template <typename Req, typename Res>
-  process::Future<std::set<process::Future<Res> > > broadcast(
+  process::Future<std::set<process::Future<Res>>> broadcast(
       const Protocol<Req, Res>& protocol,
       const Req& req,
       const std::set<process::UPID>& filter = std::set<process::UPID>()) const;
@@ -126,14 +126,14 @@ private:
   void watch(const std::set<zookeeper::Group::Membership>& expected);
 
   // Invoked when the group memberships have changed.
-  void watched(const process::Future<std::set<zookeeper::Group::Membership> >&);
+  void watched(const process::Future<std::set<zookeeper::Group::Membership>>&);
 
   // Invoked when group members data has been collected.
   void collected(
-      const process::Future<std::list<Option<std::string> > >& datas);
+      const process::Future<std::list<Option<std::string>>>& datas);
 
   zookeeper::Group group;
-  process::Future<std::set<zookeeper::Group::Membership> > memberships;
+  process::Future<std::set<zookeeper::Group::Membership>> memberships;
 
   // The set of PIDs that are always in the network.
   std::set<process::UPID> base;
@@ -219,12 +219,12 @@ public:
   // Sends a request to each of the groups members and returns a set
   // of futures that represent their responses.
   template <typename Req, typename Res>
-  std::set<process::Future<Res> > broadcast(
+  std::set<process::Future<Res>> broadcast(
       const Protocol<Req, Res>& protocol,
       const Req& req,
       const std::set<process::UPID>& filter)
   {
-    std::set<process::Future<Res> > futures;
+    std::set<process::Future<Res>> futures;
     typename std::set<process::UPID>::const_iterator iterator;
     for (iterator = pids.begin(); iterator != pids.end(); ++iterator) {
       const process::UPID& pid = *iterator;
@@ -368,7 +368,7 @@ inline process::Future<size_t> Network::watch(
 
 
 template <typename Req, typename Res>
-process::Future<std::set<process::Future<Res> > > Network::broadcast(
+process::Future<std::set<process::Future<Res>>> Network::broadcast(
     const Protocol<Req, Res>& protocol,
     const Req& req,
     const std::set<process::UPID>& filter) const
@@ -417,7 +417,7 @@ inline void ZooKeeperNetwork::watch(
 
 
 inline void ZooKeeperNetwork::watched(
-    const process::Future<std::set<zookeeper::Group::Membership> >&)
+    const process::Future<std::set<zookeeper::Group::Membership>>&)
 {
   if (memberships.isFailed()) {
     // We can't do much here, we could try creating another Group but
@@ -432,7 +432,7 @@ inline void ZooKeeperNetwork::watched(
   LOG(INFO) << "ZooKeeper group memberships changed";
 
   // Get data for each membership in order to convert them to PIDs.
-  std::list<process::Future<Option<std::string> > > futures;
+  std::list<process::Future<Option<std::string>>> futures;
 
   foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
     futures.push_back(group.data(membership));
@@ -451,7 +451,7 @@ inline void ZooKeeperNetwork::watched(
 
 
 inline void ZooKeeperNetwork::collected(
-    const process::Future<std::list<Option<std::string> > >& datas)
+    const process::Future<std::list<Option<std::string>>>& datas)
 {
   if (datas.isFailed()) {
     LOG(WARNING) << "Failed to get data for ZooKeeper group members: "

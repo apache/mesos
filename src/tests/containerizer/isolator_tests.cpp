@@ -281,7 +281,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -394,7 +394,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Wait for the command to start.
   while (!os::exists(file));
@@ -677,7 +677,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Wait for the command to complete.
   AWAIT_READY(status);
@@ -782,7 +782,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Wait for the command to complete successfully.
   AWAIT_READY(status);
@@ -1341,7 +1341,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(flags.work_dir);
 
-  Future<Option<ContainerLaunchInfo> > prepare =
+  Future<Option<ContainerLaunchInfo>> prepare =
     isolator->prepare(
         containerId,
         containerConfig);
@@ -1377,7 +1377,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());
@@ -1447,7 +1447,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(flags.work_dir);
 
-  Future<Option<ContainerLaunchInfo> > prepare =
+  Future<Option<ContainerLaunchInfo>> prepare =
     isolator->prepare(
         containerId,
         containerConfig);
@@ -1483,7 +1483,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());

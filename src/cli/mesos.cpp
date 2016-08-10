@@ -42,7 +42,7 @@ void usage(const char* argv0)
 
   if (PATH.isSome()) {
     foreach (const string& path, strings::split(PATH.get(), ":")) {
-      Try<list<string> > matches = fs::list(path::join(path, "mesos-*"));
+      Try<list<string>> matches = fs::list(path::join(path, "mesos-*"));
       if (matches.isSome()) {
         foreach (const string& match, matches.get()) {
           Try<bool> access = os::access(match, X_OK);

@@ -89,7 +89,7 @@ typedef mesos::internal::Registry::Slave Slave;
 
 void FetchAndStoreAndFetch(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -102,7 +102,7 @@ void FetchAndStoreAndFetch(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -119,7 +119,7 @@ void FetchAndStoreAndFetch(State* state)
 
 void FetchAndStoreAndStoreAndFetch(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -132,7 +132,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -155,7 +155,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
 
 void FetchAndStoreAndStoreFailAndFetch(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable1 = future1.get();
@@ -168,7 +168,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
   Variable<Slaves> variable2 = variable1.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable2);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable2);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -197,7 +197,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
 void FetchAndStoreAndExpungeAndFetch(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -210,7 +210,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -232,7 +232,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
 
 void FetchAndStoreAndExpungeAndExpunge(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -245,7 +245,7 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -263,7 +263,7 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
 
 void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -276,7 +276,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
@@ -303,7 +303,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
 
 void Names(State* state)
 {
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -316,11 +316,11 @@ void Names(State* state)
 
   variable = variable.mutate(slaves1);
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  Future<set<string> > names = state->names();
+  Future<set<string>> names = state->names();
   AWAIT_READY(names);
   ASSERT_EQ(1u, names.get().size());
   EXPECT_NE(names.get().find("slaves"), names.get().end());
@@ -570,8 +570,8 @@ TEST_F(LogStateTest, Names)
 }
 
 
-Future<Option<Variable<Slaves> > > timeout(
-    Future<Option<Variable<Slaves> > > future)
+Future<Option<Variable<Slaves>>> timeout(
+    Future<Option<Variable<Slaves>>> future)
 {
   future.discard();
   return Failure("Timeout");
@@ -582,7 +582,7 @@ TEST_F(LogStateTest, Timeout)
 {
   Clock::pause();
 
-  Future<Variable<Slaves> > future1 = state->fetch<Slaves>("slaves");
+  Future<Variable<Slaves>> future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
 
   Variable<Slaves> variable = future1.get();
@@ -599,9 +599,9 @@ TEST_F(LogStateTest, Timeout)
   terminate(replica2->pid());
   wait(replica2->pid());
 
-  Future<Option<Variable<Slaves> > > future2 = state->store(variable);
+  Future<Option<Variable<Slaves>>> future2 = state->store(variable);
 
-  Future<Option<Variable<Slaves> > > future3 =
+  Future<Option<Variable<Slaves>>> future3 =
     future2.after(Seconds(5), lambda::bind(&timeout, lambda::_1));
 
   ASSERT_TRUE(future2.isPending());

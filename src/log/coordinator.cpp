@@ -59,10 +59,10 @@ public:
   virtual ~CoordinatorProcess() {}
 
   // See comments in 'coordinator.hpp'.
-  Future<Option<uint64_t> > elect();
+  Future<Option<uint64_t>> elect();
   Future<uint64_t> demote();
-  Future<Option<uint64_t> > append(const string& bytes);
-  Future<Option<uint64_t> > truncate(uint64_t to);
+  Future<Option<uint64_t>> append(const string& bytes);
+  Future<Option<uint64_t>> truncate(uint64_t to);
 
 protected:
   virtual void finalize()
@@ -79,11 +79,11 @@ private:
   Future<uint64_t> getLastProposal();
   Future<Nothing> updateProposal(uint64_t promised);
   Future<PromiseResponse> runPromisePhase();
-  Future<Option<uint64_t> > checkPromisePhase(const PromiseResponse& response);
-  Future<IntervalSet<uint64_t> > getMissingPositions();
+  Future<Option<uint64_t>> checkPromisePhase(const PromiseResponse& response);
+  Future<IntervalSet<uint64_t>> getMissingPositions();
   Future<Nothing> catchupMissingPositions(
       const IntervalSet<uint64_t>& positions);
-  Future<Option<uint64_t> > updateIndexAfterElected();
+  Future<Option<uint64_t>> updateIndexAfterElected();
   void electingFinished(const Option<uint64_t>& position);
   void electingFailed();
   void electingAborted();
@@ -92,14 +92,14 @@ private:
   // Writing related functions.  //
   /////////////////////////////////
 
-  Future<Option<uint64_t> > write(const Action& action);
+  Future<Option<uint64_t>> write(const Action& action);
   Future<WriteResponse> runWritePhase(const Action& action);
-  Future<Option<uint64_t> > checkWritePhase(
+  Future<Option<uint64_t>> checkWritePhase(
       const Action& action,
       const WriteResponse& response);
   Future<Nothing> runLearnPhase(const Action& action);
   Future<bool> checkLearnPhase(const Action& action);
-  Future<Option<uint64_t> > updateIndexAfterWritten(bool missing);
+  Future<Option<uint64_t>> updateIndexAfterWritten(bool missing);
   void writingFinished();
   void writingFailed();
   void writingAborted();
@@ -130,8 +130,8 @@ private:
   // The position to which the next entry will be written.
   uint64_t index;
 
-  Future<Option<uint64_t> > electing;
-  Future<Option<uint64_t> > writing;
+  Future<Option<uint64_t>> electing;
+  Future<Option<uint64_t>> writing;
 };
 
 
@@ -140,7 +140,7 @@ private:
 /////////////////////////////////////////////////
 
 
-Future<Option<uint64_t> > CoordinatorProcess::elect()
+Future<Option<uint64_t>> CoordinatorProcess::elect()
 {
   if (state == ELECTING) {
     return electing;
@@ -189,7 +189,7 @@ Future<PromiseResponse> CoordinatorProcess::runPromisePhase()
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
+Future<Option<uint64_t>> CoordinatorProcess::checkPromisePhase(
     const PromiseResponse& response)
 {
   CHECK(response.has_type());
@@ -226,7 +226,7 @@ Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
 }
 
 
-Future<IntervalSet<uint64_t> > CoordinatorProcess::getMissingPositions()
+Future<IntervalSet<uint64_t>> CoordinatorProcess::getMissingPositions()
 {
   return replica->missing(0, index);
 }
@@ -249,7 +249,7 @@ Future<Nothing> CoordinatorProcess::catchupMissingPositions(
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::updateIndexAfterElected()
+Future<Option<uint64_t>> CoordinatorProcess::updateIndexAfterElected()
 {
   return Option<uint64_t>(index++);
 }
@@ -303,7 +303,7 @@ Future<uint64_t> CoordinatorProcess::demote()
 /////////////////////////////////////////////////
 
 
-Future<Option<uint64_t> > CoordinatorProcess::append(const string& bytes)
+Future<Option<uint64_t>> CoordinatorProcess::append(const string& bytes)
 {
   if (state == INITIAL || state == ELECTING) {
     return None();
@@ -323,7 +323,7 @@ Future<Option<uint64_t> > CoordinatorProcess::append(const string& bytes)
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::truncate(uint64_t to)
+Future<Option<uint64_t>> CoordinatorProcess::truncate(uint64_t to)
 {
   if (state == INITIAL || state == ELECTING) {
     return None();
@@ -343,7 +343,7 @@ Future<Option<uint64_t> > CoordinatorProcess::truncate(uint64_t to)
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::write(const Action& action)
+Future<Option<uint64_t>> CoordinatorProcess::write(const Action& action)
 {
   LOG(INFO) << "Coordinator attempting to write " << action.type()
             << " action at position " << action.position();
@@ -369,7 +369,7 @@ Future<WriteResponse> CoordinatorProcess::runWritePhase(const Action& action)
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::checkWritePhase(
+Future<Option<uint64_t>> CoordinatorProcess::checkWritePhase(
     const Action& action,
     const WriteResponse& response)
 {
@@ -402,7 +402,7 @@ Future<bool> CoordinatorProcess::checkLearnPhase(const Action& action)
 }
 
 
-Future<Option<uint64_t> > CoordinatorProcess::updateIndexAfterWritten(
+Future<Option<uint64_t>> CoordinatorProcess::updateIndexAfterWritten(
     bool missing)
 {
   CHECK(!missing) << "Not expecting local replica to be missing position "
@@ -461,7 +461,7 @@ Coordinator::~Coordinator()
 }
 
 
-Future<Option<uint64_t> > Coordinator::elect()
+Future<Option<uint64_t>> Coordinator::elect()
 {
   return dispatch(process, &CoordinatorProcess::elect);
 }
@@ -473,13 +473,13 @@ Future<uint64_t> Coordinator::demote()
 }
 
 
-Future<Option<uint64_t> > Coordinator::append(const string& bytes)
+Future<Option<uint64_t>> Coordinator::append(const string& bytes)
 {
   return dispatch(process, &CoordinatorProcess::append, bytes);
 }
 
 
-Future<Option<uint64_t> > Coordinator::truncate(uint64_t to)
+Future<Option<uint64_t>> Coordinator::truncate(uint64_t to)
 {
   return dispatch(process, &CoordinatorProcess::truncate, to);
 }

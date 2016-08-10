@@ -144,10 +144,10 @@ private:
   hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
 
   hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers_;
-  hashmap<ContainerID, process::Owned<MesosExecutorDriver> > drivers;
-  hashmap<ContainerID, process::Owned<executor::TestV1Mesos> > v1Libraries;
+  hashmap<ContainerID, process::Owned<MesosExecutorDriver>> drivers;
+  hashmap<ContainerID, process::Owned<executor::TestV1Mesos>> v1Libraries;
   hashmap<ContainerID,
-      process::Owned<process::Promise<containerizer::Termination> > > promises;
+      process::Owned<process::Promise<containerizer::Termination>>> promises;
 };
 
 } // namespace tests {

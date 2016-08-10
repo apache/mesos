@@ -82,7 +82,7 @@ namespace ns {
 inline std::set<std::string> namespaces()
 {
   std::set<std::string> result;
-  Try<std::list<std::string> > entries = os::ls("/proc/self/ns");
+  Try<std::list<std::string>> entries = os::ls("/proc/self/ns");
   if (entries.isSome()) {
     foreach (const std::string& entry, entries.get()) {
       result.insert(entry);
@@ -123,7 +123,7 @@ inline Try<int> nstype(const std::string& ns)
 inline Try<Nothing> setns(const std::string& path, const std::string& ns)
 {
   // Return error if there're multiple threads in the calling process.
-  Try<std::set<pid_t> > threads = proc::threads(::getpid());
+  Try<std::set<pid_t>> threads = proc::threads(::getpid());
   if (threads.isError()) {
     return Error(
         "Failed to get the threads of the current process: " +

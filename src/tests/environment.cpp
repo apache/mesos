@@ -172,7 +172,7 @@ public:
   CgroupsFilter()
   {
 #ifdef __linux__
-    Try<set<string> > hierarchies = cgroups::hierarchies();
+    Try<set<string>> hierarchies = cgroups::hierarchies();
     if (hierarchies.isError()) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -678,7 +678,7 @@ private:
 // Return list of disabled tests based on test name based filters.
 static vector<string> disabled(
     const ::testing::UnitTest* unitTest,
-    const vector<Owned<TestFilter> >& filters)
+    const vector<Owned<TestFilter>>& filters)
 {
   vector<string> disabled;
 
@@ -739,7 +739,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
     disabled += ":";
   }
 
-  vector<Owned<TestFilter> > filters;
+  vector<Owned<TestFilter>> filters;
 
   filters.push_back(Owned<TestFilter>(new AufsFilter()));
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));

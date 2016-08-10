@@ -177,7 +177,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   // Create the log writer.
   Log::Writer writer(&log);
 
-  Future<Option<Log::Position> > position = writer.start();
+  Future<Option<Log::Position>> position = writer.start();
 
   if (!position.await(Seconds(15))) {
     return Error("Failed to start a log writer: timed out");

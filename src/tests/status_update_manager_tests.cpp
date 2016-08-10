@@ -117,7 +117,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -209,7 +209,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   EXPECT_CALL(sched, registered(_, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -281,7 +281,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -393,7 +393,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -484,7 +484,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -595,7 +595,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -690,7 +690,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -875,7 +875,7 @@ TEST_F(StatusUpdateManagerTest, DuplicatedTerminalStatusUpdate)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.

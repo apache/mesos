@@ -180,7 +180,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 
     VLOG(1) << "Looking up auxiliary property '" << property->name << "'";
 
-    Option<list<string> > values = lookup(user, name);
+    Option<list<string>> values = lookup(user, name);
 
     if (values.isSome()) {
       if (values.get().empty()) {

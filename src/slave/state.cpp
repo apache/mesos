@@ -165,7 +165,7 @@ Try<SlaveState> SlaveState::recover(
   state.info = slaveInfo.get();
 
   // Find the frameworks.
-  Try<list<string> > frameworks = paths::getFrameworkPaths(rootDir, slaveId);
+  Try<list<string>> frameworks = paths::getFrameworkPaths(rootDir, slaveId);
 
   if (frameworks.isError()) {
     return Error("Failed to find frameworks for agent " + slaveId.value() +
@@ -272,7 +272,7 @@ Try<FrameworkState> FrameworkState::recover(
   state.pid = process::UPID(pid.get());
 
   // Find the executors.
-  Try<list<string> > executors =
+  Try<list<string>> executors =
     paths::getExecutorPaths(rootDir, slaveId, frameworkId);
 
   if (executors.isError()) {
@@ -314,7 +314,7 @@ Try<ExecutorState> ExecutorState::recover(
   string message;
 
   // Find the runs.
-  Try<list<string> > runs = paths::getExecutorRunPaths(
+  Try<list<string>> runs = paths::getExecutorRunPaths(
       rootDir,
       slaveId,
       frameworkId,
@@ -431,7 +431,7 @@ Try<RunState> RunState::recover(
   state.completed = os::exists(path);
 
   // Find the tasks.
-  Try<list<string> > tasks = paths::getTaskPaths(
+  Try<list<string>> tasks = paths::getTaskPaths(
       rootDir,
       slaveId,
       frameworkId,

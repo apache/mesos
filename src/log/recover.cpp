@@ -103,8 +103,8 @@ protected:
   }
 
 private:
-  static Future<Option<RecoverResponse> > timedout(
-      Future<Option<RecoverResponse> > future,
+  static Future<Option<RecoverResponse>> timedout(
+      Future<Option<RecoverResponse>> future,
       const Duration& timeout)
   {
     LOG(INFO) << "Unable to finish the recover protocol in "
@@ -151,7 +151,7 @@ private:
       .then(defer(self(), &Self::broadcasted, lambda::_1));
   }
 
-  Future<Nothing> broadcasted(const set<Future<RecoverResponse> >& _responses)
+  Future<Nothing> broadcasted(const set<Future<RecoverResponse>>& _responses)
   {
     VLOG(2) << "Broadcast request completed";
 
@@ -166,7 +166,7 @@ private:
   }
 
   // Returns None if we need to re-run the protocol.
-  Future<Option<RecoverResponse> > receive()
+  Future<Option<RecoverResponse>> receive()
   {
     if (responses.empty()) {
       // All responses have been received but we haven't received
@@ -182,7 +182,7 @@ private:
       .then(defer(self(), &Self::received, lambda::_1));
   }
 
-  Future<Option<RecoverResponse> > received(
+  Future<Option<RecoverResponse>> received(
       const Future<RecoverResponse>& future)
   {
     // Enforced by the select semantics.
@@ -311,7 +311,7 @@ private:
     return receive();
   }
 
-  void finished(const Future<Option<RecoverResponse> >& future)
+  void finished(const Future<Option<RecoverResponse>>& future)
   {
     if (future.isDiscarded()) {
       // We use the boolean flag 'terminating' to distinguish between
@@ -353,11 +353,11 @@ private:
   const bool autoInitialize;
   const Duration timeout;
 
-  set<Future<RecoverResponse> > responses;
+  set<Future<RecoverResponse>> responses;
   hashmap<Metadata::Status, size_t> responsesReceived;
   Option<uint64_t> lowestBeginPosition;
   Option<uint64_t> highestEndPosition;
-  Future<Option<RecoverResponse> > chain;
+  Future<Option<RecoverResponse>> chain;
   bool terminating;
 
   process::Promise<RecoverResponse> promise;
@@ -443,7 +443,7 @@ public:
       network(_network),
       autoInitialize(_autoInitialize) {}
 
-  Future<Owned<Replica> > future() { return promise.future(); }
+  Future<Owned<Replica>> future() { return promise.future(); }
 
 protected:
   virtual void initialize()
@@ -620,11 +620,11 @@ private:
 
   Future<Nothing> chain;
 
-  process::Promise<Owned<Replica> > promise;
+  process::Promise<Owned<Replica>> promise;
 };
 
 
-Future<Owned<Replica> > recover(
+Future<Owned<Replica>> recover(
     size_t quorum,
     const Owned<Replica>& replica,
     const Shared<Network>& network,
@@ -637,7 +637,7 @@ Future<Owned<Replica> > recover(
         network,
         autoInitialize);
 
-  Future<Owned<Replica> > future = process->future();
+  Future<Owned<Replica>> future = process->future();
   spawn(process, true);
   return future;
 }

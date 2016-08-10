@@ -50,7 +50,7 @@ public:
   // Handles coordinator election. Returns the last committed (a.k.a.,
   // learned) log position if the operation succeeds. Returns none if
   // the election is not successful, but can be retried.
-  process::Future<Option<uint64_t> > elect();
+  process::Future<Option<uint64_t>> elect();
 
   // Handles coordinator demotion. Returns the last committed (a.k.a.,
   // learned) log position if the operation succeeds. One should only
@@ -61,13 +61,13 @@ public:
   // Appends the specified bytes to the end of the log. Returns the
   // position of the appended entry if the operation succeeds or none
   // if the coordinator was demoted.
-  process::Future<Option<uint64_t> > append(const std::string& bytes);
+  process::Future<Option<uint64_t>> append(const std::string& bytes);
 
   // Removes all log entries preceding the log entry at the given
   // position (to). Returns the position at which the truncate
   // operation is written if the operation succeeds or none if the
   // coordinator was demoted.
-  process::Future<Option<uint64_t> > truncate(uint64_t to);
+  process::Future<Option<uint64_t>> truncate(uint64_t to);
 
 private:
   CoordinatorProcess* process;

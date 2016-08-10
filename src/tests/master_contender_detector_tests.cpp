@@ -125,7 +125,7 @@ TEST_F(MasterContenderDetectorTest, File)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -148,7 +148,7 @@ TEST(BasicMasterContenderDetectorTest, Contender)
 
   contender->initialize(internal::protobuf::createMasterInfo(master));
 
-  Future<Future<Nothing> > contended = contender->contend();
+  Future<Future<Nothing>> contended = contender->contend();
   AWAIT_READY(contended);
 
   Future<Nothing> lostCandidacy = contended.get();
@@ -171,7 +171,7 @@ TEST(BasicMasterContenderDetectorTest, Detector)
 
   StandaloneMasterDetector detector;
 
-  Future<Option<MasterInfo> > detected = detector.detect();
+  Future<Option<MasterInfo>> detected = detector.detect();
 
   // No one has appointed the leader so we are pending.
   EXPECT_TRUE(detected.isPending());
@@ -200,7 +200,7 @@ TEST(BasicMasterContenderDetectorTest, MasterInfo)
 
   StandaloneMasterDetector detector;
 
-  Future<Option<MasterInfo> > detected = detector.detect();
+  Future<Option<MasterInfo>> detected = detector.detect();
 
   detector.appoint(master);
 
@@ -238,12 +238,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
   contender.initialize(master);
-  Future<Future<Nothing> > contended = contender.contend();
+  Future<Future<Nothing>> contended = contender.contend();
   AWAIT_READY(contended);
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Option<MasterInfo> > leader = detector.detect();
+  Future<Option<MasterInfo>> leader = detector.detect();
 
   AWAIT_READY(leader);
   EXPECT_SOME_EQ(master, leader.get());
@@ -269,7 +269,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   Future<Nothing> lostCandidacy = contended.get();
   leader = detector.detect(leader.get());
 
-  Future<Option<int64_t> > sessionId = group.get()->session();
+  Future<Option<int64_t>> sessionId = group.get()->session();
   AWAIT_READY(sessionId);
   server->expireSession(sessionId.get().get());
 
@@ -301,7 +301,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
   // Drop Group::join so that 'contended' will stay pending.
   Future<Nothing> join = DROP_DISPATCH(_, &GroupProcess::join);
 
-  Future<Future<Nothing> > contended = contender.contend();
+  Future<Future<Nothing>> contended = contender.contend();
   AWAIT_READY(join);
 
   Clock::pause();
@@ -355,12 +355,12 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
 
   contender1->initialize(master1);
 
-  Future<Future<Nothing> > contended1 = contender1->contend();
+  Future<Future<Nothing>> contended1 = contender1->contend();
   AWAIT_READY(contended1);
 
   ZooKeeperMasterDetector detector1(url.get());
 
-  Future<Option<MasterInfo> > leader1 = detector1.detect();
+  Future<Option<MasterInfo>> leader1 = detector1.detect();
   AWAIT_READY(leader1);
   EXPECT_SOME_EQ(master1, leader1.get());
 
@@ -374,11 +374,11 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
 
   contender2.initialize(master2);
 
-  Future<Future<Nothing> > contended2 = contender2.contend();
+  Future<Future<Nothing>> contended2 = contender2.contend();
   AWAIT_READY(contended2);
 
   ZooKeeperMasterDetector detector2(url.get());
-  Future<Option<MasterInfo> > leader2 = detector2.detect();
+  Future<Option<MasterInfo>> leader2 = detector2.detect();
   AWAIT_READY(leader2);
   EXPECT_SOME_EQ(master1, leader2.get());
 
@@ -387,7 +387,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContenders)
   // Destroying detector1 (below) causes leadership change.
   contender1.reset();
 
-  Future<Option<MasterInfo> > leader3 = detector2.detect(master1);
+  Future<Option<MasterInfo>> leader3 = detector2.detect(master1);
   AWAIT_READY(leader3);
   EXPECT_SOME_EQ(master2, leader3.get());
 }
@@ -479,13 +479,13 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   contender.initialize(master);
 
-  Future<Future<Nothing> > contended = contender.contend();
+  Future<Future<Nothing>> contended = contender.contend();
   AWAIT_READY(contended);
   Future<Nothing> lostCandidacy = contended.get();
 
   ZooKeeperMasterDetector detector(url.get());
 
-  Future<Option<MasterInfo> > leader = detector.detect();
+  Future<Option<MasterInfo>> leader = detector.detect();
   AWAIT_READY(leader);
   EXPECT_SOME_EQ(master, leader.get());
 
@@ -556,13 +556,13 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
 
   leaderContender.initialize(leader);
 
-  Future<Future<Nothing> > contended = leaderContender.contend();
+  Future<Future<Nothing>> contended = leaderContender.contend();
   AWAIT_READY(contended);
   Future<Nothing> leaderLostCandidacy = contended.get();
 
   ZooKeeperMasterDetector leaderDetector(leaderGroup);
 
-  Future<Option<MasterInfo> > detected = leaderDetector.detect();
+  Future<Option<MasterInfo>> detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
@@ -617,11 +617,11 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorTimedoutSession)
   AWAIT_READY(nonContenderReconnecting);
 
   // Now the detectors re-detect.
-  Future<Option<MasterInfo> > leaderDetected =
+  Future<Option<MasterInfo>> leaderDetected =
     leaderDetector.detect(leader);
-  Future<Option<MasterInfo> > followerDetected =
+  Future<Option<MasterInfo>> followerDetected =
     followerDetector.detect(leader);
-  Future<Option<MasterInfo> > nonContenderDetected =
+  Future<Option<MasterInfo>> nonContenderDetected =
     nonContenderDetector.detect(leader);
 
   Clock::pause();
@@ -674,19 +674,19 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   leaderContender.initialize(leader);
 
-  Future<Future<Nothing> > leaderContended = leaderContender.contend();
+  Future<Future<Nothing>> leaderContended = leaderContender.contend();
   AWAIT_READY(leaderContended);
 
   Future<Nothing> leaderLostLeadership = leaderContended.get();
 
   ZooKeeperMasterDetector leaderDetector(url.get());
 
-  Future<Option<MasterInfo> > detected = leaderDetector.detect();
+  Future<Option<MasterInfo>> detected = leaderDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
   // Keep detecting.
-  Future<Option<MasterInfo> > newLeaderDetected =
+  Future<Option<MasterInfo>> newLeaderDetected =
     leaderDetector.detect(detected.get());
 
   // Simulate a following master.
@@ -700,7 +700,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   ZooKeeperMasterContender followerContender(url.get());
   followerContender.initialize(follower);
 
-  Future<Future<Nothing> > followerContended = followerContender.contend();
+  Future<Future<Nothing>> followerContended = followerContender.contend();
   AWAIT_READY(followerContended);
 
   LOG(INFO) << "The follower now is detecting the leader";
@@ -709,7 +709,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   EXPECT_SOME_EQ(leader, detected.get());
 
   // Now expire the leader's zk session.
-  Future<Option<int64_t> > session = group->session();
+  Future<Option<int64_t>> session = group->session();
   AWAIT_READY(session);
   EXPECT_SOME(session.get());
 
@@ -747,7 +747,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   ZooKeeperMasterContender masterContender(url.get());
   masterContender.initialize(master);
 
-  Future<Future<Nothing> > leaderContended = masterContender.contend();
+  Future<Future<Nothing>> leaderContended = masterContender.contend();
   AWAIT_READY(leaderContended);
 
   // Simulate a slave.
@@ -756,14 +756,14 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   ZooKeeperMasterDetector slaveDetector(group);
 
-  Future<Option<MasterInfo> > detected = slaveDetector.detect();
+  Future<Option<MasterInfo>> detected = slaveDetector.detect();
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(master, detected.get());
 
   detected = slaveDetector.detect(master);
 
   // Now expire the slave's zk session.
-  Future<Option<int64_t> > session = group->session();
+  Future<Option<int64_t>> session = group->session();
   AWAIT_READY(session);
 
   server->expireSession(session.get().get());
@@ -808,10 +808,10 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
 
   leaderContender.initialize(leader);
 
-  Future<Future<Nothing> > contended = leaderContender.contend();
+  Future<Future<Nothing>> contended = leaderContender.contend();
   AWAIT_READY(contended);
 
-  Future<Option<MasterInfo> > detected = leaderDetector.detect(None());
+  Future<Option<MasterInfo>> detected = leaderDetector.detect(None());
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(leader, detected.get());
 
@@ -849,10 +849,10 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   // Now expire the slave's and leading master's zk sessions.
   // NOTE: Here we assume that slave stays disconnected from the ZK
   // when the leading master loses its session.
-  Future<Option<int64_t> > slaveSession = nonContenderGroup->session();
+  Future<Option<int64_t>> slaveSession = nonContenderGroup->session();
   AWAIT_READY(slaveSession);
 
-  Future<Option<int64_t> > masterSession = leaderGroup->session();
+  Future<Option<int64_t>> masterSession = leaderGroup->session();
   AWAIT_READY(masterSession);
 
   server->expireSession(slaveSession.get().get());
@@ -899,7 +899,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorUsesJson)
   // Our detector should now "discover" the JSON, parse it
   // and derive the correct MasterInfo PB.
   ZooKeeperMasterDetector leaderDetector(url.get());
-  Future<Option<MasterInfo> > detected = leaderDetector.detect(None());
+  Future<Option<MasterInfo>> detected = leaderDetector.detect(None());
   AWAIT_READY(detected);
 
   ASSERT_SOME_EQ(leader, detected.get());

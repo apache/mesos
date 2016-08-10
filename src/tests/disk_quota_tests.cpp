@@ -376,7 +376,7 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.
@@ -473,7 +473,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.
@@ -570,7 +570,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.

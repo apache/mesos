@@ -430,7 +430,7 @@ Future<Try<list<FileInfo>, FilesError>> FilesProcess::browse(
 
       // The result will be a sorted (on path) list of files and dirs.
       map<string, FileInfo> files;
-      Try<list<string> > entries = os::ls(resolvedPath.get());
+      Try<list<string>> entries = os::ls(resolvedPath.get());
       if (entries.isSome()) {
         foreach (const string& entry, entries.get()) {
           struct stat s;

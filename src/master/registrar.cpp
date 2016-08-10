@@ -197,15 +197,15 @@ private:
   // Continuations.
   void _recover(
       const MasterInfo& info,
-      const Future<Variable<Registry> >& recovery);
+      const Future<Variable<Registry>>& recovery);
   void __recover(const Future<bool>& recover);
   Future<bool> _apply(Owned<Operation> operation);
 
   // Helper for updating state (performing store).
   void update();
   void _update(
-      const Future<Option<Variable<Registry> > >& store,
-      deque<Owned<Operation> > operations);
+      const Future<Option<Variable<Registry>>>& store,
+      deque<Owned<Operation>> operations);
 
   // Fails all pending operations and transitions the Registrar
   // into an error state in which all subsequent operations will fail.
@@ -213,15 +213,15 @@ private:
   // performing more State storage operations.
   void abort(const string& message);
 
-  Option<Variable<Registry> > variable;
-  deque<Owned<Operation> > operations;
+  Option<Variable<Registry>> variable;
+  deque<Owned<Operation>> operations;
   bool updating; // Used to signify fetching (recovering) or storing.
 
   const Flags flags;
   State* state;
 
   // Used to compose our operations with recovery.
-  Option<Owned<Promise<Registry> > > recovered;
+  Option<Owned<Promise<Registry>>> recovered;
 
   // When an error is encountered from abort(), we'll fail all
   // subsequent operations.
@@ -335,13 +335,13 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
     state->fetch<Registry>("registry")
       .after(flags.registry_fetch_timeout,
              lambda::bind(
-                 &timeout<Variable<Registry> >,
+                 &timeout<Variable<Registry>>,
                  "fetch",
                  flags.registry_fetch_timeout,
                  lambda::_1))
       .onAny(defer(self(), &Self::_recover, info, lambda::_1));
     updating = true;
-    recovered = Owned<Promise<Registry> >(new Promise<Registry>());
+    recovered = Owned<Promise<Registry>>(new Promise<Registry>());
   }
 
   return recovered.get()->future();
@@ -350,7 +350,7 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
 
 void RegistrarProcess::_recover(
     const MasterInfo& info,
-    const Future<Variable<Registry> >& recovery)
+    const Future<Variable<Registry>>& recovery)
 {
   updating = false;
 
@@ -469,7 +469,7 @@ void RegistrarProcess::update()
   state->store(variable.get().mutate(registry))
     .after(flags.registry_store_timeout,
            lambda::bind(
-               &timeout<Option<Variable<Registry> > >,
+               &timeout<Option<Variable<Registry>>>,
                "store",
                flags.registry_store_timeout,
                lambda::_1))
@@ -481,8 +481,8 @@ void RegistrarProcess::update()
 
 
 void RegistrarProcess::_update(
-    const Future<Option<Variable<Registry> > >& store,
-    deque<Owned<Operation> > applied)
+    const Future<Option<Variable<Registry>>>& store,
+    deque<Owned<Operation>> applied)
 {
   updating = false;
 

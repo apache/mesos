@@ -570,7 +570,7 @@ private:
 
       cout << "Sending SIGTERM to process tree at pid " << pid << endl;
 
-      Try<std::list<os::ProcessTree> > trees =
+      Try<std::list<os::ProcessTree>> trees =
         os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
@@ -596,7 +596,7 @@ private:
     }
   }
 
-  void reaped(pid_t pid, const Future<Option<int> >& status_)
+  void reaped(pid_t pid, const Future<Option<int>>& status_)
   {
     terminated = true;
 
@@ -662,7 +662,7 @@ private:
     // shutdown may leave orphan processes hanging off init. This
     // scenario will be handled when PID namespace encapsulated
     // execution is in place.
-    Try<std::list<os::ProcessTree> > trees =
+    Try<std::list<os::ProcessTree>> trees =
       os::killtree(pid, SIGKILL, true, true);
 
     if (trees.isError()) {

@@ -411,7 +411,7 @@ public:
       const SlaveID&));
 
   MOCK_METHOD1(updateWhitelist, void(
-      const Option<hashset<std::string> >&));
+      const Option<hashset<std::string>>&));
 
   MOCK_METHOD2(requestResources, void(
       const FrameworkID&,

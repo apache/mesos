@@ -133,7 +133,7 @@ public:
 
     // Returns all entries between the specified positions, unless
     // those positions are invalid, in which case returns an error.
-    process::Future<std::list<Entry> > read(
+    process::Future<std::list<Entry>> read(
         const Position& from,
         const Position& to);
 
@@ -168,19 +168,19 @@ public:
     // perform append and truncate operations. Returns the ending
     // position of the log or none if the promise to exclusively write
     // could not be attained but may be retried.
-    process::Future<Option<Position> > start();
+    process::Future<Option<Position>> start();
 
     // Attempts to append the specified data to the log. Returns the
     // new ending position of the log or 'none' if this writer has
     // lost it's promise to exclusively write (which can be reacquired
     // by invoking Writer::start).
-    process::Future<Option<Position> > append(const std::string& data);
+    process::Future<Option<Position>> append(const std::string& data);
 
     // Attempts to truncate the log up to but not including the
     // specificed position. Returns the new ending position of the log
     // or 'none' if this writer has lost it's promise to exclusively
     // write (which can be reacquired by invoking Writer::start).
-    process::Future<Option<Position> > truncate(const Position& to);
+    process::Future<Option<Position>> truncate(const Position& to);
 
   private:
     internal::log::LogWriterProcess* process;

@@ -272,7 +272,7 @@ void TestContainerizer::_destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > TestContainerizer::containers()
+Future<hashset<ContainerID>> TestContainerizer::containers()
 {
   return promises.keys();
 }

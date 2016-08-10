@@ -93,7 +93,7 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  Future<Option<MasterInfo> > masterInfo = detector.get()->detect();
+  Future<Option<MasterInfo>> masterInfo = detector.get()->detect();
 
   if (!masterInfo.await(timeout)) {
     cerr << "Failed to detect master from '" << master

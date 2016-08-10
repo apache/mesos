@@ -155,7 +155,7 @@ static void cleanup(const string& eth0, const string& lo)
   }
 
   // Clean up all 'veth' devices if exist.
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& name, links.get()) {
@@ -165,7 +165,7 @@ static void cleanup(const string& eth0, const string& lo)
   }
 
   if (os::exists(slave::PORT_MAPPING_BIND_MOUNT_ROOT())) {
-    Try<list<string> > entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
+    Try<list<string>> entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
     ASSERT_SOME(entries);
 
     foreach (const string& file, entries.get()) {
@@ -382,7 +382,7 @@ protected:
 
     CHECK_SOME(s);
 
-    Future<Option<int> > status = s.get().status();
+    Future<Option<int>> status = s.get().status();
     AWAIT_EXPECT_READY(status);
     EXPECT_SOME_EQ(0, status.get());
 
@@ -505,7 +505,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status1 = process::reap(pid.get());
+  Future<Option<int>> status1 = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -569,7 +569,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status2 = process::reap(pid.get());
+  Future<Option<int>> status2 = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -668,7 +668,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status1 = process::reap(pid.get());
+  Future<Option<int>> status1 = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -734,7 +734,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status2 = process::reap(pid.get());
+  Future<Option<int>> status2 = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -834,7 +834,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -952,7 +952,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1071,7 +1071,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1152,7 +1152,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1249,7 +1249,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1344,7 +1344,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status = process::reap(pid.get());
+  Future<Option<int>> status = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1429,7 +1429,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > status1 = process::reap(pid.get());
+  Future<Option<int>> status1 = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1561,7 +1561,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > reap = process::reap(pid.get());
+  Future<Option<int>> reap = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1595,7 +1595,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   ASSERT_GT(time.get(), (size.bytes() / rate.bytes()));
 
   // Make sure the nc server exits normally.
-  Future<Option<int> > status = s.get().status();
+  Future<Option<int>> status = s.get().status();
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());
 
@@ -1725,7 +1725,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   ASSERT_SOME(pid);
 
   // Reap the forked child.
-  Future<Option<int> > reap = process::reap(pid.get());
+  Future<Option<int>> reap = process::reap(pid.get());
 
   // Continue in the parent.
   ::close(pipes[0]);
@@ -1791,7 +1791,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Make sure the nc server exits normally.
-  Future<Option<int> > status = s.get().status();
+  Future<Option<int>> status = s.get().status();
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());
 
@@ -1893,7 +1893,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
 
   // NOTE: We set filter explicitly here so that the resources will
   // not be filtered for 5 seconds (the default).
-  Future<vector<Offer> > offers1;
+  Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
     .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
@@ -1928,7 +1928,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
@@ -2052,7 +2052,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
@@ -2102,7 +2102,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   Try<bool> hostLoExistsQdisc = ingress::exists(lo);
   EXPECT_SOME_TRUE(hostLoExistsQdisc);
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(eth0, ingress::HANDLE);
 
   EXPECT_SOME(classifiers);
@@ -2113,14 +2113,14 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   EXPECT_EQ(0u, classifiers.get().size());
 
   // Expect no 'veth' devices.
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
   foreach (const string& name, links.get()) {
     EXPECT_FALSE(strings::startsWith(name, slave::PORT_MAPPING_VETH_PREFIX()));
   }
 
   // Expect no files in bind mount directory.
-  Try<list<string> > files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
+  Try<list<string>> files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(files);
   EXPECT_EQ(0u, files.get().size());
 
@@ -2158,7 +2158,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
@@ -2247,7 +2247,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 
   EXPECT_CALL(sched, registered(_, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.

@@ -60,7 +60,7 @@ public:
   // the contest (i.e. its membership is lost) and a failure if it is
   // unable to watch the membership.
   // It should be called only once, otherwise a failure is returned.
-  process::Future<process::Future<Nothing> > contend();
+  process::Future<process::Future<Nothing>> contend();
 
   // Returns true if successfully withdrawn from the contest (either
   // while contending or has already contended and is watching for

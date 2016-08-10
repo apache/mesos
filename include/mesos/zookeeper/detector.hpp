@@ -55,7 +55,7 @@ public:
   // gets a different result.
   //
   // TODO(xujyan): Use a Stream abstraction instead.
-  process::Future<Option<Group::Membership> > detect(
+  process::Future<Option<Group::Membership>> detect(
       const Option<Group::Membership>& previous = None());
 
 private:

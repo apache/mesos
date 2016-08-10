@@ -145,7 +145,7 @@ protected:
 
   // TODO(bmahler): Consider adding a builder style interface, e.g.
   //
-  // Try<PID<Slave> > slave =
+  // Try<PID<Slave>> slave =
   //   Slave().With(flags)
   //          .With(executor)
   //          .With(containerizer)
@@ -160,7 +160,7 @@ protected:
   // injections.containerizer = containerizer;
   // injections.detector = detector;
   // injections.gc = gc;
-  // Try<PID<Slave> > slave = StartSlave(injections);
+  // Try<PID<Slave>> slave = StartSlave(injections);
 
   // Starts a slave with the specified detector and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
