@@ -354,6 +354,12 @@
   jira_user: tillt
   reviewboard_user: tillt
 
+- name: Tomasz Janiszewski
+  emails:
+    - janiszt@gmail.com
+  jira_user: janisz
+  reviewboard_user: janisz
+
 - name: Vinod Kone
   affiliations:
     - {organization: Mesosphere, start_date: 2016-01-05}
