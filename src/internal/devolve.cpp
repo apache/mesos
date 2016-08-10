@@ -38,7 +38,7 @@ static T devolve(const google::protobuf::Message& message)
     << " while devolving to " << t.GetTypeName();
 
   // NOTE: We need to use 'ParsePartialFromString' instead of
-  // 'ParsePartialFromString' because some required fields might not
+  // 'ParseFromString' because some required fields might not
   // be set and we don't want an exception to get thrown.
   CHECK(t.ParsePartialFromString(data))
     << "Failed to parse " << t.GetTypeName()
