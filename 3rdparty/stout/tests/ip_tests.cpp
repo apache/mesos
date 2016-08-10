@@ -33,7 +33,7 @@ using std::vector;
 
 TEST(NetTest, LinkDevice)
 {
-  Try<set<string> > links = net::links();
+  Try<set<string>> links = net::links();
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {

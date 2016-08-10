@@ -28,7 +28,7 @@ template <typename T>
 class MultimapTest : public ::testing::Test {};
 
 typedef ::testing::Types<
-  Multimap<string, uint16_t>, multihashmap<string, uint16_t> > MultimapTypes;
+  Multimap<string, uint16_t>, multihashmap<string, uint16_t>> MultimapTypes;
 
 // Causes all TYPED_TEST(MultimapTest, ...) to be run for each of the
 // specified multimap types.

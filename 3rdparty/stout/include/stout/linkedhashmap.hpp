@@ -29,7 +29,7 @@ class LinkedHashMap
 {
 public:
   typedef std::list<Key> list;
-  typedef hashmap<Key, std::pair<Value, typename list::iterator> > map;
+  typedef hashmap<Key, std::pair<Value, typename list::iterator>> map;
 
   Value& operator[] (const Key& key)
   {

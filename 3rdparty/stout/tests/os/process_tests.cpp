@@ -155,7 +155,7 @@ TEST_F(ProcessTest, Processes)
 
 TEST_F(ProcessTest, Pids)
 {
-  Try<set<pid_t> > pids = os::pids();
+  Try<set<pid_t>> pids = os::pids();
   ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().size());
   EXPECT_EQ(1u, pids.get().count(getpid()));

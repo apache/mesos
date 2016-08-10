@@ -400,7 +400,7 @@ Try<Nothing> parse(
     const JSON::Object& object);
 
 
-struct Parser : boost::static_visitor<Try<Nothing> >
+struct Parser : boost::static_visitor<Try<Nothing>>
 {
   Parser(google::protobuf::Message* _message,
          const google::protobuf::FieldDescriptor* _field)

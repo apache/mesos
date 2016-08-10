@@ -102,8 +102,8 @@ TEST(OptionTest, Comparison)
   Option<int> two = 2;
   EXPECT_NE(one, two);
 
-  Option<Option<int> > someNone = Option<Option<int> >::some(None());
-  Option<Option<int> > noneNone = Option<Option<int> >::none();
+  Option<Option<int>> someNone = Option<Option<int>>::some(None());
+  Option<Option<int>> noneNone = Option<Option<int>>::none();
   EXPECT_NE(someNone, noneNone);
   EXPECT_NE(noneNone, someNone);
 }

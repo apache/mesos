@@ -40,7 +40,7 @@ using std::string;
 
 TEST(ProcTest, Pids)
 {
-  Try<set<pid_t> > pids = proc::pids();
+  Try<set<pid_t>> pids = proc::pids();
 
   ASSERT_SOME(pids);
   EXPECT_NE(0u, pids.get().size());
@@ -51,7 +51,7 @@ TEST(ProcTest, Pids)
 
 TEST(ProcTest, Cpus)
 {
-  Try<std::list<CPU> > cpus = proc::cpus();
+  Try<std::list<CPU>> cpus = proc::cpus();
 
   ASSERT_SOME(cpus);
   EXPECT_LE(1u, cpus.get().size());
@@ -81,7 +81,7 @@ TEST(ProcTest, ProcessStatus)
 TEST(ProcTest, SingleThread)
 {
   // Check we have the expected number of threads.
-  Try<set<pid_t> > threads = proc::threads(::getpid());
+  Try<set<pid_t>> threads = proc::threads(::getpid());
 
   ASSERT_SOME(threads);
   EXPECT_EQ(1u, threads.get().size());
@@ -113,7 +113,7 @@ TEST(ProcTest, MultipleThreads)
   }
 
   // Check we have the expected number of threads.
-  Try<set<pid_t> > threads = proc::threads(::getpid());
+  Try<set<pid_t>> threads = proc::threads(::getpid());
 
   ASSERT_SOME(threads);
   EXPECT_EQ(1u + numThreads, threads.get().size());

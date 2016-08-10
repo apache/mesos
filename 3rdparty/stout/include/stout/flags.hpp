@@ -39,7 +39,7 @@
 //
 // ...
 //
-// map<string, Option<string> > values;
+// map<string, Option<string>> values;
 // values["no-debug"] = None();            // --no-debug
 // values["debug"] = None();               // --debug
 // values["debug"] = Some("true");         // --debug=true

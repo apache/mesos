@@ -227,7 +227,7 @@ typedef boost::variant<boost::recursive_wrapper<Null>,
                        boost::recursive_wrapper<Number>,
                        boost::recursive_wrapper<Object>,
                        boost::recursive_wrapper<Array>,
-                       boost::recursive_wrapper<Boolean> > Variant;
+                       boost::recursive_wrapper<Boolean>> Variant;
 
 } // namespace internal {
 

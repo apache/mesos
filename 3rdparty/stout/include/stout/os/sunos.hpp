@@ -86,11 +86,11 @@ inline Result<Process> process(pid_t pid)
 }
 
 // Reads from /proc and returns a list of all running processes.
-inline Try<std::set<pid_t> > pids()
+inline Try<std::set<pid_t>> pids()
 {
   std::set<pid_t> pids;
 
-  Try<std::list<std::string> > entries = os::ls("/proc");
+  Try<std::list<std::string>> entries = os::ls("/proc");
   if (entries.isError()) {
     return Error("Failed to list files in /proc: " + entries.error());
   }

@@ -166,7 +166,7 @@ inline Result<Process> process(pid_t pid)
 }
 
 
-inline Try<std::set<pid_t> > pids()
+inline Try<std::set<pid_t>> pids()
 {
   const Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
 

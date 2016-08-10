@@ -51,7 +51,7 @@ namespace os {
 // would like the length to be looked up dynamically you can just pass
 // None. Here's an example using 'table' that builds on above:
 //
-//   Try<vector<kinfo_proc> > processes =
+//   Try<vector<kinfo_proc>> processes =
 //     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(maxprox.get());
 //
 // TODO(benh): Provide an 'integer(i)', 'string(s)', and 'table(t)' to
@@ -87,7 +87,7 @@ public:
   // 'Table' to a std::vector<T>. For example, to get the first 10
   // processes in the process table you can do:
   //
-  //     Try<std::vector<kinfo_proc> > processes =
+  //     Try<std::vector<kinfo_proc>> processes =
   //       os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(10);
   //
 private: struct Table; // Forward declaration.

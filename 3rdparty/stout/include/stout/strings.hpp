@@ -207,12 +207,12 @@ inline std::vector<std::string> split(
 // Would return a map with the following:
 //   bar: ["2"]
 //   foo: ["1", "3"]
-inline std::map<std::string, std::vector<std::string> > pairs(
+inline std::map<std::string, std::vector<std::string>> pairs(
     const std::string& s,
     const std::string& delims1,
     const std::string& delims2)
 {
-  std::map<std::string, std::vector<std::string> > result;
+  std::map<std::string, std::vector<std::string>> result;
 
   const std::vector<std::string> tokens = tokenize(s, delims1);
   foreach (const std::string& token, tokens) {

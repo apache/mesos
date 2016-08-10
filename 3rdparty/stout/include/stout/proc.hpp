@@ -291,11 +291,11 @@ inline Result<std::string> cmdline(const Option<pid_t>& pid = None())
 
 
 // Reads from /proc and returns a list of all running processes.
-inline Try<std::set<pid_t> > pids()
+inline Try<std::set<pid_t>> pids()
 {
   std::set<pid_t> pids;
 
-  Try<std::list<std::string> > entries = os::ls("/proc");
+  Try<std::list<std::string>> entries = os::ls("/proc");
   if (entries.isError()) {
     return Error("Failed to list files in /proc: " + entries.error());
   }
@@ -316,13 +316,13 @@ inline Try<std::set<pid_t> > pids()
 
 
 // Reads from /proc/<pid>/task/* and returns a list of threads ids for pid.
-inline Try<std::set<pid_t> > threads(pid_t pid)
+inline Try<std::set<pid_t>> threads(pid_t pid)
 {
   const std::string path = path::join("/proc", stringify(pid), "task");
 
   std::set<pid_t> threads;
 
-  Try<std::list<std::string> > entries = os::ls(path);
+  Try<std::list<std::string>> entries = os::ls(path);
   if (entries.isError()) {
     return Error("Failed to list files in " + path + ": " + entries.error());
   }
@@ -433,7 +433,7 @@ inline std::ostream& operator<<(std::ostream& out, const CPU& cpu)
 
 
 // Reads from /proc/cpuinfo and returns a list of CPUs.
-inline Try<std::list<CPU> > cpus()
+inline Try<std::list<CPU>> cpus()
 {
   std::list<CPU> results;
 

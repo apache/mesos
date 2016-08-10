@@ -170,7 +170,7 @@ Interval<T> Bound<T>::operator , (const Bound<T>& right) const
 // Modeled after boost interval_set. Provides a compact representation
 // of a set by merging adjacent elements into intervals.
 template <typename T>
-class IntervalSet : public boost::icl::interval_set<T, std::less, Interval<T> >
+class IntervalSet : public boost::icl::interval_set<T, std::less, Interval<T>>
 {
 public:
   IntervalSet() {}
@@ -306,7 +306,7 @@ private:
       const IntervalSet<X>& set);
 
   // We use typedef here to make the code less verbose.
-  typedef boost::icl::interval_set<T, std::less, Interval<T> > Base;
+  typedef boost::icl::interval_set<T, std::less, Interval<T>> Base;
 };
 
 
@@ -355,7 +355,7 @@ namespace boost {
 namespace icl {
 
 template <typename T>
-struct interval_traits<Interval<T> >
+struct interval_traits<Interval<T>>
 {
   typedef interval_traits type;
   typedef T domain_type;
@@ -379,8 +379,8 @@ struct interval_traits<Interval<T> >
 
 
 template <typename T>
-struct interval_bound_type<Interval<T> >
-  : public interval_bound_type<right_open_interval<T, std::less> >
+struct interval_bound_type<Interval<T>>
+  : public interval_bound_type<right_open_interval<T, std::less>>
 {
   typedef interval_bound_type type;
 };
