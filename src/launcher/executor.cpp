@@ -276,18 +276,18 @@ protected:
   }
 
   void taskHealthUpdated(
-      const TaskID& taskID,
+      const TaskID& _taskId,
       const bool healthy,
       const bool initiateTaskKill)
   {
     cout << "Received task health update, healthy: "
          << stringify(healthy) << endl;
 
-    update(taskID, TASK_RUNNING, healthy);
+    update(_taskId, TASK_RUNNING, healthy);
 
     if (initiateTaskKill) {
       killedByHealthCheck = true;
-      kill(taskID);
+      kill(_taskId);
     }
   }
 
@@ -440,7 +440,7 @@ protected:
     launched = true;
   }
 
-  void kill(const TaskID& taskId, const Option<KillPolicy>& override = None())
+  void kill(const TaskID& _taskId, const Option<KillPolicy>& override = None())
   {
     // Default grace period is set to 3s for backwards compatibility.
     //
@@ -456,10 +456,10 @@ protected:
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    cout << "Received kill for task " << taskId.value()
+    cout << "Received kill for task " << _taskId.value()
          << " with grace period of " << gracePeriod << endl;
 
-    kill(taskId, gracePeriod);
+    kill(_taskId, gracePeriod);
   }
 
   void shutdown()
@@ -672,7 +672,7 @@ private:
   }
 
   void update(
-      const TaskID& taskID,
+      const TaskID& _taskId,
       const TaskState& state,
       const Option<bool>& healthy = None(),
       const Option<string>& message = None())
@@ -680,7 +680,7 @@ private:
     UUID uuid = UUID::random();
 
     TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskID);
+    status.mutable_task_id()->CopyFrom(_taskId);
     status.mutable_executor_id()->CopyFrom(executorId);
 
     status.set_state(state);
