@@ -20,6 +20,7 @@
 
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/os/close.hpp>
 
@@ -30,7 +31,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-namespace v1 {
 namespace internal {
 
 PROCESS_INFORMATION launchTaskWindows(
@@ -104,5 +104,4 @@ PROCESS_INFORMATION launchTaskWindows(
 }
 
 } // namespace internal {
-} // namespace v1 {
 } // namespace mesos {

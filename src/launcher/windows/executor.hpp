@@ -19,12 +19,12 @@
 
 #include <string>
 
-#include <mesos/v1/mesos.hpp>
+#include <mesos/mesos.hpp>
 
 #include <stout/option.hpp>
+#include <stout/windows.hpp>
 
 namespace mesos {
-namespace v1 {
 namespace internal {
 
 PROCESS_INFORMATION launchTaskWindows(
@@ -32,7 +32,6 @@ PROCESS_INFORMATION launchTaskWindows(
     Option<std::string>& rootfs);
 
 } // namespace internal {
-} // namespace v1 {
 } // namespace mesos {
 
 #endif // __LAUNCHER_WINDOWS_EXECUTOR_HPP__
