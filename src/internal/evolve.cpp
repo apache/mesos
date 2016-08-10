@@ -380,7 +380,7 @@ v1::scheduler::Event evolve(const FrameworkErrorMessage& message)
 }
 
 
-v1::executor::Event evolve(const mesos::executor::Event& event)
+v1::executor::Event evolve(const executor::Event& event)
 {
   return evolve<v1::executor::Event>(event);
 }
@@ -615,39 +615,43 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
 
     Result<JSON::String> container_id =
       object.find<JSON::String>("container_id");
+
     CHECK_SOME(container_id);
     container->mutable_container_id()->set_value(container_id.get().value);
 
     Result<JSON::String> framework_id =
       object.find<JSON::String>("framework_id");
+
     CHECK_SOME(framework_id);
     container->mutable_framework_id()->set_value(framework_id.get().value);
 
-    Result<JSON::String> executor_id =
-      object.find<JSON::String>("executor_id");
+    Result<JSON::String> executor_id = object.find<JSON::String>("executor_id");
+
     CHECK_SOME(executor_id);
     container->mutable_executor_id()->set_value(executor_id.get().value);
 
     Result<JSON::String> executor_name =
       object.find<JSON::String>("executor_name");
+
     CHECK_SOME(executor_name);
     container->set_executor_name(executor_name.get().value);
 
-    Result<JSON::Object> container_status =
-      object.find<JSON::Object>("status");
+    Result<JSON::Object> container_status = object.find<JSON::Object>("status");
     if (container_status.isSome()) {
-      Try<mesos::v1::ContainerStatus> status =
-        protobuf::parse<mesos::v1::ContainerStatus>(container_status.get());
+      Try<v1::ContainerStatus> status =
+        protobuf::parse<v1::ContainerStatus>(container_status.get());
+
       CHECK_SOME(status);
       container->mutable_container_status()->CopyFrom(status.get());
     }
 
     Result<JSON::Object> resource_statistics =
       object.find<JSON::Object>("statistics");
+
     if (resource_statistics.isSome()) {
-      Try<mesos::v1::ResourceStatistics> statistics =
-        protobuf::parse<mesos::v1::ResourceStatistics>(
-            resource_statistics.get());
+      Try<v1::ResourceStatistics> statistics =
+        protobuf::parse<v1::ResourceStatistics>(resource_statistics.get());
+
       CHECK_SOME(statistics);
       container->mutable_resource_statistics()->CopyFrom(statistics.get());
     }
