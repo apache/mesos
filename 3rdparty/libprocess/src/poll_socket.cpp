@@ -162,12 +162,12 @@ Future<size_t> PollSocketImpl::recv(char* data, size_t size)
 
 namespace internal {
 
-Future<size_t> socket_send_data(int s, const char* data, size_t size)
+Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
 {
   CHECK(size > 0);
 
   while (true) {
-    ssize_t length = send(s, data, size, MSG_NOSIGNAL);
+    ssize_t length = send(socket.get(), data, size, MSG_NOSIGNAL);
 
 #ifdef __WINDOWS__
     int error = WSAGetLastError();
@@ -180,8 +180,8 @@ Future<size_t> socket_send_data(int s, const char* data, size_t size)
       continue;
     } else if (length < 0 && net::is_retryable_error(error)) {
       // Might block, try again later.
-      return io::poll(s, io::WRITE)
-        .then(lambda::bind(&internal::socket_send_data, s, data, size));
+      return io::poll(socket.get(), io::WRITE)
+        .then(lambda::bind(&internal::socket_send_data, socket, data, size));
     } else if (length <= 0) {
       // Socket error or closed.
       if (length < 0) {
@@ -204,12 +204,17 @@ Future<size_t> socket_send_data(int s, const char* data, size_t size)
 }
 
 
-Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
+Future<size_t> socket_send_file(
+    Socket socket,
+    int fd,
+    off_t offset,
+    size_t size)
 {
   CHECK(size > 0);
 
   while (true) {
-    Try<ssize_t, SocketError> length = os::sendfile(s, fd, offset, size);
+    Try<ssize_t, SocketError> length =
+      os::sendfile(socket.get(), fd, offset, size);
 
     if (length.isSome()) {
       CHECK(length.get() >= 0);
@@ -225,8 +230,13 @@ Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
       continue;
     } else if (net::is_retryable_error(length.error().code)) {
       // Might block, try again later.
-      return io::poll(s, io::WRITE)
-        .then(lambda::bind(&internal::socket_send_file, s, fd, offset, size));
+      return io::poll(socket.get(), io::WRITE)
+        .then(lambda::bind(
+            &internal::socket_send_file,
+            socket,
+            fd,
+            offset,
+            size));
     } else {
       // Socket error or closed.
       VLOG(1) << length.error().message;
@@ -241,14 +251,23 @@ Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
 Future<size_t> PollSocketImpl::send(const char* data, size_t size)
 {
   return io::poll(get(), io::WRITE)
-    .then(lambda::bind(&internal::socket_send_data, get(), data, size));
+    .then(lambda::bind(
+        &internal::socket_send_data,
+        socket(),
+        data,
+        size));
 }
 
 
 Future<size_t> PollSocketImpl::sendfile(int fd, off_t offset, size_t size)
 {
   return io::poll(get(), io::WRITE)
-    .then(lambda::bind(&internal::socket_send_file, get(), fd, offset, size));
+    .then(lambda::bind(
+        &internal::socket_send_file,
+        socket(),
+        fd,
+        offset,
+        size));
 }
 
 } // namespace network {
