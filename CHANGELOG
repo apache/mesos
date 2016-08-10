@@ -18,6 +18,7 @@ All Issues:
   * [MESOS-5969] - Linux 'MountInfoTable' entries not sorted as expected
   * [MESOS-5982] - NvidiaVolume errors out if any Nvidia binary is missing.
   * [MESOS-5986] - SSL Socket CHECK can fail after socket receives EOF.
+  * [MESOS-5988] - PollSocketImpl can write to a stale file descriptor.
 
 
 Release Notes - Mesos - Version 1.0.0
