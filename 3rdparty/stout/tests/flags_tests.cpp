@@ -514,20 +514,54 @@ TEST(FlagsTest, DuplicatesFromEnvironment)
   TestFlags flags;
 
   os::setenv("FLAGSTEST_name1", "ben folds");
+  os::setenv("FLAGSTEST_name2", "50");
 
   const char* argv[] = {
     "/path/to/program",
     "--name1=billy joel"
   };
 
+  // `load(prefix, argc, argv)`.
   Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
   EXPECT_EQ(0, load->warnings.size());
 
   // The environment variables are overwritten by command line flags.
   EXPECT_EQ(flags.name1, "billy joel");
+  EXPECT_EQ(flags.name2, 50);
+
+  {
+    flags = TestFlags();
+    std::map<std::string, std::string> values;
+    values["name1"] = "billy joel";
+
+    // `load(map<string, string>, unknowns, prefix)`.
+    load = flags.load(values, false, "FLAGSTEST_");
+    EXPECT_SOME(load);
+    EXPECT_EQ(0, load->warnings.size());
+
+    EXPECT_EQ(flags.name1, "billy joel");
+    EXPECT_EQ(flags.name2, 50);
+  }
+
+  {
+    flags = TestFlags();
+    std::map<std::string, Option<std::string>> values;
+    values["name1"] = "billy joel";
+    values["name2"] = "51";
+
+    // `load(map<string, Option<string>, unknowns, prefix)`.
+    load = flags.load(values, false, "FLAGSTEST_");
+
+    EXPECT_SOME(load);
+    EXPECT_EQ(0, load->warnings.size());
+
+    EXPECT_EQ(flags.name1, "billy joel");
+    EXPECT_EQ(flags.name2, 51);
+  }
 
   os::unsetenv("FLAGSTEST_name1");
+  os::unsetenv("FLAGSTEST_name2");
 }
 
 
