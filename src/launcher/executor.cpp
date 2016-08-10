@@ -28,9 +28,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/v1/executor.hpp>
-#include <mesos/v1/mesos.hpp>
-
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -110,25 +107,14 @@ using process::Subprocess;
 using process::Time;
 using process::Timer;
 
-using mesos::internal::devolve;
-using mesos::internal::evolve;
-using mesos::internal::HealthChecker;
-using mesos::internal::TaskHealthStatus;
+using mesos::executor::Call;
+using mesos::executor::Event;
 
-using mesos::internal::protobuf::frameworkHasCapability;
-
-using mesos::v1::ExecutorID;
-using mesos::v1::FrameworkID;
-
-using mesos::v1::executor::Call;
-using mesos::v1::executor::Event;
 using mesos::v1::executor::Mesos;
 using mesos::v1::executor::MesosBase;
 using mesos::v1::executor::V0ToV1Adapter;
 
-
 namespace mesos {
-namespace v1 {
 namespace internal {
 
 class CommandExecutor: public ProtobufProcess<CommandExecutor>
@@ -190,65 +176,60 @@ public:
     state = DISCONNECTED;
   }
 
-  void received(queue<Event> events)
+  void received(const Event& event)
   {
-    while (!events.empty()) {
-      Event event = events.front();
-      events.pop();
+    cout << "Received " << event.type() << " event" << endl;
 
-      cout << "Received " << event.type() << " event" << endl;
+    switch (event.type()) {
+      case Event::SUBSCRIBED: {
+        cout << "Subscribed executor on "
+             << event.subscribed().slave_info().hostname() << endl;
 
-      switch (event.type()) {
-        case Event::SUBSCRIBED: {
-          cout << "Subscribed executor on "
-               << event.subscribed().agent_info().hostname() << endl;
+        frameworkInfo = event.subscribed().framework_info();
+        state = SUBSCRIBED;
+        break;
+      }
 
-          frameworkInfo = event.subscribed().framework_info();
-          state = SUBSCRIBED;
-          break;
-        }
+      case Event::LAUNCH: {
+        launch(event.launch().task());
+        break;
+      }
 
-        case Event::LAUNCH: {
-          launch(event.launch().task());
-          break;
-        }
+      case Event::KILL: {
+        Option<KillPolicy> override = event.kill().has_kill_policy()
+          ? Option<KillPolicy>(event.kill().kill_policy())
+          : None();
 
-        case Event::KILL: {
-          Option<KillPolicy> override = event.kill().has_kill_policy()
-            ? Option<KillPolicy>(event.kill().kill_policy())
-            : None();
+        kill(event.kill().task_id(), override);
+        break;
+      }
 
-          kill(event.kill().task_id(), override);
-          break;
-        }
+      case Event::ACKNOWLEDGED: {
+        // Remove the corresponding update.
+        updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
 
-        case Event::ACKNOWLEDGED: {
-          // Remove the corresponding update.
-          updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
+        // Remove the corresponding task.
+        task = None();
+        break;
+      }
 
-          // Remove the corresponding task.
-          task = None();
-          break;
-        }
+      case Event::SHUTDOWN: {
+        shutdown();
+        break;
+      }
 
-        case Event::SHUTDOWN: {
-          shutdown();
-          break;
-        }
+      case Event::MESSAGE: {
+        break;
+      }
 
-        case Event::MESSAGE: {
-          break;
-        }
+      case Event::ERROR: {
+        cerr << "Error: " << event.error().message() << endl;
+        break;
+      }
 
-        case Event::ERROR: {
-          cerr << "Error: " << event.error().message() << endl;
-          break;
-        }
-
-        case Event::UNKNOWN: {
-          LOG(WARNING) << "Received an UNKNOWN event and ignored";
-          break;
-        }
+      case Event::UNKNOWN: {
+        LOG(WARNING) << "Received an UNKNOWN event and ignored";
+        break;
       }
     }
   }
@@ -271,31 +252,45 @@ protected:
     // after the process has spawned.
     if (value.isSome() && value.get() == "1") {
       mesos.reset(new Mesos(
-          mesos::ContentType::PROTOBUF,
+          ContentType::PROTOBUF,
           defer(self(), &Self::connected),
           defer(self(), &Self::disconnected),
-          defer(self(), &Self::received, lambda::_1)));
+          defer(self(), [this](queue<v1::executor::Event> events) {
+            while(!events.empty()) {
+              const v1::executor::Event& event = events.front();
+              received(devolve(event));
+
+              events.pop();
+            }
+          })));
     } else {
       mesos.reset(new V0ToV1Adapter(
           defer(self(), &Self::connected),
           defer(self(), &Self::disconnected),
-          defer(self(), &Self::received, lambda::_1)));
+          defer(self(), [this](queue<v1::executor::Event> events) {
+            while(!events.empty()) {
+              const v1::executor::Event& event = events.front();
+              received(devolve(event));
+
+              events.pop();
+            }
+          })));
     }
   }
 
   void taskHealthUpdated(
-      const mesos::TaskID& taskID,
+      const TaskID& taskID,
       const bool healthy,
       const bool initiateTaskKill)
   {
     cout << "Received task health update, healthy: "
          << stringify(healthy) << endl;
 
-    update(evolve(taskID), TASK_RUNNING, healthy);
+    update(taskID, TASK_RUNNING, healthy);
 
     if (initiateTaskKill) {
       killedByHealthCheck = true;
-      kill(evolve(taskID));
+      kill(taskID);
     }
   }
 
@@ -323,7 +318,7 @@ protected:
       subscribe->add_unacknowledged_tasks()->MergeFrom(task.get());
     }
 
-    mesos->send(call);
+    mesos->send(evolve(call));
 
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
@@ -362,7 +357,7 @@ protected:
         ABORT("Failed to parse JSON: " + object.error());
       }
 
-      Try<CommandInfo> parse = protobuf::parse<CommandInfo>(object.get());
+      Try<CommandInfo> parse = ::protobuf::parse<CommandInfo>(object.get());
       if (parse.isError()) {
         ABORT("Failed to parse protobuf: " + parse.error());
       }
@@ -418,9 +413,9 @@ protected:
 
     if (task->has_health_check()) {
       Try<Owned<HealthChecker>> _checker = HealthChecker::create(
-          devolve(task->health_check()),
+          task->health_check(),
           self(),
-          devolve(task->task_id()));
+          task->task_id());
 
       if (_checker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -559,9 +554,9 @@ private:
       CHECK_SOME(taskId);
       CHECK(taskId.get() == _taskId);
 
-      if (frameworkHasCapability(
-              devolve(frameworkInfo.get()),
-              mesos::FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+      if (protobuf::frameworkHasCapability(
+              frameworkInfo.get(),
+              FrameworkInfo::Capability::TASK_KILLING_STATE)) {
         update(taskId.get(), TASK_KILLING);
       }
 
@@ -714,7 +709,7 @@ private:
     // Capture the status update.
     updates[uuid] = call.update();
 
-    mesos->send(call);
+    mesos->send(evolve(call));
   }
 
   enum State
@@ -757,7 +752,6 @@ private:
 };
 
 } // namespace internal {
-} // namespace v1 {
 } // namespace mesos {
 
 
@@ -811,8 +805,8 @@ public:
 int main(int argc, char** argv)
 {
   Flags flags;
-  FrameworkID frameworkId;
-  ExecutorID executorId;
+  mesos::FrameworkID frameworkId;
+  mesos::ExecutorID executorId;
 
 #ifdef __WINDOWS__
   process::Winsock winsock;
@@ -869,8 +863,8 @@ int main(int argc, char** argv)
     shutdownGracePeriod = parse.get();
   }
 
-  Owned<mesos::v1::internal::CommandExecutor> executor(
-      new mesos::v1::internal::CommandExecutor(
+  Owned<mesos::internal::CommandExecutor> executor(
+      new mesos::internal::CommandExecutor(
           flags.launcher_dir,
           flags.rootfs,
           flags.sandbox_directory,

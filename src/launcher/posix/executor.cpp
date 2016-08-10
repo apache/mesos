@@ -24,8 +24,6 @@
 
 #include <stout/os/raw/argv.hpp>
 
-#include "internal/devolve.hpp"
-
 #include "launcher/posix/executor.hpp"
 
 #ifdef __linux__
@@ -48,16 +46,14 @@ using std::endl;
 using std::string;
 using std::vector;
 
-using mesos::internal::devolve;
 using mesos::internal::slave::MESOS_CONTAINERIZER;
 using mesos::internal::slave::MesosContainerizerLaunch;
 
 namespace mesos {
-namespace v1 {
 namespace internal {
 
 pid_t launchTaskPosix(
-    const mesos::v1::CommandInfo& command,
+    const CommandInfo& command,
     const string& launcherDir,
     const Option<string>& user,
     const Option<string>& rootfs,
@@ -85,7 +81,7 @@ pid_t launchTaskPosix(
   // Prepare the flags to pass to the launch process.
   MesosContainerizerLaunch::Flags launchFlags;
 
-  launchFlags.command = JSON::protobuf(devolve(command));
+  launchFlags.command = JSON::protobuf(command);
 
   if (rootfs.isSome()) {
     CHECK_SOME(sandboxDirectory);
@@ -127,5 +123,4 @@ pid_t launchTaskPosix(
 }
 
 } // namespace internal {
-} // namespace v1 {
 } // namespace mesos {
