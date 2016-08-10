@@ -237,9 +237,6 @@ public:
 protected:
   virtual void initialize()
   {
-    // TODO(qianzhang): Currently, the `mesos-health-check` binary can only
-    // send unversioned `TaskHealthStatus` messages. This needs to be revisited
-    // as part of MESOS-5103.
     install<TaskHealthStatus>(
         &CommandExecutor::taskHealthUpdated,
         &TaskHealthStatus::task_id,
