@@ -23,6 +23,7 @@
 
 #include "abort.hpp"
 #include "hashmap.hpp"
+#include "set.hpp"
 
 template <typename T>
 std::string stringify(T t)
@@ -49,6 +50,23 @@ std::string stringify(const std::set<T>& set)
   std::ostringstream out;
   out << "{ ";
   typename std::set<T>::const_iterator iterator = set.begin();
+  while (iterator != set.end()) {
+    out << stringify(*iterator);
+    if (++iterator != set.end()) {
+      out << ", ";
+    }
+  }
+  out << " }";
+  return out.str();
+}
+
+
+template <typename T>
+std::string stringify(const Set<T>& set)
+{
+  std::ostringstream out;
+  out << "{ ";
+  typename Set<T>::const_iterator iterator = set.begin();
   while (iterator != set.end()) {
     out << stringify(*iterator);
     if (++iterator != set.end()) {
