@@ -196,7 +196,8 @@ Result<string> Fetcher::uriToLocalPath(
     const string& uri,
     const Option<string>& frameworksHome)
 {
-  if (!strings::startsWith(uri, "file://") && strings::contains(uri, "://")) {
+  if (!strings::startsWith(uri, FILE_URI_PREFIX) &&
+      strings::contains(uri, "://")) {
     return None();
   }
 
