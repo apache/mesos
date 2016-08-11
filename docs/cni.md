@@ -381,35 +381,13 @@ documentation](https://www.weave.works/docs/net/latest/cni-plugin/)
 
 ### <a name="limitations"></a>Limitations
 
-Although the CNI specification caters to a broad set of network
-technologies the specification still has the following open questions:
-
-* If the IP address of the container is not routeable from outside the
-host, how do users (frameworks) expose TCP/UDP ports for services
-running on their container?
-* What should be the behavior of containers when the CNI configuration
-of the network, on which the containers were launched, is modified or
-deleted?
-
-Given the unspecified nature of these answers, in the current release
-we not aiming to address these questions. Accordingly there are two
-limitations to the `network/cni` isolator:
-
-* Currently the `network/cni` isolator does not provide any
-port mapping capabilities. Therefore if operators are running services
-on networks that are not addressable from outside the Agent host, the
-operators will need to run proxies/gateways for the services on the
-host network to direct traffic to their services.
-* Currently, if the CNI configuration that was used to launch a
-container is deleted or modified, while the container is still
-operational, while it will not hamper the operation of the container,
-the user might encounter errors when the container is deleted, which
-could potentially lead to leakage of resources (IP addresses).
-
-In future releases we plan to address both these limitations.
-[MESOS-4823](https://issues.apache.org/jira/browse/MESOS-4823) is
-tracking the development of port-mapping functionality for the
-`network/cni` isolator and
-[MESOS-5310](https://issues.apache.org/jira/browse/MESOS-5310) is
-tracking the progress of adding the ability to modify and delete CNI
-configuration without affecting container orchestration.
+Currently the `network/cni` isolator does not provide any port mapping
+capabilities. Therefore if operators are running services on networks
+that are not addressable from outside the Agent host, the operators
+will need to run proxies/gateways for the services on the host network
+to direct traffic to their services. We plan to address this
+limitation by having a CNI plugin, within the Mesos repository, that
+provides port mapping functionality and can be used with any other CNI
+plugin, such as the CNI bridge plugin. We are tracking this effort
+through
+[MESOS-6014](https://issues.apache.org/jira/browse/MESOS-6014).
