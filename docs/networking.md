@@ -18,8 +18,7 @@ provide IP-per-container support allowing containers to be attached to
 different types of IP networks.  However, the two container run time
 engines differ in the way IP-per-container support is implemented. The
 `MesosContainerizer` uses the `network/cni` isolator to implement the
-[Container Network Interface
-(CNI)](https://github.com/containernetworking/cni/blob/master/SPEC.md)
+[Container Network Interface (CNI)](https://github.com/containernetworking/cni/blob/master/SPEC.md)
 to provide networking support for Mesos containers, while the
 `DockerContainerizer` relies on the Docker daemon to provide
 networking support using Docker's [Container Network
