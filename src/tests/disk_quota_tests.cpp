@@ -208,7 +208,7 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -228,12 +228,12 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2.get().task_id());
-  EXPECT_EQ(TASK_FAILED, status2.get().state());
+  EXPECT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_FAILED, status2->state());
 
   driver.stop();
   driver.join();
@@ -287,9 +287,9 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   // Create a task that requests a 1 MB persistent volume but atempts
   // to use 2MB.
@@ -326,12 +326,12 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
       LAUNCH({task})});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_FAILED, status2.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_FAILED, status2->state());
 
   driver.stop();
   driver.join();
@@ -360,14 +360,15 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
     MesosContainerizer::create(flags, true, &fetcher);
 
   ASSERT_SOME(_containerizer);
+
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     StartSlave(detector.get(), containerizer.get(), flags);
-  ASSERT_SOME(slave);
 
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
 
@@ -384,9 +385,9 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   // Create a task that uses 2MB disk.
   TaskInfo task = createTask(
@@ -399,17 +400,18 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
-  AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
 
-  ContainerID containerId = *(containers.get().begin());
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  const ContainerID& containerId = *(containers->begin());
 
   // Wait until disk usage can be retrieved and the usage actually
   // exceeds the limit. If the container is killed due to quota
@@ -420,11 +422,11 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
     Future<ResourceStatistics> usage = containerizer->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(1), Bytes(usage.get().disk_limit_bytes()));
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(1), Bytes(usage->disk_limit_bytes()));
 
-    if (usage.get().has_disk_used_bytes() &&
-        usage.get().disk_used_bytes() > usage.get().disk_limit_bytes()) {
+    if (usage->has_disk_used_bytes() &&
+        usage->disk_used_bytes() > usage->disk_limit_bytes()) {
       break;
     }
 
@@ -457,14 +459,15 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
     MesosContainerizer::create(flags, true, &fetcher);
 
   ASSERT_SOME(_containerizer);
+
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     StartSlave(detector.get(), containerizer.get(), flags);
-  ASSERT_SOME(slave);
 
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
 
@@ -481,9 +484,9 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   // Create a task that uses 2MB disk.
   TaskInfo task = createTask(
@@ -496,17 +499,18 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
-  AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
 
-  ContainerID containerId = *(containers.get().begin());
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  const ContainerID& containerId = *(containers->begin());
 
   // Wait until disk usage can be retrieved.
   Duration elapsed = Duration::zero();
@@ -514,11 +518,11 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
     Future<ResourceStatistics> usage = containerizer->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_limit_bytes()));
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
 
-    if (usage.get().has_disk_used_bytes()) {
-      EXPECT_LE(usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
+    if (usage->has_disk_used_bytes()) {
+      EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
       break;
     }
 
@@ -550,14 +554,15 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
     MesosContainerizer::create(flags, true, &fetcher);
 
   ASSERT_SOME(_containerizer);
+
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     StartSlave(detector.get(), containerizer.get(), flags);
-  ASSERT_SOME(slave);
 
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
 
@@ -578,9 +583,9 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   // Create a task that uses 2MB disk.
   TaskInfo task = createTask(
@@ -593,17 +598,18 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
-  AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
 
-  ContainerID containerId = *(containers.get().begin());
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  const ContainerID& containerId = *(containers->begin());
 
   // Stop the slave.
   slave.get()->terminate();
@@ -615,9 +621,11 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
 
   _containerizer = MesosContainerizer::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
+
   containerizer.reset(_containerizer.get());
 
   detector = master.get()->createDetector();
+
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
@@ -644,11 +652,11 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
     Future<ResourceStatistics> usage = containerizer->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_limit_bytes()));
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
 
-    if (usage.get().has_disk_used_bytes()) {
-      EXPECT_LE(usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
+    if (usage->has_disk_used_bytes()) {
+      EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
 
       // NOTE: This is to capture the regression in MESOS-2452. The data
       // stored in the executor meta directory should be less than 64K.
