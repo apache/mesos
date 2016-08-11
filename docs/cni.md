@@ -214,6 +214,39 @@ completed, executing commands within the container network namespace
 would be simplified and we will no longer have a dependency on the
 `iproute2` package to debug Mesos container networking.
 
+#### <a name="adding-modifying-deleting"></a>Adding/Deleting/Modifying CNI networks
+
+The `network/cni` isolator learns about all the CNI networks by
+reading the CNI configuration specified in `--network_cni_config_dir`
+at startup. Hence, if the operator wants to add a CNI network, the
+corresponding configuration needs to be added to
+`--network_cni_config_dir` and the agent needs to be restarted.
+
+While the `network/cni` isolator learns the CNI networks at startup,
+it does not keep an in-memory copy of the CNI configurations. Whenever
+the `network/cni` isolator needs to attach a container to a CNI
+network, it reads the corresponding configuration from the disk and
+invokes the appropriate plugin with the specified JSON configuration.
+Though the `network/cni` isolator does not keep an in-memory copy of
+the JSON configuration, it checkpoints the CNI configuration used to
+launch a container.  Checkpointing the CNI configuration protects the
+resources associated with the container to be freed correctly when the
+container is destroyed, even if the CNI configuration is deleted.
+Thus, to delete a CNI network, the operator needs to delete the
+corresponding configuration and restart the agent.
+
+While addition and deletion of CNI networks require an agent restart,
+modification to a CNI network does not need a restart. To modify a CNI
+network the operator needs to only change the JSON CNI configuration
+for the network on the disk. The changes made to the CNI configuration
+will be used when the next container on that specific network is
+launched. It is important to note that the changes made to the CNI
+configuration will not affect any existing containers that were
+launched with the un-modified CNI configuration. Since, to tear down
+an exiting container the `network/cni` isolator will be using the
+checkpointed configuration.
+
+
 ### <a name="networking-recipes"></a>Networking Recipes
 
 This section presents examples for launching containers on different
