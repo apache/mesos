@@ -684,6 +684,42 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
 
   cout << "No-op sort of " << clientCount << " clients took "
        << watch.elapsed() << endl;
+
+  watch.start();
+  {
+    // Unallocate resources on all agents, round-robin through the clients.
+    size_t clientIndex = 0;
+    foreach (const SlaveID& slaveId, agents) {
+      const string& client = clients[clientIndex++ % clients.size()];
+      sorter.unallocated(client, slaveId, allocated);
+    }
+  }
+  watch.stop();
+
+  cout << "Removed allocations for " << agentCount << " agents in "
+         << watch.elapsed() << endl;
+
+  watch.start();
+  {
+    foreach (const SlaveID& slaveId, agents) {
+      sorter.remove(slaveId, agentResources);
+    }
+  }
+  watch.stop();
+
+  cout << "Removed " << agentCount << " agents in "
+       << watch.elapsed() << endl;
+
+  watch.start();
+  {
+    foreach (const string& clientId, clients) {
+      sorter.remove(clientId);
+    }
+  }
+  watch.stop();
+
+  cout << "Removed " << clientCount << " clients in "
+       << watch.elapsed() << endl;
 }
 
 } // namespace tests {
