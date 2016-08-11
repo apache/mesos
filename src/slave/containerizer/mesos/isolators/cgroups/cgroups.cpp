@@ -147,7 +147,198 @@ Future<Nothing> CgroupsIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  return Failure("Not implemented.");
+  // Recover active containers first.
+  list<Future<Nothing>> recovers;
+  foreach (const ContainerState& state, states) {
+    recovers.push_back(___recover(state.container_id()));
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::_recover,
+        orphans,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::_recover(
+    const hashset<ContainerID>& orphans,
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to recover active containers: " +
+        strings::join(";", errors));
+  }
+
+  hashset<ContainerID> knownOrphans;
+  hashset<ContainerID> unknownOrphans;
+
+  foreach (const string& hierarchy, subsystems.keys()) {
+    // TODO(jieyu): Use non-recursive version of `cgroups::get`.
+    Try<vector<string>> cgroups = cgroups::get(
+        hierarchy,
+        flags.cgroups_root);
+
+    if (cgroups.isError()) {
+      return Failure(
+          "Failed to list cgroups under '" + hierarchy + "': " +
+          cgroups.error());
+    }
+
+    foreach (const string& cgroup, cgroups.get()) {
+      // Ignore the slave cgroup (see the --slave_subsystems flag).
+      // TODO(idownes): Remove this when the cgroups layout is
+      // updated, see MESOS-1185.
+      if (cgroup == path::join(flags.cgroups_root, "slave")) {
+        continue;
+      }
+
+      ContainerID containerId;
+      containerId.set_value(Path(cgroup).basename());
+
+      // Skip containerId which already have been recovered.
+      if (infos.contains(containerId)) {
+        continue;
+      }
+
+      if (orphans.contains(containerId)) {
+        knownOrphans.insert(containerId);
+      } else {
+        unknownOrphans.insert(containerId);
+      }
+    }
+  }
+
+  list<Future<Nothing>> recovers;
+
+  foreach (const ContainerID& containerId, knownOrphans) {
+    recovers.push_back(___recover(containerId));
+  }
+
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    recovers.push_back(___recover(containerId));
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::__recover,
+        unknownOrphans,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::__recover(
+    const hashset<ContainerID>& unknownOrphans,
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to recover orphan containers: " +
+        strings::join(";", errors));
+  }
+
+  // Known orphan cgroups will be destroyed by the containerizer using
+  // the normal cleanup path. See MESOS-2367 for details.
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    LOG(INFO) << "Cleaning up unknown orphaned container " << containerId;
+    cleanup(containerId);
+  }
+
+  return Nothing();
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::___recover(
+    const ContainerID& containerId)
+{
+  const string cgroup = path::join(flags.cgroups_root, containerId.value());
+
+  list<Future<Nothing>> recovers;
+
+  // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
+  foreach (const string& hierarchy, subsystems.keys()) {
+    Try<bool> exists = cgroups::exists(hierarchy, cgroup);
+    if (exists.isError()) {
+      return Failure(
+          "Failed to check the existence of the cgroup "
+          "'" + cgroup + "' in hierarchy '" + hierarchy + "' "
+          "for container " + stringify(containerId) +
+          ": " + exists.error());
+    }
+
+    if (!exists.get()) {
+      // This may occur if the executor has exited and the isolator
+      // has destroyed the cgroup but the agent dies before noticing
+      // this. This will be detected when the containerizer tries to
+      // monitor the executor's pid.
+      LOG(WARNING) << "Couldn't find the cgroup '" << cgroup << "' "
+                   << "in hierarchy '" << hierarchy << "' "
+                   << "for container " << containerId;
+
+      continue;
+    }
+
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
+      recovers.push_back(subsystem->recover(containerId));
+    }
+  }
+
+  return await(recovers)
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::____recover,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> CgroupsIsolatorProcess::____recover(
+    const ContainerID& containerId,
+    const list<Future<Nothing>>& futures)
+{
+  vector<string> errors;
+  foreach (const Future<Nothing>& future, futures) {
+    if (!future.isReady()) {
+      errors.push_back((future.isFailed()
+          ? future.failure()
+          : "discarded"));
+    }
+  }
+
+  if (errors.size() > 0) {
+    return Failure(
+        "Failed to recover subsystems: " +
+        strings::join(";", errors));
+  }
+
+  CHECK(!infos.contains(containerId));
+
+  infos[containerId] = Owned<Info>(new Info(
+      containerId,
+      path::join(flags.cgroups_root, containerId.value())));
+
+  return Nothing();
 }
 
 
