@@ -1826,6 +1826,16 @@ message NetworkInfo {
 
   // To tag certain metadata to be used by Isolator/IPAM, e.g., rack, etc.
   optional Labels labels = 4;
+
+  // Specifies a port mapping request for the task on this network.
+  message PortMapping {
+    required uint32 host_port = 1;
+    required uint32 container_port = 2;
+    // Protocol to expose as (ie: tcp, udp).
+    optional string protocol = 3;
+  }
+
+  repeated PortMapping port_mappings = 7;
 };
 
 
