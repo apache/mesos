@@ -168,9 +168,20 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   files = new Files();
 
+  // Attempt to create the `work_dir` as a convenience.
+  Try<Nothing> mkdir = os::mkdir(flags.work_dir);
+  if (mkdir.isError()) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to create the work_dir for agents/master '"
+      << flags.work_dir << "': " << mkdir.error();
+  }
+
+  std::map<std::string, std::string> propagated_flags;
+  propagated_flags["work_dir"] = flags.work_dir;
+
   {
     master::Flags flags;
-    Try<flags::Warnings> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load(propagated_flags, false, "MESOS_");
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to start a local cluster while loading"
@@ -194,15 +205,6 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (flags.registry == "in_memory") {
       storage = new mesos::state::InMemoryStorage();
     } else if (flags.registry == "replicated_log") {
-      // For local runs, we use a temporary work directory.
-      if (flags.work_dir.isNone()) {
-        CHECK_SOME(os::mkdir("/tmp/mesos/local"));
-
-        Try<string> directory = os::mkdtemp("/tmp/mesos/local/XXXXXX");
-        CHECK_SOME(directory);
-        flags.work_dir = directory.get();
-      }
-
       // TODO(vinod): Add support for replicated log with ZooKeeper.
       log = new Log(
           1,
@@ -339,25 +341,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   for (int i = 0; i < flags.num_slaves; i++) {
     slave::Flags flags;
 
-    if (os::getenv("MESOS_WORK_DIR").isNone()) {
-      const string workDir = "/tmp/mesos/local/agents";
-      Try<Nothing> mkdir = os::mkdir(workDir);
-      if (mkdir.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to create the root work directory for local agents '"
-          << workDir << "': " << mkdir.error();
-      }
-
-      flags.work_dir = path::join(workDir, stringify(i));
-      Try<Nothing> directory = os::mkdir(flags.work_dir);
-      if (directory.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to create work directory for local agent '"
-          << flags.work_dir << "': " << directory.error();
-      }
-    }
-
-    Try<flags::Warnings> load = flags.load("MESOS_");
+    Try<flags::Warnings> load = flags.load(propagated_flags, false, "MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
