@@ -954,7 +954,9 @@ bool Resources::contains(const Resources& that) const
       return false;
     }
 
-    remaining.subtract(resource_);
+    if (isPersistentVolume(resource_.resource)) {
+      remaining.subtract(resource_);
+    }
   }
 
   return true;
