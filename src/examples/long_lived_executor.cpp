@@ -111,6 +111,11 @@ protected:
           break;
         }
 
+        case Event::LAUNCH_GROUP: {
+          // TODO(vinod): Implement this.
+          break;
+        }
+
         case Event::ACKNOWLEDGED: {
           // Remove the corresponding update.
           updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());

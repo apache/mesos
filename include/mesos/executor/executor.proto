@@ -40,6 +40,7 @@ message Event {
 
     SUBSCRIBED = 1;   // See 'Subscribed' below.
     LAUNCH = 2;       // See 'Launch' below.
+    LAUNCH_GROUP = 8; // See 'LaunchGroup' below.
     KILL = 3;         // See 'Kill' below.
     ACKNOWLEDGED = 4; // See 'Acknowledged' below.
     MESSAGE = 5;      // See 'Message' below.
@@ -78,6 +79,13 @@ message Event {
   // a TASK_RUNNING update (See TaskState in mesos.proto).
   message Launch {
     required TaskInfo task = 1;
+  }
+
+  // Received when the framework attempts to launch a group of tasks atomically.
+  // Similar to `Launch` above the executor must send TASK_RUNNING updates for
+  // tasks that are successfully launched.
+  message LaunchGroup {
+    required TaskGroupInfo task_group = 1;
   }
 
   // Received when the scheduler wants to kill a specific task. Once
@@ -129,6 +137,7 @@ message Event {
   optional Subscribed subscribed = 2;
   optional Acknowledged acknowledged = 3;
   optional Launch launch = 4;
+  optional LaunchGroup launch_group = 8;
   optional Kill kill = 5;
   optional Message message = 6;
   optional Error error = 7;

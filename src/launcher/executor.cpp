@@ -195,6 +195,15 @@ public:
         break;
       }
 
+      case Event::LAUNCH_GROUP: {
+        cerr << "LAUNCH_GROUP event is not supported" << endl;
+        // Shut down because this is unexpected; `LAUNCH_GROUP` event
+        // should only ever go to a group-capable default executor and
+        // not the command executor.
+        shutdown();
+        break;
+      }
+
       case Event::KILL: {
         Option<KillPolicy> override = event.kill().has_kill_policy()
           ? Option<KillPolicy>(event.kill().kill_policy())

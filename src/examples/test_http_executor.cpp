@@ -158,6 +158,12 @@ public:
           break;
         }
 
+        case Event::LAUNCH_GROUP: {
+          cout << "Received a LAUNCH_GROUP event";
+          // TODO(vinod): Implement this.
+          break;
+        }
+
         case Event::KILL: {
           cout << "Received a KILL event" << endl;
           break;

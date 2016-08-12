@@ -1158,6 +1158,9 @@ public:
       case Event::LAUNCH:
         launch(mesos, event.launch());
         break;
+      case Event::LAUNCH_GROUP:
+        // TODO(vinod): Implement this.
+        break;
       case Event::KILL:
         kill(mesos, event.kill());
         break;
