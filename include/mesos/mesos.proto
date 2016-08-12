@@ -1252,6 +1252,7 @@ message Offer {
   // Defines an operation that can be performed against offers.
   message Operation {
     enum Type {
+      UNKNOWN = 0;
       LAUNCH = 1;
       RESERVE = 2;
       UNRESERVE = 3;
@@ -1279,7 +1280,7 @@ message Offer {
       repeated Resource volumes = 1;
     }
 
-    required Type type = 1;
+    optional Type type = 1;
     optional Launch launch = 2;
     optional Reserve reserve = 3;
     optional Unreserve unreserve = 4;

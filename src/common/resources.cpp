@@ -1234,8 +1234,8 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       break;
     }
 
-    default:
-      return Error("Unknown offer operation " + stringify(operation.type()));
+    case Offer::Operation::UNKNOWN:
+      return Error("Unknown offer operation");
   }
 
   // The following are sanity checks to ensure the amount of each type of

@@ -3426,6 +3426,12 @@ void Master::accept(
 
         break;
       }
+
+      case Offer::Operation::UNKNOWN: {
+        // TODO(vinod): Send an error event to the scheduler?
+        LOG(ERROR) << "Ignoring unknown offer operation";
+        break;
+      }
     }
   }
 
@@ -3861,9 +3867,10 @@ void Master::_accept(
         break;
       }
 
-      default:
-        LOG(ERROR) << "Unsupported offer operation " << operation.type();
+      case Offer::Operation::UNKNOWN: {
+        LOG(ERROR) << "Ignoring unknown offer operation";
         break;
+      }
     }
   }
 
