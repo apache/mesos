@@ -29,6 +29,8 @@
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
 
+#include "health-check/health_checker.hpp"
+
 #include "master/master.hpp"
 #include "master/validation.hpp"
 
@@ -736,6 +738,20 @@ Option<Error> validateKillPolicy(const TaskInfo& task)
 }
 
 
+Option<Error> validateHealthCheck(const TaskInfo& task)
+{
+  if (task.has_health_check()) {
+    Option<Error> error =
+      mesos::internal::validation::healthCheck(task.health_check());
+
+    if (error.isSome()) {
+      return Error("Task uses invalid health check: " + error.get().message);
+    }
+  }
+
+  return None();
+}
+
 } // namespace internal {
 
 
@@ -759,6 +775,7 @@ Option<Error> validate(
     lambda::bind(internal::validateExecutorInfo, task, framework, slave),
     lambda::bind(internal::validateResources, task),
     lambda::bind(internal::validateKillPolicy, task),
+    lambda::bind(internal::validateHealthCheck, task),
     lambda::bind(
         internal::validateResourceUsage, task, framework, slave, offered)
   };

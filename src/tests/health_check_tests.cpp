@@ -135,6 +135,7 @@ public:
       }
     }
 
+    healthCheck.set_type(HealthCheck::COMMAND);
     healthCheck.mutable_command()->CopyFrom(healthCommand);
     healthCheck.set_delay_seconds(0);
     healthCheck.set_interval_seconds(0);
@@ -353,6 +354,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   container->mutable_mesos()->mutable_image()->CopyFrom(image);
 
   HealthCheck* health = task.mutable_health_check();
+  health->set_type(HealthCheck::COMMAND);
   health->mutable_command()->set_value("exit 0");
 
   Future<TaskStatus> statusRunning;

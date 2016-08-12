@@ -87,6 +87,13 @@ private:
   process::Time startTime;
 };
 
+
+namespace validation {
+
+Option<Error> healthCheck(const HealthCheck& check);
+
+} // namespace validation {
+
 } // namespace internal {
 } // namespace mesos {
 
