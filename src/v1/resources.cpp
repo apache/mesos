@@ -1112,6 +1112,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       // Launch operation does not alter the offered resources.
       break;
 
+    case Offer::Operation::LAUNCH_GROUP:
+      // LaunchGroup operation does not alter the offered resources.
+      break;
+
     case Offer::Operation::RESERVE: {
       Option<Error> error = validate(operation.reserve().resources());
       if (error.isSome()) {

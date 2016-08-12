@@ -3369,6 +3369,12 @@ void Master::accept(
         break;
       }
 
+      case Offer::Operation::LAUNCH_GROUP : {
+        // TODO(vinod): Implement this.
+        LOG(WARNING) << "Ignoring unimplemented LAUNCH_GROUP operation";
+        break;
+      }
+
       // NOTE: When handling RESERVE and UNRESERVE operations, authorization
       // will proceed even if no principal is specified, although currently
       // resources cannot be reserved or unreserved unless a principal is
@@ -3864,6 +3870,12 @@ void Master::_accept(
             send(slave->pid, message);
           }
         }
+        break;
+      }
+
+      case Offer::Operation::LAUNCH_GROUP : {
+        // TODO(vinod): Implement this.
+        LOG(WARNING) << "Ignoring unimplemented LAUNCH_GROUP operation";
         break;
       }
 

@@ -518,7 +518,8 @@ message ExecutorInfo {
     //    and 32 MB memory will be used; schedulers should account for these
     //    resources when accepting offers.
     //
-    // 3) Default executor only accepts a *single* launch operation.
+    // 3) Default executor only accepts a *single* `LAUNCH` or `LAUNCH_GROUP`
+    //    offer operation.
     DEFAULT = 1;
 
     // For frameworks that need custom functionality to run tasks, a `CUSTOM`
@@ -529,7 +530,8 @@ message ExecutorInfo {
 
   // For backwards compatibility, if this field is not set when using `LAUNCH`
   // offer operation, Mesos will infer the type by checking if `command` is
-  // set (`CUSTOM`) or unset (`DEFAULT`).
+  // set (`CUSTOM`) or unset (`DEFAULT`). `type` must be set when using
+  // `LAUNCH_GROUP` offer operation.
   //
   // TODO(vinod): Add support for explicitly setting `type` to `DEFAULT `
   // in `LAUNCH` offer operation.
@@ -1254,14 +1256,29 @@ message Offer {
     enum Type {
       UNKNOWN = 0;
       LAUNCH = 1;
+      LAUNCH_GROUP = 6;
       RESERVE = 2;
       UNRESERVE = 3;
       CREATE = 4;
       DESTROY = 5;
     }
 
+    // TODO(vinod): Deprecate this in favor of `LaunchGroup` below.
     message Launch {
       repeated TaskInfo task_infos = 1;
+    }
+
+    // Unlike `Launch` above, all the tasks in a `task_group` are
+    // atomically delivered to an executor.
+    //
+    // `NetworkInfo` set on executor will be shared by all tasks in
+    // the task group.
+    //
+    // TODO(vinod): Any volumes set on executor could be used by a
+    // task by explicitly setting `Volume.source` in its resources.
+    message LaunchGroup {
+      required ExecutorInfo executor = 1;
+      required TaskGroupInfo task_group = 2;
     }
 
     message Reserve {
@@ -1282,6 +1299,7 @@ message Offer {
 
     optional Type type = 1;
     optional Launch launch = 2;
+    optional LaunchGroup launch_group = 7;
     optional Reserve reserve = 3;
     optional Unreserve unreserve = 4;
     optional Create create = 5;
@@ -1386,6 +1404,20 @@ message TaskInfo {
   // to use this information as needed and to handle tasks without
   // service discovery information.
   optional DiscoveryInfo discovery = 11;
+}
+
+
+/**
+ * Describes a group of tasks that belong to an executor. The
+ * executor will receive the task group in a single message to
+ * allow the group to be launched "atomically".
+ *
+ * NOTES:
+ * 1) `TaskInfo.executor` must not be set.
+ * 2) `NetworkInfo` must not be set inside task's `ContainerInfo`.
+ */
+message TaskGroupInfo {
+  repeated TaskInfo tasks = 1;
 }
 
 
