@@ -407,7 +407,7 @@ public:
     add(&tasks_per_shard,
         "tasks_per_shard",
         "The number of tasks should be launched per shard.",
-        3);
+        2);
   }
 
   Option<string> master;
