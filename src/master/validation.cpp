@@ -572,10 +572,8 @@ Option<Error> validateExecutorInfo(
   }
 
   if (task.has_executor()) {
-    // The master currently expects ExecutorInfo.framework_id to be
-    // set even though it is an optional field. Currently, the
-    // scheduler driver ensures that the field is set. For schedulers
-    // not using the driver, we need to do the validation here.
+    // Master ensures `ExecutorInfo.framework_id` is set before calling
+    // this method.
     CHECK(task.executor().has_framework_id());
 
     if (task.executor().framework_id() != framework->id()) {
@@ -583,6 +581,21 @@ Option<Error> validateExecutorInfo(
           "ExecutorInfo has an invalid FrameworkID"
           " (Actual: " + stringify(task.executor().framework_id()) +
           " vs Expected: " + stringify(framework->id()) + ")");
+    }
+
+
+    // TODO(vinod): Revisit these when `TaskGroup` validation is added
+    // (MESOS-6042).
+
+    if (task.executor().has_type() &&
+        task.executor().type() != ExecutorInfo::CUSTOM) {
+      return Error("'ExecutorInfo.type' must be 'CUSTOM'");
+    }
+
+    // While `ExecutorInfo.command` is optional in the protobuf,
+    // semantically it is still required for backwards compatibility.
+    if (!task.executor().has_command()) {
+      return Error("'ExecutorInfo.command' must be set");
     }
 
     const ExecutorID& executorId = task.executor().executor_id();

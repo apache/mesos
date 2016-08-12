@@ -501,13 +501,43 @@ message CommandInfo {
 
 
 /**
- * Describes information about an executor. The 'data' field can be
- * used to pass arbitrary bytes to an executor.
+ * Describes information about an executor.
  */
 message ExecutorInfo {
+  enum Type {
+    UNKNOWN = 0;
+
+    // Mesos provides a simple built-in default executor that frameworks can
+    // leverage to run shell commands and containers.
+    //
+    // NOTES:
+    //
+    // 1) `command` must not be set when using a default executor.
+    //
+    // 2) If "cpu" or "mem" resources are not set, default values of 0.1 cpu
+    //    and 32 MB memory will be used; schedulers should account for these
+    //    resources when accepting offers.
+    //
+    // 3) Default executor only accepts a *single* launch operation.
+    DEFAULT = 1;
+
+    // For frameworks that need custom functionality to run tasks, a `CUSTOM`
+    // executor can be used. Note that `command` must be set when using a
+    // `CUSTOM` executor.
+    CUSTOM = 2;
+  }
+
+  // For backwards compatibility, if this field is not set when using `LAUNCH`
+  // offer operation, Mesos will infer the type by checking if `command` is
+  // set (`CUSTOM`) or unset (`DEFAULT`).
+  //
+  // TODO(vinod): Add support for explicitly setting `type` to `DEFAULT `
+  // in `LAUNCH` offer operation.
+  optional Type type = 15;
+
   required ExecutorID executor_id = 1;
   optional FrameworkID framework_id = 8; // TODO(benh): Make this required.
-  required CommandInfo command = 7;
+  optional CommandInfo command = 7;
 
   // Executor provided with a container will launch the container
   // with the executor's CommandInfo and we expect the container to
@@ -529,6 +559,7 @@ message ExecutorInfo {
   // free-form metadata instead.
   optional string source = 10 [deprecated = true]; // Since 1.0.
 
+  // This field can be used to pass arbitrary bytes to an executor.
   optional bytes data = 4;
 
   // Service discovery information for the executor. It is not

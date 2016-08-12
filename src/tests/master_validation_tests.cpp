@@ -702,6 +702,46 @@ TEST_F(TaskValidationTest, TaskUsesCommandInfoAndExecutorInfo)
 }
 
 
+// TODO(vinod): Revisit this test after `TaskGroup` validation is implemented.
+TEST_F(TaskValidationTest, TaskUsesExecutorInfoWithoutCommandInfo)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Create an executor without command info.
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_TRUE(strings::startsWith(
+      status->message(), "'ExecutorInfo.command' must be set"));
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_F(TaskValidationTest, TaskUsesNoResources)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
