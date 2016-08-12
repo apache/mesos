@@ -155,8 +155,9 @@ void ProcessCapabilities::set(
     case PERMITTED:   permitted = capabilities;
     case INHERITABLE: inheritable = capabilities;
     case BOUNDING:    bounding = capabilities;
-    default:          UNREACHABLE();
   }
+
+  UNREACHABLE();
 }
 
 
