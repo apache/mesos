@@ -63,6 +63,7 @@ nobase_include_HEADERS =		\
   process/system.hpp			\
   process/subprocess.hpp		\
   process/subprocess_base.hpp		\
+  process/ssl/flags.hpp			\
   process/ssl/gtest.hpp			\
   process/ssl/utilities.hpp		\
   process/time.hpp			\

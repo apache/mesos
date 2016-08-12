@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include <stout/flags.hpp>
 #include <stout/ip.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -26,32 +25,6 @@
 namespace process {
 namespace network {
 namespace openssl {
-
-// Capture the environment variables that influence how we initialize
-// the OpenSSL library via flags.
-class Flags : public virtual flags::FlagsBase
-{
-public:
-  Flags();
-
-  bool enabled;
-  bool support_downgrade;
-  Option<std::string> cert_file;
-  Option<std::string> key_file;
-  bool verify_cert;
-  bool require_cert;
-  bool verify_ipadd;
-  unsigned int verification_depth;
-  Option<std::string> ca_dir;
-  Option<std::string> ca_file;
-  std::string ciphers;
-  bool enable_ssl_v3;
-  bool enable_tls_v1_0;
-  bool enable_tls_v1_1;
-  bool enable_tls_v1_2;
-};
-
-const Flags& flags();
 
 // Initializes the _global_ OpenSSL context (SSL_CTX) as well as the
 // crypto library in order to support multi-threading. The global

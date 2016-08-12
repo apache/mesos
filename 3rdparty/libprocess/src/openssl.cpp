@@ -26,7 +26,8 @@
 
 #include <process/once.hpp>
 
-#include <stout/flags.hpp>
+#include <process/ssl/flags.hpp>
+
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
