@@ -23,6 +23,7 @@ default.
   - [Attaching containers to CNI networks](#attaching-containers-to-cni-networks)
   - [Accessing container network namespace](#accessing-container-network-namespace)
   - [Mesos meta-data to CNI plugins](#mesos-meta-data-to-cni-plugins)
+  - [Adding/Deleting/Modifying CNI networks](#adding-modifying-deleting)
 - [Networking Recipes](#networking-recipes)
   - [A bridge network](#a-bridge-network)
   - [A Calico network](#a-calico-network)
