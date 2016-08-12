@@ -87,6 +87,8 @@
 
 #include <process/metrics/metrics.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -107,9 +109,6 @@
 #include "encoder.hpp"
 #include "event_loop.hpp"
 #include "gate.hpp"
-#ifdef USE_SSL_SOCKET
-#include "openssl.hpp"
-#endif
 #include "process_reference.hpp"
 
 namespace firewall = process::firewall;

@@ -22,6 +22,8 @@
 #include <process/gtest.hpp>
 #include <process/socket.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/gtest.hpp>
 #include <stout/try.hpp>
 

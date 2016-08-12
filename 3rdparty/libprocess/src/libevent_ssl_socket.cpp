@@ -23,6 +23,8 @@
 #include <process/queue.hpp>
 #include <process/socket.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/net.hpp>
 #include <stout/synchronized.hpp>
 

@@ -19,11 +19,12 @@
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/os.hpp>
 
 #ifdef USE_SSL_SOCKET
 #include "libevent_ssl_socket.hpp"
-#include "openssl.hpp"
 #endif
 #include "poll_socket.hpp"
 
