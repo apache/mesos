@@ -181,10 +181,33 @@ void HealthCheckerProcess::success()
 
 void HealthCheckerProcess::_healthCheck()
 {
-  if (check.type() != HealthCheck::COMMAND) {
-    promise.fail("Only command health checks are supported");
-    return;
+  switch (check.type()) {
+    case HealthCheck::COMMAND: {
+      _commandHealthCheck();
+      return;
+    }
+
+    case HealthCheck::HTTP: {
+      _httpHealthCheck();
+      return;
+    }
+
+    case HealthCheck::TCP: {
+      _tcpHealthCheck();
+      return;
+    }
+
+    default: {
+      UNREACHABLE();
+    }
   }
+}
+
+
+void HealthCheckerProcess::_commandHealthCheck()
+{
+  CHECK_EQ(HealthCheck::COMMAND, check.type());
+  CHECK(check.has_command());
 
   const CommandInfo& command = check.command();
 
@@ -271,6 +294,24 @@ void HealthCheckerProcess::_healthCheck()
   } else {
     success();
   }
+}
+
+
+void HealthCheckerProcess::_httpHealthCheck()
+{
+  CHECK_EQ(HealthCheck::HTTP, check.type());
+  CHECK(check.has_http());
+
+  promise.fail("HTTP health check is not supported");
+}
+
+
+void HealthCheckerProcess::_tcpHealthCheck()
+{
+  CHECK_EQ(HealthCheck::TCP, check.type());
+  CHECK(check.has_tcp());
+
+  promise.fail("TCP health check is not supported");
 }
 
 

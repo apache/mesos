@@ -71,10 +71,13 @@ public:
 
 private:
   void failure(const std::string& message);
-
   void success();
 
   void _healthCheck();
+
+  void _commandHealthCheck();
+  void _httpHealthCheck();
+  void _tcpHealthCheck();
 
   void reschedule();
 
