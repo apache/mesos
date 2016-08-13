@@ -362,12 +362,10 @@ public:
 
   Future<int> set(const string& path, const string& data, int version)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise = Promise<int>();
 
     tuple<Promise<int>*, Stat*>* args =
-      new tuple<Promise<int>*, Stat*>(promise, nullptr);
+      new tuple<Promise<int>*, Stat*>(&promise, nullptr);
 
     int ret = zoo_aset(
         zh,
@@ -379,12 +377,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
 private:
