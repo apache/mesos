@@ -291,21 +291,18 @@ public:
 
   Future<int> remove(const string& path, int version)
   {
-    Promise<int>* promise = new Promise<int>();
+    Promise<int> promise = Promise<int>();
 
-    Future<int> future = promise->future();
-
-    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(promise);
+    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
     int ret = zoo_adelete(zh, path.c_str(), version, voidCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> exists(const string& path, bool watch, Stat* stat)
