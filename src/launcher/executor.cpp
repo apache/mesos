@@ -409,10 +409,11 @@ protected:
     cout << "Forked command at " << pid << endl;
 
     if (task->has_health_check()) {
-      Try<Owned<HealthChecker>> _checker = HealthChecker::create(
-          task->health_check(),
-          self(),
-          task->task_id());
+      Try<Owned<health::HealthChecker>> _checker =
+        health::HealthChecker::create(
+            task->health_check(),
+            self(),
+            task->task_id());
 
       if (_checker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -745,7 +746,7 @@ private:
   Owned<MesosBase> mesos;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   Option<TaskInfo> task; // Unacknowledged task.
-  Owned<HealthChecker> checker;
+  Owned<health::HealthChecker> checker;
 };
 
 } // namespace internal {

@@ -34,6 +34,7 @@
 
 namespace mesos {
 namespace internal {
+namespace health {
 
 // Forward declarations.
 class HealthCheckerProcess;
@@ -97,6 +98,7 @@ Option<Error> healthCheck(const HealthCheck& check);
 
 } // namespace validation {
 
+} // namespace health {
 } // namespace internal {
 } // namespace mesos {
 

@@ -164,7 +164,7 @@ public:
 // This tests ensures `HealthCheck` protobuf is validated correctly.
 TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
 {
-  using namespace mesos::internal;
+  using namespace mesos::internal::health;
 
   // Health check type must be set to a known value.
   {

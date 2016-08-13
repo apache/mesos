@@ -59,6 +59,7 @@ using std::vector;
 
 namespace mesos {
 namespace internal {
+namespace health {
 
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
@@ -377,5 +378,6 @@ Option<Error> healthCheck(const HealthCheck& check)
 
 } // namespace validation {
 
+} // namespace health {
 } // namespace internal {
 } // namespace mesos {

@@ -151,7 +151,7 @@ int main(int argc, char** argv)
   TaskID taskID;
   taskID.set_value(flags.task_id.get());
 
-  mesos::internal::HealthCheckerProcess process(
+  mesos::internal::health::HealthCheckerProcess process(
     check.get(),
     flags.executor.get(),
     taskID);
@@ -160,7 +160,7 @@ int main(int argc, char** argv)
 
   process::Future<Nothing> checking =
     process::dispatch(
-      process, &mesos::internal::HealthCheckerProcess::healthCheck);
+      process, &mesos::internal::health::HealthCheckerProcess::healthCheck);
 
   checking.await();
 
