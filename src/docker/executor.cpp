@@ -481,9 +481,6 @@ private:
 
     HealthCheck healthCheck = task.health_check();
 
-    // Validate the `HealthCheck` protobuf.
-    Option<Error> validateCheck = health::validation::healthCheck(healthCheck);
-
     if (validateCheck.isSome()) {
       cerr << "Unable to launch health check process: "
            << validateCheck.get().message << endl;
