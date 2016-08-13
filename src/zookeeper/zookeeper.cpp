@@ -163,11 +163,9 @@ public:
 
   Future<int> authenticate(const string& scheme, const string& credentials)
   {
-    Promise<int>* promise = new Promise<int>();
+    Promise<int> promise = Promise<int>();
 
-    Future<int> future = promise->future();
-
-    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(promise);
+    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
     int ret = zoo_add_auth(
         zh,
@@ -178,12 +176,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> create(
