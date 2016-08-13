@@ -481,12 +481,6 @@ private:
 
     HealthCheck healthCheck = task.health_check();
 
-    if (validateCheck.isSome()) {
-      cerr << "Unable to launch health check process: "
-           << validateCheck.get().message << endl;
-      return;
-    }
-
     // To make sure the health check runs in the same mount namespace
     // with the container, we wrap the original command in `docker exec`.
     if (healthCheck.has_command()) {
