@@ -1,3 +1,13 @@
+- name: Aaron Wood
+  affiliations:
+    - {organization: Verizon Labs}
+  emails:
+    - aaronjwood@gmail.com
+    - me@aaronjwood.com
+    - aaron.wood@verizon.com
+  jira_user: aaron.wood
+  reviewboard_user: aaron.wood
+
 - name: Adam B
   affiliations:
     - {organization: Mesosphere}
