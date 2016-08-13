@@ -190,12 +190,10 @@ public:
       int flags,
       string* result)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise = Promise<int>();
 
     tuple<Promise<int>*, string*>* args =
-      new tuple<Promise<int>*, string*>(promise, result);
+      new tuple<Promise<int>*, string*>(&promise, result);
 
     int ret = zoo_acreate(
         zh,
@@ -208,12 +206,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> create(
