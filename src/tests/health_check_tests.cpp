@@ -24,6 +24,8 @@
 
 #include "docker/docker.hpp"
 
+#include "health-check/health_checker.hpp"
+
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/docker.hpp"
@@ -157,6 +159,72 @@ public:
     return tasks;
   }
 };
+
+
+// This tests ensures `HealthCheck` protobuf is validated correctly.
+TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
+{
+  using namespace mesos::internal;
+
+  // Health check type must be set to a known value.
+  {
+    HealthCheck healthCheckProto;
+
+    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_type(HealthCheck::UNKNOWN);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+  }
+
+  // The associated with the type health description must be present.
+  {
+    HealthCheck healthCheckProto;
+
+    healthCheckProto.set_type(HealthCheck::COMMAND);
+    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_type(HealthCheck::HTTP);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_type(HealthCheck::TCP);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+  }
+
+  // Command health check must specify an actual command in `command.value`.
+  {
+    HealthCheck healthCheckProto;
+
+    healthCheckProto.set_type(HealthCheck::COMMAND);
+    healthCheckProto.mutable_command()->CopyFrom(CommandInfo());
+    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+  }
+
+  // HTTP health check may specify a known scheme and a path starting with '/'.
+  {
+    HealthCheck healthCheckProto;
+
+    healthCheckProto.set_type(HealthCheck::HTTP);
+    healthCheckProto.mutable_http()->set_port(8080);
+
+    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    EXPECT_NONE(validate);
+
+    healthCheckProto.mutable_http()->set_scheme("ftp");
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.mutable_http()->set_scheme("https");
+    healthCheckProto.mutable_http()->set_path("healthz");
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+  }
+}
 
 
 // Testing a healthy task reporting one healthy status to scheduler.
