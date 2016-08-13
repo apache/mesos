@@ -307,22 +307,19 @@ public:
 
   Future<int> exists(const string& path, bool watch, Stat* stat)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise = Promise<int>();
 
     tuple<Promise<int>*, Stat*>* args =
-      new tuple<Promise<int>*, Stat*>(promise, stat);
+      new tuple<Promise<int>*, Stat*>(&promise, stat);
 
     int ret = zoo_aexists(zh, path.c_str(), watch, statCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> get(const string& path, bool watch, string* result, Stat* stat)
