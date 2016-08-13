@@ -324,22 +324,19 @@ public:
 
   Future<int> get(const string& path, bool watch, string* result, Stat* stat)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise = Promise<int>();
 
     tuple<Promise<int>*, string*, Stat*>* args =
-      new tuple<Promise<int>*, string*, Stat*>(promise, result, stat);
+      new tuple<Promise<int>*, string*, Stat*>(&promise, result, stat);
 
     int ret = zoo_aget(zh, path.c_str(), watch, dataCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> getChildren(
