@@ -344,23 +344,20 @@ public:
       bool watch,
       vector<string>* results)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise = Promise<int>();
 
     tuple<Promise<int>*, vector<string>*>* args =
-      new tuple<Promise<int>*, vector<string>*>(promise, results);
+      new tuple<Promise<int>*, vector<string>*>(&promise, results);
 
     int ret =
       zoo_aget_children(zh, path.c_str(), watch, stringsCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> set(const string& path, const string& data, int version)
