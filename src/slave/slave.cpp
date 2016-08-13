@@ -3465,18 +3465,26 @@ void Slave::_statusUpdate(
   // task is sent only after the acknowledgement for the previous one
   // is received, which could take a long time if the framework is
   // backed up or is down.
-  executor->updateTaskState(status);
+  Try<Nothing> updated = executor->updateTaskState(status);
 
-  // Handle the task appropriately if it is terminated.
-  // TODO(vinod): Revisit these semantics when we disallow duplicate
-  // terminal updates (e.g., when slave recovery is always enabled).
-  if (protobuf::isTerminalState(status.state()) &&
-      (executor->queuedTasks.contains(status.task_id()) ||
-       executor->launchedTasks.contains(status.task_id()))) {
-    executor->terminateTask(status.task_id(), status);
+  // If we fail to update the task state, drop the update. Note that
+  // we have to acknowledge the executor so that it does not retry.
+  if (updated.isError()) {
+    LOG(ERROR) << "Failed to update state of task '" << status.task_id() << "'"
+               << " to " << status.state() << ": " << updated.error();
 
-    // Wait until the container's resources have been updated before
-    // sending the status update.
+    // NOTE: This may lead to out-of-order acknowledgements since
+    // other update acknowledgements may be waiting for the
+    // containerizer or status update manager.
+    ___statusUpdate(Nothing(), update, pid);
+    return;
+  }
+
+  if (protobuf::isTerminalState(status.state())) {
+    // If the task terminated, wait until the container's resources
+    // have been updated before sending the status update. Note that
+    // duplicate terminal updates are not possible here because they
+    // lead to an error from `Executor::updateTaskState`.
     containerizer->update(executor->containerId, executor->resources)
       .onAny(defer(self(),
                    &Slave::__statusUpdate,
@@ -6108,49 +6116,6 @@ Task* Executor::addTask(const TaskInfo& task)
 }
 
 
-void Executor::terminateTask(
-    const TaskID& taskId,
-    const mesos::TaskStatus& status)
-{
-  VLOG(1) << "Terminating task " << taskId;
-
-  Task* task = nullptr;
-  // Remove the task if it's queued.
-  if (queuedTasks.contains(taskId)) {
-    task = new Task(
-        protobuf::createTask(queuedTasks[taskId], status.state(), frameworkId));
-    queuedTasks.erase(taskId);
-  } else if (launchedTasks.contains(taskId)) {
-    // Update the resources if it's been launched.
-    task = launchedTasks[taskId];
-    resources -= task->resources();
-    launchedTasks.erase(taskId);
-  }
-
-  switch (status.state()) {
-    case TASK_FINISHED:
-      ++slave->metrics.tasks_finished;
-      break;
-    case TASK_FAILED:
-      ++slave->metrics.tasks_failed;
-      break;
-    case TASK_KILLED:
-      ++slave->metrics.tasks_killed;
-      break;
-    case TASK_LOST:
-      ++slave->metrics.tasks_lost;
-      break;
-    default:
-      LOG(WARNING) << "Unhandled task state " << status.state()
-                   << " on completion.";
-      break;
-  }
-
-  // TODO(dhamon): Update source/reason metrics.
-  terminatedTasks[taskId] = CHECK_NOTNULL(task);
-}
-
-
 void Executor::completeTask(const TaskID& taskId)
 {
   VLOG(1) << "Completing task " << taskId;
@@ -6220,21 +6185,28 @@ void Executor::recoverTask(const TaskState& state)
 
   // Read updates to get the latest state of the task.
   foreach (const StatusUpdate& update, state.updates) {
-    updateTaskState(update.status());
+    Try<Nothing> updated = updateTaskState(update.status());
 
-    // Terminate the task if it received a terminal update.
-    // We ignore duplicate terminal updates by checking if
-    // the task is present in launchedTasks.
-    // TODO(vinod): Revisit these semantics when we disallow duplicate
-    // terminal updates (e.g., when slave recovery is always enabled).
-    if (protobuf::isTerminalState(update.status().state()) &&
-        launchedTasks.contains(state.id)) {
-      terminateTask(state.id, update.status());
+    // TODO(bmahler): We only log this error because we used to
+    // allow multiple terminal updates and so we may encounter
+    // this when recovering an old executor. We can hard-CHECK
+    // this 6 months from 1.1.0.
+    if (updated.isError()) {
+      LOG(ERROR) << "Failed to update state of recovered task"
+                 << " '" << state.id << "' to " << update.status().state()
+                 << ": " << updated.error();
 
+      // The only case that should be possible here is when the
+      // task had multiple terminal updates persisted.
+      continue;
+    }
+
+    // Complete the task if it is terminal and
+    // the update has been acknowledged.
+    if (protobuf::isTerminalState(update.status().state())) {
       CHECK(update.has_uuid())
         << "Expecting updates without 'uuid' to have been rejected";
 
-      // If the terminal update has been acknowledged, remove it.
       if (state.acks.contains(UUID::fromBytes(update.uuid()).get())) {
         completeTask(state.id);
       }
@@ -6244,18 +6216,64 @@ void Executor::recoverTask(const TaskState& state)
 }
 
 
-void Executor::updateTaskState(const TaskStatus& status)
+Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
 {
-  if (launchedTasks.contains(status.task_id())) {
-    Task* task = launchedTasks[status.task_id()];
-    // TODO(brenden): Consider wiping the `data` and `message` fields?
-    if (task->statuses_size() > 0 &&
-        task->statuses(task->statuses_size() - 1).state() == status.state()) {
-      task->mutable_statuses()->RemoveLast();
+  bool terminal = protobuf::isTerminalState(status.state());
+
+  const TaskID& taskId = status.task_id();
+  Task* task = nullptr;
+
+  if (queuedTasks.contains(taskId)) {
+    if (terminal) {
+      task = new Task(protobuf::createTask(
+          queuedTasks.at(taskId),
+          status.state(),
+          frameworkId));
+      queuedTasks.erase(taskId);
+      terminatedTasks[taskId] = task;
+    } else {
+      return Error("Cannot send non-terminal update for queued task");
     }
-    task->add_statuses()->CopyFrom(status);
-    task->set_state(status.state());
+  } else if (launchedTasks.contains(taskId)) {
+    task = launchedTasks.at(status.task_id());
+
+    if (terminal) {
+      resources -= task->resources(); // Release the resources.
+      launchedTasks.erase(taskId);
+      terminatedTasks[taskId] = task;
+    }
+  } else if (terminatedTasks.contains(taskId)) {
+    return Error("Task is already terminated with state"
+                 " " + stringify(terminatedTasks.at(taskId)->state()));
+  } else {
+    return Error("Task is unknown");
   }
+
+  CHECK_NOTNULL(task);
+
+  // TODO(brenden): Consider wiping the `data` and `message` fields?
+  if (task->statuses_size() > 0 &&
+      task->statuses(task->statuses_size() - 1).state() == status.state()) {
+    task->mutable_statuses()->RemoveLast();
+  }
+  task->add_statuses()->CopyFrom(status);
+  task->set_state(status.state());
+
+  // TODO(bmahler): This only increments the state when the update
+  // can be handled. Should we always increment the state?
+  if (terminal) {
+    switch (status.state()) {
+      case TASK_FINISHED: ++slave->metrics.tasks_finished; break;
+      case TASK_FAILED:   ++slave->metrics.tasks_failed;   break;
+      case TASK_KILLED:   ++slave->metrics.tasks_killed;   break;
+      case TASK_LOST:     ++slave->metrics.tasks_lost;     break;
+      default:
+        LOG(ERROR) << "Unexpected terminal task state " << status.state();
+        break;
+    }
+  }
+
+  return Nothing();
 }
 
 
