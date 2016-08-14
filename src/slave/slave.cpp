@@ -5803,6 +5803,7 @@ Executor* Framework::launchExecutor(
     // when it has registered to the slave.
     launch = slave->containerizer->launch(
         containerId,
+        None(),
         executorInfo_, // Modified to include the task's resources, see above.
         executor->directory,
         user,

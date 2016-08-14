@@ -297,6 +297,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
   // command validates the hook.
   process::Future<bool> launch = containerizer->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", "test $FOO = 'bar'"),
       directory,
       None(),

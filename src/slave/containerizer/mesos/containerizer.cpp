@@ -425,29 +425,7 @@ Future<Nothing> MesosContainerizer::recover(
 
 Future<bool> MesosContainerizer::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
-{
-  return dispatch(process.get(),
-                  &MesosContainerizerProcess::launch,
-                  containerId,
-                  None(),
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
-                  slavePid,
-                  checkpoint);
-}
-
-
-Future<bool> MesosContainerizer::launch(
-    const ContainerID& containerId,
-    const TaskInfo& taskInfo,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,

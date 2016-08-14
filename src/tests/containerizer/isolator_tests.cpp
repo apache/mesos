@@ -1523,6 +1523,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
 
   process::Future<bool> launch = containerizer->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", command),
       directory,
       None(),

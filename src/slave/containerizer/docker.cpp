@@ -676,30 +676,7 @@ Future<Nothing> DockerContainerizer::recover(
 
 Future<bool> DockerContainerizer::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
-    bool checkpoint)
-{
-  return dispatch(
-      process.get(),
-      &DockerContainerizerProcess::launch,
-      containerId,
-      None(),
-      executorInfo,
-      directory,
-      user,
-      slaveId,
-      slavePid,
-      checkpoint);
-}
-
-
-Future<bool> DockerContainerizer::launch(
-    const ContainerID& containerId,
-    const TaskInfo& taskInfo,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,

@@ -1136,7 +1136,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
   JSON::Object snapshot = Metrics();
   EXPECT_EQ(0, snapshot.values["slave/container_launch_errors"]);
 
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(Return(Failure("Injected failure")));
 
   Future<TaskStatus> failureUpdate;

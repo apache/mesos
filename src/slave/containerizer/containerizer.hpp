@@ -77,26 +77,12 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state) = 0;
 
-  // Launch a containerized executor. Returns true if launching this
-  // ExecutorInfo is supported and it has been launched, otherwise
-  // false or a failure is something went wrong.
+  // Launch a containerized task/executor. Returns true if launching
+  // this TaskInfo/ExecutorInfo is supported and it has been launched,
+  // otherwise false or a failure if something went wrong.
   virtual process::Future<bool> launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
-      bool checkpoint) = 0;
-
-  // Launch a containerized task. Returns true if launching this
-  // TaskInfo/ExecutorInfo is supported and it has been launched,
-  // otherwise false or a failure is something went wrong.
-  // TODO(nnielsen): Obsolete the executorInfo argument when the slave
-  // doesn't require executors to run standalone tasks.
-  virtual process::Future<bool> launch(
-      const ContainerID& containerId,
-      const TaskInfo& taskInfo,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,

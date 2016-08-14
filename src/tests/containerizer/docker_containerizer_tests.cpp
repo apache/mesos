@@ -251,10 +251,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   task.mutable_executor()->CopyFrom(executorInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
-                           &MockDockerContainerizer::_launchExecutor)));
+                           &MockDockerContainerizer::_launch)));
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
@@ -379,10 +379,10 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   task.mutable_executor()->CopyFrom(executorInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
-                           &MockDockerContainerizer::_launchExecutor)));
+                           &MockDockerContainerizer::_launch)));
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
@@ -2721,11 +2721,11 @@ TEST_F(DockerContainerizerTest,
 
   Future<ContainerID> containerId;
   Future<SlaveID> slaveId;
-  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<4>(&slaveId),
+                    FutureArg<5>(&slaveId),
                     Invoke(dockerContainerizer.get(),
-                           &MockDockerContainerizer::_launchExecutor)));
+                           &MockDockerContainerizer::_launch)));
 
   // We need to wait until the container's pid has been been
   // checkpointed so that when the next slave recovers it won't treat
@@ -3736,10 +3736,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
-                           &MockDockerContainerizer::_launchExecutor)));
+                           &MockDockerContainerizer::_launch)));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 

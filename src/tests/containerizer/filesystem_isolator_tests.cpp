@@ -257,6 +257,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -768,6 +769,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -829,6 +831,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -883,6 +886,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -938,6 +942,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -987,6 +992,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1042,6 +1048,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1106,6 +1113,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1179,6 +1187,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1233,6 +1242,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1287,6 +1297,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),
@@ -1371,6 +1382,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   Future<bool> launch1 = containerizer.get()->launch(
       containerId1,
+      None(),
       executor1,
       directory1,
       None(),
@@ -1399,6 +1411,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   Future<bool> launch2 = containerizer.get()->launch(
       containerId2,
+      None(),
       executor2,
       directory2,
       None(),
@@ -1464,6 +1477,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       executor,
       directory,
       None(),

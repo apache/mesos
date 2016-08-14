@@ -90,6 +90,7 @@ TestContainerizer::~TestContainerizer()
 
 Future<bool> TestContainerizer::_launch(
     const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
@@ -200,27 +201,6 @@ Future<bool> TestContainerizer::_launch(
 }
 
 
-Future<bool> TestContainerizer::launch(
-    const ContainerID& containerId,
-    const TaskInfo& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const PID<slave::Slave>& slavePid,
-    bool checkpoint)
-{
-  return launch(
-      containerId,
-      executorInfo,
-      directory,
-      user,
-      slaveId,
-      slavePid,
-      checkpoint);
-}
-
-
 Future<containerizer::Termination> TestContainerizer::_wait(
     const ContainerID& containerId)
 {
@@ -303,7 +283,7 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, update(_, _))
     .WillRepeatedly(Return(Nothing()));
 
-  EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_launch));
 
   EXPECT_CALL(*this, wait(_))

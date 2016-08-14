@@ -1606,9 +1606,6 @@ public:
     // NOTE: See TestContainerizer::setup for why we use
     // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'.
-    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
-
     EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
 
@@ -1616,22 +1613,11 @@ public:
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
 
-  MOCK_METHOD7(
-      launch,
-      process::Future<bool>(
-          const ContainerID&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
-          const process::PID<slave::Slave>&,
-          bool checkpoint));
-
   MOCK_METHOD8(
       launch,
       process::Future<bool>(
           const ContainerID&,
-          const TaskInfo&,
+          const Option<TaskInfo>&,
           const ExecutorInfo&,
           const std::string&,
           const Option<std::string>&,
@@ -1649,7 +1635,7 @@ public:
   // use &slave::DockerContainerizer::launch with 'Invoke').
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const TaskInfo& taskInfo,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
@@ -1660,25 +1646,6 @@ public:
     return slave::DockerContainerizer::launch(
         containerId,
         taskInfo,
-        executorInfo,
-        directory,
-        user,
-        slaveId,
-        slavePid,
-        checkpoint);
-  }
-
-  process::Future<bool> _launchExecutor(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const slave::PID<slave::Slave>& slavePid,
-      bool checkpoint)
-  {
-    return slave::DockerContainerizer::launch(
-        containerId,
         executorInfo,
         directory,
         user,

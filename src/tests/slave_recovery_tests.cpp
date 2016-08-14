@@ -3865,7 +3865,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   // Expect the launch but don't do anything.
   Future<Nothing> launch;
-  EXPECT_CALL(containerizer1, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer1, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<bool>())));
 

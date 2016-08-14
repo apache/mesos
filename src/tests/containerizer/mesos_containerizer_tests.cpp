@@ -179,6 +179,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
       None(),
@@ -230,6 +231,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
       None(),
@@ -292,6 +294,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", "exit 0"),
       directory,
       None(),
@@ -360,6 +363,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", executorCmd),
       directory,
       None(),
@@ -429,6 +433,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 
   Future<bool> launch = containerizer->launch(
       containerId,
+      None(),
       CREATE_EXECUTOR_INFO("executor", command),
       directory,
       None(),
