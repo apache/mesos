@@ -302,7 +302,6 @@ DockerContainerizerProcess::Container::create(
 
   Option<ContainerInfo> containerInfo = None();
   Option<CommandInfo> commandInfo = None();
-  Option<map<string, string>> environment = None();
   bool launchesExecutorContainer = false;
   if (taskInfo.isSome() && flags.docker_mesos_image.isSome()) {
     // Override the container and command to launch an executor
@@ -361,15 +360,16 @@ DockerContainerizerProcess::Container::create(
 
     containerInfo = newContainerInfo;
     commandInfo = newCommandInfo;
-    environment = executorEnvironment(
+    launchesExecutorContainer = true;
+  }
+
+  map<string, string> environment = executorEnvironment(
         executorInfo,
         containerWorkdir,
         slaveId,
         slavePid,
         checkpoint,
         flags);
-    launchesExecutorContainer = true;
-  }
 
   return new Container(
       id,

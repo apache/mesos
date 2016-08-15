@@ -296,12 +296,13 @@ private:
               const Flags& flags,
               const Option<CommandInfo>& _command,
               const Option<ContainerInfo>& _container,
-              const Option<std::map<std::string, std::string>>& _environment,
+              const std::map<std::string, std::string>& _environment,
               bool launchesExecutorContainer)
       : state(FETCHING),
         id(id),
         task(taskInfo),
         executor(executorInfo),
+        environment(_environment),
         directory(directory),
         user(user),
         slaveId(slaveId),
@@ -341,18 +342,6 @@ private:
         container = task.get().container();
       } else {
         container = executor.container();
-      }
-
-      if (_environment.isSome()) {
-        environment = _environment.get();
-      } else {
-        environment = executorEnvironment(
-            executor,
-            directory,
-            slaveId,
-            slavePid,
-            checkpoint,
-            flags);
       }
     }
 
