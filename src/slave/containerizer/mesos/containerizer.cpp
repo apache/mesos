@@ -767,6 +767,8 @@ Future<bool> MesosContainerizerProcess::launch(
     const map<string, string>& environment,
     bool checkpoint)
 {
+  CHECK(!containerId.has_parent());
+
   if (containers_.contains(containerId)) {
     return Failure("Container already started");
   }
@@ -1374,6 +1376,8 @@ Future<bool> MesosContainerizerProcess::isolate(
     const ContainerID& containerId,
     pid_t _pid)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     return Failure("Container destroyed during preparing");
   }
@@ -1457,6 +1461,8 @@ Future<Nothing> MesosContainerizerProcess::launch(
 Future<containerizer::Termination> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     // See the comments in destroy() for race conditions which lead
     // to "unknown containers".
@@ -1472,6 +1478,8 @@ Future<Nothing> MesosContainerizerProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     // It is not considered a failure if the container is not known
     // because the slave will attempt to update the container's
@@ -1513,6 +1521,8 @@ Future<ResourceStatistics> _usage(
     const Option<Resources>& resources,
     const list<Future<ResourceStatistics>>& statistics)
 {
+  CHECK(!containerId.has_parent());
+
   ResourceStatistics result;
 
   // Set the timestamp now we have all statistics.
@@ -1549,6 +1559,8 @@ Future<ResourceStatistics> _usage(
 Future<ResourceStatistics> MesosContainerizerProcess::usage(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
@@ -1596,6 +1608,8 @@ Future<ContainerStatus> _status(
 Future<ContainerStatus> MesosContainerizerProcess::status(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
@@ -1624,6 +1638,8 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
 void MesosContainerizerProcess::destroy(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     // This can happen due to the race between destroys initiated by
     // the launch failure, the terminated executor and the agent so

@@ -967,6 +967,8 @@ Future<bool> DockerContainerizerProcess::launch(
     const map<string, string>& environment,
     bool checkpoint)
 {
+  CHECK(!containerId.has_parent());
+
   if (containers_.contains(containerId)) {
     return Failure("Container already started");
   }
@@ -1393,6 +1395,8 @@ Future<Nothing> DockerContainerizerProcess::update(
     const Resources& _resources,
     bool force)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     LOG(WARNING) << "Ignoring updating unknown container: "
                  << containerId;
@@ -1623,6 +1627,8 @@ Future<Nothing> DockerContainerizerProcess::__update(
 Future<ResourceStatistics> DockerContainerizerProcess::usage(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
 #ifndef __linux__
   return Failure("Does not support usage() on non-linux platform");
 #else
@@ -1776,6 +1782,8 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 Future<containerizer::Termination> DockerContainerizerProcess::wait(
     const ContainerID& containerId)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
@@ -1788,6 +1796,8 @@ void DockerContainerizerProcess::destroy(
     const ContainerID& containerId,
     bool killed)
 {
+  CHECK(!containerId.has_parent());
+
   if (!containers_.contains(containerId)) {
     LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
     return;
