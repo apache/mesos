@@ -47,6 +47,7 @@ namespace mesos {
 
 bool operator==(const CommandInfo& left, const CommandInfo& right);
 bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right);
+bool operator==(const ContainerID& left, const ContainerID& right);
 bool operator==(const Credential& left, const Credential& right);
 bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
 bool operator==(const Environment& left, const Environment& right);
@@ -67,12 +68,6 @@ bool operator==(const Volume& left, const Volume& right);
 
 bool operator!=(const Labels& left, const Labels& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
-
-
-inline bool operator==(const ContainerID& left, const ContainerID& right)
-{
-  return left.value() == right.value();
-}
 
 
 inline bool operator==(const ExecutorID& left, const ExecutorID& right)
@@ -176,7 +171,7 @@ inline bool operator==(const MachineID& left, const MachineID& right)
 
 inline bool operator!=(const ContainerID& left, const ContainerID& right)
 {
-  return left.value() != right.value();
+  return !(left == right);
 }
 
 
@@ -364,6 +359,13 @@ struct hash<mesos::ContainerID>
   {
     size_t seed = 0;
     boost::hash_combine(seed, containerId.value());
+
+    if (containerId.has_parent()) {
+      boost::hash_combine(
+          seed,
+          std::hash<mesos::ContainerID>()(containerId.parent()));
+    }
+
     return seed;
   }
 };

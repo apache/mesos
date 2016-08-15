@@ -82,6 +82,14 @@ bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right)
 }
 
 
+bool operator==(const ContainerID& left, const ContainerID& right)
+{
+  return left.value() == right.value() &&
+    left.has_parent() == right.has_parent() &&
+    (!left.has_parent() || left.parent() == right.parent());
+}
+
+
 bool operator==(const Credential& left, const Credential& right)
 {
   return left.principal() == right.principal() &&
