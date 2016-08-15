@@ -970,27 +970,6 @@ Future<bool> MesosContainerizerProcess::_launch(
 }
 
 
-static list<Option<ContainerLaunchInfo>> accumulate(
-    list<Option<ContainerLaunchInfo>> l,
-    const Option<ContainerLaunchInfo>& e)
-{
-  l.push_back(e);
-  return l;
-}
-
-
-static Future<list<Option<ContainerLaunchInfo>>> _prepare(
-    const Owned<Isolator>& isolator,
-    const ContainerID& containerId,
-    const ContainerConfig& containerConfig,
-    const list<Option<ContainerLaunchInfo>> launchInfos)
-{
-  // Propagate any failure.
-  return isolator->prepare(containerId, containerConfig)
-    .then(lambda::bind(&accumulate, launchInfos, lambda::_1));
-}
-
-
 Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const Option<TaskInfo>& taskInfo,
@@ -1060,11 +1039,13 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
 
   foreach (const Owned<Isolator>& isolator, isolators) {
     // Chain together preparing each isolator.
-    f = f.then(lambda::bind(&_prepare,
-                            isolator,
-                            containerId,
-                            containerConfig,
-                            lambda::_1));
+    f = f.then([=](list<Option<ContainerLaunchInfo>> launchInfos) {
+      return isolator->prepare(containerId, containerConfig)
+        .then([=](const Option<ContainerLaunchInfo>& launchInfo) mutable {
+          launchInfos.push_back(launchInfo);
+          return launchInfos;
+        });
+      });
   }
 
   containers_[containerId]->launchInfos = f;
