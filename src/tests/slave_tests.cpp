@@ -682,7 +682,7 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
       sandbox.get(),
       "test",
       slaveID,
-      slave.self(),
+      map<string, string>(),
       false);
   AWAIT_READY(launch);
 

@@ -86,7 +86,7 @@ public:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
   virtual process::Future<Nothing> update(
@@ -133,7 +133,7 @@ public:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
   // force = true causes the containerizer to update the resources
@@ -271,7 +271,7 @@ private:
         const std::string& directory,
         const Option<std::string>& user,
         const SlaveID& slaveId,
-        const process::PID<Slave>& slavePid,
+        const std::map<std::string, std::string>& environment,
         bool checkpoint,
         const Flags& flags);
 
@@ -290,7 +290,6 @@ private:
               const std::string& directory,
               const Option<std::string>& user,
               const SlaveID& slaveId,
-              const process::PID<Slave>& slavePid,
               bool checkpoint,
               bool symlinked,
               const Flags& flags,
@@ -306,7 +305,6 @@ private:
         directory(directory),
         user(user),
         slaveId(slaveId),
-        slavePid(slavePid),
         checkpoint(checkpoint),
         symlinked(symlinked),
         flags(flags),
@@ -435,7 +433,6 @@ private:
 
     const Option<std::string> user;
     SlaveID slaveId;
-    const process::PID<Slave> slavePid;
     bool checkpoint;
     bool symlinked;
     const Flags flags;

@@ -430,7 +430,7 @@ Future<bool> MesosContainerizer::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   return dispatch(process.get(),
@@ -441,7 +441,7 @@ Future<bool> MesosContainerizer::launch(
                   directory,
                   user,
                   slaveId,
-                  slavePid,
+                  environment,
                   checkpoint);
 }
 
@@ -731,7 +731,7 @@ Future<bool> MesosContainerizerProcess::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   if (containers_.contains(containerId)) {
@@ -795,7 +795,7 @@ Future<bool> MesosContainerizerProcess::launch(
                   directory,
                   user,
                   slaveId,
-                  slavePid,
+                  environment,
                   checkpoint,
                   None(),
                   lambda::_1));
@@ -822,7 +822,7 @@ Future<bool> MesosContainerizerProcess::launch(
                    directory,
                    user,
                    slaveId,
-                   slavePid,
+                   environment,
                    checkpoint,
                    None());
   }
@@ -842,7 +842,7 @@ Future<bool> MesosContainerizerProcess::launch(
                 directory,
                 user,
                 slaveId,
-                slavePid,
+                environment,
                 checkpoint,
                 lambda::_1));
 }
@@ -855,7 +855,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint,
     const Option<ProvisionInfo>& provisionInfo)
 {
@@ -927,7 +927,7 @@ Future<bool> MesosContainerizerProcess::_launch(
                     directory,
                     user,
                     slaveId,
-                    slavePid,
+                    environment,
                     checkpoint,
                     provisionInfo,
                     lambda::_1));
@@ -1080,7 +1080,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& _environment,
     bool checkpoint,
     const Option<ProvisionInfo>& provisionInfo,
     const list<Option<ContainerLaunchInfo>>& launchInfos)
@@ -1095,14 +1095,7 @@ Future<bool> MesosContainerizerProcess::__launch(
 
   CHECK_EQ(containers_[containerId]->state, PREPARING);
 
-  // Prepare environment variables for the executor.
-  map<string, string> environment = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags);
+  map<string, string> environment = _environment;
 
   // Determine the root filesystem for the executor.
   Option<string> executorRootfs;

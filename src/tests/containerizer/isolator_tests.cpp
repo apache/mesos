@@ -1528,7 +1528,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
       directory,
       None(),
       SlaveID(),
-      process::PID<Slave>(),
+      std::map<string, string>(),
       false);
   AWAIT_READY(launch);
   ASSERT_TRUE(launch.get());

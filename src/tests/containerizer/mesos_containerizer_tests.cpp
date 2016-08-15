@@ -184,7 +184,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait until the launch completes.
@@ -236,7 +236,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait until the launch completes.
@@ -299,7 +299,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait until the launch completes.
@@ -361,14 +361,27 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
     "if [ -n \"$LIBPROCESS_IP\" ]; "
     "then touch $TEST_ENVIRONMENT; fi";
 
+  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", executorCmd);
+  SlaveID slaveId = SlaveID();
+
+  slave::Flags flags;
+
+  map<string, string> environment = executorEnvironment(
+      flags,
+      executorInfo,
+      directory,
+      slaveId,
+      PID<Slave>(),
+      false);
+
   Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", executorCmd),
+      executorInfo,
       directory,
       None(),
-      SlaveID(),
-      PID<Slave>(),
+      slaveId,
+      environment,
       false);
 
   // Wait until the launch completes.
@@ -438,7 +451,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -625,7 +638,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   Future<containerizer::Termination> wait = containerizer.wait(containerId);
@@ -693,7 +706,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   Future<containerizer::Termination> wait = containerizer.wait(containerId);
@@ -814,7 +827,7 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   AWAIT_READY(provision);
@@ -909,7 +922,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   Future<containerizer::Termination> wait = containerizer.wait(containerId);
@@ -1010,7 +1023,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioningVolumeImage)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   Future<containerizer::Termination> wait = containerizer.wait(containerId);
@@ -1112,7 +1125,7 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   Future<containerizer::Termination> wait = containerizer.wait(containerId);
@@ -1199,7 +1212,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
       os::getcwd(),
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   AWAIT_READY(launch);

@@ -242,7 +242,7 @@ DockerContainerizerProcess::Container::create(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint,
     const Flags& flags)
 {
@@ -363,14 +363,6 @@ DockerContainerizerProcess::Container::create(
     launchesExecutorContainer = true;
   }
 
-  map<string, string> environment = executorEnvironment(
-        executorInfo,
-        containerWorkdir,
-        slaveId,
-        slavePid,
-        checkpoint,
-        flags);
-
   return new Container(
       id,
       taskInfo,
@@ -378,7 +370,6 @@ DockerContainerizerProcess::Container::create(
       containerWorkdir,
       user,
       slaveId,
-      slavePid,
       checkpoint,
       symlinked,
       flags,
@@ -681,7 +672,7 @@ Future<bool> DockerContainerizer::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   return dispatch(
@@ -693,7 +684,7 @@ Future<bool> DockerContainerizer::launch(
       directory,
       user,
       slaveId,
-      slavePid,
+      environment,
       checkpoint);
 }
 
@@ -973,7 +964,7 @@ Future<bool> DockerContainerizerProcess::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   if (containers_.contains(containerId)) {
@@ -1005,7 +996,7 @@ Future<bool> DockerContainerizerProcess::launch(
       directory,
       user,
       slaveId,
-      slavePid,
+      environment,
       checkpoint,
       flags);
 

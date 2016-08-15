@@ -81,7 +81,7 @@ public:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
   virtual process::Future<Nothing> update(
@@ -139,7 +139,7 @@ public:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
   virtual process::Future<Nothing> update(
@@ -207,7 +207,7 @@ private:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint,
       const Option<ProvisionInfo>& provisionInfo);
 
@@ -218,7 +218,7 @@ private:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
+      const std::map<std::string, std::string>& _environment,
       bool checkpoint,
       const Option<ProvisionInfo>& provisionInfo,
       const std::list<Option<mesos::slave::ContainerLaunchInfo>>& launchInfos);

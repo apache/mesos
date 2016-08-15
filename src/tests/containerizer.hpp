@@ -86,7 +86,7 @@ public:
           const std::string&,
           const Option<std::string>&,
           const SlaveID&,
-          const process::PID<slave::Slave>&,
+          const std::map<std::string, std::string>&,
           bool checkpoint));
 
   MOCK_METHOD2(
@@ -124,7 +124,7 @@ private:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const process::PID<slave::Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
   process::Future<containerizer::Termination> _wait(

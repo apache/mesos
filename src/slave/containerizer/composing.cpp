@@ -33,6 +33,7 @@
 #include "slave/containerizer/composing.hpp"
 
 using std::list;
+using std::map;
 using std::string;
 using std::vector;
 
@@ -64,7 +65,7 @@ public:
       const string& directory,
       const Option<string>& user,
       const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
+      const map<string, string>& environment,
       bool checkpoint);
 
   Future<Nothing> update(
@@ -99,7 +100,7 @@ private:
       const string& directory,
       const Option<string>& user,
       const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
+      const map<string, string>& environment,
       bool checkpoint,
       vector<Containerizer*>::iterator containerizer,
       bool launched);
@@ -162,7 +163,7 @@ Future<bool> ComposingContainerizer::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   return dispatch(process,
@@ -173,7 +174,7 @@ Future<bool> ComposingContainerizer::launch(
                   directory,
                   user,
                   slaveId,
-                  slavePid,
+                  environment,
                   checkpoint);
 }
 
@@ -293,7 +294,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint,
     vector<Containerizer*>::iterator containerizer,
     bool launched)
@@ -332,7 +333,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
       directory,
       user,
       slaveId,
-      slavePid,
+      environment,
       checkpoint)
     .then(defer(
         self(),
@@ -343,7 +344,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
         directory,
         user,
         slaveId,
-        slavePid,
+        environment,
         checkpoint,
         containerizer,
         lambda::_1));
@@ -357,7 +358,7 @@ Future<bool> ComposingContainerizerProcess::launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   if (containers_.contains(containerId)) {
@@ -381,7 +382,7 @@ Future<bool> ComposingContainerizerProcess::launch(
       directory,
       user,
       slaveId,
-      slavePid,
+      environment,
       checkpoint)
     .then(defer(self(),
                 &Self::_launch,
@@ -391,7 +392,7 @@ Future<bool> ComposingContainerizerProcess::launch(
                 directory,
                 user,
                 slaveId,
-                slavePid,
+                environment,
                 checkpoint,
                 containerizer,
                 lambda::_1));

@@ -292,18 +292,32 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
   ContainerID containerId;
   containerId.set_value("test_container");
 
+  ExecutorInfo executorInfo =
+    CREATE_EXECUTOR_INFO("executor", "test $FOO = 'bar'");
+
+  SlaveID slaveId = SlaveID();
+
+  std::map<string, string> environment = executorEnvironment(
+      CreateSlaveFlags(),
+      executorInfo,
+      directory,
+      slaveId,
+      PID<Slave>(),
+      false);
+
   // Test hook adds a new environment variable "FOO" to the executor
   // with a value "bar". A '0' (success) exit status for the following
   // command validates the hook.
   process::Future<bool> launch = containerizer->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", "test $FOO = 'bar'"),
+      executorInfo,
       directory,
       None(),
-      SlaveID(),
-      process::PID<Slave>(),
+      slaveId,
+      environment,
       false);
+
   AWAIT_READY(launch);
   ASSERT_TRUE(launch.get());
 

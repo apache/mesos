@@ -95,7 +95,7 @@ Future<bool> TestContainerizer::_launch(
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
-    const PID<slave::Slave>& slavePid,
+    const map<string, string>& environment,
     bool checkpoint)
 {
   CHECK(!drivers.contains(containerId))
@@ -136,14 +136,6 @@ Future<bool> TestContainerizer::_launch(
     // We need to save the original set of environment variables so we
     // can reset the environment after calling 'driver->start()' below.
     hashmap<string, string> original = os::environment();
-
-    const map<string, string> environment = executorEnvironment(
-        executorInfo,
-        directory,
-        slaveId,
-        slavePid,
-        checkpoint,
-        flags);
 
     foreachpair (const string& name, const string variable, environment) {
       os::setenv(name, variable);

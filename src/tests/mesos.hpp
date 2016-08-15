@@ -1622,7 +1622,7 @@ public:
           const std::string&,
           const Option<std::string>&,
           const SlaveID&,
-          const process::PID<slave::Slave>&,
+          const std::map<std::string, std::string>&,
           bool checkpoint));
 
   MOCK_METHOD2(
@@ -1640,7 +1640,7 @@ public:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const slave::PID<slave::Slave>& slavePid,
+      const std::map<std::string, std::string>& environment,
       bool checkpoint)
   {
     return slave::DockerContainerizer::launch(
@@ -1650,7 +1650,7 @@ public:
         directory,
         user,
         slaveId,
-        slavePid,
+        environment,
         checkpoint);
   }
 

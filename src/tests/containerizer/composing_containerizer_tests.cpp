@@ -65,7 +65,7 @@ public:
           const std::string&,
           const Option<std::string>&,
           const SlaveID&,
-          const process::PID<Slave>&,
+          const std::map<std::string, std::string>&,
           bool));
 
   MOCK_METHOD2(
@@ -114,7 +114,7 @@ TEST_F(ComposingContainerizerTest, DestroyWhileLaunching)
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
   SlaveID slaveId;
-  PID<Slave> slavePid;
+  std::map<std::string, std::string> environment;
 
   Promise<bool> launchPromise;
 
@@ -133,7 +133,7 @@ TEST_F(ComposingContainerizerTest, DestroyWhileLaunching)
       "dir",
       "user",
       slaveId,
-      slavePid,
+      environment,
       false);
 
   Resources resources = Resources::parse("cpus:1;mem:256").get();

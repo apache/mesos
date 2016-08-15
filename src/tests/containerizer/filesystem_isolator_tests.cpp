@@ -56,6 +56,7 @@ using process::Owned;
 using process::PID;
 using process::Shared;
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -262,7 +263,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -774,7 +775,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -836,7 +837,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -891,7 +892,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -947,7 +948,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   AWAIT_READY_FOR(launch, Seconds(60));
@@ -997,7 +998,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1053,7 +1054,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   AWAIT_READY_FOR(launch, Seconds(60));
@@ -1118,7 +1119,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1192,7 +1193,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1247,7 +1248,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1302,7 +1303,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1387,7 +1388,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
       directory1,
       None(),
       slaveId,
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Wait for the launch to complete.
@@ -1416,7 +1417,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
       directory2,
       None(),
       slaveId,
-      PID<Slave>(),
+      map<string, string>(),
       false);
 
   // Need to wait for Rootfs copy.
@@ -1475,6 +1476,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
 
   executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
+  map<string, string> environment = executorEnvironment(
+      flags,
+      executor,
+      directory,
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
   Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
@@ -1482,7 +1491,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
       directory,
       None(),
       SlaveID(),
-      PID<Slave>(),
+      environment,
       false);
 
   // Wait for the launch to complete.
