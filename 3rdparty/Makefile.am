@@ -76,11 +76,6 @@ EXTRA_DIST =		\
   $(WHEEL).tar.gz	\
   $(ZOOKEEPER).tar.gz
 
-# We need to patch ELFIO in order to deal with some off-by-one errors
-# in parsing the NOTE sections of a binary.
-EXTRA_DIST +=		\
-  $(ELFIO).patch
-
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
 EXTRA_DIST +=		\

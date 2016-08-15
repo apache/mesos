@@ -1,6 +1,6 @@
 set(BOOST_VERSION       "1.53.0")
 set(CURL_VERSION        "7.43.0")
-set(ELFIO_VERSION       "3.1")
+set(ELFIO_VERSION       "3.2")
 set(GLOG_VERSION        "0.3.3")
 set(GMOCK_VERSION       "1.7.0")
 set(HTTP_PARSER_VERSION "2.6.2")
