@@ -1941,26 +1941,6 @@ MesosContainerizerProcess::Metrics::~Metrics()
 }
 
 
-static Future<list<Future<Nothing>>> _cleanupIsolators(
-    const Owned<Isolator>& isolator,
-    const ContainerID& containerId,
-    list<Future<Nothing>> cleanups)
-{
-  // Accumulate but do not propagate any failure.
-  Future<Nothing> cleanup = isolator->cleanup(containerId);
-  cleanups.push_back(cleanup);
-
-  // Wait for the cleanup to complete/fail before returning the list.
-  // We use await here to asynchronously wait for the isolator to
-  // complete then return cleanups.
-  list<Future<Nothing>> cleanup_;
-  cleanup_.push_back(cleanup);
-
-  return await(cleanup_)
-    .then([cleanups]() -> list<Future<Nothing>> { return cleanups; });
-}
-
-
 Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
     const ContainerID& containerId)
 {
@@ -1973,10 +1953,17 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
     // complete and continuing if one fails.
     // TODO(jieyu): Technically, we cannot bind 'isolator' here
     // because the ownership will be transferred after the bind.
-    f = f.then(lambda::bind(&_cleanupIsolators,
-                            isolator,
-                            containerId,
-                            lambda::_1));
+    f = f.then([=](list<Future<Nothing>> cleanups) {
+      // Accumulate but do not propagate any failure.
+      Future<Nothing> cleanup = isolator->cleanup(containerId);
+      cleanups.push_back(cleanup);
+
+      // Wait for the cleanup to complete/fail before returning the
+      // list. We use await here to asynchronously wait for the
+      // isolator to complete then return cleanups.
+      return await(list<Future<Nothing>>({cleanup}))
+        .then([cleanups]() { return cleanups; });
+    });
   }
 
   return f;
