@@ -534,8 +534,7 @@ Option<Error> validateTaskID(const TaskInfo& task)
 
 // Validates that the TaskID does not collide with any existing tasks
 // for the framework.
-Option<Error> validateUniqueTaskID(const TaskInfo& task, Framework*
-    framework)
+Option<Error> validateUniqueTaskID(const TaskInfo& task, Framework* framework)
 {
   const TaskID& taskId = task.task_id();
 
@@ -563,7 +562,9 @@ Option<Error> validateSlaveID(const TaskInfo& task, Slave* slave)
 // Validates that tasks that use the "same" executor (i.e., same
 // ExecutorID) have an identical ExecutorInfo.
 Option<Error> validateExecutorInfo(
-    const TaskInfo& task, Framework* framework, Slave* slave)
+    const TaskInfo& task,
+    Framework* framework,
+    Slave* slave)
 {
   if (task.has_executor() == task.has_command()) {
     return Error(
@@ -940,7 +941,8 @@ Option<Error> validateFramework(
 
 // Validates that all offers belong to the same valid slave.
 Option<Error> validateSlave(
-    const RepeatedPtrField<OfferID>& offerIds, Master* master)
+    const RepeatedPtrField<OfferID>& offerIds,
+    Master* master)
 {
   Option<SlaveID> slaveId;
 
