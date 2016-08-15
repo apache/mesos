@@ -346,6 +346,9 @@ private:
     // associated with this container. `Sequence` allows us to
     // maintain the order of `status` requests for a given container.
     process::Sequence sequence;
+
+    // Containers nested under this container.
+    hashmap<ContainerID, process::Owned<Container>> containers;
   };
 
   hashmap<ContainerID, process::Owned<Container>> containers_;
