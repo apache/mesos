@@ -972,6 +972,174 @@ Option<Error> validate(
   return None();
 }
 
+namespace group {
+
+namespace internal {
+
+Option<Error> validateTask(
+    const TaskInfo& task,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  // Do the general validation first.
+  Option<Error> error = task::internal::validateTask(task, framework, slave);
+  if (error.isSome()) {
+    return error;
+  }
+
+  // Now do `TaskGroup` specific validation.
+  if (task.has_executor()) {
+    return Error("'TaskInfo.executor' must not be set");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateTaskGroupAndExecutorResources(
+    const TaskGroupInfo& taskGroup,
+    const ExecutorInfo& executor)
+{
+  Resources total = executor.resources();
+  foreach (const TaskInfo& task, taskGroup.tasks()) {
+    total += task.resources();
+  }
+
+  Option<Error> error = resource::validateUniquePersistenceID(total);
+  if (error.isSome()) {
+    return Error("Task group and executor use duplicate persistence ID: " +
+                 error->message);
+  }
+
+  error = resource::validateRevocableAndNonRevocableResources(total);
+  if (error.isSome()) {
+    return Error("Task group and executor mix revocable and non-revocable"
+                 " resources: " + error->message);
+  }
+
+  return None();
+}
+
+
+Option<Error> validateExecutor(
+    const TaskGroupInfo& taskGroup,
+    const ExecutorInfo& executor,
+    Framework* framework,
+    Slave* slave,
+    const Resources& offered)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  // Do the general validation first.
+  Option<Error> error =
+    executor::internal::validate(executor, framework, slave);
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  // Now do `TaskGroup` specific validation.
+
+  if (!executor.has_type()) {
+    return Error("'ExecutorInfo.type' must be set");
+  }
+
+
+  if (executor.type() == ExecutorInfo::UNKNOWN) {
+    return Error("Unknown executor type");
+  }
+
+  const Resources& executorResources = executor.resources();
+
+  // Validate minimal cpus and memory resources of executor.
+  Option<double> cpus =  executorResources.cpus();
+  if (cpus.isNone() || cpus.get() < MIN_CPUS) {
+    return Error(
+      "Executor '" + stringify(executor.executor_id()) +
+      "' uses less CPUs (" +
+      (cpus.isSome() ? stringify(cpus.get()) : "None") +
+      ") than the minimum required (" + stringify(MIN_CPUS) + ")");
+  }
+
+  Option<Bytes> mem = executorResources.mem();
+  if (mem.isNone() || mem.get() < MIN_MEM) {
+    return Error(
+      "Executor '" + stringify(executor.executor_id()) +
+      "' uses less memory (" +
+      (mem.isSome() ? stringify(mem.get().megabytes()) : "None") +
+      ") than the minimum required (" + stringify(MIN_MEM) + ")");
+  }
+
+  Option<Bytes> disk = executorResources.disk();
+  if (disk.isNone()) {
+    return Error(
+      "Executor '" + stringify(executor.executor_id()) + "' uses no disk");
+  }
+
+  // Validate combined resources of task group and executor.
+
+  // NOTE: This is refactored into a separate function so that it can
+  // be easily unit tested.
+  error = internal::validateTaskGroupAndExecutorResources(taskGroup, executor);
+  if (error.isSome()) {
+    return error;
+  }
+
+  Resources total;
+  foreach (const TaskInfo& task, taskGroup.tasks()) {
+    total += task.resources();
+  }
+
+  if (!slave->hasExecutor(framework->id(), executor.executor_id())) {
+    total += executorResources;
+  }
+
+  if (!offered.contains(total)) {
+    return Error(
+        "Total resources " + stringify(total) + " required by task group and"
+        " its executor are more than available " + stringify(offered));
+  }
+
+  return None();
+}
+
+} // namespace internal {
+
+
+Option<Error> validate(
+    const TaskGroupInfo& taskGroup,
+    const ExecutorInfo& executor,
+    Framework* framework,
+    Slave* slave,
+    const Resources& offered)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  foreach (const TaskInfo& task, taskGroup.tasks()) {
+    Option<Error> error = internal::validateTask(task, framework, slave);
+    if (error.isSome()) {
+      return Error("Task '" + stringify(task.task_id()) + "' is invalid: " +
+                   error->message);
+    }
+  }
+
+  Option<Error> error =
+    internal::validateExecutor(taskGroup, executor, framework, slave, offered);
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  return None();
+}
+
+} // namespace group {
+
 } // namespace task {
 
 

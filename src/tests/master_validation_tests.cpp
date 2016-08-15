@@ -1450,6 +1450,161 @@ TEST_F(ExecutorValidationTest, ExecutorType)
   }
 }
 
+
+class TaskGroupValidationTest : public MesosTest {};
+
+
+// This test verifies that tasks in a task group cannot mix
+// revocable and non-revocable resources.
+TEST_F(TaskGroupValidationTest, TaskGroupUsesRevocableResources)
+{
+  TaskInfo task1;
+  task1.set_name("test1");
+  task1.mutable_task_id()->set_value("task1");
+  task1.mutable_slave_id()->set_value("slave");
+
+  TaskInfo task2;
+  task2.set_name("test2");
+  task2.mutable_task_id()->set_value("task2");
+  task2.mutable_slave_id()->set_value("slave");
+
+  ExecutorInfo executor = DEFAULT_EXECUTOR_INFO;
+
+  // Non-revocable cpus.
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Value::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  // A task group with only non-revocable cpus is valid.
+  task1.add_resources()->CopyFrom(cpus);
+  task2.add_resources()->CopyFrom(cpus);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor));
+
+  // Revocable cpus.
+  Resource revocableCpus = cpus;
+  revocableCpus.mutable_revocable();
+
+  // A task group with only revocable cpus is valid.
+  task1.clear_resources();
+  task2.clear_resources();
+  task1.add_resources()->CopyFrom(revocableCpus);
+  task2.add_resources()->CopyFrom(revocableCpus);
+
+  taskGroup.clear_tasks();
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor));
+
+  // A task group with one task using revocable resources and another task
+  // using non-revocable cpus is invalid.
+  task1.clear_resources();
+  task2.clear_resources();
+  task1.add_resources()->CopyFrom(cpus);
+  task2.add_resources()->CopyFrom(revocableCpus);
+
+  taskGroup.clear_tasks();
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  EXPECT_SOME(task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor));
+}
+
+
+// This test verifies that tasks in a task group and executor
+// cannot mix revocable and non-revocable resources.
+TEST_F(TaskGroupValidationTest, TaskGroupAndExecutorUsesRevocableResources)
+{
+  TaskInfo task;
+  task.set_name("test1");
+  task.mutable_task_id()->set_value("task1");
+  task.mutable_slave_id()->set_value("slave");
+
+  ExecutorInfo executor = DEFAULT_EXECUTOR_INFO;
+
+  // Non-revocable cpus.
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Value::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  // A task group and executor with only non-revocable cpus is valid.
+  task.add_resources()->CopyFrom(cpus);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  executor.add_resources()->CopyFrom(cpus);
+
+  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor));
+
+  // Revocable cpus.
+  Resource revocableCpus = cpus;
+  revocableCpus.mutable_revocable();
+
+  // A task group and executor with only revocable cpus is valid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(revocableCpus);
+
+  taskGroup.clear_tasks();
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(revocableCpus);
+
+  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor));
+
+  // A task group with the task using revocable resources and executor
+  // using non-revocable cpus is invalid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(revocableCpus);
+
+  taskGroup.clear_tasks();
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(cpus);
+
+  Option<Error> error =
+    task::group::internal::validateTaskGroupAndExecutorResources(
+        taskGroup, executor);
+
+  EXPECT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Task group and executor mix revocable and non-revocable resources"));
+
+  // A task group with the task using non-revocable resources and executor
+  // using revocable cpus is invalid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(cpus);
+
+  taskGroup.clear_tasks();
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(revocableCpus);
+
+  error = task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor);
+
+  EXPECT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Task group and executor mix revocable and non-revocable resources"));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

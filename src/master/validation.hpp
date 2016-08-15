@@ -91,7 +91,8 @@ namespace task {
 
 // Validates a task that a framework attempts to launch within the
 // offered resources. Returns an optional error which will cause the
-// master to send a failed status update back to the framework.
+// master to send a `TASK_ERROR` status update back to the framework.
+//
 // NOTE: This function must be called sequentially for each task, and
 // each task needs to be launched before the next can be validated.
 Option<Error> validate(
@@ -117,6 +118,38 @@ Option<Error> validateKillPolicy(const TaskInfo& task);
 Option<Error> validateHealthCheck(const TaskInfo& task);
 
 } // namespace internal {
+
+namespace group {
+
+// Validates a task group that a framework attempts to launch within the
+// offered resources. Returns an optional error which will cause the
+// master to send a `TASK_ERROR` status updates for *all* the tasks in
+// the task group back to the framework.
+//
+// NOTE: Validation error of *any* task will cause all the tasks in the task
+// group to be rejected by the master.
+Option<Error> validate(
+    const TaskGroupInfo& taskGroup,
+    const ExecutorInfo& executor,
+    Framework* framework,
+    Slave* slave,
+    const Resources& offered);
+
+
+// Functions in this namespace are only exposed for testing.
+namespace internal {
+
+// Validates that the resources specified by
+// the task group and its executor are valid.
+//
+// TODO(vinod): Consolidate this with `validateTaskAndExecutorResources()`.
+Option<Error> validateTaskGroupAndExecutorResources(
+    const TaskGroupInfo& taskGroup,
+    const ExecutorInfo& executor);
+
+} // namespace internal {
+
+} // namespace group {
 
 } // namespace task {
 
