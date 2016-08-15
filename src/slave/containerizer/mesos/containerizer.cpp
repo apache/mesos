@@ -433,8 +433,19 @@ Future<bool> MesosContainerizer::launch(
     const map<string, string>& environment,
     bool checkpoint)
 {
+  // Need to disambiguate for the compiler.
+  Future<bool> (MesosContainerizerProcess::*launch)(
+      const ContainerID&,
+      const Option<TaskInfo>&,
+      const ExecutorInfo&,
+      const string&,
+      const Option<string>&,
+      const SlaveID&,
+      const map<string, string>&,
+      bool) = &MesosContainerizerProcess::launch;
+
   return dispatch(process.get(),
-                  &MesosContainerizerProcess::launch,
+                  launch,
                   containerId,
                   taskInfo,
                   executorInfo,
@@ -443,6 +454,28 @@ Future<bool> MesosContainerizer::launch(
                   slaveId,
                   environment,
                   checkpoint);
+}
+
+
+Future<Nothing> MesosContainerizer::launch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo,
+    const Resources& resources)
+{
+  // Need to disambiguate for the compiler.
+  Future<Nothing> (MesosContainerizerProcess::*launch)(
+      const ContainerID&,
+      const CommandInfo&,
+      const Option<ContainerInfo>&,
+      const Resources&) = &MesosContainerizerProcess::launch;
+
+  return dispatch(process.get(),
+                  launch,
+                  containerId,
+                  commandInfo,
+                  containerInfo,
+                  resources);
 }
 
 
@@ -1408,6 +1441,16 @@ Future<bool> MesosContainerizerProcess::exec(
   containers_[containerId]->state = RUNNING;
 
   return true;
+}
+
+
+Future<Nothing> MesosContainerizerProcess::launch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo,
+    const Resources& resources)
+{
+  return Failure("Unsupported");
 }
 
 
