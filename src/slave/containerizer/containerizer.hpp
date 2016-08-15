@@ -90,6 +90,17 @@ public:
       const std::map<std::string, std::string>& environment,
       bool checkpoint) = 0;
 
+  // Launch a nested container.
+  // TODO(jieyu): Consider combining with the 'launch' above.
+  virtual process::Future<Nothing> launch(
+      const ContainerID& containerId,
+      const CommandInfo& commandInfo,
+      const Option<ContainerInfo>& containerInfo,
+      const Resources& resources)
+  {
+    return process::Failure("Unsupported");
+  }
+
   // Update the resources for a container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
