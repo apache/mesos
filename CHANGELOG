@@ -1169,6 +1169,7 @@ Release Notes - Mesos - Version 0.27.4
 All Issues:
 ** Bug
   * [MESOS-5330] - Agent should backoff before connecting to the master.
+  * [MESOS-5571] - Scheduler JNI throws exception when the major versions of JAR and libmesos don't match.
   * [MESOS-5691] - SSL downgrade support will leak sockets in CLOSE_WAIT status.
   * [MESOS-5723] - SSL-enabled libprocess will leak incoming links to forks.
   * [MESOS-5748] - Potential segfault in `link` when linking to a remote process.
