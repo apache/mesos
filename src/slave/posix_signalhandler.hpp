@@ -18,9 +18,10 @@
 namespace os {
 namespace internal {
 
-// Not using extern as this is used only by the executable. The signal handler
-// should be configured once. Calling it multiple time or from multiple thread
-// has undefined behavior.
+// Not using extern as this is used only by the executable. The signal
+// handler should be configured once. Configuring it multiple times will
+// overwrite any previous handlers. Configuring from multiple threads
+// simultaneously has undefined behavior.
 std::function<void(int, int)>* signaledWrapper = nullptr;
 
 void signalHandler(int sig, siginfo_t* siginfo, void* context)
@@ -33,6 +34,12 @@ void signalHandler(int sig, siginfo_t* siginfo, void* context)
 
 int configureSignal(const std::function<void(int, int)>* signal)
 {
+  // NOTE: We only expect this function to be called called multiple
+  // times inside tests and `mesos-local`.
+  if (signaledWrapper != nullptr) {
+    delete signaledWrapper;
+  }
+
   struct sigaction action;
   memset(&action, 0, sizeof(struct sigaction));
 

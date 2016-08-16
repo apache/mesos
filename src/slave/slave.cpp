@@ -745,7 +745,7 @@ void Slave::initialize()
 #ifdef __WINDOWS__
   if (!os::internal::installCtrlHandler(&signalHandler)) {
     EXIT(EXIT_FAILURE)
-      << "Failed to configure consoel handlers: " << WindowsError().message;
+      << "Failed to configure console handlers: " << WindowsError().message;
   }
 #else
   if (os::internal::configureSignal(&signalHandler) < 0) {

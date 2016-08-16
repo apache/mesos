@@ -20,9 +20,10 @@ namespace internal {
 
 #define SIGUSR1 100
 
-// Not using extern as this is used only by the executable. The signal handler
-// should be configured once. Calling it multiple time or from multiple thread
-// has undefined behavior.
+// Not using extern as this is used only by the executable. The signal
+// handler should be configured once. Configuring it multiple times will
+// overwrite any previous handlers. Configuring from multiple threads
+// simultaneously has undefined behavior.
 std::function<void(int, int)>* signaledWrapper = nullptr;
 
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
@@ -48,6 +49,12 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 
 int installCtrlHandler(const std::function<void(int, int)>* signal)
 {
+  // NOTE: We only expect this function to be called called multiple
+  // times inside tests and `mesos-local`.
+  if (signaledWrapper != nullptr) {
+    delete signaledWrapper;
+  }
+
   if (signal != nullptr) {
     signaledWrapper = new std::function<void(int, int)>(*signal);
     return SetConsoleCtrlHandler(CtrlHandler, TRUE);
