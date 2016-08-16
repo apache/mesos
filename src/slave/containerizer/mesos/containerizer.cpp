@@ -673,8 +673,6 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     status.onAny(defer(self(), &Self::reaped, containerId));
     container->status = status;
 
-    container->directory = run.directory();
-
     // We only checkpoint the containerizer pid after the container
     // successfully launched, therefore we can assume checkpointed
     // containers should be running after recover.
@@ -801,7 +799,6 @@ Future<bool> MesosContainerizerProcess::launch(
             << "' of framework " << executorInfo.framework_id();
 
   Container* container = new Container();
-  container->directory = directory;
   container->state = PROVISIONING;
   container->resources = executorInfo.resources();
 

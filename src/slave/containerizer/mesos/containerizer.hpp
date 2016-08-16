@@ -337,9 +337,6 @@ private:
     // ResourceStatistics limits in usage().
     Resources resources;
 
-    // The executor's working directory on the host.
-    std::string directory;
-
     State state;
 
     // Used when `status` needs to be collected from isolators
