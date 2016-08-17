@@ -163,7 +163,7 @@ public:
 
   Future<int> authenticate(const string& scheme, const string& credentials)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
@@ -190,7 +190,7 @@ public:
       int flags,
       string* result)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*, string*>* args =
       new tuple<Promise<int>*, string*>(&promise, result);
@@ -291,7 +291,7 @@ public:
 
   Future<int> remove(const string& path, int version)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
@@ -307,7 +307,7 @@ public:
 
   Future<int> exists(const string& path, bool watch, Stat* stat)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*, Stat*>* args =
       new tuple<Promise<int>*, Stat*>(&promise, stat);
@@ -324,7 +324,7 @@ public:
 
   Future<int> get(const string& path, bool watch, string* result, Stat* stat)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*, string*, Stat*>* args =
       new tuple<Promise<int>*, string*, Stat*>(&promise, result, stat);
@@ -344,7 +344,7 @@ public:
       bool watch,
       vector<string>* results)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*, vector<string>*>* args =
       new tuple<Promise<int>*, vector<string>*>(&promise, results);
@@ -362,7 +362,7 @@ public:
 
   Future<int> set(const string& path, const string& data, int version)
   {
-    Promise<int> promise = Promise<int>();
+    Promise<int> promise;
 
     tuple<Promise<int>*, Stat*>* args =
       new tuple<Promise<int>*, Stat*>(&promise, nullptr);
