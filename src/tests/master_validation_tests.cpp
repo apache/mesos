@@ -702,7 +702,6 @@ TEST_F(TaskValidationTest, TaskUsesCommandInfoAndExecutorInfo)
 }
 
 
-// TODO(vinod): Revisit this test after `TaskGroup` validation is implemented.
 TEST_F(TaskValidationTest, TaskUsesExecutorInfoWithoutCommandInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -719,6 +718,8 @@ TEST_F(TaskValidationTest, TaskUsesExecutorInfoWithoutCommandInfo)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Create an executor without command info.
+  // Note that we don't set type as 'CUSTOM' because it is not
+  // required for `LAUNCH` operation.
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
 
@@ -736,6 +737,49 @@ TEST_F(TaskValidationTest, TaskUsesExecutorInfoWithoutCommandInfo)
   EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_TRUE(strings::startsWith(
       status->message(), "'ExecutorInfo.command' must be set"));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a scheduler cannot explicitly specify
+// a 'DEFAULT' executor when using `LAUNCH` operation.
+// TODO(vinod): Revisit this when the above is allowed.
+TEST_F(TaskValidationTest, TaskUsesDefaultExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Create a 'DEFAULT' executor.
+  ExecutorInfo executor;
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_executor_id()->set_value("default");
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_TRUE(strings::startsWith(
+      status->message(), "'ExecutorInfo.type' must be 'CUSTOM'"));
 
   driver.stop();
   driver.join();
@@ -842,7 +886,7 @@ TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "Task uses more resources"));
+      status.get().message(), "more than available"));
 
   driver.stop();
   driver.join();
@@ -1013,7 +1057,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnSameSlave)
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "Task has invalid ExecutorInfo"));
+      status.get().message(), "ExecutorInfo is not compatible"));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1190,7 +1234,7 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   task.add_resources()->CopyFrom(cpus);
   executor.add_resources()->CopyFrom(cpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_NONE(task::internal::validateResources(task));
+  EXPECT_NONE(task::internal::validateTaskAndExecutorResources(task));
 
   // Revocable cpus.
   Resource revocableCpus = cpus;
@@ -1202,7 +1246,7 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(revocableCpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_NONE(task::internal::validateResources(task));
+  EXPECT_NONE(task::internal::validateTaskAndExecutorResources(task));
 
   // A task with revocable cpus and its executor with non-revocable
   // cpus is invalid.
@@ -1211,7 +1255,7 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(cpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_SOME(task::internal::validateResources(task));
+  EXPECT_SOME(task::internal::validateTaskAndExecutorResources(task));
 
   // A task with non-revocable cpus and its executor with
   // non-revocable cpus is invalid.
@@ -1220,7 +1264,7 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(revocableCpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_SOME(task::internal::validateResources(task));
+  EXPECT_SOME(task::internal::validateTaskAndExecutorResources(task));
 }
 
 
@@ -1354,6 +1398,57 @@ TEST_F(TaskValidationTest, KillPolicyGracePeriodIsNonNegative)
 
 // TODO(benh): Add tests which launch multiple tasks and check for
 // aggregate resource usage.
+
+
+class ExecutorValidationTest : public MesosTest {};
+
+
+TEST_F(ExecutorValidationTest, ExecutorType)
+{
+  ExecutorInfo executorInfo;
+  executorInfo = DEFAULT_EXECUTOR_INFO;
+  executorInfo.mutable_framework_id()->set_value(UUID::random().toString());
+
+  {
+    // 'CUSTOM' executor with `CommandInfo` set is valid.
+    executorInfo.set_type(ExecutorInfo::CUSTOM);
+    executorInfo.mutable_command();
+
+    EXPECT_NONE(::executor::internal::validateType(executorInfo));
+  }
+
+  {
+    // 'CUSTOM' executor without `CommandInfo` set is invalid.
+    executorInfo.set_type(ExecutorInfo::CUSTOM);
+    executorInfo.clear_command();
+
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+    EXPECT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "'ExecutorInfo.command' must be set for 'CUSTOM' executor"));
+  }
+
+  {
+    // 'DEFAULT' executor without `CommandInfo` set is valid.
+    executorInfo.set_type(ExecutorInfo::DEFAULT);
+    executorInfo.clear_command();
+
+    EXPECT_NONE(::executor::internal::validateType(executorInfo));
+  }
+
+  {
+    // 'DEFAULT' executor with `CommandInfo` set is invalid.
+    executorInfo.set_type(ExecutorInfo::DEFAULT);
+    executorInfo.mutable_command();
+
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+    EXPECT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "'ExecutorInfo.command' must not be set for 'DEFAULT' executor"));
+  }
+}
 
 } // namespace tests {
 } // namespace internal {

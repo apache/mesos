@@ -75,6 +75,18 @@ Option<Error> validate(
 } // namespace resource {
 
 
+namespace executor {
+
+// Functions in this namespace are only exposed for testing.
+namespace internal {
+
+// Validates that fields are properly set depending on the type of the executor.
+Option<Error> validateType(const ExecutorInfo& executor);
+
+} // namespace internal {
+} // namespace executor {
+
+
 namespace task {
 
 // Validates a task that a framework attempts to launch within the
@@ -92,8 +104,11 @@ Option<Error> validate(
 // Functions in this namespace are only exposed for testing.
 namespace internal {
 
-// Validates resources of the task and executor (if present).
+// Validates resources of the task.
 Option<Error> validateResources(const TaskInfo& task);
+
+// Validates resources of the task and its executor.
+Option<Error> validateTaskAndExecutorResources(const TaskInfo& task);
 
 // Validates the kill policy of the task.
 Option<Error> validateKillPolicy(const TaskInfo& task);

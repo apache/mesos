@@ -470,6 +470,25 @@ Option<Error> validateUniquePersistenceID(
 }
 
 
+// Validates that revocable and non-revocable
+// resources of the same name do not exist.
+//
+// TODO(vinod): Is this the right place to do this?
+Option<Error> validateRevocableAndNonRevocableResources(
+    const Resources& _resources)
+{
+  foreach (const string& name, _resources.names()) {
+    Resources resources = _resources.get(name);
+    if (!resources.revocable().empty() && resources != resources.revocable()) {
+      return Error("Cannot use both revocable and non-revocable '" + name +
+                   "' at the same time");
+    }
+  }
+
+  return None();
+}
+
+
 // Validates that all the given resources are persistent volumes.
 Option<Error> validatePersistentVolume(
     const RepeatedPtrField<Resource>& volumes)
@@ -512,6 +531,161 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 }
 
 } // namespace resource {
+
+
+namespace executor {
+namespace internal {
+
+Option<Error> validateType(const ExecutorInfo& executor)
+{
+  switch (executor.type()) {
+    case ExecutorInfo::DEFAULT:
+      if (executor.has_command()) {
+        return Error(
+            "'ExecutorInfo.command' must not be set for 'DEFAULT' executor");
+      }
+      break;
+
+    case ExecutorInfo::CUSTOM:
+      if (!executor.has_command()) {
+        return Error(
+            "'ExecutorInfo.command' must be set for 'CUSTOM' executor");
+      }
+      break;
+
+    case ExecutorInfo::UNKNOWN:
+      // This could happen if a new executor type is introduced in the
+      // protos but the  master doesn't know about it yet (e.g., new
+      // scheduler launches new type of executor on an old master).
+      return None();
+  }
+
+  return None();
+}
+
+
+Option<Error> validateCompatibleExecutorInfo(
+    const ExecutorInfo& executor,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  const ExecutorID& executorId = executor.executor_id();
+  Option<ExecutorInfo> executorInfo = None();
+
+  if (slave->hasExecutor(framework->id(), executorId)) {
+    executorInfo =
+      slave->executors.at(framework->id()).at(executorId);
+  }
+
+  if (executorInfo.isSome() && !(executor == executorInfo.get())) {
+    return Error(
+        "ExecutorInfo is not compatible with existing ExecutorInfo"
+        " with same ExecutorID).\n"
+        "------------------------------------------------------------\n"
+        "Existing ExecutorInfo:\n" +
+        stringify(executorInfo.get()) + "\n"
+        "------------------------------------------------------------\n"
+        "ExecutorInfo:\n" +
+        stringify(executor) + "\n"
+        "------------------------------------------------------------\n");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateFrameworkID(
+    const ExecutorInfo& executor,
+    Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  // Master ensures `ExecutorInfo.framework_id`
+  // is set before calling this method.
+  CHECK(executor.has_framework_id());
+
+  if (executor.framework_id() != framework->id()) {
+    return Error(
+        "ExecutorInfo has an invalid FrameworkID"
+        " (Actual: " + stringify(executor.framework_id()) +
+        " vs Expected: " + stringify(framework->id()) + ")");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateShutdownGracePeriod(const ExecutorInfo& executor)
+{
+  // Make sure provided duration is non-negative.
+  if (executor.has_shutdown_grace_period() &&
+      Nanoseconds(executor.shutdown_grace_period().nanoseconds()) <
+        Duration::zero()) {
+    return Error(
+        "ExecutorInfo's 'shutdown_grace_period' must be non-negative");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateResources(const ExecutorInfo& executor)
+{
+  Option<Error> error = resource::validate(executor.resources());
+  if (error.isSome()) {
+    return Error("Executor uses invalid resources: " + error->message);
+  }
+
+  const Resources& resources = executor.resources();
+
+  error = resource::validateUniquePersistenceID(resources);
+  if (error.isSome()) {
+    return Error(
+        "Executor uses duplicate persistence ID: " + error->message);
+  }
+
+  error = resource::validateRevocableAndNonRevocableResources(resources);
+  if (error.isSome()) {
+    return Error("Executor mixes revocable and non-revocable resources: " +
+                 error->message);
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(
+    const ExecutorInfo& executor,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  vector<lambda::function<Option<Error>()>> validators = {
+    lambda::bind(internal::validateType, executor),
+    lambda::bind(internal::validateFrameworkID, executor, framework),
+    lambda::bind(internal::validateShutdownGracePeriod, executor),
+    lambda::bind(internal::validateResources, executor),
+    lambda::bind(
+        internal::validateCompatibleExecutorInfo, executor, framework, slave)
+  };
+
+  foreach (const lambda::function<Option<Error>()>& validator, validators) {
+    Option<Error> error = validator();
+    if (error.isSome()) {
+      return error;
+    }
+  }
+
+  return None();
+}
+
+} // namespace internal {
+} // namespace executor {
 
 
 namespace task {
@@ -559,73 +733,25 @@ Option<Error> validateSlaveID(const TaskInfo& task, Slave* slave)
 }
 
 
-// Validates that tasks that use the "same" executor (i.e., same
-// ExecutorID) have an identical ExecutorInfo.
-Option<Error> validateExecutorInfo(
-    const TaskInfo& task,
-    Framework* framework,
-    Slave* slave)
+Option<Error> validateKillPolicy(const TaskInfo& task)
 {
-  if (task.has_executor() == task.has_command()) {
-    return Error(
-        "Task should have at least one (but not both) of CommandInfo or "
-        "ExecutorInfo present");
+  if (task.has_kill_policy() &&
+      task.kill_policy().has_grace_period() &&
+      Nanoseconds(task.kill_policy().grace_period().nanoseconds()) <
+        Duration::zero()) {
+    return Error("Task's 'kill_policy.grace_period' must be non-negative");
   }
 
-  if (task.has_executor()) {
-    // Master ensures `ExecutorInfo.framework_id` is set before calling
-    // this method.
-    CHECK(task.executor().has_framework_id());
-
-    if (task.executor().framework_id() != framework->id()) {
-      return Error(
-          "ExecutorInfo has an invalid FrameworkID"
-          " (Actual: " + stringify(task.executor().framework_id()) +
-          " vs Expected: " + stringify(framework->id()) + ")");
-    }
+  return None();
+}
 
 
-    // TODO(vinod): Revisit these when `TaskGroup` validation is added
-    // (MESOS-6042).
-
-    if (task.executor().has_type() &&
-        task.executor().type() != ExecutorInfo::CUSTOM) {
-      return Error("'ExecutorInfo.type' must be 'CUSTOM'");
-    }
-
-    // While `ExecutorInfo.command` is optional in the protobuf,
-    // semantically it is still required for backwards compatibility.
-    if (!task.executor().has_command()) {
-      return Error("'ExecutorInfo.command' must be set");
-    }
-
-    const ExecutorID& executorId = task.executor().executor_id();
-    Option<ExecutorInfo> executorInfo = None();
-
-    if (slave->hasExecutor(framework->id(), executorId)) {
-      executorInfo =
-        slave->executors.get(framework->id()).get().get(executorId);
-    }
-
-    if (executorInfo.isSome() && !(task.executor() == executorInfo.get())) {
-      return Error(
-          "Task has invalid ExecutorInfo (existing ExecutorInfo"
-          " with same ExecutorID is not compatible).\n"
-          "------------------------------------------------------------\n"
-          "Existing ExecutorInfo:\n" +
-          stringify(executorInfo.get()) + "\n"
-          "------------------------------------------------------------\n"
-          "Task's ExecutorInfo:\n" +
-          stringify(task.executor()) + "\n"
-          "------------------------------------------------------------\n");
-    }
-
-    // Make sure provided duration is non-negative.
-    if (task.executor().has_shutdown_grace_period() &&
-        Nanoseconds(task.executor().shutdown_grace_period().nanoseconds()) <
-          Duration::zero()) {
-      return Error(
-          "ExecutorInfo's 'shutdown_grace_period' must be non-negative");
+Option<Error> validateHealthCheck(const TaskInfo& task)
+{
+  if (task.has_health_check()) {
+    Option<Error> error = health::validation::healthCheck(task.health_check());
+    if (error.isSome()) {
+      return Error("Task uses invalid health check: " + error->message);
     }
   }
 
@@ -633,31 +759,144 @@ Option<Error> validateExecutorInfo(
 }
 
 
-// Validates that the task and the executor are using proper amount of
-// resources. For instance, the used resources by a task on a slave
-// should not exceed the total resources offered on that slave.
-Option<Error> validateResourceUsage(
+Option<Error> validateResources(const TaskInfo& task)
+{
+  if (task.resources().empty()) {
+    return Error("Task uses no resources");
+  }
+
+  Option<Error> error = resource::validate(task.resources());
+  if (error.isSome()) {
+    return Error("Task uses invalid resources: " + error->message);
+  }
+
+  const Resources& resources = task.resources();
+
+  error = resource::validateUniquePersistenceID(resources);
+  if (error.isSome()) {
+    return Error("Task uses duplicate persistence ID: " + error->message);
+  }
+
+  error = resource::validateRevocableAndNonRevocableResources(resources);
+  if (error.isSome()) {
+    return Error("Task mixes revocable and non-revocable resources: " +
+                 error->message);
+  }
+
+  return None();
+}
+
+
+Option<Error> validateTaskAndExecutorResources(const TaskInfo& task)
+{
+  Resources total = task.resources();
+  if (task.has_executor()) {
+    total += task.executor().resources();
+  }
+
+  Option<Error> error = resource::validate(total);
+  if (error.isSome()) {
+    return Error(
+        "Task and its executor use invalid resources: " + error->message);
+  }
+
+  error = resource::validateUniquePersistenceID(total);
+  if (error.isSome()) {
+    return Error("Task and its executor use duplicate persistence ID: " +
+                 error->message);
+  }
+
+  error = resource::validateRevocableAndNonRevocableResources(total);
+  if (error.isSome()) {
+    return Error("Task and its executor mix revocable and non-revocable"
+                 " resources: " + error->message);
+  }
+
+  return None();
+}
+
+
+// Validates task specific fields except its executor (if it exists).
+Option<Error> validateTask(
+    const TaskInfo& task,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  // NOTE: The order in which the following validate functions are
+  // executed does matter!
+  vector<lambda::function<Option<Error>()>> validators = {
+    lambda::bind(internal::validateTaskID, task),
+    lambda::bind(internal::validateUniqueTaskID, task, framework),
+    lambda::bind(internal::validateSlaveID, task, slave),
+    lambda::bind(internal::validateKillPolicy, task),
+    lambda::bind(internal::validateHealthCheck, task),
+    lambda::bind(internal::validateResources, task)
+  };
+
+  // TODO(jieyu): Add a validateCommandInfo function.
+
+  foreach (const lambda::function<Option<Error>()>& validator, validators) {
+    Option<Error> error = validator();
+    if (error.isSome()) {
+      return error;
+    }
+  }
+
+  return None();
+}
+
+
+// Validates `Task.executor` if it exists.
+Option<Error> validateExecutor(
     const TaskInfo& task,
     Framework* framework,
     Slave* slave,
     const Resources& offered)
 {
-  Resources taskResources = task.resources();
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
 
-  if (taskResources.empty()) {
-    return Error("Task uses no resources");
+  if (task.has_executor() == task.has_command()) {
+    return Error(
+        "Task should have at least one (but not both) of CommandInfo or "
+        "ExecutorInfo present");
   }
 
-  Resources executorResources;
-  if (task.has_executor()) {
-    executorResources = task.executor().resources();
-  }
+  Resources total = task.resources();
 
-  // Validate minimal cpus and memory resources of executor and log
-  // warnings if not set.
+  Option<Error> error = None();
+
   if (task.has_executor()) {
+    const ExecutorInfo& executor = task.executor();
+
+    // Do the general validation first.
+    error = executor::internal::validate(executor, framework, slave);
+    if (error.isSome()) {
+      return error;
+    }
+
+    // Now do specific validation when an executor is specified on `Task`.
+
+    // TODO(vinod): Revisit this when we allow schedulers to explicitly
+    // specify 'DEFAULT' executor in the `LAUNCH` operation.
+
+    if (executor.has_type() && executor.type() != ExecutorInfo::CUSTOM) {
+      return Error("'ExecutorInfo.type' must be 'CUSTOM'");
+    }
+
+    // While `ExecutorInfo.command` is optional in the protobuf,
+    // semantically it is still required for backwards compatibility.
+    if (!executor.has_command()) {
+      return Error("'ExecutorInfo.command' must be set");
+    }
+
     // TODO(martin): MESOS-1807. Return Error instead of logging a
-    // warning in 0.22.0.
+    // warning.
+    const Resources& executorResources = executor.resources();
+
     Option<double> cpus =  executorResources.cpus();
     if (cpus.isNone() || cpus.get() < MIN_CPUS) {
       LOG(WARNING)
@@ -681,85 +920,25 @@ Option<Error> validateResourceUsage(
         << "). Please update your executor, as this will be mandatory "
         << "in future releases.";
     }
-  }
 
-  // Validate if resources needed by the task (and its executor in
-  // case the executor is new) are available.
-  Resources total = taskResources;
-  if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
-    total += executorResources;
-  }
-
-  if (!offered.contains(total)) {
-    return Error(
-        "Task uses more resources " + stringify(total) +
-        " than available " + stringify(offered));
-  }
-
-  return None();
-}
-
-
-// Validates that the resources specified by the task are valid.
-Option<Error> validateResources(const TaskInfo& task)
-{
-  Option<Error> error = resource::validate(task.resources());
-  if (error.isSome()) {
-    return Error("Task uses invalid resources: " + error.get().message);
-  }
-
-  Resources total = task.resources();
-
-  if (task.has_executor()) {
-    error = resource::validate(task.executor().resources());
-    if (error.isSome()) {
-      return Error("Executor uses invalid resources: " + error.get().message);
-    }
-
-    total += task.executor().resources();
-  }
-
-  // A task and its executor can either use non-revocable resources
-  // or revocable resources of a given name but not both.
-  foreach (const string& name, total.names()) {
-    Resources resources = total.get(name);
-    if (!resources.revocable().empty() &&
-        resources != resources.revocable()) {
-      return Error("Task (and its executor, if exists) uses both revocable and"
-                   " non-revocable " + name);
+    if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
+      total += executorResources;
     }
   }
 
-  error = resource::validateUniquePersistenceID(total);
+  // Now validate combined resources of task and executor.
+
+  // NOTE: This is refactored into a separate function
+  // so that it can be easily unit tested.
+  error = task::internal::validateTaskAndExecutorResources(task);
   if (error.isSome()) {
     return error;
   }
 
-  return None();
-}
-
-
-Option<Error> validateKillPolicy(const TaskInfo& task)
-{
-  if (task.has_kill_policy() &&
-      task.kill_policy().has_grace_period() &&
-      Nanoseconds(task.kill_policy().grace_period().nanoseconds()) <
-        Duration::zero()) {
-    return Error("Task's 'kill_policy.grace_period' must be non-negative");
-  }
-
-  return None();
-}
-
-
-Option<Error> validateHealthCheck(const TaskInfo& task)
-{
-  if (task.has_health_check()) {
-    Option<Error> error = health::validation::healthCheck(task.health_check());
-
-    if (error.isSome()) {
-      return Error("Task uses invalid health check: " + error.get().message);
-    }
+  if (!offered.contains(total)) {
+    return Error(
+        "Total resources " + stringify(total) + " required by task and its"
+        " executor is more than available " + stringify(offered));
   }
 
   return None();
@@ -768,6 +947,7 @@ Option<Error> validateHealthCheck(const TaskInfo& task)
 } // namespace internal {
 
 
+// Validate task and its executor (if it exists).
 Option<Error> validate(
     const TaskInfo& task,
     Framework* framework,
@@ -777,25 +957,10 @@ Option<Error> validate(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
 
-  // NOTE: The order in which the following validate functions are
-  // executed does matter! For example, 'validateResourceUsage'
-  // assumes that ExecutorInfo is valid which is verified by
-  // 'validateExecutorInfo'.
   vector<lambda::function<Option<Error>()>> validators = {
-    lambda::bind(internal::validateTaskID, task),
-    lambda::bind(internal::validateUniqueTaskID, task, framework),
-    lambda::bind(internal::validateSlaveID, task, slave),
-    lambda::bind(internal::validateExecutorInfo, task, framework, slave),
-    lambda::bind(internal::validateResources, task),
-    lambda::bind(internal::validateKillPolicy, task),
-    lambda::bind(internal::validateHealthCheck, task),
-    lambda::bind(
-        internal::validateResourceUsage, task, framework, slave, offered)
+    lambda::bind(internal::validateTask, task, framework, slave),
+    lambda::bind(internal::validateExecutor, task, framework, slave, offered)
   };
-
-  // TODO(benh): Add a validateHealthCheck function.
-
-  // TODO(jieyu): Add a validateCommandInfo function.
 
   foreach (const lambda::function<Option<Error>()>& validator, validators) {
     Option<Error> error = validator();
