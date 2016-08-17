@@ -21,6 +21,8 @@
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <stout/protobuf.hpp>
+
 #include "messages/messages.hpp"
 
 using std::ostream;
@@ -424,6 +426,12 @@ ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
 ostream& operator<<(ostream& stream, const ExecutorID& executorId)
 {
   return stream << executorId.value();
+}
+
+
+ostream& operator<<(std::ostream& stream, const CapabilityInfo& capabilityInfo)
+{
+  return stream << stringify(JSON::protobuf(capabilityInfo));
 }
 
 
