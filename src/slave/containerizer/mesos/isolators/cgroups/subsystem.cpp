@@ -15,8 +15,12 @@
 // limitations under the License.
 
 #include <stout/error.hpp>
+#include <stout/hashmap.hpp>
 
+#include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
+
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.hpp"
 
 using process::Future;
 using process::Owned;
@@ -28,11 +32,27 @@ namespace internal {
 namespace slave {
 
 Try<Owned<Subsystem>> Subsystem::create(
-    const Flags& _flags,
-    const string& _name,
-    const string& _hierarchy)
+    const Flags& flags,
+    const string& name,
+    const string& hierarchy)
 {
-  return Error("Unknown subsystem '" + _name + "'");
+  hashmap<string, Try<Owned<Subsystem>>(*)(const Flags&, const string&)>
+    creators = {
+    {CGROUP_SUBSYSTEM_CPU_NAME, &CpuSubsystem::create},
+  };
+
+  if (!creators.contains(name)) {
+    return Error("Unknown subsystem '" + name + "'");
+  }
+
+  Try<Owned<Subsystem>> subsystem = creators[name](flags, hierarchy);
+  if (subsystem.isError()) {
+    return Error(
+        "Failed to create subsystem '" + name + "': " +
+        subsystem.error());
+  }
+
+  return subsystem.get();
 }
 
 

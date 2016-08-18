@@ -31,6 +31,7 @@
 #include "linux/cgroups.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -74,6 +75,7 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 
   // Multimap: isolator name -> subsystem name.
   multihashmap<string, string> isolatorMap = {
+    {"cpu", CGROUP_SUBSYSTEM_CPU_NAME},
   };
 
   foreach (string isolator, strings::tokenize(flags.isolation, ",")) {

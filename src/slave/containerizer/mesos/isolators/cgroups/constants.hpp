@@ -17,6 +17,8 @@
 #ifndef __CGROUPS_ISOLATOR_CONSTANTS_HPP__
 #define __CGROUPS_ISOLATOR_CONSTANTS_HPP__
 
+#include <string>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 
@@ -34,6 +36,10 @@ const Duration MIN_CPU_CFS_QUOTA = Milliseconds(1);
 
 // Memory subsystem constants.
 const Bytes MIN_MEMORY = Megabytes(32);
+
+
+// Subsystem names.
+const std::string CGROUP_SUBSYSTEM_CPU_NAME = "cpu";
 
 } // namespace slave {
 } // namespace internal {

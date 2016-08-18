@@ -41,8 +41,8 @@ class Subsystem : public process::Process<Subsystem>
 {
 public:
   /**
-   * Attempts to create a specific `Subsystem` object that will contain specific
-   * information associated with container.
+   * Attempts to create a specific `Subsystem` object that will
+   * contain specific information associated with container.
    *
    * @param flags `Flags` used to launch the agent.
    * @param name The name of cgroups subsystem.
@@ -50,9 +50,9 @@ public:
    * @return A specific `Subsystem` object or an error if `create` fails.
    */
   static Try<process::Owned<Subsystem>> create(
-      const Flags& _flags,
-      const std::string& _name,
-      const std::string& _hierarchy);
+      const Flags& flags,
+      const std::string& name,
+      const std::string& hierarchy);
 
   virtual ~Subsystem() {}
 
@@ -91,8 +91,8 @@ public:
       pid_t pid);
 
   /**
-   * Update resources allocated to the associated container in this cgroups
-   * subsystem.
+   * Update resources allocated to the associated container in this
+   * cgroups subsystem.
    *
    * @param containerId The target containerId.
    * @param resources The resources need to update.
@@ -114,8 +114,8 @@ public:
       const ContainerID& containerId);
 
   /**
-   * Get the run-time status of cgroups subsystem specific properties associated
-   * with the container.
+   * Get the run-time status of cgroups subsystem specific properties
+   * associated with the container.
    *
    * @param containerId The target containerId.
    * @return The container status or an error if get fails.
@@ -124,8 +124,8 @@ public:
       const ContainerID& containerId);
 
   /**
-   * Clean up the cgroups subsystem for the associated container. It will be
-   * called when destruction to ensure everyting be cleanup.
+   * Clean up the cgroups subsystem for the associated container. It
+   * will be called when destruction to ensure everyting be cleanup.
    *
    * @param containerId The target containerId.
    * @return Nothing or an error if `cleanup` fails.
