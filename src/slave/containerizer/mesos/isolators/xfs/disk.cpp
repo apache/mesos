@@ -295,7 +295,10 @@ Future<Nothing> XfsDiskIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  CHECK(infos.contains(containerId));
+  if (!infos.contains(containerId)) {
+    LOG(INFO) << "Ignoring update for unknown container " << containerId;
+    return Nothing();
+  }
 
   const Owned<Info>& info = infos[containerId];
 
@@ -332,7 +335,8 @@ Future<ResourceStatistics> XfsDiskIsolatorProcess::usage(
     const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+    LOG(INFO) << "Ignoring usage for unknown container " << containerId;
+    return ResourceStatistics();
   }
 
   ResourceStatistics statistics;

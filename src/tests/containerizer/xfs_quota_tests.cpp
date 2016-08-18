@@ -718,6 +718,106 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
 }
 
 
+// In this test, the agent initially doesn't enable disk isolation
+// but then restarts with XFS disk isolation enabled. We verify that
+// the old container launched before the agent restart is
+// successfully recovered.
+TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  // `CreateSlaveFlags()` enables `disk/xfs` so here we reset
+  // `isolation` to empty.
+  flags.isolation.clear();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1024 count=1; sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  {
+    Future<ResourceUsage> usage =
+      process::dispatch(slave.get()->pid, &Slave::usage);
+    AWAIT_READY(usage);
+
+    // We should have 1 executor using resources but it doesn't have
+    // disk limit enabled.
+    ASSERT_EQ(1, usage.get().executors().size());
+    const ResourceUsage_Executor& executor = usage.get().executors().Get(0);
+    ASSERT_TRUE(executor.has_statistics());
+    ASSERT_FALSE(executor.statistics().has_disk_limit_bytes());
+  }
+
+  // Restart the slave.
+  slave.get()->terminate();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // This time use the agent flags that include XFS disk isolation.
+  slave = StartSlave(detector.get(), CreateSlaveFlags());
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  {
+    Future<ResourceUsage> usage =
+      process::dispatch(slave.get()->pid, &Slave::usage);
+    AWAIT_READY(usage);
+
+    // We should still have 1 executor using resources but it doesn't
+    // have disk limit enabled.
+    ASSERT_EQ(1, usage.get().executors().size());
+    const ResourceUsage_Executor& executor = usage.get().executors().Get(0);
+    ASSERT_TRUE(executor.has_statistics());
+    ASSERT_FALSE(executor.statistics().has_disk_limit_bytes());
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_F(ROOT_XFS_QuotaTest, IsolatorFlags)
 {
   slave::Flags flags;
