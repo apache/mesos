@@ -15,17 +15,11 @@
 // limitations under the License.
 
 #include <stout/error.hpp>
-#include <stout/nothing.hpp>
-#include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
 
-using mesos::slave::ContainerLimitation;
-
-using process::Failure;
 using process::Future;
 using process::Owned;
-using process::PID;
 
 using std::string;
 
@@ -38,7 +32,7 @@ Try<Owned<Subsystem>> Subsystem::create(
     const string& _name,
     const string& _hierarchy)
 {
-  return Error("Not implemented.");
+  return Error("Unknown subsystem '" + _name + "'");
 }
 
 
@@ -49,26 +43,21 @@ Subsystem::Subsystem(
     hierarchy(_hierarchy) {}
 
 
-Subsystem::~Subsystem()
-{
-}
-
-
 Future<Nothing> Subsystem::recover(const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  return Nothing();
 }
 
 
 Future<Nothing> Subsystem::prepare(const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  return Nothing();
 }
 
 
 Future<Nothing> Subsystem::isolate(const ContainerID& containerId, pid_t pid)
 {
-  return Failure("Not implemented.");
+  return Nothing();
 }
 
 
@@ -76,25 +65,25 @@ Future<Nothing> Subsystem::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return Failure("Not implemented.");
+  return Nothing();
 }
 
 
 Future<ResourceStatistics> Subsystem::usage(const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  return ResourceStatistics();
 }
 
 
 Future<ContainerStatus> Subsystem::status(const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  return ContainerStatus();
 }
 
 
 Future<Nothing> Subsystem::cleanup(const ContainerID& containerId)
 {
-  return Failure("Not implemented.");
+  return Nothing();
 }
 
 } // namespace slave {

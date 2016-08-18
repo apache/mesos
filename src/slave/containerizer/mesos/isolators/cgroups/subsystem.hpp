@@ -21,13 +21,11 @@
 
 #include <mesos/resources.hpp>
 
-#include <mesos/slave/isolator.hpp>
-
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/process.hpp>
 
-#include <stout/lambda.hpp>
-#include <stout/option.hpp>
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
@@ -56,7 +54,7 @@ public:
       const std::string& _name,
       const std::string& _hierarchy);
 
-  virtual ~Subsystem();
+  virtual ~Subsystem() {}
 
   /**
    * The cgroups subsystem name of this `Subsystem` object.
