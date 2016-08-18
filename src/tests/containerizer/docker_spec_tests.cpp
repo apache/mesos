@@ -121,14 +121,14 @@ TEST_F(DockerSpecTest, GetRegistrySpec)
   ASSERT_ERROR(scheme);
   EXPECT_TRUE(host.empty());
 
-  registry = "invalid_port:x80";
+  registry = "invalid_host:x80";
   port = spec::getRegistryPort(registry);
   scheme = spec::getRegistryScheme(registry);
   host = spec::getRegistryHost(registry);
 
   ASSERT_ERROR(port);
   ASSERT_ERROR(scheme);
-  EXPECT_EQ("invalid_port", host);
+  EXPECT_EQ("invalid_host", host);
 
   registry = "invalid_port:80:80";
   port = spec::getRegistryPort(registry);
@@ -165,6 +165,33 @@ TEST_F(DockerSpecTest, GetRegistrySpec)
   EXPECT_SOME_EQ(443, port);
   EXPECT_SOME_EQ("https", scheme);
   EXPECT_EQ("registry-1.docker.io", host);
+
+  registry = "127.0.0.1:443";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  EXPECT_SOME_EQ(443, port);
+  EXPECT_SOME_EQ("https", scheme);
+  EXPECT_EQ("127.0.0.1", host);
+
+  registry = "127.0.0.1:1234";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  EXPECT_SOME_EQ(1234, port);
+  EXPECT_SOME_EQ("http", scheme);
+  EXPECT_EQ("127.0.0.1", host);
+
+  registry = "localhost:1234";
+  port = spec::getRegistryPort(registry);
+  scheme = spec::getRegistryScheme(registry);
+  host = spec::getRegistryHost(registry);
+
+  EXPECT_SOME_EQ(1234, port);
+  EXPECT_SOME_EQ("http", scheme);
+  EXPECT_EQ("localhost", host);
 }
 
 
