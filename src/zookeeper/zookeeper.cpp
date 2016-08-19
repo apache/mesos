@@ -163,11 +163,9 @@ public:
 
   Future<int> authenticate(const string& scheme, const string& credentials)
   {
-    Promise<int>* promise = new Promise<int>();
+    Promise<int> promise;
 
-    Future<int> future = promise->future();
-
-    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(promise);
+    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
     int ret = zoo_add_auth(
         zh,
@@ -178,12 +176,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> create(
@@ -193,12 +190,10 @@ public:
       int flags,
       string* result)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise;
 
     tuple<Promise<int>*, string*>* args =
-      new tuple<Promise<int>*, string*>(promise, result);
+      new tuple<Promise<int>*, string*>(&promise, result);
 
     int ret = zoo_acreate(
         zh,
@@ -211,12 +206,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> create(
@@ -297,61 +291,52 @@ public:
 
   Future<int> remove(const string& path, int version)
   {
-    Promise<int>* promise = new Promise<int>();
+    Promise<int> promise;
 
-    Future<int> future = promise->future();
-
-    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(promise);
+    tuple<Promise<int>*>* args = new tuple<Promise<int>*>(&promise);
 
     int ret = zoo_adelete(zh, path.c_str(), version, voidCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> exists(const string& path, bool watch, Stat* stat)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise;
 
     tuple<Promise<int>*, Stat*>* args =
-      new tuple<Promise<int>*, Stat*>(promise, stat);
+      new tuple<Promise<int>*, Stat*>(&promise, stat);
 
     int ret = zoo_aexists(zh, path.c_str(), watch, statCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> get(const string& path, bool watch, string* result, Stat* stat)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise;
 
     tuple<Promise<int>*, string*, Stat*>* args =
-      new tuple<Promise<int>*, string*, Stat*>(promise, result, stat);
+      new tuple<Promise<int>*, string*, Stat*>(&promise, result, stat);
 
     int ret = zoo_aget(zh, path.c_str(), watch, dataCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> getChildren(
@@ -359,33 +344,28 @@ public:
       bool watch,
       vector<string>* results)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise;
 
     tuple<Promise<int>*, vector<string>*>* args =
-      new tuple<Promise<int>*, vector<string>*>(promise, results);
+      new tuple<Promise<int>*, vector<string>*>(&promise, results);
 
     int ret =
       zoo_aget_children(zh, path.c_str(), watch, stringsCompletion, args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
   Future<int> set(const string& path, const string& data, int version)
   {
-    Promise<int>* promise = new Promise<int>();
-
-    Future<int> future = promise->future();
+    Promise<int> promise;
 
     tuple<Promise<int>*, Stat*>* args =
-      new tuple<Promise<int>*, Stat*>(promise, nullptr);
+      new tuple<Promise<int>*, Stat*>(&promise, nullptr);
 
     int ret = zoo_aset(
         zh,
@@ -397,12 +377,11 @@ public:
         args);
 
     if (ret != ZOK) {
-      delete promise;
       delete args;
       return ret;
     }
 
-    return future;
+    return promise.future();
   }
 
 private:
