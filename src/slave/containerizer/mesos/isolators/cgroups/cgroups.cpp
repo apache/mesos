@@ -635,12 +635,8 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
 Future<Nothing> CgroupsIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  // Multiple calls may occur during test clean up.
   if (!infos.contains(containerId)) {
-    VLOG(1) << "Ignoring cleanup request for unknown container: "
-            << containerId;
-
-    return Nothing();
+    return Failure("Unknown container");
   }
 
   list<Future<Nothing>> cleanups;
