@@ -77,6 +77,7 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
   multihashmap<string, string> isolatorMap = {
     {"cpu", CGROUP_SUBSYSTEM_CPU_NAME},
     {"cpu", CGROUP_SUBSYSTEM_CPUACCT_NAME},
+    {"devices", CGROUP_SUBSYSTEM_DEVICES_NAME},
   };
 
   foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
