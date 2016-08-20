@@ -150,7 +150,6 @@ Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
 
 Future<Nothing> DevicesSubsystem::cleanup(const ContainerID& containerId)
 {
-  // Multiple calls may occur during test clean up.
   if (!containerIds.contains(containerId)) {
     return Failure("Unknown container");
   }
