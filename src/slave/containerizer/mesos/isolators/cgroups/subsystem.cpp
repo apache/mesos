@@ -21,6 +21,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.hpp"
 
 using process::Future;
 using process::Owned;
@@ -39,6 +40,7 @@ Try<Owned<Subsystem>> Subsystem::create(
   hashmap<string, Try<Owned<Subsystem>>(*)(const Flags&, const string&)>
     creators = {
     {CGROUP_SUBSYSTEM_CPU_NAME, &CpuSubsystem::create},
+    {CGROUP_SUBSYSTEM_CPUACCT_NAME, &CpuacctSubsystem::create},
   };
 
   if (!creators.contains(name)) {

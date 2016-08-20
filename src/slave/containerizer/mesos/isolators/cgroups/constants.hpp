@@ -40,6 +40,7 @@ const Bytes MIN_MEMORY = Megabytes(32);
 
 // Subsystem names.
 const std::string CGROUP_SUBSYSTEM_CPU_NAME = "cpu";
+const std::string CGROUP_SUBSYSTEM_CPUACCT_NAME = "cpuacct";
 
 } // namespace slave {
 } // namespace internal {

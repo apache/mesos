@@ -168,6 +168,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystem.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp
