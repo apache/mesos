@@ -636,7 +636,9 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
-    return Failure("Unknown container");
+    VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
+
+    return Nothing();
   }
 
   list<Future<Nothing>> cleanups;

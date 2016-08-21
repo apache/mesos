@@ -126,6 +126,10 @@ public:
   /**
    * Clean up the cgroups subsystem for the associated container. It
    * will be called when destruction to ensure everyting be cleanup.
+   * Similar to the isolator `cleanup`, it's likely that the `cleanup`
+   * for the subsystem is called for unknown containers (see
+   * MESOS-6059). We should ignore the cleanup request if the
+   * container is unknown to the subsystem.
    *
    * @param containerId The target containerId.
    * @return Nothing or an error if `cleanup` fails.

@@ -107,6 +107,12 @@ public:
 
   // Clean up a terminated container. This is called after the
   // executor and all processes in the container have terminated.
+  // It's likely that isolator `cleanup` is called for an unknown
+  // container (see MESOS-6059). Therefore, the isolator should ignore
+  // the cleanup is the container is unknown to it. In any case, the
+  // `cleanup` won't be called multiple times for a container. Also,
+  // if `prepare` is called, the cleanup is guaranteed to be called
+  // after `prepare` finishes (or fails).
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId)
   {

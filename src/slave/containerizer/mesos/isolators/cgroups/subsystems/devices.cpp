@@ -151,7 +151,10 @@ Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
 Future<Nothing> DevicesSubsystem::cleanup(const ContainerID& containerId)
 {
   if (!containerIds.contains(containerId)) {
-    return Failure("Unknown container");
+    VLOG(1) << "Ignoring cleanup subsystem '" << name() << "' "
+            << "for unknown container " << containerId;
+
+    return Nothing();
   }
 
   containerIds.erase(containerId);
