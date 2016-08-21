@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
+#include <limits>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -71,11 +72,21 @@ static double convertToFloating(long long fixedValue)
 
 ostream& operator<<(ostream& stream, const Value::Scalar& scalar)
 {
-  // We discard any additional precision from scalar resources before
-  // writing them to an ostream. This is redundant when the scalar is
-  // obtained from one of the operators below, but user-specified
-  // resource values might contain additional precision.
-  return stream << convertToFloating(convertToFixed(scalar.value()));
+  // Output the scalar's full significant digits and save the old
+  // precision.
+  long precision = stream.precision(std::numeric_limits<double>::digits10);
+
+  // We discard any additional precision (of the fractional part)
+  // from scalar resources before writing them to an ostream. This
+  // is redundant when the scalar is obtained from one of the
+  // operators below, but user-specified resource values might
+  // contain additional precision.
+  stream << convertToFloating(convertToFixed(scalar.value()));
+
+  // Return the stream to its original formatting state.
+  stream.precision(precision);
+
+  return stream;
 }
 
 

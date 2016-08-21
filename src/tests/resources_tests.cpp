@@ -878,6 +878,19 @@ TEST(ResourcesTest, PrintingScalarPrecision)
   stream.str("");
   stream << scalar;
   EXPECT_EQ("cpus(*):1.1", stream.str());
+
+  // Large integers are printed with all digits.
+  scalar.mutable_scalar()->set_value(1000001);
+  stream.str("");
+  stream << scalar;
+  EXPECT_EQ("cpus(*):1000001", stream.str());
+
+  // Even larger value with precision in the fractional part limited
+  // to 3 digits but full precision in the integral part preserved.
+  scalar.mutable_scalar()->set_value(99999999999.9994);
+  stream.str("");
+  stream << scalar;
+  EXPECT_EQ("cpus(*):99999999999.999", stream.str());
 }
 
 
