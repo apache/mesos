@@ -62,6 +62,7 @@ public:
   Bytes fetcher_cache_size;
   std::string fetcher_cache_dir;
   std::string work_dir;
+  std::string runtime_dir;
   std::string launcher_dir;
   std::string hadoop_home; // TODO(benh): Make an Option.
 #ifndef __WINDOWS__

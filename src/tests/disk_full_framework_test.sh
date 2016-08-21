@@ -11,6 +11,7 @@ source ${MESOS_HELPER_DIR}/atexit.sh
 MASTER_PID=
 AGENT_PID=
 MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
+MESOS_RUNTIME_DIR=`mktemp -d -t mesos-XXXXXX`
 
 function cleanup() {
   # Make sure we kill the master on exit.
@@ -25,6 +26,10 @@ function cleanup() {
 
   if [[ -d "${MESOS_WORK_DIR}" ]]; then
     rm -rf ${MESOS_WORK_DIR};
+  fi
+
+  if [[ -d "${MESOS_RUNTIME_DIR}" ]]; then
+    rm -rf ${MESOS_RUNTIME_DIR};
   fi
 }
 
@@ -67,6 +72,7 @@ export MESOS_SYSTEMD_ENABLE_SUPPORT=false
 # Launch agent.
 ${AGENT} \
     --work_dir=${MESOS_WORK_DIR} \
+    --runtime_dir=${MESOS_RUNTIME_DIR} \
     --master=127.0.0.1:5432 \
     --isolation='disk/du' \
     --enforce_container_disk_quota \

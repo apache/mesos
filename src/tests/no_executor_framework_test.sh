@@ -24,6 +24,11 @@ MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 atexit "rm -rf ${MESOS_WORK_DIR}"
 export MESOS_WORK_DIR=${MESOS_WORK_DIR}
 
+MESOS_RUNTIME_DIR=`mktemp -d -t mesos-XXXXXX`
+
+atexit "rm -rf ${MESOS_RUNTIME_DIR}"
+export MESOS_RUNTIME_DIR=${MESOS_RUNTIME_DIR}
+
 # Lower the authentication timeout to speed up the test (the master
 # may drop the authentication message while it is recovering).
 export MESOS_AUTHENTICATION_TIMEOUT=200ms

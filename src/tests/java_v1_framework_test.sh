@@ -21,6 +21,11 @@ MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 atexit "rm -rf ${MESOS_WORK_DIR}"
 export MESOS_WORK_DIR=${MESOS_WORK_DIR}
 
+MESOS_RUNTIME_DIR=`mktemp -d -t mesos-XXXXXX`
+
+atexit "rm -rf ${MESOS_RUNTIME_DIR}"
+export MESOS_RUNTIME_DIR=${MESOS_RUNTIME_DIR}
+
 # Set the connection delay to 0 to speed up the tests.
 export MESOS_CONNECTION_DELAY_MAX=0ms;
 

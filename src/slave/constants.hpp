@@ -137,6 +137,11 @@ constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
+// Default path of the agent runtime directory. This is where runtime
+// data is stored by an agent that it needs to persist across crashes
+// (but not across reboots). This directory will be cleared on reboot.
+constexpr char DEFAULT_RUNTIME_DIRECTORY[] = "/var/run/mesos";
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

@@ -190,6 +190,14 @@ mesos::internal::slave::Flags::Flags()
       "production, since long-running agents could lose data when cleanup\n"
       "occurs. (Example: `/var/lib/mesos/agent`)");
 
+  add(&Flags::runtime_dir,
+      "runtime_dir",
+      "Path of the agent runtime directory. This is where runtime data\n"
+      "is stored by an agent that it needs to persist across crashes (but\n"
+      "not across reboots). This directory will be cleared on reboot.\n"
+      "(Example: `/var/run/mesos`)",
+      DEFAULT_RUNTIME_DIRECTORY);
+
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
       "launcher_dir",
       "Directory path of Mesos binaries. Mesos looks for the health-check,\n"
