@@ -170,6 +170,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/devices.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/memory.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp

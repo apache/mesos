@@ -78,6 +78,7 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
     {"cpu", CGROUP_SUBSYSTEM_CPU_NAME},
     {"cpu", CGROUP_SUBSYSTEM_CPUACCT_NAME},
     {"devices", CGROUP_SUBSYSTEM_DEVICES_NAME},
+    {"mem", CGROUP_SUBSYSTEM_MEMORY_NAME},
   };
 
   foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
@@ -522,7 +523,36 @@ Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     return Failure("Unknown container");
   }
 
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
+    subsystem->watch(containerId)
+      .onAny(defer(
+          PID<CgroupsIsolatorProcess>(this),
+          &CgroupsIsolatorProcess::_watch,
+          containerId,
+          lambda::_1));
+  }
+
   return infos[containerId]->limitation.future();
+}
+
+
+void CgroupsIsolatorProcess::_watch(
+    const ContainerID& containerId,
+    const Future<ContainerLimitation>& future)
+{
+  if (!infos.contains(containerId)) {
+    return;
+  }
+
+  CHECK(!future.isPending());
+
+  if (future.isReady()) {
+    infos[containerId]->limitation.set(future.get());
+  } else if (future.isFailed()) {
+    infos[containerId]->limitation.fail(future.failure());
+  } else {
+    infos[containerId]->limitation.discard();
+  }
 }
 
 

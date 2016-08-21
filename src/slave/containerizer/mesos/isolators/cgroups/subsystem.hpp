@@ -21,6 +21,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -89,6 +91,15 @@ public:
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t pid);
+
+  /**
+   * Watch the container and report if any resource constraint impacts it.
+   *
+   * @param containerId The target containerId.
+   * @return Nothing or an error if `recover` fails.
+   */
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId);
 
   /**
    * Update resources allocated to the associated container in this

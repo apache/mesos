@@ -125,6 +125,10 @@ private:
   process::Future<Nothing> _isolate(
       const std::list<process::Future<Nothing>>& futures);
 
+  void _watch(
+      const ContainerID& containerId,
+      const process::Future<mesos::slave::ContainerLimitation>& future);
+
   process::Future<Nothing> _update(
       const std::list<process::Future<Nothing>>& futures);
 
