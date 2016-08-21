@@ -78,6 +78,10 @@ public:
       status,
       process::Future<ContainerStatus>(const ContainerID& containerId));
 
+  MOCK_METHOD1(
+      getExitStatusCheckpointPath,
+      std::string(const ContainerID& containerId));
+
   process::Owned<slave::Launcher> real;
 };
 

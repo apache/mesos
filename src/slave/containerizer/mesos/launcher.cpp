@@ -21,6 +21,7 @@
 #include <process/process.hpp>
 #include <process/reap.hpp>
 
+#include <stout/path.hpp>
 #include <stout/unreachable.hpp>
 
 #include <stout/os/killtree.hpp>
@@ -46,9 +47,35 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+constexpr char POSIX_LAUNCHER_NAME[] = "posix";
+
+
+string Launcher::buildPathFromHierarchy(
+    const ContainerID& _containerId,
+    const string& prefix)
+{
+  // Build the path in reverse order
+  // by following the parent hierarchy.
+  ContainerID containerId = _containerId;
+
+  string path = path::join(prefix, containerId.value());
+
+  while (containerId.has_parent()) {
+    containerId = containerId.parent();
+
+    path = path::join(
+        prefix,
+        containerId.value(),
+        path);
+  }
+
+  return path;
+}
+
+
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
 {
-  return new PosixLauncher();
+  return new PosixLauncher(flags);
 }
 
 
@@ -181,9 +208,21 @@ Future<ContainerStatus> PosixLauncher::status(const ContainerID& containerId)
 }
 
 
+string PosixLauncher::getExitStatusCheckpointPath(
+    const ContainerID& containerId)
+{
+  return path::join(
+      flags.runtime_dir,
+      "launcher",
+      POSIX_LAUNCHER_NAME,
+      buildPathFromHierarchy(containerId, "containers"),
+      "exit_status");
+}
+
+
 Try<Launcher*> WindowsLauncher::create(const Flags& flags)
 {
-  return new WindowsLauncher();
+  return new WindowsLauncher(flags);
 }
 
 } // namespace slave {
