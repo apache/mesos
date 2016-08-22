@@ -19,6 +19,10 @@
 
 #include <stout/subcommand.hpp>
 
+namespace mesos {
+namespace internal {
+namespace tests {
+
 class SetnsTestHelper : public Subcommand
 {
 public:
@@ -29,5 +33,9 @@ public:
 protected:
   virtual int execute();
 };
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
 
 #endif // __SETNS_TEST_HELPER_HPP__

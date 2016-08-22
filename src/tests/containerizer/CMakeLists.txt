@@ -16,13 +16,6 @@
 
 # CONTAINERIZER TESTS.
 ######################
-if (LINUX)
-  set(SETNS_TEST_HELPER_SRC
-    ${SETNS_TEST_HELPER_SRC}
-    setns_test_helper_main.cpp
-    setns_test_helper.cpp
-    )
-endif (LINUX)
 
 # INCLUDE DIRECTIVES FOR CONTAINERIZER TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
@@ -36,18 +29,9 @@ link_directories(${CONTAINERIZER_TEST_LIB_DIRS})
 
 # THE CONTAINERIZER TEST EXECUTABLE (generates, e.g., stout_tests, etc., on Linux).
 ###########################################################################
-if (LINUX)
-  add_executable(${SETNS_TEST_HELPER_TARGET} ${SETNS_TEST_HELPER_SRC})
-endif (LINUX)
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-if (LINUX)
-  target_link_libraries(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_LIBS})
-endif (LINUX)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-if (LINUX)
-  add_dependencies(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
-endif (LINUX)

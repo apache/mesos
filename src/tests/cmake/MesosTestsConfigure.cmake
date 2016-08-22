@@ -19,13 +19,6 @@ set(
   CACHE STRING "Test helper target to run tests that require a subprocess."
   )
 
-if (LINUX)
-  set(
-    SETNS_TEST_HELPER_TARGET setns-test-helper
-    CACHE STRING "Test helper target that allows changing the test to its parent namespace."
-    )
-endif (LINUX)
-
 # COMPILER CONFIGURATION.
 #########################
 if (WIN32)

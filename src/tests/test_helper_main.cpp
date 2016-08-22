@@ -20,9 +20,15 @@
 #include "tests/active_user_test_helper.hpp"
 
 #include "tests/containerizer/memory_test_helper.hpp"
+#ifdef __linux__
+#include "tests/containerizer/setns_test_helper.hpp"
+#endif
 
 using mesos::internal::tests::ActiveUserTestHelper;
 using mesos::internal::tests::MemoryTestHelper;
+#ifdef __linux__
+using mesos::internal::tests::SetnsTestHelper;
+#endif
 
 
 int main(int argc, char** argv)
@@ -31,6 +37,9 @@ int main(int argc, char** argv)
       None(),
       argc,
       argv,
+#ifdef __linux__
+      new SetnsTestHelper(),
+#endif
       new ActiveUserTestHelper(),
       new MemoryTestHelper());
 }

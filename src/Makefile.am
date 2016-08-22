@@ -1906,15 +1906,6 @@ disk_full_framework_SOURCES = examples/disk_full_framework.cpp
 disk_full_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 disk_full_framework_LDADD = libmesos.la $(LDADD)
 
-if OS_LINUX
-check_PROGRAMS += setns-test-helper
-setns_test_helper_SOURCES =					\
-  tests/containerizer/setns_test_helper_main.cpp		\
-  tests/containerizer/setns_test_helper.cpp
-setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
-setns_test_helper_LDADD = libmesos.la $(LDADD)
-endif
-
 check_PROGRAMS += test-helper
 test_helper_SOURCES =						\
   tests/active_user_test_helper.cpp				\
@@ -1922,6 +1913,10 @@ test_helper_SOURCES =						\
   tests/test_helper_main.cpp					\
   tests/utils.cpp						\
   tests/containerizer/memory_test_helper.cpp
+if OS_LINUX
+test_helper_SOURCES +=						\
+  tests/containerizer/setns_test_helper.cpp
+endif
 test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
 test_helper_LDADD = libmesos.la $(mesos_tests_LDADD)
 

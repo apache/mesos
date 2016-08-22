@@ -26,6 +26,13 @@ set(TEST_HELPER_SRC
   containerizer/memory_test_helper.cpp
   )
 
+if (LINUX)
+  set(TEST_HELPER_SRC
+    ${TEST_HELPER_SRC}
+    containerizer/setns_test_helper.cpp
+    )
+endif (LINUX)
+
 add_subdirectory(containerizer/)
 
 # TODO(hausdorff): Add the other tests here.

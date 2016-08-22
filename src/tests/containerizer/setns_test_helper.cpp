@@ -28,7 +28,12 @@
 using std::set;
 using std::string;
 
-const char SetnsTestHelper::NAME[] = "SetnsTestHelper";
+namespace mesos {
+namespace internal {
+namespace tests {
+
+const char SetnsTestHelper::NAME[] = "Setns";
+
 
 int SetnsTestHelper::execute()
 {
@@ -59,3 +64,7 @@ int SetnsTestHelper::execute()
 
   return 0;
 }
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
