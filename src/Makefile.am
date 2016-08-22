@@ -328,7 +328,9 @@ CXX_STATE_PROTOS =							\
 
 JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
-  java/generated/org/apache/mesos/containerizer/Protos.java
+  java/generated/org/apache/mesos/containerizer/Protos.java             \
+  java/generated/org/apache/mesos/executor/Protos.java			\
+  java/generated/org/apache/mesos/scheduler/Protos.java
 
 PYTHON_PROTOS =								\
   python/interface/src/mesos/interface/mesos_pb2.py			\
