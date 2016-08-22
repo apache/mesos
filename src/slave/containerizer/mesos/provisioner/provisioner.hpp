@@ -85,19 +85,19 @@ public:
   // directories) to not leak anything.
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
+      const hashset<ContainerID>& orphans) const;
 
   // Provision a root filesystem for the container using the specified
   // image and return the absolute path to the root filesystem.
   virtual process::Future<ProvisionInfo> provision(
       const ContainerID& containerId,
-      const Image& image);
+      const Image& image) const;
 
   // Destroy a previously provisioned root filesystem. Assumes that
   // all references (e.g., mounts, open files) to the provisioned
   // filesystem have been removed. Return false if there is no
   // provisioned root filesystem for the given container.
-  virtual process::Future<bool> destroy(const ContainerID& containerId);
+  virtual process::Future<bool> destroy(const ContainerID& containerId) const;
 
 protected:
   Provisioner() {} // For creating mock object.

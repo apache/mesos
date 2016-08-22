@@ -118,7 +118,7 @@ Provisioner::~Provisioner()
 
 Future<Nothing> Provisioner::recover(
     const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
+    const hashset<ContainerID>& orphans) const
 {
   return dispatch(
       CHECK_NOTNULL(process.get()),
@@ -130,7 +130,7 @@ Future<Nothing> Provisioner::recover(
 
 Future<ProvisionInfo> Provisioner::provision(
     const ContainerID& containerId,
-    const Image& image)
+    const Image& image) const
 {
   return dispatch(
       CHECK_NOTNULL(process.get()),
@@ -140,7 +140,7 @@ Future<ProvisionInfo> Provisioner::provision(
 }
 
 
-Future<bool> Provisioner::destroy(const ContainerID& containerId)
+Future<bool> Provisioner::destroy(const ContainerID& containerId) const
 {
   return dispatch(
       CHECK_NOTNULL(process.get()),
