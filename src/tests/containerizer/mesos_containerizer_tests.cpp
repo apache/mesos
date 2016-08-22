@@ -827,10 +827,6 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
-
   Image image;
   image.set_type(Image::DOCKER);
   Image::Docker dockerImage;
@@ -843,6 +839,11 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
@@ -922,10 +923,6 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
-
   Image image;
   image.set_type(Image::DOCKER);
   Image::Docker dockerImage;
@@ -938,6 +935,11 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
@@ -1024,10 +1026,6 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
-
   Image image;
   image.set_type(Image::DOCKER);
   Image::Docker dockerImage;
@@ -1040,6 +1038,11 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
