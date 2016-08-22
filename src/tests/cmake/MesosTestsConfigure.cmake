@@ -20,8 +20,8 @@ set(
   )
 
 set(
-  ACTIVE_USER_TEST_HELPER_TARGET active-user-test-helper
-  CACHE STRING "Test helper target required to run tests with a user."
+  TEST_HELPER_TARGET test-helper
+  CACHE STRING "Test helper target to run tests that require a subprocess."
   )
 
 if (LINUX)

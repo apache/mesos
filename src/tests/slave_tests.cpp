@@ -60,6 +60,7 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#include "tests/active_user_test_helper.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
@@ -991,14 +992,15 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   CHECK_SOME(user) << "Failed to get current user name"
                    << (user.isError() ? ": " + user.error() : "");
 
-  const string helper = getTestHelperPath("active-user-test-helper");
+  const string helper = getTestHelperPath("test-helper");
 
   // Command executor will run as user running test.
   CommandInfo command;
   command.set_shell(false);
   command.set_value(helper);
   command.add_arguments(helper);
-  command.add_arguments(user.get());
+  command.add_arguments(ActiveUserTestHelper::NAME);
+  command.add_arguments("--user=" + user.get());
 
   task.mutable_command()->MergeFrom(command);
 
@@ -1071,7 +1073,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
-  const string helper = getTestHelperPath("active-user-test-helper");
+  const string helper = getTestHelperPath("test-helper");
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1107,7 +1109,8 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   prepareCommand.set_shell(false);
   prepareCommand.set_value(helper);
   prepareCommand.add_arguments(helper);
-  prepareCommand.add_arguments(user.get());
+  prepareCommand.add_arguments(ActiveUserTestHelper::NAME);
+  prepareCommand.add_arguments("--user=" + user.get());
   prepareTask.mutable_command()->CopyFrom(prepareCommand);
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1146,7 +1149,8 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   command.set_shell(false);
   command.set_value(helper);
   command.add_arguments(helper);
-  command.add_arguments(testUser);
+  command.add_arguments(ActiveUserTestHelper::NAME);
+  command.add_arguments("--user=" + testUser);
 
   task.mutable_command()->CopyFrom(command);
 

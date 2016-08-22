@@ -980,6 +980,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/store.hpp		\
   slave/qos_controllers/noop.hpp					\
   slave/resource_estimators/noop.hpp					\
+  tests/active_user_test_helper.hpp					\
   tests/allocator.hpp							\
   tests/cluster.hpp							\
   tests/containerizer.hpp						\
@@ -1923,10 +1924,12 @@ memory_test_helper_SOURCES =					\
 memory_test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
 memory_test_helper_LDADD = $(mesos_tests_LDADD)
 
-check_PROGRAMS += active-user-test-helper
-active_user_test_helper_SOURCES = tests/active_user_test_helper.cpp
-active_user_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
-active_user_test_helper_LDADD = libmesos.la $(LDADD)
+check_PROGRAMS += test-helper
+test_helper_SOURCES =						\
+  tests/active_user_test_helper.cpp				\
+  tests/test_helper_main.cpp
+test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_helper_LDADD = libmesos.la $(LDADD)
 
 check_PROGRAMS += mesos-tests
 
@@ -2059,6 +2062,7 @@ endif
 
 mesos_tests_SOURCES =						\
   slave/qos_controllers/load.cpp				\
+  tests/active_user_test_helper.cpp				\
   tests/anonymous_tests.cpp					\
   tests/api_tests.cpp						\
   tests/attributes_tests.cpp					\

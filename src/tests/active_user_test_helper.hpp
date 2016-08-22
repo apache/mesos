@@ -16,38 +16,32 @@
 
 #include <string>
 
-#include <stout/os.hpp>
-
-#include "tests/active_user_test_helper.hpp"
-
-using std::string;
+#include <stout/subcommand.hpp>
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-const char ActiveUserTestHelper::NAME[] = "ActiveUser";
-
-
-ActiveUserTestHelper::Flags::Flags()
+class ActiveUserTestHelper : public Subcommand
 {
-  add(&user,
-      "user",
-      "The expected user name.");
-}
+public:
+  static const char NAME[];
 
+  struct Flags : public flags::FlagsBase
+  {
+    Flags();
 
-// This test helper returns 0 if the current username equals the
-// expected username. Returns 1 otherwise.
-int ActiveUserTestHelper::execute()
-{
-  Result<string> user = os::user();
-  if (user.isSome() && user.get() == flags.user) {
-    return 0;
-  }
+    std::string user;
+  };
 
-  return 1;
-}
+  ActiveUserTestHelper() : Subcommand(NAME) {}
+
+  Flags flags;
+
+protected:
+  virtual int execute();
+  virtual flags::FlagsBase* getFlags() { return &flags; }
+};
 
 } // namespace tests {
 } // namespace internal {

@@ -17,9 +17,10 @@
 include(MesosTestsConfigure)
 
 ######################
-set(ACTIVE_USER_TEST_HELPER_SRC
-  ${ACTIVE_USER_TEST_HELPER_SRC}
+set(TEST_HELPER_SRC
+  ${TEST_HELPER_SRC}
   active_user_test_helper.cpp
+  test_helper_main.cpp
   )
 
 add_subdirectory(containerizer/)
@@ -28,8 +29,8 @@ add_subdirectory(containerizer/)
 
 # THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
 #################################$###############################################
-add_executable(${ACTIVE_USER_TEST_HELPER_TARGET} ${ACTIVE_USER_TEST_HELPER_SRC})
+add_executable(${TEST_HELPER_TARGET} ${TEST_HELPER_SRC})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${ACTIVE_USER_TEST_HELPER_TARGET} ${STOUT_DEPENDENCIES})
+add_dependencies(${TEST_HELPER_TARGET} ${STOUT_DEPENDENCIES})
