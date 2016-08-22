@@ -810,17 +810,25 @@ Future<bool> MesosContainerizerProcess::launch(
 
   containers_.put(containerId, Owned<Container>(container));
 
-  // If 'container' is not set in 'executorInfo', one of the following
-  // is true:
-  //  1) This is a custom executor without ContainerInfo.
-  //  2) This is a command task without ContainerInfo (since we copy
-  //     ContainerInfo for command tasks if exists).
-  // In either of the above cases, no provisioning is needed.
-  // Therefore, we can go straight to 'prepare'.
-  if (!executorInfo.has_container()) {
+  // We'll first provision the image for the container, and then
+  // provision the images specified in Volumes.
+  Option<Image> containerImage;
+
+  if (taskInfo.isSome() &&
+      taskInfo->has_container() &&
+      taskInfo->container().mesos().has_image()) {
+    // Command task.
+    containerImage = taskInfo->container().mesos().image();
+  } else if (executorInfo.has_container() &&
+             executorInfo.container().mesos().has_image()) {
+    // Custom executor.
+    containerImage = executorInfo.container().mesos().image();
+  }
+
+  if (containerImage.isNone()) {
     return prepare(containerId, taskInfo, executorInfo, directory, user, None())
       .then(defer(self(),
-                  &Self::__launch,
+                  &Self::_launch,
                   containerId,
                   taskInfo,
                   executorInfo,
@@ -833,32 +841,6 @@ Future<bool> MesosContainerizerProcess::launch(
                   lambda::_1));
   }
 
-  // We'll first provision the image for the container , and then
-  // provision the images specified in Volumes.
-  Option<Image> containerImage;
-
-  if (taskInfo.isSome() &&
-      taskInfo->has_container() &&
-      taskInfo->container().mesos().has_image()) {
-    // Command task.
-    containerImage = taskInfo->container().mesos().image();
-  } else if (executorInfo.container().mesos().has_image()) {
-    // Custom executor.
-    containerImage = executorInfo.container().mesos().image();
-  }
-
-  if (containerImage.isNone()) {
-    return _launch(containerId,
-                   taskInfo,
-                   executorInfo,
-                   directory,
-                   user,
-                   slaveId,
-                   environment,
-                   checkpoint,
-                   None());
-  }
-
   Future<ProvisionInfo> provisioning = provisioner->provision(
       containerId,
       containerImage.get());
@@ -866,96 +848,19 @@ Future<bool> MesosContainerizerProcess::launch(
   container->provisionInfos.push_back(provisioning);
 
   return provisioning
-    .then(defer(PID<MesosContainerizerProcess>(this),
-                &MesosContainerizerProcess::_launch,
-                containerId,
-                taskInfo,
-                executorInfo,
-                directory,
-                user,
-                slaveId,
-                environment,
-                checkpoint,
-                lambda::_1));
-}
-
-
-Future<bool> MesosContainerizerProcess::_launch(
-    const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const map<string, string>& environment,
-    bool checkpoint,
-    const Option<ProvisionInfo>& provisionInfo)
-{
-  CHECK(executorInfo.has_container());
-  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
-
-  // This is because if a 'destroy' happens after 'launch' and before
-  // '_launch', even if the '___destroy' will wait for the 'provision'
-  // in 'launch' to finish, there is still a chance that '___destroy'
-  // and its dependencies finish before '_launch' starts since onAny
-  // is not guaranteed to be executed in order.
-  if (!containers_.contains(containerId)) {
-    return Failure("Container destroyed during provisioning");
-  }
-
-  // Make sure containerizer is not in DESTROYING state, to avoid
-  // a possible race that containerizer is destroying the container
-  // while it is provisioning the image from volumes.
-  if (containers_[containerId]->state == DESTROYING) {
-    return Failure("Container is being destroyed during provisioning");
-  }
-
-  CHECK_EQ(containers_[containerId]->state, PROVISIONING);
-
-  // We will provision the images specified in ContainerInfo::volumes
-  // as well. We will mutate ContainerInfo::volumes to include the
-  // paths to the provisioned root filesystems (by setting the
-  // 'host_path') if the volume specifies an image as the source.
-  //
-  // TODO(gilbert): We need to figure out a way to support passing
-  // runtime configurations specified in the image to the container.
-  Owned<ExecutorInfo> _executorInfo(new ExecutorInfo(executorInfo));
-
-  list<Future<Nothing>> futures;
-
-  for (int i = 0; i < _executorInfo->container().volumes_size(); i++) {
-    Volume* volume = _executorInfo->mutable_container()->mutable_volumes(i);
-
-    if (!volume->has_image()) {
-      continue;
-    }
-
-    const Image& image = volume->image();
-
-    Future<ProvisionInfo> future = provisioner->provision(containerId, image);
-    containers_[containerId]->provisionInfos.push_back(future);
-
-    futures.push_back(future.then([=](const ProvisionInfo& info) {
-        volume->set_host_path(info.rootfs);
-        return Nothing();
-      }));
-  }
-
-  // We put `prepare` inside of a lambda expression, in order to get
-  // _executorInfo object after host path set in volume.
-  return collect(futures)
-    .then(defer([=]() -> Future<bool> {
+    .then(defer(self(),
+                [=](const ProvisionInfo& provisionInfo) -> Future<bool> {
       return prepare(containerId,
                      taskInfo,
-                     *_executorInfo,
+                     executorInfo,
                      directory,
                      user,
                      provisionInfo)
         .then(defer(self(),
-                    &Self::__launch,
+                    &Self::_launch,
                     containerId,
                     taskInfo,
-                    *_executorInfo,
+                    executorInfo,
                     directory,
                     user,
                     slaveId,
@@ -1086,7 +991,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 }
 
 
-Future<bool> MesosContainerizerProcess::__launch(
+Future<bool> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
     const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,

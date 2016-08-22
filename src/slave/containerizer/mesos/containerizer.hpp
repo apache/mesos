@@ -219,17 +219,6 @@ private:
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
-      const std::map<std::string, std::string>& environment,
-      bool checkpoint,
-      const Option<ProvisionInfo>& provisionInfo);
-
-  process::Future<bool> __launch(
-      const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
       const std::map<std::string, std::string>& _environment,
       bool checkpoint,
       const Option<ProvisionInfo>& provisionInfo,
