@@ -109,6 +109,10 @@
 #include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
 
+#ifdef __linux__
+#include "slave/containerizer/mesos/isolators/volume/image.hpp"
+#endif
+
 #include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
@@ -196,7 +200,18 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   if (!strings::contains(flags_.isolation, "network/")) {
     flags_.isolation += ",network/cni";
   }
-#endif
+
+  // Always enable 'volume/image' on linux if 'filesystem/linux' is
+  // enabled, to ensure backwards compatibility.
+  //
+  // TODO(gilbert): Make sure the 'gpu/nvidia' isolator to be created
+  // after all volume isolators, so that the nvidia gpu libraries
+  // '/usr/local/nvidia' will be overwritten.
+  if (strings::contains(flags_.isolation, "filesystem/linux") &&
+      !strings::contains(flags_.isolation, "volume/image")) {
+    flags_.isolation += ",volume/image";
+  }
+#endif // __linux__
 
   LOG(INFO) << "Using isolation: " << flags_.isolation;
 
@@ -249,10 +264,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create launcher: " + launcher.error());
   }
 
-  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags_);
-  if (provisioner.isError()) {
-    return Error("Failed to create provisioner: " + provisioner.error());
+  Try<Owned<Provisioner>> _provisioner = Provisioner::create(flags_);
+  if (_provisioner.isError()) {
+    return Error("Failed to create provisioner: " + _provisioner.error());
   }
+
+  Shared<Provisioner> provisioner = _provisioner.get().share();
 
   // Create the isolators.
   //
@@ -313,6 +330,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
 
+    {"volume/image",
+      [&provisioner] (const Flags& flags) -> Try<Isolator*> {
+        return VolumeImageIsolatorProcess::create(flags, provisioner);
+      }},
+
     {"gpu/nvidia",
       [&nvidia] (const Flags& flags) -> Try<Isolator*> {
         if (!nvml::isAvailable()) {
@@ -335,12 +357,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif
   };
 
-  const vector<string> isolations = strings::tokenize(flags_.isolation, ",");
+  vector<string> tokens = strings::tokenize(flags_.isolation, ",");
+  set<string> isolations = set<string>(tokens.begin(), tokens.end());
 
-  if (isolations.size() !=
-      set<string>(isolations.begin(), isolations.end()).size()) {
-    return Error("Duplicate entries found in --isolation flag"
-                 " '" + stringify(isolations) + "'");
+  if (tokens.size() != isolations.size()) {
+    return Error("Duplicate entries found in --isolation flag '" +
+                 stringify(tokens) + "'");
   }
 
   vector<Owned<Isolator>> isolators;
@@ -376,7 +398,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       fetcher,
       Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
-      provisioner.get(),
+      provisioner,
       isolators);
 }
 
@@ -387,7 +409,7 @@ MesosContainerizer::MesosContainerizer(
     Fetcher* fetcher,
     const Owned<ContainerLogger>& logger,
     const Owned<Launcher>& launcher,
-    const Owned<Provisioner>& provisioner,
+    const Shared<Provisioner>& provisioner,
     const vector<Owned<Isolator>>& isolators)
   : process(new MesosContainerizerProcess(
       flags,
