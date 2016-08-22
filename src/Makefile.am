@@ -1042,6 +1042,7 @@ MESOS_LINUX_FILES =							\
   slave/containerizer/mesos/isolators/gpu/volume.cpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp		\
   slave/containerizer/mesos/isolators/network/cni/cni.cpp		\
+  slave/containerizer/mesos/isolators/volume/image.cpp			\
   slave/containerizer/mesos/provisioner/backends/aufs.cpp		\
   slave/containerizer/mesos/provisioner/backends/bind.cpp		\
   slave/containerizer/mesos/provisioner/backends/overlay.cpp
@@ -1081,6 +1082,7 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/gpu/volume.hpp			\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
   slave/containerizer/mesos/isolators/network/cni/cni.hpp		\
+  slave/containerizer/mesos/isolators/volume/image.hpp			\
   slave/containerizer/mesos/provisioner/backends/aufs.hpp		\
   slave/containerizer/mesos/provisioner/backends/bind.hpp		\
   slave/containerizer/mesos/provisioner/backends/overlay.hpp
