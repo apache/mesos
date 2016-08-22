@@ -1524,7 +1524,7 @@ MESOS_JAR_SOURCE =							\
   $(srcdir)/java/src/org/apache/mesos/state/State.java			\
   $(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
   $(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java		\
-  $(srcdir)/java/src/org/apache/mesos/v1/scheduler/JNIMesos.java		\
+  $(srcdir)/java/src/org/apache/mesos/v1/scheduler/V1Mesos.java		\
   $(srcdir)/java/src/org/apache/mesos/v1/scheduler/Mesos.java		\
   $(srcdir)/java/src/org/apache/mesos/v1/scheduler/Scheduler.java	\
   $(srcdir)/java/src/org/apache/mesos/v1/scheduler/V0Mesos.java
@@ -1571,7 +1571,7 @@ libjava_la_SOURCES =							\
   java/jni/org_apache_mesos_state_LogState.cpp				\
   java/jni/org_apache_mesos_state_Variable.cpp				\
   java/jni/org_apache_mesos_state_ZooKeeperState.cpp			\
-  java/jni/org_apache_mesos_v1_scheduler_JNIMesos.cpp			\
+  java/jni/org_apache_mesos_v1_scheduler_V1Mesos.cpp			\
   java/jni/org_apache_mesos_v1_scheduler_V0Mesos.cpp			\
   jvm/jvm.cpp								\
   jvm/jvm.hpp								\
@@ -1615,7 +1615,7 @@ nodist_libjava_la_SOURCES =						\
   java/jni/org_apache_mesos_state_LogState.h				\
   java/jni/org_apache_mesos_state_Variable.h				\
   java/jni/org_apache_mesos_state_ZooKeeperState.h			\
-  java/jni/org_apache_mesos_v1_scheduler_JNIMesos.h			\
+  java/jni/org_apache_mesos_v1_scheduler_V1Mesos.h			\
   java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h
 
 BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
@@ -1660,10 +1660,10 @@ java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
 	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
 	  org.apache.mesos.state.ZooKeeperState
 
-java/jni/org_apache_mesos_v1_scheduler_JNIMesos.h: $(MESOS_JAR)
+java/jni/org_apache_mesos_v1_scheduler_V1Mesos.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\
 	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.v1.scheduler.JNIMesos
+	  org.apache.mesos.v1.scheduler.V1Mesos
 
 java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni				\

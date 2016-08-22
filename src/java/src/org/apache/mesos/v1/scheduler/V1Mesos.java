@@ -42,16 +42,16 @@ import org.apache.mesos.v1.scheduler.Protos.Call;
  * <p>
  * See src/examples/java/V1TestFramework.java for an example of using this.
  */
-public class JNIMesos implements Mesos {
+public class V1Mesos implements Mesos {
   static {
     MesosNativeLibrary.load();
   }
 
-  public JNIMesos(Scheduler scheduler, String master) {
+  public V1Mesos(Scheduler scheduler, String master) {
     this(scheduler, master, null);
   }
 
-  public JNIMesos(Scheduler scheduler, String master, Credential credential) {
+  public V1Mesos(Scheduler scheduler, String master, Credential credential) {
     if (scheduler == null) {
       throw new NullPointerException("Not expecting a null scheduler");
     }

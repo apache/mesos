@@ -32,10 +32,10 @@ import org.apache.mesos.v1.*;
 
 import org.apache.mesos.v1.Protos.*;
 
-import org.apache.mesos.v1.scheduler.JNIMesos;
 import org.apache.mesos.v1.scheduler.Mesos;
 import org.apache.mesos.v1.scheduler.Scheduler;
 import org.apache.mesos.v1.scheduler.V0Mesos;
+import org.apache.mesos.v1.scheduler.V1Mesos;
 
 import org.apache.mesos.v1.scheduler.Protos.Call;
 import org.apache.mesos.v1.scheduler.Protos.Event;
@@ -357,14 +357,14 @@ public class V1TestFramework {
     Mesos mesos;
     if (credentialBuilder != null) {
       mesos = version == 1
-                ? new JNIMesos(scheduler, args[0], credentialBuilder.build())
+                ? new V1Mesos(scheduler, args[0], credentialBuilder.build())
                 : new V0Mesos(scheduler,
                               frameworkBuilder.build(),
                               args[0],
                               credentialBuilder.build());
     } else {
       mesos = version == 1
-                ? new JNIMesos(scheduler, args[0])
+                ? new V1Mesos(scheduler, args[0])
                 : new V0Mesos(scheduler, frameworkBuilder.build(), args[0]);
     }
 

@@ -35,7 +35,7 @@
 
 #include "construct.hpp"
 #include "convert.hpp"
-#include "org_apache_mesos_v1_scheduler_JNIMesos.h"
+#include "org_apache_mesos_v1_scheduler_V1Mesos.h"
 
 using namespace mesos::v1::scheduler;
 
@@ -200,12 +200,12 @@ void JNIMesos::received(const Event& event)
 extern "C" {
 
 /*
- * Class:     org_apache_mesos_v1_JNIMesos
+ * Class:     org_apache_mesos_v1_V1Mesos
  * Method:    initialize
  * Signature: ()V
  *
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_initialize
+JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_V1Mesos_initialize
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
@@ -241,11 +241,11 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_initialize
 
 
 /*
- * Class:     org_apache_mesos_v1_JNIMesos
+ * Class:     org_apache_mesos_v1_V1Mesos
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_finalize
+JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_V1Mesos_finalize
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
@@ -261,11 +261,11 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_finalize
 
 
 /*
- * Class:     org_apache_mesos_v1_JNIMesos
+ * Class:     org_apache_mesos_v1_V1Mesos
  * Method:    send
  * Signature: (Lorg/apache/mesos/v1/scheduler/Protos/Call;)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_send
+JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_V1Mesos_send
   (JNIEnv* env, jobject thiz, jobject jcall)
 {
   // Construct a C++ Call from the Java Call.
@@ -290,11 +290,11 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_send
 
 
 /*
- * Class:     org_apache_mesos_v1_scheduler_JNIMesos
+ * Class:     org_apache_mesos_v1_scheduler_V1Mesos
  * Method:    reconnect
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_JNIMesos_reconnect
+JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_V1Mesos_reconnect
   (JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
