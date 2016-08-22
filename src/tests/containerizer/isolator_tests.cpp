@@ -102,6 +102,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
 using process::http::OK;
@@ -157,7 +158,7 @@ Try<Nothing> isolatePid(
   }
 
   // Isolate process.
-  process::Future<Nothing> isolate = isolator->isolate(containerId, child);
+  Future<Nothing> isolate = isolator->isolate(containerId, child);
 
   // Note this is following the implementation of AWAIT_READY.
   if (!process::internal::await(isolate, Seconds(15))) {
@@ -1534,8 +1535,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   ASSERT_TRUE(launch.get());
 
   // Wait on the container.
-  process::Future<containerizer::Termination> wait =
-    containerizer->wait(containerId);
+  Future<ContainerTermination> wait = containerizer->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the executor exited correctly.

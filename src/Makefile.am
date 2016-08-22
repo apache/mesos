@@ -216,7 +216,7 @@ ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/allocator/allocator.proto
 APPC_SPEC_PROTO = $(top_srcdir)/include/mesos/appc/spec.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
 AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
-CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/slave/containerizer.proto
 DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
@@ -229,7 +229,6 @@ MODULE_PROTO = $(top_srcdir)/include/mesos/module/module.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
-ISOLATOR_PROTO = $(top_srcdir)/include/mesos/slave/isolator.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
 URI_PROTO = $(top_srcdir)/include/mesos/uri/uri.proto
 V1_AGENT_PROTO = $(top_srcdir)/include/mesos/v1/agent/agent.proto
@@ -257,8 +256,6 @@ CXX_PROTOS =								\
   ../include/mesos/authorizer/acls.pb.h					\
   ../include/mesos/authorizer/authorizer.pb.cc				\
   ../include/mesos/authorizer/authorizer.pb.h				\
-  ../include/mesos/containerizer/containerizer.pb.cc			\
-  ../include/mesos/containerizer/containerizer.pb.h			\
   ../include/mesos/docker/spec.pb.cc					\
   ../include/mesos/docker/spec.pb.h					\
   ../include/mesos/docker/v1.pb.cc					\
@@ -279,8 +276,8 @@ CXX_PROTOS =								\
   ../include/mesos/quota/quota.pb.h					\
   ../include/mesos/scheduler/scheduler.pb.cc				\
   ../include/mesos/scheduler/scheduler.pb.h				\
-  ../include/mesos/slave/isolator.pb.cc					\
-  ../include/mesos/slave/isolator.pb.h					\
+  ../include/mesos/slave/containerizer.pb.cc				\
+  ../include/mesos/slave/containerizer.pb.h				\
   ../include/mesos/slave/oversubscription.pb.cc				\
   ../include/mesos/slave/oversubscription.pb.h				\
   ../include/mesos/state/state.pb.cc					\
@@ -328,13 +325,11 @@ CXX_STATE_PROTOS =							\
 
 JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
-  java/generated/org/apache/mesos/containerizer/Protos.java             \
   java/generated/org/apache/mesos/executor/Protos.java			\
   java/generated/org/apache/mesos/scheduler/Protos.java
 
 PYTHON_PROTOS =								\
-  python/interface/src/mesos/interface/mesos_pb2.py			\
-  python/interface/src/mesos/interface/containerizer_pb2.py
+  python/interface/src/mesos/interface/mesos_pb2.py
 
 V1_JAVA_PROTOS =							\
   java/generated/org/apache/mesos/v1/Protos.java			\
@@ -374,10 +369,6 @@ CLEANFILES +=								\
 
 
 # Targets for generating Java protocol buffer code.
-java/generated/org/apache/mesos/containerizer/Protos.java: $(CONTAINERIZER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
 java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
@@ -412,12 +403,6 @@ java/generated/org/apache/mesos/v1/scheduler/Protos.java: $(V1_SCHEDULER_PROTO)
 # has to get patched using sed, removing the leading 'mesos.'
 # namespace qualifier due to the flat hierachy in the resulting
 # mesos.interface egg. See MESOS-1750 for more.
-python/interface/src/mesos/interface/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer $(PROTOCFLAGS)	\
-		--python_out=python/interface/src/mesos/interface $^
-	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
-
 python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/executor $(PROTOCFLAGS)		\
@@ -512,15 +497,6 @@ authorizer_HEADERS =							\
 nodist_authorizer_HEADERS =						\
   ../include/mesos/authorizer/acls.pb.h					\
   ../include/mesos/authorizer/authorizer.pb.h
-
-containerizerdir = $(pkgincludedir)/containerizer
-
-containerizer_HEADERS =							\
-  $(top_srcdir)/include/mesos/containerizer/containerizer.hpp		\
-  $(top_srcdir)/include/mesos/containerizer/containerizer.proto
-
-nodist_containerizer_HEADERS =						\
-  ../include/mesos/containerizer/containerizer.pb.h
 
 dockerdir = $(pkgincludedir)/docker
 
@@ -624,10 +600,9 @@ agentdir = $(pkgincludedir)/agent
 
 agent_HEADERS =								\
   $(top_srcdir)/include/mesos/agent/agent.hpp				\
-  $(top_srcdir)/include/mesos/agent/agent.proto			\
+  $(top_srcdir)/include/mesos/agent/agent.proto				\
   $(top_srcdir)/include/mesos/slave/container_logger.hpp		\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
-  $(top_srcdir)/include/mesos/slave/isolator.proto			\
   $(top_srcdir)/include/mesos/slave/oversubscription.hpp		\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto		\
   $(top_srcdir)/include/mesos/slave/qos_controller.hpp			\
@@ -635,7 +610,7 @@ agent_HEADERS =								\
 
 nodist_agent_HEADERS =							\
   ../include/mesos/agent/agent.pb.h					\
-  ../include/mesos/slave/isolator.pb.h					\
+  ../include/mesos/slave/containerizer.pb.h				\
   ../include/mesos/slave/oversubscription.pb.h
 
 statedir = $(pkgincludedir)/state
@@ -1274,7 +1249,7 @@ lib_LTLIBRARIES += libmesos.la
 # Include as part of the distribution.
 libmesos_la_SOURCES =							\
   $(ACLS_PROTO)								\
-  $(AGENT_PROTO)								\
+  $(AGENT_PROTO)							\
   $(ALLOCATOR_PROTO)							\
   $(APPC_SPEC_PROTO)							\
   $(AUTHENTICATION_PROTO)						\
@@ -1285,7 +1260,6 @@ libmesos_la_SOURCES =							\
   $(DOCKER_V1_PROTO)							\
   $(DOCKER_V2_PROTO)							\
   $(FETCHER_PROTO)							\
-  $(ISOLATOR_PROTO)							\
   $(MAINTENANCE_PROTO)							\
   $(MASTER_PROTO)							\
   $(MESOS_PROTO)							\
@@ -1590,7 +1564,6 @@ libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
 
 libjava_la_DEPENDENCIES =						\
-  $(CONTAINERIZER_PROTO)						\
   $(MESOS_PROTO)							\
   $(V1_EXECUTOR_PROTO)							\
   $(V1_MESOS_PROTO)							\

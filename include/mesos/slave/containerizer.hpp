@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __CONTAINERIZER_PROTO_HPP__
-#define __CONTAINERIZER_PROTO_HPP__
+#ifndef __MESOS_SLAVE_CONTAINERIZER_HPP__
+#define __MESOS_SLAVE_CONTAINERIZER_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/containerizer/containerizer.pb.h>
+#include <mesos/slave/containerizer.pb.h>
 
-#endif // __CONTAINERIZER_PROTO_HPP__
+#endif // __MESOS_SLAVE_CONTAINERIZER_HPP__

@@ -104,6 +104,7 @@ using mesos::executor::Call;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::slave::ContainerTermination;
 using mesos::slave::QoSController;
 using mesos::slave::QoSCorrection;
 using mesos::slave::ResourceEstimator;
@@ -1914,7 +1915,7 @@ void Slave::runTasks(
 
     Executor* executor = getExecutor(frameworkId, executorId);
     if (executor != nullptr) {
-      containerizer::Termination termination;
+      ContainerTermination termination;
       termination.set_state(TASK_LOST);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
@@ -3182,7 +3183,7 @@ void Slave::_reregisterExecutor(
 
     Executor* executor = getExecutor(frameworkId, executorId);
     if (executor != nullptr) {
-      containerizer::Termination termination;
+      ContainerTermination termination;
       termination.set_state(TASK_LOST);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
@@ -3225,7 +3226,7 @@ void Slave::reregisterExecutorTimeout()
 
           executor->state = Executor::TERMINATING;
 
-          containerizer::Termination termination;
+          ContainerTermination termination;
           termination.set_state(TASK_LOST);
           termination.add_reasons(
               TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT);
@@ -3516,7 +3517,7 @@ void Slave::__statusUpdate(
 
     Executor* executor = getExecutor(update.framework_id(), executorId);
     if (executor != nullptr) {
-      containerizer::Termination termination;
+      ContainerTermination termination;
       termination.set_state(TASK_LOST);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
@@ -4038,7 +4039,7 @@ void Slave::executorLaunched(
 
     Executor* executor = getExecutor(frameworkId, executorId);
     if (executor != nullptr) {
-      containerizer::Termination termination;
+      ContainerTermination termination;
       termination.set_state(TASK_FAILED);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_LAUNCH_FAILED);
       termination.set_message(
@@ -4115,7 +4116,7 @@ void Slave::executorLaunched(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Future<containerizer::Termination>& termination)
+    const Future<ContainerTermination>& termination)
 {
   int status;
   // A termination failure indicates the containerizer could not destroy a
@@ -4598,7 +4599,7 @@ void Slave::registerExecutorTimeout(
 
       executor->state = Executor::TERMINATING;
 
-      containerizer::Termination termination;
+      ContainerTermination termination;
       termination.set_state(TASK_FAILED);
       termination.add_reasons(TaskStatus::REASON_EXECUTOR_REGISTRATION_TIMEOUT);
       termination.set_message(
@@ -5215,7 +5216,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
           // (MESOS-2875).
           executor->state = Executor::TERMINATING;
 
-          containerizer::Termination termination;
+          ContainerTermination termination;
           termination.set_state(TASK_LOST);
           termination.add_reasons(TaskStatus::REASON_CONTAINER_PREEMPTED);
           termination.set_message("Container preempted by QoS correction");
@@ -5509,7 +5510,7 @@ Future<bool> Slave::authorizeSandboxAccess(
 
 void Slave::sendExecutorTerminatedStatusUpdate(
     const TaskID& taskId,
-    const Future<containerizer::Termination>& termination,
+    const Future<ContainerTermination>& termination,
     const FrameworkID& frameworkId,
     const Executor* executor)
 {

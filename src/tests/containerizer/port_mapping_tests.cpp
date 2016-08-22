@@ -83,6 +83,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
 using std::list;
@@ -2197,8 +2198,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   EXPECT_TRUE(os::exists(symlink));
   EXPECT_TRUE(os::stat::islink(symlink));
 
-  Future<containerizer::Termination> termination =
-    containerizer->wait(containerId);
+  Future<ContainerTermination> termination = containerizer->wait(containerId);
 
   driver.killTask(task.task_id());
 

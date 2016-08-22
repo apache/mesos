@@ -73,6 +73,7 @@ using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerState;
+using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
 using std::list;
@@ -218,9 +219,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<containerizer::Termination> wait =
-    containerizer.get()->wait(containerId);
-
+  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child exited correctly.
@@ -270,9 +269,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<containerizer::Termination> wait =
-    containerizer.get()->wait(containerId);
-
+  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child failed to exit correctly.
@@ -333,8 +330,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script(s) + executor) to complete.
-  Future<containerizer::Termination> wait =
-    containerizer.get()->wait(containerId);
+  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child failed to exit correctly.
@@ -415,9 +411,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<containerizer::Termination> wait =
-    containerizer.get()->wait(containerId);
-
+  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the child exited correctly.
@@ -485,9 +479,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   AWAIT_READY(launch);
 
   // Wait on the container.
-  Future<containerizer::Termination> wait =
-    containerizer->wait(containerId);
-
+  Future<ContainerTermination> wait = containerizer->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the executor exited correctly.
@@ -668,8 +660,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
       map<string, string>(),
       false);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
-
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
   AWAIT_READY(exec);
 
   containerizer.destroy(containerId);
@@ -736,7 +727,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       map<string, string>(),
       false);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
 
   AWAIT_READY(prepare);
 
@@ -753,7 +744,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   AWAIT_READY(wait);
 
-  containerizer::Termination termination = wait.get();
+  ContainerTermination termination = wait.get();
 
   EXPECT_EQ(
       "Container destroyed while preparing isolators",
@@ -862,13 +853,13 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   AWAIT_FAILED(launch);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
 
   containerizer.destroy(containerId);
 
   AWAIT_READY(wait);
 
-  containerizer::Termination termination = wait.get();
+  ContainerTermination termination = wait.get();
 
   EXPECT_EQ(
     "Container destroyed while provisioning images",
@@ -954,7 +945,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
       map<string, string>(),
       false);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
 
   AWAIT_READY(provision);
 
@@ -966,7 +957,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   AWAIT_FAILED(launch);
   AWAIT_READY(wait);
 
-  containerizer::Termination termination = wait.get();
+  ContainerTermination termination = wait.get();
 
   EXPECT_EQ(
     "Container destroyed while provisioning images",
@@ -1057,7 +1048,7 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
       map<string, string>(),
       false);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
 
   AWAIT_READY(provision);
 
@@ -1069,7 +1060,7 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   AWAIT_FAILED(launch);
   AWAIT_READY(wait);
 
-  containerizer::Termination termination = wait.get();
+  ContainerTermination termination = wait.get();
 
   EXPECT_EQ(
     "Container destroyed while provisioning images",
@@ -1146,7 +1137,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   AWAIT_READY(launch);
 
-  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+  Future<ContainerTermination> wait = containerizer.wait(containerId);
 
   containerizer.destroy(containerId);
 

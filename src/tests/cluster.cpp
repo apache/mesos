@@ -96,6 +96,8 @@ using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 using mesos::master::detector::ZooKeeperMasterDetector;
 
+using mesos::slave::ContainerTermination;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -550,7 +552,7 @@ Slave::~Slave()
     AWAIT_READY(containers);
 
     foreach (const ContainerID& containerId, containers.get()) {
-      process::Future<containerizer::Termination> wait =
+      process::Future<ContainerTermination> wait =
         containerizer->wait(containerId);
 
       containerizer->destroy(containerId);

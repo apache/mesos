@@ -59,6 +59,7 @@ using mesos::internal::slave::Slave;
 using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerTermination;
 
 using std::list;
 using std::string;
@@ -272,7 +273,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();
@@ -400,7 +401,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();
@@ -551,7 +552,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();
@@ -662,7 +663,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusKilled));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.killTask(task.task_id());
@@ -788,7 +789,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
     .WillOnce(FutureArg<1>(&statusKilling))
     .WillOnce(FutureArg<1>(&statusKilled));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.killTask(task.task_id());
@@ -937,7 +938,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   EXPECT_LT(0, statistics.cpus_system_time_secs());
   EXPECT_GT(statistics.mem_rss_bytes(), 0u);
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   dockerContainerizer.destroy(containerId.get());
@@ -1229,7 +1230,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   AWAIT_READY(recover);
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId);
 
   ASSERT_FALSE(termination.isFailed());
@@ -1360,7 +1361,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
 
   AWAIT_READY(recover);
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId);
 
   ASSERT_FALSE(termination.isFailed());
@@ -1563,7 +1564,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();
@@ -1733,7 +1734,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   // Wait until containerizer recover is complete.
   AWAIT_READY(_recover);
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer->wait(containerId.get());
 
   dockerContainerizer->destroy(containerId.get());
@@ -2610,7 +2611,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer->wait(containerId.get());
 
   driver.stop();
@@ -2947,7 +2948,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   // to stdout by the docker container running nc -l.
   EXPECT_TRUE(containsLine(lines, uuid));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();
@@ -3055,7 +3056,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     dockerContainerizer.wait(containerId.get());
 
   driver.stop();

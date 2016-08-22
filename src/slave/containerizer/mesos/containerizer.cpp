@@ -133,6 +133,7 @@ using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerState;
+using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
 using state::SlaveState;
@@ -510,7 +511,7 @@ Future<ContainerStatus> MesosContainerizer::status(
 }
 
 
-Future<containerizer::Termination> MesosContainerizer::wait(
+Future<ContainerTermination> MesosContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(process.get(), &MesosContainerizerProcess::wait, containerId);
@@ -562,10 +563,11 @@ Future<Nothing> MesosContainerizerProcess::recover(
         CHECK_SOME(run);
         CHECK_SOME(run.get().id);
 
-        // We need the pid so the reaper can monitor the executor so skip this
-        // executor if it's not present. This is not an error because the slave
-        // will try to wait on the container which will return a failed
-        // Termination and everything will get cleaned up.
+        // We need the pid so the reaper can monitor the executor so
+        // skip this executor if it's not present. This is not an
+        // error because the slave will try to wait on the container
+        // which will return a failed ContainerTermination and
+        // everything will get cleaned up.
         if (!run.get().forkedPid.isSome()) {
           continue;
         }
@@ -1357,7 +1359,7 @@ Future<Nothing> MesosContainerizerProcess::launch(
 }
 
 
-Future<containerizer::Termination> MesosContainerizerProcess::wait(
+Future<ContainerTermination> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   CHECK(!containerId.has_parent());
@@ -1759,7 +1761,7 @@ void MesosContainerizerProcess::_____destroy(
     return;
   }
 
-  containerizer::Termination termination;
+  ContainerTermination termination;
 
   if (status.isReady() && status->isSome()) {
     termination.set_status(status->get());

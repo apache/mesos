@@ -52,6 +52,7 @@ using mesos::internal::slave::Slave;
 using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerTermination;
 
 using process::Clock;
 using process::Future;
@@ -578,7 +579,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   EXPECT_TRUE(statusHealth.get().has_healthy());
   EXPECT_TRUE(statusHealth.get().healthy());
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
@@ -1001,7 +1002,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   ASSERT_SOME(os::read(tmpPath));
   EXPECT_EQ("bar", os::read(tmpPath).get());
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();

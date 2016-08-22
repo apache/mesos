@@ -22,6 +22,8 @@
 
 #include "tests/mesos.hpp"
 
+using namespace process;
+
 using std::map;
 using std::shared_ptr;
 using std::string;
@@ -30,14 +32,13 @@ using testing::_;
 using testing::Invoke;
 using testing::Return;
 
-using namespace process;
+using mesos::slave::ContainerTermination;
 
 using mesos::v1::executor::Mesos;
 
 namespace mesos {
 namespace internal {
 namespace tests {
-
 
 TestContainerizer::TestContainerizer(
     const ExecutorID& executorId,
@@ -186,14 +187,14 @@ Future<bool> TestContainerizer::_launch(
   }
 
   promises[containerId] =
-    Owned<Promise<containerizer::Termination>>(
-      new Promise<containerizer::Termination>());
+    Owned<Promise<ContainerTermination>>(
+      new Promise<ContainerTermination>());
 
   return true;
 }
 
 
-Future<containerizer::Termination> TestContainerizer::_wait(
+Future<ContainerTermination> TestContainerizer::_wait(
     const ContainerID& containerId)
 {
   // An unknown container is possible for tests where we "drop" the
@@ -234,7 +235,7 @@ void TestContainerizer::_destroy(const ContainerID& containerId)
   }
 
   if (promises.contains(containerId)) {
-    containerizer::Termination termination;
+    ContainerTermination termination;
     termination.set_message("Killed executor");
     termination.set_status(0);
 

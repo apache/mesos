@@ -41,6 +41,8 @@ using std::vector;
 using testing::_;
 using testing::Return;
 
+using mesos::slave::ContainerTermination;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -81,7 +83,7 @@ public:
 
   MOCK_METHOD1(
       wait,
-      process::Future<containerizer::Termination>(
+      process::Future<ContainerTermination>(
           const ContainerID&));
 
   MOCK_METHOD1(

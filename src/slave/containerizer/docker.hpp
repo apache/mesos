@@ -96,7 +96,7 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  virtual process::Future<containerizer::Termination> wait(
+  virtual process::Future<mesos::slave::ContainerTermination> wait(
       const ContainerID& containerId);
 
   virtual void destroy(const ContainerID& containerId);
@@ -146,7 +146,7 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  virtual process::Future<containerizer::Termination> wait(
+  virtual process::Future<mesos::slave::ContainerTermination> wait(
       const ContainerID& containerId);
 
   virtual void destroy(
@@ -438,7 +438,7 @@ private:
     const Flags flags;
 
     // Promise for future returned from wait().
-    process::Promise<containerizer::Termination> termination;
+    process::Promise<mesos::slave::ContainerTermination> termination;
 
     // Exit status of executor or container (depending on whether or
     // not we used the command executor). Represented as a promise so

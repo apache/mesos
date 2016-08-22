@@ -65,6 +65,7 @@ using mesos::internal::slave::Slave;
 using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerTermination;
 
 using process::Clock;
 using process::Future;
@@ -322,8 +323,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
   ASSERT_TRUE(launch.get());
 
   // Wait on the container.
-  process::Future<containerizer::Termination> wait =
-    containerizer->wait(containerId);
+  process::Future<ContainerTermination> wait = containerizer->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the executor exited correctly.
@@ -711,7 +711,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerEnvironmentDecorator)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
@@ -927,7 +927,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<containerizer::Termination> termination =
+  Future<ContainerTermination> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();

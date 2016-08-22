@@ -22,8 +22,7 @@
 
 #include <mesos/resources.hpp>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/slave/isolator.pb.h>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>

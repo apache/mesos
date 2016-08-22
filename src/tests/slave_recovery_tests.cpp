@@ -77,6 +77,8 @@ using mesos::internal::master::Master;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using mesos::slave::ContainerTermination;
+
 using mesos::v1::executor::Call;
 
 using std::map;
@@ -1717,8 +1719,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<containerizer::Termination> wait =
-      containerizer.get()->wait(containerId);
+    Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
 
     containerizer.get()->destroy(containerId);
     AWAIT_READY(wait);
@@ -2651,8 +2652,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<containerizer::Termination> wait =
-      containerizer.get()->wait(containerId);
+    Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
 
     containerizer.get()->destroy(containerId);
     AWAIT_READY(wait);
@@ -4005,7 +4005,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   EXPECT_TRUE(usage.get().has_cpus_limit());
   EXPECT_TRUE(usage.get().has_mem_limit_bytes());
 
-  Future<containerizer::Termination> wait = containerizer->wait(containerId);
+  Future<ContainerTermination> wait = containerizer->wait(containerId);
 
   containerizer->destroy(containerId);
 
@@ -4258,8 +4258,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   EXPECT_NE(0u, offers2.get().size());
 
   // Set up to wait on the container's termination.
-  Future<containerizer::Termination> termination =
-    containerizer->wait(containerId);
+  Future<ContainerTermination> termination = containerizer->wait(containerId);
 
   // Destroy the container.
   containerizer->destroy(containerId);
@@ -4364,8 +4363,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   EXPECT_NE(0u, offers2.get().size());
 
   // Set up to wait on the container's termination.
-  Future<containerizer::Termination> termination =
-    containerizer->wait(containerId);
+  Future<ContainerTermination> termination = containerizer->wait(containerId);
 
   // Destroy the container.
   containerizer->destroy(containerId);

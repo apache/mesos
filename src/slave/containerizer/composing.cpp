@@ -32,12 +32,14 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/composing.hpp"
 
+using namespace process;
+
 using std::list;
 using std::map;
 using std::string;
 using std::vector;
 
-using namespace process;
+using mesos::slave::ContainerTermination;
 
 namespace mesos {
 namespace internal {
@@ -78,7 +80,7 @@ public:
   Future<ContainerStatus> status(
       const ContainerID& containerId);
 
-  Future<containerizer::Termination> wait(
+  Future<ContainerTermination> wait(
       const ContainerID& containerId);
 
   void destroy(const ContainerID& containerId);
@@ -204,7 +206,7 @@ Future<ContainerStatus> ComposingContainerizer::status(
 }
 
 
-Future<containerizer::Termination> ComposingContainerizer::wait(
+Future<ContainerTermination> ComposingContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(process, &ComposingContainerizerProcess::wait, containerId);
@@ -434,7 +436,7 @@ Future<ContainerStatus> ComposingContainerizerProcess::status(
 }
 
 
-Future<containerizer::Termination> ComposingContainerizerProcess::wait(
+Future<ContainerTermination> ComposingContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {

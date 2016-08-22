@@ -103,7 +103,7 @@ public:
 
   MOCK_METHOD1(
       wait,
-      process::Future<containerizer::Termination>(const ContainerID&));
+      process::Future<mesos::slave::ContainerTermination>(const ContainerID&));
 
   MOCK_METHOD1(
       destroy,
@@ -127,7 +127,7 @@ private:
       const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
-  process::Future<containerizer::Termination> _wait(
+  process::Future<mesos::slave::ContainerTermination> _wait(
       const ContainerID& containerId);
 
   void _destroy(const ContainerID& containerID);
@@ -138,8 +138,8 @@ private:
   hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers_;
   hashmap<ContainerID, process::Owned<MesosExecutorDriver>> drivers;
   hashmap<ContainerID, process::Owned<executor::TestV1Mesos>> v1Libraries;
-  hashmap<ContainerID,
-      process::Owned<process::Promise<containerizer::Termination>>> promises;
+  hashmap<ContainerID, process::Owned<
+      process::Promise<mesos::slave::ContainerTermination>>> promises;
 };
 
 } // namespace tests {

@@ -100,7 +100,7 @@ public:
   virtual process::Future<ContainerStatus> status(
       const ContainerID& containerId);
 
-  virtual process::Future<containerizer::Termination> wait(
+  virtual process::Future<mesos::slave::ContainerTermination> wait(
       const ContainerID& containerId);
 
   virtual void destroy(const ContainerID& containerId);
@@ -164,7 +164,7 @@ public:
   virtual process::Future<ContainerStatus> status(
       const ContainerID& containerId);
 
-  virtual process::Future<containerizer::Termination> wait(
+  virtual process::Future<mesos::slave::ContainerTermination> wait(
       const ContainerID& containerId);
 
   virtual process::Future<bool> exec(
@@ -289,7 +289,7 @@ private:
     Container() : sequence("mesos-container-status-updates") {}
 
     // Promise for futures returned from wait().
-    process::Promise<containerizer::Termination> promise;
+    process::Promise<mesos::slave::ContainerTermination> promise;
 
     // We need to keep track of the future exit status for each
     // executor because we'll only get a single notification when

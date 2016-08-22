@@ -60,34 +60,36 @@
 
 #include "usage/usage.hpp"
 
+using namespace process;
 
 using std::list;
 using std::map;
 using std::string;
 using std::vector;
 
-using namespace process;
-
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerTermination;
+
+using mesos::internal::slave::state::SlaveState;
+using mesos::internal::slave::state::FrameworkState;
+using mesos::internal::slave::state::ExecutorState;
+using mesos::internal::slave::state::RunState;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-using state::SlaveState;
-using state::FrameworkState;
-using state::ExecutorState;
-using state::RunState;
-
-
 // Declared in header, see explanation there.
 const string DOCKER_NAME_PREFIX = "mesos-";
+
 
 // Declared in header, see explanation there.
 const string DOCKER_NAME_SEPERATOR = ".";
 
+
 // Declared in header, see explanation there.
 const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
+
 
 // Parse the ContainerID from a Docker container and return None if
 // the container was not launched from Mesos.
@@ -712,7 +714,7 @@ Future<ResourceStatistics> DockerContainerizer::usage(
 }
 
 
-Future<containerizer::Termination> DockerContainerizer::wait(
+Future<ContainerTermination> DockerContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(
@@ -809,8 +811,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         // We need the pid so the reaper can monitor the executor so
         // skip this executor if it's not present. This is not an
         // error because the slave will try to wait on the container
-        // which will return a failed Termination and everything will
-        // get cleaned up.
+        // which will return a failed 'ContainerTermination' and
+        // everything will get cleaned up.
         if (!run.get().forkedPid.isSome()) {
           continue;
         }
@@ -1779,7 +1781,7 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 }
 
 
-Future<containerizer::Termination> DockerContainerizerProcess::wait(
+Future<ContainerTermination> DockerContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   CHECK(!containerId.has_parent());
@@ -1814,7 +1816,7 @@ void DockerContainerizerProcess::destroy(
 
     // NOTE: The launch error message will be retrieved by the slave
     // and properly set in the corresponding status update.
-    container->termination.set(containerizer::Termination());
+    container->termination.set(ContainerTermination());
 
     containers_.erase(containerId);
     delete container;
@@ -1856,7 +1858,7 @@ void DockerContainerizerProcess::destroy(
 
     fetcher->kill(containerId);
 
-    containerizer::Termination termination;
+    ContainerTermination termination;
     termination.set_message("Container destroyed while fetching");
     container->termination.set(termination);
 
@@ -1875,7 +1877,7 @@ void DockerContainerizerProcess::destroy(
 
     container->pull.discard();
 
-    containerizer::Termination termination;
+    ContainerTermination termination;
     termination.set_message("Container destroyed while pulling image");
     container->termination.set(termination);
 
@@ -1898,7 +1900,7 @@ void DockerContainerizerProcess::destroy(
                    << unmount.error();
     }
 
-    containerizer::Termination termination;
+    ContainerTermination termination;
     termination.set_message("Container destroyed while mounting volumes");
     container->termination.set(termination);
 
@@ -2037,7 +2039,7 @@ void DockerContainerizerProcess::___destroy(
 
   Container* container = containers_[containerId];
 
-  containerizer::Termination termination;
+  ContainerTermination termination;
 
   if (status.isReady() && status.get().isSome()) {
     termination.set_status(status.get().get());

@@ -22,7 +22,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
-#include <mesos/containerizer/containerizer.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -120,12 +120,11 @@ public:
     return ContainerStatus();
   }
 
-  // Wait on the container's 'Termination'. If the executor
-  // terminates, the containerizer should also destroy the
-  // containerized context. The future may be failed if an error
-  // occurs during termination of the executor or destruction of the
-  // container.
-  virtual process::Future<containerizer::Termination> wait(
+  // Wait on the 'ContainerTermination'. If the executor terminates,
+  // the containerizer should also destroy the containerized context.
+  // The future may be failed if an error occurs during termination of
+  // the executor or destruction of the container.
+  virtual process::Future<mesos::slave::ContainerTermination> wait(
       const ContainerID& containerId) = 0;
 
   // Destroy a running container, killing all processes and releasing
