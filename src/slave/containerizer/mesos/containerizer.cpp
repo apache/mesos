@@ -1032,12 +1032,6 @@ Future<bool> MesosContainerizerProcess::_launch(
     ? flags.sandbox_directory
     : container->config.directory();
 
-  // Include any enviroment variables from CommandInfo.
-  foreach (const Environment::Variable& variable,
-           container->config.command_info().environment().variables()) {
-    environment[variable.name()] = variable.value();
-  }
-
   // NOTE: Command task is a special case. Even if the container
   // config has a root filesystem, the executor container still uses
   // the host filesystem.
@@ -1118,6 +1112,23 @@ Future<bool> MesosContainerizerProcess::_launch(
     CHECK_SOME(launchCommand);
     launchCommand->add_arguments(
         "--rootfs=" + container->config.rootfs());
+  }
+
+  // Include any enviroment variables from CommandInfo.
+  foreach (const Environment::Variable& variable,
+           container->config.command_info().environment().variables()) {
+    const string& name = variable.name();
+    const string& value = variable.value();
+
+    if (environment.count(name)) {
+      VLOG(1) << "Overwriting environment variable '"
+              << name << "', original: '"
+              << environment[name] << "', new: '"
+              << value << "', for container "
+              << containerId;
+    }
+
+    environment[name] = value;
   }
 
   return logger->prepare(
