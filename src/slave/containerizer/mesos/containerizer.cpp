@@ -590,8 +590,8 @@ Future<Nothing> MesosContainerizerProcess::recover(
           continue;
         }
 
-        LOG(INFO) << "Recovering container '" << containerId
-                  << "' for executor '" << executor.id
+        LOG(INFO) << "Recovering container " << containerId
+                  << " for executor '" << executor.id
                   << "' of framework " << framework.id;
 
         // NOTE: We create the executor directory before checkpointing
@@ -794,8 +794,8 @@ Future<bool> MesosContainerizerProcess::launch(
         flags.default_container_info.get());
   }
 
-  LOG(INFO) << "Starting container '" << containerId
-            << "' for executor '" << executorInfo.executor_id()
+  LOG(INFO) << "Starting container " << containerId
+            << " for executor '" << executorInfo.executor_id()
             << "' of framework " << executorInfo.framework_id();
 
   ContainerConfig containerConfig;
@@ -1373,15 +1373,15 @@ Future<Nothing> MesosContainerizerProcess::update(
     // because the slave will attempt to update the container's
     // resources on a task's terminal state change but the executor
     // may have already exited and the container cleaned up.
-    LOG(WARNING) << "Ignoring update for unknown container: " << containerId;
+    LOG(WARNING) << "Ignoring update for unknown container " << containerId;
     return Nothing();
   }
 
   const Owned<Container>& container = containers_[containerId];
 
   if (container->state == DESTROYING) {
-    LOG(WARNING) << "Ignoring update for currently being destroyed container: "
-                 << containerId;
+    LOG(WARNING) << "Ignoring update for currently being destroyed "
+                 << "container " << containerId;
     return Nothing();
   }
 
@@ -1450,7 +1450,7 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
   CHECK(!containerId.has_parent());
 
   if (!containers_.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    return Failure("Unknown container " + stringify(containerId));
   }
 
   list<Future<ResourceStatistics>> futures;
@@ -1487,7 +1487,7 @@ Future<ContainerStatus> _status(
     }
   }
 
-  VLOG(2) << "Aggregating status for container: " << containerId;
+  VLOG(2) << "Aggregating status for container " << containerId;
 
   return result;
 }
@@ -1513,7 +1513,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
   // serialize the invocation to `await` in order to maintain the
   // order of requests for `ContainerStatus` by the agent.  See
   // MESOS-4671 for more details.
-  VLOG(2) << "Serializing status request for container: " << containerId;
+  VLOG(2) << "Serializing status request for container " << containerId;
 
   return containers_[containerId]->sequence.add<ContainerStatus>(
       [=]() -> Future<ContainerStatus> {
@@ -1541,18 +1541,18 @@ void MesosContainerizerProcess::destroy(
     //
     // The guard here and `if (container->state == DESTROYING)` below
     // make sure redundant destroys short-circuit.
-    VLOG(1) << "Ignoring destroy of unknown container: " << containerId;
+    VLOG(1) << "Ignoring destroy of unknown container " << containerId;
     return;
   }
 
   Container* container = containers_[containerId].get();
 
   if (container->state == DESTROYING) {
-    VLOG(1) << "Destroy has already been initiated for '" << containerId << "'";
+    VLOG(1) << "Destroy has already been initiated for " << containerId;
     return;
   }
 
-  LOG(INFO) << "Destroying container '" << containerId << "'";
+  LOG(INFO) << "Destroying container " << containerId;
 
   if (container->state == PROVISIONING) {
     VLOG(1) << "Waiting for the provisioner to complete for container '"
@@ -1793,7 +1793,7 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
     return;
   }
 
-  LOG(INFO) << "Executor for container '" << containerId << "' has exited";
+  LOG(INFO) << "Executor for container " << containerId << " has exited";
 
   // The executor has exited so destroy the container.
   destroy(containerId);
