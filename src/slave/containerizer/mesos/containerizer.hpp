@@ -305,7 +305,7 @@ private:
     // We keep track of the future that is waiting for the provisioner's
     // `ProvisionInfo`, so that destroy will only start calling
     // provisioner->destroy after provisioner->provision has finished.
-    std::list<process::Future<ProvisionInfo>> provisionInfos;
+    process::Future<ProvisionInfo> provisioning;
 
     // We keep track of the future that is waiting for all the
     // isolators' prepare futures, so that destroy will only start

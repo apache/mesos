@@ -841,13 +841,11 @@ Future<bool> MesosContainerizerProcess::launch(
                   lambda::_1));
   }
 
-  Future<ProvisionInfo> provisioning = provisioner->provision(
+  container->provisioning = provisioner->provision(
       containerId,
       containerImage.get());
 
-  container->provisionInfos.push_back(provisioning);
-
-  return provisioning
+  return container->provisioning
     .then(defer(self(),
                 [=](const ProvisionInfo& provisionInfo) -> Future<bool> {
       return prepare(containerId,
@@ -1557,7 +1555,7 @@ void MesosContainerizerProcess::destroy(
 
     // Wait for the provisioner to finish provisioning before we
     // start destroying the container.
-    await(container->provisionInfos)
+    container->provisioning
       .onAny(defer(
           self(),
           &Self::____destroy,
