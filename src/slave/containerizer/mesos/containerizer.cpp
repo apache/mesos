@@ -1959,7 +1959,9 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
       // list. We use await here to asynchronously wait for the
       // isolator to complete then return cleanups.
       return await(list<Future<Nothing>>({cleanup}))
-        .then([cleanups]() { return cleanups; });
+        .then([cleanups]() -> Future<list<Future<Nothing>>> {
+          return cleanups;
+        });
     });
   }
 
