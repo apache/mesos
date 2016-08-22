@@ -734,7 +734,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
 
   // Wait until slave recovery is complete.
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-  AWAIT_READY(_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
 
   // Wait until the containerizer's recovery is done too.
   // This is called once orphans are cleaned up.  But this future is not
