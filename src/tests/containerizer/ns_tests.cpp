@@ -176,20 +176,6 @@ TEST(NsTest, ROOT_getns)
 }
 
 
-static int childDestroy()
-{
-  // Fork a bunch of children.
-  ::fork();
-  ::fork();
-  ::fork();
-
-  // Parent and all children sleep.
-  while (true) { sleep(1); }
-
-  ABORT("Error, child should be killed before reaching here");
-}
-
-
 // Test we can destroy a pid namespace, i.e., kill all processes.
 TEST(NsTest, ROOT_destroy)
 {
@@ -203,7 +189,20 @@ TEST(NsTest, ROOT_destroy)
   Try<int> nstype = ns::nstype("pid");
   ASSERT_SOME(nstype);
 
-  pid_t pid = os::clone(childDestroy, SIGCHLD | nstype.get());
+  pid_t pid = os::clone([]() {
+    // Fork a bunch of children.
+    ::fork();
+    ::fork();
+    ::fork();
+
+    // Parent and all children sleep.
+    while (true) { sleep(1); }
+
+    ABORT("Error, child should be killed before reaching here");
+
+    return -1;
+  },
+  SIGCHLD | nstype.get());
 
   ASSERT_NE(-1, pid);
 
@@ -239,6 +238,65 @@ TEST(NsTest, ROOT_destroy)
       ASSERT_SOME_NE(childNs.get(), otherNs);
     }
   }
+}
+
+
+TEST(NsTest, ROOT_clone)
+{
+  // `ns::clone` does not support user namespaces yet.
+  ASSERT_ERROR(ns::clone(getpid(), CLONE_NEWUSER, []() { return -1; }, 0));
+
+  // Determine the namespaces this kernel supports and test them,
+  // skipping the user namespace for now because it's not fully
+  // supported depending on the filesystem, which we don't check for.
+  int nstypes = 0;
+  foreach (int nstype, ns::nstypes()) {
+    if (nstype != CLONE_NEWUSER) {
+      nstypes |= nstype;
+    }
+  }
+
+  pid_t parent = os::clone([]() {
+    while (true) { sleep(1); }
+    ABORT("Error, process should be killed before reaching here");
+    return -1;
+  },
+  SIGCHLD | nstypes);
+
+  ASSERT_NE(-1, parent);
+
+  Try<pid_t> child = ns::clone(parent, nstypes, []() {
+    while (true) { sleep(1); }
+    ABORT("Error, process should be killed before reaching here");
+    return -1;
+  },
+  SIGCHLD);
+
+  ASSERT_SOME(child);
+
+  foreach (const string& ns, ns::namespaces()) {
+    // See comment above as to why we're skipping the namespace.
+    if (ns == "user") {
+      continue;
+    }
+
+    Try<ino_t> inode = ns::getns(parent, ns);
+    ASSERT_SOME(inode);
+    EXPECT_SOME_NE(inode.get(), ns::getns(getpid(), ns));
+    EXPECT_SOME_EQ(inode.get(), ns::getns(child.get(), ns));
+  }
+
+  // Now kill the parent which should cause the child to exit since
+  // it's in the same PID namespace.
+  ASSERT_NE(-1, kill(parent, SIGKILL));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(parent));
+
+  // We can reap the child but we don't expect any status because it's
+  // not a direct descendent because `ns::clone` does a fork before
+  // clone.
+  Future<Option<int>> status = reap(child.get());
+  AWAIT_READY(status);
+  EXPECT_NONE(status.get());
 }
 
 } // namespace tests {
