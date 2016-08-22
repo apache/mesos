@@ -313,6 +313,21 @@ Try<Nothing> assign(
     pid_t pid);
 
 
+// Isolate a given process specified by it's 'pid' to a given cgroup
+// by both creating the cgroup (recursively) if it doesn't exist and
+// then assigning the process to that cgroup.
+//
+// @param   hierarchy   Path to the hierarchy root.
+// @param   cgroup      Path to the cgroup relative to the hierarchy root.
+// @param   pid         The pid of the given process.
+// @return  Nothing if the operation succeeds.
+//          Error if the operation fails.
+Try<Nothing> isolate(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    pid_t pid);
+
+
 namespace event {
 
 // Listen on an event notifier and return a future which will become ready when

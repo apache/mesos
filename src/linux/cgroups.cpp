@@ -1074,6 +1074,33 @@ Try<Nothing> assign(const string& hierarchy, const string& cgroup, pid_t pid)
 }
 
 
+Try<Nothing> isolate(
+    const string& hierarchy,
+    const string& cgroup,
+    pid_t pid)
+{
+  // Create cgroup if necessary.
+  Try<bool> exists = cgroups::exists(hierarchy, cgroup);
+  if (exists.isError()) {
+    return Error("Failed to check existence of cgroup: " + exists.error());
+  }
+
+  if (!exists.get()) {
+    Try<Nothing> create = cgroups::create(hierarchy, cgroup, true);
+    if (create.isError()) {
+      return Error("Failed to create cgroup: " + create.error());
+    }
+  }
+
+  Try<Nothing> assign = cgroups::assign(hierarchy, cgroup, pid);
+  if (assign.isError()) {
+    return Error("Failed to assign process to cgroup: " + assign.error());
+  }
+
+  return Nothing();
+}
+
+
 namespace event {
 
 #ifndef EFD_SEMAPHORE

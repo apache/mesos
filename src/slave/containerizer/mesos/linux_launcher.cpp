@@ -220,47 +220,6 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
 }
 
 
-// A hook that is executed in the parent process. It attempts to move a process
-// into the freezer cgroup.
-//
-// NOTE: The child process is blocked by the hook infrastructure while
-// these hooks are executed.
-// NOTE: Returning an Error implies the child process will be killed.
-Try<Nothing> assignFreezerHierarchy(
-    pid_t child,
-    const string& hierarchy,
-    const string& cgroup)
-{
-  // Create a freezer cgroup for this container if necessary.
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup);
-  if (exists.isError()) {
-    return Error("Failed to assign process to its freezer cgroup: "
-                 "Failed to check existence of freezer cgroup: " +
-                 exists.error());
-  }
-
-  if (!exists.get()) {
-    Try<Nothing> created = cgroups::create(hierarchy, cgroup);
-
-    if (created.isError()) {
-      return Error("Failed to assign process to its freezer cgroup: "
-                   "Failed to create freezer cgroup: " + created.error());
-    }
-  }
-
-  // Move the child into the freezer cgroup. Any grandchildren will
-  // also be contained in the cgroup.
-  Try<Nothing> assign = cgroups::assign(hierarchy, cgroup, child);
-
-  if (assign.isError()) {
-    return Error("Failed to assign process to its freezer cgroup: " +
-                 assign.error());
-  }
-
-  return Nothing();
-}
-
-
 Try<pid_t> LinuxLauncher::fork(
     const ContainerID& containerId,
     const string& path,
@@ -289,12 +248,14 @@ Try<pid_t> LinuxLauncher::fork(
         &systemd::mesos::extendLifetime));
   }
 
-  // Create parent Hook for moving child into freezer cgroup.
-  parentHooks.emplace_back(Subprocess::ParentHook(lambda::bind(
-      &assignFreezerHierarchy,
-      lambda::_1,
-      freezerHierarchy,
-      cgroup(containerId))));
+  // Create parent Hook for isolating child in a freezer cgroup (will
+  // also create the cgroup if necessary).
+  parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
+    return cgroups::isolate(
+        freezerHierarchy,
+        cgroup(containerId),
+        child);
+  }));
 
   Try<Subprocess> child = subprocess(
       path,
