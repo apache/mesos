@@ -17,11 +17,15 @@
 #ifndef __LINUX_LAUNCHER_HPP__
 #define __LINUX_LAUNCHER_HPP__
 
+#include <process/owned.hpp>
+
 #include "slave/containerizer/mesos/launcher.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
+
+class LinuxLauncherProcess;
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
 // track pids.
@@ -33,7 +37,7 @@ public:
   // Returns 'true' if prerequisites for using LinuxLauncher are available.
   static bool available();
 
-  virtual ~LinuxLauncher() {}
+  virtual ~LinuxLauncher();
 
   virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ContainerState>& states);
@@ -61,18 +65,7 @@ private:
       const std::string& freezerHierarchy,
       const Option<std::string>& systemdHierarchy);
 
-  static const std::string subsystem;
-  const Flags flags;
-  const std::string freezerHierarchy;
-  const Option<std::string> systemdHierarchy;
-
-  std::string cgroup(const ContainerID& containerId);
-
-  // The 'pid' is the process id of the child process and also the
-  // process group id and session id.
-  hashmap<ContainerID, pid_t> pids;
-
-  hashset<ContainerID> orphans;
+  process::Owned<LinuxLauncherProcess> process;
 };
 
 } // namespace slave {
