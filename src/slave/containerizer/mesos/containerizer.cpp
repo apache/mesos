@@ -883,8 +883,9 @@ Future<bool> MesosContainerizerProcess::launch(
 
   containers_.put(containerId, Owned<Container>(container));
 
-  // We'll first provision the image for the container, and then
-  // provision the images specified in Volumes.
+  // We'll first provision the image for the container, and
+  // then provision the images specified in `volumes` using
+  // the 'volume/image' isolator.
   if (!containerConfig.has_container_info() ||
       !containerConfig.container_info().mesos().has_image()) {
     return prepare(containerId, None())
