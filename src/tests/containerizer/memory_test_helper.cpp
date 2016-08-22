@@ -73,113 +73,6 @@ const char INCREASE_RSS[] = "INCREASE_RSS";
 const char INCREASE_PAGE_CACHE[] = "INCREASE_PAGE_CACHE";
 
 
-// This helper allocates memory and prevents the compiler from
-// optimizing that allocation away by locking the allocated pages.
-static Try<void*> allocateRSS(const Bytes& size)
-{
-#ifndef __APPLE__
-  // Make sure that all pages that are going to be mapped into the
-  // address space of this process become unevictable. This is needed
-  // for testing cgroups OOM killer.
-  if (mlockall(MCL_FUTURE) != 0) {
-    return ErrnoError("Failed to make pages to be mapped unevictable");
-  }
-#endif
-
-  void* rss = nullptr;
-  if (posix_memalign(&rss, os::pagesize(), size.bytes()) != 0) {
-    return ErrnoError("Failed to increase RSS memory, posix_memalign");
-  }
-
-  // Use memset to map pages into the memory space of this process.
-  memset(rss, 1, size.bytes());
-
-#ifdef __APPLE__
-  // Locking a page makes it unevictable in the kernel. This is needed
-  // for testing cgroups OOM killer.
-  // NOTE: We use 'mlock' here because 'mlockall' is left
-  // unimplemented on OS X.
-  if (mlock(rss, size.bytes()) != 0) {
-    return ErrnoError("Failed to make mapped pages unevictable");
-  }
-#endif
-
-  return rss;
-}
-
-
-static Try<Nothing> increaseRSS(const vector<string>& tokens)
-{
-  if (tokens.size() < 2) {
-    return Error("Expect at least one argument");
-  }
-
-  Try<Bytes> size = Bytes::parse(tokens[1]);
-  if (size.isError()) {
-    return Error("The first argument '" + tokens[1] + "' is not a byte size");
-  }
-
-  Try<void*> memory = allocateRSS(size.get());
-  if (memory.isError()) {
-    return Error("Failed to allocate RSS memory: " + memory.error());
-  }
-
-  return Nothing();
-}
-
-
-static Try<Nothing> increasePageCache(const vector<string>& tokens)
-{
-  const Bytes UNIT = Megabytes(1);
-
-  if (tokens.size() < 2) {
-    return Error("Expect at least one argument");
-  }
-
-  Try<Bytes> size = Bytes::parse(tokens[1]);
-  if (size.isError()) {
-    return Error("The first argument '" + tokens[1] + "' is not a byte size");
-  }
-
-  // TODO(chzhcn): Currently, we assume the current working directory
-  // is a temporary directory and will be cleaned up when the test
-  // finishes. Since the child process will inherit the current
-  // working directory from the parent process, that means the test
-  // that uses this helper probably needs to inherit from
-  // TemporaryDirectoryTest. Consider relaxing this constraint.
-  Try<string> path = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
-  if (path.isError()) {
-    return Error("Failed to create a temporary file: " + path.error());
-  }
-
-  Try<int> fd = os::open(path.get(), O_WRONLY);
-  if (fd.isError()) {
-    return Error("Failed to open file: " + fd.error());
-  }
-
-  // NOTE: We are doing round-down here to calculate the number of
-  // writes to do.
-  for (uint64_t i = 0; i < size.get().bytes() / UNIT.bytes(); i++) {
-    // Write UNIT size to disk at a time. The content isn't important.
-    Try<Nothing> write = os::write(fd.get(), string(UNIT.bytes(), 'a'));
-    if (write.isError()) {
-      os::close(fd.get());
-      return Error("Failed to write file: " + write.error());
-    }
-
-    // Use fsync to make sure data is written to disk.
-    Try<Nothing> fsync = os::fsync(fd.get());
-    if (fsync.isError()) {
-      os::close(fd.get());
-      return Error("Failed to fsync: " + fsync.error());
-    }
-  }
-
-  os::close(fd.get());
-  return Nothing();
-}
-
-
 MemoryTestHelper::~MemoryTestHelper()
 {
   cleanup();
@@ -193,11 +86,11 @@ Try<Nothing> MemoryTestHelper::spawn()
   }
 
   vector<string> argv;
-  argv.push_back("memory-test-helper");
-  argv.push_back(MemoryTestHelperMain::NAME);
+  argv.push_back("test-helper");
+  argv.push_back(MemoryTestHelper::NAME);
 
   Try<Subprocess> process = subprocess(
-      getTestHelperPath("memory-test-helper"),
+      getTestHelperPath("test-helper"),
       argv,
       Subprocess::PIPE(),
       Subprocess::PIPE(),
@@ -282,14 +175,122 @@ Try<Nothing> MemoryTestHelper::increasePageCache(const Bytes& size)
 }
 
 
-const char MemoryTestHelperMain::NAME[] = "MemoryTestHelperMain";
+
+// This helper allocates memory and prevents the compiler from
+// optimizing that allocation away by locking the allocated pages.
+static Try<void*> allocateRSS(const Bytes& size)
+{
+#ifndef __APPLE__
+  // Make sure that all pages that are going to be mapped into the
+  // address space of this process become unevictable. This is needed
+  // for testing cgroups OOM killer.
+  if (mlockall(MCL_FUTURE) != 0) {
+    return ErrnoError("Failed to make pages to be mapped unevictable");
+  }
+#endif
+
+  void* rss = nullptr;
+  if (posix_memalign(&rss, os::pagesize(), size.bytes()) != 0) {
+    return ErrnoError("Failed to increase RSS memory, posix_memalign");
+  }
+
+  // Use memset to map pages into the memory space of this process.
+  memset(rss, 1, size.bytes());
+
+#ifdef __APPLE__
+  // Locking a page makes it unevictable in the kernel. This is needed
+  // for testing cgroups OOM killer.
+  // NOTE: We use 'mlock' here because 'mlockall' is left
+  // unimplemented on OS X.
+  if (mlock(rss, size.bytes()) != 0) {
+    return ErrnoError("Failed to make mapped pages unevictable");
+  }
+#endif
+
+  return rss;
+}
 
 
-int MemoryTestHelperMain::execute()
+static Try<Nothing> doIncreaseRSS(const vector<string>& tokens)
+{
+  if (tokens.size() < 2) {
+    return Error("Expect at least one argument");
+  }
+
+  Try<Bytes> size = Bytes::parse(tokens[1]);
+  if (size.isError()) {
+    return Error("The first argument '" + tokens[1] + "' is not a byte size");
+  }
+
+  Try<void*> memory = allocateRSS(size.get());
+  if (memory.isError()) {
+    return Error("Failed to allocate RSS memory: " + memory.error());
+  }
+
+  return Nothing();
+}
+
+
+static Try<Nothing> doIncreasePageCache(const vector<string>& tokens)
+{
+  const Bytes UNIT = Megabytes(1);
+
+  if (tokens.size() < 2) {
+    return Error("Expect at least one argument");
+  }
+
+  Try<Bytes> size = Bytes::parse(tokens[1]);
+  if (size.isError()) {
+    return Error("The first argument '" + tokens[1] + "' is not a byte size");
+  }
+
+  // TODO(chzhcn): Currently, we assume the current working directory
+  // is a temporary directory and will be cleaned up when the test
+  // finishes. Since the child process will inherit the current
+  // working directory from the parent process, that means the test
+  // that uses this helper probably needs to inherit from
+  // TemporaryDirectoryTest. Consider relaxing this constraint.
+  Try<string> path = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
+  if (path.isError()) {
+    return Error("Failed to create a temporary file: " + path.error());
+  }
+
+  Try<int> fd = os::open(path.get(), O_WRONLY);
+  if (fd.isError()) {
+    return Error("Failed to open file: " + fd.error());
+  }
+
+  // NOTE: We are doing round-down here to calculate the number of
+  // writes to do.
+  for (uint64_t i = 0; i < size.get().bytes() / UNIT.bytes(); i++) {
+    // Write UNIT size to disk at a time. The content isn't important.
+    Try<Nothing> write = os::write(fd.get(), string(UNIT.bytes(), 'a'));
+    if (write.isError()) {
+      os::close(fd.get());
+      return Error("Failed to write file: " + write.error());
+    }
+
+    // Use fsync to make sure data is written to disk.
+    Try<Nothing> fsync = os::fsync(fd.get());
+    if (fsync.isError()) {
+      os::close(fd.get());
+      return Error("Failed to fsync: " + fsync.error());
+    }
+  }
+
+  os::close(fd.get());
+  return Nothing();
+}
+
+
+const char MemoryTestHelper::NAME[] = "Memory";
+
+
+int MemoryTestHelper::execute()
 {
   hashmap<string, Try<Nothing>(*)(const vector<string>&)> commands;
-  commands[INCREASE_RSS] = &increaseRSS;
-  commands[INCREASE_PAGE_CACHE] = &increasePageCache;
+  commands[INCREASE_RSS] = &doIncreaseRSS;
+  commands[INCREASE_PAGE_CACHE] = &doIncreasePageCache;
 
   // Tell the parent that child has started.
   cout << STARTED << flush;

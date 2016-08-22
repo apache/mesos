@@ -16,14 +16,6 @@
 
 # CONTAINERIZER TESTS.
 ######################
-set(CONTAINERIZER_MEMORY_TESTS_SRC
-  ${CONTAINERIZER_MEMORY_TESTS_SRC}
-  ${MESOS_SRC_DIR}/tests/flags.cpp
-  ${MESOS_SRC_DIR}/tests/utils.cpp
-  memory_test_helper_main.cpp
-  memory_test_helper.cpp
-  )
-
 if (LINUX)
   set(SETNS_TEST_HELPER_SRC
     ${SETNS_TEST_HELPER_SRC}
@@ -44,28 +36,21 @@ link_directories(${CONTAINERIZER_TEST_LIB_DIRS})
 
 # THE CONTAINERIZER TEST EXECUTABLE (generates, e.g., stout_tests, etc., on Linux).
 ###########################################################################
-add_executable(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_MEMORY_TESTS_SRC})
-
 if (LINUX)
   add_executable(${SETNS_TEST_HELPER_TARGET} ${SETNS_TEST_HELPER_SRC})
 endif (LINUX)
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_TEST_LIBS})
-
 if (LINUX)
   target_link_libraries(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_LIBS})
 endif (LINUX)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${CONTAINERIZER_MEMORY_TESTS_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
-
 if (LINUX)
   add_dependencies(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
 endif (LINUX)
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME MesosContainerizerMemoryTests COMMAND ${CMAKE_BINARY_DIR}/src/${CONTAINERIZER_MEMORY_TESTS_TARGET})

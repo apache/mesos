@@ -15,11 +15,6 @@
 # limitations under the License.
 
 set(
-  CONTAINERIZER_MEMORY_TESTS_TARGET mesos-containerizer-memory_test
-  CACHE STRING "Target we use to refer to tests for mesos containerizer tests"
-  )
-
-set(
   TEST_HELPER_TARGET test-helper
   CACHE STRING "Test helper target to run tests that require a subprocess."
   )

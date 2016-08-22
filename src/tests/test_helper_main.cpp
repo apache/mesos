@@ -19,7 +19,10 @@
 
 #include "tests/active_user_test_helper.hpp"
 
+#include "tests/containerizer/memory_test_helper.hpp"
+
 using mesos::internal::tests::ActiveUserTestHelper;
+using mesos::internal::tests::MemoryTestHelper;
 
 
 int main(int argc, char** argv)
@@ -28,5 +31,6 @@ int main(int argc, char** argv)
       None(),
       argc,
       argv,
-      new ActiveUserTestHelper());
+      new ActiveUserTestHelper(),
+      new MemoryTestHelper());
 }

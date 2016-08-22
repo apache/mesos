@@ -20,7 +20,10 @@ include(MesosTestsConfigure)
 set(TEST_HELPER_SRC
   ${TEST_HELPER_SRC}
   active_user_test_helper.cpp
+  flags.cpp
   test_helper_main.cpp
+  utils.cpp
+	containerizer/memory_test_helper.cpp
   )
 
 add_subdirectory(containerizer/)

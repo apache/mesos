@@ -1915,21 +1915,15 @@ setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
 setns_test_helper_LDADD = libmesos.la $(LDADD)
 endif
 
-check_PROGRAMS += memory-test-helper
-memory_test_helper_SOURCES =					\
-  tests/flags.cpp						\
-  tests/utils.cpp						\
-  tests/containerizer/memory_test_helper_main.cpp		\
-  tests/containerizer/memory_test_helper.cpp
-memory_test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
-memory_test_helper_LDADD = $(mesos_tests_LDADD)
-
 check_PROGRAMS += test-helper
 test_helper_SOURCES =						\
   tests/active_user_test_helper.cpp				\
-  tests/test_helper_main.cpp
-test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
-test_helper_LDADD = libmesos.la $(LDADD)
+  tests/flags.cpp						\
+  tests/test_helper_main.cpp					\
+  tests/utils.cpp						\
+  tests/containerizer/memory_test_helper.cpp
+test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
+test_helper_LDADD = libmesos.la $(mesos_tests_LDADD)
 
 check_PROGRAMS += mesos-tests
 
