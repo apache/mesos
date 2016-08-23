@@ -19,13 +19,19 @@
 
 #include <string>
 
+#include <errno.h>
 #include <grp.h>
+#include <limits.h>
 #include <pwd.h>
+#include <unistd.h>
 
 #include <sys/syscall.h>
 
 #include <stout/error.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
+#include <stout/result.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
