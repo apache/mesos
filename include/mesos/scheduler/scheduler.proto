@@ -287,6 +287,13 @@ message Call {
   // receives a terminal update (See TaskState in mesos.proto) for it.
   // If the task is unknown to the master, a TASK_LOST update is
   // generated.
+  //
+  // If a task within a task group is killed before the group is
+  // delivered to the executor, all tasks in the task group are
+  // killed. When a task group has been delivered to the executor,
+  // it is up to the executor to decide how to deal with the kill.
+  // Note The default Mesos executor will currently kill all the
+  // tasks in the task group if it gets a kill for any task.
   message Kill {
     required TaskID task_id = 1;
     optional SlaveID slave_id = 2;
