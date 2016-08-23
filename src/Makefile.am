@@ -602,6 +602,7 @@ agent_HEADERS =								\
   $(top_srcdir)/include/mesos/agent/agent.hpp				\
   $(top_srcdir)/include/mesos/agent/agent.proto				\
   $(top_srcdir)/include/mesos/slave/container_logger.hpp		\
+  $(top_srcdir)/include/mesos/slave/containerizer.hpp			\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
   $(top_srcdir)/include/mesos/slave/oversubscription.hpp		\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto		\
