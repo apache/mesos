@@ -603,9 +603,11 @@ Option<Error> validateFrameworkID(
 {
   CHECK_NOTNULL(framework);
 
-  // Master ensures `ExecutorInfo.framework_id`
-  // is set before calling this method.
-  CHECK(executor.has_framework_id());
+  // The master fills in `ExecutorInfo.framework_id` for
+  // executors used in Launch operations.
+  if (!executor.has_framework_id()) {
+    return Error("'ExecutorInfo.framework_id' must be set");
+  }
 
   if (executor.framework_id() != framework->id()) {
     return Error(

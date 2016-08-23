@@ -617,7 +617,7 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
 class TaskValidationTest : public MesosTest {};
 
 
-TEST_F(TaskValidationTest, TaskUsesInvalidFrameworkID)
+TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -651,6 +651,62 @@ TEST_F(TaskValidationTest, TaskUsesInvalidFrameworkID)
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_TRUE(strings::startsWith(
       status.get().message(), "ExecutorInfo has an invalid FrameworkID"));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// The master should fill in the `ExecutorInfo.framework_id`
+// if it is not set by the framework.
+TEST_F(TaskValidationTest, ExecutorMissingFrameworkID)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start the first slave.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Create an executor with a missing framework id.
+  ExecutorInfo executor;
+  executor = DEFAULT_EXECUTOR_INFO;
+  executor.clear_framework_id();
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  // The task should pass validation since the framework id
+  // is filled in, and when it reaches the dummy executor
+  // it will fail because the executor just exits.
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status->state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
