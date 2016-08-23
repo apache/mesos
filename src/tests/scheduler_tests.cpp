@@ -432,6 +432,129 @@ TEST_P(SchedulerTest, TaskRunning)
 }
 
 
+// Ensures that a task group can be successfully launched
+// on the `DEFAULT` executor.
+//
+// TODO(bmahler): We currently only test the master-side
+// of task group handling, since the rest is unimplemented.
+TEST_P(SchedulerTest, TaskGroupRunning)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  ContentType contentType = GetParam();
+
+  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  Future<RunTaskGroupMessage> runTaskGroupMessage =
+    FUTURE_PROTOBUF(RunTaskGroupMessage(), master.get()->pid, slave.get()->pid);
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executor;
+  executor.set_type(v1::ExecutorInfo::DEFAULT);
+  executor.mutable_executor_id()->set_value("E");
+  executor.mutable_framework_id()->CopyFrom(subscribed->framework_id());
+  executor.mutable_resources()->CopyFrom(resources);
+
+  v1::TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_agent_id()->CopyFrom(
+      offers->offers(0).agent_id());
+  task1.mutable_resources()->CopyFrom(resources);
+
+  v1::TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_agent_id()->CopyFrom(
+      offers->offers(0).agent_id());
+  task2.mutable_resources()->CopyFrom(resources);
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offers->offers(0).id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(executor);
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  // TODO(bmahler): For now we only ensure that the message is
+  // sent to the agent, since the agent-side of task groups is
+  // not yet implemented.
+
+  AWAIT_READY(runTaskGroupMessage);
+
+  EXPECT_EQ(devolve(frameworkId), runTaskGroupMessage->framework().id());
+
+  EXPECT_EQ(devolve(executor.executor_id()),
+            runTaskGroupMessage->executor().executor_id());
+
+  ASSERT_EQ(2, runTaskGroupMessage->task_group().tasks().size());
+  EXPECT_EQ(devolve(task1.task_id()),
+            runTaskGroupMessage->task_group().tasks(0).task_id());
+  EXPECT_EQ(devolve(task2.task_id()),
+            runTaskGroupMessage->task_group().tasks(1).task_id());
+}
+
+
 TEST_P(SchedulerTest, ReconcileTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
