@@ -180,21 +180,21 @@ We categorize the changes as follows:
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
-<a name="1-0-x-deprecated-ssl-env-variables"</a>
+<a name="1-0-x-deprecated-ssl-env-variables"></a>
 
 * Prior to Mesos 1.0, environment variables prefixed by `SSL_` are used to control libprocess SSL support. However, it was found that those environment variables may collide with some libraries or programs (e.g., openssl, curl). From Mesos 1.0, `SSL_*` environment variables are deprecated in favor of the corresponding `LIBPROCESS_SSL_*` variables.
 
-<a name="1-0-x-persistent-volume-ownership"</a>
+<a name="1-0-x-persistent-volume-ownership"></a>
 
 * Prior to Mesos 1.0, Mesos agent recursively changes the ownership of the persistent volumes every time they are mounted to a container. From Mesos 1.0, this behavior has been changed. Mesos agent will do a _non-recursive_ change of ownership of the persistent volumes.
 
-<a name="1-0-x-deprecated-fields-in-container-config"</a>
+<a name="1-0-x-deprecated-fields-in-container-config"></a>
 
 * Mesos 1.0 removed the camel cased protobuf fields in `ContainerConfig` (see `include/mesos/slave/isolator.proto`):
   * `required ExecutorInfo executorInfo = 1;`
   * `optional TaskInfo taskInfo = 2;`
 
-<a name="1-0-x-executor-environment-variables"</a>
+<a name="1-0-x-executor-environment-variables"></a>
 
 * By default, executors will no longer inherit environment variables from the agent. The operator can still use the `--executor-environment-variables` flag on the agent to explicitly specify what environment variables the executors will get. Mesos generated environment variables (i.e., `$MESOS_`, `$LIBPROCESS_`) will not be affected. If `$PATH` is not specified for an executor, a default value `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` will be used.
 
