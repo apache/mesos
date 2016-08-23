@@ -273,7 +273,7 @@ We categorize the changes as follows:
 * Mesos 1.0 contains a number of authorizer changes that particularly effect custom authorizer modules:
   * The authorizer interface has been refactored in order to decouple the ACL definition language from the interface. It additionally includes the option of retrieving `ObjectApprover`. An `ObjectApprover` can be used to synchronously check authorizations for a given object and is hence useful when authorizing a large number of objects and/or large objects (which need to be copied using request-based authorization). NOTE: This is a **breaking change** for authorizer modules.
   * Authorization-based HTTP endpoint filtering enables operators to restrict which parts of the cluster state a user is authorized to see. Consider for example the `/state` master endpoint: an operator can now authorize users to only see a subset of the running frameworks, tasks, or executors.
-  * The ``subject` and `object` fields in the authorization::Request protobuf message have been changed to be optional. If these fields are not set, the request should only be allowed for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
+  * The `subject` and `object` fields in the authorization::Request protobuf message have been changed to be optional. If these fields are not set, the request should only be allowed for ACLs with `ANY` semantics. NOTE: This is a semantic change for authorizer modules.
 
 <a name="1-0-x-allocator"></a>
 
@@ -291,7 +291,7 @@ We categorize the changes as follows:
 
 * Mesos 1.0 introduces authorization support for several HTTP endpoints. Note that some of these endpoints are used by the web UI, and thus using the web UI in a cluster with authorization enabled will require that ACLs be set appropriately. Please refer to the [authorization documentation](authorization.md) for details.
 
-* The endpoints with coarse grained authorization enabled are:
+* The endpoints with coarse-grained authorization enabled are:
   - `/files/debug`
   - `/logging/toggle`
   - `/metrics/snapshot`
