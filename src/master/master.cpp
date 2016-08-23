@@ -3357,11 +3357,13 @@ void Master::accept(
 
           // Add to pending tasks.
           //
-          // NOTE: The task ID here hasn't been validated yet, but it
-          // doesn't matter. If the task ID is not valid, the task won't
-          // be launched anyway. If two tasks have the same ID, the second
-          // one will not be put into 'framework->pendingTasks', therefore
-          // will not be launched.
+          // NOTE: If two tasks have the same ID, the second one will
+          // not be put into 'framework->pendingTasks', therefore
+          // will not be launched (and TASK_ERROR will be sent).
+          // Unfortunately, we can't tell the difference between a
+          // duplicate TaskID and getting killed while pending
+          // (removed from the map). So it's possible that we send
+          // a TASK_ERROR after a TASK_KILLED (see _accept())!
           if (!framework->pendingTasks.contains(task.task_id())) {
             framework->pendingTasks[task.task_id()] = task;
           }
@@ -3751,15 +3753,20 @@ void Master::_accept(
           Future<bool> authorization = authorizations.front();
           authorizations.pop_front();
 
-          // NOTE: The task will not be in 'pendingTasks' if
-          // 'killTask()' for the task was called before we are here.
-          // No need to launch the task if it's no longer pending.
-          // However, we still need to check the authorization result
-          // and do the validation so that we can send status update
-          // in case the task has duplicated ID.
-          bool pending = framework->pendingTasks.contains(task.task_id());
+          // The task will not be in `pendingTasks` if it has been
+          // killed in the interim. No need to send TASK_KILLED in
+          // this case as it has already been sent. Note however that
+          // we cannot currently distinguish between the task being
+          // killed and the task having a duplicate TaskID within
+          // `pendingTasks`. Therefore we must still validate the task
+          // to ensure we send the TASK_ERROR in the case that it has a
+          // duplicate TaskID.
+          //
+          // TODO(bmahler): We may send TASK_ERROR after a TASK_KILLED
+          // if a task was killed (removed from `pendingTasks`) *and*
+          // the task is invalid or unauthorized here.
 
-          // Remove from pending tasks.
+          bool pending = framework->pendingTasks.contains(task.task_id());
           framework->pendingTasks.erase(task.task_id());
 
           CHECK(!authorization.isDiscarded());
