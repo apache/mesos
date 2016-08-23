@@ -301,6 +301,21 @@ message RunTaskMessage {
 
 
 /**
+ * This message either notifies an existing executor to run a task
+ * group, or starts a new executor and runs the task group. This
+ * message is sent when scheduler::Call::Accept is sent with
+ * Offer::Operation::LaunchGroup.
+ *
+ * See executor::Event::LaunchGroup.
+ */
+message RunTaskGroupMessage {
+  required FrameworkInfo framework = 1;
+  required ExecutorInfo executor = 2;
+  required TaskGroupInfo task_group = 3;
+}
+
+
+/**
  * Kills a specific task.
  *
  * See scheduler::Call::Kill and executor::Event::Kill.
