@@ -308,10 +308,8 @@ public:
 
 inline std::ostream& operator<<(std::ostream& stream, const Duration& duration_)
 {
-  long precision = stream.precision();
-
-  // Output the duration in full double precision.
-  stream.precision(std::numeric_limits<double>::digits10);
+  // Output the duration in full double precision and save the old precision.
+  long precision = stream.precision(std::numeric_limits<double>::digits10);
 
   // Parse the duration as the sign and the absolute value.
   Duration duration = duration_;
