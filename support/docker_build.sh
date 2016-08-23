@@ -6,7 +6,7 @@ set -xe
 # a given OS and compiler combination.
 
 # Require the following environment variables to be set.
-: ${OS:?"Environment variable 'OS' must be set (e.g., OS=ubuntu14.04)"}
+: ${OS:?"Environment variable 'OS' must be set (e.g., OS=ubuntu:14.04)"}
 : ${BUILDTOOL:?"Environment variable 'BUILDTOOL' must be set (e.g., BUILDTOOL=autotools)"}
 : ${COMPILER:?"Environment variable 'COMPILER' must be set (e.g., COMPILER=gcc)"}
 : ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set (e.g., CONFIGURATION='--enable-libevent --enable-ssl')"}
