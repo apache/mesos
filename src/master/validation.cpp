@@ -972,6 +972,7 @@ Option<Error> validate(
   return None();
 }
 
+
 namespace group {
 
 namespace internal {
