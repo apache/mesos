@@ -470,7 +470,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
           return Error("Unexpected Env format for 'ContainerConfig.Env'");
         }
 
-        if (result.count(tokens[0])) {
+        if (result.count(tokens[0]) > 0) {
           return Error("Unexpected duplicate environment variables '"
                         + tokens[0] + "'");
         }

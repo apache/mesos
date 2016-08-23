@@ -1088,7 +1088,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         const string& name = variable.name();
         const string& value = variable.value();
 
-        if (environment.count(name)) {
+        if (environment.count(name) > 0) {
           VLOG(1) << "Overwriting environment variable '"
                   << name << "', original: '"
                   << environment[name] << "', new: '"
@@ -1145,7 +1145,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     const string& name = variable.name();
     const string& value = variable.value();
 
-    if (environment.count(name)) {
+    if (environment.count(name) > 0) {
       VLOG(1) << "Overwriting environment variable '"
               << name << "', original: '"
               << environment[name] << "', new: '"
