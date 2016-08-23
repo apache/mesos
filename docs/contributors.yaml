@@ -289,6 +289,12 @@
   jira_user: klaus1982
   reviewboard_user: klaus1982
 
+- name: Krzysztof Paprocki
+  emails:
+    - paprocki.krzysztof@gmail.com
+  jira_user: Kris-Paprocki
+  reviewboard_user: Kris-Paprocki
+
 - name: Lily Chen
   affiliations:
     - {organization: Mesosphere}
