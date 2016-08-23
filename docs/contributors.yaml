@@ -531,3 +531,9 @@
     - w.rouesnel@gmail.com
   jira_user: wrouesnel
   reviewboard_user: wrouesnel
+
+ - name: Ivan Jobs
+  emails:
+    - ivan1377@163.com
+  jira_user: IvanJobs
+  reviewboard_user: IvanJobs

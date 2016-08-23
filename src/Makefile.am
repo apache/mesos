@@ -1932,6 +1932,15 @@ check_PROGRAMS += mesos-tests
 # LDFLAGS to be used for the module libraries.
 MESOS_MODULE_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
+# Libraray containing the lognoop container logger.
+#
+pkgmodule_LTLIBRARIES += liblognoop_container_logger.la
+liblognoop_container_logger_la_SOURCES =			\
+  slave/container_loggers/lib_lognoop.cpp			\
+  slave/container_loggers/lib_lognoop.hpp
+liblognoop_container_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+liblognoop_container_logger_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
 # Library containing the logrotate container logger.
 pkgmodule_LTLIBRARIES += liblogrotate_container_logger.la
 liblogrotate_container_logger_la_SOURCES =			\
