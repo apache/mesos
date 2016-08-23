@@ -3840,7 +3840,12 @@ void Master::_accept(
 
           // Add task.
           if (pending) {
-            _offeredResources -= addTask(task_, framework, slave);
+            const Resources consumed = addTask(task_, framework, slave);
+
+            CHECK(_offeredResources.contains(consumed))
+              << _offeredResources << " does not contain " << consumed;
+
+            _offeredResources -= consumed;
 
             // TODO(bmahler): Consider updating this log message to
             // indicate when the executor is also being launched.
