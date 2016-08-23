@@ -57,11 +57,19 @@ static const string* INVALID_CHARACTERS =
 
 Option<Error> validate(const string& role)
 {
-  static const string* dot = new string(".");
-  static const string* dotdot = new string("..");
+  // We check * explicitly first as a performance improvement.
+  static const string* star = new string("*");
+  if (role == *star) {
+    return None();
+  }
+
   if (role.empty()) {
     return Error("Empty role name is invalid");
-  } else if (role == *dot) {
+  }
+
+  static const string* dot = new string(".");
+  static const string* dotdot = new string("..");
+  if (role == *dot) {
     return Error("Role name '.' is invalid");
   } else if (role == *dotdot) {
     return Error("Role name '..' is invalid");
