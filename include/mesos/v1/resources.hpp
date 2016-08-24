@@ -33,6 +33,7 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -51,6 +52,16 @@
 
 namespace mesos {
 namespace v1 {
+
+// Forward declarations required for making
+// `convertJSON` a friend of `Resources`.
+class Resources;
+
+namespace internal {
+  Try<Resources> convertJSON(
+      const JSON::Array& resourcesJSON,
+      const std::string& defaultRole);
+}
 
 // NOTE: Resource objects stored in the class are always valid and
 // kept combined if possible. It is the caller's responsibility to
@@ -458,13 +469,12 @@ public:
   Resources& operator-=(const Resource& that);
   Resources& operator-=(const Resources& that);
 
-  // Validation-free versions of += and -= `Resource` operators.
-  // These can be used when `r` is already validated.
-  void add(const Resource& r);
-  void subtract(const Resource& r);
-
   friend std::ostream& operator<<(
       std::ostream& stream, const Resource_& resource_);
+
+  friend Try<Resources> internal::convertJSON(
+      const JSON::Array& resourcesJSON,
+      const std::string& defaultRole);
 
 private:
   // Similar to 'contains(const Resource&)' but skips the validity
@@ -480,6 +490,11 @@ private:
   // object. The target resource may span multiple roles, so this
   // returns Resources.
   Option<Resources> find(const Resource& target) const;
+
+  // Validation-free versions of += and -= `Resource` operators.
+  // These can be used when `r` is already validated.
+  void add(const Resource& r);
+  void subtract(const Resource& r);
 
   // The add and subtract methods and operators on Resource_ are only
   // allowed from within Resources class so we hide them.

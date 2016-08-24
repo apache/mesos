@@ -446,7 +446,7 @@ static Option<Error> validateCommandLineResources(const Resources& resources)
  * @return A `Try` containing a Resources object if conversion was successful,
  *     or an Error otherwise.
  */
-static Try<Resources> convertJSON(
+inline Try<Resources> convertJSON(
     const JSON::Array& resourcesJSON,
     const string& defaultRole)
 {
