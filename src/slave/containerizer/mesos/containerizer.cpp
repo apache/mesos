@@ -1591,8 +1591,8 @@ void MesosContainerizerProcess::destroy(
   LOG(INFO) << "Destroying container " << containerId;
 
   if (container->state == PROVISIONING) {
-    VLOG(1) << "Waiting for the provisioner to complete for container '"
-            << containerId << "'";
+    VLOG(1) << "Waiting for the provisioner to complete provisioning "
+            << "before destroying container " << containerId;
 
     container->state = DESTROYING;
 
@@ -1611,29 +1611,28 @@ void MesosContainerizerProcess::destroy(
   }
 
   if (container->state == PREPARING) {
-    VLOG(1) << "Waiting for the isolators to complete preparing before "
-            << "destroying the container";
+    VLOG(1) << "Waiting for the isolators to complete preparing "
+            << "before destroying container " << containerId;
 
     container->state = DESTROYING;
 
-    Future<Option<int>> status = None();
-    // We need to wait for the isolators to finish preparing to prevent
-    // a race that the destroy method calls isolators' cleanup before
-    // it starts preparing.
+    // We need to wait for the isolators to finish preparing to
+    // prevent a race that the destroy method calls the 'cleanup'
+    // method of an isolator before the 'prepare' method is called.
     container->launchInfos
       .onAny(defer(
           self(),
           &Self::___destroy,
           containerId,
-          status,
+          None(),
           "Container destroyed while preparing isolators"));
 
     return;
   }
 
   if (container->state == ISOLATING) {
-    VLOG(1) << "Waiting for the isolators to complete for container '"
-            << containerId << "'";
+    VLOG(1) << "Waiting for the isolators to complete isolation "
+            << "before destroying container " << containerId;
 
     container->state = DESTROYING;
 
@@ -1672,6 +1671,8 @@ void MesosContainerizerProcess::__destroy(
 {
   CHECK(containers_.contains(containerId));
 
+  const Owned<Container>& container = containers_[containerId];
+
   // Something has gone wrong and the launcher wasn't able to kill all
   // the processes in the container. We cannot clean up the isolators
   // because they may require that all processes have exited so just
@@ -1679,21 +1680,20 @@ void MesosContainerizerProcess::__destroy(
   // TODO(idownes): This is a pretty bad state to be in but we should
   // consider cleaning up here.
   if (!future.isReady()) {
-    containers_[containerId]->promise.fail(
-        "Failed to destroy container " + stringify(containerId) + ": " +
+    container->promise.fail(
+        "Failed to kill all processes in the container: " +
         (future.isFailed() ? future.failure() : "discarded future"));
 
     containers_.erase(containerId);
 
     ++metrics.container_destroy_errors;
-
     return;
   }
 
   // We've successfully killed all processes in the container so get
   // the exit status of the executor when it's ready (it may already
   // be) and continue the destroy.
-  containers_[containerId]->status
+  container->status
     .onAny(defer(
         self(),
         &Self::___destroy,
