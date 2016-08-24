@@ -103,7 +103,7 @@ struct SyscallPayload
 };
 
 
-// Helper funciton to convert capability set to bitset.
+// Helper function to convert capability set to bitset.
 static uint64_t toCapabilityBitset(const Set<Capability>& capabilities)
 {
   uint64_t result = 0;
@@ -151,10 +151,10 @@ void ProcessCapabilities::set(
     const Set<Capability>& capabilities)
 {
   switch (type) {
-    case EFFECTIVE:   effective = capabilities;
-    case PERMITTED:   permitted = capabilities;
-    case INHERITABLE: inheritable = capabilities;
-    case BOUNDING:    bounding = capabilities;
+    case EFFECTIVE:   effective = capabilities;   return;
+    case PERMITTED:   permitted = capabilities;   return;
+    case INHERITABLE: inheritable = capabilities; return;
+    case BOUNDING:    bounding = capabilities;    return;
   }
 
   UNREACHABLE();
