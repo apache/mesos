@@ -143,9 +143,7 @@ void HierarchicalAllocatorProcess::initialize(
   // Resources for quota'ed roles are allocated separately and prior to
   // non-quota'ed roles, hence a dedicated sorter for quota'ed roles is
   // necessary.
-  roleSorter.reset(roleSorterFactory());
   roleSorter->initialize(fairnessExcludeResourceNames);
-  quotaRoleSorter.reset(quotaRoleSorterFactory());
   quotaRoleSorter->initialize(fairnessExcludeResourceNames);
 
   VLOG(1) << "Initialized hierarchical allocator process";

@@ -72,18 +72,16 @@ class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 {
 public:
   HierarchicalAllocatorProcess(
-      const std::function<Sorter*()>& _roleSorterFactory,
+      const std::function<Sorter*()>& roleSorterFactory,
       const std::function<Sorter*()>& _frameworkSorterFactory,
-      const std::function<Sorter*()>& _quotaRoleSorterFactory)
+      const std::function<Sorter*()>& quotaRoleSorterFactory)
     : ProcessBase(process::ID::generate("hierarchical-allocator")),
       initialized(false),
       paused(true),
       metrics(*this),
-      roleSorter(nullptr),
-      quotaRoleSorter(nullptr),
-      roleSorterFactory(_roleSorterFactory),
-      frameworkSorterFactory(_frameworkSorterFactory),
-      quotaRoleSorterFactory(_quotaRoleSorterFactory) {}
+      roleSorter(roleSorterFactory()),
+      quotaRoleSorter(quotaRoleSorterFactory()),
+      frameworkSorterFactory(_frameworkSorterFactory) {}
 
   virtual ~HierarchicalAllocatorProcess() {}
 
@@ -463,10 +461,8 @@ protected:
   // for both the first and the second stages.
   hashmap<std::string, process::Owned<Sorter>> frameworkSorters;
 
-  // Factory functions for sorters.
-  const std::function<Sorter*()> roleSorterFactory;
+  // Factory function for framework sorters.
   const std::function<Sorter*()> frameworkSorterFactory;
-  const std::function<Sorter*()> quotaRoleSorterFactory;
 };
 
 
