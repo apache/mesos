@@ -839,11 +839,11 @@ Future<Response> Master::Http::scheduler(
         "All non-subscribe calls should include the 'Mesos-Stream-Id' header");
   }
 
-  if (request.headers.at("Mesos-Stream-Id") !=
-      framework->http.get().streamId.toString()) {
+  const string& streamId = request.headers.at("Mesos-Stream-Id");
+  if (streamId != framework->http.get().streamId.toString()) {
     return BadRequest(
-        "The stream ID included in this request didn't match the stream ID "
-        "currently associated with framework ID "
+        "The stream ID '" + streamId + "' included in this request "
+        "didn't match the stream ID currently associated with framework ID "
         + framework->id().value());
   }
 
