@@ -546,13 +546,7 @@ void CgroupsIsolatorProcess::_watch(
 
   CHECK(!future.isPending());
 
-  if (future.isReady()) {
-    infos[containerId]->limitation.set(future.get());
-  } else if (future.isFailed()) {
-    infos[containerId]->limitation.fail(future.failure());
-  } else {
-    infos[containerId]->limitation.discard();
-  }
+  infos[containerId]->limitation.set(future);
 }
 
 
