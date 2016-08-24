@@ -1717,14 +1717,10 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       acquire = slaves.limiter.get()->acquire();
     }
 
-    // Need to disambiguate for the compiler.
-    // TODO(bmahler): With C++11, just call removeSlave from within
-    // a lambda function to avoid the need to disambiguate.
-    Nothing (Master::*removeSlave)(const Registry::Slave&) = &Self::removeSlave;
     const string failure = "Agent removal rate limit acquisition failed";
 
     acquire
-      .then(defer(self(), removeSlave, slave))
+      .then(defer(self(), &Self::removeSlave, slave))
       .onFailed(lambda::bind(fail, failure, lambda::_1))
       .onDiscarded(lambda::bind(fail, failure, "discarded"));
 
