@@ -17,15 +17,18 @@
 #include <errno.h>
 #ifdef __linux__
 #include <sched.h>
+#include <signal.h>
 #endif // __linux__
 #include <string.h>
 
 #include <iostream>
 #include <set>
+#include <string>
 
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/path.hpp>
 #include <stout/unreachable.hpp>
 
 #ifdef __linux__
@@ -37,6 +40,7 @@
 #include "mesos/mesos.hpp"
 
 #include "slave/containerizer/mesos/launch.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 
 using std::cerr;
 using std::cout;
@@ -70,6 +74,10 @@ MesosContainerizerLaunch::Flags::Flags()
       "w.r.t. the root filesystem used for the command.");
 
 #ifndef __WINDOWS__
+  add(&runtime_directory,
+      "runtime_directory",
+      "The runtime directory for the container (used for checkpointing)");
+
   add(&rootfs,
       "rootfs",
       "Absolute path to the container root filesystem. The command will be \n"
@@ -114,12 +122,164 @@ MesosContainerizerLaunch::Flags::Flags()
 }
 
 
+static Option<pid_t> containerPid = None();
+static Option<string> containerStatusPath = None();
+static Option<int> containerStatusFd = None();
+
+static void exitWithSignal(int sig);
+static void exitWithStatus(int status);
+
+
+#ifndef __WINDOWS__
+static void signalSafeWriteStatus(int status)
+{
+  const string statusString = std::to_string(status);
+
+  Try<Nothing> write = os::write(
+      containerStatusFd.get(),
+      statusString);
+
+  if (write.isError()) {
+    os::write(STDERR_FILENO,
+              "Failed to write container status '" +
+              statusString + "': " + ::strerror(errno));
+  }
+}
+
+
+// When launching the executor with an 'init' process, we need to
+// forward all relevant signals to it. The functions below help to
+// enable this forwarding.
+static void signalHandler(int sig)
+{
+  // If we dn't yet have a container pid, we treat
+  // receiving a signal like a failure and exit.
+  if (containerPid.isNone()) {
+    exitWithSignal(sig);
+  }
+
+  // Otherwise we simply forward the signal to `containerPid`. We
+  // purposefully ignore the error here since we have to remain async
+  // signal safe. The only possible error scenario relevant to us is
+  // ESRCH, but if that happens that means our pid is already gone and
+  // the process will exit soon. So we are safe.
+  os::kill(containerPid.get(), sig);
+}
+
+
+static Try<Nothing> installSignalHandlers()
+{
+  // Install handlers for all standard POSIX signals
+  // (i.e. any signal less than `NSIG`).
+  for (int i = 1; i < NSIG; i++) {
+    // We don't want to forward the SIGCHLD signal, nor do we want to
+    // handle it ourselves because we reap all children inline in the
+    // `execute` function.
+    if (i == SIGCHLD) {
+      continue;
+    }
+
+    // We can't catch or ignore these signals, so we shouldn't try
+    // to register a handler for them.
+    if (i == SIGKILL || i == SIGSTOP) {
+      continue;
+    }
+
+    // The NSIG constant is used to determine the number of signals
+    // available on a system. However, Darwin, Linux, and BSD differ
+    // on their interpretation of of the value of NSIG. Linux, for
+    // example, sets it to 65, where Darwin sets it to 32. The reason
+    // for the discrepency is that Linux includes the real-time
+    // signals in this count, where Darwin does not. However, even on
+    // linux, we are not able to arbitrarily install signal handlers
+    // for all the real-time signals -- they must have not been
+    // registered with the system first. For this reason, we
+    // standardize on verifying the installation of handlers for
+    // signals 1-31 (since these are defined in the POSIX standard),
+    // but we continue to attempt to install handlers up to the value
+    // of NSIG without verification.
+    const int posixLimit = 32;
+    if (os::signals::install(i, signalHandler) != 0 && i < posixLimit) {
+      return ErrnoError("Unable to register signal"
+                        " '" + stringify(strsignal(i)) + "'");
+    }
+  }
+
+  return Nothing();
+}
+#endif // __WINDOWS__
+
+
+static void exitWithSignal(int sig)
+{
+#ifndef __WINDOWS__
+  if (containerStatusFd.isSome()) {
+    signalSafeWriteStatus(W_EXITCODE(0, sig));
+    os::close(containerStatusFd.get());
+  }
+#endif // __WINDOWS__
+  ::_exit(EXIT_FAILURE);
+}
+
+
+static void exitWithStatus(int status)
+{
+#ifndef __WINDOWS__
+  if (containerStatusFd.isSome()) {
+    signalSafeWriteStatus(W_EXITCODE(status, 0));
+    os::close(containerStatusFd.get());
+  }
+#endif // __WINDOWS__
+  ::_exit(status);
+}
+
+
 int MesosContainerizerLaunch::execute()
 {
+#ifndef __WINDOWS__
+  // The existence of the `runtime_directory` flag implies that we
+  // want to checkpoint the container's status upon exit.
+  if (flags.runtime_directory.isSome()) {
+    containerStatusPath = path::join(
+        flags.runtime_directory.get(),
+        containerizer::paths::STATUS_FILE);
+
+    Try<int> open = os::open(
+        containerStatusPath.get(),
+        O_WRONLY | O_CREAT | O_CLOEXEC,
+        S_IRUSR | S_IWUSR);
+
+    if (open.isError()) {
+      cerr << "Failed to open file for writing the container status"
+           << " '" << containerStatusPath.get() << "':"
+           << " " << open.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    containerStatusFd = open.get();
+  }
+
+  // We need a signal fence here to ensure that `containerStatusFd` is
+  // actually written to memory and not just to a temporary register.
+  // Without this, it's possible that the signal handler we are about
+  // to install would never see the correct value since there's no
+  // guarantee that it is written to memory until this function
+  // completes (which won't happen for a really long time because we
+  // do a blocking `waitpid()` below).
+  std::atomic_signal_fence(std::memory_order_relaxed);
+
+  // Install signal handlers for all incoming signals.
+  Try<Nothing> signals = installSignalHandlers();
+  if (signals.isError()) {
+    cerr << "Failed to install signal handlers: " << signals.error() << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+#endif // __WINDOWS__
+
   // Check command line flags.
   if (flags.command.isNone()) {
     cerr << "Flag --command is not specified" << endl;
-    return EXIT_FAILURE;
+    exitWithStatus(EXIT_FAILURE);
   }
 
   bool controlPipeSpecified =
@@ -129,7 +289,7 @@ int MesosContainerizerLaunch::execute()
       (flags.pipe_read.isNone() && flags.pipe_write.isSome())) {
     cerr << "Flag --pipe_read and --pipe_write should either be "
          << "both set or both not set" << endl;
-    return EXIT_FAILURE;
+    exitWithStatus(EXIT_FAILURE);
   }
 
   // Parse the command.
@@ -138,19 +298,19 @@ int MesosContainerizerLaunch::execute()
 
   if (command.isError()) {
     cerr << "Failed to parse the command: " << command.error() << endl;
-    return EXIT_FAILURE;
+    exitWithStatus(EXIT_FAILURE);
   }
 
   // Validate the command.
   if (command.get().shell()) {
     if (!command.get().has_value()) {
       cerr << "Shell command is not specified" << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   } else {
     if (!command.get().has_value()) {
       cerr << "Executable path is not specified" << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 
@@ -169,7 +329,7 @@ int MesosContainerizerLaunch::execute()
     Try<Nothing> close = os::close(pipe[1]);
     if (close.isError()) {
       cerr << "Failed to close pipe[1]: " << close.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     // Do a blocking read on the pipe until the parent signals us to continue.
@@ -179,17 +339,17 @@ int MesosContainerizerLaunch::execute()
            errno == EINTR);
 
     if (length != sizeof(dummy)) {
-       // There's a reasonable probability this will occur during
-       // agent restarts across a large/busy cluster.
-       cerr << "Failed to synchronize with agent "
-            << "(it's probably exited)" << endl;
-       return EXIT_FAILURE;
+      // There's a reasonable probability this will occur during
+      // agent restarts across a large/busy cluster.
+      cerr << "Failed to synchronize with agent "
+           << "(it's probably exited)" << endl;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     close = os::close(pipe[0]);
     if (close.isError()) {
       cerr << "Failed to close pipe[0]: " << close.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 
@@ -198,7 +358,7 @@ int MesosContainerizerLaunch::execute()
     if (unshare(CLONE_NEWNS) != 0) {
       cerr << "Failed to unshare mount namespace: "
            << os::strerror(errno) << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 #endif // __linux__
@@ -211,19 +371,19 @@ int MesosContainerizerLaunch::execute()
     foreach (const JSON::Value& value, array.values) {
       if (!value.is<JSON::Object>()) {
         cerr << "Invalid JSON format for flag --commands" << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
 
       Try<CommandInfo> parse = ::protobuf::parse<CommandInfo>(value);
       if (parse.isError()) {
         cerr << "Failed to parse a preparation command: "
              << parse.error() << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
 
       if (!parse.get().has_value()) {
         cerr << "The 'value' of a preparation command is not specified" << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
 
       cout << "Executing pre-exec command '" << value << "'" << endl;
@@ -246,7 +406,7 @@ int MesosContainerizerLaunch::execute()
 
       if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
         cerr << "Failed to execute pre-exec command '" << value << "'" << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
     }
   }
@@ -271,7 +431,7 @@ int MesosContainerizerLaunch::execute()
     if (!_uid.isSome()) {
       cerr << "Failed to get the uid of user '" << flags.user.get() << "': "
            << (_uid.isError() ? _uid.error() : "not found") << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     // No need to change user/groups if the specified user is the same
@@ -281,7 +441,7 @@ int MesosContainerizerLaunch::execute()
       if (!_gid.isSome()) {
         cerr << "Failed to get the gid of user '" << flags.user.get() << "': "
              << (_gid.isError() ? _gid.error() : "not found") << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
 
       Try<vector<gid_t>> _gids = os::getgrouplist(flags.user.get());
@@ -289,7 +449,7 @@ int MesosContainerizerLaunch::execute()
         cerr << "Failed to get the supplementary gids of user '"
              << flags.user.get() << "': "
              << (_gids.isError() ? _gids.error() : "not found") << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
 
       uid = _uid.get();
@@ -308,7 +468,7 @@ int MesosContainerizerLaunch::execute()
     if (capabilitiesManager.isError()) {
       cerr << "Failed to initialize capabilities support: "
            << capabilitiesManager.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     // Prevent clearing of capabilities on `setuid`.
@@ -317,7 +477,7 @@ int MesosContainerizerLaunch::execute()
       if (keepCaps.isError()) {
         cerr << "Failed to set process control for keeping capabilities "
              << "on potential uid change: " << keepCaps.error() << endl;
-        return EXIT_FAILURE;
+        exitWithStatus(EXIT_FAILURE);
       }
     }
   }
@@ -339,13 +499,13 @@ int MesosContainerizerLaunch::execute()
     if (realpath.isError()) {
       cerr << "Failed to determine if rootfs is an absolute path: "
            << realpath.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     } else if (realpath.isNone()) {
       cerr << "Rootfs path does not exist" << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     } else if (realpath.get() != rootfs.get()) {
       cerr << "Rootfs path is not an absolute path" << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
 #ifdef __linux__
@@ -358,7 +518,7 @@ int MesosContainerizerLaunch::execute()
     if (chroot.isError()) {
       cerr << "Failed to enter chroot '" << rootfs.get()
            << "': " << chroot.error();
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 
@@ -371,21 +531,21 @@ int MesosContainerizerLaunch::execute()
     if (setgid.isError()) {
       cerr << "Failed to set gid to " << gid.get()
            << ": " << setgid.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     Try<Nothing> setgroups = os::setgroups(gids, uid);
     if (setgroups.isError()) {
       cerr << "Failed to set supplementary gids: "
            << setgroups.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     Try<Nothing> setuid = os::setuid(uid.get());
     if (setuid.isError()) {
       cerr << "Failed to set uid to " << uid.get()
            << ": " << setuid.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 #endif // __WINDOWS__
@@ -398,14 +558,14 @@ int MesosContainerizerLaunch::execute()
     if (requestedCapabilities.isError()) {
       cerr << "Failed to parse capabilities: "
            << requestedCapabilities.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
            << capabilities.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     // After 'setuid', 'effective' set is cleared. Since `SETPCAP` is
@@ -417,7 +577,7 @@ int MesosContainerizerLaunch::execute()
     if (setPcap.isError()) {
       cerr << "Failed to add SETPCAP to the effective set: "
            << setPcap.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
 
     // Set up requested capabilities.
@@ -431,7 +591,7 @@ int MesosContainerizerLaunch::execute()
     Try<Nothing> set = capabilitiesManager->set(capabilities.get());
     if (set.isError()) {
       cerr << "Failed to set process capabilities: " << set.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 #endif // __linux__
@@ -442,12 +602,79 @@ int MesosContainerizerLaunch::execute()
       cerr << "Failed to chdir into current working directory "
            << "'" << flags.working_directory.get() << "': "
            << chdir.error() << endl;
-      return EXIT_FAILURE;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 
   // Relay the environment variables.
   // TODO(jieyu): Consider using a clean environment.
+
+#ifndef __WINDOWS__
+  // If we have `containerStatusFd` set, then we need to fork-exec the
+  // command we are launching and checkpoint its status on exit. We
+  // use fork-exec directly (as opposed to `process::subprocess()`) to
+  // avoid intializing libprocess for this simple helper binary.
+  //
+  // TODO(klueska): Once we move the majority of `process::subprocess()`
+  // into stout, update the code below to use it.
+  if (containerStatusFd.isSome()) {
+    pid_t pid = ::fork();
+
+    if (pid == -1) {
+      cerr << "Failed to fork() the command: " << os::strerror(errno) << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    // If we are the parent...
+    if (pid > 0) {
+      // Set the global `containerPid` variable to enable signal forwarding.
+      //
+      // NOTE: We need a signal fence here to ensure that `containerPid`
+      // is actually written to memory and not just to a temporary register.
+      // Without this, it's possible that the signal handler would
+      // never notice the change since there's no guarantee that it is
+      // written out to memory until this function completes (which
+      // won't happen until it's too late because we loop inside a
+      // blocking `waitpid()` call below).
+      containerPid = pid;
+      std::atomic_signal_fence(std::memory_order_relaxed);
+
+      // Wait for the newly created process to finish.
+      int status = 0;
+      Result<pid_t> waitpid = None();
+
+      // Reap all decendants, but only continue once we reap the
+      // process we just launched.
+      while (true) {
+        waitpid = os::waitpid(-1, &status, 0);
+
+        if (waitpid.isError()) {
+          // If the error was an EINTR, we were interrupted by a
+          // signal and should just call `waitpid()` over again.
+          if (errno == EINTR) {
+            continue;
+          }
+          cerr << "Failed to os::waitpid(): " << waitpid.error() << endl;
+          exitWithStatus(EXIT_FAILURE);
+        }
+
+        if (waitpid.isNone()) {
+          cerr << "Calling os::waitpid() with blocking semantics"
+               << "returned asynchronously" << endl;
+          exitWithStatus(EXIT_FAILURE);
+        }
+
+        if (pid == waitpid.get()) {
+          break;
+        }
+      }
+
+      signalSafeWriteStatus(status);
+      os::close(containerStatusFd.get());
+      ::_exit(EXIT_SUCCESS);
+    }
+  }
+#endif // __WINDOWS__
 
   if (command->shell()) {
     // Execute the command using shell.

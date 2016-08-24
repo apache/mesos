@@ -37,6 +37,7 @@ public:
     Option<JSON::Object> command;
     Option<std::string> working_directory;
 #ifndef __WINDOWS__
+    Option<std::string> runtime_directory;
     Option<std::string> rootfs;
     Option<std::string> user;
 #endif // __WINDOWS__
