@@ -234,23 +234,20 @@ private:
   // Continues '__destroy()' once we get the exit status of the executor.
   void ___destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int>>& status,
-      const Option<std::string>& message);
+      const process::Future<Option<int>>& status);
 
   // Continues '___destroy()' once all isolators have completed
   // cleanup.
   void ____destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
-      const process::Future<std::list<process::Future<Nothing>>>& cleanups,
-      Option<std::string> message);
+      const process::Future<std::list<process::Future<Nothing>>>& cleanups);
 
   // Continues '____destroy()' once provisioner have completed destroy.
   void _____destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
-      const process::Future<bool>& destroy,
-      Option<std::string> message);
+      const process::Future<bool>& destroy);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.

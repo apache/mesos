@@ -747,10 +747,6 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   ContainerTermination termination = wait.get();
 
-  EXPECT_EQ(
-      "Container destroyed while preparing isolators",
-      termination.message());
-
   EXPECT_FALSE(termination.has_status());
 }
 
@@ -862,10 +858,6 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   ContainerTermination termination = wait.get();
 
-  EXPECT_EQ(
-    "Container destroyed while provisioning images",
-    termination.message());
-
   EXPECT_FALSE(termination.has_status());
 }
 
@@ -959,10 +951,6 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   AWAIT_READY(wait);
 
   ContainerTermination termination = wait.get();
-
-  EXPECT_EQ(
-    "Container destroyed while provisioning images",
-    termination.message());
 
   EXPECT_FALSE(termination.has_status());
 }
@@ -1062,10 +1050,6 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   AWAIT_READY(wait);
 
   ContainerTermination termination = wait.get();
-
-  EXPECT_EQ(
-    "Container destroyed while provisioning images",
-    termination.message());
 
   EXPECT_FALSE(termination.has_status());
 }
