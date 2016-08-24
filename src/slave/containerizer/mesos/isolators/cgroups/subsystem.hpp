@@ -96,7 +96,8 @@ public:
    * Watch the container and report if any resource constraint impacts it.
    *
    * @param containerId The target containerId.
-   * @return Nothing or an error if `recover` fails.
+   * @return The resource limitation that impacts the container or an
+   *     error if `watch` fails.
    */
   virtual process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId);
