@@ -1163,7 +1163,14 @@ Future<bool> MesosContainerizerProcess::_launch(
         self(),
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
           -> Future<bool> {
-    CHECK(containers_.contains(containerId));
+    if (!containers_.contains(containerId)) {
+      return Failure("Container destroyed during preparing");
+    }
+
+    if (containers_[containerId]->state == DESTROYING) {
+      return Failure("Container is being destroyed during preparing");
+    }
+
     const Owned<Container>& container = containers_[containerId];
 
     // Use a pipe to block the child until it's been isolated.
