@@ -1616,6 +1616,13 @@ void MesosContainerizerProcess::destroy(
 
     container->state = DESTROYING;
 
+    // TODO(jieyu): It's likely that the launcher already forked the
+    // container. However, since we change the state to 'DESTROYING',
+    // the 'isolate()' will fail, causing the control pipes being
+    // closed. The container will terminate itself. However, we should
+    // wait for the container to terminate before we start to cleanup
+    // isolators.
+
     // We need to wait for the isolators to finish preparing to
     // prevent a race that the destroy method calls the 'cleanup'
     // method of an isolator before the 'prepare' method is called.
