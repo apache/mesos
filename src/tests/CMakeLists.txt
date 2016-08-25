@@ -33,4 +33,7 @@ add_executable(${TEST_HELPER_TARGET} ${TEST_HELPER_SRC})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${TEST_HELPER_TARGET} ${STOUT_DEPENDENCIES})
+add_dependencies(${TEST_HELPER_TARGET}
+  ${MESOS_TARGET}
+  ${STOUT_DEPENDENCIES}
+  )
