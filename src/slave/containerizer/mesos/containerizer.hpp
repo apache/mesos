@@ -285,10 +285,14 @@ private:
     // Promise for futures returned from wait().
     process::Promise<mesos::slave::ContainerTermination> promise;
 
-    // We need to keep track of the future exit status for each
-    // executor because we'll only get a single notification when
-    // the executor exits.
-    process::Future<Option<int>> status;
+    // We keep track of the future exit status for the container if it
+    // has been launched. If the container has not been launched yet,
+    // 'status' will be set to None().
+    //
+    // NOTE: A container has an exit status does not mean that it has
+    // been properly destroyed. We need to perform cleanup on
+    // isolators and provisioner after that.
+    Option<process::Future<Option<int>>> status;
 
     // We keep track of the future that is waiting for the provisioner's
     // `ProvisionInfo`, so that destroy will only start calling

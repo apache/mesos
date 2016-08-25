@@ -1628,17 +1628,20 @@ void MesosContainerizerProcess::destroy(
 
     container->state = DESTROYING;
 
-    // TODO(jieyu): It's likely that the launcher already forked the
-    // container. However, since we change the state to 'DESTROYING',
-    // the 'isolate()' will fail, causing the control pipes being
-    // closed. The container will terminate itself. However, we should
-    // wait for the container to terminate before we start to cleanup
-    // isolators.
-
     // We need to wait for the isolators to finish preparing to
     // prevent a race that the destroy method calls the 'cleanup'
     // method of an isolator before the 'prepare' method is called.
-    container->launchInfos
+    //
+    // NOTE: It's likely that the launcher already forked the
+    // container. However, since we change the state to 'DESTROYING',
+    // the 'isolate()' will fail, causing the control pipes being
+    // closed. The container will terminate itself. Therefore, we
+    // should wait for the container to terminate before we start to
+    // cleanup isolators.
+    await(container->launchInfos,
+          container->status.isSome()
+            ? container->status.get()
+            : None())
       .onAny(defer(self(), &Self::___destroy, containerId));
 
     return;
@@ -1707,7 +1710,9 @@ void MesosContainerizerProcess::__destroy(
   // We've successfully killed all processes in the container so get
   // the exit status of the executor when it's ready (it may already
   // be) and continue the destroy.
-  container->status
+  CHECK_SOME(container->status);
+
+  container->status.get()
     .onAny(defer(self(), &Self::___destroy, containerId));
 }
 
@@ -1782,8 +1787,10 @@ void MesosContainerizerProcess::_____destroy(
 
   ContainerTermination termination;
 
-  if (container->status.isReady() && container->status->isSome()) {
-    termination.set_status(container->status->get());
+  if (container->status.isSome() &&
+      container->status->isReady() &&
+      container->status->get().isSome()) {
+    termination.set_status(container->status->get().get());
   }
 
   // NOTE: We may not see a limitation in time for it to be
