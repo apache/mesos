@@ -294,31 +294,32 @@ private:
     // isolators and provisioner after that.
     Option<process::Future<Option<int>>> status;
 
-    // We keep track of the future that is waiting for the provisioner's
-    // `ProvisionInfo`, so that destroy will only start calling
-    // provisioner->destroy after provisioner->provision has finished.
+    // We keep track of the future for 'provisioner->provision' so
+    // that destroy will only start calling 'provisioner->destroy'
+    // after 'provisioner->provision' has finished.
     process::Future<ProvisionInfo> provisioning;
 
     // We keep track of the future that is waiting for all the
-    // isolators' prepare futures, so that destroy will only start
+    // 'isolator->prepare' to finish so that destroy will only start
     // calling cleanup after all isolators have finished preparing.
     process::Future<std::list<Option<mesos::slave::ContainerLaunchInfo>>>
       launchInfos;
 
     // We keep track of the future that is waiting for all the
-    // isolators' isolate futures, so that destroy will only start
+    // 'isolator->isolate' futures so that destroy will only start
     // calling cleanup after all isolators have finished isolating.
     process::Future<std::list<Nothing>> isolation;
 
-    // We keep track of any limitations received from each isolator so we can
-    // determine the cause of an executor termination.
+    // We keep track of any limitations received from each isolator so
+    // we can determine the cause of a container termination.
     std::vector<mesos::slave::ContainerLimitation> limitations;
 
-    // We keep track of the resources for each container so we can set the
-    // ResourceStatistics limits in usage().
+    // We keep track of the resources for each container so we can set
+    // the ResourceStatistics limits in usage().
     Resources resources;
 
-    // The configuration for the container to be launched.
+    // The configuration for the container to be launched. This field
+    // is only used during the launch of a container.
     mesos::slave::ContainerConfig config;
 
     State state;
