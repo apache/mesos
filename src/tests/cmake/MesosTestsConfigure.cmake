@@ -68,8 +68,8 @@ set(GTEST_LFLAG gtest)
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
-set(CONTAINERIZER_TEST_DEPENDENCIES
-  ${CONTAINERIZER_TEST_DEPENDENCIES}
+set(TEST_HELPER_DEPENDENCIES
+  ${TEST_HELPER_DEPENDENCIES}
   ${MESOS_TARGET}
   ${GMOCK_TARGET}
   )
@@ -77,8 +77,8 @@ set(CONTAINERIZER_TEST_DEPENDENCIES
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux)..
 ###############################################################################
-set(CONTAINERIZER_TEST_INCLUDE_DIRS
-  ${CONTAINERIZER_TEST_INCLUDE_DIRS}
+set(TEST_HELPER_INCLUDE_DIRS
+  ${TEST_HELPER_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
   )
@@ -87,16 +87,16 @@ set(CONTAINERIZER_TEST_INCLUDE_DIRS
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
-set(CONTAINERIZER_TEST_LIB_DIRS
-  ${CONTAINERIZER_TEST_LIB_DIRS}
+set(TEST_HELPER_LIB_DIRS
+  ${TEST_HELPER_LIB_DIRS}
   ${GTEST_LIB_DIR}
   )
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
-set(CONTAINERIZER_TEST_LIBS
-  ${CONTAINERIZER_TEST_LIBS}
+set(TEST_HELPER_LIBS
+  ${TEST_HELPER_LIBS}
   ${MESOS_TARGET}
   ${PROCESS_TARGET}
   ${GTEST_LFLAG}

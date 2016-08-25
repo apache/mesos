@@ -35,13 +35,22 @@ endif (LINUX)
 
 # TODO(hausdorff): Add the other tests here.
 
+# INCLUDE DIRECTIVES (generates, e.g., -I/path/to/thing on Linux).
+##################################################################
+include_directories(${TEST_HELPER_INCLUDE_DIRS})
+
+# LINKING LIBRARIES (might generate, e.g., -L/path/to/thing on Linux).
+######################################################################
+link_directories(${TEST_HELPER_LIB_DIRS})
+
 # THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
 #################################$###############################################
 add_executable(${TEST_HELPER_TARGET} ${TEST_HELPER_SRC})
 
+# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
+######################################################
+target_link_libraries(${TEST_HELPER_TARGET} ${TEST_HELPER_LIBS})
+
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${TEST_HELPER_TARGET}
-  ${MESOS_TARGET}
-  ${STOUT_DEPENDENCIES}
-  )
+add_dependencies(${TEST_HELPER_TARGET} ${TEST_HELPER_DEPENDENCIES})
