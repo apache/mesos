@@ -1610,7 +1610,6 @@ void MesosContainerizerProcess::destroy(
           self(),
           &Self::____destroy,
           containerId,
-          None(),
           list<Future<Nothing>>()));
 
     return;
@@ -1633,11 +1632,7 @@ void MesosContainerizerProcess::destroy(
     // prevent a race that the destroy method calls the 'cleanup'
     // method of an isolator before the 'prepare' method is called.
     container->launchInfos
-      .onAny(defer(
-          self(),
-          &Self::___destroy,
-          containerId,
-          None()));
+      .onAny(defer(self(), &Self::___destroy, containerId));
 
     return;
   }
@@ -1651,10 +1646,7 @@ void MesosContainerizerProcess::destroy(
     // Wait for the isolators to finish isolating before we start
     // to destroy the container.
     container->isolation
-      .onAny(defer(
-          self(),
-          &Self::_destroy,
-          containerId));
+      .onAny(defer(self(), &Self::_destroy, containerId));
 
     return;
   }
@@ -1676,11 +1668,7 @@ void MesosContainerizerProcess::_destroy(
 
   // Kill all processes then continue destruction.
   launcher->destroy(containerId)
-    .onAny(defer(
-        self(),
-        &Self::__destroy,
-        containerId,
-        lambda::_1));
+    .onAny(defer(self(), &Self::__destroy, containerId, lambda::_1));
 }
 
 
@@ -1713,33 +1701,22 @@ void MesosContainerizerProcess::__destroy(
   // the exit status of the executor when it's ready (it may already
   // be) and continue the destroy.
   container->status
-    .onAny(defer(
-        self(),
-        &Self::___destroy,
-        containerId,
-        lambda::_1));
+    .onAny(defer(self(), &Self::___destroy, containerId));
 }
 
 
 void MesosContainerizerProcess::___destroy(
-    const ContainerID& containerId,
-    const Future<Option<int>>& status)
+    const ContainerID& containerId)
 {
   CHECK(containers_.contains(containerId));
 
   cleanupIsolators(containerId)
-    .onAny(defer(
-        self(),
-        &Self::____destroy,
-        containerId,
-        status,
-        lambda::_1));
+    .onAny(defer(self(), &Self::____destroy, containerId, lambda::_1));
 }
 
 
 void MesosContainerizerProcess::____destroy(
     const ContainerID& containerId,
-    const Future<Option<int>>& status,
     const Future<list<Future<Nothing>>>& cleanups)
 {
   // This should not occur because we only use the Future<list> to
@@ -1755,31 +1732,23 @@ void MesosContainerizerProcess::____destroy(
   foreach (const Future<Nothing>& cleanup, cleanups.get()) {
     if (!cleanup.isReady()) {
       container->promise.fail(
-          "Failed to clean up an isolator when destroying container '" +
-          stringify(containerId) + "': " +
-          (cleanup.isFailed() ? cleanup.failure() : "discarded future"));
+          "Failed to clean up an isolator when destroying container: " +
+          (cleanup.isFailed() ? cleanup.failure() : "discarded"));
 
       containers_.erase(containerId);
 
       ++metrics.container_destroy_errors;
-
       return;
     }
   }
 
   provisioner->destroy(containerId)
-    .onAny(defer(
-        self(),
-        &Self::_____destroy,
-        containerId,
-        status,
-        lambda::_1));
+    .onAny(defer(self(), &Self::_____destroy, containerId, lambda::_1));
 }
 
 
 void MesosContainerizerProcess::_____destroy(
     const ContainerID& containerId,
-    const Future<Option<int>>& status,
     const Future<bool>& destroy)
 {
   CHECK(containers_.contains(containerId));
@@ -1795,14 +1764,13 @@ void MesosContainerizerProcess::_____destroy(
     containers_.erase(containerId);
 
     ++metrics.container_destroy_errors;
-
     return;
   }
 
   ContainerTermination termination;
 
-  if (status.isReady() && status->isSome()) {
-    termination.set_status(status->get());
+  if (container->status.isReady() && container->status->isSome()) {
+    termination.set_status(container->status->get());
   }
 
   // NOTE: We may not see a limitation in time for it to be

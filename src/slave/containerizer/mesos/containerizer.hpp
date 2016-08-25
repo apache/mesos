@@ -232,21 +232,17 @@ private:
       const process::Future<Nothing>& future);
 
   // Continues '__destroy()' once we get the exit status of the executor.
-  void ___destroy(
-      const ContainerID& containerId,
-      const process::Future<Option<int>>& status);
+  void ___destroy(const ContainerID& containerId);
 
   // Continues '___destroy()' once all isolators have completed
   // cleanup.
   void ____destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int>>& status,
       const process::Future<std::list<process::Future<Nothing>>>& cleanups);
 
   // Continues '____destroy()' once provisioner have completed destroy.
   void _____destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int>>& status,
       const process::Future<bool>& destroy);
 
   // Call back for when an isolator limits a container and impacts the
