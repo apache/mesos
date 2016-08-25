@@ -118,17 +118,24 @@
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
+using process::collect;
+using process::dispatch;
+using process::defer;
+
+using process::Failure;
+using process::Future;
+using process::Owned;
+
 using std::list;
 using std::map;
 using std::set;
 using std::string;
 using std::vector;
 
-using namespace process;
-
-namespace mesos {
-namespace internal {
-namespace slave {
+using mesos::internal::slave::state::SlaveState;
+using mesos::internal::slave::state::FrameworkState;
+using mesos::internal::slave::state::ExecutorState;
+using mesos::internal::slave::state::RunState;
 
 using mesos::modules::ModuleManager;
 
@@ -140,11 +147,9 @@ using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
-using state::SlaveState;
-using state::FrameworkState;
-using state::ExecutorState;
-using state::RunState;
-
+namespace mesos {
+namespace internal {
+namespace slave {
 
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
