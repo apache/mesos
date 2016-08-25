@@ -33,8 +33,6 @@ if (LINUX)
     )
 endif (LINUX)
 
-add_subdirectory(containerizer/)
-
 # TODO(hausdorff): Add the other tests here.
 
 # THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
