@@ -97,14 +97,9 @@ public:
   void set(const Type& type, const Set<Capability>& capabilities);
 
 private:
-  friend class Capabilities;
-
   friend std::ostream& operator<<(
       std::ostream& stream,
       const ProcessCapabilities& set);
-
-  // Disallow default constructor.
-  ProcessCapabilities() {}
 
   Set<Capability> effective;
   Set<Capability> permitted;

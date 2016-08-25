@@ -219,9 +219,9 @@ Try<ProcessCapabilities> Capabilities::get() const
 
   ProcessCapabilities capabilities;
 
-  capabilities.effective = toCapabilitySet(payload.effective());
-  capabilities.permitted = toCapabilitySet(payload.permitted());
-  capabilities.inheritable = toCapabilitySet(payload.inheritable());
+  capabilities.set(EFFECTIVE, toCapabilitySet(payload.effective()));
+  capabilities.set(PERMITTED, toCapabilitySet(payload.permitted()));
+  capabilities.set(INHERITABLE, toCapabilitySet(payload.inheritable()));
 
   // TODO(jojy): Add support for BOUNDING capabilities.
 
@@ -239,7 +239,7 @@ Try<Nothing> Capabilities::set(const ProcessCapabilities& capabilities)
 {
   // NOTE: We can only drop capabilities in the bounding set.
   for (int i = 0; i <= lastCap; i++) {
-    if (capabilities.bounding.count(Capability(i)) > 0) {
+    if (capabilities.get(BOUNDING).count(Capability(i)) > 0) {
       continue;
     }
 
@@ -257,9 +257,9 @@ Try<Nothing> Capabilities::set(const ProcessCapabilities& capabilities)
   payload.head.version = _LINUX_CAPABILITY_VERSION_3;
   payload.head.pid = 0;
 
-  payload.setEffective(toCapabilityBitset(capabilities.effective));
-  payload.setPermitted(toCapabilityBitset(capabilities.permitted));
-  payload.setInheritable(toCapabilityBitset(capabilities.inheritable));
+  payload.setEffective(toCapabilityBitset(capabilities.get(EFFECTIVE)));
+  payload.setPermitted(toCapabilityBitset(capabilities.get(PERMITTED)));
+  payload.setInheritable(toCapabilityBitset(capabilities.get(INHERITABLE)));
 
   if (capset(&payload.head, &payload.set[0])) {
     return ErrnoError("Failed to set capabilities");
