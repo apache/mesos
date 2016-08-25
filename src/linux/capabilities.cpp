@@ -223,7 +223,17 @@ Try<ProcessCapabilities> Capabilities::get() const
   capabilities.set(PERMITTED, toCapabilitySet(payload.permitted()));
   capabilities.set(INHERITABLE, toCapabilitySet(payload.inheritable()));
 
-  // TODO(jojy): Add support for BOUNDING capabilities.
+  Set<Capability> bounding;
+
+  // TODO(bbannier): Parse bounding set from the `CapBnd` entry in
+  // `/proc/self/status`.
+  for (int i = 0; i <= lastCap; i++) {
+    if (prctl(PR_CAPBSET_READ, i) == 1) {
+      bounding.insert(Capability(i));
+    }
+  }
+
+  capabilities.set(BOUNDING, bounding);
 
   return capabilities;
 }
