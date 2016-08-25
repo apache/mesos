@@ -447,7 +447,9 @@ MesosContainerizer::~MesosContainerizer()
 Future<Nothing> MesosContainerizer::recover(
     const Option<state::SlaveState>& state)
 {
-  return dispatch(process.get(), &MesosContainerizerProcess::recover, state);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::recover,
+                  state);
 }
 
 
@@ -521,42 +523,42 @@ Future<Nothing> MesosContainerizer::update(
 Future<ResourceStatistics> MesosContainerizer::usage(
     const ContainerID& containerId)
 {
-  return dispatch(
-      process.get(),
-      &MesosContainerizerProcess::usage,
-      containerId);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::usage,
+                  containerId);
 }
 
 
 Future<ContainerStatus> MesosContainerizer::status(
     const ContainerID& containerId)
 {
-  return dispatch(
-      process.get(),
-      &MesosContainerizerProcess::status,
-      containerId);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::status,
+                  containerId);
 }
 
 
 Future<ContainerTermination> MesosContainerizer::wait(
     const ContainerID& containerId)
 {
-  return dispatch(process.get(), &MesosContainerizerProcess::wait, containerId);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::wait,
+                  containerId);
 }
 
 
 void MesosContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(
-      process.get(),
-      &MesosContainerizerProcess::destroy,
-      containerId);
+  dispatch(process.get(),
+           &MesosContainerizerProcess::destroy,
+           containerId);
 }
 
 
 Future<hashset<ContainerID>> MesosContainerizer::containers()
 {
-  return dispatch(process.get(), &MesosContainerizerProcess::containers);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::containers);
 }
 
 
