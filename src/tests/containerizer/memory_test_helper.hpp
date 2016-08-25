@@ -37,7 +37,7 @@ public:
   static const char NAME[];
 
   MemoryTestHelper() : Subcommand(NAME) {}
-  ~MemoryTestHelper();
+  virtual ~MemoryTestHelper();
 
   // Spawns a subprocess.
   // TODO(chzhcn): Consider returning a future instead of blocking.
