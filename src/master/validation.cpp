@@ -994,8 +994,13 @@ Option<Error> validateTask(
   }
 
   // Now do `TaskGroup` specific validation.
+
   if (task.has_executor()) {
     return Error("'TaskInfo.executor' must not be set");
+  }
+
+  if (task.has_container() && task.container().network_infos().size() > 0) {
+    return Error("NetworkInfos must not be set on the task");
   }
 
   return None();

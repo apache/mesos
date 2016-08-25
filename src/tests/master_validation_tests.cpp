@@ -1740,6 +1740,80 @@ TEST_F(TaskGroupValidationTest, ExecutorWithoutFrameworkId)
   driver.join();
 }
 
+
+// This test verifies that a task group task
+// that has `NetworkInfo` set is invalid.
+TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+  Offer offer = offers.get()[0];
+
+  Resources resources = Resources::parse("cpus:1;mem:512;disk:32").get();
+
+  ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.set_type(ExecutorInfo::CUSTOM);
+  executor.mutable_resources()->CopyFrom(resources);
+
+  // Create a task that has NetworkInfos set.
+  TaskInfo task;
+  task.set_name("test");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(resources);
+  task.mutable_container()->set_type(ContainerInfo::MESOS);
+  task.mutable_container()->add_network_infos();
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offers.get()[0].id()}, {operation});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, status->reason());
+  EXPECT_EQ("Task '1' is invalid: NetworkInfos must not be set on the task",
+            status->message());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
