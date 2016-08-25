@@ -111,7 +111,7 @@ pid_t launchTaskPosix(
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
       SETSID,
-      launchFlags);
+      &launchFlags);
 
   if (s.isError()) {
     ABORT("Failed to launch '" + commandString + "': " + s.error());

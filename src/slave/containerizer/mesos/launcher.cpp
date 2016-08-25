@@ -112,7 +112,7 @@ Try<pid_t> PosixLauncher::fork(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
-    const Option<flags::FlagsBase>& flags,
+    const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
     const Option<int>& namespaces,
     vector<process::Subprocess::Hook> parentHooks)

@@ -3082,7 +3082,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
       NO_SETSID,
-      update.flags);
+      &update.flags);
 
   if (s.isError()) {
     return Failure("Failed to launch update subcommand: " + s.error());
@@ -3209,7 +3209,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
       NO_SETSID,
-      statistics.flags);
+      &statistics.flags);
 
   if (s.isError()) {
     return Failure("Failed to launch the statistics subcommand: " + s.error());

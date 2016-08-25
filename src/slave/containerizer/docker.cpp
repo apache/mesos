@@ -1332,7 +1332,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
         subprocessInfo.out,
         subprocessInfo.err,
         SETSID,
-        launchFlags,
+        &launchFlags,
         environment,
         None(),
         parentHooks,

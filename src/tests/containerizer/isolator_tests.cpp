@@ -274,7 +274,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       None(),
       parentHooks);
@@ -387,7 +387,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       None(),
       parentHooks);
@@ -560,7 +560,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"),
-      None(),
+      nullptr,
       None(),
       None());
 
@@ -670,7 +670,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       prepare.get().isSome() ? prepare.get().get().namespaces() : 0,
       parentHooks);
@@ -775,7 +775,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       prepare.get().isSome() ? prepare.get().get().namespaces() : 0,
       parentHooks);
@@ -874,7 +874,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       Subprocess::FD(inputPipes[0], Subprocess::IO::OWNED),
       Subprocess::FD(outputPipes[1], Subprocess::IO::OWNED),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       prepare.get().isSome() ? prepare.get().get().namespaces() : 0,
       parentHooks);
@@ -1372,7 +1372,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       prepare.get().get().namespaces());
   ASSERT_SOME(pid);
@@ -1478,7 +1478,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       prepare.get().get().namespaces());
   ASSERT_SOME(pid);

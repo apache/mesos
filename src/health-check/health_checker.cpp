@@ -250,7 +250,7 @@ void HealthCheckerProcess::_commandHealthCheck()
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
-        None(),
+        nullptr,
         environment);
   }
 

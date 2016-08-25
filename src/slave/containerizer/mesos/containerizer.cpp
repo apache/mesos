@@ -1253,7 +1253,7 @@ Future<bool> MesosContainerizerProcess::_launch(
                : Subprocess::IO(subprocessInfo.out)),
         (local ? Subprocess::FD(STDERR_FILENO)
                : Subprocess::IO(subprocessInfo.err)),
-        launchFlags,
+        &launchFlags,
         environment,
         namespaces); // 'namespaces' will be ignored by PosixLauncher.
 

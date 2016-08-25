@@ -877,7 +877,7 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       NO_SETSID,
-      setup.flags);
+      &setup.flags);
 
   if (s.isError()) {
     return Failure(
@@ -1039,7 +1039,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
-      None(),
+      nullptr,
       environment);
 
   if (s.isError()) {
@@ -1337,7 +1337,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
       NO_SETSID,
-      None(),
+      nullptr,
       environment);
 
   if (s.isError()) {

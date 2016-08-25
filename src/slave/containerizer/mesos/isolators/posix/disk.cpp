@@ -503,7 +503,7 @@ private:
         Subprocess::PIPE(),
         Subprocess::PIPE(),
         NO_SETSID,
-        None(),
+        nullptr,
         None(),
         None(),
         Subprocess::Hook::None(),

@@ -1221,7 +1221,7 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      None(),
+      nullptr,
       None(),
       None());
 

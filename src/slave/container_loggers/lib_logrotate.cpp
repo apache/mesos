@@ -147,7 +147,7 @@ public:
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
-        outFlags,
+        &outFlags,
         environment,
         None(),
         parentHooks);
@@ -194,7 +194,7 @@ public:
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
-        errFlags,
+        &errFlags,
         environment,
         None(),
         parentHooks);

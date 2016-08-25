@@ -273,7 +273,7 @@ Try<pid_t> LinuxLauncher::fork(
     const process::Subprocess::IO& in,
     const process::Subprocess::IO& out,
     const process::Subprocess::IO& err,
-    const Option<flags::FlagsBase>& flags,
+    const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
     const Option<int>& namespaces,
     vector<Subprocess::Hook> parentHooks)

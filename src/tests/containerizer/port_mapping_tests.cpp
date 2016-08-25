@@ -345,7 +345,7 @@ protected:
         Subprocess::FD(STDIN_FILENO),
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO),
-        launchFlags,
+        &launchFlags,
         None(),
         CLONE_NEWNET | CLONE_NEWNS);
 
@@ -379,7 +379,7 @@ protected:
         Subprocess::PIPE(),
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
-        statistics.flags);
+        &statistics.flags);
 
     CHECK_SOME(s);
 

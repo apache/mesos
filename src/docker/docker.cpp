@@ -823,7 +823,7 @@ Future<Option<int>> Docker::run(
       _stdout,
       _stderr,
       NO_SETSID,
-      None(),
+      nullptr,
       environment);
 
   if (s.isError()) {
@@ -1267,7 +1267,7 @@ Future<Docker::Image> Docker::pull(
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       NO_SETSID,
-      None());
+      nullptr);
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1394,7 +1394,7 @@ Future<Docker::Image> Docker::__pull(
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       NO_SETSID,
-      None(),
+      nullptr,
       environment);
 
   if (s_.isError()) {
