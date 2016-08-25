@@ -232,6 +232,105 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
 }
 
 
+// This test verifies that even if one of the tasks in a task group is
+/// unauthorized, all the tasks in the task group are rejected.
+TEST_F(MasterAuthorizationTest, UnauthorizedTaskGroup)
+{
+  // Setup ACLs so that no framework can launch as "foo".
+  ACLs acls;
+  mesos::ACL::RunTask* acl = acls.add_run_tasks();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
+  acl->mutable_users()->add_values("foo");
+
+  master::Flags flags = CreateMasterFlags();
+  flags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Resources resources =
+    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executor;
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_executor_id()->set_value("E");
+  executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executor.mutable_resources()->CopyFrom(resources);
+
+  // Create an unauthorized task.
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(resources);
+  task1.mutable_command()->set_value("echo hello");
+  task1.mutable_command()->set_user("foo");
+
+  // Create an authorized task.
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(resources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offers.get()[0].id()}, {operation});
+
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(TASK_ERROR, task1Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_UNAUTHORIZED, task1Status->reason());
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(TASK_ERROR, task2Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_UNAUTHORIZED, task2Status->reason());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that a 'killTask()' that comes before
 // '_launchTasks()' is called results in TASK_KILLED.
 TEST_F(MasterAuthorizationTest, KillTask)
