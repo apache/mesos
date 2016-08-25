@@ -3994,7 +3994,7 @@ void Master::_accept(
             forward(update, UPID(), framework);
           }
 
-          break;
+          continue;
         }
 
         // Remove all the tasks from being pending. If any of the tasks
@@ -4039,7 +4039,7 @@ void Master::_accept(
             }
           }
 
-          break;
+          continue;
         }
 
         // Now launch the task group!
