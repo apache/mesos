@@ -51,6 +51,3 @@ endif (LINUX)
 if (LINUX)
   add_dependencies(${SETNS_TEST_HELPER_TARGET} ${CONTAINERIZER_TEST_DEPENDENCIES})
 endif (LINUX)
-
-# ADD TEST TARGET (runs when you do, e.g., `make check`).
-#########################################################
