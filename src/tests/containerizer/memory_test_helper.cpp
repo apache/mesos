@@ -106,7 +106,7 @@ Try<Nothing> MemoryTestHelper::spawn()
   // Otherwise, the user might set the memory limit too earlier, and
   // cause the child oom-killed because 'ld' could use a lot of
   // memory.
-  Result<string> read = os::read(s.get().out().get(), sizeof(STARTED));
+  Result<string> read = os::read(s->out().get(), sizeof(STARTED));
   if (!read.isSome() || read.get() != string(sizeof(STARTED), STARTED)) {
     cleanup();
     return Error("Failed to sync with the subprocess");
@@ -122,8 +122,8 @@ void MemoryTestHelper::cleanup()
     // We just want to make sure the subprocess is terminated in case
     // it's stuck, but we don't care about its status. Any error
     // should have been logged in the subprocess directly.
-    ::kill(s.get().pid(), SIGKILL);
-    ::waitpid(s.get().pid(), nullptr, 0);
+    ::kill(s->pid(), SIGKILL);
+    ::waitpid(s->pid(), nullptr, 0);
     s = None();
   }
 }
@@ -135,7 +135,7 @@ Try<pid_t> MemoryTestHelper::pid()
     return Error("The subprocess has not been spawned yet");
   }
 
-  return s.get().pid();
+  return s->pid();
 }
 
 
@@ -147,13 +147,13 @@ Try<Nothing> MemoryTestHelper::requestAndWait(const string& request)
     return Error("The subprocess has not been spawned yet");
   }
 
-  Try<Nothing> write = os::write(s.get().in().get(), request + "\n");
+  Try<Nothing> write = os::write(s->in().get(), request + "\n");
   if (write.isError()) {
     cleanup();
     return Error("Fail to sync with the subprocess: " + write.error());
   }
 
-  Result<string> read = os::read(s.get().out().get(), sizeof(DONE));
+  Result<string> read = os::read(s->out().get(), sizeof(DONE));
   if (!read.isSome() || read.get() != string(sizeof(DONE), DONE)) {
     cleanup();
     return Error("Failed to sync with the subprocess");
@@ -262,7 +262,7 @@ static Try<Nothing> doIncreasePageCache(const vector<string>& tokens)
 
   // NOTE: We are doing round-down here to calculate the number of
   // writes to do.
-  for (uint64_t i = 0; i < size.get().bytes() / UNIT.bytes(); i++) {
+  for (uint64_t i = 0; i < size->bytes() / UNIT.bytes(); i++) {
     // Write UNIT size to disk at a time. The content isn't important.
     Try<Nothing> write = os::write(fd.get(), string(UNIT.bytes(), 'a'));
     if (write.isError()) {
