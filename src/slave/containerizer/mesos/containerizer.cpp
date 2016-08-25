@@ -1727,19 +1727,26 @@ void MesosContainerizerProcess::____destroy(
   const Owned<Container>& container = containers_[containerId];
 
   // Check cleanup succeeded for all isolators. If not, we'll fail the
-  // container termination and remove the 'destroying' flag but leave
-  // all other state. The container is now in an inconsistent state.
+  // container termination and remove the container from the map.
+  vector<string> errors;
+
   foreach (const Future<Nothing>& cleanup, cleanups.get()) {
     if (!cleanup.isReady()) {
-      container->promise.fail(
-          "Failed to clean up an isolator when destroying container: " +
-          (cleanup.isFailed() ? cleanup.failure() : "discarded"));
-
-      containers_.erase(containerId);
-
-      ++metrics.container_destroy_errors;
-      return;
+      errors.push_back(cleanup.isFailed()
+        ? cleanup.failure()
+        : "discarded");
     }
+  }
+
+  if (!errors.empty()) {
+    container->promise.fail(
+        "Failed to clean up an isolator when destroying container: " +
+        strings::join("; ", errors));
+
+    containers_.erase(containerId);
+
+    ++metrics.container_destroy_errors;
+    return;
   }
 
   provisioner->destroy(containerId)
@@ -1757,8 +1764,7 @@ void MesosContainerizerProcess::_____destroy(
 
   if (!destroy.isReady()) {
     container->promise.fail(
-        "Failed to destroy the provisioned filesystem when destroying "
-        "container '" + stringify(containerId) + "': " +
+        "Failed to destroy the provisioned rootfs when destroying container: " +
         (destroy.isFailed() ? destroy.failure() : "discarded future"));
 
     containers_.erase(containerId);
