@@ -93,7 +93,7 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Setsid set_sid,
-    const Option<flags::FlagsBase>& flags,
+    const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
@@ -146,9 +146,9 @@ Try<Subprocess> subprocess(
 
   // Prepare the arguments. If the user specifies the 'flags', we will
   // stringify them and append them to the existing arguments.
-  if (flags.isSome()) {
-    foreachvalue (const flags::Flag& flag, flags.get()) {
-      Option<string> value = flag.stringify(flags.get());
+  if (flags != nullptr) {
+    foreachvalue (const flags::Flag& flag, *flags) {
+      Option<string> value = flag.stringify(*flags);
       if (value.isSome()) {
         argv.push_back("--" + flag.effective_name().value + "=" + value.get());
       }

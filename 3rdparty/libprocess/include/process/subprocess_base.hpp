@@ -146,7 +146,7 @@ public:
         const Subprocess::IO& out,
         const Subprocess::IO& err,
         const Setsid set_sid,
-        const Option<flags::FlagsBase>& flags,
+        const flags::FlagsBase* flags,
         const Option<std::map<std::string, std::string>>& environment,
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
@@ -270,7 +270,7 @@ private:
       const Subprocess::IO& out,
       const Subprocess::IO& err,
       const Setsid setsid,
-      const Option<flags::FlagsBase>& flags,
+      const flags::FlagsBase* flags,
       const Option<std::map<std::string, std::string>>& environment,
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
@@ -356,7 +356,7 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& out = Subprocess::FD(STDOUT_FILENO),
     const Subprocess::IO& err = Subprocess::FD(STDERR_FILENO),
     const Setsid set_sid = NO_SETSID,
-    const Option<flags::FlagsBase>& flags = None(),
+    const flags::FlagsBase* flags = nullptr,
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
@@ -417,7 +417,7 @@ inline Try<Subprocess> subprocess(
       out,
       err,
       set_sid,
-      None(),
+      nullptr,
       environment,
       clone,
       parent_hooks,

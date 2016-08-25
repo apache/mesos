@@ -767,7 +767,7 @@ TEST_F(SubprocessTest, Flags)
       Subprocess::PATH(out),
       Subprocess::FD(STDERR_FILENO),
       process::NO_SETSID,
-      flags);
+      &flags);
 
   ASSERT_SOME(s);
 
