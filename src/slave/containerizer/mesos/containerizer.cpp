@@ -882,12 +882,6 @@ Future<bool> MesosContainerizerProcess::launch(
   container->config = containerConfig;
   container->resources = containerConfig.resources();
 
-  // We need to set the `launchInfos` to be a ready future initially
-  // before we starting calling isolator->prepare() because otherwise,
-  // the destroy will wait forever trying to wait for this future to
-  // be ready, which it never will. See MESOS-4878.
-  container->launchInfos = list<Option<ContainerLaunchInfo>>();
-
   containers_.put(containerId, container);
 
   // We'll first provision the image for the container, and
