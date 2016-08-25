@@ -23,7 +23,7 @@ set(TEST_HELPER_SRC
   flags.cpp
   test_helper_main.cpp
   utils.cpp
-	containerizer/memory_test_helper.cpp
+  containerizer/memory_test_helper.cpp
   )
 
 add_subdirectory(containerizer/)
