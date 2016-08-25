@@ -49,6 +49,16 @@ public:
     return None();
   }
 
+  Value& at(const Key& key)
+  {
+    return values_.at(key).first;
+  }
+
+  const Value& at(const Key& key) const
+  {
+    return values_.at(key).first;
+  }
+
   bool contains(const Key& key) const
   {
     return values_.contains(key);
