@@ -60,6 +60,9 @@ pid_t launchTaskPosix(
     const Option<string>& sandboxDirectory,
     const Option<string>& workingDirectory)
 {
+  // Prepare the flags to pass to the launch process.
+  MesosContainerizerLaunch::Flags launchFlags;
+
   if (rootfs.isSome()) {
     // The command executor is responsible for chrooting into the
     // root filesystem and changing the user before exec-ing the
@@ -73,13 +76,15 @@ pid_t launchTaskPosix(
     } else if (_user.get() != "root") {
       ABORT("The command executor requires root with rootfs");
     }
+
+    // Ensure that mount namespace of the executor is not affected by
+    // changes in its task's namespace induced by calling `pivot_root`
+    // as part of the task setup in mesos-containerizer binary.
+    launchFlags.unshare_namespace_mnt = true;
 #else
     ABORT("Not expecting root volume with non-linux platform");
 #endif // __linux__
   }
-
-  // Prepare the flags to pass to the launch process.
-  MesosContainerizerLaunch::Flags launchFlags;
 
   launchFlags.command = JSON::protobuf(command);
 
