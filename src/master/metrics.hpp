@@ -179,9 +179,16 @@ struct Metrics
   process::metrics::Counter slave_removals_reason_registered;
 
   // Slave observer metrics.
+  //
+  // TODO(neilc): The `slave_shutdowns_xxx` metrics are deprecated and
+  // will always be zero. Remove in Mesos 2.0.
   process::metrics::Counter slave_shutdowns_scheduled;
   process::metrics::Counter slave_shutdowns_completed;
   process::metrics::Counter slave_shutdowns_canceled;
+
+  process::metrics::Counter slave_unreachable_scheduled;
+  process::metrics::Counter slave_unreachable_completed;
+  process::metrics::Counter slave_unreachable_canceled;
 
   // Non-revocable resources.
   std::vector<process::metrics::Gauge> resources_total;

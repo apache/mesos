@@ -233,7 +233,7 @@ protected:
     }
 
     shuttingDown = acquire.onAny(defer(self(), &Self::_shutdown));
-    ++metrics->slave_shutdowns_scheduled;
+    ++metrics->slave_unreachable_scheduled;
   }
 
   void _shutdown()
@@ -248,7 +248,7 @@ protected:
       LOG(INFO) << "Shutting down agent " << slaveId
                 << " due to health check timeout";
 
-      ++metrics->slave_shutdowns_completed;
+      ++metrics->slave_unreachable_completed;
 
       dispatch(master,
                &Master::shutdownSlave,
@@ -258,7 +258,7 @@ protected:
       LOG(INFO) << "Canceling shutdown of agent " << slaveId
                 << " since a pong is received!";
 
-      ++metrics->slave_shutdowns_canceled;
+      ++metrics->slave_unreachable_canceled;
     }
 
     shuttingDown = None();
@@ -1724,7 +1724,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       .onFailed(lambda::bind(fail, failure, lambda::_1))
       .onDiscarded(lambda::bind(fail, failure, "discarded"));
 
-    ++metrics->slave_shutdowns_scheduled;
+    ++metrics->slave_unreachable_scheduled;
   }
 }
 
@@ -1737,8 +1737,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
               << slave.info().id() << " (" << slave.info().hostname() << ")"
               << " since it re-registered!";
 
-    ++metrics->slave_shutdowns_canceled;
-
+    ++metrics->slave_unreachable_canceled;
     return Nothing();
   }
 
@@ -1747,7 +1746,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
                << " within " << flags.agent_reregister_timeout
                << " after master failover; removing it from the registrar";
 
-  ++metrics->slave_shutdowns_completed;
+  ++metrics->slave_unreachable_completed;
   ++metrics->recovery_slave_removals;
 
   slaves.recovered.erase(slave.info().id());

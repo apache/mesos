@@ -1821,8 +1821,8 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   EXPECT_EQ(1, stats.values["master/recovery_slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
-  EXPECT_EQ(1, stats.values["master/slave_shutdowns_completed"]);
-  EXPECT_EQ(1, stats.values["master/slave_shutdowns_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
 
   Clock::resume();
 

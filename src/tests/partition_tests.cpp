@@ -148,6 +148,8 @@ TEST_P(PartitionTest, PartitionedSlave)
   slave->reset();
 
   JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 

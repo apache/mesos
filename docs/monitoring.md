@@ -347,30 +347,32 @@ unhealthy or that they are not able to connect to the elected master.
 </tr>
 <tr>
   <td>
-  <code>master/slave_shutdowns_scheduled</code>
+  <code>master/slave_unreachable_scheduled</code>
   </td>
   <td>Number of agents which have failed their health check and are scheduled
-      to be removed. They will not be immediately removed due to the Agent
-      Removal Rate-Limit, but <code>master/slave_shutdowns_completed</code>
+      to be marked unreachable. They will not be marked unreachable immediately due to the Agent
+      Removal Rate-Limit, but <code>master/slave_unreachable_completed</code>
       will start increasing as they do get removed.</td>
   <td>Counter</td>
 </tr>
 <tr>
   <td>
-  <code>master/slave_shutdowns_canceled</code>
+  <code>master/slave_unreachable_canceled</code>
   </td>
-  <td>Number of cancelled agent shutdowns. This happens when the agent removal
-      rate limit allows for an agent to reconnect and send a <code>PONG</code>
-      to the master before being removed.</td>
+  <td>Number of times that an agent was due to be marked unreachable but this
+      transition was cancelled. This happens when the agent removal rate limit
+      is enabled and the agent sends a <code>PONG</code> response message to the
+      master before the rate limit allows the agent to be marked unreachable.</td>
   <td>Counter</td>
 </tr>
 <tr>
   <td>
-  <code>master/slave_shutdowns_completed</code>
+  <code>master/slave_unreachable_completed</code>
   </td>
-  <td>Number of agents that failed their health check. These are agents which
-      were not heard from despite the agent-removal rate limit, and have been
-      removed from the master's agent registry.</td>
+  <td>Number of agents that were marked as unreachable because they failed
+      health checks. These are agents which were not heard from despite the
+      agent-removal rate limit, and have been marked as unreachable in the
+      master's agent registry.</td>
   <td>Counter</td>
 </tr>
 <tr>
