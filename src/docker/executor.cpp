@@ -181,6 +181,8 @@ public:
     inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
       .then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
+          containerPid = container.pid;
+
           TaskStatus status;
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
@@ -510,10 +512,20 @@ private:
           strings::join(" ", commandArguments));
     }
 
+    vector<string> namespaces;
+    if (healthCheck.type() == HealthCheck::HTTP ||
+        healthCheck.type() == HealthCheck::TCP) {
+      // Make sure HTTP and TCP health checks are run
+      // from the container's network namespace.
+      namespaces.push_back("net");
+    }
+
     Try<Owned<health::HealthChecker>> _checker = health::HealthChecker::create(
         healthCheck,
         self(),
-        task.task_id());
+        task.task_id(),
+        containerPid,
+        namespaces);
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -555,6 +567,7 @@ private:
   Option<TaskID> taskId;
   Owned<health::HealthChecker> checker;
   Option<NetworkInfo> containerNetworkInfo;
+  Option<pid_t> containerPid;
 };
 
 

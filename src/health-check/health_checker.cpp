@@ -46,6 +46,10 @@
 
 #include "common/status_utils.hpp"
 
+#ifdef __linux__
+#include "linux/ns.hpp"
+#endif
+
 using process::delay;
 using process::Clock;
 using process::Failure;
@@ -73,10 +77,40 @@ static const string DEFAULT_HTTP_SCHEME = "http";
 static const string DEFAULT_DOMAIN = "127.0.0.1";
 
 
+#ifdef __linux__
+pid_t cloneWithSetns(
+    const lambda::function<int()>& func,
+    Option<pid_t> taskPid,
+    const vector<string>& namespaces)
+{
+  return process::defaultClone([=]() -> int {
+    if (taskPid.isSome()) {
+      foreach (const string& ns, namespaces) {
+        Try<Nothing> setns = ns::setns(taskPid.get(), ns);
+        if (setns.isError()) {
+          // This effectively aborts the health check.
+          LOG(FATAL) << "Failed to enter the " << ns << " namespace of "
+                     << "task (pid: '" << taskPid.get() << "'): "
+                     << setns.error();
+        }
+
+        VLOG(1) << "Entered the " << ns << " namespace of "
+                << "task (pid: '" << taskPid.get() << "') successfully";
+      }
+    }
+
+    return func();
+  });
+}
+#endif
+
+
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
     const UPID& executor,
-    const TaskID& taskID)
+    const TaskID& taskID,
+    Option<pid_t> taskPid,
+    const vector<string>& namespaces)
 {
   // Validate the 'HealthCheck' protobuf.
   Option<Error> error = validation::healthCheck(check);
@@ -87,7 +121,9 @@ Try<Owned<HealthChecker>> HealthChecker::create(
   Owned<HealthCheckerProcess> process(new HealthCheckerProcess(
       check,
       executor,
-      taskID));
+      taskID,
+      taskPid,
+      namespaces));
 
   return Owned<HealthChecker>(new HealthChecker(process));
 }
@@ -117,13 +153,24 @@ Future<Nothing> HealthChecker::healthCheck()
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const UPID& _executor,
-    const TaskID& _taskID)
+    const TaskID& _taskID,
+    Option<pid_t> _taskPid,
+    const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
     initializing(true),
     executor(_executor),
     taskID(_taskID),
-    consecutiveFailures(0) {}
+    taskPid(_taskPid),
+    namespaces(_namespaces),
+    consecutiveFailures(0)
+{
+#ifdef __linux__
+  if (!namespaces.empty()) {
+    clone = lambda::bind(&cloneWithSetns, lambda::_1, taskPid, namespaces);
+  }
+#endif
+}
 
 
 Future<Nothing> HealthCheckerProcess::healthCheck()
@@ -264,7 +311,8 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
-        environment);
+        environment,
+        clone);
   } else {
     // Use the exec variant.
     vector<string> argv;
@@ -283,7 +331,8 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
         Subprocess::FD(STDERR_FILENO),
         NO_SETSID,
         nullptr,
-        environment);
+        environment,
+        clone);
   }
 
   if (external.isError()) {
@@ -353,7 +402,11 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
       argv,
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      NO_SETSID,
+      nullptr,
+      None(),
+      clone);
 
   if (s.isError()) {
     return Failure("Failed to create the curl subprocess: " + s.error());
@@ -461,7 +514,11 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
       argv,
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      NO_SETSID,
+      nullptr,
+      None(),
+      clone);
 
   if (s.isError()) {
     return Failure("Failed to create the bash subprocess: " + s.error());
