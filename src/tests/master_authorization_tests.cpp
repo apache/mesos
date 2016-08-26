@@ -403,6 +403,125 @@ TEST_F(MasterAuthorizationTest, KillTask)
 }
 
 
+// This test verifies that if a pending task in a task group
+// is killed, then the entire group will be killed.
+TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
+{
+  MockAuthorizer authorizer;
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  Resources resources =
+    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executor;
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_executor_id()->set_value("E");
+  executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executor.mutable_resources()->CopyFrom(resources);
+
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(resources);
+
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(resources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  // Return a pending future from authorizer.
+  Future<Nothing> authorize1;
+  Future<Nothing> authorize2;
+  Promise<bool> promise1;
+  Promise<bool> promise2;
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(DoAll(FutureSatisfy(&authorize1),
+                    Return(promise1.future())))
+    .WillOnce(DoAll(FutureSatisfy(&authorize2),
+                    Return(promise2.future())));
+
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offers.get()[0].id()}, {operation});
+
+  // Wait until all authorizations are in progress.
+  AWAIT_READY(authorize1);
+  AWAIT_READY(authorize2);
+
+  // Now kill task1.
+  driver.killTask(task1.task_id());
+
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(TASK_KILLED, task1Status->state());
+  EXPECT_TRUE(strings::contains(
+      task1Status->message(), "Killed pending task"));
+
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
+  // Now complete authorizations for task1 and task2.
+  promise1.set(true);
+  promise2.set(true);
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(TASK_KILLED, task2Status->state());
+  EXPECT_TRUE(strings::contains(
+      task2Status->message(),
+      "A task within the task group was killed before delivery to the agent"));
+
+  // No task launch should happen resulting in all resources being
+  // returned to the allocator.
+  AWAIT_READY(recoverResources);
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that a slave removal that comes before
 // '_launchTasks()' is called results in TASK_LOST.
 TEST_F(MasterAuthorizationTest, SlaveRemoved)
