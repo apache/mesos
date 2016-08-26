@@ -84,14 +84,13 @@ public:
       const string& sandboxDirectory,
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
-      const string& healthCheckDir,
+      const string& launcherDir,
       const map<string, string>& taskEnvironment)
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
       killedByHealthCheck(false),
       terminated(false),
-      healthPid(-1),
-      healthCheckDir(healthCheckDir),
+      launcherDir(launcherDir),
       docker(docker),
       containerName(containerName),
       sandboxDirectory(sandboxDirectory),
@@ -340,17 +339,6 @@ private:
       inspect
         .onAny(defer(self(), &Self::_killTask, _taskId, gracePeriod));
     }
-
-    // Cleanup health check process.
-    //
-    // TODO(bmahler): Consider doing this after the task has been
-    // reaped, since a framework may be interested in health
-    // information while the task is being killed (consider a
-    // task that takes 30 minutes to be cleanly killed).
-    if (healthPid != -1) {
-      os::killtree(healthPid, SIGKILL);
-      healthPid = -1;
-    }
   }
 
   void _killTask(const TaskID& taskId_, const Duration& gracePeriod)
@@ -522,41 +510,26 @@ private:
           strings::join(" ", commandArguments));
     }
 
-    JSON::Object json = JSON::protobuf(healthCheck);
+    Try<Owned<health::HealthChecker>> _checker = health::HealthChecker::create(
+        healthCheck,
+        self(),
+        task.task_id());
 
-    const string path = path::join(healthCheckDir, "mesos-health-check");
+    if (_checker.isError()) {
+      // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
+      cerr << "Failed to create health checker: "
+           << _checker.error() << endl;
+    } else {
+      checker = _checker.get();
 
-    // Launch the subprocess using 'exec' style so that quotes can
-    // be properly handled.
-    vector<string> checkerArguments;
-    checkerArguments.push_back(path);
-    checkerArguments.push_back("--executor=" + stringify(self()));
-    checkerArguments.push_back("--health_check_json=" + stringify(json));
-    checkerArguments.push_back("--task_id=" + task.task_id().value());
-
-    cout << "Launching health check process: "
-         << strings::join(" ", checkerArguments) << endl;
-
-    Try<Subprocess> healthProcess =
-      process::subprocess(
-        path,
-        checkerArguments,
-        // Intentionally not sending STDIN to avoid health check
-        // commands that expect STDIN input to block.
-        Subprocess::PATH("/dev/null"),
-        Subprocess::FD(STDOUT_FILENO),
-        Subprocess::FD(STDERR_FILENO));
-
-    if (healthProcess.isError()) {
-      cerr << "Unable to launch health process: "
-           << healthProcess.error() << endl;
-      return;
+      checker->healthCheck()
+        .onAny([](const Future<Nothing>& future) {
+          // Only possible to be a failure.
+          if (future.isFailed()) {
+            cerr << "Health check failed:" << future.failure() << endl;
+          }
+        });
     }
-
-    healthPid = healthProcess.get().pid();
-
-    cout << "Health check process launched at pid: "
-         << stringify(healthPid) << endl;
   }
 
   // TODO(alexr): Introduce a state enum and document transitions,
@@ -565,8 +538,7 @@ private:
   bool killedByHealthCheck;
   bool terminated;
 
-  pid_t healthPid;
-  string healthCheckDir;
+  string launcherDir;
   Owned<Docker> docker;
   string containerName;
   string sandboxDirectory;
@@ -581,6 +553,7 @@ private:
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
+  Owned<health::HealthChecker> checker;
   Option<NetworkInfo> containerNetworkInfo;
 };
 
@@ -594,7 +567,7 @@ public:
       const string& sandboxDirectory,
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
-      const string& healthCheckDir,
+      const string& launcherDir,
       const map<string, string>& taskEnvironment)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
@@ -603,7 +576,7 @@ public:
         sandboxDirectory,
         mappedDirectory,
         shutdownGracePeriod,
-        healthCheckDir,
+        launcherDir,
         taskEnvironment));
 
     spawn(process.get());
