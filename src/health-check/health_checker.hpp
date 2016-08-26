@@ -91,6 +91,12 @@ private:
 
   process::Future<Nothing> _tcpHealthCheck();
 
+  process::Future<Nothing> __tcpHealthCheck(
+      const std::tuple<
+          process::Future<Option<int>>,
+          process::Future<std::string>,
+          process::Future<std::string>>& t);
+
   void reschedule();
 
   process::Promise<Nothing> promise;

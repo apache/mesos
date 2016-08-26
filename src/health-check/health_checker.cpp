@@ -444,7 +444,85 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
   CHECK_EQ(HealthCheck::TCP, check.type());
   CHECK(check.has_tcp());
 
-  promise.fail("TCP health check is not supported");
+  const HealthCheck::TCPCheckInfo& tcp = check.tcp();
+
+  VLOG(1) << "Launching TCP health check at port '" << tcp.port() << "'";
+
+  // TODO(haosdent): Replace `bash` with a tiny binary to support
+  // TCP health check with half-open.
+  const vector<string> argv = {
+    "bash",
+    "-c",
+    "</dev/tcp/" + DEFAULT_DOMAIN + "/" + stringify(tcp.port())
+  };
+
+  Try<Subprocess> s = subprocess(
+      "bash",
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure("Failed to create the bash subprocess: " + s.error());
+  }
+
+  pid_t bashPid = s->pid();
+  Duration timeout = Seconds(check.timeout_seconds());
+
+  return await(
+      s->status(),
+      process::io::read(s->out().get()),
+      process::io::read(s->err().get()))
+    .after(timeout,
+      [timeout, bashPid](Future<tuple<Future<Option<int>>,
+                                      Future<string>,
+                                      Future<string>>> future) {
+      future.discard();
+
+      if (bashPid != -1) {
+        // Cleanup the bash process.
+        VLOG(1) << "Killing the TCP health check process " << bashPid;
+
+        os::killtree(bashPid, SIGKILL);
+      }
+
+      return Failure(
+          "bash has not returned after " + stringify(timeout) + "; aborting");
+    })
+    .then(defer(self(), &Self::__tcpHealthCheck, lambda::_1));
+}
+
+
+Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
+    const tuple<
+        Future<Option<int>>,
+        Future<string>,
+        Future<string>>& t)
+{
+  Future<Option<int>> status = std::get<0>(t);
+  if (!status.isReady()) {
+    return Failure(
+        "Failed to get the exit status of the bash process: " +
+        (status.isFailed() ? status.failure() : "discarded"));
+  }
+
+  if (status->isNone()) {
+    return Failure("Failed to reap the bash process");
+  }
+
+  int statusCode = status->get();
+  if (statusCode != 0) {
+    Future<string> error = std::get<2>(t);
+    if (!error.isReady()) {
+      return Failure("bash returned " + WSTRINGIFY(statusCode) +
+                     "; reading stderr failed: " +
+                     (error.isFailed() ? error.failure() : "discarded"));
+    }
+
+    return Failure("bash returned " + WSTRINGIFY(statusCode) + ": " +
+                   error.get());
+  }
 
   return Nothing();
 }
