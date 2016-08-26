@@ -134,10 +134,26 @@ TEST_F(CapabilitiesTest, ROOT_PingWithNoNetRawCapsChangeUser)
 
 
 // This Test verifies that 'ping' would work with just the minimum
-// capability it requires ('NET_RAW').
-TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawCap)
+// capability it requires ('NET_RAW' and potentially 'NET_ADMIN').
+//
+// NOTE: Some Linux distributions install `ping` with `NET_RAW` and
+// `NET_ADMIN` in both the effective and permitted set in the file
+// capabilities. We only require `NET_RAW` for our tests, while
+// `NET_RAW` is needed for setting packet marks
+// (https://bugzilla.redhat.com/show_bug.cgi?id=802197). In such
+// distributions, setting 'NET_ADMIN' is required to bypass the
+// 'capability-dumb' check by the kernel. A 'capability-dump'
+// application is a traditional set-user-ID-root program that has been
+// switched to use file capabilities, but whose code has not been
+// modified to understand capabilities. For such applications, the
+// kernel checks if the process obtained all permitted capabilities
+// that were specified in the file permitted set during 'exec'.
+TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
 {
-  Set<Capability> capabilities = {capabilities::NET_RAW};
+  Set<Capability> capabilities = {
+    capabilities::NET_RAW,
+    capabilities::NET_ADMIN
+  };
 
   Try<Subprocess> s = ping(capabilities, CAPS_TEST_UNPRIVILEGED_USER);
   ASSERT_SOME(s);
