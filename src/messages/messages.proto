@@ -416,9 +416,12 @@ message RegisterSlaveMessage {
 
 
 /**
- * Registers the agent with the master.
- * This is used when the agent has previously registered and
- * the master changes to a newly elected master.
+ * Reregisters the agent with the master.
+ *
+ * This is used when the agent has previously registered and the agent
+ * has reason to suspect that it should re-establish its connection
+ * (e.g., a new master is elected or the agent hasn't seen a ping from
+ * the master for a long period of time).
  *
  * If registration fails, a `ShutdownMessage` is sent to the agent.
  * Failure conditions are documented inline in Master::reregisterSlave.
