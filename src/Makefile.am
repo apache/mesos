@@ -1356,11 +1356,6 @@ mesos_network_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_network_helper_LDADD = libmesos.la $(LDADD)
 endif
 
-pkglibexec_PROGRAMS += mesos-health-check
-mesos_health_check_SOURCES = health-check/main.cpp
-mesos_health_check_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_health_check_LDADD = libmesos.la $(LDADD)
-
 pkglibexec_PROGRAMS += mesos-usage
 mesos_usage_SOURCES = usage/main.cpp
 mesos_usage_CPPFLAGS = $(MESOS_CPPFLAGS)
