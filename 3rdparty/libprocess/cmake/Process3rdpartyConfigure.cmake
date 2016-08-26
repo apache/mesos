@@ -152,11 +152,6 @@ set(
   MESOS_FETCHER mesos-fetcher
   CACHE STRING "Target for fetcher")
 
-# Define target for health-check.
-set(
-  MESOS_HEALTH_CHECK mesos-health-check
-  CACHE STRING "Target for healt-check")
-
 # Define target for master.
 set(
   MESOS_MASTER mesos-master
