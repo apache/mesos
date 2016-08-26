@@ -41,6 +41,17 @@ message Registry {
     repeated Slave slaves = 1;
   }
 
+  message UnreachableSlave {
+    required SlaveID id = 1;
+
+    // The time when the slave was marked unreachable by the master.
+    required TimeInfo timestamp = 2;
+  }
+
+  message UnreachableSlaves {
+    repeated UnreachableSlave slaves = 1;
+  }
+
   message Machine {
     required MachineInfo info = 1;
   }
@@ -60,8 +71,12 @@ message Registry {
   // Most recent leading master.
   optional Master master = 1;
 
-  // All admitted slaves.
+  // All admitted (healthy) slaves.
   optional Slaves slaves = 2;
+
+  // Slaves that have failed health checks. They may or may not still
+  // be running.
+  optional UnreachableSlaves unreachable = 7;
 
   // Holds a list of machines and some status information about each.
   // See comments in `MachineInfo` for more information.
