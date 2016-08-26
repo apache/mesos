@@ -993,6 +993,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/utils.hpp							\
   tests/zookeeper.hpp							\
   tests/zookeeper_test_server.hpp					\
+  tests/containerizer/capabilities_test_helper.hpp			\
   tests/containerizer/docker_archive.hpp				\
   tests/containerizer/isolator.hpp					\
   tests/containerizer/launcher.hpp					\
@@ -1915,6 +1916,7 @@ test_helper_SOURCES =						\
   tests/containerizer/memory_test_helper.cpp
 if OS_LINUX
 test_helper_SOURCES +=						\
+  tests/containerizer/capabilities_test_helper.cpp		\
   tests/containerizer/setns_test_helper.cpp
 endif
 test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
@@ -2175,6 +2177,8 @@ mesos_tests_DEPENDENCIES =					\
 if OS_LINUX
 mesos_tests_SOURCES +=						\
   tests/ldcache_tests.cpp					\
+  tests/containerizer/capabilities_tests.cpp			\
+  tests/containerizer/capabilities_test_helper.cpp		\
   tests/containerizer/cgroups_isolator_tests.cpp		\
   tests/containerizer/cgroups_tests.cpp				\
   tests/containerizer/cni_isolator_tests.cpp			\

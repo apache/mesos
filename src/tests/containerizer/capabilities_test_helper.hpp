@@ -14,35 +14,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stout/none.hpp>
+#ifndef __CAPABILITIES_TEST_HELPER_HPP__
+#define __CAPABILITIES_TEST_HELPER_HPP__
+
+#include <string>
+
+#include <stout/option.hpp>
 #include <stout/subcommand.hpp>
 
-#include "tests/active_user_test_helper.hpp"
+#include <mesos/mesos.hpp>
 
-#include "tests/containerizer/memory_test_helper.hpp"
-#ifdef __linux__
-#include "tests/containerizer/capabilities_test_helper.hpp"
-#include "tests/containerizer/setns_test_helper.hpp"
-#endif
+namespace mesos {
+namespace internal {
+namespace tests {
 
-using mesos::internal::tests::ActiveUserTestHelper;
-using mesos::internal::tests::MemoryTestHelper;
-#ifdef __linux__
-using mesos::internal::tests::CapabilitiesTestHelper;
-using mesos::internal::tests::SetnsTestHelper;
-#endif
-
-
-int main(int argc, char** argv)
+class CapabilitiesTestHelper : public Subcommand
 {
-  return Subcommand::dispatch(
-      None(),
-      argc,
-      argv,
-#ifdef __linux__
-      new CapabilitiesTestHelper(),
-      new SetnsTestHelper(),
-#endif
-      new ActiveUserTestHelper(),
-      new MemoryTestHelper());
-}
+public:
+  static const char NAME[];
+
+  struct Flags : public flags::FlagsBase
+  {
+    Flags();
+
+    Option<std::string> user;
+    Option<CapabilityInfo> capabilities;
+  };
+
+  CapabilitiesTestHelper() : Subcommand(NAME) {}
+
+  Flags flags;
+
+protected:
+  virtual int execute();
+  virtual flags::FlagsBase* getFlags() { return &flags; }
+};
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
+
+#endif // __CAPABILITIES_TEST_HELPER_HPP__

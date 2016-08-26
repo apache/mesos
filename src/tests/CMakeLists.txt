@@ -29,6 +29,7 @@ set(TEST_HELPER_SRC
 if (LINUX)
   set(TEST_HELPER_SRC
     ${TEST_HELPER_SRC}
+    containerizer/capabilities_test_helper.cpp
     containerizer/setns_test_helper.cpp
     )
 endif (LINUX)
