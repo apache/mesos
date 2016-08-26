@@ -233,7 +233,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
 
 
 // This test verifies that even if one of the tasks in a task group is
-/// unauthorized, all the tasks in the task group are rejected.
+// unauthorized, all the tasks in the task group are rejected.
 TEST_F(MasterAuthorizationTest, UnauthorizedTaskGroup)
 {
   // Setup ACLs so that no framework can launch as "foo".
