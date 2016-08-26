@@ -76,9 +76,13 @@ private:
 
   void _healthCheck();
 
-  void _commandHealthCheck();
-  void _httpHealthCheck();
-  void _tcpHealthCheck();
+  void __healthCheck(const process::Future<Nothing>& future);
+
+  process::Future<Nothing> _commandHealthCheck();
+
+  process::Future<Nothing> _httpHealthCheck();
+
+  process::Future<Nothing> _tcpHealthCheck();
 
   void reschedule();
 

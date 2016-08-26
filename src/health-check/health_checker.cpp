@@ -29,6 +29,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/collect.hpp>
 #include <process/delay.hpp>
 #include <process/subprocess.hpp>
 
@@ -45,6 +46,7 @@
 
 using process::delay;
 using process::Clock;
+using process::Failure;
 using process::Future;
 using process::NO_SETSID;
 using process::Owned;
@@ -116,9 +118,9 @@ HealthCheckerProcess::HealthCheckerProcess(
 
 Future<Nothing> HealthCheckerProcess::healthCheck()
 {
-  VLOG(2) << "Health checks starting in "
-    << Seconds(check.delay_seconds()) << ", grace period "
-    << Seconds(check.grace_period_seconds());
+  VLOG(1) << "Health check starting in "
+          << Seconds(check.delay_seconds()) << ", grace period "
+          << Seconds(check.grace_period_seconds());
 
   startTime = Clock::now();
 
@@ -137,7 +139,8 @@ void HealthCheckerProcess::failure(const string& message)
   }
 
   consecutiveFailures++;
-  VLOG(1) << "#" << consecutiveFailures << " check failed: " << message;
+  LOG(WARNING) << "Health check failed " << consecutiveFailures
+               << " times consecutively: " << message;
 
   bool killTask = consecutiveFailures >= check.consecutive_failures();
 
@@ -163,7 +166,7 @@ void HealthCheckerProcess::failure(const string& message)
 
 void HealthCheckerProcess::success()
 {
-  VLOG(1) << "Check passed";
+  VLOG(1) << HealthCheck::Type_Name(check.type()) << " health check passed";
 
   // Send a healthy status update on the first success,
   // and on the first success following failure(s).
@@ -182,30 +185,49 @@ void HealthCheckerProcess::success()
 
 void HealthCheckerProcess::_healthCheck()
 {
+  Future<Nothing> checkResult;
+
   switch (check.type()) {
     case HealthCheck::COMMAND: {
-      _commandHealthCheck();
-      return;
+      checkResult = _commandHealthCheck();
+      break;
     }
 
     case HealthCheck::HTTP: {
-      _httpHealthCheck();
-      return;
+      checkResult = _httpHealthCheck();
+      break;
     }
 
     case HealthCheck::TCP: {
-      _tcpHealthCheck();
-      return;
+      checkResult = _tcpHealthCheck();
+      break;
     }
 
     default: {
       UNREACHABLE();
     }
   }
+
+  checkResult.onAny(defer(self(), &Self::__healthCheck, lambda::_1));
 }
 
 
-void HealthCheckerProcess::_commandHealthCheck()
+void HealthCheckerProcess::__healthCheck(const Future<Nothing>& future)
+{
+  if (future.isReady()) {
+    success();
+    return;
+  }
+
+  string message = HealthCheck::Type_Name(check.type()) +
+                   " health check failed: " +
+                   (future.isFailed() ? future.failure() : "discarded");
+
+  failure(message);
+}
+
+
+Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
 {
   CHECK_EQ(HealthCheck::COMMAND, check.type());
   CHECK(check.has_command());
@@ -220,11 +242,11 @@ void HealthCheckerProcess::_commandHealthCheck()
   }
 
   // Launch the subprocess.
-  Option<Try<Subprocess>> external = None();
+  Try<Subprocess> external = Error("Not launched");
 
   if (command.shell()) {
     // Use the shell variant.
-    VLOG(2) << "Launching health command '" << command.value() << "'";
+    VLOG(1) << "Launching command health check '" << command.value() << "'";
 
     external = subprocess(
         command.value(),
@@ -240,7 +262,7 @@ void HealthCheckerProcess::_commandHealthCheck()
       argv.push_back(arg);
     }
 
-    VLOG(2) << "Launching health command [" << command.value() << ", "
+    VLOG(1) << "Launching command health check [" << command.value() << ", "
             << strings::join(", ", argv) << "]";
 
     external = subprocess(
@@ -254,72 +276,69 @@ void HealthCheckerProcess::_commandHealthCheck()
         environment);
   }
 
-  CHECK_SOME(external);
-
-  if (external.get().isError()) {
-    failure("Error creating subprocess for healthcheck: " +
-            external.get().error());
-    return;
+  if (external.isError()) {
+    return Failure("Failed to create subprocess: " + external.error());
   }
 
-  pid_t commandPid = external.get().get().pid();
+  pid_t commandPid = external->pid();
+  Duration timeout = Seconds(check.timeout_seconds());
 
-  Future<Option<int>> status = external.get().get().status();
-  status.await(Seconds(check.timeout_seconds()));
+  return external->status()
+    .after(timeout, [timeout, commandPid](Future<Option<int>> future) {
+      future.discard();
 
-  if (!status.isReady()) {
-    string msg = "Command check failed with reason: ";
-    if (status.isFailed()) {
-      msg += "failed with error: " + status.failure();
-    } else if (status.isDiscarded()) {
-      msg += "status future discarded";
-    } else {
-      msg += "status still pending after timeout " +
-             stringify(Seconds(check.timeout_seconds()));
-    }
+      if (commandPid != -1) {
+        // Cleanup the external command process.
+        VLOG(1) << "Killing the command health check process " << commandPid;
 
-    if (commandPid != -1) {
-      // Cleanup the external command process.
-      os::killtree(commandPid, SIGKILL);
-      VLOG(1) << "Kill health check command " << commandPid;
-    }
+        os::killtree(commandPid, SIGKILL);
+      }
 
-    failure(msg);
-    return;
-  }
+      return Failure(
+          "Command has not returned after " + stringify(timeout) +
+          "; aborting");
+    })
+    .then([](const Option<int>& status) -> Future<Nothing> {
+      if (status.isNone()) {
+        return Failure("Failed to reap the command process");
+      }
 
-  int statusCode = status.get().get();
-  if (statusCode != 0) {
-    string message = "Health command check " + WSTRINGIFY(statusCode);
-    failure(message);
-  } else {
-    success();
-  }
+      int statusCode = status.get();
+      if (statusCode != 0) {
+        return Failure("Command returned " + WSTRINGIFY(statusCode));
+      }
+
+      return Nothing();
+    });
 }
 
 
-void HealthCheckerProcess::_httpHealthCheck()
+Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
 {
   CHECK_EQ(HealthCheck::HTTP, check.type());
   CHECK(check.has_http());
 
   promise.fail("HTTP health check is not supported");
+
+  return Nothing();
 }
 
 
-void HealthCheckerProcess::_tcpHealthCheck()
+Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
 {
   CHECK_EQ(HealthCheck::TCP, check.type());
   CHECK(check.has_tcp());
 
   promise.fail("TCP health check is not supported");
+
+  return Nothing();
 }
 
 
 void HealthCheckerProcess::reschedule()
 {
   VLOG(1) << "Rescheduling health check in "
-    << Seconds(check.interval_seconds());
+          << Seconds(check.interval_seconds());
 
   delay(Seconds(check.interval_seconds()), self(), &Self::_healthCheck);
 }
