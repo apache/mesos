@@ -354,7 +354,7 @@ Option<Error> healthCheck(const HealthCheck& check)
     const HealthCheck::HTTPCheckInfo& http = check.http();
 
     if (http.has_scheme() &&
-        http.scheme() != "https" &&
+        http.scheme() != "http" &&
         http.scheme() != "https") {
       return Error("Unsupported HTTP health check scheme: '" + http.scheme() +
                    "'");
