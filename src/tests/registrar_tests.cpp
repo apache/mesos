@@ -236,7 +236,9 @@ TEST_P(RegistrarTest, Recover)
   AWAIT_EXPECT_FAILED(
       registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   AWAIT_EXPECT_FAILED(
-      registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
+      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(slave))));
+  AWAIT_EXPECT_FAILED(
+      registrar.apply(Owned<Operation>(new MarkSlaveReachable(slave))));
   AWAIT_EXPECT_FAILED(
       registrar.apply(Owned<Operation>(new RemoveSlave(slave))));
 
@@ -246,8 +248,10 @@ TEST_P(RegistrarTest, Recover)
   // operations to ensure they do not fail.
   Future<bool> admit = registrar.apply(
       Owned<Operation>(new AdmitSlave(slave)));
-  Future<bool> readmit = registrar.apply(
-      Owned<Operation>(new ReadmitSlave(slave)));
+  Future<bool> unreachable = registrar.apply(
+      Owned<Operation>(new MarkSlaveUnreachable(slave)));
+  Future<bool> reachable = registrar.apply(
+      Owned<Operation>(new MarkSlaveReachable(slave)));
   Future<bool> remove = registrar.apply(
       Owned<Operation>(new RemoveSlave(slave)));
 
@@ -255,7 +259,8 @@ TEST_P(RegistrarTest, Recover)
   EXPECT_EQ(master, registry.get().master().info());
 
   AWAIT_TRUE(admit);
-  AWAIT_TRUE(readmit);
+  AWAIT_TRUE(unreachable);
+  AWAIT_TRUE(reachable);
   AWAIT_TRUE(remove);
 }
 
@@ -275,7 +280,7 @@ TEST_P(RegistrarTest, Admit)
 }
 
 
-TEST_P(RegistrarTest, Readmit)
+TEST_P(RegistrarTest, MarkReachable)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -296,13 +301,51 @@ TEST_P(RegistrarTest, Readmit)
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(info1))));
+  // Attempting to mark a slave as reachable that is already reachable
+  // should not result in an error.
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
 
-  if (flags.registry_strict) {
-    AWAIT_FALSE(registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
-  } else {
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(info2))));
-  }
+  // Attempting to mark a slave as reachable that is not in the
+  // unreachable list should not result in error.
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info2))));
+}
+
+
+TEST_P(RegistrarTest, MarkUnreachable)
+{
+  Registrar registrar(flags, state);
+  AWAIT_READY(registrar.recover(master));
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
+
+  SlaveID id1;
+  id1.set_value("1");
+  info1.mutable_id()->CopyFrom(id1);
+
+  SlaveID id2;
+  id2.set_value("2");
+
+  SlaveInfo info2;
+  info2.set_hostname("localhost");
+  info2.mutable_id()->CopyFrom(id2);
+
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+
+  AWAIT_TRUE(
+      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
+
+  AWAIT_TRUE(
+      registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
+
+  AWAIT_TRUE(
+      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
+
+  // If a slave is already unreachable, trying to mark it unreachable
+  // again should fail.
+  AWAIT_FALSE(
+      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
 }
 
 
@@ -977,20 +1020,17 @@ TEST_P(RegistrarTest, UpdateWeights)
 
 TEST_P(RegistrarTest, Bootstrap)
 {
-  // Run 1 readmits a slave that is not present.
+  // Run 1 simulates the reregistration of a slave that is not present
+  // in the registry.
   {
     Registrar registrar(flags, state);
     AWAIT_READY(registrar.recover(master));
 
-    // If not strict, we should be allowed to readmit the slave.
-    if (flags.registry_strict) {
-      AWAIT_FALSE(registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
-    } else {
-      AWAIT_TRUE(registrar.apply(Owned<Operation>(new ReadmitSlave(slave))));
-    }
+    AWAIT_TRUE(
+        registrar.apply(Owned<Operation>(new MarkSlaveReachable(slave))));
   }
 
-  // Run 2 should see the slave if not strict.
+  // Run 2 should see the slave.
   {
     Registrar registrar(flags, state);
 
@@ -998,12 +1038,8 @@ TEST_P(RegistrarTest, Bootstrap)
 
     AWAIT_READY(registry);
 
-    if (flags.registry_strict) {
-      EXPECT_EQ(0, registry.get().slaves().slaves().size());
-    } else {
-      ASSERT_EQ(1, registry.get().slaves().slaves().size());
-      EXPECT_EQ(slave, registry.get().slaves().slaves(0).info());
-    }
+    ASSERT_EQ(1, registry.get().slaves().slaves().size());
+    EXPECT_EQ(slave, registry.get().slaves().slaves(0).info());
   }
 }
 
@@ -1206,13 +1242,16 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   // same as in production).
   std::random_shuffle(infos.begin(), infos.end());
 
-  // Readmit slaves.
+  // Mark slaves reachable again. This simulates the master failing
+  // over, and then the previously registered agents reregistering
+  // with the new master.
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(Owned<Operation>(new ReadmitSlave(info)));
+    result = registrar.apply(Owned<Operation>(new MarkSlaveReachable(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
-  LOG(INFO) << "Readmitted " << slaveCount << " agents in " << watch.elapsed();
+  LOG(INFO) << "Marked " << slaveCount
+            << " agents reachable in " << watch.elapsed();
 
   // Recover slaves.
   Registrar registrar2(flags, state);

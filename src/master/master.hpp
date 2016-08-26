@@ -1891,7 +1891,7 @@ private:
 };
 
 
-// Implementation of slave admission Registrar operation.
+// Add a new slave to the list of admitted slaves.
 class AdmitSlave : public Operation
 {
 public:
@@ -1906,7 +1906,7 @@ protected:
       hashset<SlaveID>* slaveIDs,
       bool strict)
   {
-    // Check and see if this slave already exists.
+    // Check and see if this slave is currently admitted.
     if (slaveIDs->contains(info.id())) {
       if (strict) {
         return Error("Agent already admitted");
@@ -1915,9 +1915,123 @@ protected:
       }
     }
 
+    // TODO(neilc): Check if the slave appears in the list of
+    // `unreachable` slaves in the registry?
+
     Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
     slave->mutable_info()->CopyFrom(info);
     slaveIDs->insert(info.id());
+    return true; // Mutation.
+  }
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Move a slave from the list of admitted slaves to the list of
+// unreachable slaves.
+class MarkSlaveUnreachable : public Operation
+{
+public:
+  explicit MarkSlaveUnreachable(const SlaveInfo& _info) : info(_info) {
+    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+  }
+
+protected:
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
+  {
+    // As currently implemented, this should not be possible: the
+    // master will only mark slaves unreachable that are currently
+    // admitted.
+    if (!slaveIDs->contains(info.id())) {
+      return Error("Agent not yet admitted");
+    }
+
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      const Registry::Slave& slave = registry->slaves().slaves(i);
+
+      if (slave.info().id() == info.id()) {
+        registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+        slaveIDs->erase(info.id());
+
+        Registry::UnreachableSlave* unreachable =
+          registry->mutable_unreachable()->add_slaves();
+
+        unreachable->mutable_id()->CopyFrom(info.id());
+        unreachable->mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
+
+        return true; // Mutation.
+      }
+    }
+
+    // Should not happen.
+    return Error("Failed to find agent " + stringify(info.id()));
+  }
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Add a slave back to the list of admitted slaves. The slave will
+// typically be in the "unreachable" list; if so, it is removed from
+// that list. The slave might also be in the "admitted" list already.
+// Finally, the slave might be in neither the "unreachable" or
+// "admitted" lists, if its metadata has been garbage collected from
+// the registry.
+class MarkSlaveReachable : public Operation
+{
+public:
+  explicit MarkSlaveReachable(const SlaveInfo& _info) : info(_info) {
+    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+  }
+
+protected:
+  virtual Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict)
+  {
+    // A slave might try to reregister that appears in the list of
+    // admitted slaves. This can occur when the master fails over:
+    // agents will usually attempt to reregister with the new master
+    // before they are marked unreachable. In this situation, the
+    // registry is already in the correct state, so no changes are
+    // needed.
+    if (slaveIDs->contains(info.id())) {
+      return false; // No mutation.
+    }
+
+    // Check whether the slave is in the unreachable list.
+    // TODO(neilc): Optimize this to avoid linear scan.
+    bool found = false;
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      const Registry::UnreachableSlave& slave =
+        registry->unreachable().slaves(i);
+
+      if (slave.id() == info.id()) {
+        registry->mutable_unreachable()->mutable_slaves()->DeleteSubrange(i, 1);
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      LOG(WARNING) << "Allowing UNKNOWN agent to reregister: " << info;
+    }
+
+    // Add the slave to the admitted list, even if we didn't find it
+    // in the unreachable list. This accounts for when the slave was
+    // unreachable for a long time, was GC'd from the unreachable
+    // list, but then eventually reregistered.
+    Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+    slave->mutable_info()->CopyFrom(info);
+    slaveIDs->insert(info.id());
+
     return true; // Mutation.
   }
 
