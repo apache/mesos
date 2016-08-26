@@ -1051,7 +1051,6 @@ Option<Error> validateExecutor(
     return Error("'ExecutorInfo.type' must be set");
   }
 
-
   if (executor.type() == ExecutorInfo::UNKNOWN) {
     return Error("Unknown executor type");
   }
