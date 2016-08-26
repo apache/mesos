@@ -18,6 +18,7 @@
 #define __HEALTH_CHECKER_HPP__
 
 #include <string>
+#include <tuple>
 
 #include <mesos/mesos.hpp>
 
@@ -81,6 +82,12 @@ private:
   process::Future<Nothing> _commandHealthCheck();
 
   process::Future<Nothing> _httpHealthCheck();
+
+  process::Future<Nothing> __httpHealthCheck(
+      const std::tuple<
+          process::Future<Option<int>>,
+          process::Future<std::string>,
+          process::Future<std::string>>& t);
 
   process::Future<Nothing> _tcpHealthCheck();
 

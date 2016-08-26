@@ -31,6 +31,8 @@
 
 #include <process/collect.hpp>
 #include <process/delay.hpp>
+#include <process/http.hpp>
+#include <process/io.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/duration.hpp>
@@ -57,11 +59,19 @@ using process::UPID;
 
 using std::map;
 using std::string;
+using std::tuple;
 using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace health {
+
+static const string DEFAULT_HTTP_SCHEME = "http";
+
+// Use '127.0.0.1' instead of 'localhost', because the host
+// file in some container images may not contain 'localhost'.
+static const string DEFAULT_DOMAIN = "127.0.0.1";
+
 
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
@@ -318,7 +328,112 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
   CHECK_EQ(HealthCheck::HTTP, check.type());
   CHECK(check.has_http());
 
-  promise.fail("HTTP health check is not supported");
+  const HealthCheck::HTTPCheckInfo& http = check.http();
+
+  const string scheme = http.has_scheme() ? http.scheme() : DEFAULT_HTTP_SCHEME;
+  const string path = http.has_path() ? http.path() : "";
+  const string url = scheme + "://" + DEFAULT_DOMAIN + ":" +
+                     stringify(http.port()) + path;
+
+  VLOG(1) << "Launching HTTP health check '" << url << "'";
+
+  const vector<string> argv = {
+    "curl",
+    "-s",                 // Don't show progress meter or error messages.
+    "-S",                 // Makes curl show an error message if it fails.
+    "-L",                 // Follows HTTP 3xx redirects.
+    "-k",                 // Ignores SSL validation when scheme is https.
+    "-w", "%{http_code}", // Displays HTTP response code on stdout.
+    "-o", "/dev/null",    // Ignores output.
+    url
+  };
+
+  Try<Subprocess> s = subprocess(
+      "curl",
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
+
+  if (s.isError()) {
+    return Failure("Failed to create the curl subprocess: " + s.error());
+  }
+
+  pid_t curlPid = s->pid();
+  Duration timeout = Seconds(check.timeout_seconds());
+
+  return await(
+      s->status(),
+      process::io::read(s->out().get()),
+      process::io::read(s->err().get()))
+    .after(timeout,
+      [timeout, curlPid](Future<tuple<Future<Option<int>>,
+                                      Future<string>,
+                                      Future<string>>> future) {
+      future.discard();
+
+      if (curlPid != -1) {
+        // Cleanup the curl process.
+        VLOG(1) << "Killing the HTTP health check process " << curlPid;
+
+        os::killtree(curlPid, SIGKILL);
+      }
+
+      return Failure(
+          "curl has not returned after " + stringify(timeout) + "; aborting");
+    })
+    .then(defer(self(), &Self::__httpHealthCheck, lambda::_1));
+}
+
+
+Future<Nothing> HealthCheckerProcess::__httpHealthCheck(
+    const tuple<
+        Future<Option<int>>,
+        Future<string>,
+        Future<string>>& t)
+{
+  Future<Option<int>> status = std::get<0>(t);
+  if (!status.isReady()) {
+    return Failure(
+        "Failed to get the exit status of the curl process: " +
+        (status.isFailed() ? status.failure() : "discarded"));
+  }
+
+  if (status->isNone()) {
+    return Failure("Failed to reap the curl process");
+  }
+
+  int statusCode = status->get();
+  if (statusCode != 0) {
+    Future<string> error = std::get<2>(t);
+    if (!error.isReady()) {
+      return Failure("curl returned " + WSTRINGIFY(statusCode) +
+                     "; reading stderr failed: " +
+                     (error.isFailed() ? error.failure() : "discarded"));
+    }
+
+    return Failure("curl returned " + WSTRINGIFY(statusCode) + ": " +
+                   error.get());
+  }
+
+  Future<string> output = std::get<1>(t);
+  if (!output.isReady()) {
+    return Failure("Failed to read stdout from curl: " +
+                   (output.isFailed() ? output.failure() : "discarded"));
+  }
+
+  // Parse the output and get the HTTP response code.
+  Try<int> code = numify<int>(output.get());
+  if (code.isError()) {
+    return Failure("Unexpected output from curl: " + output.get());
+  }
+
+  if (code.get() < process::http::Status::OK ||
+      code.get() >= process::http::Status::BAD_REQUEST) {
+    return Failure(
+        "Unexpected HTTP response code: " +
+        process::http::Status::string(code.get()));
+  }
 
   return Nothing();
 }
