@@ -164,22 +164,22 @@
 
       framework.cpus_share = 0;
       if ($scope.total_cpus > 0) {
-        framework.cpus_share = framework.resources.cpus / $scope.total_cpus;
+        framework.cpus_share = framework.used_resources.cpus / $scope.total_cpus;
       }
 
       framework.gpus_share = 0;
       if ($scope.total_gpus > 0) {
-        framework.gpus_share = framework.resources.gpus / $scope.total_gpus;
+        framework.gpus_share = framework.used_resources.gpus / $scope.total_gpus;
       }
 
       framework.mem_share = 0;
       if ($scope.total_mem > 0) {
-        framework.mem_share = framework.resources.mem / $scope.total_mem;
+        framework.mem_share = framework.used_resources.mem / $scope.total_mem;
       }
 
       framework.disk_share = 0;
       if ($scope.total_disk > 0) {
-        framework.disk_share = framework.resources.disk / $scope.total_disk;
+        framework.disk_share = framework.used_resources.disk / $scope.total_disk;
       }
 
       framework.max_share = Math.max(

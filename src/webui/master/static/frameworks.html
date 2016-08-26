@@ -16,10 +16,10 @@
       <th data-key="role">Role</th>
       <th data-key="principal">Principal</th>
       <th data-key="tasks.length">Active Tasks</th>
-      <th data-key="resources.cpus">CPUs</th>
-      <th data-key="resources.gpus">GPUs</th>
-      <th data-key="resources.mem">Mem</th>
-      <th data-key="resources.disk">Disk</th>
+      <th data-key="used_resources.cpus">CPUs</th>
+      <th data-key="used_resources.gpus">GPUs</th>
+      <th data-key="used_resources.mem">Mem</th>
+      <th data-key="used_resources.disk">Disk</th>
       <th data-key="max_share">Max Share</th>
       <th data-key="registered_time">Registered</th>
       <th data-key="reregistered_time">Re-Registered</th>
@@ -47,10 +47,10 @@
       <td>{{framework.role}}</td>
       <td>{{framework.principal}}</td>
       <td>{{framework.tasks.length}}</td>
-      <td>{{framework.resources.cpus | number}}</td>
-      <td>{{framework.resources.gpus | number}}</td>
-      <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
-      <td>{{framework.resources.disk * (1024 * 1024) | dataSize}}</td>
+      <td>{{framework.used_resources.cpus | number}}</td>
+      <td>{{framework.used_resources.gpus | number}}</td>
+      <td>{{framework.used_resources.mem * (1024 * 1024) | dataSize}}</td>
+      <td>{{framework.used_resources.disk * (1024 * 1024) | dataSize}}</td>
       <td>{{framework.max_share * 100 | number}}%</td>
       <td>
         <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
@@ -74,10 +74,10 @@
     <th data-key="role">Role</th>
     <th data-key="principal">Principal</th>
     <th data-key="tasks.length">Active Tasks</th>
-    <th data-key="resources.cpus">CPUs</th>
-    <th data-key="resources.gpus">GPUs</th>
-    <th data-key="resources.mem">Mem</th>
-    <th data-key="resources.disk">Disk</th>
+    <th data-key="used_resources.cpus">CPUs</th>
+    <th data-key="used_resources.gpus">GPUs</th>
+    <th data-key="used_resources.mem">Mem</th>
+    <th data-key="used_resources.disk">Disk</th>
     <th data-key="max_share">Max Share</th>
     <th data-key="registered_time">Registered</th>
     <th data-key="reregistered_time">Re-Registered</th>
@@ -105,10 +105,10 @@
     <td>{{framework.role}}</td>
     <td>{{framework.principal}}</td>
     <td>{{framework.tasks.length}}</td>
-    <td>{{framework.resources.cpus | number}}</td>
-    <td>{{framework.resources.gpus | number}}</td>
-    <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
-    <td>{{framework.resources.disk * (1024 * 1024) | dataSize}}</td>
+    <td>{{framework.used_resources.cpus | number}}</td>
+    <td>{{framework.used_resources.gpus | number}}</td>
+    <td>{{framework.used_resources.mem * (1024 * 1024) | dataSize}}</td>
+    <td>{{framework.used_resources.disk * (1024 * 1024) | dataSize}}</td>
     <td>{{framework.max_share * 100 | number}}%</td>
     <td>
       <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
