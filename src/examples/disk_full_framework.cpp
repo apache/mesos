@@ -230,6 +230,10 @@ public:
     case TASK_KILLED:
     case TASK_LOST:
     case TASK_ERROR:
+    case TASK_DROPPED:
+    case TASK_UNREACHABLE:
+    case TASK_GONE:
+    case TASK_GONE_BY_OPERATOR:
       if (flags.run_once) {
         driver->abort();
       }
@@ -241,6 +245,7 @@ public:
     case TASK_RUNNING:
     case TASK_STAGING:
     case TASK_KILLING:
+    case TASK_UNKNOWN:
       break;
     }
   }

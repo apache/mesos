@@ -93,6 +93,14 @@ Metrics::Metrics(const Master& master)
         "master/tasks_lost"),
     tasks_error(
         "master/tasks_error"),
+    tasks_dropped(
+        "master/tasks_dropped"),
+    tasks_unreachable(
+        "master/tasks_unreachable"),
+    tasks_gone(
+        "master/tasks_gone"),
+    tasks_gone_by_operator(
+        "master/tasks_gone_by_operator"),
     dropped_messages(
         "master/dropped_messages"),
     messages_register_framework(
@@ -208,6 +216,10 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(tasks_killed);
   process::metrics::add(tasks_lost);
   process::metrics::add(tasks_error);
+  process::metrics::add(tasks_dropped);
+  process::metrics::add(tasks_unreachable);
+  process::metrics::add(tasks_gone);
+  process::metrics::add(tasks_gone_by_operator);
 
   process::metrics::add(dropped_messages);
 
@@ -345,6 +357,10 @@ Metrics::~Metrics()
   process::metrics::remove(tasks_killed);
   process::metrics::remove(tasks_lost);
   process::metrics::remove(tasks_error);
+  process::metrics::remove(tasks_dropped);
+  process::metrics::remove(tasks_unreachable);
+  process::metrics::remove(tasks_gone);
+  process::metrics::remove(tasks_gone_by_operator);
 
   process::metrics::remove(dropped_messages);
 

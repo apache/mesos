@@ -2872,7 +2872,12 @@ struct TaskStateSummary
       killed(0),
       failed(0),
       lost(0),
-      error(0) {}
+      error(0),
+      dropped(0),
+      unreachable(0),
+      gone(0),
+      gone_by_operator(0),
+      unknown(0) {}
 
   // Account for the state of the given task.
   void count(const Task& task)
@@ -2887,6 +2892,11 @@ struct TaskStateSummary
       case TASK_FAILED: { ++failed; break; }
       case TASK_LOST: { ++lost; break; }
       case TASK_ERROR: { ++error; break; }
+      case TASK_DROPPED: { ++dropped; break; }
+      case TASK_UNREACHABLE: { ++unreachable; break; }
+      case TASK_GONE: { ++gone; break; }
+      case TASK_GONE_BY_OPERATOR: { ++gone_by_operator; break; }
+      case TASK_UNKNOWN: { ++unknown; break; }
       // No default case allows for a helpful compiler error if we
       // introduce a new state.
     }
@@ -2901,6 +2911,11 @@ struct TaskStateSummary
   size_t failed;
   size_t lost;
   size_t error;
+  size_t dropped;
+  size_t unreachable;
+  size_t gone;
+  size_t gone_by_operator;
+  size_t unknown;
 };
 
 
@@ -3045,6 +3060,7 @@ Future<Response> Master::Http::stateSummary(
               const TaskStateSummary& summary =
                 taskStateSummaries.slave(slave->id);
 
+              // TODO(neilc): Update for new PARTITION_AWARE task statuses.
               writer->field("TASK_STAGING", summary.staging);
               writer->field("TASK_STARTING", summary.starting);
               writer->field("TASK_RUNNING", summary.running);
@@ -3095,6 +3111,7 @@ Future<Response> Master::Http::stateSummary(
               const TaskStateSummary& summary =
                 taskStateSummaries.framework(frameworkId);
 
+              // TODO(neilc): Update for new PARTITION_AWARE task statuses.
               writer->field("TASK_STAGING", summary.staging);
               writer->field("TASK_STARTING", summary.starting);
               writer->field("TASK_RUNNING", summary.running);

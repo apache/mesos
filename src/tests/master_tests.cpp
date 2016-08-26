@@ -3093,7 +3093,9 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
 
   vector<FrameworkInfo::Capability::Type> capabilities = {
     FrameworkInfo::Capability::REVOCABLE_RESOURCES,
-    FrameworkInfo::Capability::TASK_KILLING_STATE
+    FrameworkInfo::Capability::TASK_KILLING_STATE,
+    FrameworkInfo::Capability::GPU_RESOURCES,
+    FrameworkInfo::Capability::PARTITION_AWARE
   };
 
   foreach (FrameworkInfo::Capability::Type capability, capabilities) {
