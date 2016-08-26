@@ -3558,7 +3558,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
     cout << "round " << i
          << " allocate() took " << watch.elapsed()
          << " to make " << offers.size() << " offers"
-         << " after filtering  " << declinedOfferCount << " offers" << endl;
+         << " after filtering " << declinedOfferCount << " offers" << endl;
   }
 
   Clock::resume();
