@@ -392,7 +392,7 @@ int MesosContainerizerLaunch::execute()
                (char*) nullptr);
   } else {
     // Use execvp to launch the command.
-    execvp(command->value().c_str(),
+    os::execvp(command->value().c_str(),
            os::raw::Argv(command->arguments()));
   }
 
