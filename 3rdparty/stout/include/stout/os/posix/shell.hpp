@@ -30,6 +30,9 @@
 
 namespace os {
 
+// Import `::execvp` into `os::` namespace.
+using ::execvp;
+
 namespace Shell {
 
 // Canonical constants used as platform-dependent args to `exec`

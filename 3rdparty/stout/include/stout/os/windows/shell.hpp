@@ -104,10 +104,24 @@ inline int system(const std::string& command)
 }
 
 
+// On Windows, the `_spawnlp` call creates a new process.
+// In order to emulate the semantics of `execlp`, we spawn with `_P_WAIT`,
+// which forces the parent process to block on the child. When the child exits,
+// the exit code is propagated back through the parent via `exit()`.
 template<typename... T>
 inline int execlp(const char* file, T... t)
 {
   exit(::_spawnlp(_P_WAIT, file, t...));
+}
+
+
+// On Windows, the `_spawnvp` call creates a new process.
+// In order to emulate the semantics of `execvp`, we spawn with `_P_WAIT`,
+// which forces the parent process to block on the child. When the child exits,
+// the exit code is propagated back through the parent via `exit()`.
+inline int execvp(const char* file, char* const argv[])
+{
+  exit(::_spawnvp(_P_WAIT, file, argv));
 }
 
 
