@@ -1814,6 +1814,94 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
   driver.join();
 }
 
+
+// Ensures that a task in a task group with an executor
+// is rejected during `TaskGroupInfo` validation.
+TEST_F(TaskGroupValidationTest, TaskUsesExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+  Offer offer = offers.get()[0];
+
+  Resources resources = Resources::parse("cpus:1;mem:512;disk:32").get();
+
+  ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.set_type(ExecutorInfo::CUSTOM);
+  executor.mutable_resources()->CopyFrom(resources);
+
+  // Create an invalid task that has executor.
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task1.mutable_resources()->MergeFrom(resources);
+  task1.mutable_executor()->MergeFrom(executor);
+
+  // Create a valid task.
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task1.mutable_resources()->MergeFrom(resources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offer.id()}, {operation});
+
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(task1.task_id(), task1Status->task_id());
+  EXPECT_EQ(TASK_ERROR, task1Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
+  EXPECT_EQ("Task '1' is invalid: 'TaskInfo.executor' must not be set",
+            task1Status->message());
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(task2.task_id(), task2Status->task_id());
+  EXPECT_EQ(TASK_ERROR, task2Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
