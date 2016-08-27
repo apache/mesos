@@ -125,6 +125,12 @@ using process::Owned;
 using process::Time;
 using process::UPID;
 
+#ifdef __WINDOWS__
+constexpr char MESOS_EXECUTOR[] = "mesos-executor.exe";
+#else
+constexpr char MESOS_EXECUTOR[] = "mesos-executor";
+#endif // __WINDOWS__
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -3956,12 +3962,12 @@ ExecutorInfo Slave::getExecutorInfo(
     }
 
     Result<string> path = os::realpath(
-        path::join(flags.launcher_dir, "mesos-executor"));
+        path::join(flags.launcher_dir, MESOS_EXECUTOR));
 
     if (path.isSome()) {
       executor.mutable_command()->set_shell(false);
       executor.mutable_command()->set_value(path.get());
-      executor.mutable_command()->add_arguments("mesos-executor");
+      executor.mutable_command()->add_arguments(MESOS_EXECUTOR);
       executor.mutable_command()->add_arguments(
           "--launcher_dir=" + flags.launcher_dir);
 
@@ -6072,7 +6078,7 @@ Executor::Executor(
   CHECK_NOTNULL(slave);
 
   Result<string> executorPath =
-    os::realpath(path::join(slave->flags.launcher_dir, "mesos-executor"));
+    os::realpath(path::join(slave->flags.launcher_dir, MESOS_EXECUTOR));
 
   if (executorPath.isSome()) {
     commandExecutor =
