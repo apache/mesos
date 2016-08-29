@@ -566,7 +566,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
     .WillOnce(FutureArg<1>(&offers));
 
   // Expect that the reserve offer operation will be dropped.
-  EXPECT_CALL(allocator, updateAllocation(_, _, _))
+  EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
     .Times(0);
 
   // We use the filter explicitly here so that the resources will not
@@ -657,7 +657,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
     .WillOnce(FutureArg<1>(&offers));
 
   // Expect that the reserve offer operation will be dropped.
-  EXPECT_CALL(allocator, updateAllocation(_, _, _))
+  EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
     .Times(0);
 
   // We use the filter explicitly here so that the resources

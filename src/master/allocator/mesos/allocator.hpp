@@ -111,6 +111,7 @@ public:
   void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
+      const Resources& offeredResources,
       const std::vector<Offer::Operation>& operations);
 
   process::Future<Nothing> updateAvailable(
@@ -241,6 +242,7 @@ public:
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
+      const Resources& offeredResources,
       const std::vector<Offer::Operation>& operations) = 0;
 
   virtual process::Future<Nothing> updateAvailable(
@@ -504,6 +506,7 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
+    const Resources& offeredResources,
     const std::vector<Offer::Operation>& operations)
 {
   process::dispatch(
@@ -511,6 +514,7 @@ inline void MesosAllocator<AllocatorProcess>::updateAllocation(
       &MesosAllocatorProcess::updateAllocation,
       frameworkId,
       slaveId,
+      offeredResources,
       operations);
 }
 

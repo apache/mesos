@@ -252,11 +252,13 @@ public:
    * This call is mainly intended to support persistence-related features
    * (dynamic reservation and persistent volumes). The allocator may react
    * differently for certain offer operations. The allocator should use this
-   * call to update bookkeeping information related to the framework.
+   * call to update bookkeeping information related to the framework. The
+   * `offeredResources` are the resources that the operations are applied to.
    */
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
+      const Resources& offeredResources,
       const std::vector<Offer::Operation>& operations) = 0;
 
   /**

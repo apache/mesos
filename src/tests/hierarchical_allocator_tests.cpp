@@ -1236,6 +1236,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
   allocator->updateAllocation(
       framework.id(),
       slave.id(),
+      Resources::sum(allocation.get().resources),
       {create});
 
   // Now recover the resources, and expect the next allocation to

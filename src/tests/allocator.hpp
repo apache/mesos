@@ -129,7 +129,7 @@ ACTION_P(InvokeRequestResources, allocator)
 
 ACTION_P(InvokeUpdateAllocation, allocator)
 {
-  allocator->real->updateAllocation(arg0, arg1, arg2);
+  allocator->real->updateAllocation(arg0, arg1, arg2, arg3);
 }
 
 
@@ -299,9 +299,9 @@ public:
     EXPECT_CALL(*this, requestResources(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, updateAllocation(_, _, _))
+    ON_CALL(*this, updateAllocation(_, _, _, _))
       .WillByDefault(InvokeUpdateAllocation(this));
-    EXPECT_CALL(*this, updateAllocation(_, _, _))
+    EXPECT_CALL(*this, updateAllocation(_, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, updateAvailable(_, _))
@@ -417,9 +417,10 @@ public:
       const FrameworkID&,
       const std::vector<Request>&));
 
-  MOCK_METHOD3(updateAllocation, void(
+  MOCK_METHOD4(updateAllocation, void(
       const FrameworkID&,
       const SlaveID&,
+      const Resources&,
       const std::vector<Offer::Operation>&));
 
   MOCK_METHOD2(updateAvailable, process::Future<Nothing>(

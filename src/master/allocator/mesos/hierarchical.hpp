@@ -154,6 +154,7 @@ public:
   void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
+      const Resources& offeredResources,
       const std::vector<Offer::Operation>& operations);
 
   process::Future<Nothing> updateAvailable(

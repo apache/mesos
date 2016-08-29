@@ -602,6 +602,7 @@ void HierarchicalAllocatorProcess::requestResources(
 void HierarchicalAllocatorProcess::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
+    const Resources& offeredResources,
     const vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
@@ -609,6 +610,9 @@ void HierarchicalAllocatorProcess::updateAllocation(
   CHECK(frameworks.contains(frameworkId));
 
   const string& role = frameworks[frameworkId].role;
+
+  // TODO(anindya_sinha): `offeredResources` will be useful for supporting
+  // LAUNCH operations involving shared resources.
 
   // Here we apply offer operations to the allocated and total
   // resources in the allocator and each of the sorters. The available

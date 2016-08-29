@@ -814,15 +814,6 @@ protected:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  // Updates the allocator and updates the slave's resources by
-  // applying the given operation. It also sends a
-  // 'CheckpointResourcesMessage' to the slave with the updated
-  // checkpointed resources.
-  void apply(
-      Framework* framework,
-      Slave* slave,
-      const Offer::Operation& operation);
-
   // Attempts to update the allocator by applying the given operation.
   // If successful, updates the slave's resources, sends a
   // 'CheckpointResourcesMessage' to the slave with the updated
@@ -859,6 +850,9 @@ protected:
   SlaveID newSlaveId();
 
 private:
+  // Updates the slave's resources by applying the given operation.
+  // It also sends a 'CheckpointResourcesMessage' to the slave with
+  // the updated checkpointed resources.
   void _apply(Slave* slave, const Offer::Operation& operation);
 
   void drop(

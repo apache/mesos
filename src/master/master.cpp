@@ -3552,6 +3552,12 @@ void Master::_accept(
   // launched, we remove its resource from offered resources.
   Resources _offeredResources = offeredResources;
 
+  // Maintain a list of operations to pass to the allocator.
+  // Note that this list could be different than `accept.operations()`
+  // because we drop invalid operations. However the operation order
+  // should remain unchanged.
+  vector<Offer::Operation> operations;
+
   // The order of `authorizations` must match the order of the operations in
   // `accept.operations()`, as they are iterated through simultaneously.
   CHECK_READY(_authorizations);
@@ -3611,7 +3617,7 @@ void Master::_accept(
                   << operation.reserve().resources() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        apply(framework, slave, operation);
+        _apply(slave, operation);
         break;
       }
 
@@ -3663,7 +3669,7 @@ void Master::_accept(
                   << operation.unreserve().resources() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        apply(framework, slave, operation);
+        _apply(slave, operation);
         break;
       }
 
@@ -3717,7 +3723,7 @@ void Master::_accept(
                   << operation.create().volumes() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        apply(framework, slave, operation);
+        _apply(slave, operation);
         break;
       }
 
@@ -3767,7 +3773,7 @@ void Master::_accept(
                   << operation.create().volumes() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        apply(framework, slave, operation);
+        _apply(slave, operation);
         break;
       }
 
@@ -4087,6 +4093,19 @@ void Master::_accept(
         break;
       }
     }
+
+    // Accumulate the valid operations from the protobuf into a
+    // vector to pass to `Allocator::updateAllocation()`.
+    operations.push_back(operation);
+  }
+
+  // Update the allocator based on the offer operations.
+  if (!operations.empty()) {
+    allocator->updateAllocation(
+        frameworkId,
+        slaveId,
+        offeredResources,
+        operations);
   }
 
   if (!_offeredResources.empty()) {
@@ -7206,20 +7225,6 @@ void Master::removeExecutor(
   }
 
   slave->removeExecutor(frameworkId, executorId);
-}
-
-
-void Master::apply(
-    Framework* framework,
-    Slave* slave,
-    const Offer::Operation& operation)
-{
-  CHECK_NOTNULL(framework);
-  CHECK_NOTNULL(slave);
-
-  allocator->updateAllocation(framework->id(), slave->id, {operation});
-
-  _apply(slave, operation);
 }
 
 
