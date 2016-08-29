@@ -191,6 +191,25 @@ TEST_F(ResourceValidationTest, RevocablePersistentVolume)
 }
 
 
+TEST_F(ResourceValidationTest, UnshareableResource)
+{
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_shared();
+
+  EXPECT_SOME(resource::validate(CreateResources(volume)));
+}
+
+
+TEST_F(ResourceValidationTest, SharedPersistentVolume)
+{
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+  volume.mutable_shared();
+
+  EXPECT_NONE(resource::validate(CreateResources(volume)));
+}
+
+
 class ReserveOperationValidationTest : public MesosTest {};
 
 

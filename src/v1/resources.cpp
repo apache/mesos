@@ -369,7 +369,7 @@ static bool contains(const Resource& left, const Resource& right)
 {
   // NOTE: This is a necessary condition for 'contains'.
   // 'subtractable' will verify name, role, type, ReservationInfo,
-  // DiskInfo and RevocableInfo compatibility.
+  // DiskInfo, SharedInfo and RevocableInfo compatibility.
   if (!subtractable(left, right)) {
     return false;
   }
@@ -747,6 +747,19 @@ Option<Error> Resources::validate(const Resource& resource)
     return error;
   }
 
+  // Check that shareability is enabled for supported resource types.
+  // For now, it is for persistent volumes only.
+  // NOTE: We need to modify this once we extend shareability to other
+  // resource types.
+  if (resource.has_shared()) {
+    if (resource.name() != "disk") {
+      return Error("Resource " + resource.name() + " cannot be shared");
+    }
+
+    if (!resource.has_disk() || !resource.disk().has_persistence()) {
+      return Error("Only persistent volumes can be shared");
+    }
+  }
   return None();
 }
 
@@ -813,6 +826,12 @@ bool Resources::isDynamicallyReserved(const Resource& resource)
 bool Resources::isRevocable(const Resource& resource)
 {
   return resource.has_revocable();
+}
+
+
+bool Resources::isShared(const Resource& resource)
+{
+  return resource.has_shared();
 }
 
 
@@ -1044,6 +1063,19 @@ Resources Resources::nonRevocable() const
 {
   return filter(
       [](const Resource& resource) { return !isRevocable(resource); });
+}
+
+
+Resources Resources::shared() const
+{
+  return filter(isShared);
+}
+
+
+Resources Resources::nonShared() const
+{
+  return filter(
+      [](const Resource& resource) { return !isShared(resource); });
 }
 
 

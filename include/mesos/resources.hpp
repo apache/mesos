@@ -245,6 +245,9 @@ public:
   // Tests if the given Resource object is revocable.
   static bool isRevocable(const Resource& resource);
 
+  // Tests if the given Resource object is shared.
+  static bool isShared(const Resource& resource);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,
@@ -331,6 +334,12 @@ public:
 
   // Returns the non-revocable resources, effectively !revocable().
   Resources nonRevocable() const;
+
+  // Returns the shared resources.
+  Resources shared() const;
+
+  // Returns the non-shared resources.
+  Resources nonShared() const;
 
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
