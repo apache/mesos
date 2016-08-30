@@ -285,6 +285,7 @@ void DRFSorter::unallocated(
 void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
+    total_.resources[slaveId] += resources;
     total_.scalarQuantities += resources.createStrippedScalarQuantity();
 
     // We have to recalculate all shares when the total resources
@@ -299,6 +300,15 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
+    CHECK(total_.resources.contains(slaveId));
+    CHECK(total_.resources[slaveId].contains(resources));
+
+    total_.resources[slaveId] -= resources;
+
+    if (total_.resources[slaveId].empty()) {
+      total_.resources.erase(slaveId);
+    }
+
     const Resources resourcesQuantity =
       resources.createStrippedScalarQuantity();
 

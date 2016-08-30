@@ -150,9 +150,11 @@ private:
 
   // Total resources.
   struct Total {
-    // NOTE: We do not need to track the total resources at each
-    // slave; instead, we can safely aggregate scalar resources across
-    // slaves, which substantially improves performance (MESOS-2891).
+    hashmap<SlaveID, Resources> resources;
+
+    // NOTE: Scalars can be safely aggregated across slaves. We keep
+    // that to speed up the calculation of shares. See MESOS-2891 for
+    // the reasons why we want to do that.
     //
     // NOTE: We omit information about dynamic reservations and persistent
     // volumes here to enable resources to be aggregated across slaves
