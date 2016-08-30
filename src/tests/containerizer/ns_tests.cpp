@@ -90,7 +90,9 @@ TEST(NsTest, ROOT_setns)
       Subprocess::FD(STDERR_FILENO),
       nullptr,
       None(),
-      lambda::bind(&os::clone, lambda::_1, flags | SIGCHLD));
+      [=](const lambda::function<int()>& child) {
+        return os::clone(child, flags | SIGCHLD);
+      });
 
   // Continue in parent.
   ASSERT_SOME(s);

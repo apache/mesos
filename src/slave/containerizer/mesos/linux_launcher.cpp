@@ -265,7 +265,9 @@ Try<pid_t> LinuxLauncher::fork(
       err,
       flags,
       environment,
-      lambda::bind(&os::clone, lambda::_1, cloneFlags),
+      [cloneFlags] (const lambda::function<int()>& child) {
+        return os::clone(child, cloneFlags);
+      },
       parentHooks,
       {Subprocess::ChildHook::SETSID()});
 
