@@ -3554,8 +3554,13 @@ void Master::_accept(
 
   // Maintain a list of operations to pass to the allocator.
   // Note that this list could be different than `accept.operations()`
-  // because we drop invalid operations. However the operation order
-  // should remain unchanged.
+  // because:
+  // 1) We drop invalid operations.
+  // 2) For LAUNCH operations we change the operation to drop invalid tasks.
+  // 3) We don't pass LAUNCH_GROUP to the allocator as we don't currently
+  //    support use cases that require the allocator to be aware of it.
+  //
+  // The operation order should remain unchanged.
   vector<Offer::Operation> operations;
 
   // The order of `authorizations` must match the order of the operations in
@@ -3618,6 +3623,9 @@ void Master::_accept(
                   << *framework << " to agent " << *slave;
 
         _apply(slave, operation);
+
+        operations.push_back(operation);
+
         break;
       }
 
@@ -3670,6 +3678,9 @@ void Master::_accept(
                   << *framework << " to agent " << *slave;
 
         _apply(slave, operation);
+
+        operations.push_back(operation);
+
         break;
       }
 
@@ -3724,6 +3735,9 @@ void Master::_accept(
                   << *framework << " to agent " << *slave;
 
         _apply(slave, operation);
+
+        operations.push_back(operation);
+
         break;
       }
 
@@ -3774,10 +3788,19 @@ void Master::_accept(
                   << *framework << " to agent " << *slave;
 
         _apply(slave, operation);
+
+        operations.push_back(operation);
+
         break;
       }
 
       case Offer::Operation::LAUNCH: {
+        // For the LAUNCH operation we drop invalid tasks. Therefore
+        // we create a new copy with only the valid tasks to pass to
+        // the allocator.
+        Offer::Operation _operation;
+        _operation.set_type(Offer::Operation::LAUNCH);
+
         foreach (const TaskInfo& task, operation.launch().task_infos()) {
           Future<bool> authorization = authorizations.front();
           authorizations.pop_front();
@@ -3830,7 +3853,7 @@ void Master::_accept(
 
             forward(update, UPID(), framework);
 
-            continue;
+            continue; // Continue to the next task.
           }
 
           // Validate the task.
@@ -3871,7 +3894,7 @@ void Master::_accept(
 
             forward(update, UPID(), framework);
 
-            continue;
+            continue; // Continue to the next task.
           }
 
           // Add task.
@@ -3910,7 +3933,12 @@ void Master::_accept(
 
             send(slave->pid, message);
           }
+
+          _operation.mutable_launch()->add_task_infos()->CopyFrom(task);
         }
+
+        operations.push_back(_operation);
+
         break;
       }
 
@@ -4093,10 +4121,6 @@ void Master::_accept(
         break;
       }
     }
-
-    // Accumulate the valid operations from the protobuf into a
-    // vector to pass to `Allocator::updateAllocation()`.
-    operations.push_back(operation);
   }
 
   // Update the allocator based on the offer operations.
