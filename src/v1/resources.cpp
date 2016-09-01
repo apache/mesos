@@ -1814,6 +1814,10 @@ ostream& operator<<(ostream& stream, const Resource& resource)
     stream << "{REV}";
   }
 
+  if (resource.has_shared()) {
+    stream << "<SHARED>";
+  }
+
   stream << ":";
 
   switch (resource.type()) {

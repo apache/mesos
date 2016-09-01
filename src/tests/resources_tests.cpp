@@ -2446,6 +2446,34 @@ TEST(ResourcesTest, Count)
 }
 
 
+TEST(SharedResourcesTest, Printing)
+{
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      "principal1",
+      true); // Shared.
+
+  {
+    ostringstream oss;
+
+    oss << volume;
+    EXPECT_EQ("disk(role1)[id1:path1]<SHARED>:64<1>", oss.str());
+  }
+
+  {
+    ostringstream oss;
+
+    oss << volume + volume;
+    EXPECT_EQ("disk(role1)[id1:path1]<SHARED>:64<2>", oss.str());
+  }
+}
+
+
 TEST(SharedResourcesTest, ScalarAdditionShared)
 {
   // Shared persistent volume.
