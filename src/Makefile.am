@@ -1342,6 +1342,14 @@ mesos_containerizer_SOURCES = slave/containerizer/mesos/main.cpp
 mesos_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_containerizer_LDADD = libmesos.la $(LDADD)
 
+if OS_LINUX
+pkglibexec_PROGRAMS += mesos-cni-port-mapper
+mesos_cni_port_mapper_SOURCES = \
+  slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/main.cpp
+mesos_cni_port_mapper_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_cni_port_mapper_LDADD = libmesos.la $(LDADD)
+endif
+
 pkglibexec_PROGRAMS += mesos-logrotate-logger
 mesos_logrotate_logger_SOURCES =		\
   slave/container_loggers/logrotate.hpp		\
