@@ -72,7 +72,16 @@ string getContainerDir(
     const string& provisionerDir,
     const ContainerID& containerId)
 {
-  return path::join(getContainersDir(provisionerDir), containerId.value());
+  if (!containerId.has_parent()) {
+    return path::join(getContainersDir(provisionerDir), containerId.value());
+  }
+
+  return path::join(
+      getContainersDir(
+          getContainerDir(
+              provisionerDir,
+              containerId.parent())),
+      containerId.value());
 }
 
 

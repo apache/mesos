@@ -40,6 +40,12 @@ namespace paths {
 //                 |-- <backend> (copy, bind, etc.)
 //                     |-- rootfses
 //                         |-- <rootfs_id> (the rootfs)
+//             |-- containers (nested sub-containers)
+//                 |-- <container_id>
+//                     |-- backends
+//                         |-- <backend> (copy, bind, etc.)
+//                             |-- rootfses
+//                                 |-- <rootfs_id> (the rootfs)
 //
 // There can be multiple backends due to the change of backend flags.
 // Under each backend a rootfs is identified by the 'rootfs_id' which
