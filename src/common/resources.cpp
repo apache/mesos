@@ -1105,6 +1105,7 @@ Resources Resources::createStrippedScalarQuantity() const
       Resource scalar = resource;
       scalar.clear_reservation();
       scalar.clear_disk();
+      scalar.clear_shared();
       stripped.add(scalar);
     }
   }
@@ -1225,8 +1226,13 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
           stripped.clear_disk();
         }
 
+        // Since we only allow persistent volumes to be shared, the
+        // original resource must be non-shared.
+        stripped.clear_shared();
+
         if (!result.contains(stripped)) {
-          return Error("Invalid CREATE Operation: Insufficient disk resources");
+          return Error("Invalid CREATE Operation: Insufficient disk resources"
+                       " for persistent volume " + stringify(volume));
         }
 
         result.subtract(stripped);
@@ -1263,6 +1269,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
         } else {
           stripped.clear_disk();
         }
+
+        // Since we only allow persistent volumes to be shared, we
+        // return the resource to non-shared state after destroy.
+        stripped.clear_shared();
 
         result.subtract(volume);
         result.add(stripped);

@@ -2308,6 +2308,41 @@ TEST(ResourcesOperationTest, CreatePersistentVolumeFromMount)
 }
 
 
+TEST(ResourcesOperationTest, CreateSharedPersistentVolume)
+{
+  Resources total = Resources::parse("cpus:1;mem:512;disk(role):1000").get();
+
+  Resource volume1 = createDiskResource(
+      "200", "role", "1", "path", None(), true);
+
+  Offer::Operation create1;
+  create1.set_type(Offer::Operation::CREATE);
+  create1.mutable_create()->add_volumes()->CopyFrom(volume1);
+
+  EXPECT_SOME_EQ(
+      Resources::parse("cpus:1;mem:512;disk(role):800").get() + volume1,
+      total.apply(create1));
+
+  // Apply a pair of CREATE and DESTROY of the same volume the result
+  // should be the original `total`.
+  Offer::Operation destroy1;
+  destroy1.set_type(Offer::Operation::DESTROY);
+  destroy1.mutable_destroy()->add_volumes()->CopyFrom(volume1);
+
+  EXPECT_SOME_EQ(total, total.apply(create1).get().apply(destroy1));
+
+  // Check the case of insufficient disk resources.
+  Resource volume2 = createDiskResource(
+      "2000", "role", "1", "path", None(), true);
+
+  Offer::Operation create2;
+  create2.set_type(Offer::Operation::CREATE);
+  create2.mutable_create()->add_volumes()->CopyFrom(volume2);
+
+  EXPECT_ERROR(total.apply(create2));
+}
+
+
 // Helper for creating a revocable resource.
 static Resource createRevocableResource(
     const string& name,

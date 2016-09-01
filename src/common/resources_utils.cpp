@@ -68,6 +68,8 @@ Try<Resources> applyCheckpointedResources(
       }
     }
 
+    stripped.clear_shared();
+
     if (!totalResources.contains(stripped)) {
       return Error(
           "Incompatible agent resources: " + stringify(totalResources) +
