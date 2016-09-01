@@ -31,13 +31,13 @@ Try<NetworkConfig> parseNetworkConfig(const string& s)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
   if (json.isError()) {
-    return Error("JSON parse failed: " + json.error());
+    return ::Error("JSON parse failed: " + json.error());
   }
 
   Try<NetworkConfig> parse = ::protobuf::parse<NetworkConfig>(json.get());
 
   if (parse.isError()) {
-    return Error("Protobuf parse failed: " + parse.error());
+    return ::Error("Protobuf parse failed: " + parse.error());
   }
 
   return parse.get();
@@ -47,13 +47,13 @@ Try<NetworkInfo> parseNetworkInfo(const string& s)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
   if (json.isError()) {
-    return Error("JSON parse failed: " + json.error());
+    return ::Error("JSON parse failed: " + json.error());
   }
 
   Try<NetworkInfo> parse = ::protobuf::parse<NetworkInfo>(json.get());
 
   if (parse.isError()) {
-    return Error("Protobuf parse failed: " + parse.error());
+    return ::Error("Protobuf parse failed: " + parse.error());
   }
 
   return parse.get();
