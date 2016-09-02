@@ -19,11 +19,11 @@
 SRCDIR=/tmp/SRC
 
 # Prepare sources
-git clone --depth 1 file:///SRC ${SRCDIR} || exit 1
+git clone --depth 1 file:///SRC "${SRCDIR}" || exit 1
 (cd ${SRCDIR} && ./bootstrap) || exit 1
 
 # Configure sources
-${SRCDIR}/configure "${CONFIGURE_FLAGS}" || exit 1
+${SRCDIR}/configure ${CONFIGURE_FLAGS} || exit 1
 
 # Build sources
 bear make -j $(nproc) tests || exit 1
