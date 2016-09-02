@@ -73,8 +73,10 @@ namespace health {
 
 #ifndef __WINDOWS__
 constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect";
+constexpr char HTTP_CHECK_COMMAND[] = "curl";
 #else
 constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect.exe";
+constexpr char HTTP_CHECK_COMMAND[] = "curl.exe";
 #endif // __WINDOWS__
 
 static const string DEFAULT_HTTP_SCHEME = "http";
@@ -402,7 +404,7 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
   VLOG(1) << "Launching HTTP health check '" << url << "'";
 
   const vector<string> argv = {
-    "curl",
+    HTTP_CHECK_COMMAND,
     "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Makes curl show an error message if it fails.
     "-L",                 // Follows HTTP 3xx redirects.
@@ -413,7 +415,7 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
   };
 
   Try<Subprocess> s = subprocess(
-      "curl",
+      HTTP_CHECK_COMMAND,
       argv,
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
@@ -423,7 +425,9 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
       clone);
 
   if (s.isError()) {
-    return Failure("Failed to create the curl subprocess: " + s.error());
+    return Failure(
+        "Failed to create the " + string(HTTP_CHECK_COMMAND) +
+        " subprocess: " + s.error());
   }
 
   pid_t curlPid = s->pid();
@@ -440,14 +444,15 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
       future.discard();
 
       if (curlPid != -1) {
-        // Cleanup the curl process.
+        // Cleanup the HTTP_CHECK_COMMAND process.
         VLOG(1) << "Killing the HTTP health check process " << curlPid;
 
         os::killtree(curlPid, SIGKILL);
       }
 
       return Failure(
-          "curl has not returned after " + stringify(timeout) + "; aborting");
+          string(HTTP_CHECK_COMMAND) + " has not returned after " +
+          stringify(timeout) + "; aborting");
     })
     .then(defer(self(), &Self::__httpHealthCheck, lambda::_1));
 }
@@ -462,37 +467,43 @@ Future<Nothing> HealthCheckerProcess::__httpHealthCheck(
   Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
     return Failure(
-        "Failed to get the exit status of the curl process: " +
-        (status.isFailed() ? status.failure() : "discarded"));
+        "Failed to get the exit status of the " + string(HTTP_CHECK_COMMAND) +
+        " process: " + (status.isFailed() ? status.failure() : "discarded"));
   }
 
   if (status->isNone()) {
-    return Failure("Failed to reap the curl process");
+    return Failure(
+        "Failed to reap the " + string(HTTP_CHECK_COMMAND) + " process");
   }
 
   int statusCode = status->get();
   if (statusCode != 0) {
     Future<string> error = std::get<2>(t);
     if (!error.isReady()) {
-      return Failure("curl returned " + WSTRINGIFY(statusCode) +
-                     "; reading stderr failed: " +
-                     (error.isFailed() ? error.failure() : "discarded"));
+      return Failure(
+          string(HTTP_CHECK_COMMAND) + " returned " +
+          WSTRINGIFY(statusCode) + "; reading stderr failed: " +
+          (error.isFailed() ? error.failure() : "discarded"));
     }
 
-    return Failure("curl returned " + WSTRINGIFY(statusCode) + ": " +
-                   error.get());
+    return Failure(
+        string(HTTP_CHECK_COMMAND) + " returned " +
+        WSTRINGIFY(statusCode) + ": " + error.get());
   }
 
   Future<string> output = std::get<1>(t);
   if (!output.isReady()) {
-    return Failure("Failed to read stdout from curl: " +
-                   (output.isFailed() ? output.failure() : "discarded"));
+    return Failure(
+        "Failed to read stdout from " + string(HTTP_CHECK_COMMAND) + ": " +
+        (output.isFailed() ? output.failure() : "discarded"));
   }
 
   // Parse the output and get the HTTP response code.
   Try<int> code = numify<int>(output.get());
   if (code.isError()) {
-    return Failure("Unexpected output from curl: " + output.get());
+    return Failure(
+        "Unexpected output from " + string(HTTP_CHECK_COMMAND) + ": " +
+        output.get());
   }
 
   if (code.get() < process::http::Status::OK ||
