@@ -37,16 +37,16 @@ struct Flags : public mesos::internal::logging::Flags
   Flags() {
     add(&container,
         "container",
-        "The name of the docker container to run.\n");
+        "The name of the docker container to run.");
 
     add(&docker,
         "docker",
-        "The path to the docker executable.\n");
+        "The path to the docker executable.");
 
     add(&docker_socket,
         "docker_socket",
         "The UNIX socket path to be used by docker CLI for accessing docker\n"
-        "daemon.\n");
+        "daemon.");
 
     add(&sandbox_directory,
         "sandbox_directory",
@@ -55,7 +55,7 @@ struct Flags : public mesos::internal::logging::Flags
 
     add(&mapped_directory,
         "mapped_directory",
-        "The sandbox directory path that is mapped in the docker container.\n");
+        "The sandbox directory path that is mapped in the docker container.");
 
     // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
     add(&stop_timeout,
