@@ -447,6 +447,7 @@ protected:
       Try<Owned<health::HealthChecker>> _checker =
         health::HealthChecker::create(
             task->health_check(),
+            launcherDir,
             self(),
             task->task_id(),
             pid,

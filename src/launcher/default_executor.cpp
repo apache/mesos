@@ -406,6 +406,7 @@ protected:
         Try<Owned<health::HealthChecker>> _checker =
           health::HealthChecker::create(
               task.health_check(),
+              launcherDirectory,
               self(),
               taskId,
               None(),

@@ -522,6 +522,7 @@ private:
 
     Try<Owned<health::HealthChecker>> _checker = health::HealthChecker::create(
         healthCheck,
+        launcherDir,
         self(),
         task.task_id(),
         containerPid,

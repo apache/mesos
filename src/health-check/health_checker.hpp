@@ -59,6 +59,7 @@ public:
    */
   static Try<process::Owned<HealthChecker>> create(
       const HealthCheck& check,
+      const std::string& launcherDir,
       const process::UPID& executor,
       const TaskID& taskID,
       Option<pid_t> taskPid,
@@ -80,6 +81,7 @@ class HealthCheckerProcess : public ProtobufProcess<HealthCheckerProcess>
 public:
   HealthCheckerProcess(
       const HealthCheck& _check,
+      const std::string& _launcherDir,
       const process::UPID& _executor,
       const TaskID& _taskID,
       Option<pid_t> _taskPid,
@@ -119,6 +121,7 @@ private:
 
   process::Promise<Nothing> promise;
   HealthCheck check;
+  std::string launcherDir;
   bool initializing;
   process::UPID executor;
   TaskID taskID;

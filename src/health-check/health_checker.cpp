@@ -38,6 +38,7 @@
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -69,6 +70,12 @@ using std::vector;
 namespace mesos {
 namespace internal {
 namespace health {
+
+#ifndef __WINDOWS__
+constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect";
+#else
+constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect.exe";
+#endif // __WINDOWS__
 
 static const string DEFAULT_HTTP_SCHEME = "http";
 
@@ -109,6 +116,7 @@ pid_t cloneWithSetns(
 
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
+    const string& launcherDir,
     const UPID& executor,
     const TaskID& taskID,
     Option<pid_t> taskPid,
@@ -122,6 +130,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
 
   Owned<HealthCheckerProcess> process(new HealthCheckerProcess(
       check,
+      launcherDir,
       executor,
       taskID,
       taskPid,
@@ -154,12 +163,14 @@ Future<Nothing> HealthChecker::healthCheck()
 
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
+    const string& _launcherDir,
     const UPID& _executor,
     const TaskID& _taskID,
     Option<pid_t> _taskPid,
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
+    launcherDir(_launcherDir),
     initializing(true),
     executor(_executor),
     taskID(_taskID),
@@ -500,21 +511,24 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
   CHECK_EQ(HealthCheck::TCP, check.type());
   CHECK(check.has_tcp());
 
+  // TCP_CHECK_COMMAND should be reachable.
+  CHECK(os::exists(launcherDir));
+
   const HealthCheck::TCPCheckInfo& tcp = check.tcp();
 
   VLOG(1) << "Launching TCP health check at port '" << tcp.port() << "'";
 
-  // TODO(haosdent): Replace `bash` with a tiny binary to support
-  // TCP health check with half-open.
-  const vector<string> argv = {
-    "bash",
-    "-c",
-    "</dev/tcp/" + DEFAULT_DOMAIN + "/" + stringify(tcp.port())
+  const string tcpConnectPath = path::join(launcherDir, TCP_CHECK_COMMAND);
+
+  const vector<string> tcpConnectArguments = {
+    tcpConnectPath,
+    "--ip=" + DEFAULT_DOMAIN,
+    "--port=" + stringify(tcp.port())
   };
 
   Try<Subprocess> s = subprocess(
-      "bash",
-      argv,
+      tcpConnectPath,
+      tcpConnectArguments,
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
@@ -523,10 +537,12 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
       clone);
 
   if (s.isError()) {
-    return Failure("Failed to create the bash subprocess: " + s.error());
+    return Failure(
+        "Failed to create the " + string(TCP_CHECK_COMMAND) +
+        " subprocess: " + s.error());
   }
 
-  pid_t bashPid = s->pid();
+  pid_t tcpConnectPid = s->pid();
   Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
 
   return await(
@@ -534,20 +550,21 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
       process::io::read(s->out().get()),
       process::io::read(s->err().get()))
     .after(timeout,
-      [timeout, bashPid](Future<tuple<Future<Option<int>>,
-                                      Future<string>,
-                                      Future<string>>> future) {
+      [timeout, tcpConnectPid](Future<tuple<Future<Option<int>>,
+                                            Future<string>,
+                                            Future<string>>> future) {
       future.discard();
 
-      if (bashPid != -1) {
-        // Cleanup the bash process.
-        VLOG(1) << "Killing the TCP health check process " << bashPid;
+      if (tcpConnectPid != -1) {
+        // Cleanup the TCP_CHECK_COMMAND process.
+        VLOG(1) << "Killing the TCP health check process " << tcpConnectPid;
 
-        os::killtree(bashPid, SIGKILL);
+        os::killtree(tcpConnectPid, SIGKILL);
       }
 
       return Failure(
-          "bash has not returned after " + stringify(timeout) + "; aborting");
+          string(TCP_CHECK_COMMAND) + " has not returned after " +
+          stringify(timeout) + "; aborting");
     })
     .then(defer(self(), &Self::__tcpHealthCheck, lambda::_1));
 }
@@ -562,25 +579,28 @@ Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
   Future<Option<int>> status = std::get<0>(t);
   if (!status.isReady()) {
     return Failure(
-        "Failed to get the exit status of the bash process: " +
-        (status.isFailed() ? status.failure() : "discarded"));
+        "Failed to get the exit status of the " + string(TCP_CHECK_COMMAND) +
+        " process: " + (status.isFailed() ? status.failure() : "discarded"));
   }
 
   if (status->isNone()) {
-    return Failure("Failed to reap the bash process");
+    return Failure(
+        "Failed to reap the " + string(TCP_CHECK_COMMAND) + " process");
   }
 
   int statusCode = status->get();
   if (statusCode != 0) {
     Future<string> error = std::get<2>(t);
     if (!error.isReady()) {
-      return Failure("bash returned " + WSTRINGIFY(statusCode) +
-                     "; reading stderr failed: " +
-                     (error.isFailed() ? error.failure() : "discarded"));
+      return Failure(
+          string(TCP_CHECK_COMMAND) + " returned " +
+          WSTRINGIFY(statusCode) + "; reading stderr failed: " +
+          (error.isFailed() ? error.failure() : "discarded"));
     }
 
-    return Failure("bash returned " + WSTRINGIFY(statusCode) + ": " +
-                   error.get());
+    return Failure(
+        string(TCP_CHECK_COMMAND) + " returned " +
+        WSTRINGIFY(statusCode) + ": " + error.get());
   }
 
   return Nothing();
