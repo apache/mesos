@@ -26,13 +26,3 @@ if $(test $? -ne 0); then
 	exit 1
 fi	       
 sleep 5
-echo 'Finding the Mesos rpm within the container...'
-rpm_=$($DOCKER run "$IMAGE_NAME" find /build/target/rpm/mesos/RPMS -name '*.rpm')
-name_=$(basename "$rpm_")
-echo "Name of Mesos rpm: '$name_'"
-echo 'Extracting the rpm...'
-id_=$($DOCKER create "$IMAGE_NAME")
-docker cp "$id_:$rpm_" .
-docker rm -v "$id_"
-echo 'Done, here you have your Mesos rpm:'
-ls *.rpm

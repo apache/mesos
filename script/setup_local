@@ -13,6 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 echo '*** Building and packaging Mesos, this will take a long time ****'
-ls build/ 
 
-echo '*** Finished building and packaging Mesos ****'
+./bootstrap
+mkdir build
+cd build
+../configure
+make -j 4
+make check -j 4
+
+echo '*** Finished building  ****'
