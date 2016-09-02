@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 echo '*** Building and packaging Mesos, this will take a long time ****'
+export M2_HOME=`pwd`/.deps/apache-maven 
+export MAVEN_HOME=$M2_HOME 
+export PATH=$MAVEN_HOME/bin:$PATH 
+export MVN=$MAVEN_HOME/bin/mvn 
 
 ./bootstrap
 mkdir build
