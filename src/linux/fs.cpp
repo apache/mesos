@@ -137,7 +137,8 @@ Try<MountInfoTable> MountInfoTable::read(
     vector<MountInfoTable::Entry> sortedEntries;
 
     std::function<void(int)> sortFrom = [&](int parentId) {
-      CHECK(!visitedParents.contains(parentId));
+      CHECK(!visitedParents.contains(parentId)) << lines.get();
+
       visitedParents.insert(parentId);
 
       foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
