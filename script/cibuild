@@ -2,14 +2,11 @@
 set -xe
 
 export MESOS_VER=0.28.2
-MESOS_HELPER_URL=https://codeload.github.com/dcaba/mesos-build-helper/zip/${MESOS_VER}
-PROJECT_ROOT=$(dirname $0)/..
-export DOCKER_FILE=Dockerfile-ubuntu
+export PROJECT_ROOT=$(dirname $0)/..
+export DOCKER_FILE="Dockerfile-ci"
 
+# we want to live in our root
 cd $PROJECT_ROOT
-mkdir -p tmp && cd tmp 
 
-curl -s -S "${MESOS_HELPER_URL}" -o mesos-build-helper-${MESOS_VER}.zip
-unzip -q -o -u mesos-build-helper-${MESOS_VER}.zip 
-./mesos-build-helper-${MESOS_VER}/script/build
+./script/build; 
 
