@@ -29,7 +29,7 @@ MESOS_DIRECTORY=$(cd "$(dirname "$0")/.." && pwd)
 
 # Check for unstaged or uncommitted changes.
 if ! $(git diff-index --quiet HEAD --); then
-  echo "Please commit or stash any changes before running `mesos-tidy`."
+  echo 'Please commit or stash any changes before running `mesos-tidy`.'
   exit 1
 fi
 
