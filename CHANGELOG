@@ -26,6 +26,15 @@ Deprecations:
   * [MESOS-5955] - Health check binary "mesos-health-check" is removed.
 
 
+Release Notes - Mesos - Version 1.0.2
+--------------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+    * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
+
+
 Release Notes - Mesos - Version 1.0.1
 --------------------------------------------
 * This is a bug fix release.
