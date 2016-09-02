@@ -1394,6 +1394,11 @@ mesos_docker_executor_SOURCES = docker/executor.cpp
 mesos_docker_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_docker_executor_LDADD = libmesos.la $(LDADD)
 
+pkglibexec_PROGRAMS += mesos-tcp-connect
+mesos_tcp_connect_SOURCES = health-check/tcp_connect.cpp
+mesos_tcp_connect_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_tcp_connect_LDADD = libmesos.la $(LDADD)
+
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
 mesos_log_CPPFLAGS = $(MESOS_CPPFLAGS)
