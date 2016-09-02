@@ -66,9 +66,8 @@ struct Flags : public mesos::internal::logging::Flags
 
     add(&launcher_dir,
         "launcher_dir",
-        "Directory path of Mesos binaries. Mesos would find health-check,\n"
-        "fetcher, containerizer and executor binary files under this\n"
-        "directory.");
+        "Directory path of Mesos binaries. Mesos would find fetcher,\n"
+        "containerizer and executor binary files under this directory.");
 
     add(&task_environment,
         "task_environment",
