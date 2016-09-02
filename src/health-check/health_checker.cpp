@@ -660,21 +660,23 @@ Option<Error> healthCheck(const HealthCheck& check)
     if (http.has_scheme() &&
         http.scheme() != "http" &&
         http.scheme() != "https") {
-      return Error("Unsupported HTTP health check scheme: '" + http.scheme() +
-                   "'");
+      return Error(
+          "Unsupported HTTP health check scheme: '" + http.scheme() + "'");
     }
 
     if (http.has_path() && !strings::startsWith(http.path(), '/')) {
-      return Error("The path '" + http.path() + "' of HTTP health check must "
-                   "start with '/'");
+      return Error(
+          "The path '" + http.path() +
+          "' of HTTP health check must start with '/'");
     }
   } else if (check.type() == HealthCheck::TCP) {
     if (!check.has_tcp()) {
       return Error("Expecting 'tcp' to be set for TCP health check");
     }
   } else {
-    return Error("Unsupported health check type: '" +
-                 HealthCheck::Type_Name(check.type()) + "'");
+    return Error(
+        "Unsupported health check type: '" +
+        HealthCheck::Type_Name(check.type()) + "'");
   }
 
   return None();
