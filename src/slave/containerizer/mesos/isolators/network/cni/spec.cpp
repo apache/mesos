@@ -35,13 +35,13 @@ Try<NetworkConfig> parseNetworkConfig(const string& s)
   }
 
   Try<NetworkConfig> parse = ::protobuf::parse<NetworkConfig>(json.get());
-
   if (parse.isError()) {
     return ::Error("Protobuf parse failed: " + parse.error());
   }
 
   return parse.get();
 }
+
 
 Try<NetworkInfo> parseNetworkInfo(const string& s)
 {
@@ -51,12 +51,22 @@ Try<NetworkInfo> parseNetworkInfo(const string& s)
   }
 
   Try<NetworkInfo> parse = ::protobuf::parse<NetworkInfo>(json.get());
-
   if (parse.isError()) {
     return ::Error("Protobuf parse failed: " + parse.error());
   }
 
   return parse.get();
+}
+
+
+string error(const string& msg, uint32_t code)
+{
+  spec::Error error;
+  error.set_cniversion(CNI_VERSION);
+  error.set_code(code);
+  error.set_msg(msg);
+
+  return stringify(JSON::protobuf(error));
 }
 
 } // namespace spec {

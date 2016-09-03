@@ -23,7 +23,7 @@
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
-#include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
+#include "slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp"
 
 namespace spec = mesos::internal::slave::cni::spec;
 
@@ -31,8 +31,11 @@ using std::cout;
 using std::endl;
 using std::string;
 
-constexpr char CNI_VERSION[] = "0.3.0";
-constexpr int CNI_GENERIC_ERR = 100;
+using process::Owned;
+
+using mesos::internal::slave::cni::PortMapper;
+
+
 constexpr int STDIN_READ_LENGTH = 1000;
 
 
@@ -53,15 +56,28 @@ int main(int argc, char** argv)
   }
 
   if (input.isError()) {
-    spec::Error error;
-    error.set_cniversion(CNI_VERSION);
-    error.set_code(CNI_GENERIC_ERR);
-    error.set_msg("Unable to read STDIN: " + input.error());
-
-    cout << JSON::protobuf(error) << endl;
-
+    cout << spec::error(input.error(), PortMapper::ERROR_READ_FAILURE) << endl;
     return EXIT_FAILURE;
   }
 
+  // If the `PortMapper` returns an error it will already be a JSON
+  // formatted string of type `spec::Error` so we don't need to format
+  // it again. Reason we rely on the `PortMapper` to return a JSON
+  // formatted `spec::Error` is that the error codes for `spec::Error`
+  // might vary, depending on the cause of error, and the context of
+  // the error is only visible to the `PortMapper` object.
+  Try<Owned<PortMapper>> portMapper = PortMapper::create(config);
+  if (portMapper.isError()) {
+    cout << portMapper.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  Try<string> result = portMapper.get()->execute();
+  if (result.isError()) {
+    cout << result.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+  cout << result.get() << endl;
   return EXIT_SUCCESS;
 }
