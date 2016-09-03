@@ -415,11 +415,18 @@ inline Try<Version> release()
 }
 
 
-inline Option<std::string> which(const std::string& command)
+inline Option<std::string> which(
+    const std::string& command,
+    const Option<std::string>& _path = None())
 {
-  Option<std::string> path = getenv("PATH");
+  Option<std::string> path = _path;
+
   if (path.isNone()) {
-    return None();
+    path = getenv("PATH");
+
+    if (path.isNone()) {
+      return None();
+    }
   }
 
   std::vector<std::string> tokens = strings::tokenize(path.get(), ":");
