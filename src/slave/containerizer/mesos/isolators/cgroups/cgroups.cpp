@@ -89,6 +89,11 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 
     isolator = strings::remove(isolator, "cgroups/", strings::Mode::PREFIX);
 
+    if (!isolatorMap.contains(isolator)) {
+      return Error(
+          "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
+    }
+
     // A cgroups isolator name may map to multiple subsystems. We need to
     // convert the isolator name to its associated subsystems.
     foreach (const string& subsystemName, isolatorMap.get(isolator)) {
