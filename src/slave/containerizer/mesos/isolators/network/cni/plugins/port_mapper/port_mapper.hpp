@@ -108,12 +108,12 @@ private:
       delegatePlugin(_delegatePlugin),
       delegateConfig(_delegateConfig) {};
 
-  const std::string& cniCommand;
-  const Option<std::string>& cniContainerId;
-  const std::string& cniNetNs;
-  const std::string& cniIfName;
-  const Option<std::string>& cniArgs;
-  const std::string& cniPath;
+  const std::string cniCommand;
+  const Option<std::string> cniContainerId;
+  const std::string cniNetNs;
+  const std::string cniIfName;
+  const Option<std::string> cniArgs;
+  const std::string cniPath;
   const mesos::NetworkInfo networkInfo;
   const std::string delegatePlugin;
   const JSON::Object delegateConfig;
