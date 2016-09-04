@@ -3268,7 +3268,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
   // role2 share = 0
   //   framework2 share = 0
 
-  ASSERT_EQ(allocation.get().frameworkId, framework1.id());
+  ASSERT_EQ(framework1.id(), allocation.get().frameworkId);
   ASSERT_EQ(6u, allocation.get().resources.size());
   EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(),
             Resources::sum(allocation.get().resources));
