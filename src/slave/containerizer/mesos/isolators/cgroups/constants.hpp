@@ -44,6 +44,7 @@ const std::string CGROUP_SUBSYSTEM_CPUACCT_NAME = "cpuacct";
 const std::string CGROUP_SUBSYSTEM_DEVICES_NAME = "devices";
 const std::string CGROUP_SUBSYSTEM_MEMORY_NAME = "memory";
 const std::string CGROUP_SUBSYSTEM_NET_CLS_NAME = "net_cls";
+const std::string CGROUP_SUBSYSTEM_PERF_EVENT_NAME = "perf_event";
 
 } // namespace slave {
 } // namespace internal {
