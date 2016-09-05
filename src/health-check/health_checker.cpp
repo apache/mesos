@@ -225,14 +225,13 @@ void HealthCheckerProcess::failure(const string& message)
   taskHealthStatus.set_consecutive_failures(consecutiveFailures);
   taskHealthStatus.set_kill_task(killTask);
   taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
+
+  // We assume this is a local send, i.e. the health checker library
+  // is not used in a binary external to the executor and hence can
+  // not exit before the data is sent to the executor.
   send(executor, taskHealthStatus);
 
   if (killTask) {
-    // This is a hack to ensure the message is sent to the
-    // executor before we exit the process. Without this,
-    // we may exit before libprocess has sent the data over
-    // the socket. See MESOS-4111.
-    os::sleep(Seconds(1));
     promise.fail(message);
   } else {
     reschedule();
