@@ -500,14 +500,6 @@ private:
   // returns Resources.
   Option<Resources> find(const Resource& target) const;
 
-  // Validation-free versions of += and -= `Resource` operators.
-  // These can be used when `r` is already validated.
-  void add(const Resource& r);
-  void subtract(const Resource& r);
-
-  // The add and subtract methods and operators on Resource_ are only
-  // allowed from within Resources class so we hide them.
-
   // Validation-free versions of += and -= `Resource_` operators.
   // These can be used when `r` is already validated.
   void add(const Resource_& r);

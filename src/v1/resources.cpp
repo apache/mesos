@@ -1600,12 +1600,6 @@ void Resources::add(const Resource_& that)
 }
 
 
-void Resources::add(const Resource& that)
-{
-  add(Resource_(that));
-}
-
-
 Resources& Resources::operator+=(const Resource_& that)
 {
   if (that.validate().isNone()) {
@@ -1695,12 +1689,6 @@ void Resources::subtract(const Resource_& that)
       break;
     }
   }
-}
-
-
-void Resources::subtract(const Resource& that)
-{
-  subtract(Resource_(that));
 }
 
 
