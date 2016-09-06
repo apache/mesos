@@ -64,7 +64,6 @@ nobase_include_HEADERS =			\
   stout/os/chroot.hpp				\
   stout/os/close.hpp				\
   stout/os/constants.hpp			\
-  stout/os/direntsize.hpp			\
   stout/os/environment.hpp			\
   stout/os/exists.hpp				\
   stout/os/fcntl.hpp				\
@@ -108,7 +107,6 @@ nobase_include_HEADERS =			\
   stout/os/posix/chown.hpp			\
   stout/os/posix/chroot.hpp			\
   stout/os/posix/close.hpp			\
-  stout/os/posix/direntsize.hpp			\
   stout/os/posix/exists.hpp			\
   stout/os/posix/fcntl.hpp			\
   stout/os/posix/fork.hpp			\
@@ -134,7 +132,6 @@ nobase_include_HEADERS =			\
   stout/os/windows/bootid.hpp			\
   stout/os/windows/chroot.hpp			\
   stout/os/windows/close.hpp			\
-  stout/os/windows/direntsize.hpp		\
   stout/os/windows/exists.hpp			\
   stout/os/windows/fcntl.hpp			\
   stout/os/windows/fork.hpp			\
