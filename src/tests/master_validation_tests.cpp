@@ -1759,9 +1759,8 @@ TEST_F(TaskGroupValidationTest, ExecutorWithoutFrameworkId)
   driver.join();
 }
 
-
-// This test verifies that a task group task
-// that has `NetworkInfo` set is invalid.
+// Ensures that a task in a task group that has `NetworkInfo`
+// set is rejected during `TaskGroupInfo` validation.
 TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1795,21 +1794,31 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
   executor.set_type(ExecutorInfo::CUSTOM);
   executor.mutable_resources()->CopyFrom(resources);
 
-  // Create a task that has NetworkInfos set.
-  TaskInfo task;
-  task.set_name("test");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task.mutable_resources()->MergeFrom(resources);
-  task.mutable_container()->set_type(ContainerInfo::MESOS);
-  task.mutable_container()->add_network_infos();
+  // Create an invalid task that has NetworkInfos set.
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task1.mutable_resources()->MergeFrom(resources);
+  task1.mutable_container()->set_type(ContainerInfo::MESOS);
+  task1.mutable_container()->add_network_infos();
+
+  // Create a valid task.
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task2.mutable_resources()->MergeFrom(resources);
 
   TaskGroupInfo taskGroup;
-  taskGroup.add_tasks()->CopyFrom(task);
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
 
   Offer::Operation operation;
   operation.set_type(Offer::Operation::LAUNCH_GROUP);
@@ -1820,14 +1829,19 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
   launchGroup->mutable_executor()->CopyFrom(executor);
   launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
-  driver.acceptOffers({offers.get()[0].id()}, {operation});
+  driver.acceptOffers({offer.id()}, {operation});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_ERROR, status->state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, status->reason());
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(task1.task_id(), task1Status->task_id());
+  EXPECT_EQ(TASK_ERROR, task1Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
   EXPECT_EQ("Task '1' is invalid: NetworkInfos must not be set on the task",
-            status->message());
+            task1Status->message());
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(task2.task_id(), task2Status->task_id());
+  EXPECT_EQ(TASK_ERROR, task2Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
 
   driver.stop();
   driver.join();
