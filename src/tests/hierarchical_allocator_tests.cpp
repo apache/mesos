@@ -236,17 +236,23 @@ protected:
         flags.fair_sharing_excluded_resource_names);
   }
 
-  SlaveInfo createSlaveInfo(const string& resources)
+  SlaveInfo createSlaveInfo(const Resources& resources)
   {
     SlaveID slaveId;
     slaveId.set_value("agent" + stringify(nextSlaveId++));
 
     SlaveInfo slave;
-    *(slave.mutable_resources()) = Resources::parse(resources).get();
+    *(slave.mutable_resources()) = resources;
     *(slave.mutable_id()) = slaveId;
     slave.set_hostname(slaveId.value());
 
     return slave;
+  }
+
+  SlaveInfo createSlaveInfo(const string& resources)
+  {
+    const Resources agentResources = Resources::parse(resources).get();
+    return createSlaveInfo(agentResources);
   }
 
   FrameworkInfo createFrameworkInfo(
@@ -3375,9 +3381,11 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   vector<FrameworkInfo> frameworks;
   frameworks.reserve(frameworkCount);
 
+  const Resources agentResources = Resources::parse(
+      "cpus:2;mem:1024;disk:4096;ports:[31000-32000]").get();
+
   for (size_t i = 0; i < slaveCount; i++) {
-    slaves.push_back(createSlaveInfo(
-        "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
+    slaves.push_back(createSlaveInfo(agentResources));
   }
 
   for (size_t i = 0; i < frameworkCount; i++) {
@@ -3524,6 +3532,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   cout << "Added " << frameworkCount << " frameworks in "
        << watch.elapsed() << endl;
 
+  const Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
   Resources resources = Resources::parse(
       "cpus:16;mem:2014;disk:1024").get();
 
@@ -3536,8 +3547,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   watch.start();
 
   for (size_t i = 0; i < slaveCount; i++) {
-    slaves.push_back(createSlaveInfo(
-        "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
+    slaves.push_back(createSlaveInfo(agentResources));
 
     // Add some used resources on each slave. Let's say there are 16 tasks, each
     // is allocated 1 cpu and a random port from the port range.
@@ -3664,6 +3674,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   cout << "Added " << frameworkCount << " frameworks in "
        << watch.elapsed() << endl;
 
+  const Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
   // Create the used resources at each slave. We use three blocks of
   // resources: unreserved mem/disk/ports, and two different labeled
   // reservations with distinct labels. We choose the labels so that
@@ -3682,8 +3695,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   watch.start();
 
   for (size_t i = 0; i < slaveCount; i++) {
-    slaves.push_back(createSlaveInfo(
-        "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
+    slaves.push_back(createSlaveInfo(agentResources));
 
     Resources agentResources = resources;
 
@@ -3831,6 +3843,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
   vector<SlaveInfo> agents;
   agents.reserve(agentCount);
 
+  const Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
   // Each agent has a portion of it's resources allocated to a single
   // framework. We round-robin through the frameworks when allocating.
   Resources allocation = Resources::parse("cpus:16;mem:1024;disk:1024").get();
@@ -3844,8 +3859,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
   watch.start();
 
   for (size_t i = 0; i < agentCount; i++) {
-    agents.push_back(createSlaveInfo(
-        "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
+    agents.push_back(createSlaveInfo(agentResources));
 
     hashmap<FrameworkID, Resources> used;
     used[frameworks[i % frameworkCount].id()] = allocation;
@@ -3963,10 +3977,13 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
   cout << "Added " << frameworkCount << " frameworks in "
        << watch.elapsed() << endl;
 
+  const Resources agentResources = Resources::parse(
+      "cpus:16;mem:2048;disk:1024").get();
+
   watch.start();
 
   for (size_t i = 0; i < slaveCount; i++) {
-    SlaveInfo slave = createSlaveInfo("cpus:16;mem:2048;disk:1024");
+    SlaveInfo slave = createSlaveInfo(agentResources);
     allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
   }
 
