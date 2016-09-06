@@ -67,6 +67,12 @@ set<string> CurlFetcherPlugin::schemes()
 }
 
 
+string CurlFetcherPlugin::name()
+{
+  return "curl";
+}
+
+
 Future<Nothing> CurlFetcherPlugin::fetch(
     const URI& uri,
     const string& directory)

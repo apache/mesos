@@ -48,6 +48,8 @@ public:
 
   virtual std::set<std::string> schemes();
 
+  virtual std::string name();
+
   virtual process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory);

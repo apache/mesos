@@ -374,6 +374,12 @@ set<string> DockerFetcherPlugin::schemes()
 }
 
 
+string DockerFetcherPlugin::name()
+{
+  return "docker";
+}
+
+
 Future<Nothing> DockerFetcherPlugin::fetch(
     const URI& uri,
     const string& directory)

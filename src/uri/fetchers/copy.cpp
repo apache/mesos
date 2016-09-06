@@ -64,6 +64,12 @@ set<string> CopyFetcherPlugin::schemes()
 }
 
 
+string CopyFetcherPlugin::name()
+{
+  return "copy";
+}
+
+
 Future<Nothing> CopyFetcherPlugin::fetch(
     const URI& uri,
     const string& directory)

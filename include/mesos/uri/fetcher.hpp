@@ -56,6 +56,11 @@ public:
     virtual std::set<std::string> schemes() = 0;
 
     /**
+     * Returns the name that this plugin registered with.
+     */
+    virtual std::string name() = 0;
+
+    /**
      * Fetches a URI to the given directory. To avoid blocking or
      * crashing the current thread, this method might choose to fork
      * subprocesses for third party commands.

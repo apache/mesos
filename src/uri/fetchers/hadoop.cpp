@@ -67,6 +67,12 @@ set<string> HadoopFetcherPlugin::schemes()
 }
 
 
+string HadoopFetcherPlugin::name()
+{
+  return "hadoop";
+}
+
+
 Future<Nothing> HadoopFetcherPlugin::fetch(
     const URI& uri,
     const string& directory)
