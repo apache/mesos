@@ -53,6 +53,7 @@ task :update_docs do
       IO.write(doc, File.open(doc) { |f|
         f.read
           .gsub(/\((?!http)([^(]+?)(?:\/index)?\.md(\#.+?)?\)/, "(/documentation/latest/#{docdir}/" + '\1/\2)')
+          .gsub(/<a href=\"([^\/]+)\.md\">/, "<a href=\"/documentation/latest/#{docdir}/" + '\1/\2">')
           .gsub(/\(images\/(.*)\)/, '(/assets/img/documentation/\1)')
       })
     }

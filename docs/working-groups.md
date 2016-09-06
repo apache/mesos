@@ -46,7 +46,7 @@ layout: documentation
 		* [MESOS-2288](https://issues.apache.org/jira/browse/MESOS-2288)
 		* [MESOS-3302](https://issues.apache.org/jira/browse/MESOS-3302)
 		* [Scheduler HTTP API Design doc](https://docs.google.com/document/d/1pnIY_HckimKNvpqhKRhbc9eSItWNFT-priXh_urR-T0/edit?usp=sharing)
-		* [Scheduler HTTP API User doc](https://github.com/apache/mesos/blob/master/docs/scheduler_http_api.md)
+		* [Scheduler HTTP API User doc](scheduler-http-api.md)
 		* [Versioning HTTP API](https://docs.google.com/document/d/1-iQjo6778H_fU_1Zi_Yk6szg8qj-wqYgVgnx7u3h6OU/edit?usp=sharing)
 * **Nested Container**
 	* communication:

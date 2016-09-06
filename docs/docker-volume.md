@@ -365,8 +365,7 @@ Create another task to verify the file `myfile` was created successfully.
     --volumes=<path>/myvolume.json
 ```
 
-Check the [sandbox
-](https://github.com/apache/mesos/blob/master/docs/sandbox.md#where-is-the-sandbox)
+Check the [sandbox](sandbox.md#where-is-it)
 for the second task to check the file `myfile` was created successfully.
 
 ```{.console}

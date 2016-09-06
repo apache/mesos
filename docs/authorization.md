@@ -143,7 +143,7 @@ entries, each representing an authorizable action:
 <tr>
   <td><code>register_frameworks</code></td>
   <td>Framework principal.</td>
-  <td>Resource <a href="/apache/mesos/blob/master/docs/roles.md">roles</a> of
+  <td>Resource <a href="roles.md">roles</a> of
       the framework.
   </td>
   <td>(Re-)registering of frameworks.</td>
@@ -164,24 +164,20 @@ entries, each representing an authorizable action:
   <td><code>reserve_resources</code></td>
   <td>Framework principal or Operator username.</td>
   <td>Resource role of the reservation.</td>
-  <td><a href="/apache/mesos/blob/master/docs/reservation.md">Reserving</a>
-      resources.
-  </td>
+  <td><a href="reservation.md">Reserving</a> resources.</td>
 </tr>
 <tr>
   <td><code>unreserve_resources</code></td>
   <td>Framework principal or Operator username.</td>
   <td>Principals whose resources can be unreserved by the operator.</td>
-  <td><a href="/apache/mesos/blob/master/docs/reservation.md">Unreserving</a>
-      resources.
-  </td>
+  <td><a href="reservation.md">Unreserving</a> resources.</td>
 </tr>
 <tr>
   <td><code>create_volumes</code></td>
   <td>Framework principal or Operator username.</td>
   <td>Resource role of the volume.</td>
   <td>Creating
-      <a href="/apache/mesos/blob/master/docs/persistent-volume.md">volumes</a>.
+      <a href="persistent-volume.md">volumes</a>.
   </td>
 </tr>
 <tr>
@@ -189,30 +185,27 @@ entries, each representing an authorizable action:
   <td>Framework principal or Operator username.</td>
   <td>Principals whose volumes can be destroyed by the operator.</td>
   <td>Destroying
-      <a href="/apache/mesos/blob/master/docs/persistent-volume.md">volumes</a>.
+      <a href="persistent-volume.md">volumes</a>.
   </td>
 </tr>
 <tr>
   <td><code>get_quotas</code></td>
   <td>Operator username.</td>
   <td>Resource role whose quota status will be queried.</td>
-  <td>Querying <a href="/apache/mesos/blob/master/docs/quota.md">quota</a>
-      status.
-  </td>
+  <td>Querying <a href="quota.md">quota</a> status.</td>
 </tr>
 <tr>
   <td><code>update_quotas</code></td>
   <td>Operator username.</td>
   <td>Resource role whose quota will be updated.</td>
-  <td>Modifying <a href="/apache/mesos/blob/master/docs/quota.md">quotas</a>.
-  </td>
+  <td>Modifying <a href="quota.md">quotas</a>.</td>
 </tr>
 <tr>
   <td><code>view_roles</code></td>
   <td>Operator username.</td>
   <td>Resource roles whose information can be viewed by the operator.</td>
-  <td>Querying <a href="/apache/mesos/blob/master/docs/roles.md">roles</a>
-      and <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
+  <td>Querying <a href="roles.md">roles</a>
+      and <a href="weights.md">weights</a>.
   </td>
 </tr>
 <tr>
@@ -226,9 +219,7 @@ entries, each representing an authorizable action:
   <td><code>update_weights</code></td>
   <td>Operator username.</td>
   <td>Resource roles whose weights can be updated by the operator.</td>
-  <td>Updating
-      <a href="/apache/mesos/blob/master/docs/weights.md">weights</a>.
-  </td>
+  <td>Updating <a href="weights.md">weights</a>.</td>
 </tr>
 <tr>
   <td><code>view_frameworks</code></td>
