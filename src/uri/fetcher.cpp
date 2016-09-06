@@ -23,10 +23,12 @@
 #include "uri/fetcher.hpp"
 
 using std::string;
+using std::vector;
 
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Shared;
 
 namespace mesos {
 namespace uri {
@@ -43,16 +45,21 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
   // Load built-in plugins.
   typedef lambda::function<Try<Owned<Fetcher::Plugin>>()> Creator;
 
-  hashmap<string, Creator> creators;
-  creators.put("curl", lambda::bind(&CurlFetcherPlugin::create, flags));
-  creators.put("file", lambda::bind(&CopyFetcherPlugin::create, flags));
+  hashmap<string, Creator> creators = {
+    {CurlFetcherPlugin::NAME,
+       [flags]() { return CurlFetcherPlugin::create(flags); }},
+    {CopyFetcherPlugin::NAME,
+       [flags]() { return CopyFetcherPlugin::create(flags); }},
 #ifndef __WINDOWS__
-  // TODO(dpravat): Enable `Hadoop` and `Docker` plugins. See MESOS-5473.
-  creators.put("hadoop", lambda::bind(&HadoopFetcherPlugin::create, flags));
-  creators.put("docker", lambda::bind(&DockerFetcherPlugin::create, flags));
+    // TODO(dpravat): Enable `Hadoop` and `Docker` plugins. See MESOS-5473.
+    {HadoopFetcherPlugin::NAME,
+       [flags]() { return HadoopFetcherPlugin::create(flags); }},
+    {DockerFetcherPlugin::NAME,
+       [flags]() { return DockerFetcherPlugin::create(flags); }},
 #endif // __WINDOWS__
+  };
 
-  hashmap<string, Owned<Fetcher::Plugin>> plugins;
+  vector<Owned<Fetcher::Plugin>> plugins;
 
   foreachpair (const string& name, const Creator& creator, creators) {
     Try<Owned<Fetcher::Plugin>> plugin = creator();
@@ -64,14 +71,7 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
       continue;
     }
 
-    foreach (const string& scheme, plugin.get()->schemes()) {
-      if (plugins.contains(scheme)) {
-        LOG(WARNING) << "Multiple URI fetcher plugins register "
-                     << "URI scheme '" << scheme << "'";
-      }
-
-      plugins.put(scheme, plugin.get());
-    }
+    plugins.push_back(plugin.get());
   }
 
   return Owned<Fetcher>(new Fetcher(plugins));
@@ -79,16 +79,52 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
 
 } // namespace fetcher {
 
+Fetcher::Fetcher(const vector<Owned<Plugin>>& plugins)
+{
+  foreach (Owned<Plugin> _plugin, plugins) {
+    Shared<Plugin> plugin = _plugin.share();
+
+    if (pluginsByName.contains(plugin->name())) {
+      LOG(WARNING) << "Multiple URI fetcher plugins register "
+                   << "under name '" << plugin->name() << "'";
+    }
+
+    pluginsByName[plugin->name()] = plugin;
+
+    foreach (const string& scheme, plugin->schemes()) {
+      if (pluginsByScheme.contains(scheme)) {
+        LOG(WARNING) << "Multiple URI fetcher plugins register "
+                     << "URI scheme '" << scheme << "'";
+      }
+
+      pluginsByScheme[scheme] = plugin;
+    }
+  }
+}
+
 
 Future<Nothing> Fetcher::fetch(
     const URI& uri,
     const string& directory) const
 {
-  if (!plugins.contains(uri.scheme())) {
+  if (!pluginsByScheme.contains(uri.scheme())) {
     return Failure("Scheme '" + uri.scheme() + "' is not supported");
   }
 
-  return plugins.at(uri.scheme())->fetch(uri, directory);
+  return pluginsByScheme.at(uri.scheme())->fetch(uri, directory);
+}
+
+
+Future<Nothing> Fetcher::fetch(
+    const URI& uri,
+    const string& directory,
+    const string& name) const
+{
+  if (!pluginsByName.contains(name)) {
+    return Failure("Plugin  '" + name + "' is not registered.");
+  }
+
+  return pluginsByName.at(name)->fetch(uri, directory);
 }
 
 } // namespace uri {

@@ -19,9 +19,11 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/shared.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
@@ -53,12 +55,12 @@ public:
     /**
      * Returns the URI schemes that this plugin handles.
      */
-    virtual std::set<std::string> schemes() = 0;
+    virtual std::set<std::string> schemes() const = 0;
 
     /**
      * Returns the name that this plugin registered with.
      */
-    virtual std::string name() = 0;
+    virtual std::string name() const = 0;
 
     /**
      * Fetches a URI to the given directory. To avoid blocking or
@@ -70,16 +72,15 @@ public:
      */
     virtual process::Future<Nothing> fetch(
         const URI& uri,
-        const std::string& directory) = 0;
+        const std::string& directory) const = 0;
   };
 
   /**
    * Create the Fetcher instance with the given plugins.
    *
-   * @param _plugins a URI scheme to plugin map
+   * @param plugins a list of plugins to register.
    */
-  Fetcher(const hashmap<std::string, process::Owned<Plugin>>& _plugins)
-    : plugins(_plugins) {}
+  Fetcher(const std::vector<process::Owned<Plugin>>& plugins);
 
   /**
    * Fetches a URI to the given directory. This method will dispatch
@@ -93,11 +94,25 @@ public:
       const URI& uri,
       const std::string& directory) const;
 
+  /**
+   * Fetches a URI to the given directory. This method will dispatch
+   * the call to the plugin chosen by using its name.
+   *
+   * @param uri the URI to fetch
+   * @param directory the directory the URI will be downloaded to
+   * @param name of the plugin that is used to download
+   */
+  process::Future<Nothing> fetch(
+      const URI& uri,
+      const std::string& directory,
+      const std::string& name) const;
+
 private:
   Fetcher(const Fetcher&) = delete; // Not copyable.
   Fetcher& operator=(const Fetcher&) = delete; // Not assignable.
 
-  hashmap<std::string, process::Owned<Plugin>> plugins;
+  hashmap<std::string, process::Shared<Plugin>> pluginsByName;
+  hashmap<std::string, process::Shared<Plugin>> pluginsByScheme;
 };
 
 } // namespace uri {

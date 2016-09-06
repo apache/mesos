@@ -329,6 +329,9 @@ DockerFetcherPlugin::Flags::Flags()
 }
 
 
+const char DockerFetcherPlugin::NAME[] = "docker";
+
+
 Try<Owned<Fetcher::Plugin>> DockerFetcherPlugin::create(const Flags& flags)
 {
   // TODO(jieyu): Make sure curl is available.
@@ -367,22 +370,22 @@ DockerFetcherPlugin::~DockerFetcherPlugin()
 }
 
 
-set<string> DockerFetcherPlugin::schemes()
+set<string> DockerFetcherPlugin::schemes() const
 {
   // Use uri:: prefix to disambiguate.
   return uri::schemes();
 }
 
 
-string DockerFetcherPlugin::name()
+string DockerFetcherPlugin::name() const
 {
-  return "docker";
+  return NAME;
 }
 
 
 Future<Nothing> DockerFetcherPlugin::fetch(
     const URI& uri,
-    const string& directory)
+    const string& directory) const
 {
   return dispatch(
       process.get(),

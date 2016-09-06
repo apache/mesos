@@ -52,27 +52,30 @@ using process::Subprocess;
 namespace mesos {
 namespace uri {
 
+const char CopyFetcherPlugin::NAME[] = "copy";
+
+
 Try<Owned<Fetcher::Plugin>> CopyFetcherPlugin::create(const Flags& flags)
 {
   return Owned<Fetcher::Plugin>(new CopyFetcherPlugin());
 }
 
 
-set<string> CopyFetcherPlugin::schemes()
+set<string> CopyFetcherPlugin::schemes() const
 {
   return {"file"};
 }
 
 
-string CopyFetcherPlugin::name()
+string CopyFetcherPlugin::name() const
 {
-  return "copy";
+  return NAME;
 }
 
 
 Future<Nothing> CopyFetcherPlugin::fetch(
     const URI& uri,
-    const string& directory)
+    const string& directory) const
 {
   // TODO(jojy): Validate the given URI.
 

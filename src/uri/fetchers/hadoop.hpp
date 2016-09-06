@@ -45,17 +45,19 @@ public:
     std::string hadoop_client_supported_schemes;
   };
 
+  static const char NAME[];
+
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 
   virtual ~HadoopFetcherPlugin() {}
 
-  virtual std::set<std::string> schemes();
+  virtual std::set<std::string> schemes() const;
 
-  virtual std::string name();
+  virtual std::string name() const;
 
   virtual process::Future<Nothing> fetch(
       const URI& uri,
-      const std::string& directory);
+      const std::string& directory) const;
 
 private:
   HadoopFetcherPlugin(
