@@ -4,6 +4,7 @@ Release Notes - Mesos - Version 1.0.2
 
 All Issues:
 ** Bug
+    * [MESOS-6013] - Use readdir instead of readdir_r.
     * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
 
 
