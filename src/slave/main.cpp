@@ -338,7 +338,7 @@ int main(int argc, char** argv)
 
 #ifdef __linux__
   // Initialize systemd if it exists.
-  if (systemd::exists() && flags.systemd_enable_support) {
+  if (flags.systemd_enable_support && systemd::exists()) {
     LOG(INFO) << "Inializing systemd state";
 
     systemd::Flags systemdFlags;
