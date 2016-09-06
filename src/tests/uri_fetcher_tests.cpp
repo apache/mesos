@@ -129,6 +129,26 @@ TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
 }
 
 
+// This test verifies invoking 'fetch' by plugin name.
+TEST_F(CurlFetcherPluginTest, CURL_InvokeFetchByName)
+{
+  URI uri = uri::http(
+      stringify(server.self().address.ip),
+      "/TestHttpServer/test",
+      server.self().address.port);
+
+  EXPECT_CALL(server, test(_))
+    .WillOnce(Return(http::OK("test")));
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  AWAIT_READY(fetcher.get()->fetch(uri, os::getcwd(), "curl"));
+
+  EXPECT_TRUE(os::exists(path::join(os::getcwd(), "test")));
+}
+
+
 class HadoopFetcherPluginTest : public TemporaryDirectoryTest
 {
 public:
@@ -204,6 +224,29 @@ TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
   string dir = path::join(os::getcwd(), "dir");
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
+}
+
+
+// This test verifies invoking 'fetch' by plugin name.
+TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
+{
+  string file = path::join(os::getcwd(), "file");
+
+  ASSERT_SOME(os::write(file, "abc"));
+
+  URI uri = uri::hdfs(file);
+
+  uri::fetcher::Flags flags;
+  flags.hadoop_client = hadoop;
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(flags);
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir, "hadoop"));
+
+  EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
 
 
@@ -293,6 +336,37 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
 }
 
 
+// This test verifies invoking 'fetch' by plugin name.
+TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
+{
+  URI uri = uri::docker::image(
+      "library/busybox",
+      "latest",
+      DOCKER_REGISTRY_HOST);
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir, "docker"), Seconds(60));
+
+  Try<string> _manifest = os::read(path::join(dir, "manifest"));
+  ASSERT_SOME(_manifest);
+
+  Try<docker::spec::v2::ImageManifest> manifest =
+    docker::spec::v2::parse(_manifest.get());
+
+  ASSERT_SOME(manifest);
+  EXPECT_EQ("library/busybox", manifest->name());
+  EXPECT_EQ("latest", manifest->tag());
+
+  for (int i = 0; i < manifest->fslayers_size(); i++) {
+    EXPECT_TRUE(os::exists(path::join(dir, manifest->fslayers(i).blobsum())));
+  }
+}
+
+
 class CopyFetcherPluginTest : public TemporaryDirectoryTest {};
 
 
@@ -334,6 +408,28 @@ TEST_F(CopyFetcherPluginTest, FetchNonExistingFile)
   AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
 
+
+// This test verifies invoking 'fetch' by plugin name.
+TEST_F(CopyFetcherPluginTest, InvokeFetchByName)
+{
+  const string file = path::join(os::getcwd(), "file");
+
+  ASSERT_SOME(os::write(file, "abc"));
+
+  // Create a URI for the test file.
+  const URI uri = uri::file(file);
+
+  // Use the file fetcher to fetch the URI.
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  const string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir, "copy"));
+
+  // Validate the fetched file's content.
+  EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
+}
 
 // TODO(jieyu): Add Docker fetcher plugin tests to test with a local
 // registry server (w/ or w/o authentication).
