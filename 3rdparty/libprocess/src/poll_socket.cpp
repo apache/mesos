@@ -187,13 +187,10 @@ Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
       if (length < 0) {
         const string error = os::strerror(errno);
         VLOG(1) << "Socket error while sending: " << error;
+        return Failure(ErrnoError("Socket send failed"));
       } else {
         VLOG(1) << "Socket closed while sending";
-      }
-      if (length == 0) {
         return length;
-      } else {
-        return Failure(ErrnoError("Socket send failed"));
       }
     } else {
       CHECK(length > 0);
