@@ -182,6 +182,7 @@ protected:
     status.mutable_executor_id()->CopyFrom(executorId);
     status.set_state(state);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
+    status.set_timestamp(process::Clock::now().secs());
     status.set_uuid(uuid.toBytes());
 
     Call call;
