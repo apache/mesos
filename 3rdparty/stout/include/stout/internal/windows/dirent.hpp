@@ -144,39 +144,6 @@ inline struct dirent* readdir(DIR* directory)
 
 // Implementation of the standard POSIX function. See documentation[1].
 //
-// On success: return 0 and set `*result` (note that `result` is not the same
-// as `*result`) to point at the next directory entry, or `nullptr` if we've
-// reached the end of the stream.
-//
-// On failure: return a positive error number and set `*result` (not `result`)
-// to point at `nullptr`.
-//
-// [1] https://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html
-inline int readdir_r(
-    DIR* directory,
-    struct dirent* entry,
-    struct dirent** result)
-{
-  if (directory == nullptr) {
-    errno = EBADF;
-    *result = nullptr;
-    return 1;
-  }
-
-  if (!internal::reentrant_advance_dir_stream(directory)) {
-    *result = nullptr;
-    return 0;
-  }
-
-  memcpy(entry, &directory->curr, sizeof(*entry));
-  *result = &directory->curr;
-
-  return 0;
-}
-
-
-// Implementation of the standard POSIX function. See documentation[1].
-//
 // On success, return 0; on failure, return -1 and set `errno` appropriately.
 //
 // [1] http://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html#Reading_002fClosing-Directory
