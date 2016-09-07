@@ -2130,7 +2130,7 @@ void Slave::killTask(
     case Executor::REGISTERING: {
       LOG(WARNING) << "Transitioning the state of task " << taskId
                    << " of framework " << frameworkId
-                   << " to TASK_KILED because the executor is not registered";
+                   << " to TASK_KILLED because the executor is not registered";
 
       // The executor hasn't registered yet.
       const StatusUpdate update = protobuf::createStatusUpdate(
