@@ -305,6 +305,12 @@ struct Slave
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
+  // Tasks that have not yet been launched because they are currently
+  // being authorized. This is similar to Framework's pendingTasks but we
+  // track pendingTasks per agent separately to determine if any offer
+  // operation for this agent would change resources requested by these tasks.
+  hashmap<FrameworkID, hashmap<TaskID, TaskInfo>> pendingTasks;
+
   // Tasks present on this slave.
   // TODO(bmahler): The task pointer ownership complexity arises from the fact
   // that we own the pointer here, but it's shared with the Framework struct.
@@ -321,7 +327,11 @@ struct Slave
   // Active inverse offers on this slave.
   hashset<InverseOffer*> inverseOffers;
 
-  hashmap<FrameworkID, Resources> usedResources;  // Active task / executors.
+  // Resources for active task / executors. Note that we maintain multiple
+  // copies of each shared resource in `usedResources` as they are used by
+  // multiple tasks.
+  hashmap<FrameworkID, Resources> usedResources;
+
   Resources offeredResources; // Offers.
 
   // Resources that should be checkpointed by the slave (e.g.,
@@ -2551,6 +2561,9 @@ struct Framework
 
   // Active task / executor resources.
   Resources totalUsedResources;
+
+  // Note that we maintain multiple copies of each shared resource in
+  // `usedResources` as they are used by multiple tasks.
   hashmap<SlaveID, Resources> usedResources;
 
   // Offered resources.

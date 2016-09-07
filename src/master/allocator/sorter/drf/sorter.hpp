@@ -150,6 +150,10 @@ private:
 
   // Total resources.
   struct Total {
+    // We need to keep track of the resources (and not just scalar quantities)
+    // to account for multiple copies of the same shared resources. We need to
+    // ensure that we do not update the scalar quantities for shared resources
+    // when the change is only in the number of copies in the sorter.
     hashmap<SlaveID, Resources> resources;
 
     // NOTE: Scalars can be safely aggregated across slaves. We keep
@@ -159,15 +163,24 @@ private:
     // NOTE: We omit information about dynamic reservations and persistent
     // volumes here to enable resources to be aggregated across slaves
     // more effectively. See MESOS-4833 for more information.
+    //
+    // Sharedness info is also stripped out when resource identities are
+    // omitted because sharedness inherently refers to the identities of
+    // resources and not quantities.
     Resources scalarQuantities;
   } total_;
 
   // Allocation for a client.
   struct Allocation {
+    // We maintain multiple copies of each shared resource allocated
+    // to a client, where the number of copies represents the number
+    // of times this shared resource has been allocated to (and has
+    // not been recovered from) a specific client.
     hashmap<SlaveID, Resources> resources;
 
     // Similarly, we aggregate scalars across slaves and omit information
-    // about dynamic reservations and persistent volumes. See notes above.
+    // about dynamic reservations, persistent volumes and sharedness of
+    // the corresponding resource. See notes above.
     Resources scalarQuantities;
   };
 

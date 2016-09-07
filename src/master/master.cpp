@@ -1135,6 +1135,10 @@ void Master::finalize()
       removeInverseOffer(inverseOffer);
     }
 
+    // Remove pending tasks from the slave. Don't bother
+    // recovering the resources in the allocator.
+    slave->pendingTasks.clear();
+
     // Terminate the slave observer.
     terminate(slave->observer);
     wait(slave->observer);
@@ -3278,16 +3282,19 @@ void Master::accept(
     foreach (const OfferID& offerId, accept.offer_ids()) {
       Offer* offer = getOffer(offerId);
       if (offer != nullptr) {
-        slaveId = offer->slave_id();
-        offeredResources += offer->resources();
-
+        // Don't bother adding resources to `offeredResources` in case
+        // validation failed; just recover them.
         if (error.isSome()) {
           allocator->recoverResources(
               offer->framework_id(),
               offer->slave_id(),
               offer->resources(),
               None());
+        } else {
+          slaveId = offer->slave_id();
+          offeredResources += offer->resources();
         }
+
         removeOffer(offer);
         continue;
       }
@@ -3370,11 +3377,11 @@ void Master::accept(
         }();
 
         // Authorize the tasks. A task is in 'framework->pendingTasks'
-        // before it is authorized.
+        // and 'slave->pendingTasks' before it is authorized.
         foreach (const TaskInfo& task, tasks) {
           futures.push_back(authorizeTask(task, framework));
 
-          // Add to pending tasks.
+          // Add to the framework's list of pending tasks.
           //
           // NOTE: If two tasks have the same ID, the second one will
           // not be put into 'framework->pendingTasks', therefore
@@ -3385,6 +3392,12 @@ void Master::accept(
           // a TASK_ERROR after a TASK_KILLED (see _accept())!
           if (!framework->pendingTasks.contains(task.task_id())) {
             framework->pendingTasks[task.task_id()] = task;
+          }
+
+          // Add to the slave's list of pending tasks.
+          if (!slave->pendingTasks.contains(framework->id()) ||
+              !slave->pendingTasks[framework->id()].contains(task.task_id())) {
+            slave->pendingTasks[framework->id()][task.task_id()] = task;
           }
         }
         break;
@@ -3551,6 +3564,14 @@ void Master::_accept(
   // updated offered resources here. When a task is successfully
   // launched, we remove its resource from offered resources.
   Resources _offeredResources = offeredResources;
+
+  // We keep track of the shared resources from the offers separately.
+  // `offeredSharedResources` can be modified by CREATE/DESTROY but we
+  // don't remove from it when a task is successfully launched so this
+  // variable always tracks the *total* amount. We do this to support
+  // validation of tasks involving shared resources. See comments in
+  // the LAUNCH case below.
+  Resources offeredSharedResources = offeredResources.shared();
 
   // Maintain a list of operations to pass to the allocator.
   // Note that this list could be different than `accept.operations()`
@@ -3729,6 +3750,7 @@ void Master::_accept(
         }
 
         _offeredResources = resources.get();
+        offeredSharedResources = _offeredResources.shared();
 
         LOG(INFO) << "Applying CREATE operation for volumes "
                   << operation.create().volumes() << " from framework "
@@ -3768,11 +3790,26 @@ void Master::_accept(
 
         // Make sure this destroy operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.destroy(), slave->checkpointedResources);
+            operation.destroy(),
+            slave->checkpointedResources,
+            slave->usedResources,
+            slave->pendingTasks);
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);
           continue;
+        }
+
+        // If any offer from this slave contains a volume that needs
+        // to be destroyed, we should process it, but we should also
+        // rescind those offers.
+        foreach (Offer* offer, utils::copy(slave->offers)) {
+          const Resources& offered = offer->resources();
+          foreach (const Resource& volume, operation.destroy().volumes()) {
+            if (offered.contains(volume)) {
+              removeOffer(offer, true);
+            }
+          }
         }
 
         Try<Resources> resources = _offeredResources.apply(operation);
@@ -3782,9 +3819,10 @@ void Master::_accept(
         }
 
         _offeredResources = resources.get();
+        offeredSharedResources = _offeredResources.shared();
 
         LOG(INFO) << "Applying DESTROY operation for volumes "
-                  << operation.create().volumes() << " from framework "
+                  << operation.destroy().volumes() << " from framework "
                   << *framework << " to agent " << *slave;
 
         _apply(slave, operation);
@@ -3820,6 +3858,10 @@ void Master::_accept(
 
           bool pending = framework->pendingTasks.contains(task.task_id());
           framework->pendingTasks.erase(task.task_id());
+          slave->pendingTasks[framework->id()].erase(task.task_id());
+          if (slave->pendingTasks[framework->id()].empty()) {
+            slave->pendingTasks.erase(framework->id());
+          }
 
           CHECK(!authorization.isDiscarded());
 
@@ -3868,11 +3910,20 @@ void Master::_accept(
                 ->mutable_framework_id()->CopyFrom(framework->id());
           }
 
+          // We add back offered shared resources for validation even if they
+          // are already consumed by other tasks in the same ACCEPT call. This
+          // allows these tasks to use more copies of the same shared resource
+          // than those being offered. e.g., 2 tasks can be launched on 1 copy
+          // of a shared persistent volume from the offer; 3 tasks can be
+          // launched on 2 copies of a shared persistent volume from 2 offers.
+          Resources available =
+            _offeredResources.nonShared() + offeredSharedResources;
+
           const Option<Error>& validationError = validation::task::validate(
               task_,
               framework,
               slave,
-              _offeredResources);
+              available);
 
           if (validationError.isSome()) {
             const StatusUpdate& update = protobuf::createStatusUpdate(
@@ -3901,8 +3952,8 @@ void Master::_accept(
           if (pending) {
             const Resources consumed = addTask(task_, framework, slave);
 
-            CHECK(_offeredResources.contains(consumed))
-              << _offeredResources << " does not contain " << consumed;
+            CHECK(available.contains(consumed))
+              << available << " does not contain " << consumed;
 
             _offeredResources -= consumed;
 
@@ -3960,6 +4011,10 @@ void Master::_accept(
         // See if there are any validation or authorization errors.
         // Note that we'll only report the first error we encounter
         // for the group.
+        //
+        // TODO(anindya_sinha): If task group uses shared resources, this
+        // validation needs to be enhanced to accommodate multiple copies
+        // of shared resources across tasks within the task group.
         Option<Error> error =
           validation::task::group::validate(
               taskGroup, executor, framework, slave, _offeredResources);
@@ -4366,6 +4421,17 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
   if (framework->pendingTasks.contains(taskId)) {
     // Remove from pending tasks.
     framework->pendingTasks.erase(taskId);
+
+    if (slaveId.isSome()) {
+      Slave* slave = slaves.registered.get(slaveId.get());
+
+      if (slave != nullptr) {
+        slave->pendingTasks[framework->id()].erase(taskId);
+        if (slave->pendingTasks[framework->id()].empty()) {
+          slave->pendingTasks.erase(framework->id());
+        }
+      }
+    }
 
     const StatusUpdate& update = protobuf::createStatusUpdate(
         framework->id(),
@@ -6590,8 +6656,11 @@ void Master::removeFramework(Framework* framework)
     allocator->deactivateFramework(framework->id());
   }
 
-  // Tell slaves to shutdown the framework.
   foreachvalue (Slave* slave, slaves.registered) {
+    // Remove the pending tasks from the slave.
+    slave->pendingTasks.erase(framework->id());
+
+    // Tell slaves to shutdown the framework.
     ShutdownFrameworkMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
     send(slave->pid, message);
@@ -6946,6 +7015,9 @@ void Master::removeSlave(
     // Remove and rescind inverse offers.
     removeInverseOffer(inverseOffer, true); // Rescind!
   }
+
+  // Remove the pending tasks from the slave.
+  slave->pendingTasks.clear();
 
   // Mark the slave as being removed.
   slaves.removing.insert(slave->id);

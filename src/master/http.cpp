@@ -1185,7 +1185,10 @@ Future<Response> Master::Http::_destroyVolumes(
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
 
   Option<Error> validate = validation::operation::validate(
-      operation.destroy(), slave->checkpointedResources);
+      operation.destroy(),
+      slave->checkpointedResources,
+      slave->usedResources,
+      slave->pendingTasks);
 
   if (validate.isSome()) {
     return BadRequest("Invalid DESTROY operation: " + validate.get().message);

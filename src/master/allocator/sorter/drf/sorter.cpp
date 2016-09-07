@@ -160,9 +160,16 @@ void DRFSorter::allocated(
     clients.insert(client);
   }
 
+  // Add shared resources to the allocated quantities when the same
+  // resources don't already exist in the allocation.
+  const Resources newShared = resources.shared()
+    .filter([this, name, slaveId](const Resource& resource) {
+      return !allocations[name].resources[slaveId].contains(resource);
+    });
+
   allocations[name].resources[slaveId] += resources;
   allocations[name].scalarQuantities +=
-    resources.createStrippedScalarQuantity();
+    (resources.nonShared() + newShared).createStrippedScalarQuantity();
 
   // If the total resources have changed, we're going to
   // recalculate all the shares, so don't bother just
@@ -264,12 +271,22 @@ void DRFSorter::unallocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
-  const Resources resourcesQuantity = resources.createStrippedScalarQuantity();
+  CHECK(allocations[name].resources.contains(slaveId));
 
   CHECK(allocations[name].resources[slaveId].contains(resources));
-  CHECK(allocations[name].scalarQuantities.contains(resourcesQuantity));
-
   allocations[name].resources[slaveId] -= resources;
+
+  // Remove shared resources from the allocated quantities when there
+  // are no instances of same resources left in the allocation.
+  const Resources absentShared = resources.shared()
+    .filter([this, name, slaveId](const Resource& resource) {
+      return !allocations[name].resources[slaveId].contains(resource);
+    });
+
+  const Resources resourcesQuantity =
+    (resources.nonShared() + absentShared).createStrippedScalarQuantity();
+
+  CHECK(allocations[name].scalarQuantities.contains(resourcesQuantity));
   allocations[name].scalarQuantities -= resourcesQuantity;
 
   if (allocations[name].resources[slaveId].empty()) {
@@ -285,8 +302,16 @@ void DRFSorter::unallocated(
 void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
+    // Add shared resources to the total quantities when the same
+    // resources don't already exist in the total.
+    const Resources newShared = resources.shared()
+      .filter([this, slaveId](const Resource& resource) {
+        return !total_.resources[slaveId].contains(resource);
+      });
+
     total_.resources[slaveId] += resources;
-    total_.scalarQuantities += resources.createStrippedScalarQuantity();
+    total_.scalarQuantities +=
+      (resources.nonShared() + newShared).createStrippedScalarQuantity();
 
     // We have to recalculate all shares when the total resources
     // change, but we put it off until sort is called so that if
@@ -305,15 +330,22 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 
     total_.resources[slaveId] -= resources;
 
-    if (total_.resources[slaveId].empty()) {
-      total_.resources.erase(slaveId);
-    }
+    // Remove shared resources from the total quantities when there
+    // are no instances of same resources left in the total.
+    const Resources absentShared = resources.shared()
+      .filter([this, slaveId](const Resource& resource) {
+        return !total_.resources[slaveId].contains(resource);
+      });
 
     const Resources resourcesQuantity =
-      resources.createStrippedScalarQuantity();
+      (resources.nonShared() + absentShared).createStrippedScalarQuantity();
 
     CHECK(total_.scalarQuantities.contains(resourcesQuantity));
     total_.scalarQuantities -= resourcesQuantity;
+
+    if (total_.resources[slaveId].empty()) {
+      total_.resources.erase(slaveId);
+    }
 
     dirty = true;
   }

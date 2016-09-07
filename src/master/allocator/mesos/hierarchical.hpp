@@ -321,6 +321,11 @@ protected:
 
     // Regular *and* oversubscribed resources that are allocated.
     //
+    // NOTE: We maintain multiple copies of each shared resource allocated
+    // to a slave, where the number of copies represents the number of times
+    // this shared resource has been allocated to (and has not been recovered
+    // from) a specific framework.
+    //
     // NOTE: We keep track of slave's allocated resources despite
     // having that information in sorters. This is because the
     // information in sorters is not accurate if some framework

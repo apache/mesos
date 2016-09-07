@@ -610,15 +610,92 @@ void HierarchicalAllocatorProcess::updateAllocation(
   CHECK(frameworks.contains(frameworkId));
 
   const string& role = frameworks[frameworkId].role;
+  CHECK(frameworkSorters.contains(role));
 
-  // TODO(anindya_sinha): `offeredResources` will be useful for supporting
-  // LAUNCH operations involving shared resources.
+  const Owned<Sorter>& frameworkSorter = frameworkSorters[role];
 
-  // Here we apply offer operations to the allocated and total
-  // resources in the allocator and each of the sorters. The available
-  // resources remain unchanged.
+  // We keep a copy of the offered resources here and it is updated
+  // by the operations.
+  Resources _offeredResources = offeredResources;
 
   foreach (const Offer::Operation& operation, operations) {
+    Try<Resources> updatedOfferedResources = _offeredResources.apply(operation);
+    CHECK_SOME(updatedOfferedResources);
+    _offeredResources = updatedOfferedResources.get();
+
+    if (operation.type() == Offer::Operation::LAUNCH) {
+      // Additional allocation needed for the operation.
+      //
+      // For LAUNCH operations we support tasks requesting more
+      // instances of shared resources than those being offered. We
+      // keep track of these additional instances and allocate them
+      // as part of updating the framework's allocation (i.e., add
+      // them to the allocated resources in the allocator and in each
+      // of the sorters).
+      Resources additional;
+
+      hashset<TaskID> taskIds;
+
+      foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        taskIds.insert(task.task_id());
+
+        // For now we only need to look at the task resources and
+        // ignore the executor resources.
+        //
+        // TODO(anindya_sinha): For simplicity we currently don't
+        // allow shared resources in ExecutorInfo. The reason is that
+        // the allocator has no idea if the executor within the task
+        // represents a new executor. Therefore we cannot reliably
+        // determine if the executor resources are needed for this task.
+        // The TODO is to support it. We need to pass in the information
+        // pertaining to the executor before enabling shared resources
+        // in the executor.
+        const Resources& consumed = task.resources();
+        additional += consumed.shared() - _offeredResources.shared();
+
+        // (Non-shared) executor resources are not removed from
+        // _offeredResources but it's OK because we only care about
+        // shared resources in this variable.
+        _offeredResources -= consumed;
+      }
+
+      if (!additional.empty()) {
+        LOG(INFO) << "Allocating additional resources " << additional
+                  << " for tasks " << stringify(taskIds);
+
+        CHECK_EQ(additional.shared(), additional);
+
+        const Resources frameworkAllocation =
+          frameworkSorter->allocation(frameworkId.value(), slaveId);
+
+        foreach (const Resource& resource, additional) {
+          CHECK(frameworkAllocation.contains(resource));
+        }
+
+        // Allocate these additional resources to this framework. Because
+        // they are merely additional instances of the same shared
+        // resources already allocated to the framework (validated by the
+        // master, see the CHECK above), this doesn't have an impact on
+        // the allocator's allocation algorithm.
+        slaves[slaveId].allocated += additional;
+
+        frameworkSorter->add(slaveId, additional);
+        frameworkSorter->allocated(frameworkId.value(), slaveId, additional);
+        roleSorter->allocated(role, slaveId, additional);
+
+        if (quotas.contains(role)) {
+          quotaRoleSorter->allocated(
+              role, slaveId, additional.nonRevocable());
+        }
+      }
+
+      continue;
+    }
+
+    // Here we apply offer operations to the allocated and total
+    // resources in the allocator and each of the sorters. The available
+    // resource quantities remain unchanged.
+
     // Update the per-slave allocation.
     Try<Resources> updatedSlaveAllocation =
       slaves[slaveId].allocated.apply(operation);
@@ -634,9 +711,6 @@ void HierarchicalAllocatorProcess::updateAllocation(
     slaves[slaveId].total = updatedTotal.get();
 
     // Update the total and allocated resources in each sorter.
-    CHECK(frameworkSorters.contains(role));
-    const Owned<Sorter>& frameworkSorter = frameworkSorters[role];
-
     Resources frameworkAllocation =
       frameworkSorter->allocation(frameworkId.value(), slaveId);
 
@@ -1282,6 +1356,17 @@ void HierarchicalAllocatorProcess::allocate(
     return resources;
   };
 
+  // Due to the two stages in the allocation algorithm and the nature of
+  // shared resources being re-offerable even if already allocated, the
+  // same shared resources can appear in two (and not more due to the
+  // `allocatable` check in each stage) distinct offers in one allocation
+  // cycle. This is undesirable since the allocator API contract should
+  // not depend on its implementation details. For now we make sure a
+  // shared resource is only allocated once in one offer cycle. We use
+  // `offeredSharedResources` to keep track of shared resources already
+  // allocated in the current cycle.
+  hashmap<SlaveID, Resources> offeredSharedResources;
+
   // Quota comes first and fair share second. Here we process only those
   // roles, for which quota is set (quota'ed roles). Such roles form a
   // special allocation group with a dedicated sorter.
@@ -1324,8 +1409,21 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
-        // Calculate the currently available resources on the slave.
-        Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+        // Calculate the currently available resources on the slave, which
+        // is the difference in non-shared resources between total and
+        // allocated, plus all shared resources on the agent (if applicable).
+        // Since shared resources are offerable even when they are in use, we
+        // make one copy of the shared resources available regardless of the
+        // past allocations.
+        Resources available =
+          (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
+        available += slaves[slaveId].total.shared();
+
+        // Offer a shared resource only if it has not been offered in
+        // this offer cycle to a framework.
+        if (offeredSharedResources.contains(slaveId)) {
+          available -= offeredSharedResources[slaveId];
+        }
 
         // The resources we offer are the unreserved resources as well as the
         // reserved resources for this particular role. This is necessary to
@@ -1370,6 +1468,8 @@ void HierarchicalAllocatorProcess::allocate(
         // resources, which may lead to overcommitment of resources beyond
         // quota. This is fine since quota currently represents a guarantee.
         offerable[frameworkId][slaveId] += resources;
+        offeredSharedResources[slaveId] += resources.shared();
+
         slaves[slaveId].allocated += resources;
 
         // Resources allocated as part of the quota count towards the
@@ -1420,6 +1520,10 @@ void HierarchicalAllocatorProcess::allocate(
   // `remainingClusterResources`.
   remainingClusterResources -= unallocatedQuotaResources;
 
+  // Shared resources are excluded in determination of over-allocation of
+  // available resources since shared resources are always allocatable.
+  remainingClusterResources = remainingClusterResources.nonShared();
+
   // To ensure we do not over-allocate resources during the second stage
   // with all frameworks, we use 2 stopping criteria:
   //   * No available resources for the second stage left, i.e.
@@ -1459,8 +1563,21 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
-        // Calculate the currently available resources on the slave.
-        Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+        // Calculate the currently available resources on the slave, which
+        // is the difference in non-shared resources between total and
+        // allocated, plus all shared resources on the agent (if applicable).
+        // Since shared resources are offerable even when they are in use, we
+        // make one copy of the shared resources available regardless of the
+        // past allocations.
+        Resources available =
+          (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
+        available += slaves[slaveId].total.shared();
+
+        // Offer a shared resource only if it has not been offered in
+        // this offer cycle to a framework.
+        if (offeredSharedResources.contains(slaveId)) {
+          available -= offeredSharedResources[slaveId];
+        }
 
         // The resources we offer are the unreserved resources as well as the
         // reserved resources for this particular role. This is necessary to
@@ -1516,8 +1633,11 @@ void HierarchicalAllocatorProcess::allocate(
         // stage to use more than `remainingClusterResources`, move along.
         // We do not terminate early, as offers generated further in the
         // loop may be small enough to fit within `remainingClusterResources`.
+        //
+        // We exclude shared resources from over-allocation check because
+        // shared resources are always allocatable.
         const Resources scalarQuantity =
-          resources.createStrippedScalarQuantity();
+          resources.nonShared().createStrippedScalarQuantity();
 
         if (!remainingClusterResources.contains(
                 allocatedStage2 + scalarQuantity)) {
@@ -1533,7 +1653,9 @@ void HierarchicalAllocatorProcess::allocate(
         // NOTE: We may have already allocated some resources on the current
         // agent as part of quota.
         offerable[frameworkId][slaveId] += resources;
+        offeredSharedResources[slaveId] += resources.shared();
         allocatedStage2 += scalarQuantity;
+
         slaves[slaveId].allocated += resources;
 
         frameworkSorters[role]->add(slaveId, resources);

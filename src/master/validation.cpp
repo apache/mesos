@@ -524,7 +524,7 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 
   error = validateDynamicReservationInfo(resources);
   if (error.isSome()) {
-      return Error("Invalid ReservationInfo: " + error.get().message);
+    return Error("Invalid ReservationInfo: " + error.get().message);
   }
 
   return None();
@@ -898,6 +898,18 @@ Option<Error> validateExecutor(
     // TODO(martin): MESOS-1807. Return Error instead of logging a
     // warning.
     const Resources& executorResources = executor.resources();
+
+    // Ensure there are no shared resources in the executor resources.
+    //
+    // TODO(anindya_sinha): For simplicity we currently don't
+    // allow shared resources in ExecutorInfo. See comments in
+    // `HierarchicalAllocatorProcess::updateAllocation()` for more
+    // details. Remove this check once we start supporting it.
+    if (!executorResources.shared().empty()) {
+      return Error(
+          "Executor resources " + stringify(executorResources) +
+          " should not contain any shared resources");
+    }
 
     Option<double> cpus =  executorResources.cpus();
     if (cpus.isNone() || cpus.get() < MIN_CPUS) {
@@ -1505,7 +1517,9 @@ Option<Error> validate(
 
 Option<Error> validate(
     const Offer::Operation::Destroy& destroy,
-    const Resources& checkpointedResources)
+    const Resources& checkpointedResources,
+    const hashmap<FrameworkID, Resources>& usedResources,
+    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks)
 {
   Option<Error> error = resource::validate(destroy.volumes());
   if (error.isSome()) {
@@ -1519,6 +1533,39 @@ Option<Error> validate(
 
   if (!checkpointedResources.contains(destroy.volumes())) {
     return Error("Persistent volumes not found");
+  }
+
+  // Ensure the volumes being destroyed are not in use currently.
+  // This check is mainly to validate destruction of shared volumes since
+  // it is not possible for a non-shared resource to appear in an offer
+  // if it is already in use.
+  foreachvalue (const Resources& resources, usedResources) {
+    foreach (const Resource& volume, destroy.volumes()) {
+      if (resources.contains(volume)) {
+        return Error("Persistent volumes in use");
+      }
+    }
+  }
+
+  // Ensure that the volumes being destroyed are not requested by any pending
+  // task. This check is mainly to validate destruction of shared volumes.
+  // Note that resource requirements in pending tasks are not validated yet
+  // so it is possible that the DESTROY validation fails due to invalid
+  // pending tasks.
+  typedef hashmap<TaskID, TaskInfo> TaskMap;
+  foreachvalue(const TaskMap& tasks, pendingTasks) {
+    foreachvalue (const TaskInfo& task, tasks) {
+      Resources resources = task.resources();
+      if (task.has_executor()) {
+        resources += task.executor().resources();
+      }
+
+      foreach (const Resource& volume, destroy.volumes()) {
+        if (resources.contains(volume)) {
+          return Error("Persistent volume in pending tasks");
+        }
+      }
+    }
   }
 
   return None();

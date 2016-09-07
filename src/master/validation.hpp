@@ -202,9 +202,13 @@ Option<Error> validate(
 
 // Validates the DESTROY operation. We need slave's checkpointed
 // resources to validate that the volumes to destroy actually exist.
+// We also check that the volumes are not being used, or not assigned
+// to any pending task.
 Option<Error> validate(
     const Offer::Operation::Destroy& destroy,
-    const Resources& checkpointedResources);
+    const Resources& checkpointedResources,
+    const hashmap<FrameworkID, Resources>& usedResources,
+    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks);
 
 } // namespace operation {
 
