@@ -605,13 +605,51 @@ TEST_F(DestroyOperationValidationTest, PersistentVolumes)
   Offer::Operation::Destroy destroy;
   destroy.add_volumes()->CopyFrom(volume1);
 
-  EXPECT_NONE(operation::validate(destroy, volumes));
+  EXPECT_NONE(operation::validate(destroy, volumes, {}, {}));
 
   Resource cpus = Resources::parse("cpus", "2", "*").get();
 
   destroy.add_volumes()->CopyFrom(cpus);
 
-  EXPECT_SOME(operation::validate(destroy, volumes));
+  EXPECT_SOME(operation::validate(destroy, volumes, {}, {}));
+}
+
+
+// This test verifies that DESTROY for shared persistent volumes
+// is only valid when the volumes are no longer in use.
+TEST_F(DestroyOperationValidationTest, SharedPersistentVolumeInUse)
+{
+  Resource cpus = Resources::parse("cpus", "1", "*").get();
+  Resource mem = Resources::parse("mem", "5", "*").get();
+  Resource disk1 = createDiskResource(
+      "50", "role1", "1", "path1", None(), true); // Shared.
+  Resource disk2 = createDiskResource("100", "role1", "2", "path2");
+
+  Resources volumes;
+  volumes += disk1;
+  volumes += disk2;
+
+  hashmap<FrameworkID, Resources> usedResources;
+  FrameworkID frameworkId1;
+  FrameworkID frameworkId2;
+  frameworkId1.set_value("id1");
+  frameworkId2.set_value("id2");
+
+  // Add used resources for 1st framework.
+  usedResources[frameworkId1] = Resources(cpus) + mem + disk1 + disk2;
+
+  // Add used resources for 2nd framework.
+  usedResources[frameworkId2] = Resources(cpus) + mem + disk1;
+
+  Offer::Operation::Destroy destroy;
+  destroy.add_volumes()->CopyFrom(disk1);
+
+  EXPECT_SOME(operation::validate(destroy, volumes, usedResources, {}));
+
+  usedResources[frameworkId1] -= disk1;
+  usedResources[frameworkId2] -= disk1;
+
+  EXPECT_NONE(operation::validate(destroy, volumes, usedResources, {}));
 }
 
 
@@ -623,8 +661,8 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
   Offer::Operation::Destroy destroy;
   destroy.add_volumes()->CopyFrom(volume);
 
-  EXPECT_NONE(operation::validate(destroy, volume));
-  EXPECT_SOME(operation::validate(destroy, Resources()));
+  EXPECT_NONE(operation::validate(destroy, volume, {}, {}));
+  EXPECT_SOME(operation::validate(destroy, Resources(), {}, {}));
 }
 
 

@@ -890,6 +890,107 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 }
 
 
+// This test verifies that multiple tasks can be launched on a shared
+// persistent volume and write to it simultaneously.
+TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):1024";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared.
+
+  // Create 2 tasks which write distinct files in the shared volume.
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk(role1):32").get() + volume,
+      "echo task1 > path1/file1");
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:256;disk(role1):64").get() + volume,
+      "echo task2 > path1/file2");
+
+  // We should receive a TASK_RUNNING followed by a TASK_FINISHED for
+  // each of the 2 tasks. We do not check for the actual task state
+  // since it's not the primary objective of the test. We instead
+  // verify that the paths are created by the tasks after we receive
+  // enough status updates.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  Future<TaskStatus> status3;
+  Future<TaskStatus> status4;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume),
+       LAUNCH({task1, task2})});
+
+  // When all status updates are received, the tasks have finished
+  // writing to the paths.
+  AWAIT_READY(status1);
+  AWAIT_READY(status2);
+  AWAIT_READY(status3);
+  AWAIT_READY(status4);
+
+  const string& volumePath = slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir,
+      "role1",
+      "id1");
+
+  EXPECT_SOME_EQ("task1\n", os::read(path::join(volumePath, "file1")));
+  EXPECT_SOME_EQ("task2\n", os::read(path::join(volumePath, "file2")));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that persistent volumes are recovered properly
 // after the slave restarts. The idea is to launch a command which
 // keeps testing if the persistent volume exists, and fails if it does

@@ -722,6 +722,95 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
        << watch.elapsed() << endl;
 }
 
+
+// This test verifies that shared resources are properly accounted for in
+// the DRF sorter.
+TEST(SorterTest, SharedResources)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  Resource sharedDisk = createDiskResource(
+      "100", "role1", "id1", "path1", None(), true);
+
+  // Set totalResources to have disk of 1000, with disk 100 being shared.
+  Resources totalResources = Resources::parse(
+      "cpus:100;mem:100;disk(role1):900").get();
+  totalResources += sharedDisk;
+
+  sorter.add(slaveId, totalResources);
+
+  // Verify sort() works when shared resources are in the allocations.
+  sorter.add("a");
+  Resources aResources = Resources::parse("cpus:5;mem:5").get();
+  aResources += sharedDisk;
+  sorter.allocated("a", slaveId, aResources);
+
+  sorter.add("b");
+  Resources bResources = Resources::parse("cpus:6;mem:6").get();
+  sorter.allocated("b", slaveId, bResources);
+
+  // Shares: a = .1 (dominant: disk), b = .06 (dominant: cpus).
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
+
+  sorter.add("c");
+  Resources cResources = Resources::parse("cpus:1;mem:1").get();
+  cResources += sharedDisk;
+  sorter.allocated("c", slaveId, cResources);
+
+  // 'a' and 'c' share the same persistent volume which is the
+  // dominant resource for both of these clients.
+  // Shares: a = .1 (dominant: disk), b = .06 (dominant: cpus),
+  //         c = .1 (dominant: disk).
+  EXPECT_EQ(vector<string>({"b", "a", "c"}), sorter.sort());
+
+  sorter.remove("a");
+  Resources bUnallocated = Resources::parse("cpus:4;mem:4").get();
+  sorter.unallocated("b", slaveId, bUnallocated);
+
+  // Shares: b = .02 (dominant: cpus), c = .1 (dominant: disk).
+  EXPECT_EQ(vector<string>({"b", "c"}), sorter.sort());
+
+  sorter.add("d");
+  Resources dResources = Resources::parse("cpus:1;mem:5").get();
+  dResources += sharedDisk;
+  sorter.allocated("d", slaveId, dResources);
+
+  // Shares: b = .02 (dominant: cpus), c = .1 (dominant: disk),
+  //         d = .1 (dominant: disk).
+  EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
+
+  // Verify other basic allocator methods work when shared resources
+  // are in the allocations.
+  Resources removedResources = Resources::parse("cpus:50;mem:0").get();
+  sorter.remove(slaveId, removedResources);
+
+  // Total resources is now:
+  // cpus:50;mem:100;disk(role1):900;disk(role1)[id1]:100
+
+  // Shares: b = .04 (dominant: cpus), c = .1 (dominant: disk),
+  //         d = .1 (dominant: disk).
+  EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
+
+  Resources addedResources = Resources::parse("cpus:0;mem:100").get();
+  sorter.add(slaveId, addedResources);
+
+  // Total resources is now:
+  // cpus:50;mem:200;disk(role1):900;disk(role1)[id1]:100
+
+  // Shares: b = .04 (dominant: cpus), c = .1 (dominant: disk),
+  //         d = .1 (dominant: disk).
+  EXPECT_EQ(vector<string>({"b", "c", "d"}), sorter.sort());
+
+  EXPECT_TRUE(sorter.contains("b"));
+
+  EXPECT_FALSE(sorter.contains("a"));
+
+  EXPECT_EQ(3, sorter.count());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

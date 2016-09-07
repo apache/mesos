@@ -731,7 +731,7 @@ inline hashmap<std::string, double> convertToHashmap(
 }
 
 
-// Helpers for creating reserve operations.
+// Helpers for creating offer operations.
 inline Offer::Operation RESERVE(const Resources& resources)
 {
   Offer::Operation operation;
@@ -741,7 +741,6 @@ inline Offer::Operation RESERVE(const Resources& resources)
 }
 
 
-// Helpers for creating unreserve operations.
 inline Offer::Operation UNRESERVE(const Resources& resources)
 {
   Offer::Operation operation;
@@ -751,7 +750,6 @@ inline Offer::Operation UNRESERVE(const Resources& resources)
 }
 
 
-// Helpers for creating offer operations.
 inline Offer::Operation CREATE(const Resources& volumes)
 {
   Offer::Operation operation;

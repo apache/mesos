@@ -1273,6 +1273,116 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 }
 
 
+// This test verifies that `updateAllocation()` supports creating and
+// destroying shared persistent volumes.
+TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
+{
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk(role1):100");
+  allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
+
+  // Initially, all the resources are allocated.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Construct an offer operation for the framework's allocation.
+  Resource volume = Resources::parse("disk", "5", "role1").get();
+  volume.mutable_disk()->mutable_persistence()->set_id("ID");
+  volume.mutable_disk()->mutable_volume()->set_container_path("data");
+  volume.mutable_shared();
+
+  Offer::Operation create;
+  create.set_type(Offer::Operation::CREATE);
+  create.mutable_create()->add_volumes()->CopyFrom(volume);
+
+  // Ensure the offer operation can be applied.
+  Try<Resources> update =
+    Resources::sum(allocation.get().resources).apply(create);
+
+  ASSERT_SOME(update);
+
+  // Update the allocation in the allocator.
+  allocator->updateAllocation(
+      framework.id(),
+      slave.id(),
+      Resources::sum(allocation.get().resources),
+      {create});
+
+  // Now recover the resources, and expect the next allocation to
+  // contain the updated resources.
+  allocator->recoverResources(
+      framework.id(),
+      slave.id(),
+      update.get(),
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+
+  // The allocation should be the slave's resources with the offer
+  // operation applied.
+  update = Resources(slave.resources()).apply(create);
+  ASSERT_SOME(update);
+
+  EXPECT_NE(Resources(slave.resources()),
+            Resources::sum(allocation.get().resources));
+
+  EXPECT_EQ(update.get(), Resources::sum(allocation.get().resources));
+
+  // Construct an offer operation for the framework's allocation to
+  // destroy the shared volume.
+  Offer::Operation destroy;
+  destroy.set_type(Offer::Operation::DESTROY);
+  destroy.mutable_destroy()->add_volumes()->CopyFrom(volume);
+
+  // Update the allocation in the allocator.
+  allocator->updateAllocation(
+      framework.id(),
+      slave.id(),
+      Resources::sum(allocation.get().resources),
+      {destroy});
+
+  // The resources to recover should be equal to the agent's original
+  // resources now that the shared volume is created and then destroyed.
+  ASSERT_SOME_EQ(slave.resources(), update.get().apply(destroy));
+
+  // Now recover the amount of `slave.resources()` and expect the
+  // next allocation to equal `slave.resources()`.
+  allocator->recoverResources(
+      framework.id(),
+      slave.id(),
+      slave.resources(),
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+
+  EXPECT_EQ(Resources(slave.resources()),
+            Resources::sum(allocation.get().resources));
+}
+
+
 // This test ensures that a call to 'updateAvailable' succeeds when the
 // allocator has sufficient available resources.
 TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
