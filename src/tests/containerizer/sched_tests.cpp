@@ -77,16 +77,11 @@ TEST(SchedTest, ROOT_PolicyChild)
   EXPECT_SOME(sched::policy::set(different, pid));
   EXPECT_SOME_EQ(different, sched::policy::get(pid));
 
-  process::Future<Option<int>> status = process::reap(pid);
-
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
 
   // Wait for the child process.
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_TRUE(WIFSIGNALED(status.get().get()));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status.get().get()));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, process::reap(pid));
 }
 
 } // namespace tests {

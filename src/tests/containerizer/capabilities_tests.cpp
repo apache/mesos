@@ -95,12 +95,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithNoNetRawCaps)
   Try<Subprocess> s = ping(capabilities->get(capabilities::PERMITTED));
   ASSERT_SOME(s);
 
-  Future<Option<int>> status = s->status();
-  AWAIT_READY(status);
-
-  ASSERT_SOME(status.get());
-  EXPECT_TRUE(WIFEXITED(status->get()));
-  EXPECT_NE(0, WEXITSTATUS(status->get()));
+  AWAIT_EXPECT_WEXITSTATUS_NE(0, s->status());
 }
 
 
@@ -124,12 +119,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithNoNetRawCapsChangeUser)
 
   ASSERT_SOME(s);
 
-  Future<Option<int>> status = s->status();
-  AWAIT_READY(status);
-
-  ASSERT_SOME(status.get());
-  EXPECT_TRUE(WIFEXITED(status->get()));
-  EXPECT_NE(0, WEXITSTATUS(status->get()));
+  AWAIT_EXPECT_WEXITSTATUS_NE(0, s->status());
 }
 
 
@@ -158,12 +148,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
   Try<Subprocess> s = ping(capabilities, CAPS_TEST_UNPRIVILEGED_USER);
   ASSERT_SOME(s);
 
-  Future<Option<int>> status = s->status();
-  AWAIT_READY(status);
-
-  ASSERT_SOME(status.get());
-  EXPECT_TRUE(WIFEXITED(status->get()));
-  EXPECT_EQ(0, WEXITSTATUS(status->get()));
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 } // namespace tests {

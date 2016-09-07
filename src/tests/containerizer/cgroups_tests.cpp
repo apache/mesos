@@ -37,6 +37,7 @@
 #include <process/gtest.hpp>
 #include <process/latch.hpp>
 #include <process/owned.hpp>
+#include <process/reap.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
@@ -502,10 +503,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
 
   // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid(pid, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
 }
 
 
@@ -671,10 +669,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Freeze)
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
 
   // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
 }
 
 
@@ -717,10 +712,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Kill)
     Try<Nothing> kill = cgroups::kill(hierarchy, TEST_CGROUPS_ROOT, SIGKILL);
     EXPECT_SOME(kill);
 
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
+    AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
   } else {
     // In child process.
 
@@ -1042,10 +1034,7 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_PERF_PerfTest)
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
 
   // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
 
   // Destroy the cgroup.
   Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);

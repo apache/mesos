@@ -31,6 +31,7 @@
 
 #include <process/gtest.hpp>
 #include <process/latch.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include "linux/ns.hpp"
@@ -95,12 +96,7 @@ TEST(NsTest, ROOT_setns)
   ASSERT_SOME(s);
 
   // The child should exit 0.
-  Future<Option<int>> status = s.get().status();
-  AWAIT_READY(status);
-
-  ASSERT_SOME(status.get());
-  EXPECT_TRUE(WIFEXITED(status.get().get()));
-  EXPECT_EQ(0, status.get().get());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
 }
 
 
@@ -176,10 +172,7 @@ TEST(NsTest, ROOT_getns)
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
 
   // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
 }
 
 
@@ -214,7 +207,10 @@ TEST(NsTest, ROOT_destroy)
 
   ASSERT_NE(-1, pid);
 
-  Future<Option<int>> status = process::reap(pid);
+  // NOTE: need to call `reap` here because the `ns::pid::destroy`
+  // also calls `reap` and so we won't get the right status if we call
+  // `reap` after calling `ns::pid::destroy`.
+  Future<Option<int>> status = reap(pid);
 
   // Ensure the child is in a different pid namespace.
   Try<ino_t> childNs = ns::getns(pid, "pid");
@@ -228,10 +224,7 @@ TEST(NsTest, ROOT_destroy)
   // Kill the child.
   AWAIT_READY(ns::pid::destroy(childNs.get()));
 
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  ASSERT_TRUE(WIFSIGNALED(status.get().get()));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status.get().get()));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, status);
 
   // Finally, verify that no processes are in the child's pid
   // namespace, i.e., destroy() also killed all descendants.

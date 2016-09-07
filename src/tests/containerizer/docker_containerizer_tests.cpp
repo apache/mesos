@@ -1251,10 +1251,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   EXPECT_NONE(termination2.get());
 
   // Expect the orphan to be stopped!
-  AWAIT_READY(orphanRun);
-  ASSERT_SOME(orphanRun.get());
-  EXPECT_TRUE(WIFEXITED(orphanRun->get())) << orphanRun->get();
-  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(orphanRun->get())) << orphanRun->get();
+  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, orphanRun);
 }
 
 
@@ -1387,10 +1384,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   EXPECT_NONE(termination2.get());
   ASSERT_FALSE(exists(docker, oldSlaveId, orphanContainerId));
 
-  AWAIT_READY(orphanRun);
-  ASSERT_SOME(orphanRun.get());
-  EXPECT_TRUE(WIFEXITED(orphanRun->get())) << orphanRun->get();
-  EXPECT_EQ(128 + SIGKILL, WEXITSTATUS(orphanRun->get())) << orphanRun->get();
+  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, orphanRun);
 }
 
 

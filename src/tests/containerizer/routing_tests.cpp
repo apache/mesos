@@ -26,6 +26,7 @@
 
 #include <process/clock.hpp>
 #include <process/gtest.hpp>
+#include <process/reap.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
@@ -325,10 +326,7 @@ TEST_F(RoutingVethTest, ROOT_LinkCreatePid)
   ASSERT_NE(-1, kill(pid, SIGKILL));
 
   // Wait for the child process.
-  int status;
-  EXPECT_NE(-1, waitpid((pid_t) -1, &status, 0));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, reap(pid));
 }
 
 
