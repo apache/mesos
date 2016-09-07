@@ -1524,39 +1524,58 @@ int NetworkCniIsolatorSetup::execute()
   foreachpair (const string& file, const string& source, files) {
     // Do the bind mount in the host filesystem since no process in
     // the new network namespace should be seeing the original network
-    // files from the host filesystem. This is also required by the
-    // command executor since command executor will be launched with
-    // rootfs of host filesystem and will later pivot to the rootfs of
-    // the container filesystem, when launching the task.
+    // files from the host filesystem. The container's hostname will be
+    // changed to the `ContainerID` and this information needs to be
+    // reflected in the /etc/hosts and /etc/hostname files seen by
+    // processes in the new network namespace.
     //
-    // NOTE: We only need to do this if non host network is used.
+    // Specifically, the command executor will be launched with the
+    // rootfs of the host filesystem. The command executor may later
+    // pivot to the rootfs of the container filesystem when launching
+    // the task.
+    //
+    // NOTE: We only need to do this if a non-host network is used.
     // Currently, we use `flags.hostname` to distinguish if a host
     // network is being used or not.
     if (flags.hostname.isSome()) {
       if (!os::exists(file)) {
-        // Make an exception for `/etc/hostname` and `/etc/hosts`,
-        // because it may not exist on every system.
-        if (file != "/etc/hostname" && file != "/etc/hosts") {
-          // NOTE: We just fail if the mount point does not exist on
-          // the host filesystem because we don't want to pollute the
-          // host filesystem.
+        // We need /etc/hosts and /etc/hostname to be present in order
+        // to bind mount the container's /etc/hosts and /etc/hostname.
+        // The container's network files will be different than the host's
+        // files. Since these target mount points do not exist in the host
+        // filesystem it should be fine to "touch" these files in
+        // order to create them. We see this scenario specifically in
+        // CoreOS (see MESOS-6052).
+        //
+        // In case of /etc/resolv.conf, however, we can't populate the
+        // nameservers if they are not present, and rely on the hosts
+        // IPAM to populate the /etc/resolv.conf. Hence, if
+        // /etc/resolv.conf is not present we bail out.
+        if (file == "/etc/hosts" || file == "/etc/hostname") {
+          Try<Nothing> touch = os::touch(file);
+          if (touch.isError()) {
+            cerr << "Unable to create missing mount point " + file + " on "
+                 << "host filesystem: " << touch.error() << endl;
+            return EXIT_FAILURE;
+          }
+        } else {
+          // '/etc/resolv.conf'.
           cerr << "Mount point '" << file << "' does not exist "
                << "on the host filesystem" << endl;
           return EXIT_FAILURE;
         }
-      } else {
-        mount = fs::mount(
-            source,
-            file,
-            None(),
-            MS_BIND,
-            nullptr);
+      }
 
-        if (mount.isError()) {
-          cerr << "Failed to bind mount from '" << source << "' to '"
-               << file << "': " << mount.error() << endl;
-          return EXIT_FAILURE;
-        }
+      mount = fs::mount(
+          source,
+          file,
+          None(),
+          MS_BIND,
+          nullptr);
+      if (mount.isError()) {
+        cerr << "Failed to bind mount from '" << source << "' to '"
+             << file << "': " << mount.error() << endl;
+        return EXIT_FAILURE;
       }
     }
 
