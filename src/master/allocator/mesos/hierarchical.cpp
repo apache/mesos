@@ -618,74 +618,77 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // resources in the allocator and each of the sorters. The available
   // resources remain unchanged.
 
-  // Update the per-slave allocation.
-  Try<Resources> updatedSlaveAllocation =
-    slaves[slaveId].allocated.apply(operations);
+  foreach (const Offer::Operation& operation, operations) {
+    // Update the per-slave allocation.
+    Try<Resources> updatedSlaveAllocation =
+      slaves[slaveId].allocated.apply(operation);
 
-  CHECK_SOME(updatedSlaveAllocation);
+    CHECK_SOME(updatedSlaveAllocation);
 
-  slaves[slaveId].allocated = updatedSlaveAllocation.get();
+    slaves[slaveId].allocated = updatedSlaveAllocation.get();
 
-  // Update the total resources.
-  Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
-  CHECK_SOME(updatedTotal);
+    // Update the total resources.
+    Try<Resources> updatedTotal = slaves[slaveId].total.apply(operation);
+    CHECK_SOME(updatedTotal);
 
-  slaves[slaveId].total = updatedTotal.get();
+    slaves[slaveId].total = updatedTotal.get();
 
-  // Update the total and allocated resources in each sorter.
-  CHECK(frameworkSorters.contains(role));
-  const Owned<Sorter>& frameworkSorter = frameworkSorters[role];
+    // Update the total and allocated resources in each sorter.
+    CHECK(frameworkSorters.contains(role));
+    const Owned<Sorter>& frameworkSorter = frameworkSorters[role];
 
-  Resources frameworkAllocation =
-    frameworkSorter->allocation(frameworkId.value(), slaveId);
+    Resources frameworkAllocation =
+      frameworkSorter->allocation(frameworkId.value(), slaveId);
 
-  Try<Resources> updatedFrameworkAllocation =
-    frameworkAllocation.apply(operations);
+    Try<Resources> updatedFrameworkAllocation =
+      frameworkAllocation.apply(operation);
 
-  CHECK_SOME(updatedFrameworkAllocation);
+    CHECK_SOME(updatedFrameworkAllocation);
 
-  // Update the total and allocated resources in the framework sorter
-  // for the current role.
-  frameworkSorter->remove(slaveId, frameworkAllocation);
-  frameworkSorter->add(slaveId, updatedFrameworkAllocation.get());
+    // Update the total and allocated resources in the framework sorter
+    // for the current role.
+    frameworkSorter->remove(slaveId, frameworkAllocation);
+    frameworkSorter->add(slaveId, updatedFrameworkAllocation.get());
 
-  frameworkSorter->update(
-      frameworkId.value(),
-      slaveId,
-      frameworkAllocation,
-      updatedFrameworkAllocation.get());
+    frameworkSorter->update(
+        frameworkId.value(),
+        slaveId,
+        frameworkAllocation,
+        updatedFrameworkAllocation.get());
 
-  // Update the total and allocated resources in the role sorter.
-  roleSorter->remove(slaveId, frameworkAllocation);
-  roleSorter->add(slaveId, updatedFrameworkAllocation.get());
+    // Update the total and allocated resources in the role sorter.
+    roleSorter->remove(slaveId, frameworkAllocation);
+    roleSorter->add(slaveId, updatedFrameworkAllocation.get());
 
-  roleSorter->update(
-      role,
-      slaveId,
-      frameworkAllocation,
-      updatedFrameworkAllocation.get());
-
-  // Update the total and allocated resources in the quota role
-  // sorter. Note that we always update the quota role sorter's total
-  // resources; we only update its allocated resources if this role
-  // has quota set.
-  quotaRoleSorter->remove(slaveId, frameworkAllocation.nonRevocable());
-  quotaRoleSorter->add(
-      slaveId, updatedFrameworkAllocation.get().nonRevocable());
-
-  if (quotas.contains(role)) {
-    // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-    quotaRoleSorter->update(
+    roleSorter->update(
         role,
         slaveId,
-        frameworkAllocation.nonRevocable(),
-        updatedFrameworkAllocation.get().nonRevocable());
-  }
+        frameworkAllocation,
+        updatedFrameworkAllocation.get());
 
-  LOG(INFO) << "Updated allocation of framework " << frameworkId
-            << " on agent " << slaveId
-            << " from " << frameworkAllocation
-            << " to " << updatedFrameworkAllocation.get();
+    // Update the total and allocated resources in the quota role
+    // sorter. Note that we always update the quota role sorter's total
+    // resources; we only update its allocated resources if this role
+    // has quota set.
+    quotaRoleSorter->remove(slaveId, frameworkAllocation.nonRevocable());
+    quotaRoleSorter->add(
+        slaveId, updatedFrameworkAllocation.get().nonRevocable());
+
+    if (quotas.contains(role)) {
+      // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+      quotaRoleSorter->update(
+          role,
+          slaveId,
+          frameworkAllocation.nonRevocable(),
+          updatedFrameworkAllocation.get().nonRevocable());
+    }
+
+    LOG(INFO) << "Updated allocation of framework " << frameworkId
+              << " on agent " << slaveId
+              << " from " << frameworkAllocation
+              << " to " << updatedFrameworkAllocation.get() << " with "
+              << operation.Type_Name(operation.type()) << " operation";
+  }
 }
 
 
