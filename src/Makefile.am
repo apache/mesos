@@ -2152,7 +2152,8 @@ mesos_tests_SOURCES =						\
   tests/containerizer/mesos_containerizer_tests.cpp		\
   tests/containerizer/provisioner_appc_tests.cpp		\
   tests/containerizer/provisioner_backend_tests.cpp		\
-  tests/containerizer/provisioner_docker_tests.cpp
+  tests/containerizer/provisioner_docker_tests.cpp		\
+  tests/containerizer/provisioner_paths_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\
