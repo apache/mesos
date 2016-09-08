@@ -412,7 +412,7 @@ message HealthCheck {
   optional CommandInfo command = 7;
 
   // HTTP health check.
-  optional HTTPCheckInfo http = 1;
+  optional HTTPCheckInfo http = 10;
 
   // TCP health check.
   optional TCPCheckInfo tcp = 9;
