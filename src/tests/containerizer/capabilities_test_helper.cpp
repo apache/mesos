@@ -80,7 +80,7 @@ int CapabilitiesTestHelper::execute()
   }
 
   if (flags.user.isSome()) {
-    Try<Nothing> keepCaps = manager->keepCapabilitiesOnSetUid();
+    Try<Nothing> keepCaps = manager->setKeepCaps();
     if (keepCaps.isError()) {
       cerr << "Failed to set PR_SET_KEEPCAPS on the process: "
            << keepCaps.error() << endl;

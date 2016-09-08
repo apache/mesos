@@ -158,7 +158,7 @@ public:
    * @return Nothing on success.
    *         Error on failure.
    */
-  Try<Nothing> keepCapabilitiesOnSetUid();
+  Try<Nothing> setKeepCaps();
 
   /**
    * Get all capabilities supported by the system.

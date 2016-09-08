@@ -309,7 +309,7 @@ Try<Nothing> Capabilities::set(const ProcessCapabilities& capabilities)
 }
 
 
-Try<Nothing> Capabilities::keepCapabilitiesOnSetUid()
+Try<Nothing> Capabilities::setKeepCaps()
 {
   if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
     return ErrnoError("Failed to set PR_SET_KEEPCAPS for the process");
