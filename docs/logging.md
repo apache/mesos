@@ -130,6 +130,29 @@ setting the `--container_logger` Agent flag to
 
   <tr>
     <td>
+      <code>environment_variable_prefix</code>
+    </td>
+    <td>
+      Prefix for environment variables meant to modify the behavior of
+      the logrotate logger for the specific executor being launched.
+      The logger will look for four prefixed environment variables in the
+      <code>ExecutorInfo</code>'s <code>CommandInfo</code>'s
+      <code>Environment</code>:
+      <ul>
+        <li><code>MAX_STDOUT_SIZE</code></li>
+        <li><code>LOGROTATE_STDOUT_OPTIONS</code></li>
+        <li><code>MAX_STDERR_SIZE</code></li>
+        <li><code>LOGROTATE_STDERR_OPTIONS</code></li>
+      </ul>
+      If present, these variables will overwrite the global values set
+      via module parameters.
+
+      Defaults to <code>MESOS_LOGROTATE_LOGGER_</code>.
+    </td>
+  </tr>
+
+  <tr>
+    <td>
       <code>launcher_dir</code>
     </td>
     <td>

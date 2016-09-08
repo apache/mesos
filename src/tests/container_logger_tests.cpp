@@ -36,6 +36,7 @@
 #include <stout/os/killtree.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/pstree.hpp>
+#include <stout/os/read.hpp>
 #include <stout/os/stat.hpp>
 
 #include "master/master.hpp"
@@ -519,6 +520,113 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
     EXPECT_LE(2040u, stdoutSize->kilobytes());
     EXPECT_GE(2048u, stdoutSize->kilobytes());
   }
+}
+
+
+// Tests that the packaged logrotate container logger will find and use
+// overrides inside the Executor's environment.
+TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
+{
+  // Create a master, agent, and framework.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // We'll need access to these flags later.
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Use the non-default container logger that rotates logs.
+  flags.container_logger = LOGROTATE_CONTAINER_LOGGER_NAME;
+
+  Fetcher fetcher;
+
+  // We use an actual containerizer + executor since we want something to run.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  CHECK_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  // Wait for an offer, and start a task.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const std::string customConfig = "some-custom-logrotate-option";
+
+  TaskInfo task = createTask(offers.get()[0], "exit 0");
+
+  // Add an override for the logger's stdout stream.
+  // We will check this by inspecting the generated configuration file.
+  Environment::Variable* variable =
+    task.mutable_command()->mutable_environment()->add_variables();
+  variable->set_name("CONTAINER_LOGGER_LOGROTATE_STDOUT_OPTIONS");
+  variable->set_value(customConfig);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  // Check for the expected logger files.
+  string sandboxDirectory = path::join(
+      slave::paths::getExecutorPath(
+          flags.work_dir,
+          slaveId,
+          frameworkId.get(),
+          statusRunning->executor_id()),
+      "runs",
+      "latest");
+
+  ASSERT_TRUE(os::exists(sandboxDirectory));
+
+  // Check to see if our custom string is sitting in the configuration.
+  string stdoutPath = path::join(sandboxDirectory, "stdout.logrotate.conf");
+  ASSERT_TRUE(os::exists(stdoutPath));
+
+  Try<std::string> stdoutConfig = os::read(stdoutPath);
+  ASSERT_SOME(stdoutConfig);
+
+  ASSERT_TRUE(strings::contains(stdoutConfig.get(), customConfig));
 }
 
 
