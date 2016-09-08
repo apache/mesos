@@ -44,6 +44,7 @@ layout: documentation
 * [Networking](networking.md)
   * [Container Network Interface (CNI)](cni.md)
   * [Port Mapping Isolator](port-mapping-isolator.md)
+* [Nvidia GPU Support](gpu-support.md) for how to run Mesos with Nvidia GPU support.
 * [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
 * [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
 * [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
