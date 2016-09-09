@@ -3534,7 +3534,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   cout << "Added " << frameworkCount << " frameworks"
        << " in " << watch.elapsed() << endl;
 
-  const Resources slaveResources = Resources::parse(
+  // Each agent has a portion of it's resources allocated to a single
+  // framework. We round-robin through the frameworks when allocating.
+  const Resources allocation = Resources::parse(
       "cpus:1;mem:128;disk:1024;"
       "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
 
@@ -3545,7 +3547,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   for (size_t i = 0; i < slaves.size(); i++) {
     hashmap<FrameworkID, Resources> used;
 
-    used[frameworks[i % frameworkCount].id()] = slaveResources;
+    used[frameworks[i % frameworkCount].id()] = allocation;
 
     allocator->addSlave(
         slaves[i].id(),
@@ -3645,14 +3647,15 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   const Resources agentResources = Resources::parse(
       "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
 
-  Resources resources = Resources::parse(
-      "cpus:16;mem:2014;disk:1024").get();
+  // Each agent has a portion of it's resources allocated to a single
+  // framework. We round-robin through the frameworks when allocating.
+  Resources allocation = Resources::parse("cpus:16;mem:2014;disk:1024").get();
 
   Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
   ASSERT_SOME(ranges);
   ASSERT_EQ(16, ranges->range_size());
 
-  resources += createPorts(ranges.get());
+  allocation += createPorts(ranges.get());
 
   watch.start();
 
@@ -3662,7 +3665,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
     // Add some used resources on each slave. Let's say there are 16 tasks, each
     // is allocated 1 cpu and a random port from the port range.
     hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = resources;
+    used[frameworks[i % frameworkCount].id()] = allocation;
     allocator->addSlave(
         slaves[i].id(), slaves[i], None(), slaves[i].resources(), used);
   }
@@ -3794,20 +3797,18 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
   // worst-case for the equality operator. We also ensure that the
   // labels at any two nodes are distinct, which means they can't be
   // aggregated easily by the master/allocator.
-  Resources resources = Resources::parse("mem:2014;disk:1024").get();
+  Resources allocation = Resources::parse("mem:2014;disk:1024").get();
 
   Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
   ASSERT_SOME(ranges);
   ASSERT_EQ(16, ranges->range_size());
 
-  resources += createPorts(ranges.get());
+  allocation += createPorts(ranges.get());
 
   watch.start();
 
   for (size_t i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(agentResources));
-
-    Resources agentResources = resources;
 
     // We create reservations with 12 labels as we expect this is
     // more than most frameworks use. Note that only the 12th
@@ -3836,13 +3837,12 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
       createReservedResource("cpus", "8", "role1",
                              createReservationInfo("principal1", labels2));
 
-    agentResources += reserved1;
-    agentResources += reserved2;
+    Resources _allocation = allocation + reserved1 + reserved2;
 
     // Add some used resources on each slave. Let's say there are 16 tasks, each
     // is allocated 1 cpu and a random port from the port range.
     hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = agentResources;
+    used[frameworks[i % frameworkCount].id()] = _allocation;
     allocator->addSlave(
         slaves[i].id(), slaves[i], None(), slaves[i].resources(), used);
   }
