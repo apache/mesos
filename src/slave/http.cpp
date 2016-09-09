@@ -981,6 +981,21 @@ Future<Response> Slave::Http::state(
         writer->field("hostname", slave->info.hostname());
 
         writer->field("resources", Resources(slave->info.resources()));
+
+        writer->field(
+            "reserved_resources_full",
+            [this](JSON::ObjectWriter* writer) {
+              foreachpair (const string& role,
+                           const Resources& resources,
+                           slave->totalResources.reservations()) {
+                writer->field(role, [&resources](JSON::ArrayWriter* writer) {
+                  foreach (const Resource& resource, resources) {
+                    writer->element(JSON::Protobuf(resource));
+                  }
+                });
+              }
+            });
+
         writer->field("attributes", Attributes(slave->info.attributes()));
 
         if (slave->master.isSome()) {
