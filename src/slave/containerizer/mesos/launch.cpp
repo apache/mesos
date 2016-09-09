@@ -30,6 +30,7 @@
 #include <stout/unreachable.hpp>
 
 #ifdef __linux__
+#include "linux/capabilities.hpp"
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 #endif
@@ -45,6 +46,12 @@ using std::string;
 using std::vector;
 
 using process::Subprocess;
+
+#ifdef __linux__
+using mesos::internal::capabilities::Capabilities;
+using mesos::internal::capabilities::Capability;
+using mesos::internal::capabilities::ProcessCapabilities;
+#endif // __linux__
 
 namespace mesos {
 namespace internal {
@@ -101,6 +108,10 @@ MesosContainerizerLaunch::Flags::Flags()
       "unshare_namespace_mnt",
       "Whether to launch the command in a new mount namespace.",
       false);
+
+  add(&capabilities,
+      "capabilities",
+      "Capabilities of the command can use.");
 #endif // __linux__
 }
 
@@ -303,6 +314,30 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
+#ifdef __linux__
+  // Initialize capabilities support if necessary.
+  Try<Capabilities> capabilitiesManager = Error("Not initialized");
+
+  if (flags.capabilities.isSome()) {
+    capabilitiesManager = Capabilities::create();
+    if (capabilitiesManager.isError()) {
+      cerr << "Failed to initialize capabilities support: "
+           << capabilitiesManager.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    // Prevent clearing of capabilities on `setuid`.
+    if (uid.isSome()) {
+      Try<Nothing> keepCaps = capabilitiesManager->setKeepCaps();
+      if (keepCaps.isError()) {
+        cerr << "Failed to set process control for keeping capabilities "
+             << "on potential uid change: " << keepCaps.error() << endl;
+        return EXIT_FAILURE;
+      }
+    }
+  }
+#endif // __linux__
+
 #ifdef __WINDOWS__
   // Not supported on Windows.
   const Option<std::string> rootfs = None();
@@ -369,6 +404,52 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #endif // __WINDOWS__
+
+#ifdef __linux__
+  if (flags.capabilities.isSome()) {
+    Try<CapabilityInfo> requestedCapabilities =
+      ::protobuf::parse<CapabilityInfo>(flags.capabilities.get());
+
+    if (requestedCapabilities.isError()) {
+      cerr << "Failed to parse capabilities: "
+           << requestedCapabilities.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
+    if (capabilities.isError()) {
+      cerr << "Failed to get capabilities for the current process: "
+           << capabilities.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    // After 'setuid', 'effective' set is cleared. Since `SETPCAP` is
+    // required in the `effective` set of a process to change the
+    // bounding set, we need to restore it first.
+    capabilities->add(capabilities::EFFECTIVE, capabilities::SETPCAP);
+
+    Try<Nothing> setPcap = capabilitiesManager->set(capabilities.get());
+    if (setPcap.isError()) {
+      cerr << "Failed to add SETPCAP to the effective set: "
+           << setPcap.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    // Set up requested capabilities.
+    Set<Capability> target = capabilities::convert(requestedCapabilities.get());
+
+    capabilities->set(capabilities::EFFECTIVE, target);
+    capabilities->set(capabilities::PERMITTED, target);
+    capabilities->set(capabilities::INHERITABLE, target);
+    capabilities->set(capabilities::BOUNDING, target);
+
+    Try<Nothing> set = capabilitiesManager->set(capabilities.get());
+    if (set.isError()) {
+      cerr << "Failed to set process capabilities: " << set.error() << endl;
+      return EXIT_FAILURE;
+    }
+  }
+#endif // __linux__
 
   if (flags.working_directory.isSome()) {
     Try<Nothing> chdir = os::chdir(flags.working_directory.get());

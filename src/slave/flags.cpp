@@ -452,6 +452,34 @@ mesos::internal::slave::Flags::Flags()
       "systemd_runtime_directory",
       "The path to the systemd system run time directory\n",
       "/run/systemd/system");
+
+  add(&Flags::allowed_capabilities,
+      "allowed_capabilities",
+      "JSON representation of system capabilities that the operator will\n"
+      "allow for a task that will be run in a container launched by the\n"
+      "containerizer (currently only supported in MesosContainerizer).\n"
+      "This set overrides the default capabilities for the user and the\n"
+      "capabilities requested by the framework.\n"
+      "\n"
+      "The net capability for a task running in the container would be:\n"
+      "   ((F & A) & U)\n"
+      "   where F = capabilities requested by the framework.\n"
+      "         U = permitted capabilities for the agent process.\n"
+      "         A = allowed capabilities specified by this flag.\n"
+      "\n"
+      "To set capabilities the agent should have the `SETPCAP` capability.\n"
+      "\n"
+      "This flag is effective iff `capabilities` isolation is enabled.\n"
+      "When `capabilities` isolation is enabled, the absense of this flag\n"
+      "would imply that the operator would allow ALL capabilities.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "   \"capabilities\": [\n"
+      "       \"NET_RAW\",\n"
+      "       \"SYS_ADMIN\"\n"
+      "     ]\n"
+      "}");
 #endif
 
   add(&Flags::firewall_rules,

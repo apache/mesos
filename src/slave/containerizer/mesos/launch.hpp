@@ -45,6 +45,7 @@ public:
     Option<JSON::Array> pre_exec_commands;
 #ifdef __linux__
     bool unshare_namespace_mnt;
+    Option<JSON::Object> capabilities;
 #endif // __linux__
   };
 
