@@ -20,6 +20,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
