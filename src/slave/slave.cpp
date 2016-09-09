@@ -2740,14 +2740,16 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
   // resources are compatible with the agent resources specified
   // through the '--resources' command line flag. The resources
   // should be guaranteed compatible by the master.
-  Try<Resources> totalResources = applyCheckpointedResources(
+  Try<Resources> _totalResources = applyCheckpointedResources(
       info.resources(),
       newCheckpointedResources);
 
-  CHECK_SOME(totalResources)
+  CHECK_SOME(_totalResources)
     << "Failed to apply checkpointed resources "
     << newCheckpointedResources << " to agent's resources "
     << info.resources();
+
+  totalResources = _totalResources.get();
 
   // Store the target checkpoint resources. We commit the checkpoint
   // only after all operations are successful. If any of the operations
@@ -5069,17 +5071,19 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
     // verified by the old agent but the flag may have changed during
     // agent restart in an incompatible way and the operator may need
     // to either fix the flag or the checkpointed resources.
-    Try<Resources> totalResources = applyCheckpointedResources(
+    Try<Resources> _totalResources = applyCheckpointedResources(
         info.resources(), checkpointedResources);
 
-    if (totalResources.isError()) {
+    if (_totalResources.isError()) {
       return Failure(
           "Checkpointed resources " +
           stringify(checkpointedResources) +
           " are incompatible with agent resources " +
           stringify(info.resources()) + ": " +
-          totalResources.error());
+          _totalResources.error());
     }
+
+    totalResources = _totalResources.get();
   }
 
   if (slaveState.isSome() && slaveState.get().info.isSome()) {
@@ -5629,16 +5633,7 @@ Future<ResourceUsage> Slave::usage()
     }
   }
 
-  Try<Resources> totalResources = applyCheckpointedResources(
-      info.resources(),
-      checkpointedResources);
-
-  CHECK_SOME(totalResources)
-    << "Failed to apply checkpointed resources "
-    << checkpointedResources << " to agent's resources "
-    << info.resources();
-
-  usage->mutable_total()->CopyFrom(totalResources.get());
+  usage->mutable_total()->CopyFrom(totalResources);
 
   return await(futures).then(
       [usage](const list<Future<ResourceStatistics>>& futures) {

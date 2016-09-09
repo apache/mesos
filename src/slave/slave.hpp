@@ -668,6 +668,10 @@ private:
   // Resources that are checkpointed by the slave.
   Resources checkpointedResources;
 
+  // The current total resources of the agent, i.e.,
+  // `info.resources()` with checkpointed resources applied.
+  Resources totalResources;
+
   Option<process::UPID> master;
 
   hashmap<FrameworkID, Framework*> frameworks;
