@@ -147,7 +147,7 @@ setting the `--container_logger` Agent flag to
       If present, these variables will overwrite the global values set
       via module parameters.
 
-      Defaults to <code>MESOS_LOGROTATE_LOGGER_</code>.
+      Defaults to <code>CONTAINER_LOGGER_</code>.
     </td>
   </tr>
 
