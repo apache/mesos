@@ -285,7 +285,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
   flags.image_provisioner_backend = "bind";
-  flags.work_dir = "work_dir";
+  flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
@@ -352,7 +352,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
   flags.image_provisioner_backend = "copy";
-  flags.work_dir = "work_dir";
+  flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags);
   ASSERT_SOME(provisioner1);
