@@ -687,7 +687,15 @@ Future<Nothing> MesosContainerizerProcess::recoverProvisioner(
     const list<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
-  return provisioner->recover(recoverable, orphans);
+  // TODO(gilbert): Consolidate 'recoverProvisioner()' interface
+  // once the launcher returns a full set of known containers.
+  hashset<ContainerID> knownContainerIds = orphans;
+
+  foreach (const ContainerState& state, recoverable) {
+    knownContainerIds.insert(state.container_id());
+  }
+
+  return provisioner->recover(knownContainerIds);
 }
 
 

@@ -117,14 +117,12 @@ Provisioner::~Provisioner()
 
 
 Future<Nothing> Provisioner::recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans) const
+    const hashset<ContainerID>& knownContainerIds) const
 {
   return dispatch(
       CHECK_NOTNULL(process.get()),
       &ProvisionerProcess::recover,
-      states,
-      orphans);
+      knownContainerIds);
 }
 
 
@@ -162,20 +160,15 @@ ProvisionerProcess::ProvisionerProcess(
 
 
 Future<Nothing> ProvisionerProcess::recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
+    const hashset<ContainerID>& knownContainerIds)
 {
-  // Register living containers, including the ones that do not
-  // provision images.
-  hashset<ContainerID> alive;
-  foreach (const ContainerState& state, states) {
-    alive.insert(state.container_id());
-  }
-
-  // List provisioned containers; recover living ones; destroy unknown
-  // orphans. Note that known orphan containers are recovered as well
-  // and they will be destroyed by the containerizer using the normal
-  // cleanup path. See MESOS-2367 for details.
+  // List provisioned containers, recover known ones, and destroy
+  // unknown ones. Note that known orphan containers are recovered as
+  // well and they will be destroyed by the containerizer using the
+  // normal cleanup path. See MESOS-2367 for details.
+  //
+  // NOTE: All containers, including top level container and child
+  // containers, will be included in the hashset.
   Try<hashset<ContainerID>> containers =
     provisioner::paths::listContainers(rootDir);
 
@@ -186,8 +179,8 @@ Future<Nothing> ProvisionerProcess::recover(
   }
 
   // Scan the list of containers, register all of them with 'infos'
-  // but mark unknown orphans for immediate cleanup.
-  hashset<ContainerID> unknownOrphans;
+  // but mark unknown containers for immediate cleanup.
+  hashset<ContainerID> unknownContainerIds;
 
   foreach (const ContainerID& containerId, containers.get()) {
     Owned<Info> info = Owned<Info>(new Info());
@@ -212,19 +205,25 @@ Future<Nothing> ProvisionerProcess::recover(
 
     infos.put(containerId, info);
 
-    if (alive.contains(containerId) || orphans.contains(containerId)) {
+    if (knownContainerIds.contains(containerId)) {
       LOG(INFO) << "Recovered container " << containerId;
       continue;
     } else {
       // For immediate cleanup below.
-      unknownOrphans.insert(containerId);
+      unknownContainerIds.insert(containerId);
     }
   }
 
   // Cleanup unknown orphan containers' rootfses.
   list<Future<bool>> cleanups;
-  foreach (const ContainerID& containerId, unknownOrphans) {
-    LOG(INFO) << "Cleaning up unknown orphan container " << containerId;
+  foreach (const ContainerID& containerId, unknownContainerIds) {
+    LOG(INFO) << "Cleaning up unknown container " << containerId;
+
+    // If a container is unknown, it means the launcher has not forked
+    // it yet. So an unknown container should not have any child. It
+    // means that when destroying an unknown container, we can just
+    // simply call 'destroy' directly, without needing to make a
+    // recursive call to destroy.
     cleanups.push_back(destroy(containerId));
   }
 
@@ -241,14 +240,14 @@ Future<Nothing> ProvisionerProcess::recover(
     .then([]() -> Future<Nothing> { return Nothing(); });
 
   // A successful provisioner recovery depends on:
-  // 1) Recovery of living containers and known orphans (done above).
-  // 2) Successful cleanup of unknown orphans.
-  // 3) Successful store recovery.
+  //  1) Recovery of known containers (done above).
+  //  2) Successful cleanup of unknown containers.
+  //  `3) Successful store recovery.
   //
-  // TODO(jieyu): Do not recover 'store' before unknown orphans are
+  // TODO(jieyu): Do not recover 'store' before unknown containers are
   // cleaned up. In the future, we may want to cleanup unused rootfses
-  // in 'store', which might fail if there still exist unknown orphans
-  // holding references to them.
+  // in 'store', which might fail if there still exist unknown
+  // containers holding references to them.
   return collect(cleanup, recover)
     .then([=]() -> Future<Nothing> {
       LOG(INFO) << "Provisioner recovery complete";

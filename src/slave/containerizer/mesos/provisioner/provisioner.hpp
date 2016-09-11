@@ -78,14 +78,13 @@ public:
   // NOTE: Made 'virtual' for mocking and testing.
   virtual ~Provisioner();
 
-  // Recover root filesystems for containers from the run states and
-  // the orphan containers (known to the launcher but not known to the
-  // slave) detected by the launcher. This function is also
-  // responsible for cleaning up any intermediate artifacts (e.g.
-  // directories) to not leak anything.
+  // Recover root filesystems for containers from the known
+  // containers (forked by the launcher) detected by the
+  // launcher. This function is also responsible for cleaning
+  // up any intermediate artifacts (e.g. directories) to not
+  // leak anything.
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans) const;
+      const hashset<ContainerID>& knownContainerIds) const;
 
   // Provision a root filesystem for the container using the specified
   // image and return the absolute path to the root filesystem.
@@ -121,8 +120,7 @@ public:
       const hashmap<std::string, process::Owned<Backend>>& backends);
 
   process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
+      const hashset<ContainerID>& knownContainerIds);
 
   process::Future<ProvisionInfo> provision(
       const ContainerID& containerId,

@@ -297,7 +297,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   ASSERT_SOME(createImage);
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioner.get()->recover({}, {}));
+  AWAIT_READY(provisioner.get()->recover({}));
 
   // Simulate a task that requires an image.
   Image image;
@@ -361,7 +361,7 @@ TEST_F(ProvisionerAppcTest, ROOT_ProvisionNestedContainer)
   ASSERT_SOME(createImage);
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioner.get()->recover({}, {}));
+  AWAIT_READY(provisioner.get()->recover({}));
 
   Image image;
   image.mutable_appc()->CopyFrom(getTestImage());
@@ -431,7 +431,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   ASSERT_SOME(createImage);
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioner1.get()->recover({}, {}));
+  AWAIT_READY(provisioner1.get()->recover({}));
 
   Image image;
   image.mutable_appc()->CopyFrom(getTestImage());
@@ -447,15 +447,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags);
   ASSERT_SOME(provisioner2);
 
-  mesos::slave::ContainerState state;
-
-  // Here we are using an ExecutorInfo in the ContainerState without a
-  // ContainerInfo. This is the situation where the Image is specified
-  // via --default_container_info so it's not part of the recovered
-  // ExecutorInfo.
-  state.mutable_container_id()->CopyFrom(containerId);
-
-  AWAIT_READY(provisioner2.get()->recover({state}, {}));
+  AWAIT_READY(provisioner2.get()->recover({containerId}));
 
   // It's possible for the user to provision two different rootfses
   // from the same image.

@@ -758,9 +758,8 @@ class MockProvisioner : public mesos::internal::slave::Provisioner
 {
 public:
   MockProvisioner() {}
-  MOCK_CONST_METHOD2(recover,
-                     Future<Nothing>(const list<ContainerState>&,
-                                     const hashset<ContainerID>&));
+  MOCK_CONST_METHOD1(recover,
+                     Future<Nothing>(const hashset<ContainerID>&));
 
   MOCK_CONST_METHOD2(provision,
                      Future<mesos::internal::slave::ProvisionInfo>(
