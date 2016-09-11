@@ -10,6 +10,7 @@ env:
         - COMPILER=gcc
         - CONFIGURATION='--enable-libevent --enable-ssl'
         - ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'
+        - COMPILER_OPTS='-j2'
     matrix:
         - OS=ubuntu:14.04
         - OS=centos:7
