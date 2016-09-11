@@ -17,6 +17,10 @@ Visit us at [mesos.apache.org](http://mesos.apache.org).
 Documentation is available in the docs/ directory. Additionally, a rendered HTML
 version can be found on the Mesos website's [Documentation](http://mesos.apache.org/documentation/) page.
 
+# Contributing 
+
+You can find detailed instructions about how to contribute [here](http://mesos.apache.org/documentation/latest/submitting-a-patch/).
+
 # Installation
 
 Instructions are included on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.

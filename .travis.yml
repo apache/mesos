@@ -4,4 +4,14 @@ sudo: required
 services:
     - docker
 
-script: script/cibuild
+env:
+    global:
+        - BUILDTOOL=autotools
+        - COMPILER=gcc
+        - CONFIGURATION='--enable-libevent --enable-ssl'
+        - ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'
+    matrix:
+        - OS=ubuntu:14.04
+        - OS=centos:7
+
+script: support/docker_build.sh
