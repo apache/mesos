@@ -416,6 +416,28 @@ Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
     return false;
   }
 
+  // Provisioner destroy can be invoked from:
+  // 1. Provisioner `recover` to destroy all unknown orphans.
+  // 2. Containerizer `recover` to destroy known orphans.
+  // 3. Containerizer `destroy` on one specific container.
+  //
+  // In the above cases, we assume that the container being destroyed
+  // has no corresponding child containers. We fail fast if this
+  // condition is not satisfied.
+  //
+  // NOTE: This check is expensive since it traverses the entire
+  // `infos` hashmap. This is acceptable because we generally expect
+  // the number of containers on a single agent to be on the order of
+  // tens or hundreds of containers.
+  foreachkey (const ContainerID& entry, infos) {
+    if (entry.has_parent()) {
+      CHECK(entry.parent() != containerId)
+        << "Failed to destroy container "
+        << containerId << " since its nested container "
+        << entry << " has not been destroyed yet";
+    }
+  }
+
   // Unregister the container first. If destroy() fails, we can rely
   // on recover() to retry it later.
   Owned<Info> info = infos[containerId];
