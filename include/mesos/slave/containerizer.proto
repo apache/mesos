@@ -63,6 +63,25 @@ message ContainerState {
 
 
 /**
+ * The container recovery information that will be passed to each
+ * isolator during 'recover'.
+ */
+message ContainerRecoverInfo {
+  // The agent-checkpointed containers.
+  repeated ContainerState checkpointed_container_states = 1;
+
+  // This field is deprecated. It represents the top level orphans.
+  // Orphans are those containers that are known to the Launcher but
+  // are not checkpointed by the agent.
+  repeated ContainerID orphan_container_ids = 2;
+
+  // All containers that are known to the Launcher. This also includes
+  // child containers.
+  repeated ContainerID known_container_ids = 3;
+}
+
+
+/**
  * The container configuration that will be passed to each isolator
  * during `prepare`.
  */
