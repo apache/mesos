@@ -339,6 +339,73 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   // The container directory is successfully cleaned up.
   EXPECT_FALSE(os::exists(containerDir));
 }
+
+
+// This test verifies that the provisioner can provision an rootfs
+// from an image for a child container.
+TEST_F(ProvisionerAppcTest, ROOT_ProvisionNestedContainer)
+{
+  slave::Flags flags;
+  flags.image_providers = "APPC";
+  flags.appc_store_dir = path::join(os::getcwd(), "store");
+  flags.image_provisioner_backend = "bind";
+  flags.work_dir = path::join(sandbox.get(), "work_dir");
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  Try<string> createImage = createTestImage(
+      flags.appc_store_dir,
+      getManifest());
+
+  ASSERT_SOME(createImage);
+
+  // Recover. This is when the image in the store is loaded.
+  AWAIT_READY(provisioner.get()->recover({}, {}));
+
+  Image image;
+  image.mutable_appc()->CopyFrom(getTestImage());
+
+  ContainerID parent;
+  ContainerID child;
+
+  parent.set_value(UUID::random().toString());
+  child.set_value(UUID::random().toString());
+  child.mutable_parent()->CopyFrom(parent);
+
+  Future<slave::ProvisionInfo> provisionInfo =
+    provisioner.get()->provision(child, image);
+
+  AWAIT_READY(provisionInfo);
+
+  const string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
+
+  const string containerDir =
+    slave::provisioner::paths::getContainerDir(
+        provisionerDir,
+        child);
+
+  Try<hashmap<string, hashset<string>>> rootfses =
+    slave::provisioner::paths::listContainerRootfses(
+        provisionerDir,
+        child);
+
+  ASSERT_SOME(rootfses);
+
+  // Verify that the rootfs is successfully provisioned.
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
+  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend)->size());
+  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend)->begin(),
+            Path(provisionInfo.get().rootfs).basename());
+
+  // TODO(jieyu): Verify that 'containerDir' is nested under its
+  // parent container's 'containerDir'.
+
+  Future<bool> destroy = provisioner.get()->destroy(child);
+  AWAIT_READY(destroy);
+  EXPECT_TRUE(destroy.get());
+  EXPECT_FALSE(os::exists(containerDir));
+}
 #endif // __linux__
 
 
