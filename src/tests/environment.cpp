@@ -408,8 +408,9 @@ public:
     if (netCls.isError()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "Cannot enable NetClsIsolatorTest since we cannot determine \n"
-        << "the existence of the net_cls cgroup subsystem.\n"
+        << "Cannot enable net_cls cgroup subsystem associated test cases \n"
+        << "since we cannot determine the existence of the net_cls cgroup\n"
+        << "subsystem.\n"
         << "-------------------------------------------------------------\n";
       return;
     }
@@ -417,9 +418,10 @@ public:
     if (netCls.isSome() && !netCls.get()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "Cannot enable NetClsIsolatorTest since net_cls cgroup \n"
-        << "subsystem is not enabled. Check instructions for your linux\n"
-        << "distrubtion to enable the net_cls cgroups on your system.\n"
+        << "Cannot enable net_cls cgroup subsystem associated test cases \n"
+        << "since net_cls cgroup subsystem is not enabled. Check instructions\n"
+        << "for your linux distrubtion to enable the net_cls cgroup subsystem\n"
+        << "on your system.\n"
         << "-----------------------------------------------------------\n";
       return;
     }
@@ -427,8 +429,8 @@ public:
 #else
     std::cerr
         << "-----------------------------------------------------------\n"
-        << "Cannot enable NetClsIsolatorTest since this platform does\n"
-        << "not support cgroups.\n"
+        << "Cannot enable net_cls cgroup subsystem associated test cases\n"
+        << "since this platform does not support cgroups.\n"
         << "-----------------------------------------------------------\n";
 #endif
   }

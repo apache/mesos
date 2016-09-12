@@ -159,7 +159,6 @@ set(LINUX_SRC
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/appc/runtime.cpp
   slave/containerizer/mesos/isolators/cgroups/cgroups.cpp
-  slave/containerizer/mesos/isolators/cgroups/net_cls.cpp
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystem.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp
