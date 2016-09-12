@@ -741,6 +741,36 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
     std::swap(request, send_request);
   }
 
+  // Duplicate the file descriptor because Libevent will take ownership
+  // and control the lifecycle separately.
+  //
+  // TODO(josephw): We can avoid duplicating the file descriptor in
+  // future versions of Libevent. In Libevent versions 2.1.2 and later,
+  // we may use `evbuffer_file_segment_new` and `evbuffer_add_file_segment`
+  // instead of `evbuffer_add_file`.
+  int owned_fd = dup(fd);
+  if (fd == -1) {
+    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  }
+
+  // Set the close-on-exec flag.
+  Try<Nothing> cloexec = os::cloexec(owned_fd);
+  if (cloexec.isError()) {
+    os::close(owned_fd);
+    return Failure(
+        "Failed to set close-on-exec on duplicated file descriptor: " +
+        cloexec.error());
+  }
+
+  // Make the file descriptor non-blocking.
+  Try<Nothing> nonblock = os::nonblock(owned_fd);
+  if (nonblock.isError()) {
+    os::close(owned_fd);
+    return Failure(
+        "Failed to make duplicated file descriptor non-blocking: " +
+        nonblock.error());
+  }
+
   // Extend the life-time of 'this' through the execution of the
   // lambda in the event loop. Note: The 'self' needs to be explicitly
   // captured because we're not using it in the body of the lambda. We
@@ -749,7 +779,7 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
   auto self = shared(this);
 
   run_in_event_loop(
-      [self, fd, offset, size]() {
+      [self, owned_fd, offset, size]() {
         CHECK(__in_event_loop__);
         CHECK(self);
 
@@ -765,12 +795,16 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
         }
 
         if (write) {
+          // NOTE: `evbuffer_add_file` will take ownership of the file
+          // descriptor and close it after it has finished reading it.
           int result = evbuffer_add_file(
               bufferevent_get_output(self->bev),
-              fd,
+              owned_fd,
               offset,
               size);
           CHECK_EQ(0, result);
+        } else {
+          os::close(owned_fd);
         }
       },
       DISALLOW_SHORT_CIRCUIT);
