@@ -1596,8 +1596,7 @@ void Slave::run(
     // executors to this framework and remove it from that list.
     // TODO(brenden): Consider using stout/cache.hpp instead of boost
     // circular_buffer.
-    for (auto it = completedFrameworks.begin(), end = completedFrameworks.end();
-         it != end;
+    for (auto it = completedFrameworks.begin(); it != completedFrameworks.end();
          ++it) {
       if ((*it)->id() == frameworkId) {
         framework->completedExecutors = (*it)->completedExecutors;
