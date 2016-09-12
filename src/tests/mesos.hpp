@@ -1357,24 +1357,28 @@ public:
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      TaskInfo task));
+      const TaskInfo& task));
 
   void unmocked_runTask(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      TaskInfo task);
-
-  MOCK_METHOD3(_runTask, void(
-      const process::Future<bool>& future,
-      const FrameworkInfo& frameworkInfo,
-      const TaskInfo& task));
-
-  void unmocked__runTask(
-      const process::Future<bool>& future,
-      const FrameworkInfo& frameworkInfo,
       const TaskInfo& task);
+
+  MOCK_METHOD5(_run, void(
+      const process::Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const Option<TaskInfo>& task,
+      const Option<TaskGroupInfo>& taskGroup));
+
+  void unmocked__run(
+      const process::Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const Option<TaskInfo>& task,
+      const Option<TaskGroupInfo>& taskGroup);
 
   MOCK_METHOD2(killTask, void(
       const process::UPID& from,

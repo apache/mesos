@@ -426,9 +426,9 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
 
-  // We drop the _runTask dispatch to ensure the task remains
+  // We drop the _run dispatch to ensure the task remains
   // pending in the slave.
-  Future<Nothing> _runTask = DROP_DISPATCH(slave.get()->pid, &Slave::_runTask);
+  Future<Nothing> _run = DROP_DISPATCH(slave.get()->pid, &Slave::_run);
 
   TaskInfo task1;
   task1.set_name("test task");
@@ -439,7 +439,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 
   driver.launchTasks(offers.get()[0].id(), {task1});
 
-  AWAIT_READY(_runTask);
+  AWAIT_READY(_run);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);

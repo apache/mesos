@@ -2807,7 +2807,7 @@ TEST_F(SlaveTest, CancelSlaveRemoval)
 
 
 // This test ensures that a killTask() can happen between runTask()
-// and _runTask() and then gets "handled properly". This means that
+// and _run() and then gets "handled properly". This means that
 // the task never gets started, but also does not get lost. The end
 // result is status TASK_KILLED. Essentially, killing the task is
 // realized while preparing to start it. See MESOS-947. This test
@@ -2866,30 +2866,27 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   EXPECT_CALL(slave, runTask(_, _, _, _, _))
     .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask));
 
-  // Saved arguments from Slave::_runTask().
+  // Saved arguments from Slave::_run().
   Future<bool> future;
   FrameworkInfo frameworkInfo;
-
-  // Skip what Slave::_runTask() normally does, save its arguments for
+  ExecutorInfo executorInfo;
+  Option<TaskGroupInfo> taskGroup;
+  Option<TaskInfo> task_;
+  // Skip what Slave::_run() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
-  Future<Nothing> _runTask;
-  EXPECT_CALL(slave, _runTask(_, _, _))
-    .WillOnce(DoAll(FutureSatisfy(&_runTask),
+  Future<Nothing> _run;
+  EXPECT_CALL(slave, _run(_, _, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&future),
-                    SaveArg<1>(&frameworkInfo)));
+                    SaveArg<1>(&frameworkInfo),
+                    SaveArg<2>(&executorInfo),
+                    SaveArg<3>(&task_),
+                    SaveArg<4>(&taskGroup)));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(_runTask);
-
-  // Since this is the only task ever for this framework, the
-  // framework should get removed in Slave::killTask().
-  // Thus we can observe that this happens before Shutdown().
-  Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
-                    FutureSatisfy(&removeFramework)));
+  AWAIT_READY(_run);
 
   Future<Nothing> killTask;
   EXPECT_CALL(slave, killTask(_, _))
@@ -2899,7 +2896,17 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   driver.killTask(task.task_id());
 
   AWAIT_READY(killTask);
-  slave.unmocked__runTask(future, frameworkInfo, task);
+
+  // Since this is the only task ever for this framework, the
+  // framework should get removed in Slave::_run().
+  // Thus we can observe that this happens before Shutdown().
+  Future<Nothing> removeFramework;
+  EXPECT_CALL(slave, removeFramework(_))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+                    FutureSatisfy(&removeFramework)));
+
+  slave.unmocked__run(
+      future, frameworkInfo, executorInfo, task_, taskGroup);
 
   AWAIT_READY(removeFramework);
 
