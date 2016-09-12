@@ -543,6 +543,8 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
   EXPECT_CALL(*this, _run(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
+  EXPECT_CALL(*this, runTaskGroup(_, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
   EXPECT_CALL(*this, killTask(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
   EXPECT_CALL(*this, removeFramework(_))
@@ -582,6 +584,16 @@ void MockSlave::unmocked__run(
 {
   slave::Slave::_run(
       future, frameworkInfo, executorInfo, taskInfo, taskGroup);
+}
+
+
+void MockSlave::unmocked_runTaskGroup(
+    const process::UPID& from,
+    const FrameworkInfo& frameworkInfo,
+    const ExecutorInfo& executorInfo,
+    const TaskGroupInfo& taskGroup)
+{
+  slave::Slave::runTaskGroup(from, frameworkInfo, executorInfo, taskGroup);
 }
 
 

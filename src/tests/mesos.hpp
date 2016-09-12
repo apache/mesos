@@ -1140,6 +1140,7 @@ public:
   MOCK_METHOD1_T(disconnected, void(Mesos*));
   MOCK_METHOD2_T(subscribed, void(Mesos*, const typename Event::Subscribed&));
   MOCK_METHOD2_T(launch, void(Mesos*, const typename Event::Launch&));
+  MOCK_METHOD2_T(launchGroup, void(Mesos*, const typename Event::LaunchGroup&));
   MOCK_METHOD2_T(kill, void(Mesos*, const typename Event::Kill&));
   MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
   MOCK_METHOD1_T(shutdown, void(Mesos*));
@@ -1157,7 +1158,7 @@ public:
         launch(mesos, event.launch());
         break;
       case Event::LAUNCH_GROUP:
-        // TODO(vinod): Implement this.
+        launchGroup(mesos, event.launch_group());
         break;
       case Event::KILL:
         kill(mesos, event.kill());
@@ -1379,6 +1380,18 @@ public:
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup);
+
+  MOCK_METHOD4(runTaskGroup, void(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const TaskGroupInfo& taskGroup));
+
+  void unmocked_runTaskGroup(
+      const process::UPID& from,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const TaskGroupInfo& taskGroup);
 
   MOCK_METHOD2(killTask, void(
       const process::UPID& from,
