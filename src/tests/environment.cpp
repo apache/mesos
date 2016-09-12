@@ -437,10 +437,7 @@ public:
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    if (matches(test, "NetClsIsolatorTest")) {
-      return netClsError;
-    }
-    return false;
+    return matches(test, "NET_CLS_") && netClsError;
   }
 
 private:
