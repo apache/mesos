@@ -5727,7 +5727,7 @@ Framework::~Framework()
 // Create and launch an executor.
 Executor* Framework::launchExecutor(
     const ExecutorInfo& executorInfo,
-    const TaskInfo& taskInfo)
+    const Option<TaskInfo>& taskInfo)
 {
   // Generate an ID for the executor's container.
   // TODO(idownes) This should be done by the containerizer but we
@@ -5800,13 +5800,17 @@ Executor* Framework::launchExecutor(
     .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
 
   // Tell the containerizer to launch the executor.
+  ExecutorInfo executorInfo_ = executor->info;
+  Resources resources = executorInfo_.resources();
+
   // NOTE: We modify the ExecutorInfo to include the task's
   // resources when launching the executor so that the containerizer
   // has non-zero resources to work with when the executor has
   // no resources. This should be revisited after MESOS-600.
-  ExecutorInfo executorInfo_ = executor->info;
-  Resources resources = executorInfo_.resources();
-  resources += taskInfo.resources();
+  if (taskInfo.isSome()) {
+    resources += taskInfo->resources();
+  }
+
   executorInfo_.mutable_resources()->CopyFrom(resources);
 
   // Prepare environment variables for the executor.

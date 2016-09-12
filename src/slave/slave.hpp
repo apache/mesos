@@ -922,9 +922,11 @@ struct Framework
 
   ~Framework();
 
+  // If an executor is launched for a task group, `taskInfo` would
+  // not be set.
   Executor* launchExecutor(
       const ExecutorInfo& executorInfo,
-      const TaskInfo& taskInfo);
+      const Option<TaskInfo>& taskInfo);
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);
