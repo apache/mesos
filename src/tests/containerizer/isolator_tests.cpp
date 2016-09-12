@@ -52,7 +52,6 @@
 #include "slave/slave.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
@@ -72,13 +71,10 @@
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
 
-#include "tests/containerizer/memory_test_helper.hpp"
-
 using namespace process;
 
 using mesos::internal::master::Master;
 #ifdef __linux__
-using mesos::internal::slave::CgroupsMemIsolatorProcess;
 using mesos::internal::slave::CgroupsNetClsIsolatorProcess;
 using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 using mesos::internal::slave::Fetcher;
@@ -90,7 +86,6 @@ using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::PosixLauncher;
-using mesos::internal::slave::PosixMemIsolatorProcess;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
@@ -195,78 +190,6 @@ TEST_F(NetClsHandleManagerTest, SecondaryHandleRange)
   EXPECT_ERROR(manager.reserve(NetClsHandle(0x0003, 0x0001)));
 }
 #endif // __linux__
-
-
-template <typename T>
-class MemIsolatorTest : public MesosTest {};
-
-
-typedef ::testing::Types<
-    PosixMemIsolatorProcess,
-#ifdef __linux__
-    CgroupsMemIsolatorProcess,
-#endif // __linux__
-    tests::Module<Isolator, TestMemIsolator>> MemIsolatorTypes;
-
-
-TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
-
-
-TYPED_TEST(MemIsolatorTest, MemUsage)
-{
-  slave::Flags flags;
-
-  Try<Isolator*> _isolator = TypeParam::create(flags);
-  ASSERT_SOME(_isolator);
-  Owned<Isolator> isolator(_isolator.get());
-
-  ExecutorInfo executorInfo;
-  executorInfo.mutable_resources()->CopyFrom(
-      Resources::parse("mem:1024").get());
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
-  // Use a relative temporary directory so it gets cleaned up
-  // automatically with the test.
-  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
-  ASSERT_SOME(dir);
-
-  ContainerConfig containerConfig;
-  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
-  containerConfig.set_directory(dir.get());
-
-  AWAIT_READY(isolator->prepare(
-      containerId,
-      containerConfig));
-
-  MemoryTestHelper helper;
-  ASSERT_SOME(helper.spawn());
-  ASSERT_SOME(helper.pid());
-
-  // Set up the reaper to wait on the subprocess.
-  Future<Option<int>> status = process::reap(helper.pid().get());
-
-  // Isolate the subprocess.
-  AWAIT_READY(isolator->isolate(containerId, helper.pid().get()));
-
-  const Bytes allocation = Megabytes(128);
-  EXPECT_SOME(helper.increaseRSS(allocation));
-
-  Future<ResourceStatistics> usage = isolator->usage(containerId);
-  AWAIT_READY(usage);
-
-  EXPECT_GE(usage.get().mem_rss_bytes(), allocation.bytes());
-
-  // Ensure the process is killed.
-  helper.cleanup();
-
-  // Make sure the subprocess was reaped.
-  AWAIT_READY(status);
-
-  // Let the isolator clean up.
-  AWAIT_READY(isolator->cleanup(containerId));
-}
 
 
 #ifdef __linux__
@@ -870,9 +793,7 @@ public:
 
 
 // Test all isolators that use cgroups.
-typedef ::testing::Types<
-  CgroupsMemIsolatorProcess,
-  CgroupsPerfEventIsolatorProcess> CgroupsIsolatorTypes;
+typedef ::testing::Types<CgroupsPerfEventIsolatorProcess> CgroupsIsolatorTypes;
 
 
 TYPED_TEST_CASE(UserCgroupIsolatorTest, CgroupsIsolatorTypes);

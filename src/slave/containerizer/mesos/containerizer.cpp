@@ -73,7 +73,6 @@
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
-#include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 #endif // __linux__
