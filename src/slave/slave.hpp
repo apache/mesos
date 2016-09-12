@@ -138,13 +138,29 @@ public:
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      TaskInfo task);
+      const TaskInfo& task);
+
+  void run(
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      Option<TaskInfo> task,
+      Option<TaskGroupInfo> taskGroup,
+      const UPID& pid);
 
   // Made 'virtual' for Slave mocking.
-  virtual void _runTask(
-      const process::Future<bool>& future,
+  virtual void _run(
+    const process::Future<bool>& future,
+    const FrameworkInfo& frameworkInfo,
+    const ExecutorInfo& executorInfo,
+    const Option<TaskInfo>& task,
+    const Option<TaskGroupInfo>& taskGroup);
+
+  // Made 'virtual' for Slave mocking.
+  virtual void runTaskGroup(
+      const process::UPID& upid,
       const FrameworkInfo& frameworkInfo,
-      const TaskInfo& task);
+      const ExecutorInfo& executorInfo,
+      const TaskGroupInfo& taskGroupInfo);
 
   process::Future<bool> unschedule(const std::string& path);
 
@@ -306,17 +322,19 @@ public:
   virtual void exited(const process::UPID& pid);
 
   // This is called when the resource limits of the container have
-  // been updated for the given tasks. If the update is successful, we
-  // flush the given tasks to the executor by sending RunTaskMessages.
+  // been updated for the given tasks and task groups. If the update is
+  // successful, we flush the given tasks to the executor by sending
+  // RunTaskMessages or `LAUNCH_GROUP` events.
   // TODO(jieyu): Consider renaming it to '__runTasks' once the slave
   // starts to support launching multiple tasks in one call (i.e.,
   // multi-tasks version of 'runTask').
-  void runTasks(
+  void __run(
       const process::Future<Nothing>& future,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
-      const std::list<TaskInfo>& tasks);
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups);
 
   void fileAttached(const process::Future<Nothing>& result,
                     const std::string& path);
@@ -824,6 +842,9 @@ struct Executor
   // Closes the HTTP connection.
   void closeHttpConnection();
 
+  // Returns the task group associated with the task.
+  Option<TaskGroupInfo> getQueuedTaskGroup(const TaskID& taskId);
+
   friend std::ostream& operator<<(
       std::ostream& stream,
       const Executor& executor);
@@ -882,8 +903,15 @@ struct Executor
 
   // Tasks can be found in one of the following four data structures:
 
-  // Not yet launched.
+  // Not yet launched tasks. This also includes tasks from `queuedTaskGroups`.
   LinkedHashMap<TaskID, TaskInfo> queuedTasks;
+
+  // Not yet launched task groups. This is needed for correctly sending
+  // TASK_KILLED status updates for all tasks in the group if any of the
+  // tasks were killed before the executor could register with the agent.
+  //
+  // TODO(anand): Replace this with `LinkedHashSet` when it is available.
+  std::list<TaskGroupInfo> queuedTaskGroups;
 
   // Running.
   LinkedHashMap<TaskID, Task*> launchedTasks;
@@ -994,6 +1022,12 @@ std::map<std::string, std::string> executorEnvironment(
 std::ostream& operator<<(std::ostream& stream, Slave::State state);
 std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Executor::State state);
+
+
+// Needed for logging task/task group.
+std::string taskOrTaskGroup(
+    const Option<TaskInfo>& task,
+    const Option<TaskGroupInfo>& taskGroup);
 
 } // namespace slave {
 } // namespace internal {
