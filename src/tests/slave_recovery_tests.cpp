@@ -3878,7 +3878,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 // Test that the perf event isolator can be enabled on a new slave.
 // Previously created containers will not report perf statistics but
 // newly created containers will.
-TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PERF_RollForward)
+TEST_F(MesosContainerizerSlaveRecoveryTest, ROOT_CGROUPS_PERF_RollForward)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);

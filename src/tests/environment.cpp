@@ -590,9 +590,8 @@ public:
   {
     // Disable all tests that try to sample 'cpu-cycles' events using 'perf'.
     return (matches(test, "ROOT_CGROUPS_PERF_PerfTest") ||
-            matches(test, "ROOT_CGROUPS_PERF_Sample") ||
             matches(test, "ROOT_CGROUPS_PERF_UserCgroup") ||
-            matches(test, "CGROUPS_ROOT_PERF_RollForward") ||
+            matches(test, "ROOT_CGROUPS_PERF_RollForward") ||
             matches(test, "ROOT_CGROUPS_PERF_Sample")) && perfError.isSome();
   }
 
