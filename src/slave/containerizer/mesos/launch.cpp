@@ -377,6 +377,16 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
+  if (flags.working_directory.isSome()) {
+    Try<Nothing> chdir = os::chdir(flags.working_directory.get());
+    if (chdir.isError()) {
+      cerr << "Failed to chdir into current working directory "
+           << "'" << flags.working_directory.get() << "': "
+           << chdir.error() << endl;
+      return EXIT_FAILURE;
+    }
+  }
+
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
   // same privilege as the mesos-agent.
@@ -450,16 +460,6 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #endif // __linux__
-
-  if (flags.working_directory.isSome()) {
-    Try<Nothing> chdir = os::chdir(flags.working_directory.get());
-    if (chdir.isError()) {
-      cerr << "Failed to chdir into current working directory "
-           << "'" << flags.working_directory.get() << "': "
-           << chdir.error() << endl;
-      return EXIT_FAILURE;
-    }
-  }
 
   // Relay the environment variables.
   // TODO(jieyu): Consider using a clean environment.
