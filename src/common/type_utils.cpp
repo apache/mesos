@@ -388,6 +388,37 @@ bool operator==(const Task& left, const Task& right)
 }
 
 
+bool operator==(const TaskGroupInfo& left, const TaskGroupInfo& right)
+{
+  // Order of tasks in a task group is not important.
+  if (left.tasks().size() != right.tasks().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.tasks().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.tasks().size(); j++) {
+      if (left.tasks().Get(i) == right.tasks().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+// TODO(anand): Consider doing a field by field comparison instead.
+bool operator==(const TaskInfo& left, const TaskInfo& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
 // TODO(bmahler): Use SerializeToString here?
 bool operator==(const TaskStatus& left, const TaskStatus& right)
 {
