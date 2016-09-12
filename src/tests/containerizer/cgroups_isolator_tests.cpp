@@ -837,6 +837,117 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_ContainerStatus)
   driver.join();
 }
 
+
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.perf_events = "cycles,task-clock";
+  flags.perf_duration = Milliseconds(250);
+  flags.perf_interval = Milliseconds(500);
+  flags.isolation = "cgroups/perf_event";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get());
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 120");
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  // This first sample is likely to be empty because perf hasn't
+  // completed yet but we should still have the required fields.
+  Future<ResourceStatistics> statistics1 = containerizer->usage(containerId);
+  AWAIT_READY(statistics1);
+  ASSERT_TRUE(statistics1.get().has_perf());
+  EXPECT_TRUE(statistics1.get().perf().has_timestamp());
+  EXPECT_TRUE(statistics1.get().perf().has_duration());
+
+  // Wait until we get the next sample. We use a generous timeout of
+  // two seconds because we currently have a one second reap interval;
+  // when running perf with perf_duration of 250ms we won't notice the
+  // exit for up to one second.
+  ResourceStatistics statistics2;
+  Duration waited = Duration::zero();
+  do {
+    Future<ResourceStatistics> statistics = containerizer->usage(containerId);
+    AWAIT_READY(statistics);
+
+    statistics2 = statistics.get();
+
+    ASSERT_TRUE(statistics2.has_perf());
+
+    if (statistics1.get().perf().timestamp() !=
+        statistics2.perf().timestamp()) {
+      break;
+    }
+
+    os::sleep(Milliseconds(250));
+    waited += Milliseconds(250);
+  } while (waited < Seconds(2));
+
+  EXPECT_NE(statistics1.get().perf().timestamp(),
+            statistics2.perf().timestamp());
+
+  EXPECT_TRUE(statistics2.perf().has_cycles());
+  EXPECT_LE(0u, statistics2.perf().cycles());
+
+  EXPECT_TRUE(statistics2.perf().has_task_clock());
+  EXPECT_LE(0.0, statistics2.perf().task_clock());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
