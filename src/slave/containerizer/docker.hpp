@@ -17,6 +17,10 @@
 #ifndef __DOCKER_CONTAINERIZER_HPP__
 #define __DOCKER_CONTAINERIZER_HPP__
 
+#include <list>
+#include <map>
+#include <string>
+
 #include <mesos/slave/container_logger.hpp>
 
 #include <process/owned.hpp>
