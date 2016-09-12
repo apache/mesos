@@ -325,9 +325,6 @@ public:
   // been updated for the given tasks and task groups. If the update is
   // successful, we flush the given tasks to the executor by sending
   // RunTaskMessages or `LAUNCH_GROUP` events.
-  // TODO(jieyu): Consider renaming it to '__runTasks' once the slave
-  // starts to support launching multiple tasks in one call (i.e.,
-  // multi-tasks version of 'runTask').
   void __run(
       const process::Future<Nothing>& future,
       const FrameworkID& frameworkId,
