@@ -72,6 +72,7 @@
 #endif // __linux__
 
 #ifdef __linux__
+#include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/devices.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
@@ -326,11 +327,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"windows/cpu", &WindowsCpuIsolatorProcess::create},
 #endif // __WINDOWS__
 #ifdef __linux__
-    {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
-    {"cgroups/devices", &CgroupsDevicesIsolatorProcess::create},
-    {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
-    {"cgroups/net_cls", &CgroupsNetClsIsolatorProcess::create},
-    {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
+    {"cgroups/cpu", &CgroupsIsolatorProcess::create},
+    {"cgroups/devices", &CgroupsIsolatorProcess::create},
+    {"cgroups/mem", &CgroupsIsolatorProcess::create},
+    {"cgroups/net_cls", &CgroupsIsolatorProcess::create},
+    {"cgroups/perf_event", &CgroupsIsolatorProcess::create},
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
@@ -372,7 +373,21 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   vector<Owned<Isolator>> isolators;
 
+  // Note: For cgroups, we only create `CgroupsIsolatorProcess` once.
+  // We use this flag to identify whether `CgroupsIsolatorProcess` has
+  // been created or not.
+  bool cgroupsIsolatorCreated = false;
+
   foreach (const string& isolation, isolations) {
+    if (strings::startsWith(isolation, "cgroups/")) {
+      if (cgroupsIsolatorCreated) {
+        // Skip when `CgroupsIsolatorProcess` have been created.
+        continue;
+      } else {
+        cgroupsIsolatorCreated = true;
+      }
+    }
+
     Try<Isolator*> isolator = [&]() -> Try<Isolator*> {
       if (creators.contains(isolation)) {
         return creators.at(isolation)(flags_);
