@@ -256,7 +256,7 @@ public:
 
   virtual ~FileEncoder()
   {
-    os::close(fd);
+    CHECK_SOME(os::close(fd)) << "Failed to close file descriptor";
   }
 
   virtual Kind kind() const
