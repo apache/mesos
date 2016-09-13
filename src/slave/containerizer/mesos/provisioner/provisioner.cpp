@@ -278,7 +278,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
     const ImageInfo& imageInfo)
 {
   // TODO(jieyu): Choose a backend smartly. For instance, if there is
-  // only one layer returned from the store. prefer to use bind
+  // only one layer returned from the store, prefer to use bind
   // backend because it's the simplest.
   const string& backend = flags.image_provisioner_backend;
   CHECK(backends.contains(backend));
