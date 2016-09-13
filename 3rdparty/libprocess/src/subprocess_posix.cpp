@@ -31,7 +31,6 @@
 #include <stout/os/strerror.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
-#include <stout/unreachable.hpp>
 
 using std::map;
 using std::string;

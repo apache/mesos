@@ -101,7 +101,6 @@
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/thread_local.hpp>
-#include <stout/unreachable.hpp>
 
 #include "authenticator_manager.hpp"
 #include "config.hpp"
