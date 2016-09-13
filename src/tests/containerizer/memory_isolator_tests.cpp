@@ -127,7 +127,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
 
   // TODO(jieyu): Consider using a program that predictably increases
   // RSS so that we can set more meaningful expectation here.
-  EXPECT_GT(usage.get().mem_rss_bytes(), 0);
+  EXPECT_LT(0u, usage.get().mem_rss_bytes());
 
   driver.stop();
   driver.join();
