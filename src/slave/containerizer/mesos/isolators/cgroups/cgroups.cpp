@@ -404,16 +404,43 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     // TODO(haosdent): Multiple tasks under the same user can change
     // cgroups settings for each other. A better solution is using
     // cgroups namespaces and user namespaces to achieve the goal.
+    //
+    // NOTE: We only need to handle the case where 'flags.switch_user'
+    // is true (i.e., 'containerConfig.has_user() == true'). If
+    // 'flags.switch_user' is false, the cgroup will be owned by root
+    // anyway since cgroups isolator requires root permission.
     if (containerConfig.has_user()) {
-      Try<Nothing> chown = os::chown(
-          containerConfig.user(),
-          path,
-          false);
+      Option<string> user;
+      if (containerConfig.has_task_info() && containerConfig.has_rootfs()) {
+        // Command task that has a rootfs. In this case, the executor
+        // will be running under root, and the command task itself
+        // might be running under a different user.
+        //
+        // TODO(jieyu): The caveat here is that if the 'user' in
+        // task's command is not set, we don't know exactly what user
+        // the task will be running as because we don't know the
+        // framework user. We do not support this case right now.
+        if (containerConfig.task_info().command().has_user()) {
+          user = containerConfig.task_info().command().user();
+        }
+      } else {
+        user = containerConfig.user();
+      }
 
-      if (chown.isError()) {
-        return Failure(
-            "Failed to chown the cgroup at "
-            "'" + path + "': " + chown.error());
+      if (user.isSome()) {
+        VLOG(1) << "Chown the cgroup at '" << path << "' to user "
+                << "'" << user.get() << "' for container " << containerId;
+
+        Try<Nothing> chown = os::chown(
+            user.get(),
+            path,
+            false);
+
+        if (chown.isError()) {
+          return Failure(
+              "Failed to chown the cgroup at '" + path + "' "
+              "to user '" + user.get() + "': " + chown.error());
+        }
       }
     }
   }
