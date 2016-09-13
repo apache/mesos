@@ -2736,6 +2736,19 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
     return;
   }
 
+  // This is a sanity check to verify that the new checkpointed
+  // resources are compatible with the agent resources specified
+  // through the '--resources' command line flag. The resources
+  // should be guaranteed compatible by the master.
+  Try<Resources> totalResources = applyCheckpointedResources(
+      info.resources(),
+      newCheckpointedResources);
+
+  CHECK_SOME(totalResources)
+    << "Failed to apply checkpointed resources "
+    << newCheckpointedResources << " to agent's resources "
+    << info.resources();
+
   // Store the target checkpoint resources. We commit the checkpoint
   // only after all operations are successful. If any of the operations
   // fail, the agent exits and the update to checkpointed resources
@@ -5051,8 +5064,11 @@ Future<Nothing> Slave::recover(const Result<state::State>& state)
     }
 
     // This is to verify that the checkpointed resources are
-    // compatible with the slave resources specified through the
-    // '--resources' command line flag.
+    // compatible with the agent resources specified through the
+    // '--resources' command line flag. The compatibility has been
+    // verified by the old agent but the flag may have changed during
+    // agent restart in an incompatible way and the operator may need
+    // to either fix the flag or the checkpointed resources.
     Try<Resources> totalResources = applyCheckpointedResources(
         info.resources(), checkpointedResources);
 
