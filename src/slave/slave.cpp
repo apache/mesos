@@ -526,6 +526,10 @@ void Slave::initialize()
         HookManager::slaveResourcesDecorator(info));
   }
 
+  // Initialize `totalResources` with `info.resources`, checkpointed
+  // resources will be applied later during recovery.
+  totalResources = resources.get();
+
   LOG(INFO) << "Agent resources: " << info.resources();
 
   info.mutable_attributes()->CopyFrom(attributes);

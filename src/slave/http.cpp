@@ -980,14 +980,18 @@ Future<Response> Slave::Http::state(
         writer->field("pid", string(slave->self()));
         writer->field("hostname", slave->info.hostname());
 
-        writer->field("resources", Resources(slave->info.resources()));
+        const Resources& totalResources = slave->totalResources;
+
+        writer->field("resources", totalResources);
+        writer->field("reserved_resources", totalResources.reservations());
+        writer->field("unreserved_resources", totalResources.unreserved());
 
         writer->field(
             "reserved_resources_full",
-            [this](JSON::ObjectWriter* writer) {
+            [&totalResources](JSON::ObjectWriter* writer) {
               foreachpair (const string& role,
                            const Resources& resources,
-                           slave->totalResources.reservations()) {
+                           totalResources.reservations()) {
                 writer->field(role, [&resources](JSON::ArrayWriter* writer) {
                   foreach (const Resource& resource, resources) {
                     writer->element(JSON::Protobuf(resource));
