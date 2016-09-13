@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <set>
 #include <string>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -50,17 +51,18 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using std::list;
-using std::shared_ptr;
-using std::string;
-using testing::_;
-using testing::Invoke;
-
 using mesos::fetcher::FetcherInfo;
 
 using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerLogger;
+
+using std::list;
+using std::shared_ptr;
+using std::string;
+
+using testing::_;
+using testing::Invoke;
 
 using namespace process;
 

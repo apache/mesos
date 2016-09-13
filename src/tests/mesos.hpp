@@ -17,9 +17,9 @@
 #ifndef __TESTS_MESOS_HPP__
 #define __TESTS_MESOS_HPP__
 
+#include <list>
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
