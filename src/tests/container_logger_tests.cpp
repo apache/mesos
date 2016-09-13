@@ -56,6 +56,7 @@
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_docker.hpp"
 #include "tests/utils.hpp"
 
 #include "tests/containerizer/launcher.hpp"

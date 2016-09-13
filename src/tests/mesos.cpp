@@ -20,8 +20,6 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <mesos/slave/container_logger.hpp>
-
 #include <mesos/master/detector.hpp>
 
 #include <stout/check.hpp>
@@ -54,8 +52,6 @@
 using mesos::fetcher::FetcherInfo;
 
 using mesos::master::detector::MasterDetector;
-
-using mesos::slave::ContainerLogger;
 
 using std::list;
 using std::shared_ptr;
@@ -642,72 +638,6 @@ MockFetcherProcess::MockFetcherProcess()
 
 
 MockFetcherProcess::~MockFetcherProcess() {}
-
-
-MockDocker::MockDocker(
-    const string& path,
-    const string& socket,
-    const Option<JSON::Object>& config)
-  : Docker(path, socket, config)
-{
-  EXPECT_CALL(*this, ps(_, _))
-    .WillRepeatedly(Invoke(this, &MockDocker::_ps));
-
-  EXPECT_CALL(*this, pull(_, _, _))
-    .WillRepeatedly(Invoke(this, &MockDocker::_pull));
-
-  EXPECT_CALL(*this, stop(_, _, _))
-    .WillRepeatedly(Invoke(this, &MockDocker::_stop));
-
-  EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _, _))
-    .WillRepeatedly(Invoke(this, &MockDocker::_run));
-
-  EXPECT_CALL(*this, inspect(_, _))
-    .WillRepeatedly(Invoke(this, &MockDocker::_inspect));
-}
-
-
-MockDocker::~MockDocker() {}
-
-
-MockDockerContainerizer::MockDockerContainerizer(
-    const slave::Flags& flags,
-    slave::Fetcher* fetcher,
-    const Owned<ContainerLogger>& logger,
-    Shared<Docker> docker)
-  : slave::DockerContainerizer(flags, fetcher, logger, docker)
-{
-  initialize();
-}
-
-
-MockDockerContainerizer::MockDockerContainerizer(
-    const Owned<slave::DockerContainerizerProcess>& process)
-  : slave::DockerContainerizer(process)
-{
-  initialize();
-}
-
-
-MockDockerContainerizer::~MockDockerContainerizer() {}
-
-
-MockDockerContainerizerProcess::MockDockerContainerizerProcess(
-    const slave::Flags& flags,
-    slave::Fetcher* fetcher,
-    const Owned<ContainerLogger>& logger,
-    const Shared<Docker>& docker)
-  : slave::DockerContainerizerProcess(flags, fetcher, logger, docker)
-{
-  EXPECT_CALL(*this, fetch(_, _))
-    .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
-
-  EXPECT_CALL(*this, pull(_))
-    .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
-}
-
-
-MockDockerContainerizerProcess::~MockDockerContainerizerProcess() {}
 
 
 MockAuthorizer::MockAuthorizer()

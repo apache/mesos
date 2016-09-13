@@ -50,6 +50,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_docker.hpp"
 
 using namespace mesos::modules;
 

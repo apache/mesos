@@ -43,6 +43,7 @@
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_docker.hpp"
 
 using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;

@@ -988,6 +988,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/flags.hpp							\
   tests/limiter.hpp							\
   tests/mesos.hpp							\
+  tests/mock_docker.hpp							\
   tests/module.hpp							\
   tests/script.hpp							\
   tests/utils.hpp							\
@@ -2095,6 +2096,7 @@ mesos_tests_SOURCES =						\
   tests/master_validation_tests.cpp				\
   tests/mesos.cpp						\
   tests/metrics_tests.cpp					\
+  tests/mock_docker.cpp						\
   tests/module.cpp						\
   tests/module_tests.cpp					\
   tests/oversubscription_tests.cpp				\

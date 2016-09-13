@@ -35,6 +35,7 @@
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_docker.hpp"
 
 namespace slave = mesos::internal::slave;
 
