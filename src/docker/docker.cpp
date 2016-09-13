@@ -29,6 +29,7 @@
 
 #include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/write.hpp>
 
 #include <process/check.hpp>
 #include <process/collect.hpp>
