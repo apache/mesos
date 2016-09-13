@@ -48,6 +48,7 @@
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
+#include "linux/perf.hpp"
 #endif
 
 #ifdef WITH_NETWORK_ISOLATOR
@@ -555,11 +556,12 @@ public:
   PerfCPUCyclesFilter()
   {
 #ifdef __linux__
-    bool perfUnavailable = os::system("perf help >&-") != 0;
+    bool perfUnavailable = !perf::supported();
     if (perfUnavailable) {
       perfError = Error(
-          "The 'perf' command wasn't found so tests using it\n"
-          "to sample the 'cpu-cycles' hardware event will not be run.");
+          "Could not find the 'perf' command or its version lower that "
+          "2.6.39 so tests using it to sample the 'cpu-cycles' hardware "
+          "event will not be run.");
     } else {
       bool cyclesUnavailable =
         os::system("perf list hw | grep cpu-cycles >/dev/null") != 0;
@@ -605,11 +607,11 @@ public:
   PerfFilter()
   {
 #ifdef __linux__
-    perfError = os::system("perf help >&-") != 0;
+    perfError = !perf::supported();
     if (perfError) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "No 'perf' command found so no 'perf' tests will be run\n"
+        << "require 'perf' version >= 2.6.39 so no 'perf' tests will be run\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
