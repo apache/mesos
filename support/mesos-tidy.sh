@@ -16,6 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# Prepare clang-tidy docker image.
+TAG=mesos-tidy-`date +%s`-$RANDOM
+# TODO(vinod): Instead of building Docker images on the fly host the
+# images on DockerHub and use them.
+docker build --no-cache=true -t $TAG mesos-tidy/
+
 # Configure how checks are run. These variables can be overriden by setting the
 # respective environment variables before invoking this script.
 # TODO(bbannier): Enable more upstream checks by default, e.g., from the Google set.
@@ -39,4 +46,7 @@ docker run \
   -v "${MESOS_DIRECTORY}":/SRC \
   -e CHECKS="${CHECKS}" \
   -e CONFIGURE_FLAGS="${CONFIGURE_FLAGS}" \
-  mesosphere/mesos-tidy || exit 1
+  $TAG || exit 1
+
+# Set a trap to delete the image on exit.
+trap "docker rmi $TAG" EXIT
