@@ -38,6 +38,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"

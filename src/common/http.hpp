@@ -33,6 +33,7 @@
 #include <stout/json.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/unreachable.hpp>
 
 namespace mesos {
 

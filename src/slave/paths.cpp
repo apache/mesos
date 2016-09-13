@@ -21,7 +21,6 @@
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
 
-
 #include <stout/check.hpp>
 #include <stout/fs.hpp>
 #include <stout/nothing.hpp>
@@ -29,6 +28,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "messages/messages.hpp"
 

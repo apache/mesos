@@ -51,6 +51,7 @@
 #include <stout/numify.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 #include "common/build.hpp"
 #include "common/http.hpp"

@@ -35,6 +35,7 @@
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "common/parse.hpp"
 #include "common/http.hpp"

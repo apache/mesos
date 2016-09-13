@@ -37,7 +37,6 @@
 
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
-#include <stout/unreachable.hpp>
 
 #include <stout/os/signals.hpp>
 

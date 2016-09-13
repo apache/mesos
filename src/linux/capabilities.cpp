@@ -26,6 +26,7 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 
 #include "linux/capabilities.hpp"
 

@@ -50,6 +50,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/os/constants.hpp>
 

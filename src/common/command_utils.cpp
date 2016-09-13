@@ -22,6 +22,7 @@
 #include <process/subprocess.hpp>
 
 #include <stout/os.hpp>
+#include <stout/unreachable.hpp>
 
 #include "common/command_utils.hpp"
 #include "common/status_utils.hpp"

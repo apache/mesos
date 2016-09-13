@@ -38,7 +38,6 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/unreachable.hpp>
 
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"

@@ -18,6 +18,8 @@
 
 #include <process/id.hpp>
 
+#include <stout/unreachable.hpp>
+
 #include "linux/cgroups.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp"

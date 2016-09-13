@@ -41,6 +41,7 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/os/killtree.hpp>
 

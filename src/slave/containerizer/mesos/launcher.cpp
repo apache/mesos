@@ -22,7 +22,6 @@
 #include <process/reap.hpp>
 
 #include <stout/path.hpp>
-#include <stout/unreachable.hpp>
 
 #include <stout/os/killtree.hpp>
 
