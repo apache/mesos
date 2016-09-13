@@ -66,6 +66,7 @@
 #include "tests/flags.hpp"
 #include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos::internal::slave;

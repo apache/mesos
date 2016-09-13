@@ -47,6 +47,7 @@
 #include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 

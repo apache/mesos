@@ -49,6 +49,7 @@
 #include "tests/flags.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 #include "tests/utils.hpp"
 
 using namespace process;

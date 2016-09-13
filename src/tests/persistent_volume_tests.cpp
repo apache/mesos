@@ -53,6 +53,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/environment.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 
 using namespace process;
 

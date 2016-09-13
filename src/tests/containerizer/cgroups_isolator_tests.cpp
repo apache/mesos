@@ -27,6 +27,7 @@
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 #include "tests/script.hpp"
 
 #include "tests/containerizer/docker_archive.hpp"
