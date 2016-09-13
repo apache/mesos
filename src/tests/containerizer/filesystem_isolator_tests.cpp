@@ -202,6 +202,7 @@ protected:
   {
     ContainerInfo info;
     info.set_type(ContainerInfo::MESOS);
+    info.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
 
     if (imageName.isSome()) {
       Image* image = info.mutable_mesos()->mutable_image();

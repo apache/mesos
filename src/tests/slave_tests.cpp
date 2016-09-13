@@ -829,6 +829,7 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
 
   NetworkInfo* network = container->add_network_infos();
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
@@ -906,6 +907,7 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
 
   NetworkInfo* network = container->add_network_infos();
   network->add_ip_addresses()->set_ip_address("4.3.2.1");

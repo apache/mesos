@@ -28,6 +28,7 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 
 #include "health-check/health_checker.hpp"
 
@@ -49,6 +50,34 @@ namespace validation {
 static bool invalidCharacter(char c)
 {
   return iscntrl(c) || c == '/' || c == '\\';
+}
+
+
+// Validates that `ContainerInfo` is valid.
+Option<Error> validateContainerInfo(const ContainerInfo& container)
+{
+  if (!container.has_type()) {
+    return Error("ContainerInfo must specify 'type'");
+  }
+
+  switch (container.type()) {
+    case ContainerInfo::MESOS:
+      if (!container.has_mesos()) {
+        return Error("Expecting 'mesos' to be set for mesos container");
+      }
+      break;
+
+    case ContainerInfo::DOCKER:
+      if (!container.has_docker()) {
+        return Error("Expecting 'docker' to be set for docker container");
+      }
+      break;
+
+    default:
+      UNREACHABLE();
+  }
+
+  return None();
 }
 
 
@@ -659,6 +688,21 @@ Option<Error> validateResources(const ExecutorInfo& executor)
 }
 
 
+Option<Error> validateContainer(const ExecutorInfo& executor)
+{
+  if (executor.has_container()) {
+    // Do the general validation first.
+    Option<Error> error =
+      validation::validateContainerInfo(executor.container());
+    if (error.isSome()) {
+      return Error("Executor uses invalid container: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(
     const ExecutorInfo& executor,
     Framework* framework,
@@ -673,7 +717,8 @@ Option<Error> validate(
     lambda::bind(internal::validateShutdownGracePeriod, executor),
     lambda::bind(internal::validateResources, executor),
     lambda::bind(
-        internal::validateCompatibleExecutorInfo, executor, framework, slave)
+        internal::validateCompatibleExecutorInfo, executor, framework, slave),
+    lambda::bind(internal::validateContainer, executor),
   };
 
   foreach (const lambda::function<Option<Error>()>& validator, validators) {
@@ -818,6 +863,20 @@ Option<Error> validateTaskAndExecutorResources(const TaskInfo& task)
 }
 
 
+Option<Error> validateContainer(const TaskInfo& task)
+{
+  if (task.has_container()) {
+    // Do the general validation first.
+    Option<Error> error = validation::validateContainerInfo(task.container());
+    if (error.isSome()) {
+      return Error("Task uses invalid container: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 // Validates task specific fields except its executor (if it exists).
 Option<Error> validateTask(
     const TaskInfo& task,
@@ -835,7 +894,8 @@ Option<Error> validateTask(
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateKillPolicy, task),
     lambda::bind(internal::validateHealthCheck, task),
-    lambda::bind(internal::validateResources, task)
+    lambda::bind(internal::validateResources, task),
+    lambda::bind(internal::validateContainer, task)
   };
 
   // TODO(jieyu): Add a validateCommandInfo function.

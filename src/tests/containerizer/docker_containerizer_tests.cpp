@@ -1410,6 +1410,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+  executorInfo.mutable_container()->mutable_mesos()->CopyFrom(
+      ContainerInfo::MesosInfo());
 
   ExecutorState executorState;
   executorState.info = executorInfo;
