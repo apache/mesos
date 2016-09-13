@@ -4150,183 +4150,183 @@ ExecutorInfo Slave::getExecutorInfo(
     << "Task " << task.task_id()
     << " should have either CommandInfo or ExecutorInfo set but not both";
 
-  if (task.has_command()) {
-    ExecutorInfo executor;
-
-    // Command executors share the same id as the task.
-    executor.mutable_executor_id()->set_value(task.task_id().value());
-    executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
-
-    if (task.has_container()) {
-      // Store the container info in the executor info so it will
-      // be checkpointed. This allows the correct containerizer to
-      // recover this task on restart.
-      executor.mutable_container()->CopyFrom(task.container());
-    }
-
-    // TODO(jieyu): We should move those Mesos containerizer specific
-    // logic (e.g., 'hasRootfs') to Mesos containerizer.
-    bool hasRootfs = task.has_container() &&
-                     task.container().type() == ContainerInfo::MESOS &&
-                     task.container().mesos().has_image();
-
-    if (hasRootfs) {
-      ContainerInfo* container = executor.mutable_container();
-
-      // For command tasks, we are now copying the entire
-      // `task.container` into the `executorInfo`. Thus,
-      // `executor.container` now has the image if `task.container`
-      // had one. However, in the case of Mesos container with rootfs,
-      // we want to run the command executor in the host filesystem
-      // and let the command executor pivot_root to the rootfs for its
-      // task. For this reason, we need to strip the image in
-      // `executor.container.mesos`.
-      container->mutable_mesos()->clear_image();
-
-      // We need to set the executor user as root as it needs to
-      // perform chroot (even when switch_user is set to false).
-      executor.mutable_command()->set_user("root");
-    }
-
-    // Prepare an executor name which includes information on the
-    // command being launched.
-    string name = "(Task: " + task.task_id().value() + ") ";
-
-    if (task.command().shell()) {
-      if (!task.command().has_value()) {
-        name += "(Command: NO COMMAND)";
-      } else {
-        name += "(Command: sh -c '";
-        if (task.command().value().length() > 15) {
-          name += task.command().value().substr(0, 12) + "...')";
-        } else {
-          name += task.command().value() + "')";
-        }
-      }
-    } else {
-      if (!task.command().has_value()) {
-        name += "(Command: NO EXECUTABLE)";
-      } else {
-        string args =
-          task.command().value() + ", " +
-          strings::join(", ", task.command().arguments());
-
-        if (args.length() > 15) {
-          name += "(Command: [" + args.substr(0, 12) + "...])";
-        } else {
-          name += "(Command: [" + args + "])";
-        }
-      }
-    }
-
-    executor.set_name("Command Executor " + name);
-    executor.set_source(task.task_id().value());
-
-    // Copy the [uris, environment, container, user] fields from the
-    // CommandInfo to get the URIs we need to download, the
-    // environment variables that should get set, the necessary
-    // container information, and the user to run the executor as but
-    // nothing else because we need to set up the rest of the executor
-    // command ourselves in order to invoke 'mesos-executor'.
-    executor.mutable_command()->mutable_uris()->MergeFrom(
-        task.command().uris());
-
-    if (task.command().has_environment()) {
-      executor.mutable_command()->mutable_environment()->MergeFrom(
-          task.command().environment());
-    }
-
-    // Add fields which can be relevant (depending on Authorizer) for
-    // authorization.
-
-    if (task.has_labels()) {
-      executor.mutable_labels()->MergeFrom(task.labels());
-    }
-
-    if (task.has_discovery()) {
-      executor.mutable_discovery()->MergeFrom(task.discovery());
-    }
-
-    // Adjust the executor shutdown grace period if the kill policy is
-    // set. We add a small buffer of time to avoid destroying the
-    // container before `TASK_KILLED` is sent by the executor.
-    //
-    // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
-    // immediately after the watched process has exited.
-    if (task.has_kill_policy() &&
-        task.kill_policy().has_grace_period()) {
-      Duration gracePeriod =
-        Nanoseconds(task.kill_policy().grace_period().nanoseconds()) +
-        process::MAX_REAP_INTERVAL() +
-        Seconds(1);
-
-      executor.mutable_shutdown_grace_period()->set_nanoseconds(
-          gracePeriod.ns());
-    }
-
-    // We skip setting the user for the command executor that has
-    // a rootfs image since we need root permissions to chroot.
-    // We assume command executor will change to the correct user
-    // later on.
-    if (!hasRootfs && task.command().has_user()) {
-      executor.mutable_command()->set_user(task.command().user());
-    }
-
-    Result<string> path = os::realpath(
-        path::join(flags.launcher_dir, MESOS_EXECUTOR));
-
-    if (path.isSome()) {
-      executor.mutable_command()->set_shell(false);
-      executor.mutable_command()->set_value(path.get());
-      executor.mutable_command()->add_arguments(MESOS_EXECUTOR);
-      executor.mutable_command()->add_arguments(
-          "--launcher_dir=" + flags.launcher_dir);
-
-      if (hasRootfs) {
-        executor.mutable_command()->add_arguments(
-            "--sandbox_directory=" + flags.sandbox_directory);
-
-#ifndef __WINDOWS__
-        // NOTE: if switch_user flag is false and the slave runs under
-        // a non-root user, the task will be rejected by the Posix
-        // filesystem isolator. Linux filesystem isolator requires slave
-        // to have root permission.
-        if (flags.switch_user) {
-          string user;
-          if (task.command().has_user()) {
-            user = task.command().user();
-          } else {
-            user = frameworkInfo.user();
-          }
-
-          executor.mutable_command()->add_arguments("--user=" + user);
-        }
-#endif // __WINDOWS__
-      }
-    } else {
-      executor.mutable_command()->set_shell(true);
-      executor.mutable_command()->set_value(
-          "echo '" +
-          (path.isError() ? path.error() : "No such file or directory") +
-          "'; exit 1");
-    }
-
-    // Add an allowance for the command executor. This does lead to a
-    // small overcommit of resources.
-    // TODO(vinod): If a task is using revocable resources, mark the
-    // corresponding executor resource (e.g., cpus) to be also
-    // revocable. Currently, it is OK because the containerizer is
-    // given task + executor resources on task launch resulting in
-    // the container being correctly marked as revocable.
-    executor.mutable_resources()->MergeFrom(
-        Resources::parse(
-          "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
-          "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
-
-    return executor;
+  if (task.has_executor()) {
+    return task.executor();
   }
 
-  return task.executor();
+  ExecutorInfo executor;
+
+  // Command executors share the same id as the task.
+  executor.mutable_executor_id()->set_value(task.task_id().value());
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+
+  if (task.has_container()) {
+    // Store the container info in the executor info so it will
+    // be checkpointed. This allows the correct containerizer to
+    // recover this task on restart.
+    executor.mutable_container()->CopyFrom(task.container());
+  }
+
+  // TODO(jieyu): We should move those Mesos containerizer specific
+  // logic (e.g., 'hasRootfs') to Mesos containerizer.
+  bool hasRootfs = task.has_container() &&
+                   task.container().type() == ContainerInfo::MESOS &&
+                   task.container().mesos().has_image();
+
+  if (hasRootfs) {
+    ContainerInfo* container = executor.mutable_container();
+
+    // For command tasks, we are now copying the entire
+    // `task.container` into the `executorInfo`. Thus,
+    // `executor.container` now has the image if `task.container`
+    // had one. However, in the case of Mesos container with rootfs,
+    // we want to run the command executor in the host filesystem
+    // and let the command executor pivot_root to the rootfs for its
+    // task. For this reason, we need to strip the image in
+    // `executor.container.mesos`.
+    container->mutable_mesos()->clear_image();
+
+    // We need to set the executor user as root as it needs to
+    // perform chroot (even when switch_user is set to false).
+    executor.mutable_command()->set_user("root");
+  }
+
+  // Prepare an executor name which includes information on the
+  // command being launched.
+  string name = "(Task: " + task.task_id().value() + ") ";
+
+  if (task.command().shell()) {
+    if (!task.command().has_value()) {
+      name += "(Command: NO COMMAND)";
+    } else {
+      name += "(Command: sh -c '";
+      if (task.command().value().length() > 15) {
+        name += task.command().value().substr(0, 12) + "...')";
+      } else {
+        name += task.command().value() + "')";
+      }
+    }
+  } else {
+    if (!task.command().has_value()) {
+      name += "(Command: NO EXECUTABLE)";
+    } else {
+      string args =
+        task.command().value() + ", " +
+        strings::join(", ", task.command().arguments());
+
+      if (args.length() > 15) {
+        name += "(Command: [" + args.substr(0, 12) + "...])";
+      } else {
+        name += "(Command: [" + args + "])";
+      }
+    }
+  }
+
+  executor.set_name("Command Executor " + name);
+  executor.set_source(task.task_id().value());
+
+  // Copy the [uris, environment, container, user] fields from the
+  // CommandInfo to get the URIs we need to download, the
+  // environment variables that should get set, the necessary
+  // container information, and the user to run the executor as but
+  // nothing else because we need to set up the rest of the executor
+  // command ourselves in order to invoke 'mesos-executor'.
+  executor.mutable_command()->mutable_uris()->MergeFrom(
+      task.command().uris());
+
+  if (task.command().has_environment()) {
+    executor.mutable_command()->mutable_environment()->MergeFrom(
+        task.command().environment());
+  }
+
+  // Add fields which can be relevant (depending on Authorizer) for
+  // authorization.
+
+  if (task.has_labels()) {
+    executor.mutable_labels()->MergeFrom(task.labels());
+  }
+
+  if (task.has_discovery()) {
+    executor.mutable_discovery()->MergeFrom(task.discovery());
+  }
+
+  // Adjust the executor shutdown grace period if the kill policy is
+  // set. We add a small buffer of time to avoid destroying the
+  // container before `TASK_KILLED` is sent by the executor.
+  //
+  // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
+  // immediately after the watched process has exited.
+  if (task.has_kill_policy() &&
+      task.kill_policy().has_grace_period()) {
+    Duration gracePeriod =
+      Nanoseconds(task.kill_policy().grace_period().nanoseconds()) +
+      process::MAX_REAP_INTERVAL() +
+      Seconds(1);
+
+    executor.mutable_shutdown_grace_period()->set_nanoseconds(
+        gracePeriod.ns());
+  }
+
+  // We skip setting the user for the command executor that has
+  // a rootfs image since we need root permissions to chroot.
+  // We assume command executor will change to the correct user
+  // later on.
+  if (!hasRootfs && task.command().has_user()) {
+    executor.mutable_command()->set_user(task.command().user());
+  }
+
+  Result<string> path = os::realpath(
+      path::join(flags.launcher_dir, MESOS_EXECUTOR));
+
+  if (path.isSome()) {
+    executor.mutable_command()->set_shell(false);
+    executor.mutable_command()->set_value(path.get());
+    executor.mutable_command()->add_arguments(MESOS_EXECUTOR);
+    executor.mutable_command()->add_arguments(
+        "--launcher_dir=" + flags.launcher_dir);
+
+    if (hasRootfs) {
+      executor.mutable_command()->add_arguments(
+          "--sandbox_directory=" + flags.sandbox_directory);
+
+#ifndef __WINDOWS__
+      // NOTE: if switch_user flag is false and the slave runs under
+      // a non-root user, the task will be rejected by the Posix
+      // filesystem isolator. Linux filesystem isolator requires slave
+      // to have root permission.
+      if (flags.switch_user) {
+        string user;
+        if (task.command().has_user()) {
+          user = task.command().user();
+        } else {
+          user = frameworkInfo.user();
+        }
+
+        executor.mutable_command()->add_arguments("--user=" + user);
+      }
+#endif // __WINDOWS__
+    }
+  } else {
+    executor.mutable_command()->set_shell(true);
+    executor.mutable_command()->set_value(
+        "echo '" +
+        (path.isError() ? path.error() : "No such file or directory") +
+        "'; exit 1");
+  }
+
+  // Add an allowance for the command executor. This does lead to a
+  // small overcommit of resources.
+  // TODO(vinod): If a task is using revocable resources, mark the
+  // corresponding executor resource (e.g., cpus) to be also
+  // revocable. Currently, it is OK because the containerizer is
+  // given task + executor resources on task launch resulting in
+  // the container being correctly marked as revocable.
+  executor.mutable_resources()->MergeFrom(
+      Resources::parse(
+        "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
+        "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
+
+  return executor;
 }
 
 
