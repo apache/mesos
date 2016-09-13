@@ -758,7 +758,7 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
   // we may use `evbuffer_file_segment_new` and `evbuffer_add_file_segment`
   // instead of `evbuffer_add_file`.
   int owned_fd = dup(fd);
-  if (fd == -1) {
+  if (owned_fd < 0) {
     return Failure(ErrnoError("Failed to duplicate file descriptor"));
   }
 
