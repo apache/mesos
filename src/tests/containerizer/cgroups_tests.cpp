@@ -509,12 +509,27 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_CFS_Big_Quota)
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_CFS_BigQuota)
 {
   string hierarchy = path::join(baseHierarchy, "cpu");
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
 
   Duration quota = Seconds(100); // Big quota.
+  ASSERT_SOME(cgroups::cpu::cfs_quota_us(hierarchy, TEST_CGROUPS_ROOT, quota));
+
+  // Ensure we can read back the correct quota.
+  ASSERT_SOME_EQ(
+      quota,
+      cgroups::cpu::cfs_quota_us(hierarchy, TEST_CGROUPS_ROOT));
+}
+
+
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_CFS_BigQuotaDecimal)
+{
+  string hierarchy = path::join(baseHierarchy, "cpu");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  Duration quota = Seconds(100.5); // Big quota with decimal.
   ASSERT_SOME(cgroups::cpu::cfs_quota_us(hierarchy, TEST_CGROUPS_ROOT, quota));
 
   // Ensure we can read back the correct quota.
