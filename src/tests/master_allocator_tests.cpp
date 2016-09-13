@@ -86,6 +86,61 @@ namespace internal {
 namespace tests {
 
 
+class OfferEqMatcher
+  : public ::testing::MatcherInterface<const vector<Offer>&>
+{
+public:
+  OfferEqMatcher(int _cpus, int _mem)
+    : cpus(_cpus), mem(_mem) {}
+
+  virtual bool MatchAndExplain(
+      const vector<Offer>& offers,
+      ::testing::MatchResultListener* listener) const
+  {
+    double totalCpus = 0;
+    double totalMem = 0;
+
+    foreach (const Offer& offer, offers) {
+      foreach (const Resource& resource, offer.resources()) {
+        if (resource.name() == "cpus") {
+          totalCpus += resource.scalar().value();
+        } else if (resource.name() == "mem") {
+          totalMem += resource.scalar().value();
+        }
+      }
+    }
+
+    bool matches = totalCpus == cpus && totalMem == mem;
+
+    if (!matches) {
+      *listener << totalCpus << " cpus and " << totalMem << "mem";
+    }
+
+    return matches;
+  }
+
+  virtual void DescribeTo(::std::ostream* os) const
+  {
+    *os << "contains " << cpus << " cpus and " << mem << " mem";
+  }
+
+  virtual void DescribeNegationTo(::std::ostream* os) const
+  {
+    *os << "does not contain " << cpus << " cpus and "  << mem << " mem";
+  }
+
+private:
+  int cpus;
+  int mem;
+};
+
+
+const ::testing::Matcher<const vector<Offer>&> OfferEq(int cpus, int mem)
+{
+  return MakeMatcher(new OfferEqMatcher(cpus, mem));
+}
+
+
 template <typename T>
 class MasterAllocatorTest : public MesosTest {};
 
