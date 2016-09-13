@@ -199,7 +199,8 @@ message Event {
   // Type of the call, indicates which optional field below should be
   // present if that type has a nested message definition.
   // In case type is SUBSCRIBED, no message needs to be set.
-  // See comments on `Event::Type` above on the reasoning behind this field being optional.
+  // See comments on `Event::Type` above on the reasoning behind this
+  // field being optional.
   optional Type type = 3;
 
   optional Subscribe subscribe = 4;
