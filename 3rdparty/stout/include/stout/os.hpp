@@ -40,7 +40,6 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
-#include <stout/unreachable.hpp>
 #include <stout/version.hpp>
 
 #include <stout/os/access.hpp>
