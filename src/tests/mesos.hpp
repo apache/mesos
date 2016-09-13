@@ -41,7 +41,6 @@
 
 #include <mesos/master/detector.hpp>
 
-#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -1476,26 +1475,6 @@ public:
       const Option<std::string>& user,
       const mesos::fetcher::FetcherInfo& info,
       const slave::Flags& flags);
-};
-
-
-// Definition of a mock ContainerLogger to be used in tests with gmock.
-class MockContainerLogger : public mesos::slave::ContainerLogger
-{
-public:
-  MockContainerLogger();
-  virtual ~MockContainerLogger();
-
-  MOCK_METHOD0(initialize, Try<Nothing>(void));
-
-  MOCK_METHOD2(
-      recover,
-      process::Future<Nothing>(const ExecutorInfo&, const std::string&));
-
-  MOCK_METHOD2(
-      prepare,
-      process::Future<mesos::slave::ContainerLogger::SubprocessInfo>(
-          const ExecutorInfo&, const std::string&));
 };
 
 

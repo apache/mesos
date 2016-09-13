@@ -20,6 +20,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -93,6 +95,39 @@ namespace tests {
 
 const char LOGROTATE_CONTAINER_LOGGER_NAME[] =
   "org_apache_mesos_LogrotateContainerLogger";
+
+
+// Definition of a mock ContainerLogger to be used in tests with gmock.
+class MockContainerLogger : public ContainerLogger
+{
+public:
+  MockContainerLogger()
+  {
+    // Set up default behaviors.
+    EXPECT_CALL(*this, initialize())
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, recover(_, _))
+      .WillRepeatedly(Return(Nothing()));
+
+    // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
+    EXPECT_CALL(*this, prepare(_, _))
+      .WillRepeatedly(Return(mesos::slave::ContainerLogger::SubprocessInfo()));
+  }
+
+  virtual ~MockContainerLogger() {}
+
+  MOCK_METHOD0(initialize, Try<Nothing>(void));
+
+  MOCK_METHOD2(
+      recover,
+      Future<Nothing>(const ExecutorInfo&, const string&));
+
+  MOCK_METHOD2(
+      prepare,
+      Future<mesos::slave::ContainerLogger::SubprocessInfo>(
+          const ExecutorInfo&, const string&));
+};
 
 
 class ContainerLoggerTest : public MesosTest {};

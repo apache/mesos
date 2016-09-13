@@ -644,23 +644,6 @@ MockFetcherProcess::MockFetcherProcess()
 MockFetcherProcess::~MockFetcherProcess() {}
 
 
-MockContainerLogger::MockContainerLogger()
-{
-  // Set up default behaviors.
-  EXPECT_CALL(*this, initialize())
-    .WillRepeatedly(Return(Nothing()));
-
-  EXPECT_CALL(*this, recover(_, _))
-    .WillRepeatedly(Return(Nothing()));
-
-  // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
-  EXPECT_CALL(*this, prepare(_, _))
-    .WillRepeatedly(Return(mesos::slave::ContainerLogger::SubprocessInfo()));
-}
-
-MockContainerLogger::~MockContainerLogger() {}
-
-
 MockDocker::MockDocker(
     const string& path,
     const string& socket,
