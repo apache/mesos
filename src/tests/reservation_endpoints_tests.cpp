@@ -58,6 +58,7 @@ using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::Forbidden;
+using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
@@ -1597,6 +1598,152 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that dynamic reservations are reflected in the
+// agent's "/state" endpoint. Separately exposing reservations from
+// the agent's endpoint is necessary because it's not a gurantee that
+// it matches the master's versions.
+TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:4;mem:2048;disk:4096";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512;disk:1024").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      "role1",
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "reserve",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(slaveId.get(), dynamicallyReserved));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  }
+
+  // Now verify the reservations from the agent's /state endpoint. We wait
+  // for the agent to receive and process CheckpointResourcesMessage first
+  // because dynamic reservations are propgated to the agent asynchronously.
+  AWAIT_READY(checkpointResources);
+
+  // Make sure CheckpointResourcesMessage handling is completed
+  // before proceeding.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  Future<Response> response = process::http::get(
+      agent.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+    << response.get().body;
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+
+  {
+    JSON::Value expected = JSON::parse(
+        R"~(
+        {
+          "role1": {
+            "cpus": 1.0,
+            "disk": 1024.0,
+            "gpus": 0.0,
+            "mem": 512.0
+          }
+        })~").get();
+
+    EXPECT_EQ(expected, state.values["reserved_resources"]);
+  }
+
+  {
+    JSON::Value expected = JSON::parse(
+        R"~(
+        {
+          "cpus": 3.0,
+          "disk": 3072.0,
+          "gpus": 0.0,
+          "mem": 1536.0,
+          "ports": "[31000-32000]"
+        })~").get();
+
+    EXPECT_EQ(expected, state.values["unreserved_resources"]);
+  }
+
+  {
+    JSON::Value expected = JSON::parse(strings::format(
+        R"~(
+        {
+          "role1": [
+            {
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": {
+                "value": 1.0
+              },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
+              }
+            },
+            {
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": {
+                "value": 512.0
+              },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
+              }
+            },
+            {
+              "name": "disk",
+              "type": "SCALAR",
+              "scalar": {
+                "value": 1024.0
+              },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
+              }
+            }
+          ]
+        })~",
+        DEFAULT_CREDENTIAL.principal(), // Three occurrences of '%s' above.
+        DEFAULT_CREDENTIAL.principal(),
+        DEFAULT_CREDENTIAL.principal()).get()).get();
+
+    EXPECT_EQ(expected, state.values["reserved_resources_full"]);
+  }
 }
 
 } // namespace tests {
