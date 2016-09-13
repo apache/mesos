@@ -175,7 +175,7 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
   // concerned with the on-disk state. We scan all the sandbox directories
   // for project IDs that we have not recovered and make a best effort to
   // remove all the corresponding on-disk state.
-  Try<std::list<std::string>> sandboxes = os::glob(path::join(
+  Try<list<string>> sandboxes = os::glob(path::join(
       paths::getSandboxRootDir(flags.work_dir),
       "*",
       "frameworks",

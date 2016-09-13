@@ -140,7 +140,7 @@ namespace slave {
 
 using namespace state;
 
-Slave::Slave(const std::string& id,
+Slave::Slave(const string& id,
              const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
@@ -5766,7 +5766,7 @@ double Slave::_executor_directory_max_allowed_age_secs()
 }
 
 
-Future<bool> Slave::authorizeLogAccess(const Option<std::string>& principal)
+Future<bool> Slave::authorizeLogAccess(const Option<string>& principal)
 {
   if (authorizer.isNone()) {
     return true;
@@ -5784,7 +5784,7 @@ Future<bool> Slave::authorizeLogAccess(const Option<std::string>& principal)
 
 
 Future<bool> Slave::authorizeSandboxAccess(
-    const Option<std::string>& principal,
+    const Option<string>& principal,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {

@@ -53,7 +53,7 @@ namespace internal {
 namespace fs {
 
 
-Try<bool> supported(const std::string& fsname)
+Try<bool> supported(const string& fsname)
 {
   hashset<string> overlayfs{"overlay", "overlayfs"};
 

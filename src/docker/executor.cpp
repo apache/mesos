@@ -732,7 +732,7 @@ int main(int argc, char** argv)
 
     // Convert from JSON to map.
     foreachpair (
-        const std::string& key,
+        const string& key,
         const JSON::Value& value,
         json->values) {
       if (!value.is<JSON::String>()) {

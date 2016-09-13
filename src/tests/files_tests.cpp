@@ -183,7 +183,7 @@ TEST_F(FilesTest, ReadTest)
 
   // Test reads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<std::string>&) {
+  auto authorization = [&authorized](const Option<string>&) {
     return authorized;
   };
 
@@ -373,7 +373,7 @@ TEST_F(FilesTest, BrowseTest)
   files.detach("one");
 
   bool authorized = true;
-  auto authorization = [&authorized](const Option<std::string>&) {
+  auto authorization = [&authorized](const Option<string>&) {
     return authorized;
   };
 
@@ -463,7 +463,7 @@ TEST_F(FilesTest, DownloadTest)
 
   // Test downloads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<std::string>&) {
+  auto authorization = [&authorized](const Option<string>&) {
     return authorized;
   };
 

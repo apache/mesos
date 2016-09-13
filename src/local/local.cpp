@@ -176,7 +176,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       << flags.work_dir << "': " << mkdir.error();
   }
 
-  std::map<std::string, std::string> propagated_flags;
+  map<string, string> propagated_flags;
   propagated_flags["work_dir"] = flags.work_dir;
 
   {

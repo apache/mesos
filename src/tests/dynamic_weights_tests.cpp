@@ -109,7 +109,7 @@ protected:
 
     ASSERT_SOME(weightInfos);
 
-    hashmap<std::string, double> weights =
+    hashmap<string, double> weights =
       convertToHashmap(weightInfos.get());
 
     if (_weights.isNone()) {

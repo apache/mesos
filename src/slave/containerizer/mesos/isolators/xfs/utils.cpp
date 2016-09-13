@@ -390,7 +390,7 @@ Option<Error> validateProjectIds(const IntervalSet<prid_t>& projectRange)
 }
 
 
-bool pathIsXfs(const std::string& path)
+bool pathIsXfs(const string& path)
 {
   return ::platform_test_xfs_path(path.c_str()) == 1;
 }

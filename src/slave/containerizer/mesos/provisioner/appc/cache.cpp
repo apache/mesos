@@ -135,7 +135,7 @@ Cache::Key::Key(const Image::Appc& image)
 
 Cache::Key::Key(
     const string& _name,
-    const map<string, std::string> _labels)
+    const map<string, string> _labels)
   : name(_name),
     labels(_labels) {}
 

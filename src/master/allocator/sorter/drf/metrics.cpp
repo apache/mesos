@@ -40,7 +40,7 @@ namespace allocator {
 Metrics::Metrics(
     const UPID& _context,
     DRFSorter& _sorter,
-    const std::string& _prefix)
+    const string& _prefix)
   : context(_context),
     sorter(&_sorter),
     prefix(_prefix) {}

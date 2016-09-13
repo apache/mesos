@@ -802,10 +802,10 @@ bool approveViewFlags(
 
 
 process::Future<bool> authorizeEndpoint(
-    const std::string& endpoint,
-    const std::string& method,
+    const string& endpoint,
+    const string& method,
     const Option<Authorizer*>& authorizer,
-    const Option<std::string>& principal)
+    const Option<string>& principal)
 {
   if (authorizer.isNone()) {
     return true;

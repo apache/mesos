@@ -442,7 +442,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("agent");
+  const string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -628,7 +628,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("agent");
+  const string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -965,7 +965,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("agent");
+  const string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1427,7 +1427,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("agent");
+  const string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1830,7 +1830,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskWithHTTPExecutor)
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
-  const std::string id("agent");
+  const string id("agent");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -3225,7 +3225,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1));
 
-  Future<process::Message> frameworkRegisteredMessage =
+  Future<Message> frameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
   driver.start();

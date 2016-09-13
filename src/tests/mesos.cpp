@@ -322,7 +322,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
 Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     slave::Containerizer* containerizer,
-    const std::string& id,
+    const string& id,
     const Option<slave::Flags>& flags)
 {
   return cluster::Slave::start(
@@ -495,7 +495,7 @@ MockResourceEstimator::MockResourceEstimator()
     .WillRepeatedly(DoDefault());
 
   ON_CALL(*this, oversubscribable())
-    .WillByDefault(Return(process::Future<Resources>()));
+    .WillByDefault(Return(Future<Resources>()));
   EXPECT_CALL(*this, oversubscribable())
     .WillRepeatedly(DoDefault());
 }
@@ -512,7 +512,7 @@ MockQoSController::MockQoSController()
 
   ON_CALL(*this, corrections())
     .WillByDefault(
-        Return(process::Future<list<mesos::slave::QoSCorrection>>()));
+        Return(Future<list<mesos::slave::QoSCorrection>>()));
   EXPECT_CALL(*this, corrections())
     .WillRepeatedly(DoDefault());
 }
@@ -590,7 +590,7 @@ void MockSlave::unmocked__run(
 
 
 void MockSlave::unmocked_runTaskGroup(
-    const process::UPID& from,
+    const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const TaskGroupInfo& taskGroup)
@@ -625,7 +625,7 @@ void MockSlave::unmocked_qosCorrections()
 }
 
 
-process::Future<ResourceUsage> MockSlave::unmocked_usage()
+Future<ResourceUsage> MockSlave::unmocked_usage()
 {
   return slave::Slave::usage();
 }
@@ -690,8 +690,8 @@ MockDocker::~MockDocker() {}
 MockDockerContainerizer::MockDockerContainerizer(
     const slave::Flags& flags,
     slave::Fetcher* fetcher,
-    const process::Owned<ContainerLogger>& logger,
-    process::Shared<Docker> docker)
+    const Owned<ContainerLogger>& logger,
+    Shared<Docker> docker)
   : slave::DockerContainerizer(flags, fetcher, logger, docker)
 {
   initialize();
@@ -699,7 +699,7 @@ MockDockerContainerizer::MockDockerContainerizer(
 
 
 MockDockerContainerizer::MockDockerContainerizer(
-    const process::Owned<slave::DockerContainerizerProcess>& process)
+    const Owned<slave::DockerContainerizerProcess>& process)
   : slave::DockerContainerizer(process)
 {
   initialize();
@@ -712,8 +712,8 @@ MockDockerContainerizer::~MockDockerContainerizer() {}
 MockDockerContainerizerProcess::MockDockerContainerizerProcess(
     const slave::Flags& flags,
     slave::Fetcher* fetcher,
-    const process::Owned<ContainerLogger>& logger,
-    const process::Shared<Docker>& docker)
+    const Owned<ContainerLogger>& logger,
+    const Shared<Docker>& docker)
   : slave::DockerContainerizerProcess(flags, fetcher, logger, docker)
 {
   EXPECT_CALL(*this, fetch(_, _))
@@ -754,7 +754,7 @@ MockAuthorizer::MockAuthorizer()
 MockAuthorizer::~MockAuthorizer() {}
 
 
-process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
+Future<Nothing> MockFetcherProcess::unmocked__fetch(
     const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
       entries,
     const ContainerID& containerId,
@@ -773,7 +773,7 @@ process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
 }
 
 
-process::Future<Nothing> MockFetcherProcess::unmocked_run(
+Future<Nothing> MockFetcherProcess::unmocked_run(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const Option<string>& user,

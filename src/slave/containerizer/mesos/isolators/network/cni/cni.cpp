@@ -918,8 +918,8 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
 
 Future<Nothing> NetworkCniIsolatorProcess::attach(
     const ContainerID& containerId,
-    const std::string& networkName,
-    const std::string& netNsHandle)
+    const string& networkName,
+    const string& netNsHandle)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
@@ -1287,7 +1287,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
 
 Future<Nothing> NetworkCniIsolatorProcess::detach(
     const ContainerID& containerId,
-    const std::string& networkName)
+    const string& networkName)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
@@ -1358,7 +1358,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
 
 Future<Nothing> NetworkCniIsolatorProcess::_detach(
     const ContainerID& containerId,
-    const std::string& networkName,
+    const string& networkName,
     const string& plugin,
     const tuple<Future<Option<int>>, Future<string>>& t)
 {

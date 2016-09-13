@@ -130,7 +130,7 @@ void HierarchicalAllocatorProcess::initialize(
              const hashmap<SlaveID, UnavailableResources>&)>&
       _inverseOfferCallback,
     const hashmap<string, double>& _weights,
-    const Option<set<std::string>>& _fairnessExcludeResourceNames)
+    const Option<set<string>>& _fairnessExcludeResourceNames)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;

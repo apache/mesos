@@ -581,7 +581,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   // We should have no executors left because we didn't checkpoint.
   ASSERT_EQ(0, usage2.get().executors().size());
 
-  Try<std::list<std::string>> sandboxes = os::glob(path::join(
+  Try<std::list<string>> sandboxes = os::glob(path::join(
       slave::paths::getSandboxRootDir(mountPoint.get()),
       "*",
       "frameworks",
@@ -687,7 +687,7 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   // We should have still have 1 executor using resources.
   ASSERT_EQ(1, usage1.get().executors().size());
 
-  Try<std::list<std::string>> sandboxes = os::glob(path::join(
+  Try<std::list<string>> sandboxes = os::glob(path::join(
       slave::paths::getSandboxRootDir(mountPoint.get()),
       "*",
       "frameworks",

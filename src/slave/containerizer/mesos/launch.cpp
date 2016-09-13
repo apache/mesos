@@ -340,9 +340,9 @@ int MesosContainerizerLaunch::execute()
 
 #ifdef __WINDOWS__
   // Not supported on Windows.
-  const Option<std::string> rootfs = None();
+  const Option<string> rootfs = None();
 #else
-  const Option<std::string> rootfs = flags.rootfs;
+  const Option<string> rootfs = flags.rootfs;
 #endif // __WINDOWS__
 
   // Change root to a new root, if provided.

@@ -155,7 +155,7 @@ Future<vector<WeightInfo>> Master::WeightsHandler::_filterWeights(
 
 Future<http::Response> Master::WeightsHandler::update(
     const http::Request& request,
-    const Option<std::string>& principal) const
+    const Option<string>& principal) const
 {
   VLOG(1) << "Updating weights from request: '" << request.body << "'";
 
@@ -185,7 +185,7 @@ Future<http::Response> Master::WeightsHandler::update(
 
 Future<http::Response> Master::WeightsHandler::update(
     const mesos::master::Call& call,
-    const Option<std::string>& principal,
+    const Option<string>& principal,
     ContentType /*contentType*/) const
 {
   CHECK_EQ(mesos::master::Call::UPDATE_WEIGHTS, call.type());
@@ -278,7 +278,7 @@ Future<http::Response> Master::WeightsHandler::__updateWeights(
 
 
 void Master::WeightsHandler::rescindOffers(
-    const std::vector<WeightInfo>& weightInfos) const
+    const vector<WeightInfo>& weightInfos) const
 {
   bool rescind = false;
 

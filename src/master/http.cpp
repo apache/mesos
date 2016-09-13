@@ -1722,11 +1722,11 @@ public:
   explicit FlagsError(Type _type)
     : Error(stringify(_type)), type(_type) {}
 
-  FlagsError(Type _type, const std::string& _message)
+  FlagsError(Type _type, const string& _message)
     : Error(stringify(_type)), type(_type), message(_message) {}
 
   const Type type;
-  const std::string message;
+  const string message;
 };
 
 
@@ -3204,7 +3204,7 @@ string Master::Http::ROLES_HELP()
 
 
 Future<vector<string>> Master::Http::_roles(
-        const Option<std::string>& principal) const
+        const Option<string>& principal) const
 {
   // Retrieve `ObjectApprover`s for authorizing roles.
   Future<Owned<ObjectApprover>> rolesApprover;

@@ -651,7 +651,7 @@ TEST_F(OneWayPartitionTest, MasterToScheduler)
   StandaloneMasterDetector detector(master.get()->pid);
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
 
-  Future<process::Message> frameworkRegisteredMessage =
+  Future<Message> frameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
   Future<Nothing> registered;

@@ -1705,7 +1705,7 @@ TEST(ReservedResourcesTest, Equals)
   Labels labels2;
   labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
 
-  std::vector<Resources> unique = {
+  vector<Resources> unique = {
     // Unreserved.
     createReservedResource(
         "cpus", "8", "*", None()),
