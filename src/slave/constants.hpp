@@ -142,6 +142,9 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 // (but not across reboots). This directory will be cleared on reboot.
 constexpr char DEFAULT_RUNTIME_DIRECTORY[] = "/var/run/mesos";
 
+// Name of the executable for default executor.
+constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

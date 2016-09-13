@@ -1016,6 +1016,12 @@ std::map<std::string, std::string> executorEnvironment(
     bool checkpoint);
 
 
+// Returns the command info for default executor.
+CommandInfo defaultExecutorCommandInfo(
+    const std::string& launcherDir,
+    const Option<std::string>& user);
+
+
 std::ostream& operator<<(std::ostream& stream, Slave::State state);
 std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Executor::State state);
