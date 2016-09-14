@@ -1011,8 +1011,14 @@ Option<Error> validateTask(
     return Error("'TaskInfo.executor' must not be set");
   }
 
-  if (task.has_container() && task.container().network_infos().size() > 0) {
-    return Error("NetworkInfos must not be set on the task");
+  if (task.has_container()) {
+    if (task.container().network_infos().size() > 0) {
+      return Error("NetworkInfos must not be set on the task");
+    }
+
+    if (task.container().type() == ContainerInfo::DOCKER) {
+      return Error("Docker ContainerInfo is not supported on the task");
+    }
   }
 
   return None();
@@ -1070,6 +1076,11 @@ Option<Error> validateExecutor(
 
   if (executor.type() == ExecutorInfo::UNKNOWN) {
     return Error("Unknown executor type");
+  }
+
+  if (executor.has_container() &&
+      executor.container().type() == ContainerInfo::DOCKER) {
+    return Error("Docker ContainerInfo is not supported on the executor");
   }
 
   const Resources& executorResources = executor.resources();
