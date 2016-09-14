@@ -242,7 +242,7 @@ TEST_P(CpuIsolatorTest, ROOT_SystemCpuUsage)
     waited += Milliseconds(200);
   } while (waited < Seconds(1));
 
-  EXPECT_LE(0.125, statistics.cpus_user_time_secs());
+  EXPECT_LE(0.125, statistics.cpus_system_time_secs());
 
   driver.stop();
   driver.join();
