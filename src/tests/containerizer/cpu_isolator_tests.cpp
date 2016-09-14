@@ -50,14 +50,18 @@ class CpuIsolatorTest
 
 
 // These tests are parameterized by the isolation flag.
+static vector<string>* isolators = new vector<string>({
+  "posix/cpu",
+#ifdef __linux__
+  "cgroups/cpu",
+#endif // __linux__
+});
+
+
 INSTANTIATE_TEST_CASE_P(
     IsolationFlag,
     CpuIsolatorTest,
-#ifdef __linux__
-    ::testing::Values("posix/cpu", "cgroups/cpu"));
-#else
-    ::testing::Values("posix/cpu"));
-#endif // __linux__
+    ::testing::ValuesIn(*isolators));
 
 
 TEST_P(CpuIsolatorTest, ROOT_UserCpuUsage)

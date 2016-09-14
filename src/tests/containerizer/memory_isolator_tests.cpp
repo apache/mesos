@@ -50,14 +50,18 @@ class MemoryIsolatorTest
 
 
 // These tests are parameterized by the isolation flag.
+static vector<string>* isolators = new vector<string>({
+  "posix/mem",
+#ifdef __linux__
+  "cgroups/mem",
+#endif // __linux__
+});
+
+
 INSTANTIATE_TEST_CASE_P(
     IsolationFlag,
     MemoryIsolatorTest,
-#ifdef __linux__
-    ::testing::Values("posix/mem", "cgroups/mem"));
-#else
-    ::testing::Values("posix/mem"));
-#endif // __linux__
+    ::testing::ValuesIn(*isolators));
 
 
 TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
