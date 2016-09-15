@@ -192,6 +192,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   foreach (const string& subsystem, subsystems) {
     Result<string> hierarchy = cgroups::hierarchy(subsystem);
     ASSERT_SOME(hierarchy);
+
     string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     // Verify that the user cannot manipulate the container's cgroup
@@ -321,6 +322,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
   ASSERT_SOME(cpuHierarchy);
+
   string cpuCgroup= path::join(flags.cgroups_root, containerId.value());
 
   double totalCpus = cpus.cpus().get() + DEFAULT_EXECUTOR_CPUS;
