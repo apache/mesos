@@ -2072,6 +2072,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer.cpp					\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
+  tests/default_executor_tests.cpp				\
   tests/disk_quota_tests.cpp					\
   tests/dynamic_weights_tests.cpp				\
   tests/environment.cpp						\
