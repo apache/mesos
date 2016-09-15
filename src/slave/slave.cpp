@@ -2208,9 +2208,12 @@ void Slave::__run(
       continue;
     }
 
-    // Add the tasks and send the task group to the executor.
+    // Add the tasks and send the task group to the executor. Since, the
+    // queued tasks also include tasks from the queued task group, we
+    // remove them from queued tasks.
     foreach (const TaskInfo& task, it->tasks()) {
       executor->addTask(task);
+      executor->queuedTasks.erase(task.task_id());
     }
 
     executor->queuedTaskGroups.erase(it);
