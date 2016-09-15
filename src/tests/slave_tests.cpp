@@ -4736,6 +4736,181 @@ TEST_F(SlaveTest, DefaultExecutorCommandInfo)
   EXPECT_EQ(frameworkInfo.user(), executorInfo_->command().user());
 }
 
+
+// This test ensures that we do not send a queued task group to
+// the executor if any of its tasks are killed before the executor
+// subscribes with the agent.
+TEST_F(SlaveTest, KillQueuedTaskGroup)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+
+  Resources resources =
+    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+  executorInfo.set_type(ExecutorInfo::CUSTOM);
+
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  const ExecutorID& executorId = executorInfo.executor_id();
+  TestContainerizer containerizer(executorId, executor);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  scheduler::TestV1Mesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  Future<v1::executor::Mesos*> executorLibrary;
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(FutureArg<0>(&executorLibrary));
+
+  const v1::Offer& offer = offers->offers(0);
+  const SlaveID slaveId = devolve(offer.agent_id());
+
+  // Launch a task and task group.
+  v1::TaskInfo taskInfo1 =
+    evolve(createTask(slaveId, resources, "", executorId));
+
+  taskInfo1.mutable_executor()->CopyFrom(evolve(executorInfo));
+
+  v1::TaskInfo taskInfo2 =
+    evolve(createTask(slaveId, resources, ""));
+
+  v1::TaskInfo taskInfo3 =
+    evolve(createTask(slaveId, resources, ""));
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo2);
+  taskGroup.add_tasks()->CopyFrom(taskInfo3);
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation1 = accept->add_operations();
+    operation1->set_type(v1::Offer::Operation::LAUNCH);
+    operation1->mutable_launch()->add_task_infos()->CopyFrom(taskInfo1);
+
+    v1::Offer::Operation* operation2 = accept->add_operations();
+    operation2->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation2->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(executorLibrary);
+
+  Future<v1::scheduler::Event::Update> update1;
+  Future<v1::scheduler::Event::Update> update2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update1))
+    .WillOnce(FutureArg<1>(&update2))
+    .WillRepeatedly(Return());
+
+  // Kill a task in the task group before the executor
+  // subscribes with the agent.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::KILL);
+
+    Call::Kill* kill = call.mutable_kill();
+    kill->mutable_task_id()->CopyFrom(taskInfo2.task_id());
+    kill->mutable_agent_id()->CopyFrom(offer.agent_id());
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(update1);
+  AWAIT_READY(update2);
+
+  EXPECT_EQ(TASK_KILLED, update1->status().state());
+  EXPECT_EQ(taskInfo2.task_id(), update1->status().task_id());
+
+  EXPECT_EQ(TASK_KILLED, update2->status().state());
+  EXPECT_EQ(taskInfo3.task_id(), update2->status().task_id());
+
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  // The executor should only receive the queued task upon subscribing
+  // with the agent since the task group has been killed in the meantime.
+  Future<Nothing> launch;
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(FutureSatisfy(&launch));
+
+  EXPECT_CALL(*executor, launchGroup(_, _))
+    .Times(0);
+
+  {
+    v1::executor::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.mutable_executor_id()->CopyFrom(evolve(executorId));
+
+    call.set_type(v1::executor::Call::SUBSCRIBE);
+
+    call.mutable_subscribe();
+
+    executorLibrary.get()->send(call);
+  }
+
+  AWAIT_READY(launch);
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(AtMost(1));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

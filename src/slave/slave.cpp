@@ -6556,43 +6556,59 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
   bool terminal = protobuf::isTerminalState(status.state());
 
   const TaskID& taskId = status.task_id();
-  std::list<Task*> tasks;
+  Option<TaskGroupInfo> taskGroup = getQueuedTaskGroup(taskId);
 
-  if (queuedTasks.contains(taskId)) {
-    if (terminal) {
-      Task* task = new Task(protobuf::createTask(
-          queuedTasks.at(taskId),
-          status.state(),
-          frameworkId));
+  Task* task = nullptr;
 
-      queuedTasks.erase(taskId);
+  if (taskGroup.isSome()) {
+    if (!terminal) {
+      return Error("Cannot send non-terminal update for queued task group");
+    }
 
-      // This might be a queued task belonging to a task group.
-      // If so, we need to update the other tasks belonging to this task group.
-      Option<TaskGroupInfo> taskGroup = getQueuedTaskGroup(taskId);
+    // Since, the queued tasks also include tasks from the queued task group, we
+    // remove them from queued tasks.
+    queuedTasks.erase(taskId);
 
-      if (taskGroup.isSome()) {
-        foreach (const TaskInfo& task_, taskGroup->tasks()) {
-          Task* task = new Task(
-              protobuf::createTask(task_, status.state(), frameworkId));
-
-          tasks.push_back(task);
-        }
-      } else {
-        tasks.push_back(task);
+    foreach (const TaskInfo& task_, taskGroup->tasks()) {
+      if (task_.task_id() == taskId) {
+        task = new Task(protobuf::createTask(
+            task_,
+            status.state(),
+            frameworkId));
+        break;
       }
-    } else {
+    }
+
+    size_t nonTerminalTasks = 0;
+    foreach (const TaskInfo& task_, taskGroup->tasks()) {
+      if (!terminatedTasks.contains(task_.task_id())) {
+        nonTerminalTasks++;
+      }
+    }
+
+    // We remove the task group when all the other tasks in the task group
+    // are terminal.
+    if (nonTerminalTasks == 1) {
+      queuedTaskGroups.remove(taskGroup.get());
+    }
+  } else if (queuedTasks.contains(taskId)) {
+    if (!terminal) {
       return Error("Cannot send non-terminal update for queued task");
     }
+
+    task = new Task(protobuf::createTask(
+        queuedTasks.at(taskId),
+        status.state(),
+        frameworkId));
+
+    queuedTasks.erase(taskId);
   } else if (launchedTasks.contains(taskId)) {
-    Task* task = launchedTasks.at(status.task_id());
+    task = launchedTasks.at(status.task_id());
 
     if (terminal) {
       resources -= task->resources(); // Release the resources.
       launchedTasks.erase(taskId);
     }
-
-    tasks.push_back(task);
   } else if (terminatedTasks.contains(taskId)) {
     return Error("Task is already terminated with state"
                  " " + stringify(terminatedTasks.at(taskId)->state()));
@@ -6600,31 +6616,30 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
     return Error("Task is unknown");
   }
 
-  foreach (Task* task, tasks) {
-    CHECK_NOTNULL(task);
-    // TODO(brenden): Consider wiping the `data` and `message` fields?
-    if (task->statuses_size() > 0 &&
-        task->statuses(task->statuses_size() - 1).state() == status.state()) {
-      task->mutable_statuses()->RemoveLast();
-    }
+  CHECK_NOTNULL(task);
 
-    task->add_statuses()->CopyFrom(status);
-    task->set_state(status.state());
+  // TODO(brenden): Consider wiping the `data` and `message` fields?
+  if (task->statuses_size() > 0 &&
+      task->statuses(task->statuses_size() - 1).state() == status.state()) {
+    task->mutable_statuses()->RemoveLast();
+  }
 
-    // TODO(bmahler): This only increments the state when the update
-    // can be handled. Should we always increment the state?
-    if (terminal) {
-      terminatedTasks[task->task_id()] = task;
+  task->add_statuses()->CopyFrom(status);
+  task->set_state(status.state());
 
-      switch (status.state()) {
-        case TASK_FINISHED: ++slave->metrics.tasks_finished; break;
-        case TASK_FAILED:   ++slave->metrics.tasks_failed;   break;
-        case TASK_KILLED:   ++slave->metrics.tasks_killed;   break;
-        case TASK_LOST:     ++slave->metrics.tasks_lost;     break;
-        default:
-          LOG(ERROR) << "Unexpected terminal task state " << status.state();
-          break;
-      }
+  // TODO(bmahler): This only increments the state when the update
+  // can be handled. Should we always increment the state?
+  if (terminal) {
+    terminatedTasks[task->task_id()] = task;
+
+    switch (status.state()) {
+      case TASK_FINISHED: ++slave->metrics.tasks_finished; break;
+      case TASK_FAILED:   ++slave->metrics.tasks_failed;   break;
+      case TASK_KILLED:   ++slave->metrics.tasks_killed;   break;
+      case TASK_LOST:     ++slave->metrics.tasks_lost;     break;
+      default:
+        LOG(ERROR) << "Unexpected terminal task state " << status.state();
+        break;
     }
   }
 
