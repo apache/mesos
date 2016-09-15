@@ -1400,23 +1400,22 @@ Future<Nothing> DockerContainerizerProcess::update(
   CHECK(!containerId.has_parent());
 
   if (!containers_.contains(containerId)) {
-    LOG(WARNING) << "Ignoring updating unknown container: "
-                 << containerId;
+    LOG(WARNING) << "Ignoring updating unknown container " << containerId;
     return Nothing();
   }
 
   Container* container = containers_[containerId];
 
   if (container->state == Container::DESTROYING)  {
-    LOG(INFO) << "Ignoring updating container '" << containerId
-              << "' that is being destroyed";
+    LOG(INFO) << "Ignoring updating container " << containerId
+              << " that is being destroyed";
     return Nothing();
   }
 
   if (container->resources == _resources && !force) {
-    LOG(INFO) << "Ignoring updating container '" << containerId
-              << "' with resources passed to update is identical to "
-              << "existing resources";
+    LOG(INFO) << "Ignoring updating container " << containerId
+              << " because resources passed to update are identical to"
+              << " existing resources";
     return Nothing();
   }
 
@@ -1505,8 +1504,8 @@ Future<Nothing> DockerContainerizerProcess::__update(
                    cpuCgroup.error());
   } else if (cpuCgroup.isNone()) {
     LOG(WARNING) << "Container " << containerId
-                 << " does not appear to be a member of a cgroup "
-                 << "where the 'cpu' subsystem is mounted";
+                 << " does not appear to be a member of a cgroup"
+                 << " where the 'cpu' subsystem is mounted";
   }
 
   // And update the CPU shares (if applicable).
@@ -1567,8 +1566,8 @@ Future<Nothing> DockerContainerizerProcess::__update(
                    memoryCgroup.error());
   } else if (memoryCgroup.isNone()) {
     LOG(WARNING) << "Container " << containerId
-                 << " does not appear to be a member of a cgroup "
-                 << "where the 'memory' subsystem is mounted";
+                 << " does not appear to be a member of a cgroup"
+                 << " where the 'memory' subsystem is mounted";
   }
 
   // And update the memory limits (if applicable).
@@ -1801,14 +1800,14 @@ void DockerContainerizerProcess::destroy(
   CHECK(!containerId.has_parent());
 
   if (!containers_.contains(containerId)) {
-    LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
+    LOG(WARNING) << "Ignoring destroy of unknown container " << containerId;
     return;
   }
 
   Container* container = containers_[containerId];
 
   if (container->launch.isFailed()) {
-    VLOG(1) << "Container '" << containerId << "' launch failed";
+    VLOG(1) << "Container " << containerId << " launch failed";
 
     // This means we failed to launch the container and we're trying to
     // cleanup.
@@ -1829,7 +1828,7 @@ void DockerContainerizerProcess::destroy(
     return;
   }
 
-  LOG(INFO) << "Destroying container '" << containerId << "'";
+  LOG(INFO) << "Destroying container " << containerId;
 
   // It's possible that destroy is getting called before
   // DockerContainerizer::launch has completed (i.e., after we've
@@ -1853,8 +1852,7 @@ void DockerContainerizerProcess::destroy(
   // cleanup.
 
   if (container->state == Container::FETCHING) {
-    LOG(INFO) << "Destroying Container '"
-              << containerId << "' in FETCHING state";
+    LOG(INFO) << "Destroying container " << containerId << " in FETCHING state";
 
     fetcher->kill(containerId);
 
@@ -1872,8 +1870,7 @@ void DockerContainerizerProcess::destroy(
   }
 
   if (container->state == Container::PULLING) {
-    LOG(INFO) << "Destroying Container '"
-              << containerId << "' in PULLING state";
+    LOG(INFO) << "Destroying container " << containerId << " in PULLING state";
 
     container->pull.discard();
 
@@ -1888,16 +1885,14 @@ void DockerContainerizerProcess::destroy(
   }
 
   if (container->state == Container::MOUNTING) {
-    LOG(INFO) << "Destroying Container '" << containerId
-              << "' in MOUNTING state";
+    LOG(INFO) << "Destroying container " << containerId << " in MOUNTING state";
 
     // Persistent volumes might already been mounted, remove them
     // if necessary.
     Try<Nothing> unmount = unmountPersistentVolumes(containerId);
     if (unmount.isError()) {
-      LOG(WARNING) << "Failed to remove persistent volumes on destroy for "
-                   << "container '" << containerId << "': "
-                   << unmount.error();
+      LOG(WARNING) << "Failed to remove persistent volumes on destroy for"
+                   << " container " << containerId << ": " << unmount.error();
     }
 
     ContainerTermination termination;
@@ -1957,7 +1952,7 @@ void DockerContainerizerProcess::_destroy(
   // event that we had just launched a container for an executor) or
   // the mesos-docker-executor (in the case we launched a container
   // for a task).
-  LOG(INFO) << "Running docker stop on container '" << containerId << "'";
+  LOG(INFO) << "Running docker stop on container " << containerId;
 
   if (killed) {
     // TODO(alexr): After the deprecation cycle (started in 1.0), update
@@ -2032,9 +2027,8 @@ void DockerContainerizerProcess::___destroy(
     // leads to leaving the volume on the host, and we won't retry
     // again since the Docker container is removed. We should consider
     // not removing the container so we can retry.
-    LOG(WARNING) << "Failed to remove persistent volumes on destroy for "
-                 << "container '" << containerId << "': "
-                 << unmount.error();
+    LOG(WARNING) << "Failed to remove persistent volumes on destroy for"
+                 << " container " << containerId << ": " << unmount.error();
   }
 
   Container* container = containers_[containerId];
@@ -2069,8 +2063,7 @@ Future<Nothing> DockerContainerizerProcess::destroyTimeout(
 {
   CHECK(containers_.contains(containerId));
 
-  LOG(WARNING) << "Docker stop timed out for "
-               << "container '" << containerId << "'";
+  LOG(WARNING) << "Docker stop timed out for container " << containerId;
 
   Container* container = containers_[containerId];
 
@@ -2109,7 +2102,7 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
     return;
   }
 
-  LOG(INFO) << "Executor for container '" << containerId << "' has exited";
+  LOG(INFO) << "Executor for container " << containerId << " has exited";
 
   // The executor has exited so destroy the container.
   destroy(containerId, false);
