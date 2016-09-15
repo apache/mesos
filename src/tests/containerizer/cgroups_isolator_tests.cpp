@@ -190,14 +190,15 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   ContainerID containerId = *(containers.get().begin());
 
   foreach (const string& subsystem, subsystems) {
-    string hierarchy = path::join(flags.cgroups_hierarchy, subsystem);
+    Result<string> hierarchy = cgroups::hierarchy(subsystem);
+    ASSERT_SOME(hierarchy);
     string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     // Verify that the user cannot manipulate the container's cgroup
     // control files as their owner is root.
     EXPECT_NE(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'echo $$ > %s'",
-        path::join(hierarchy, cgroup, "cgroup.procs")).get()));
+        path::join(hierarchy.get(), cgroup, "cgroup.procs")).get()));
 
     // Verify that the user can create a cgroup under the container's
     // cgroup as the isolator changes the owner of the cgroup.
@@ -205,16 +206,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
 
     EXPECT_EQ(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'mkdir %s'",
-        path::join(hierarchy, userCgroup)).get()));
+        path::join(hierarchy.get(), userCgroup)).get()));
 
     // Verify that the user can manipulate control files in the
     // created cgroup as it's owned by the user.
     EXPECT_EQ(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'echo $$ > %s'",
-        path::join(hierarchy, userCgroup, "cgroup.procs")).get()));
+        path::join(hierarchy.get(), userCgroup, "cgroup.procs")).get()));
 
     // Clear up the folder.
-    AWAIT_READY(cgroups::destroy(hierarchy, userCgroup));
+    AWAIT_READY(cgroups::destroy(hierarchy.get(), userCgroup));
   }
 
   driver.stop();
@@ -318,13 +319,14 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   ContainerID containerId = *(containers.get().begin());
 
-  string cpuHierarchy = path::join(flags.cgroups_hierarchy, "cpu");
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
   string cpuCgroup= path::join(flags.cgroups_root, containerId.value());
 
   double totalCpus = cpus.cpus().get() + DEFAULT_EXECUTOR_CPUS;
   EXPECT_SOME_EQ(
       CPU_SHARES_PER_CPU_REVOCABLE * totalCpus,
-      cgroups::cpu::shares(cpuHierarchy, cpuCgroup));
+      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup));
 
   driver.stop();
   driver.join();
