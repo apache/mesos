@@ -153,6 +153,6 @@ Future<Future<Nothing>> ZooKeeperMasterContenderProcess::contend()
   return candidacy.get();
 }
 
-} // namespace contender  {
+} // namespace contender {
 } // namespace master {
 } // namespace mesos {

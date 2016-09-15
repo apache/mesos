@@ -63,6 +63,6 @@ Future<Future<Nothing>> StandaloneMasterContender::contend()
   return promise->future();
 }
 
-} // namespace contender  {
+} // namespace contender {
 } // namespace master {
 } // namespace mesos {

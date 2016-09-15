@@ -94,6 +94,6 @@ Try<MasterContender*> MasterContender::create(
 
 MasterContender::~MasterContender() {}
 
-} // namespace contender  {
+} // namespace contender {
 } // namespace master {
 } // namespace mesos {
