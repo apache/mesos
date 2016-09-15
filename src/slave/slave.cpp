@@ -2208,6 +2208,9 @@ void Slave::__run(
       continue;
     }
 
+    LOG(INFO) << "Sending queued task group " << taskOrTaskGroup(None(), *it)
+              << " to executor " << *executor;
+
     // Add the tasks and send the task group to the executor. Since, the
     // queued tasks also include tasks from the queued task group, we
     // remove them from queued tasks.
