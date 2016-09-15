@@ -20,6 +20,9 @@ All Issues:
   * [MESOS-5913] - Stale socket FD usage when using libevent + SSL.
   * [MESOS-5927] - Unable to run "scratch" Dockerfiles with Unified Containerizer.
   * [MESOS-5943] - Incremental http parsing of URLs leads to decoder error.
+  * [MESOS-5986] - SSL Socket CHECK can fail after socket receives EOF.
+  * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
+  * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
 
 
 Release Notes - Mesos - Version 0.28.2
