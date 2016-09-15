@@ -827,10 +827,10 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 
   task.mutable_command()->MergeFrom(command);
 
-  ContainerInfo *container = task.mutable_container();
+  ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
 
-  NetworkInfo *network = container->add_network_infos();
+  NetworkInfo* network = container->add_network_infos();
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
@@ -903,10 +903,11 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-  ContainerInfo *container = task.mutable_container();
+
+  ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
 
-  NetworkInfo *network = container->add_network_infos();
+  NetworkInfo* network = container->add_network_infos();
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
