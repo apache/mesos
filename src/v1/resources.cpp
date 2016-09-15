@@ -37,6 +37,7 @@
 #include <stout/lambda.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 using std::map;
 using std::ostream;
