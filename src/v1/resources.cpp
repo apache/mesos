@@ -1720,6 +1720,19 @@ Resources& Resources::operator-=(const Resources& that)
 }
 
 
+ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
+{
+  switch (source.type()) {
+    case Resource::DiskInfo::Source::MOUNT:
+      return stream << "MOUNT:" + source.mount().root();
+    case Resource::DiskInfo::Source::PATH:
+      return stream << "PATH:" + source.path().root();
+  }
+
+  UNREACHABLE();
+}
+
+
 ostream& operator<<(ostream& stream, const Volume& volume)
 {
   string volumeConfig = volume.container_path();
@@ -1746,7 +1759,14 @@ ostream& operator<<(ostream& stream, const Volume& volume)
 
 ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
 {
+  if (disk.has_source()) {
+    stream << disk.source();
+  }
+
   if (disk.has_persistence()) {
+    if (disk.has_source()) {
+      stream << ",";
+    }
     stream << disk.persistence().id();
   }
 
