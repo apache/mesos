@@ -26,8 +26,8 @@ the life cycle of a container.
 
 Therefore, we made an effort to unify containerizers in Mesos
 ([MESOS-2840](https://issues.apache.org/jira/browse/MESOS-2840),
-a.k.a. the Unified Containerizer). We improved Mesos containerizer so
-that it now supports launching containers that specify container
+a.k.a. the Universal Containerizer). We improved Mesos containerizer
+so that it now supports launching containers that specify container
 images (e.g., Docker/Appc images).
 
 
