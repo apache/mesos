@@ -1849,6 +1849,7 @@ message Volume {
 
       // TODO(gyliu513): Add HOST_PATH and IMAGE as volume source type.
       DOCKER_VOLUME = 1;
+      SANDBOX_PATH = 2;
     }
 
     message DockerVolume {
@@ -1862,6 +1863,25 @@ message Volume {
       optional Parameters driver_options = 3;
     }
 
+    // Describe a path from a container's sandbox. The container can
+    // be the current container (SELF), or its parent container
+    // (PARENT). PARENT allows all child containers to share a volume
+    // from their parent container's sandbox. It'll be an error if
+    // the current container is a top level container.
+    message SandboxPath {
+      enum Type {
+        UNKNOWN = 0;
+        SELF = 1;
+        PARENT = 2;
+      }
+
+      optional Type type = 1;
+
+      // A path relative to the corresponding container's sandbox.
+      // Note that upwards traversal (i.e. ../../abc) is not allowed.
+      required string path = 2;
+    }
+
     // Enum fields should be optional, see: MESOS-4997.
     optional Type type = 1;
 
@@ -1870,6 +1890,8 @@ message Volume {
 
     // The source of the volume created by docker volume driver.
     optional DockerVolume docker_volume = 2;
+
+    optional SandboxPath sandbox_path = 3;
   }
 
   optional Source source = 5;
