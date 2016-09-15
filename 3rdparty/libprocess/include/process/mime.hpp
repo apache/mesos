@@ -154,7 +154,7 @@ inline void initialize()
   types[".mp4"] = "video/mp4";
 }
 
-} // } namespace mime {
-} // } namespace process {
+} // namespace mime {
+} // namespace process {
 
 #endif // __PROCESS_MIME_HPP__
