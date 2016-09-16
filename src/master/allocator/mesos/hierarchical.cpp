@@ -266,6 +266,9 @@ void HierarchicalAllocatorProcess::addFramework(
   frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
       frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
 
+  frameworks[frameworkId].shared = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::SHARED_RESOURCES);
+
   LOG(INFO) << "Added framework " << frameworkId;
 
   allocate();
@@ -399,6 +402,9 @@ void HierarchicalAllocatorProcess::updateFramework(
 
   frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
       frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
+
+  frameworks[frameworkId].shared = protobuf::frameworkHasCapability(
+      frameworkInfo, FrameworkInfo::Capability::SHARED_RESOURCES);
 }
 
 
@@ -1417,12 +1423,14 @@ void HierarchicalAllocatorProcess::allocate(
         // past allocations.
         Resources available =
           (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
-        available += slaves[slaveId].total.shared();
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.
-        if (offeredSharedResources.contains(slaveId)) {
-          available -= offeredSharedResources[slaveId];
+        if (frameworks[frameworkId].shared) {
+          available += slaves[slaveId].total.shared();
+          if (offeredSharedResources.contains(slaveId)) {
+            available -= offeredSharedResources[slaveId];
+          }
         }
 
         // The resources we offer are the unreserved resources as well as the
@@ -1571,12 +1579,14 @@ void HierarchicalAllocatorProcess::allocate(
         // past allocations.
         Resources available =
           (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
-        available += slaves[slaveId].total.shared();
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.
-        if (offeredSharedResources.contains(slaveId)) {
-          available -= offeredSharedResources[slaveId];
+        if (frameworks[frameworkId].shared) {
+          available += slaves[slaveId].total.shared();
+          if (offeredSharedResources.contains(slaveId)) {
+            available -= offeredSharedResources[slaveId];
+          }
         }
 
         // The resources we offer are the unreserved resources as well as the

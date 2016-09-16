@@ -289,6 +289,9 @@ protected:
     // the documentation for the GPU_RESOURCES Capability.
     bool gpuAware;
 
+    // Whether the framework desires shared resources.
+    bool shared;
+
     // Active offer and inverse offer filters for the framework.
     hashmap<SlaveID, hashset<OfferFilter*>> offerFilters;
     hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;

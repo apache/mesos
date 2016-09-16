@@ -1286,6 +1286,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
 
   // Initially, all the resources are allocated.
   FrameworkInfo framework = createFrameworkInfo("role1");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
   allocator->addFramework(
       framework.id(), framework, hashmap<SlaveID, Resources>());
 

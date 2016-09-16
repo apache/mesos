@@ -295,7 +295,6 @@ message FrameworkInfo {
       GPU_RESOURCES = 3;
 
       // Receive offers with resources that are shared.
-      // TODO(anindya_sinha): This is currently a no-op.
       SHARED_RESOURCES = 4;
 
       // Indicates that the framework is prepared to handle the
