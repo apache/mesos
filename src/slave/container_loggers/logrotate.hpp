@@ -57,7 +57,7 @@ struct Flags : public virtual flags::FlagsBase
         "Defaults to 10 MB.  Must be at least 1 (memory) page.",
         Megabytes(10),
         [](const Bytes& value) -> Option<Error> {
-          if (value.bytes() < static_cast<uint64_t>(os::pagesize())) {
+          if (value.bytes() < os::pagesize()) {
             return Error(
                 "Expected --max_size of at least " +
                 stringify(os::pagesize()) + " bytes");
