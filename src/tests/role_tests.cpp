@@ -116,7 +116,8 @@ TEST_F(RoleTest, ImplicitRoleRegister)
 
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from `resourceOffers`.
   Future<vector<Offer>> offers;

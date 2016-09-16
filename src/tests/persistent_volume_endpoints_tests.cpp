@@ -231,7 +231,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -351,7 +351,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -432,7 +432,7 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1557,7 +1557,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   Resources unreserved = Resources::parse("disk:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -1709,7 +1709,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   Resources unreserved = Resources::parse("disk:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1843,7 +1843,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   Resources slave1Unreserved = Resources::parse("cpus:4").get();
   Resources slave1Reserved = slave1Unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1882,7 +1882,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   Resources slave2Unreserved = Resources::parse("cpus:3").get();
   Resources slave2Reserved = slave2Unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   for (size_t i = 0; i < offers.get().size(); i++) {
     Offer offer = offers.get()[i];
@@ -1962,7 +1962,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512;disk:1024").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -2014,7 +2014,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   Resources taskUnreserved = Resources::parse("cpus:1;mem:256").get();
   Resources taskResources = taskUnreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   TaskInfo taskInfo = createTask(offer.slave_id(), taskResources, "sleep 1000");
 

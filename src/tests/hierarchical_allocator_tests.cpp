@@ -1479,7 +1479,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
   // Construct an offer operation for the framework's allocation.
   Resources unreserved = Resources::parse("cpus:25;mem:50").get();
   Resources dynamicallyReserved =
-    unreserved.flatten("role1", createReservationInfo("ops"));
+    unreserved.flatten("role1", createReservationInfo("ops")).get();
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 
@@ -1532,7 +1532,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
   // Construct an offer operation for the framework's allocation.
   Resources unreserved = Resources::parse("cpus:25;mem:50").get();
   Resources dynamicallyReserved =
-    unreserved.flatten("role1", createReservationInfo("ops"));
+    unreserved.flatten("role1", createReservationInfo("ops")).get();
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 
@@ -2633,7 +2633,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaSetAsideReservedResources)
   // Reserve 4 CPUs and 512MB of memory on `agent2` for non-quota'ed role.
   Resources unreserved = Resources::parse("cpus:4;mem:512").get();
   Resources dynamicallyReserved =
-    unreserved.flatten(NO_QUOTA_ROLE, createReservationInfo("ops"));
+    unreserved.flatten(NO_QUOTA_ROLE, createReservationInfo("ops")).get();
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 

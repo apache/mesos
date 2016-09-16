@@ -348,9 +348,15 @@ public:
   // If the optional ReservationInfo is given, the resource's
   // 'reservation' field is set. Otherwise, the resource's
   // 'reservation' field is cleared.
-  Resources flatten(
-      const std::string& role = "*",
+  // Returns an Error when the role is invalid or the reservation
+  // is set when the role is '*'.
+  Try<Resources> flatten(
+      const std::string& role,
       const Option<Resource::ReservationInfo>& reservation = None()) const;
+
+  // Equivalent to `flatten("*")` except it returns a Resources directly
+  // because the result is always a valid in this case.
+  Resources flatten() const;
 
   // Returns a Resources object that contains all the scalar resources
   // in this object, but with their ReservationInfo and DiskInfo

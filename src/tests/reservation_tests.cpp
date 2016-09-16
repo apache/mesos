@@ -115,7 +115,8 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -209,7 +210,7 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
   Resources dynamicallyReserved =
     unreserved.flatten(
         frameworkInfo.role(),
-        createReservationInfo(frameworkInfo.principal()));
+        createReservationInfo(frameworkInfo.principal())).get();
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -262,7 +263,7 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
   Resources finalReservation =
     reserved.flatten(
         frameworkInfo.role(),
-        createReservationInfo(frameworkInfo.principal()));
+        createReservationInfo(frameworkInfo.principal())).get();
 
   EXPECT_TRUE(Resources(offer.resources()).contains(finalReservation));
 
@@ -309,7 +310,8 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -430,7 +432,7 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      role, createReservationInfo(frameworkInfo1.principal()));
+      role, createReservationInfo(frameworkInfo1.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -539,7 +541,8 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources unreservedTooLarge = Resources::parse("cpus:1;mem:1024").get();
   Resources dynamicallyReservedTooLarge = unreservedTooLarge.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture the offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -629,7 +632,8 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   Resources staticallyReserved =
     Resources::parse("cpus(role):1;mem(role):512").get();
   Resources dynamicallyReserved = staticallyReserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -712,11 +716,13 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
 
   Resources unreserved1 = Resources::parse("cpus:8").get();
   Resources reserved1 = unreserved1.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   Resources unreserved2 = Resources::parse("mem:2048").get();
   Resources reserved2 = unreserved2.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -812,7 +818,8 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
 
   Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
   Resources reserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -901,7 +908,8 @@ TEST_F(ReservationTest, MasterFailover)
 
   Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
   Resources reserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1018,7 +1026,8 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
 
   Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
   Resources reserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1124,7 +1133,8 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 
   Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
   Resources reserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   Resource unreservedDisk = Resources::parse("disk", "1024", "*").get();
   Resource reservedDisk = unreservedDisk;
@@ -1273,7 +1283,8 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
 
   Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
   Resources reserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1395,7 +1406,8 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1494,7 +1506,8 @@ TEST_F(ReservationTest, BadACLDropReserve)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1585,10 +1598,13 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
   // Define the resources to be reserved.
   Resources unreserved1 = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved1 = unreserved1.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
+
   Resources unreserved2 = Resources::parse("cpus:0.5;mem:256").get();
   Resources dynamicallyReserved2 = unreserved2.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1716,10 +1732,13 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   // Define the resources to be reserved.
   Resources unreserved1 = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved1 = unreserved1.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
+
   Resources unreserved2 = Resources::parse("cpus:0.5;mem:256").get();
   Resources dynamicallyReserved2 = unreserved2.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
@@ -1903,7 +1922,7 @@ TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
   // Create dynamically reserved resources whose `ReservationInfo` does not
   // contain a principal.
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo());
+      frameworkInfo.role(), createReservationInfo()).get();
 
   // We use this to capture offers from `resourceOffers`.
   Future<vector<Offer>> offers;
@@ -2005,7 +2024,8 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
   // Create dynamically reserved resources whose `ReservationInfo` contains a
   // principal.
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+      frameworkInfo.role(),
+      createReservationInfo(frameworkInfo.principal())).get();
 
   // We use this to capture offers from `resourceOffers`.
   Future<vector<Offer>> offers;

@@ -106,8 +106,9 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Option<Resources> resources =
-          remaining.find(TASK_RESOURCES.flatten(role));
+        Try<Resources> flattened = TASK_RESOURCES.flatten(role);
+        CHECK_SOME(flattened);
+        Option<Resources> resources = remaining.find(flattened.get());
 
         CHECK_SOME(resources);
         task.mutable_resources()->MergeFrom(resources.get());

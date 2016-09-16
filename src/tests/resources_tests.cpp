@@ -2184,7 +2184,7 @@ TEST(ResourcesOperationTest, ReserveResources)
   Resources unreserved = unreservedCpus + unreservedMem;
 
   Resources reservedCpus1 =
-    unreservedCpus.flatten("role", createReservationInfo("principal"));
+    unreservedCpus.flatten("role", createReservationInfo("principal")).get();
 
   EXPECT_SOME_EQ(unreservedMem + reservedCpus1,
                  unreserved.apply(RESERVE(reservedCpus1)));
@@ -2272,7 +2272,7 @@ TEST(ResourcesOperationTest, StrippedResourcesReserved)
 {
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      "role", createReservationInfo("principal"));
+      "role", createReservationInfo("principal")).get();
 
   Resources stripped = dynamicallyReserved.createStrippedScalarQuantity();
 
@@ -2358,6 +2358,24 @@ TEST(ResourcesOperationTest, CreateSharedPersistentVolume)
   create2.mutable_create()->add_volumes()->CopyFrom(volume2);
 
   EXPECT_ERROR(total.apply(create2));
+}
+
+
+TEST(ResourcesOperationTest, FlattenResources)
+{
+  Resources unreservedCpus = Resources::parse("cpus:1").get();
+  Resources unreservedMem = Resources::parse("mem:512").get();
+
+  Resources unreserved = unreservedCpus + unreservedMem;
+
+  EXPECT_ERROR(unreserved.flatten("*", createReservationInfo("principal")));
+  EXPECT_ERROR(unreserved.flatten("-role"));
+
+  Resources reservedCpus =
+    unreservedCpus.flatten("role", createReservationInfo("principal")).get();
+
+  EXPECT_SOME_EQ(unreservedMem + reservedCpus,
+                 unreserved.apply(RESERVE(reservedCpus)));
 }
 
 
@@ -2762,7 +2780,7 @@ public:
       reservation.mutable_labels()->add_labels()->CopyFrom(label);
 
       reservations.resources +=
-        scalars.resources.flatten(stringify(i), reservation);
+        scalars.resources.flatten(stringify(i), reservation).get();
     }
     reservations.totalOperations = 10;
 

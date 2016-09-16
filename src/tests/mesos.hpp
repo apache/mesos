@@ -844,7 +844,7 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
       task.mutable_executor()->MergeFrom(executor);
 
       Option<Resources> resources =
-        remaining.find(TASK_RESOURCES.flatten(role));
+        remaining.find(TASK_RESOURCES.flatten(role).get());
 
       CHECK_SOME(resources);
 

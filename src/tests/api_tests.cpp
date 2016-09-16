@@ -966,7 +966,7 @@ TEST_P(MasterAPITest, ReserveResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1060,7 +1060,7 @@ TEST_P(MasterAPITest, UnreserveResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+      createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::RESERVE_RESOURCES);

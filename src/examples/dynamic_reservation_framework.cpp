@@ -61,7 +61,10 @@ public:
       principal(_principal)
   {
     reservationInfo.set_principal(principal);
-    taskResources = TASK_RESOURCES.flatten(role, reservationInfo);
+
+    Try<Resources> flattened = TASK_RESOURCES.flatten(role, reservationInfo);
+    CHECK_SOME(flattened);
+    taskResources = flattened.get();
   }
 
   virtual ~DynamicReservationScheduler() {}

@@ -373,8 +373,12 @@ protected:
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
         // Takes resources first from the specified role, then from '*'.
-        Option<Resources> resources =
-          offered.find(TASK_RESOURCES.get().flatten(frameworkInfo.role()));
+        Try<Resources> flattened =
+          TASK_RESOURCES.get().flatten(frameworkInfo.role());
+
+        // `frameworkInfo.role()` must be valid as it's allowed to register.
+        CHECK_SOME(flattened);
+        Option<Resources> resources = offered.find(flattened.get());
 
         CHECK_SOME(resources);
 

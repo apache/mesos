@@ -1077,23 +1077,45 @@ Resources Resources::nonShared() const
 }
 
 
-Resources Resources::flatten(
+Try<Resources> Resources::flatten(
     const string& role,
     const Option<Resource::ReservationInfo>& reservation) const
 {
+  // Check role name.
+  Option<Error> error = roles::validate(role);
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  // Checks for the invalid state of (role, reservation) pair.
+  if (role == "*" && reservation.isSome()) {
+    return Error(
+        "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+
   Resources flattened;
 
   foreach (Resource_ resource_, resources) {
+    // With the above checks, we are certain that `resource_` will
+    // remain valid after the modifications.
     resource_.resource.set_role(role);
     if (reservation.isNone()) {
       resource_.resource.clear_reservation();
     } else {
       resource_.resource.mutable_reservation()->CopyFrom(reservation.get());
     }
-    flattened += resource_;
+    flattened.add(resource_);
   }
 
   return flattened;
+}
+
+
+Resources Resources::flatten() const
+{
+  Try<Resources> flattened = flatten("*");
+  CHECK_SOME(flattened);
+  return flattened.get();
 }
 
 
@@ -1507,10 +1529,17 @@ Option<Resources> Resources::find(const Resource& target) const
       if (flattened.contains(remaining)) {
         // The target has been found, return the result.
         if (!resource_.resource.has_reservation()) {
-          return found + remaining.flatten(resource_.resource.role());
+          Try<Resources> _flattened =
+            remaining.flatten(resource_.resource.role());
+
+          CHECK_SOME(_flattened);
+          return found + _flattened.get();
         } else {
-          return found + remaining.flatten(
+          Try<Resources> _flattened = remaining.flatten(
               resource_.resource.role(), resource_.resource.reservation());
+
+          CHECK_SOME(_flattened);
+          return found + _flattened.get();
         }
       } else if (remaining.contains(flattened)) {
         found.add(resource_);

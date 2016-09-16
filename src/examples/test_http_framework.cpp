@@ -244,8 +244,9 @@ private:
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Option<Resources> resources =
-          remaining.find(TASK_RESOURCES.flatten(framework.role()));
+        Try<Resources> flattened = TASK_RESOURCES.flatten(framework.role());
+        CHECK_SOME(flattened);
+        Option<Resources> resources = remaining.find(flattened.get());
 
         CHECK_SOME(resources);
 
