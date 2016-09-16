@@ -1285,9 +1285,9 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
   allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
 
   // Initially, all the resources are allocated.
-  FrameworkInfo framework = createFrameworkInfo("role1");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::SHARED_RESOURCES);
+  FrameworkInfo framework = createFrameworkInfo(
+      "role1",
+      {FrameworkInfo::Capability::SHARED_RESOURCES});
   allocator->addFramework(
       framework.id(), framework, hashmap<SlaveID, Resources>());
 
@@ -1299,14 +1299,10 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
   EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
 
   // Construct an offer operation for the framework's allocation.
-  Resource volume = Resources::parse("disk", "5", "role1").get();
-  volume.mutable_disk()->mutable_persistence()->set_id("ID");
-  volume.mutable_disk()->mutable_volume()->set_container_path("data");
-  volume.mutable_shared();
-
-  Offer::Operation create;
-  create.set_type(Offer::Operation::CREATE);
-  create.mutable_create()->add_volumes()->CopyFrom(volume);
+  // Create a shared volume.
+  Resource volume = createDiskResource(
+      "5", "role1", "id1", None(), None(), true);
+  Offer::Operation create = CREATE(volume);
 
   // Ensure the offer operation can be applied.
   Try<Resources> update =
@@ -1349,9 +1345,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
 
   // Construct an offer operation for the framework's allocation to
   // destroy the shared volume.
-  Offer::Operation destroy;
-  destroy.set_type(Offer::Operation::DESTROY);
-  destroy.mutable_destroy()->add_volumes()->CopyFrom(volume);
+  Offer::Operation destroy = DESTROY(volume);
 
   // Update the allocation in the allocator.
   allocator->updateAllocation(
@@ -1382,6 +1376,94 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
 
   EXPECT_EQ(Resources(slave.resources()),
             Resources::sum(allocation.get().resources));
+}
+
+
+// Tests that shared resources are only offered to frameworks who have
+// opted in for SHARED_RESOURCES.
+TEST_F(HierarchicalAllocatorTest, SharedResourcesCapability)
+{
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk(role1):100");
+  allocator->addSlave(slave.id(), slave, None(), slave.resources(), {});
+
+  // Create `framework1` without opting in for SHARED_RESOURCES.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, {});
+
+  // Initially, all the resources are allocated to `framework1`.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Create a shared volume.
+  Resource volume = createDiskResource(
+      "5", "role1", "id1", None(), None(), true);
+  Offer::Operation create = CREATE(volume);
+
+  // Ensure the offer operation can be applied.
+  Try<Resources> update =
+    Resources::sum(allocation.get().resources).apply(create);
+
+  ASSERT_SOME(update);
+
+  // Update the allocation in the allocator.
+  allocator->updateAllocation(
+      framework1.id(),
+      slave.id(),
+      Resources::sum(allocation.get().resources),
+      {create});
+
+  // Now recover the resources, and expect the next allocation to
+  // contain the updated resources.
+  allocator->recoverResources(
+      framework1.id(),
+      slave.id(),
+      update.get(),
+      None());
+
+  // Shared volume not offered to `framework1` since it has not
+  // opted in for SHARED_RESOURCES.
+  Clock::advance(flags.allocation_interval);
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_TRUE(allocation.get().resources.get(
+      slave.id()).get().shared().empty());
+
+  // Recover the resources for the offer in the next allocation cycle.
+  allocator->recoverResources(
+      framework1.id(),
+      slave.id(),
+      allocation.get().resources.get(slave.id()).get(),
+      None());
+
+  // Create `framework2` with opting in for SHARED_RESOURCES.
+  FrameworkInfo framework2 = createFrameworkInfo(
+      "role1",
+      {FrameworkInfo::Capability::SHARED_RESOURCES});
+  allocator->addFramework(framework2.id(), framework2, {});
+
+  // The offer to 'framework2` should contain the shared volume since it
+  // has opted in for SHARED_RESOURCES.
+  Clock::advance(flags.allocation_interval);
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(allocation.get().resources.get(slave.id()).get().shared(),
+      Resources(volume));
 }
 
 
