@@ -140,6 +140,12 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 }
 
 
+bool CgroupsIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 void CgroupsIsolatorProcess::initialize()
 {
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
