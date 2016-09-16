@@ -15,14 +15,18 @@
 
 #include <unistd.h>
 
+#include <glog/logging.h>
+
 
 namespace os {
 
-// The alternative `getpagesize()` does not exist when enforcing
-// strict POSIX compliance.
-inline int pagesize()
+// The alternative `getpagesize()` is not defined by POSIX.
+inline size_t pagesize()
 {
-  return sysconf(_SC_PAGESIZE);
+  // We assume that `sysconf` will not fail in practice.
+  long result = ::sysconf(_SC_PAGESIZE);
+  CHECK(result >= 0);
+  return result;
 }
 
 } // namespace os {

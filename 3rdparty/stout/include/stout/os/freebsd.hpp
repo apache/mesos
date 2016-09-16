@@ -42,7 +42,7 @@ inline Result<Process> process(pid_t pid)
 
   foreach (const kinfo_proc& kinfo, kinfos.get()) {
     if (kinfo.ki_pid == pid) {
-      int pagesize = os::pagesize();
+      size_t pagesize = os::pagesize();
       return Process(kinfo.ki_pid,
                      kinfo.ki_ppid,
                      kinfo.ki_pgid,
@@ -84,7 +84,7 @@ inline Try<Memory> memory()
   }
   memory.total = Bytes(physicalMemory.get());
 
-  const int pageSize = os::pagesize();
+  const size_t pageSize = os::pagesize();
 
   unsigned int freeCount;
   size_t length = sizeof(freeCount);

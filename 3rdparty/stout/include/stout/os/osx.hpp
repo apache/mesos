@@ -203,10 +203,7 @@ inline Try<Memory> memory()
 
   // Size of free memory is available in terms of number of
   // free pages on Mac OS X.
-  const int pageSize = os::pagesize();
-  if (pageSize < 0) {
-    return ErrnoError();
-  }
+  const size_t pageSize = os::pagesize();
 
   unsigned int freeCount;
   size_t length = sizeof(freeCount);

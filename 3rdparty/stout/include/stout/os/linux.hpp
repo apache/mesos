@@ -84,10 +84,7 @@ inline pid_t clone(const lambda::function<int()>& func, int flags)
 inline Result<Process> process(pid_t pid)
 {
   // Page size, used for memory accounting.
-  static const int pageSize = os::pagesize();
-  if (pageSize <= 0) {
-    return Error("Failed to get `os::pagesize`");
-  }
+  static const size_t pageSize = os::pagesize();
 
   // Number of clock ticks per second, used for cpu accounting.
   static const long ticks = sysconf(_SC_CLK_TCK);

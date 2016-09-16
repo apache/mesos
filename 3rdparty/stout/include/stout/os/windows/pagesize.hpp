@@ -18,7 +18,7 @@
 
 namespace os {
 
-inline int pagesize()
+inline size_t pagesize()
 {
   SYSTEM_INFO si;
   GetSystemInfo(&si);
