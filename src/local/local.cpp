@@ -161,8 +161,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // Save the instance for deleting later.
     allocator = defaultAllocator.get();
   } else {
-    // TODO(benh): Figure out the behavior of allocator pointer and remove the
-    // else block.
+    // TODO(benh): Figure out the behavior of allocator pointer and
+    // remove the else block.
     allocator = nullptr;
   }
 
@@ -176,12 +176,13 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       << flags.work_dir << "': " << mkdir.error();
   }
 
-  map<string, string> propagated_flags;
-  propagated_flags["work_dir"] = flags.work_dir;
-
   {
-    master::Flags flags;
-    Try<flags::Warnings> load = flags.load(propagated_flags, false, "MESOS_");
+    master::Flags masterFlags;
+
+    Try<flags::Warnings> load = masterFlags.load("MESOS_");
+
+    masterFlags.work_dir = flags.work_dir;
+
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to start a local cluster while loading"
@@ -195,40 +196,42 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     // Load modules. Note that this covers both, master and slave
     // specific modules as both use the same flag (--modules).
-    if (flags.modules.isSome()) {
-      Try<Nothing> result = ModuleManager::load(flags.modules.get());
+    if (masterFlags.modules.isSome()) {
+      Try<Nothing> result = ModuleManager::load(masterFlags.modules.get());
       if (result.isError()) {
         EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
       }
     }
 
-    if (flags.registry == "in_memory") {
+    if (masterFlags.registry == "in_memory") {
       storage = new mesos::state::InMemoryStorage();
-    } else if (flags.registry == "replicated_log") {
+    } else if (masterFlags.registry == "replicated_log") {
       // TODO(vinod): Add support for replicated log with ZooKeeper.
       log = new Log(
           1,
-          path::join(flags.work_dir.get(), "replicated_log"),
+          path::join(masterFlags.work_dir.get(), "replicated_log"),
           set<UPID>(),
-          flags.log_auto_initialize,
+          masterFlags.log_auto_initialize,
           "registrar/");
       storage = new mesos::state::LogStorage(log);
     } else {
       EXIT(EXIT_FAILURE)
-        << "'" << flags.registry << "' is not a supported"
+        << "'" << masterFlags.registry << "' is not a supported"
         << " option for registry persistence";
     }
 
     CHECK_NOTNULL(storage);
 
     state = new mesos::state::protobuf::State(storage);
-    registrar =
-      new Registrar(flags, state, master::READONLY_HTTP_AUTHENTICATION_REALM);
+    registrar = new Registrar(
+        masterFlags,
+        state,
+        master::READONLY_HTTP_AUTHENTICATION_REALM);
 
     contender = new StandaloneMasterContender();
     detector = new StandaloneMasterDetector();
 
-    auto authorizerNames = strings::split(flags.authorizers, ",");
+    auto authorizerNames = strings::split(masterFlags.authorizers, ",");
     if (authorizerNames.empty()) {
       EXIT(EXIT_FAILURE) << "No authorizer specified";
     }
@@ -248,10 +251,10 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       authorizer = Authorizer::create(authorizerName);
     } else {
       // `authorizerName` is `DEFAULT_AUTHORIZER` at this point.
-      if (flags.acls.isSome()) {
+      if (masterFlags.acls.isSome()) {
         LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
 
-        authorizer = Authorizer::create(flags.acls.get());
+        authorizer = Authorizer::create(masterFlags.acls.get());
       }
     }
 
@@ -263,17 +266,17 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
-    if (flags.agent_removal_rate_limit.isSome()) {
+    if (masterFlags.agent_removal_rate_limit.isSome()) {
       // Parse the flag value.
       // TODO(vinod): Move this parsing logic to flags once we have a
       // 'Rate' abstraction in stout.
       vector<string> tokens =
-        strings::tokenize(flags.agent_removal_rate_limit.get(), "/");
+        strings::tokenize(masterFlags.agent_removal_rate_limit.get(), "/");
 
       if (tokens.size() != 2) {
         EXIT(EXIT_FAILURE)
           << "Invalid agent_removal_rate_limit: "
-          << flags.agent_removal_rate_limit.get()
+          << masterFlags.agent_removal_rate_limit.get()
           << ". Format is <Number of agents>/<Duration>";
       }
 
@@ -281,7 +284,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       if (permits.isError()) {
         EXIT(EXIT_FAILURE)
           << "Invalid agent_removal_rate_limit: "
-          << flags.agent_removal_rate_limit.get()
+          << masterFlags.agent_removal_rate_limit.get()
           << ". Format is <Number of agents>/<Duration>"
           << ": " << permits.error();
       }
@@ -290,7 +293,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       if (duration.isError()) {
         EXIT(EXIT_FAILURE)
           << "Invalid agent_removal_rate_limit: "
-          << flags.agent_removal_rate_limit.get()
+          << masterFlags.agent_removal_rate_limit.get()
           << ". Format is <Number of agents>/<Duration>"
           << ": " << duration.error();
       }
@@ -323,7 +326,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         detector,
         authorizer_,
         slaveRemovalLimiter,
-        flags);
+        masterFlags);
 
     detector->appoint(master->info());
   }
@@ -339,9 +342,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   vector<UPID> pids;
 
   for (int i = 0; i < flags.num_slaves; i++) {
-    slave::Flags flags;
+    slave::Flags slaveFlags;
 
-    Try<flags::Warnings> load = flags.load(propagated_flags, false, "MESOS_");
+    Try<flags::Warnings> load = slaveFlags.load("MESOS_");
+
+    slaveFlags.work_dir = flags.work_dir;
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
@@ -355,14 +360,14 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     // Use a different work directory for each slave.
-    flags.work_dir = path::join(flags.work_dir, stringify(i));
+    slaveFlags.work_dir = path::join(slaveFlags.work_dir, stringify(i));
 
     garbageCollectors->push_back(new GarbageCollector());
-    statusUpdateManagers->push_back(new StatusUpdateManager(flags));
+    statusUpdateManagers->push_back(new StatusUpdateManager(slaveFlags));
     fetchers->push_back(new Fetcher());
 
     Try<ResourceEstimator*> resourceEstimator =
-      ResourceEstimator::create(flags.resource_estimator);
+      ResourceEstimator::create(slaveFlags.resource_estimator);
 
     if (resourceEstimator.isError()) {
       EXIT(EXIT_FAILURE)
@@ -372,7 +377,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     resourceEstimators->push_back(resourceEstimator.get());
 
     Try<QoSController*> qosController =
-      QoSController::create(flags.qos_controller);
+      QoSController::create(slaveFlags.qos_controller);
 
     if (qosController.isError()) {
       EXIT(EXIT_FAILURE)
@@ -381,13 +386,20 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     qosControllers->push_back(qosController.get());
 
-    // Set default launcher to 'posix'(see MESOS-3793).
-    if (flags.launcher.isNone()) {
-      flags.launcher = "posix";
+    // Override the default launcher that gets created per agent to
+    // 'posix' if we're creating multiple agents because the
+    // LinuxLauncher does not support multiple agents on the same host
+    // (see MESOS-3793).
+    if (flags.num_slaves > 1 && slaveFlags.launcher != "posix") {
+      // TODO(benh): This log line will print out for each slave!
+      LOG(WARNING) << "Using the 'posix' launcher instead of '"
+                   << slaveFlags.launcher << "' since currently only the "
+                   << "'posix' launcher supports multiple agents per host";
+      slaveFlags.launcher = "posix";
     }
 
     Try<Containerizer*> containerizer =
-      Containerizer::create(flags, true, fetchers->back());
+      Containerizer::create(slaveFlags, true, fetchers->back());
 
     if (containerizer.isError()) {
       EXIT(EXIT_FAILURE)
@@ -398,7 +410,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // Master.
     Slave* slave = new Slave(
         process::ID::generate("slave"),
-        flags,
+        slaveFlags,
         detector,
         containerizer.get(),
         files,

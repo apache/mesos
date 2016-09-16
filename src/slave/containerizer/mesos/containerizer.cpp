@@ -227,34 +227,24 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // Create the launcher for the MesosContainerizer.
   Try<Launcher*> launcher = [&flags_]() -> Try<Launcher*> {
 #ifdef __linux__
-    if (flags_.launcher.isSome()) {
-      // If the user has specified the launcher, use it.
-      if (flags_.launcher.get() == "linux") {
-        return LinuxLauncher::create(flags_);
-      } else if (flags_.launcher.get() == "posix") {
-        return PosixLauncher::create(flags_);
-      } else {
-        return Error(
-            "Unknown or unsupported launcher: " + flags_.launcher.get());
-      }
+    if (flags_.launcher == "linux") {
+      return LinuxLauncher::create(flags_);
+    } else if (flags_.launcher == "posix") {
+      return PosixLauncher::create(flags_);
+    } else {
+      return Error("Unknown or unsupported launcher: " + flags_.launcher);
     }
-
-    // Use Linux launcher if it is available, POSIX otherwise.
-    return LinuxLauncher::available()
-      ? LinuxLauncher::create(flags_)
-      : PosixLauncher::create(flags_);
 #elif __WINDOWS__
     // NOTE: Because the most basic launcher historically has been "posix", we
     // accept this flag on Windows, but map it to the `WindowsLauncher`.
-    if (flags_.launcher.isSome() && !(flags_.launcher.get() == "posix" ||
-        flags_.launcher.get() == "windows")) {
-      return Error("Unsupported launcher: " + flags_.launcher.get());
+    if (flags_.launcher != "posix" && flags_.launcher != "windows") {
+      return Error("Unsupported launcher: " + flags_.launcher);
     }
 
     return WindowsLauncher::create(flags_);
 #else
-    if (flags_.launcher.isSome() && flags_.launcher.get() != "posix") {
-      return Error("Unsupported launcher: " + flags_.launcher.get());
+    if (flags_.launcher != "posix") {
+      return Error("Unsupported launcher: " + flags_.launcher);
     }
 
     return PosixLauncher::create(flags_);
