@@ -30,6 +30,8 @@
 
 #include "linux/cgroups.hpp"
 
+#include "slave/containerizer/mesos/utils.hpp"
+
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 
@@ -162,6 +164,13 @@ Future<Nothing> CgroupsIsolatorProcess::recover(
   // Recover active containers first.
   list<Future<Nothing>> recovers;
   foreach (const ContainerState& state, states) {
+    // If we are a nested container, we do not need to recover
+    // anything since only top-level containers will have cgroups
+    // created for them.
+    if (state.container_id().has_parent()) {
+      continue;
+    }
+
     recovers.push_back(___recover(state.container_id()));
   }
 
@@ -358,6 +367,13 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
+  // If we are a nested container, we do not need to prepare
+  // anything since only top-level containers should have cgroups
+  // created for them.
+  if (containerId.has_parent()) {
+    return None();
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
@@ -492,27 +508,47 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
-  if (!infos.contains(containerId)) {
-    return Failure("Failed to isolate the container: Unknown container");
+  // If we are a nested container, we inherit
+  // the cgroup from our root ancestor.
+  ContainerID rootContainerId = getRootContainerId(containerId);
+
+  if (!infos.contains(rootContainerId)) {
+    return Failure("Failed to isolate the container: Unknown root container");
   }
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
     Try<Nothing> assign = cgroups::assign(
         hierarchy,
-        infos[containerId]->cgroup,
+        infos[rootContainerId]->cgroup,
         pid);
 
     if (assign.isError()) {
       string message =
         "Failed to assign pid " + stringify(pid) + " to cgroup at "
-        "'" + path::join(hierarchy, infos[containerId]->cgroup) + "'"
+        "'" + path::join(hierarchy, infos[rootContainerId]->cgroup) + "'"
         ": " + assign.error();
 
       LOG(ERROR) << message;
 
       return Failure(message);
     }
+  }
+
+  // We currently can't call `subsystem->isolate()` on nested
+  // containers, because we don't call `prepare()`, `recover()`, or
+  // `cleanup()` on them either. If we were to call `isolate()` on
+  // them, the call would likely fail because the subsystem doesn't
+  // know about the container. This is currently OK because the only
+  // cgroup isolator that even implements `isolate()` is the
+  // `NetClsSubsystem` and it doesn't do anything with the `pid`
+  // passed in.
+  //
+  // TODO(klueska): In the future we should revisit this to make
+  // sure that doing things this way is sufficient (or otherwise
+  // update our invariants to allow us to call this here).
+  if (containerId.has_parent()) {
+    return Nothing();
   }
 
   list<Future<Nothing>> isolates;
@@ -553,6 +589,10 @@ Future<Nothing> CgroupsIsolatorProcess::_isolate(
 Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     const ContainerID& containerId)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -588,6 +628,10 @@ Future<Nothing> CgroupsIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -630,6 +674,10 @@ Future<Nothing> CgroupsIsolatorProcess::_update(
 Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
     const ContainerID& containerId)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -662,6 +710,10 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
 Future<ContainerStatus> CgroupsIsolatorProcess::status(
     const ContainerID& containerId)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -693,6 +745,12 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
 Future<Nothing> CgroupsIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  // If we are a nested container, we do not need to clean anything up
+  // since only top-level containers should have cgroups created for them.
+  if (containerId.has_parent()) {
+    return Nothing();
+  }
+
   if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
 

@@ -951,6 +951,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/launch.hpp					\
   slave/containerizer/mesos/launcher.hpp				\
   slave/containerizer/mesos/mount.hpp					\
+  slave/containerizer/mesos/utils.hpp					\
   slave/containerizer/mesos/isolators/posix.hpp				\
   slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
   slave/containerizer/mesos/isolators/filesystem/windows.hpp		\
