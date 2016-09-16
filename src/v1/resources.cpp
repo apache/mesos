@@ -1099,6 +1099,8 @@ Try<Resources> Resources::flatten(
   Resources flattened;
 
   foreach (Resource_ resource_, resources) {
+    // With the above checks, we are certain that `resource_` will
+    // remain valid after the modifications.
     resource_.resource.set_role(role);
     if (reservation.isNone()) {
       resource_.resource.clear_reservation();
