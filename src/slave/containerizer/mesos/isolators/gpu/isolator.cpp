@@ -182,6 +182,12 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
 }
 
 
+bool NvidiaGpuIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Future<Nothing> NvidiaGpuIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
