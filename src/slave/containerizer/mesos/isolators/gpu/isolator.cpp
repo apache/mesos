@@ -43,6 +43,8 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
+#include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
+
 #include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
@@ -112,7 +114,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
   }
 
   // Retrieve the cgroups devices hierarchy.
-  Result<string> hierarchy = cgroups::hierarchy("devices");
+  Result<string> hierarchy = cgroups::hierarchy(CGROUP_SUBSYSTEM_DEVICES_NAME);
 
   if (hierarchy.isError()) {
     return Error(
@@ -188,6 +190,13 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
 
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
+
+    // If we are a nested container, we skip the recover because our
+    // root ancestor will recover the GPU state from the cgroup for us.
+    if (containerId.has_parent()) {
+      continue;
+    }
+
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     Try<bool> exists = cgroups::exists(hierarchy, cgroup);
@@ -195,17 +204,24 @@ Future<Nothing> NvidiaGpuIsolatorProcess::recover(
       foreachvalue (Info* info, infos) {
         delete info;
       }
+
       infos.clear();
-      return Failure("Failed to check cgroup for container '" +
-                     stringify(containerId) + "'");
+
+      return Failure(
+          "Failed to check the existence of the cgroup "
+          "'" + cgroup + "' in hierarchy '" + hierarchy + "' "
+          "for container " + stringify(containerId) +
+          ": " + exists.error());
     }
 
     if (!exists.get()) {
-      VLOG(1) << "Couldn't find cgroup for container " << containerId;
       // This may occur if the executor has exited and the isolator
       // has destroyed the cgroup but the slave dies before noticing
       // this. This will be detected when the containerizer tries to
       // monitor the executor's pid.
+      LOG(WARNING) << "Couldn't find the cgroup '" << cgroup << "' "
+                   << "in hierarchy '" << hierarchy << "' "
+                   << "for container " << containerId;
       continue;
     }
 
@@ -248,6 +264,16 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
     const ContainerID& containerId,
     const mesos::slave::ContainerConfig& containerConfig)
 {
+  // If we are a nested container, we don't need to maintain an `Info()`
+  // struct about the container since we don't allocate GPUs to it
+  // directly (we only allocate GPUs to top-level containers, and they
+  // automatically get shared by nested containers).  However, we do
+  // still need to mount the necessary Nvidia libraries into the
+  // container. We call `_prepare()` directly to do this for us.
+  if (containerId.has_parent()) {
+    return _prepare(containerConfig);
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
@@ -335,6 +361,10 @@ Future<Nothing> NvidiaGpuIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -432,6 +462,10 @@ Future<Nothing> NvidiaGpuIsolatorProcess::_update(
 Future<ResourceStatistics> NvidiaGpuIsolatorProcess::usage(
     const ContainerID& containerId)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -446,6 +480,12 @@ Future<ResourceStatistics> NvidiaGpuIsolatorProcess::usage(
 Future<Nothing> NvidiaGpuIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  // If we are a nested container, we don't have an `Info()` struct to
+  // cleanup, so we just return immediately.
+  if (containerId.has_parent()) {
+    return Nothing();
+  }
+
   // Multiple calls may occur during test clean up.
   if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
