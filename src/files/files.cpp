@@ -659,7 +659,7 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
   }
 
   // Cap the read length at 16 pages.
-  length = std::min<size_t>(length.get(), os::pagesize() * 16);
+  length = std::min(length.get(), os::pagesize() * 16);
 
   // Seek to the offset we want to read from.
   if (lseek(fd.get(), offset, SEEK_SET) == -1) {
