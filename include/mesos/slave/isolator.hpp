@@ -41,6 +41,14 @@ class Isolator
 public:
   virtual ~Isolator() {}
 
+  // Returns true if this isolator supports nested containers. This
+  // method is designed to allow isolators to opt-in to support nested
+  // containers.
+  virtual bool supportsNesting()
+  {
+    return false;
+  }
+
   // Recover containers from the run states and the orphan containers
   // (known to the launcher but not known to the slave) detected by
   // the launcher.

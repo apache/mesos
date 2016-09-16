@@ -46,6 +46,12 @@ MesosIsolator::~MesosIsolator()
 }
 
 
+bool MesosIsolator::supportsNesting()
+{
+  return process->supportsNesting();
+}
+
+
 Future<Nothing> MesosIsolator::recover(
     const list<ContainerState>& state,
     const hashset<ContainerID>& orphans)

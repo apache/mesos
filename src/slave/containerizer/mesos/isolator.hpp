@@ -41,6 +41,8 @@ public:
   explicit MesosIsolator(process::Owned<MesosIsolatorProcess> process);
   virtual ~MesosIsolator();
 
+  virtual bool supportsNesting();
+
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
@@ -78,6 +80,11 @@ class MesosIsolatorProcess : public process::Process<MesosIsolatorProcess>
 {
 public:
   virtual ~MesosIsolatorProcess() {}
+
+  virtual bool supportsNesting()
+  {
+    return false;
+  }
 
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
