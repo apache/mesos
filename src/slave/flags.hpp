@@ -45,7 +45,7 @@ public:
   bool hostname_lookup;
   Option<std::string> resources;
   std::string isolation;
-  Option<std::string> launcher;
+  std::string launcher;
 
   Option<std::string> image_providers;
   std::string image_provisioner_backend;
