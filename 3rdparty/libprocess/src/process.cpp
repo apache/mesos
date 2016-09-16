@@ -1230,8 +1230,8 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
     // TODO(benh): Consider handling other "states" of future
     // (discarded, failed, etc) with different HTTP statuses.
     Response response = future.isFailed()
-      ? ServiceUnavailable(future.failure())
-      : ServiceUnavailable();
+      ? InternalServerError(future.failure())
+      : InternalServerError("discarded future");
 
     VLOG(1) << "Returning '" << response.status << "'"
             << " for '" << request.url.path << "'"

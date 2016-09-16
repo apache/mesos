@@ -179,6 +179,15 @@ TEST(HTTPTest, Endpoints)
 
   EXPECT_SOME_EQ("chunked", future->headers.get("Transfer-Encoding"));
   EXPECT_EQ("Hello World\n", future->body);
+
+  // Test that an endpoint handler failure results in a 500.
+  EXPECT_CALL(*http.process, body(_))
+    .WillOnce(Return(Future<http::Response>::failed("failure")));
+
+  future = http::get(http.process->self(), "body");
+
+  AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::InternalServerError().status, future);
+  EXPECT_EQ("failure", future->body);
 }
 
 
