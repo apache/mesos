@@ -309,7 +309,7 @@ class NamespacesPidIsolatorTest : public MesosTest {};
 TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
 {
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "namespaces/pid";
+  flags.isolation = "filesystem/linux,namespaces/pid";
 
   string directory = os::getcwd(); // We're inside a temporary sandbox.
 

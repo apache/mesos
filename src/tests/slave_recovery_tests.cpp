@@ -4098,7 +4098,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   slave.get()->terminate();
 
   // Start a slave using a containerizer with pid namespace isolation.
-  flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
+  flags.isolation = "cgroups/cpu,cgroups/mem,filesystem/linux,namespaces/pid";
 
   _containerizer = MesosContainerizer::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -4137,7 +4137,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   // Start a slave using a containerizer with pid namespace isolation.
   slave::Flags flags = this->CreateSlaveFlags();
-  flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
+  flags.isolation = "cgroups/cpu,cgroups/mem,filesystem/linux,namespaces/pid";
   flags.agent_subsystems = "";
 
   Fetcher fetcher;

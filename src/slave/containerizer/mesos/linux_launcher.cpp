@@ -38,8 +38,6 @@
 
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
-#include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
-
 using namespace process;
 
 using std::list;
@@ -343,22 +341,6 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 
   if (!exists.get()) {
     return Nothing();
-  }
-
-  Result<ino_t> containerPidNs =
-    NamespacesPidIsolatorProcess::getNamespace(containerId);
-
-  if (containerPidNs.isSome()) {
-    LOG(INFO) << "Using pid namespace to destroy container " << containerId;
-
-    return ns::pid::destroy(containerPidNs.get())
-      .then(lambda::bind(
-            (Future<Nothing>(*)(const string&,
-                                const string&,
-                                const Duration&))(&cgroups::destroy),
-            freezerHierarchy,
-            cgroup(containerId),
-            cgroups::DESTROY_TIMEOUT));
   }
 
   // Try to clean up using just the freezer cgroup.
