@@ -1719,10 +1719,13 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+    Future<Option<ContainerTermination>> wait =
+      containerizer.get()->wait(containerId);
 
     containerizer.get()->destroy(containerId);
+
     AWAIT_READY(wait);
+    EXPECT_SOME(wait.get());
   }
 }
 
@@ -2652,10 +2655,13 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+    Future<Option<ContainerTermination>> wait =
+      containerizer.get()->wait(containerId);
 
     containerizer.get()->destroy(containerId);
+
     AWAIT_READY(wait);
+    EXPECT_SOME(wait.get());
   }
 }
 
@@ -3863,11 +3869,13 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   EXPECT_TRUE(usage.get().has_cpus_limit());
   EXPECT_TRUE(usage.get().has_mem_limit_bytes());
 
-  Future<ContainerTermination> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(containerId);
 
   containerizer->destroy(containerId);
 
   AWAIT_READY(wait);
+  EXPECT_SOME(wait.get());
 
   driver.stop();
   driver.join();
@@ -4116,12 +4124,14 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   EXPECT_NE(0u, offers2.get().size());
 
   // Set up to wait on the container's termination.
-  Future<ContainerTermination> termination = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->wait(containerId);
 
   // Destroy the container.
   containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   driver.stop();
   driver.join();
@@ -4221,12 +4231,14 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   EXPECT_NE(0u, offers2.get().size());
 
   // Set up to wait on the container's termination.
-  Future<ContainerTermination> termination = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->wait(containerId);
 
   // Destroy the container.
   containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   driver.stop();
   driver.join();

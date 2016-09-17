@@ -580,13 +580,14 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   EXPECT_TRUE(statusHealth.get().has_healthy());
   EXPECT_TRUE(statusHealth.get().healthy());
 
-  Future<ContainerTermination> termination =
+  Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
   driver.join();
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   slave.get()->terminate();
   slave->reset();
@@ -1003,13 +1004,14 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   ASSERT_SOME(os::read(tmpPath));
   EXPECT_EQ("bar", os::read(tmpPath).get());
 
-  Future<ContainerTermination> termination =
+  Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
   driver.join();
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   slave.get()->terminate();
   slave->reset();

@@ -103,7 +103,8 @@ public:
 
   MOCK_METHOD1(
       wait,
-      process::Future<mesos::slave::ContainerTermination>(const ContainerID&));
+      process::Future<Option<mesos::slave::ContainerTermination>>(
+          const ContainerID&));
 
   MOCK_METHOD1(
       destroy,
@@ -127,8 +128,8 @@ private:
       const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
-  process::Future<mesos::slave::ContainerTermination> _wait(
-      const ContainerID& containerId);
+  process::Future<Option<mesos::slave::ContainerTermination>> _wait(
+      const ContainerID& containerId) const;
 
   void _destroy(const ContainerID& containerID);
 

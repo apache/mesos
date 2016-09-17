@@ -339,12 +339,13 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   ASSERT_TRUE(launch.get());
 
   // Wait on the container.
-  Future<ContainerTermination> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the executor exited correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_EQ(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
 
   // Check that the command was run in a different pid namespace.
   Try<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");

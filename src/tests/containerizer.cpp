@@ -194,16 +194,17 @@ Future<bool> TestContainerizer::_launch(
 }
 
 
-Future<ContainerTermination> TestContainerizer::_wait(
-    const ContainerID& containerId)
+Future<Option<ContainerTermination>> TestContainerizer::_wait(
+    const ContainerID& containerId) const
 {
   // An unknown container is possible for tests where we "drop" the
   // 'launch' in order to verify recovery still works correctly.
   if (!promises.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    return None();
   }
 
-  return promises[containerId]->future();
+  return promises.at(containerId)->future()
+    .then(Option<ContainerTermination>::some);
 }
 
 
@@ -217,6 +218,7 @@ void TestContainerizer::destroy(
                  << executorId << "' of framework " << frameworkId;
     return;
   }
+
   _destroy(containers_[key]);
 }
 

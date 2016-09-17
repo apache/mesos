@@ -83,7 +83,7 @@ public:
 
   MOCK_METHOD1(
       wait,
-      process::Future<ContainerTermination>(
+      process::Future<Option<ContainerTermination>>(
           const ContainerID&));
 
   MOCK_METHOD1(
@@ -154,6 +154,30 @@ TEST_F(ComposingContainerizerTest, DestroyWhileLaunching)
 
   launchPromise.set(false);
   AWAIT_FAILED(launch);
+}
+
+
+// Ensures the containerizer responds correctly (returns None)
+// to a request to wait on an unknown container.
+TEST_F(ComposingContainerizerTest, WaitUnknownContainer)
+{
+  vector<Containerizer*> containerizers;
+
+  MockContainerizer* mockContainerizer = new MockContainerizer();
+  MockContainerizer* mockContainerizer2 = new MockContainerizer();
+
+  containerizers.push_back(mockContainerizer);
+  containerizers.push_back(mockContainerizer2);
+
+  ComposingContainerizer containerizer(containerizers);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Future<Option<ContainerTermination>> wait = containerizer.wait(containerId);
+
+  AWAIT_READY(wait);
+  EXPECT_NONE(wait.get());
 }
 
 } // namespace tests {

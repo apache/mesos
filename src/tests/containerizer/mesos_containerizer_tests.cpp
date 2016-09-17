@@ -220,12 +220,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the child exited correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_EQ(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
@@ -270,12 +273,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the child failed to exit correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_NE(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_NE(0, wait->get().status());
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
@@ -331,12 +337,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script(s) + executor) to complete.
-  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the child failed to exit correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_NE(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_NE(0, wait->get().status());
 
   // Check the failing preparation script has actually ran.
   EXPECT_TRUE(os::exists(file2));
@@ -412,12 +421,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<ContainerTermination> wait = containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the child exited correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_EQ(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
@@ -480,12 +492,15 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   AWAIT_READY(launch);
 
   // Wait on the container.
-  Future<ContainerTermination> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the executor exited correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_EQ(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
 
   // Check that std{err, out} was redirected.
   // NOTE: Fetcher uses GLOG, which outputs extra information to
@@ -661,13 +676,16 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
       map<string, string>(),
       false);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
+
   AWAIT_READY(exec);
 
   containerizer.destroy(containerId);
 
   // The container should still exit even if fetch didn't complete.
   AWAIT_READY(wait);
+  EXPECT_SOME(wait.get());
 }
 
 
@@ -728,7 +746,8 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       map<string, string>(),
       false);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
 
   AWAIT_READY(prepare);
 
@@ -744,8 +763,9 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   promise.set(option);
 
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
-  ContainerTermination termination = wait.get();
+  ContainerTermination termination = wait->get();
 
   EXPECT_FALSE(termination.has_status());
 }
@@ -849,13 +869,15 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   AWAIT_FAILED(launch);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
 
   containerizer.destroy(containerId);
 
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
-  ContainerTermination termination = wait.get();
+  ContainerTermination termination = wait->get();
 
   EXPECT_FALSE(termination.has_status());
 }
@@ -937,7 +959,8 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
       map<string, string>(),
       false);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
 
   AWAIT_READY(provision);
 
@@ -948,8 +971,9 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 
   AWAIT_FAILED(launch);
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
-  ContainerTermination termination = wait.get();
+  ContainerTermination termination = wait->get();
 
   EXPECT_FALSE(termination.has_status());
 }
@@ -1036,7 +1060,8 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
       map<string, string>(),
       false);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
 
   AWAIT_READY(provision);
 
@@ -1047,8 +1072,9 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
 
   AWAIT_FAILED(launch);
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
-  ContainerTermination termination = wait.get();
+  ContainerTermination termination = wait->get();
 
   EXPECT_FALSE(termination.has_status());
 }
@@ -1121,7 +1147,8 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   AWAIT_READY(launch);
 
-  Future<ContainerTermination> wait = containerizer.wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.wait(containerId);
 
   containerizer.destroy(containerId);
 
@@ -1237,6 +1264,34 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
   AWAIT_FAILED(invalidStatus);
 
   AWAIT_READY(launcher.get()->destroy(containerId));
+}
+
+
+class MesosContainerizerWaitTest : public MesosTest {};
+
+
+// Ensures the containerizer responds correctly (returns None)
+// to a request to wait on an unknown container.
+TEST_F(MesosContainerizerWaitTest, WaitUnknownContainer)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  MesosContainerizer* containerizer = create.get();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  EXPECT_NONE(wait.get());
 }
 
 } // namespace tests {

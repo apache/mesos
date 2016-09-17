@@ -4465,7 +4465,7 @@ void Slave::executorLaunched(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Future<ContainerTermination>& termination)
+    const Future<Option<ContainerTermination>>& termination)
 {
   int status;
   // A termination failure indicates the containerizer could not destroy a
@@ -4481,14 +4481,20 @@ void Slave::executorTerminated(
                    : "discarded");
     // Set a special status for failure.
     status = -1;
-  } else if (!termination.get().has_status()) {
+  } else if (termination->isNone()) {
+    LOG(ERROR) << "Termination of executor '" << executorId
+               << "' of framework " << frameworkId
+               << " failed: unknown container";
+    // Set a special status for failure.
+    status = -1;
+  } else if (!termination->get().has_status()) {
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId
               << " has terminated with unknown status";
     // Set a special status for None.
     status = -1;
   } else {
-    status = termination.get().status();
+    status = termination->get().status();
     LOG(INFO) << "Executor '" << executorId
               << "' of framework " << frameworkId << " "
               << WSTRINGIFY(status);
@@ -5855,7 +5861,7 @@ Future<bool> Slave::authorizeSandboxAccess(
 
 void Slave::sendExecutorTerminatedStatusUpdate(
     const TaskID& taskId,
-    const Future<ContainerTermination>& termination,
+    const Future<Option<ContainerTermination>>& termination,
     const FrameworkID& frameworkId,
     const Executor* executor)
 {
@@ -5866,8 +5872,9 @@ void Slave::sendExecutorTerminatedStatusUpdate(
   string message;
 
   // Determine the task state for the status update.
-  if (termination.isReady() && termination->has_state()) {
-    state = termination->state();
+  if (termination.isReady() &&
+      termination->isSome() && termination->get().has_state()) {
+    state = termination->get().state();
   } else if (executor->pendingTermination.isSome() &&
              executor->pendingTermination->has_state()) {
     state = executor->pendingTermination->state();
@@ -5877,8 +5884,9 @@ void Slave::sendExecutorTerminatedStatusUpdate(
 
   // Determine the task reason for the status update.
   // TODO(jieyu): Handle multiple reasons (MESOS-2657).
-  if (termination.isReady() && termination->reasons().size() > 0) {
-    reason = termination->reasons(0);
+  if (termination.isReady() &&
+      termination->isSome() && termination->get().reasons().size() > 0) {
+    reason = termination->get().reasons(0);
   } else if (executor->pendingTermination.isSome() &&
              executor->pendingTermination->reasons().size() > 0) {
     reason = executor->pendingTermination->reasons(0);
@@ -5895,9 +5903,13 @@ void Slave::sendExecutorTerminatedStatusUpdate(
   }
 
   if (!termination.isReady()) {
-    messages.push_back("Abnormal executor termination");
-  } else if (termination->has_message()) {
-    messages.push_back(termination->message());
+    messages.push_back(
+        "Abnormal executor termination: " +
+        (termination.isFailed() ? termination.failure() : "discarded future"));
+  } else if (termination->isNone()) {
+    messages.push_back("Abnormal executor termination: unknown container");
+  } else if (termination->get().has_message()) {
+    messages.push_back(termination->get().message());
   }
 
   if (messages.empty()) {

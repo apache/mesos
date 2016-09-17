@@ -80,7 +80,7 @@ public:
   Future<ContainerStatus> status(
       const ContainerID& containerId);
 
-  Future<ContainerTermination> wait(
+  Future<Option<ContainerTermination>> wait(
       const ContainerID& containerId);
 
   void destroy(const ContainerID& containerId);
@@ -206,7 +206,7 @@ Future<ContainerStatus> ComposingContainerizer::status(
 }
 
 
-Future<ContainerTermination> ComposingContainerizer::wait(
+Future<Option<ContainerTermination>> ComposingContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(process, &ComposingContainerizerProcess::wait, containerId);
@@ -436,11 +436,11 @@ Future<ContainerStatus> ComposingContainerizerProcess::status(
 }
 
 
-Future<ContainerTermination> ComposingContainerizerProcess::wait(
+Future<Option<ContainerTermination>> ComposingContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container '" + containerId.value() + "' not found");
+    return None();
   }
 
   return containers_[containerId]->containerizer->wait(containerId);

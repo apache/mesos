@@ -290,7 +290,8 @@ public:
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const process::Future<mesos::slave::ContainerTermination>& termination);
+      const process::Future<Option<
+          mesos::slave::ContainerTermination>>& termination);
 
   // NOTE: Pulled these to public to make it visible for testing.
   // TODO(vinod): Make tests friends to this class instead.
@@ -650,7 +651,8 @@ private:
 
   void sendExecutorTerminatedStatusUpdate(
       const TaskID& taskId,
-      const Future<mesos::slave::ContainerTermination>& termination,
+      const process::Future<Option<
+          mesos::slave::ContainerTermination>>& termination,
       const FrameworkID& frameworkId,
       const Executor* executor);
 

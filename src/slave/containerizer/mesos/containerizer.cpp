@@ -538,7 +538,7 @@ Future<ContainerStatus> MesosContainerizer::status(
 }
 
 
-Future<ContainerTermination> MesosContainerizer::wait(
+Future<Option<ContainerTermination>> MesosContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(process.get(),
@@ -1398,19 +1398,19 @@ Future<Nothing> MesosContainerizerProcess::launch(
 }
 
 
-Future<ContainerTermination> MesosContainerizerProcess::wait(
+Future<Option<ContainerTermination>> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   CHECK(!containerId.has_parent());
 
   if (!containers_.contains(containerId)) {
-    // See the comments in destroy() for race conditions which lead
-    // to "unknown containers".
-    return Failure("Unknown container (could have already been destroyed): " +
-                   stringify(containerId));
+    // See the comments in destroy() for race conditions
+    // which lead to "unknown containers".
+    return None();
   }
 
-  return containers_[containerId]->promise.future();
+  return containers_.at(containerId)->promise.future()
+    .then(Option<ContainerTermination>::some);
 }
 
 

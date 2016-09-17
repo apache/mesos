@@ -551,7 +551,7 @@ Slave::~Slave()
     AWAIT_READY(containers);
 
     foreach (const ContainerID& containerId, containers.get()) {
-      process::Future<ContainerTermination> wait =
+      process::Future<Option<ContainerTermination>> wait =
         containerizer->wait(containerId);
 
       containerizer->destroy(containerId);

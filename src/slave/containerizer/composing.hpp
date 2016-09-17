@@ -72,7 +72,7 @@ public:
   virtual process::Future<ContainerStatus> status(
       const ContainerID& containerId);
 
-  virtual process::Future<mesos::slave::ContainerTermination> wait(
+  virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId);
 
   virtual void destroy(const ContainerID& containerId);

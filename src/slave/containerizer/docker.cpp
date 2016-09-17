@@ -714,7 +714,7 @@ Future<ResourceStatistics> DockerContainerizer::usage(
 }
 
 
-Future<ContainerTermination> DockerContainerizer::wait(
+Future<Option<ContainerTermination>> DockerContainerizer::wait(
     const ContainerID& containerId)
 {
   return dispatch(
@@ -1780,16 +1780,17 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 }
 
 
-Future<ContainerTermination> DockerContainerizerProcess::wait(
+Future<Option<ContainerTermination>> DockerContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   CHECK(!containerId.has_parent());
 
   if (!containers_.contains(containerId)) {
-    return Failure("Unknown container: " + stringify(containerId));
+    return None();
   }
 
-  return containers_[containerId]->termination.future();
+  return containers_.at(containerId)->termination.future()
+    .then(Option<ContainerTermination>::some);
 }
 
 

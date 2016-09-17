@@ -324,12 +324,15 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
   ASSERT_TRUE(launch.get());
 
   // Wait on the container.
-  process::Future<ContainerTermination> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(containerId);
+
   AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
 
   // Check the executor exited correctly.
-  EXPECT_TRUE(wait.get().has_status());
-  EXPECT_EQ(0, wait.get().status());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
 }
 
 
@@ -712,13 +715,14 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerEnvironmentDecorator)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<ContainerTermination> termination =
+  Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
   driver.join();
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   Future<list<Docker::Container>> containers =
     docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
@@ -928,13 +932,14 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
 
-  Future<ContainerTermination> termination =
+  Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
 
   driver.stop();
   driver.join();
 
   AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   Future<list<Docker::Container>> containers =
     docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);

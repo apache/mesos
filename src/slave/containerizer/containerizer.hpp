@@ -122,9 +122,10 @@ public:
 
   // Wait on the 'ContainerTermination'. If the executor terminates,
   // the containerizer should also destroy the containerized context.
+  // Returns None if the container cannot be found.
   // The future may be failed if an error occurs during termination of
   // the executor or destruction of the container.
-  virtual process::Future<mesos::slave::ContainerTermination> wait(
+  virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId) = 0;
 
   // Destroy a running container, killing all processes and releasing
