@@ -111,7 +111,7 @@ private:
   };
 
   NetworkCniIsolatorProcess(
-      const Flags _flags,
+      const Flags& _flags,
       const hashmap<std::string, NetworkConfigInfo>& _networkConfigs,
       const Option<std::string>& _rootDir = None(),
       const Option<std::string>& _pluginDir = None())
