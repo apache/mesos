@@ -27,7 +27,12 @@ static ContainerID getRootContainerId(const ContainerID& containerId)
 {
   ContainerID rootContainerId = containerId;
   while (rootContainerId.has_parent()) {
-    rootContainerId = rootContainerId.parent();
+    // NOTE: Looks like protobuf does not handle copying well when
+    // nesting message is involved, because the source and the target
+    // point to the same object. Therefore, we create a temporary
+    // variable and use an extra copy here.
+    ContainerID id = rootContainerId.parent();
+    rootContainerId = id;
   }
 
   return rootContainerId;
