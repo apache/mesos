@@ -595,8 +595,11 @@ Future<Nothing> CgroupsIsolatorProcess::_isolate(
 Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     const ContainerID& containerId)
 {
+  // Since we do not maintain cgroups for nested containers
+  // directly, we simply return a pending future here, indicating
+  // that the limit for the nested container will never be reached.
   if (containerId.has_parent()) {
-    return Failure("Not supported for nested containers");
+    return Future<ContainerLimitation>();
   }
 
   if (!infos.contains(containerId)) {
