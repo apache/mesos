@@ -83,7 +83,7 @@ public:
   Future<Option<ContainerTermination>> wait(
       const ContainerID& containerId);
 
-  void destroy(const ContainerID& containerId);
+  Future<bool> destroy(const ContainerID& containerId);
 
   Future<hashset<ContainerID>> containers();
 
@@ -115,13 +115,16 @@ private:
   {
     LAUNCHING,
     LAUNCHED,
-    DESTROYED
+    DESTROYING,
+    // No need for DESTROYED, since we remove containers
+    // once the destroy completes.
   };
 
   struct Container
   {
     State state;
     Containerizer* containerizer;
+    Promise<bool> destroyed;
   };
 
   hashmap<ContainerID, Container*> containers_;
@@ -213,9 +216,11 @@ Future<Option<ContainerTermination>> ComposingContainerizer::wait(
 }
 
 
-void ComposingContainerizer::destroy(const ContainerID& containerId)
+Future<bool> ComposingContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process, &ComposingContainerizerProcess::destroy, containerId);
+  return dispatch(process,
+                  &ComposingContainerizerProcess::destroy,
+                  containerId);
 }
 
 
@@ -301,12 +306,14 @@ Future<bool> ComposingContainerizerProcess::_launch(
     vector<Containerizer*>::iterator containerizer,
     bool launched)
 {
-  // The container struct won't be cleaned up by destroy because
-  // in destroy we only forward the destroy, and wait until the
-  // launch returns and clean up here.
+  // The container struct will not be cleaned up by destroy
+  // when the container is in the LAUNCHING state.
   CHECK(containers_.contains(containerId));
-  Container* container = containers_[containerId];
-  if (container->state == DESTROYED) {
+  Container* container = containers_.at(containerId);
+
+  // A destroy arrived in the interim.
+  if (container->state == DESTROYING) {
+    container->destroyed.set(true);
     containers_.erase(containerId);
     delete container;
     return Failure("Container was destroyed while launching");
@@ -447,40 +454,72 @@ Future<Option<ContainerTermination>> ComposingContainerizerProcess::wait(
 }
 
 
-void ComposingContainerizerProcess::destroy(const ContainerID& containerId)
+Future<bool> ComposingContainerizerProcess::destroy(
+    const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    LOG(WARNING) << "Container '" << containerId.value() << "' not found";
-    return;
+    // TODO(bmahler): Currently the agent does not log destroy
+    // failures or unknown containers, so we log it here for now.
+    // Move this logging into the callers.
+    LOG(WARNING) << "Attempted to destroy unknown container " << containerId;
+
+    return false;
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
-  if (container->state == DESTROYED) {
-    LOG(WARNING) << "Container '" << containerId.value()
-                 << "' is already destroyed";
-    return;
+  switch (container->state) {
+    case DESTROYING:
+      break; // No-op.
+
+    case LAUNCHING:
+      container->state = DESTROYING;
+
+      // Forward the destroy request to the containerizer. Note that
+      // a containerizer is expected to handle a destroy while
+      // `launch()` is in progress. If the containerizer could not
+      // handle launching the container (`launch()` returns false),
+      // then the containerizer may no longer know about this
+      // container. If the launch returns false, we will stop trying
+      // to launch the container on other containerizers.
+      container->containerizer->destroy(containerId)
+        .onAny(defer(self(), [=](const Future<bool>& destroy) {
+          // We defer the association of the promise in order to
+          // surface a successful destroy (by setting
+          // `Container.destroyed` to true in `_launch()`) when
+          // the containerizer cannot handle this type of container
+          // (`launch()` returns false). If we do not defer here and
+          // instead associate the future right away, the setting of
+          // `Container.destroy` in `_launch()` will be a no-op;
+          // this might result in users waiting on the future
+          // incorrectly thinking that the destroy failed when in
+          // fact the destory is implicitly successful because the
+          // launch failed.
+          if (containers_.contains(containerId)) {
+            containers_.at(containerId)->destroyed.associate(destroy);
+          }
+        }));
+
+      break;
+
+    case LAUNCHED:
+      container->state = DESTROYING;
+
+      container->destroyed.associate(
+          container->containerizer->destroy(containerId));
+
+      container->destroyed.future()
+        .onAny(defer(self(), [=](const Future<bool>& destroy) {
+          if (containers_.contains(containerId)) {
+            delete containers_.at(containerId);
+            containers_.erase(containerId);
+          }
+        }));
+
+      break;
   }
 
-  // It's ok to forward destroy to any containerizer which is currently
-  // launching the container, because we expect each containerizer to
-  // handle calling destroy on non-existing container.
-  // The composing containerizer will not move to the next
-  // containerizer for a container that is destroyed as well.
-  container->containerizer->destroy(containerId);
-
-  if (container->state == LAUNCHING) {
-    // Record the fact that this container was asked to be destroyed
-    // so that we won't try and launch this container using any other
-    // containerizers in the event the current containerizer has
-    // decided it can't launch the container.
-    container->state = DESTROYED;
-    return;
-  }
-
-  // If the container is launched, then we can simply cleanup.
-  containers_.erase(containerId);
-  delete container;
+  return container->destroyed.future();
 }
 
 

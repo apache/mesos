@@ -32,6 +32,7 @@
 
 #include <stout/net.hpp>
 #include <stout/strings.hpp>
+#include <stout/uuid.hpp>
 
 #include "slave/flags.hpp"
 
@@ -768,6 +769,28 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   ContainerTermination termination = wait->get();
 
   EXPECT_FALSE(termination.has_status());
+}
+
+
+// Ensures the containerizer responds correctly (false Future) to
+// a request to destroy an unknown container.
+TEST_F(MesosContainerizerDestroyTest, DestroyUnknownContainer)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  MesosContainerizer* containerizer = create.get();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  AWAIT_EXPECT_FALSE(containerizer->destroy(containerId));
 }
 
 

@@ -26,6 +26,7 @@
 #include <process/subprocess.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/uuid.hpp>
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
@@ -3313,6 +3314,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
 
   driver.stop();
   driver.join();
+}
+
+
+// Ensures the containerizer responds correctly (false Future) to
+// a request to destroy an unknown container.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyUnknownContainer)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<DockerContainerizer*> create =
+    DockerContainerizer::create(flags, &fetcher);
+
+  ASSERT_SOME(create);
+
+  DockerContainerizer* containerizer = create.get();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  AWAIT_EXPECT_FALSE(containerizer->destroy(containerId));
 }
 
 

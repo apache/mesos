@@ -108,11 +108,13 @@ public:
 
   MOCK_METHOD1(
       destroy,
-      void(const ContainerID&));
+      process::Future<bool>(const ContainerID&));
 
   // Additional destroy method for testing because we won't know the
   // ContainerID created for each container.
-  void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
+  process::Future<bool> destroy(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
 private:
   void setup();
@@ -131,7 +133,7 @@ private:
   process::Future<Option<mesos::slave::ContainerTermination>> _wait(
       const ContainerID& containerId) const;
 
-  void _destroy(const ContainerID& containerID);
+  process::Future<bool> _destroy(const ContainerID& containerID);
 
   hashmap<ExecutorID, Executor*> executors;
   hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;

@@ -129,10 +129,12 @@ public:
       const ContainerID& containerId) = 0;
 
   // Destroy a running container, killing all processes and releasing
-  // all resources.
+  // all resources. Returns false when the container cannot be found,
+  // or a failure if something went wrong.
+  //
   // NOTE: You cannot wait() on containers that have been destroyed,
   // so you should always call wait() before destroy().
-  virtual void destroy(const ContainerID& containerId) = 0;
+  virtual process::Future<bool> destroy(const ContainerID& containerId) = 0;
 
   virtual process::Future<hashset<ContainerID>> containers() = 0;
 };

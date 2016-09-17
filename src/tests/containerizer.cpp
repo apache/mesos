@@ -208,7 +208,7 @@ Future<Option<ContainerTermination>> TestContainerizer::_wait(
 }
 
 
-void TestContainerizer::destroy(
+Future<bool> TestContainerizer::destroy(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -216,17 +216,17 @@ void TestContainerizer::destroy(
   if (!containers_.contains(key)) {
     LOG(WARNING) << "Ignoring destroy of unknown container for executor '"
                  << executorId << "' of framework " << frameworkId;
-    return;
+    return false;
   }
 
-  _destroy(containers_[key]);
+  return _destroy(containers_.at(key));
 }
 
 
-void TestContainerizer::_destroy(const ContainerID& containerId)
+Future<bool> TestContainerizer::_destroy(const ContainerID& containerId)
 {
   if (drivers.contains(containerId)) {
-    Owned<MesosExecutorDriver> driver = drivers[containerId];
+    Owned<MesosExecutorDriver> driver = drivers.at(containerId);
     driver->stop();
     driver->join();
     drivers.erase(containerId);
@@ -241,9 +241,11 @@ void TestContainerizer::_destroy(const ContainerID& containerId)
     termination.set_message("Killed executor");
     termination.set_status(0);
 
-    promises[containerId]->set(termination);
+    promises.at(containerId)->set(termination);
     promises.erase(containerId);
   }
+
+  return true;
 }
 
 

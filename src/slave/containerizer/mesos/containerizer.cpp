@@ -547,11 +547,11 @@ Future<Option<ContainerTermination>> MesosContainerizer::wait(
 }
 
 
-void MesosContainerizer::destroy(const ContainerID& containerId)
+Future<bool> MesosContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process.get(),
-           &MesosContainerizerProcess::destroy,
-           containerId);
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::destroy,
+                  containerId);
 }
 
 
@@ -1409,7 +1409,7 @@ Future<Option<ContainerTermination>> MesosContainerizerProcess::wait(
     return None();
   }
 
-  return containers_.at(containerId)->promise.future()
+  return containers_.at(containerId)->termination.future()
     .then(Option<ContainerTermination>::some);
 }
 
@@ -1575,7 +1575,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
 }
 
 
-void MesosContainerizerProcess::destroy(
+Future<bool> MesosContainerizerProcess::destroy(
     const ContainerID& containerId)
 {
   CHECK(!containerId.has_parent());
@@ -1593,15 +1593,20 @@ void MesosContainerizerProcess::destroy(
     //
     // The guard here and `if (container->state == DESTROYING)` below
     // make sure redundant destroys short-circuit.
-    VLOG(1) << "Ignoring destroy of unknown container " << containerId;
-    return;
+
+    // TODO(bmahler): Currently the agent does not log destroy
+    // failures or unknown containers, so we log it here for now.
+    // Move this logging into the callers.
+    LOG(WARNING) << "Attempted to destroy unknown container " << containerId;
+
+    return false;
   }
 
   const Owned<Container>& container = containers_.at(containerId);
 
   if (container->state == DESTROYING) {
-    VLOG(1) << "Destroy has already been initiated for " << containerId;
-    return;
+    return container->termination.future()
+      .then([]() { return true; });
   }
 
   LOG(INFO) << "Destroying container " << containerId;
@@ -1621,7 +1626,8 @@ void MesosContainerizerProcess::destroy(
           containerId,
           list<Future<Nothing>>()));
 
-    return;
+    return container->termination.future()
+      .then([]() { return true; });
   }
 
   if (container->state == PREPARING) {
@@ -1646,7 +1652,8 @@ void MesosContainerizerProcess::destroy(
             : None())
       .onAny(defer(self(), &Self::___destroy, containerId));
 
-    return;
+    return container->termination.future()
+      .then([]() { return true; });
   }
 
   if (container->state == ISOLATING) {
@@ -1660,7 +1667,8 @@ void MesosContainerizerProcess::destroy(
     container->isolation
       .onAny(defer(self(), &Self::_destroy, containerId));
 
-    return;
+    return container->termination.future()
+      .then([]() { return true; });
   }
 
   // Either RUNNING or FETCHING at this point.
@@ -1670,6 +1678,9 @@ void MesosContainerizerProcess::destroy(
 
   container->state = DESTROYING;
   _destroy(containerId);
+
+  return container->termination.future()
+    .then([]() { return true; });
 }
 
 
@@ -1699,7 +1710,7 @@ void MesosContainerizerProcess::__destroy(
   // TODO(idownes): This is a pretty bad state to be in but we should
   // consider cleaning up here.
   if (!future.isReady()) {
-    container->promise.fail(
+    container->termination.fail(
         "Failed to kill all processes in the container: " +
         (future.isFailed() ? future.failure() : "discarded future"));
 
@@ -1753,7 +1764,7 @@ void MesosContainerizerProcess::____destroy(
   }
 
   if (!errors.empty()) {
-    container->promise.fail(
+    container->termination.fail(
         "Failed to clean up an isolator when destroying container: " +
         strings::join("; ", errors));
 
@@ -1777,7 +1788,7 @@ void MesosContainerizerProcess::_____destroy(
   const Owned<Container>& container = containers_.at(containerId);
 
   if (!destroy.isReady()) {
-    container->promise.fail(
+    container->termination.fail(
         "Failed to destroy the provisioned rootfs when destroying container: " +
         (destroy.isFailed() ? destroy.failure() : "discarded future"));
 
@@ -1816,7 +1827,7 @@ void MesosContainerizerProcess::_____destroy(
     termination.set_message(strings::join("; ", messages));
   }
 
-  container->promise.set(termination);
+  container->termination.set(termination);
 
   containers_.erase(containerId);
 }
