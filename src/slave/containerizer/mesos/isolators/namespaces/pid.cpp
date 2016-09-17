@@ -68,6 +68,12 @@ NamespacesPidIsolatorProcess::NamespacesPidIsolatorProcess()
   : ProcessBase(process::ID::generate("pid-namespace-isolator")) {}
 
 
+bool NamespacesPidIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
