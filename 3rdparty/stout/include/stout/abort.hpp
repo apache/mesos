@@ -28,10 +28,13 @@
 
 #include <stout/attributes.hpp>
 
-
-// Signal safe abort which prints a message.
+// NOTE: These macros are already defined in Visual Studio (Windows) headers.
+#ifndef __WINDOWS__
 #define __STRINGIZE(x) #x
 #define _STRINGIZE(x) __STRINGIZE(x)
+#endif // __WINDOWS__
+
+// Signal safe abort which prints a message.
 #define _ABORT_PREFIX "ABORT: (" __FILE__ ":" _STRINGIZE(__LINE__) "): "
 
 #define ABORT(...) _Abort(_ABORT_PREFIX, __VA_ARGS__)
