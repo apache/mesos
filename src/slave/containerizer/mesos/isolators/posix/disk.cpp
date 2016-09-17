@@ -108,11 +108,24 @@ PosixDiskIsolatorProcess::PosixDiskIsolatorProcess(const Flags& _flags)
 PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
 
 
+bool PosixDiskIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Future<Nothing> PosixDiskIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   foreach (const ContainerState& state, states) {
+    // If this is a nested container, we do not need to create an Info
+    // struct for it because we only perform disk space check for the
+    // top level container.
+    if (state.container_id().has_parent()) {
+      continue;
+    }
+
     // Since we checkpoint the executor after we create its working
     // directory, the working directory should definitely exist.
     CHECK(os::exists(state.directory()))
@@ -129,6 +142,13 @@ Future<Option<ContainerLaunchInfo>> PosixDiskIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
+  // If this is a nested container, we do not need to create an Info
+  // struct for it because we only perform disk space check for the
+  // top level container.
+  if (containerId.has_parent()) {
+    return None();
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
@@ -143,6 +163,10 @@ Future<Nothing> PosixDiskIsolatorProcess::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
+  if (containerId.has_parent()) {
+    return Nothing();
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -154,6 +178,13 @@ Future<Nothing> PosixDiskIsolatorProcess::isolate(
 Future<ContainerLimitation> PosixDiskIsolatorProcess::watch(
     const ContainerID& containerId)
 {
+  // Since we are not doing disk space check for nested containers
+  // currently, we simply return a pending future here, indicating
+  // that the limit for the nested container will not be reached.
+  if (containerId.has_parent()) {
+    return Future<ContainerLimitation>();
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -166,6 +197,10 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring update for unknown container " << containerId;
     return Nothing();
@@ -339,6 +374,10 @@ void PosixDiskIsolatorProcess::_collect(
 Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
     const ContainerID& containerId)
 {
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   if (!infos.contains(containerId)) {
     return Failure("Unknown container");
   }
@@ -369,6 +408,12 @@ Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
 Future<Nothing> PosixDiskIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
+  // No need to cleanup anything because we don't create Info struct
+  // for nested containers.
+  if (containerId.has_parent()) {
+    return Nothing();
+  }
+
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring cleanup for unknown container " << containerId;
     return Nothing();
