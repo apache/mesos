@@ -52,9 +52,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-constexpr char LINUX_LAUNCHER_NAME[] = "linux";
-
-
 static ContainerID container(const string& cgroup)
 {
   string basename = Path(cgroup).basename();
@@ -362,18 +359,6 @@ Future<ContainerStatus> LinuxLauncher::status(const ContainerID& containerId)
   status.set_executor_pid(pids[containerId]);
 
   return status;
-}
-
-
-string LinuxLauncher::getExitStatusCheckpointPath(
-    const ContainerID& containerId)
-{
-  return path::join(
-      flags.runtime_dir,
-      "launcher",
-      LINUX_LAUNCHER_NAME,
-      buildPathFromHierarchy(containerId, "containers"),
-      "exit_status");
 }
 
 
