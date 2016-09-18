@@ -92,33 +92,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-TEST(MesosContainerizerTest, NestedContainerID)
-{
-  ContainerID id1;
-  id1.set_value(UUID::random().toString());
-
-  ContainerID id2;
-  id2.set_value(UUID::random().toString());
-
-  EXPECT_EQ(id1, id1);
-  EXPECT_NE(id1, id2);
-
-  ContainerID id3 = id1;
-  id3.mutable_parent()->CopyFrom(id2);
-
-  EXPECT_EQ(id3, id3);
-  EXPECT_NE(id3, id1);
-
-  hashset<ContainerID> ids;
-  ids.insert(id2);
-  ids.insert(id3);
-
-  EXPECT_TRUE(ids.contains(id2));
-  EXPECT_TRUE(ids.contains(id3));
-  EXPECT_FALSE(ids.contains(id1));
-}
-
-
 class MesosContainerizerIsolatorPreparationTest : public MesosTest
 {
 public:
