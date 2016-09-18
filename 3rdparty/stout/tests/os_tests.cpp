@@ -643,8 +643,7 @@ TEST_F(OsTest, ProcessExists)
   int status;
 
   EXPECT_EQ(pid, ::waitpid(pid, &status, 0));
-  EXPECT_TRUE(WIFSIGNALED(status));
-  EXPECT_EQ(SIGKILL, WTERMSIG(status));
+  EXPECT_WTERMSIG_EQ(SIGKILL, status);
 
   EXPECT_FALSE(os::exists(pid));
 }
