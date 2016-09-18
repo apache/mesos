@@ -17,14 +17,17 @@
 
 #include <string>
 
+#include <process/check.hpp>
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/strings.hpp>
 
 namespace process {
 
@@ -492,5 +495,257 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
 
 #define AWAIT_EXPECT_RESPONSE_HEADER_EQ(expected, key, actual)          \
   AWAIT_EXPECT_RESPONSE_HEADER_EQ_FOR(expected, key, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertExited(
+    const char* actualExpr,
+    const char* durationExpr,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    if (actual->isNone()) {
+      return ::testing::AssertionFailure()
+        << "(" << actualExpr << ").get() is NONE";
+    }
+
+    return AssertExited(
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_EXITED_FOR(expected, actual, duration)             \
+  ASSERT_PRED_FORMAT3(AwaitAssertExited, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_EXITED(expected, actual)                   \
+  AWAIT_ASSERT_EXITED_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_EXITED_FOR(expected, actual, duration)             \
+  EXPECT_PRED_FORMAT3(AwaitAssertExited, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_EXITED(expected, actual)                   \
+  AWAIT_EXPECT_EXITED_FOR(expected, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertExitStatusEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const char* durationExpr,
+    const int expected,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertExited(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    CHECK_SOME(actual.get());
+    return AssertExitStatusEq(
+        expectedExpr,
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        expected,
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_WEXITSTATUS_EQ_FOR(expected, actual, duration)     \
+  ASSERT_PRED_FORMAT3(AwaitAssertExitStatusEq, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_WEXITSTATUS_EQ(expected, actual)                   \
+  AWAIT_ASSERT_WEXITSTATUS_EQ_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_WEXITSTATUS_EQ_FOR(expected, actual, duration)     \
+  EXPECT_PRED_FORMAT3(AwaitAssertExitStatusEq, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_WEXITSTATUS_EQ(expected, actual)                   \
+  AWAIT_EXPECT_WEXITSTATUS_EQ_FOR(expected, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertExitStatusNe(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const char* durationExpr,
+    const int expected,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertExited(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    CHECK_SOME(actual.get());
+    return AssertExitStatusNe(
+        expectedExpr,
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        expected,
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_WEXITSTATUS_NE_FOR(expected, actual, duration)     \
+  ASSERT_PRED_FORMAT3(AwaitAssertExitStatusNe, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_WEXITSTATUS_NE(expected, actual)           \
+  AWAIT_ASSERT_EXITSTATUS_NE_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_WEXITSTATUS_NE_FOR(expected, actual, duration)     \
+  EXPECT_PRED_FORMAT3(AwaitAssertExitStatusNe, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_WEXITSTATUS_NE(expected, actual)                   \
+  AWAIT_EXPECT_WEXITSTATUS_NE_FOR(expected, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertSignaled(
+    const char* actualExpr,
+    const char* durationExpr,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertReady(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    if (actual->isNone()) {
+      return ::testing::AssertionFailure()
+        << "(" << actualExpr << ")->isNone() is true";
+    }
+
+    return AssertSignaled(
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_SIGNALED_FOR(expected, actual, duration)           \
+  ASSERT_PRED_FORMAT3(AwaitAssertSignaled, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_SIGNALED(expected, actual)                 \
+  AWAIT_ASSERT_SIGNALED_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_SIGNALED_FOR(expected, actual, duration)           \
+  EXPECT_PRED_FORMAT3(AwaitAssertSignaled, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_SIGNALED(expected, actual)                 \
+  AWAIT_EXPECT_SIGNALED_FOR(expected, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertTermSigEq(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const char* durationExpr,
+    const int expected,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertSignaled(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    CHECK_SOME(actual.get());
+    return AssertTermSigEq(
+        expectedExpr,
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        expected,
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_WTERMSIG_EQ_FOR(expected, actual, duration)        \
+  ASSERT_PRED_FORMAT3(AwaitAssertTermSigEq, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_WTERMSIG_EQ(expected, actual)              \
+  AWAIT_ASSERT_WTERMSIG_EQ_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_WTERMSIG_EQ_FOR(expected, actual, duration)        \
+  EXPECT_PRED_FORMAT3(AwaitAssertTermSigEq, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_WTERMSIG_EQ(expected, actual)              \
+  AWAIT_EXPECT_WTERMSIG_EQ_FOR(expected, actual, Seconds(15))
+
+
+inline ::testing::AssertionResult AwaitAssertTermSigNe(
+    const char* expectedExpr,
+    const char* actualExpr,
+    const char* durationExpr,
+    const int expected,
+    const process::Future<Option<int>>& actual,
+    const Duration& duration)
+{
+  const ::testing::AssertionResult result =
+    AwaitAssertSignaled(actualExpr, durationExpr, actual, duration);
+
+  if (result) {
+    CHECK_READY(actual);
+    CHECK_SOME(actual.get());
+    return AssertTermSigNe(
+        expectedExpr,
+        strings::join("(", actualExpr, ")->get()").c_str(),
+        expected,
+        actual->get());
+  }
+
+  return result;
+}
+
+
+#define AWAIT_ASSERT_WTERMSIG_NE_FOR(expected, actual, duration)        \
+  ASSERT_PRED_FORMAT3(AwaitAssertTermSigNe, expected, actual, duration)
+
+
+#define AWAIT_ASSERT_WTERMSIG_NE(expected, actual)              \
+  AWAIT_ASSERT_TERMSIG_NE_FOR(expected, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_TERMSIG_NE_FOR(expected, actual, duration)         \
+  EXPECT_PRED_FORMAT3(AwaitAssertTermSigNe, expected, actual, duration)
+
+
+#define AWAIT_EXPECT_WTERMSIG_NE(expected, actual)              \
+  AWAIT_EXPECT_WTERMSIG_NE_FOR(expected, actual, Seconds(15))
+
+
+// TODO(benh):
+// inline ::testing::AssertionResult AwaitAssertStopped(...)
+// inline ::testing::AssertionResult AwaitAssertStopSigEq(...)
+// inline ::testing::AssertionResult AwaitAssertStopSigNe(...)
 
 #endif // __PROCESS_GTEST_HPP__

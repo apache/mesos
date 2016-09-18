@@ -95,10 +95,7 @@ TEST(ReapTest, NonChildProcess)
   }
 
   // Check if the status is correct.
-  ASSERT_SOME(status.get());
-  int status_ = status.get().get();
-  ASSERT_TRUE(WIFEXITED(status_));
-  ASSERT_EQ(0, WEXITSTATUS(status_));
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, status);
 
   Clock::resume();
 }
@@ -131,13 +128,8 @@ TEST(ReapTest, ChildProcess)
     Clock::settle();
   }
 
-  AWAIT_READY(status);
-
   // Check if the status is correct.
-  ASSERT_SOME(status.get());
-  int status_ = status.get().get();
-  ASSERT_TRUE(WIFSIGNALED(status_));
-  ASSERT_EQ(SIGKILL, WTERMSIG(status_));
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, status);
 
   Clock::resume();
 }
@@ -180,14 +172,8 @@ TEST(ReapTest, TerminatedChildProcess)
     Clock::settle();
   }
 
-  AWAIT_READY(status);
-
   // Expect to get the correct status.
-  ASSERT_SOME(status.get());
-
-  int status_ = status.get().get();
-  ASSERT_TRUE(WIFEXITED(status_));
-  ASSERT_EQ(0, WEXITSTATUS(status_));
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, status);
 
   Clock::resume();
 }
