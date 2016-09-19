@@ -21,6 +21,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
@@ -57,6 +58,9 @@ using process::Future;
 using process::Message;
 using process::Owned;
 using process::PID;
+
+using process::http::OK;
+using process::http::Response;
 
 using std::vector;
 
@@ -160,17 +164,13 @@ TEST_P(PartitionTest, PartitionedSlave)
 }
 
 
-// The purpose of this test is to ensure that when slaves are removed
-// from the master, and then attempt to re-register, we deny the
-// re-registration by sending a ShutdownMessage to the slave.
-// Why? Because during a network partition, the master will remove a
-// partitioned slave, thus sending its tasks to LOST. At this point,
-// when the partition is removed, the slave will attempt to
-// re-register with its running tasks. We've already notified
-// frameworks that these tasks were LOST, so we have to have the
-// slave shut down.
-TEST_P(PartitionTest, PartitionedSlaveReregistration)
+// This test checks that a slave can reregister with the master after
+// a partition, and that PARTITION_AWARE tasks running on the slave
+// continue to run.
+TEST_P(PartitionTest, ReregisterSlavePartitionAware)
 {
+  Clock::pause();
+
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_strict = GetParam();
 
@@ -186,47 +186,37 @@ TEST_P(PartitionTest, PartitionedSlaveReregistration)
 
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestContainerizer containerizer(&exec);
-
   StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
+
+  // Start a scheduler. The scheduler has the PARTITION_AWARE
+  // capability, so we expect its tasks to continue running when the
+  // partitioned agent reregisters.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_FALSE(offers.get().empty());
 
-  // Launch a task. This is to ensure the task is killed by the slave,
-  // during shutdown.
-  TaskID taskId;
-  taskId.set_value("1");
+  Offer offer = offers.get()[0];
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->MergeFrom(taskId);
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  task.mutable_executor()->mutable_command()->set_value("sleep 60");
-
-  // Set up the expectations for launching the task.
-  EXPECT_CALL(exec, registered(_, _, _, _));
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  TaskInfo task = createTask(offer, "sleep 60");
 
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -235,33 +225,26 @@ TEST_P(PartitionTest, PartitionedSlaveReregistration)
   Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
+  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
-  // Wait for the slave to have handled the acknowledgment prior
-  // to pausing the clock.
+  const SlaveID slaveId = runningStatus.get().slave_id();
+
   AWAIT_READY(statusUpdateAck);
 
-  // Drop the first shutdown message from the master (simulated
-  // partition), allow the second shutdown message to pass when
-  // the slave re-registers.
-  Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
-
-  Future<TaskStatus> lostStatus;
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Future<TaskStatus> unreachableStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&lostStatus));
+    .WillOnce(FutureArg<1>(&unreachableStatus));
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  Clock::pause();
-
-  // Now, induce a partition of the slave by having the master
-  // timeout the slave.
   size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
@@ -275,58 +258,66 @@ TEST_P(PartitionTest, PartitionedSlaveReregistration)
 
   Clock::advance(masterFlags.agent_ping_timeout);
 
-  // The master will have notified the framework of the lost task.
-  AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  // TODO(neilc): Update this when TASK_UNREACHABLE is introduced.
+  AWAIT_READY(unreachableStatus);
+  EXPECT_EQ(TASK_LOST, unreachableStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
+  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
 
-  // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownMessage);
-
-  // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
-  Clock::resume();
-
-  // We now complete the partition on the slave side as well. This
-  // is done by simulating a master loss event which would normally
-  // occur during a network partition.
+  // We now complete the partition on the slave side as well. We
+  // simulate a master loss event, which would normally happen during
+  // a network partition. The slave should then reregister with the
+  // master.
   detector.appoint(None());
 
-  Future<Nothing> shutdown;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
-
-  // Have the slave re-register with the master.
   detector.appoint(master.get()->pid);
 
-  // Upon re-registration, the master will shutdown the slave.
-  // The slave will then shut down the executor.
-  AWAIT_READY(shutdownMessage);
-  AWAIT_READY(shutdown);
+  AWAIT_READY(slaveReregistered);
+
+  // Perform explicit reconciliation; the task should still be running.
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate));
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(reconcileUpdate);
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
 }
 
 
-// The purpose of this test is to ensure that when slaves are removed
-// from the master, and then attempt to send status updates, we send
-// a ShutdownMessage to the slave. Why? Because during a network
-// partition, the master will remove a partitioned slave, thus sending
-// its tasks to LOST. At this point, when the partition is removed,
-// the slave may attempt to send updates if it was unaware that the
-// master removed it. We've already notified frameworks that these
-// tasks were LOST, so we have to have the slave shut down.
-TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
+// This test checks that a slave can reregister with the master after
+// a partition, and that non-PARTITION_AWARE tasks running on the
+// slave are shutdown.
+TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
 {
+  Clock::pause();
+
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_strict = GetParam();
 
@@ -340,6 +331,154 @@ TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Start a scheduler. The scheduler is not PARTITION_AWARE, so we
+  // expect its tasks to be shutdown when the partitioned agent
+  // reregisters.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(offer, "sleep 60");
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
+  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+
+  const SlaveID slaveId = runningStatus.get().slave_id();
+
+  AWAIT_READY(statusUpdateAck);
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Future<TaskStatus> lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  // Note that we expect to get `slaveLost` callbacks in both
+  // schedulers, regardless of PARTITION_AWARE.
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  // The scheduler should see TASK_LOST because it is not
+  // PARTITION_AWARE.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
+  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
+
+  AWAIT_READY(slaveLost);
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+
+  // We now complete the partition on the slave side as well. We
+  // simulate a master loss event, which would normally happen during
+  // a network partition. The slave should then reregister with the
+  // master.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
+
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(slaveReregistered);
+
+  // Perform explicit reconciliation. The task should not be running
+  // (TASK_LOST) because the framework is not PARTITION_AWARE.
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate));
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(reconcileUpdate);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks how Mesos behaves when a slave is removed because
+// it fails health checks, and then the slave sends a status update
+// (because it does not realize that it is partitioned from the
+// master's POV). In prior Mesos versions, the master would shutdown
+// the slave in this situation. In Mesos >= 1.1, the master will drop
+// the status update; the slave will eventually try to reregister.
+TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_strict = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Drop both PINGs from master to slave and PONGs from slave to
+  // master. Note that we don't match on the master / slave PIDs
+  // because it's actually the SlaveObserver Process that sends pings
+  // and receives pongs.
+  DROP_PROTOBUFS(PingSlaveMessage(), _, _);
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -370,12 +509,6 @@ TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
 
   AWAIT_READY(frameworkId);
 
-  // Drop the first shutdown message from the master (simulated
-  // partition), allow the second shutdown message to pass when
-  // the slave sends an update.
-  Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
-
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillRepeatedly(Return());
 
@@ -383,72 +516,107 @@ TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  Clock::pause();
+  // Now, induce a partition of the slave by having the master timeout
+  // the slave. The master will remove the slave; the slave will also
+  // realize that it hasn't seen any pings from the master and try to
+  // reregister. We don't want to let the slave reregister yet, so we
+  // drop the first message in the reregistration protocol, which is
+  // AuthenticateMessage since agent auth is enabled.
+  Future<AuthenticateMessage> authenticateMessage =
+    DROP_PROTOBUF(AuthenticateMessage(), _, _);
 
-  // Now, induce a partition of the slave by having the master
-  // timeout the slave.
-  size_t pings = 0;
-  while (true) {
-    AWAIT_READY(ping);
-    pings++;
-    if (pings == masterFlags.max_agent_ping_timeouts) {
-      break;
-    }
-    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  for (size_t i = 0; i < masterFlags.max_agent_ping_timeouts; i++) {
     Clock::advance(masterFlags.agent_ping_timeout);
+    Clock::settle();
   }
-
-  Clock::advance(masterFlags.agent_ping_timeout);
-
-  // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownMessage);
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
+  // Slave will try to authenticate for reregistration; message dropped.
+  AWAIT_READY(authenticateMessage);
+
   JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
-
   // At this point, the slave still thinks it's registered, so we
   // simulate a status update coming from the slave.
-  TaskID taskId;
-  taskId.set_value("task_id");
-  const StatusUpdate& update = protobuf::createStatusUpdate(
+  TaskID taskId1;
+  taskId1.set_value("task_id1");
+
+  const StatusUpdate& update1 = protobuf::createStatusUpdate(
       frameworkId.get(),
       slaveId,
-      taskId,
+      taskId1,
       TASK_RUNNING,
       TaskStatus::SOURCE_SLAVE,
       UUID::random());
 
-  StatusUpdateMessage message;
-  message.mutable_update()->CopyFrom(update);
-  message.set_pid(stringify(slave.get()->pid));
+  StatusUpdateMessage message1;
+  message1.mutable_update()->CopyFrom(update1);
+  message1.set_pid(stringify(slave.get()->pid));
 
-  process::post(master.get()->pid, message);
+  // The scheduler should not receive the status update.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
 
-  // The master should shutdown the slave upon receiving the update.
-  AWAIT_READY(shutdownMessage);
+  process::post(master.get()->pid, message1);
+  Clock::settle();
 
-  Clock::resume();
+  // Advance the clock so that the slaves notices that it still hasn't
+  // seen any pings from the master, which will cause it to try to
+  // reregister again. This time reregistration should succeed.
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
+
+  for (size_t i = 0; i < masterFlags.max_agent_ping_timeouts; i++) {
+    Clock::advance(masterFlags.agent_ping_timeout);
+    Clock::settle();
+  }
+
+  AWAIT_READY(slaveReregistered);
+
+  // Since the slave has reregistered, a status update from the slave
+  // should now be forwarded to the scheduler.
+  Future<StatusUpdateMessage> statusUpdate =
+    DROP_PROTOBUF(StatusUpdateMessage(), master.get()->pid, _);
+
+  TaskID taskId2;
+  taskId2.set_value("task_id2");
+
+  const StatusUpdate& update2 = protobuf::createStatusUpdate(
+      frameworkId.get(),
+      slaveId,
+      taskId2,
+      TASK_RUNNING,
+      TaskStatus::SOURCE_SLAVE,
+      UUID::random());
+
+  StatusUpdateMessage message2;
+  message2.mutable_update()->CopyFrom(update2);
+  message2.set_pid(stringify(slave.get()->pid));
+
+  process::post(master.get()->pid, message2);
+
+  AWAIT_READY(statusUpdate);
+  EXPECT_EQ(taskId2, statusUpdate->update().status().task_id());
 
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 
-// The purpose of this test is to ensure that when slaves are removed
-// from the master, and then attempt to send exited executor messages,
-// we send a ShutdownMessage to the slave. Why? Because during a
-// network partition, the master will remove a partitioned slave, thus
-// sending its tasks to LOST. At this point, when the partition is
-// removed, the slave may attempt to send exited executor messages if
-// it was unaware that the master removed it. We've already
-// notified frameworks that the tasks under the executors were LOST,
-// so we have to have the slave shut down.
+// This test checks how Mesos behaves when a slave is removed, and
+// then the slave sends an ExitedExecutorMessage (because it does not
+// realize it is partitioned from the master's POV). In prior Mesos
+// versions, the master would shutdown the slave in this situation. In
+// Mesos >= 1.1, the master will drop the message; the slave will
+// eventually try to reregister.
 TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -494,16 +662,7 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
 
   // Launch a task. This allows us to have the slave send an
   // ExitedExecutorMessage.
-  TaskID taskId;
-  taskId.set_value("1");
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->MergeFrom(taskId);
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
-  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  task.mutable_executor()->mutable_command()->set_value("sleep 60");
+  TaskInfo task = createTask(offers.get()[0], "sleep 60", DEFAULT_EXECUTOR_ID);
 
   // Set up the expectations for launching the task.
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -511,18 +670,10 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  // Drop all the status updates from the slave, so that we can
-  // ensure the ExitedExecutorMessage is what triggers the slave
-  // shutdown.
+  // Drop all the status updates from the slave.
   DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get()->pid);
 
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  // Drop the first shutdown message from the master (simulated
-  // partition) and allow the second shutdown message to pass when
-  // triggered by the ExitedExecutorMessage.
-  Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -549,31 +700,34 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
 
   Clock::advance(masterFlags.agent_ping_timeout);
 
-  // The master will have notified the framework of the lost task.
+  // The master will notify the framework of the lost task.
   AWAIT_READY(lostStatus);
   EXPECT_EQ(TASK_LOST, lostStatus.get().state());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-
-  // Wait for the master to attempt to shut down the slave.
-  AWAIT_READY(shutdownMessage);
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
+  EXPECT_CALL(sched, executorLost(&driver, _, _, _))
+    .Times(0);
 
   // Induce an ExitedExecutorMessage from the slave.
-  containerizer.destroy(
-      frameworkId.get(), DEFAULT_EXECUTOR_INFO.executor_id());
+  containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
-  // Upon receiving the message, the master will shutdown the slave.
-  AWAIT_READY(shutdownMessage);
-
+  // The master will drop the ExitedExecutorMessage. We do not
+  // currently support reliable delivery of ExitedExecutorMessages, so
+  // the message will not be delivered if/when the slave reregisters.
+  //
+  // TODO(neilc): Update this test to check for reliable delivery once
+  // MESOS-4308 is fixed.
+  Clock::settle();
   Clock::resume();
 
   driver.stop();

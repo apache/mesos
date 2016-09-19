@@ -1761,10 +1761,10 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
 
 
 // This test ensures that when a slave is recovered from the registry
-// but does not re-register with the master, it is removed from the
-// registry and the framework is informed that the slave is lost, and
-// the slave is refused re-registration.
-TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
+// but does not re-register with the master, it is marked unreachable
+// in the registry, the framework is informed that the slave is lost,
+// and the slave is allowed to re-register.
+TEST_F(MasterTest, RecoveredSlaveCanReregister)
 {
   // Step 1: Start a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -1826,15 +1826,15 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
 
   Clock::resume();
 
-  // Step 7: Ensure the slave cannot re-register!
-  Future<ShutdownMessage> shutdownMessage =
-    FUTURE_PROTOBUF(ShutdownMessage(), master.get()->pid, _);
+  // Step 7: Ensure the slave can re-register.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
   detector = master.get()->createDetector();
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(shutdownMessage);
+  AWAIT_READY(slaveReregisteredMessage);
 
   driver.stop();
   driver.join();

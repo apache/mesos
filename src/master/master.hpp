@@ -522,9 +522,7 @@ public:
       const MachineID& machineId,
       const Option<Unavailability>& unavailability);
 
-  void shutdownSlave(
-      const SlaveID& slaveId,
-      const std::string& message);
+  void markUnreachable(const SlaveID& slaveId);
 
   void authenticate(
       const process::UPID& from,
@@ -686,9 +684,15 @@ protected:
       const std::vector<Archive::Framework>& completedFrameworks =
         std::vector<Archive::Framework>());
 
-  // Remove the slave from the registrar. Called when the slave
+  void _markUnreachable(
+      const SlaveInfo& slaveInfo,
+      const std::vector<StatusUpdate>& updates,
+      const process::Future<bool>& registrarResult,
+      const std::string& unreachableCause);
+
+  // Mark a slave as unreachable in the registry. Called when the slave
   // does not re-register in time after a master failover.
-  Nothing removeSlave(const Registry::Slave& slave);
+  Nothing markUnreachableAfterFailover(const Registry::Slave& slave);
 
   // Remove the slave from the registrar and from the master's state.
   //
@@ -701,8 +705,8 @@ protected:
   void _removeSlave(
       const SlaveInfo& slaveInfo,
       const std::vector<StatusUpdate>& updates,
-      const process::Future<bool>& removed,
-      const std::string& message,
+      const process::Future<bool>& registrarResult,
+      const std::string& removalCause,
       Option<process::metrics::Counter> reason = None());
 
   // Validates that the framework is authenticated, if required.
@@ -1684,12 +1688,12 @@ private:
     // from the registry.
     hashset<SlaveID> removing;
 
-    // We track removed slaves to preserve the consistency
-    // semantics of the pre-registrar code when a non-strict registrar
-    // is being used. That is, if we remove a slave, we must make
-    // an effort to prevent it from (re-)registering, sending updates,
-    // etc. We keep a cache here to prevent this from growing in an
-    // unbounded manner.
+    // Slaves that are in the process of being marked unreachable.
+    hashset<SlaveID> markingUnreachable;
+
+    // This collection includes agents that have gracefully shutdown,
+    // as well as those that have been marked unreachable. We keep a
+    // cache here to prevent this from growing in an unbounded manner.
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     Cache<SlaveID, Nothing> removed;
 
@@ -2037,40 +2041,6 @@ protected:
     slaveIDs->insert(info.id());
 
     return true; // Mutation.
-  }
-
-private:
-  const SlaveInfo info;
-};
-
-
-// Implementation of slave readmission Registrar operation.
-class ReadmitSlave : public Operation
-{
-public:
-  explicit ReadmitSlave(const SlaveInfo& _info) : info(_info)
-  {
-    CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
-  }
-
-protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict)
-  {
-    if (slaveIDs->contains(info.id())) {
-      return false; // No mutation.
-    }
-
-    if (strict) {
-      return Error("Agent not yet admitted");
-    } else {
-      Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-      slave->mutable_info()->CopyFrom(info);
-      slaveIDs->insert(info.id());
-      return true; // Mutation.
-    }
   }
 
 private:

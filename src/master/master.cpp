@@ -190,10 +190,10 @@ protected:
     timeouts = 0;
     pinged = false;
 
-    // Cancel any pending shutdown.
-    if (shuttingDown.isSome()) {
+    // Cancel any pending unreachable transitions.
+    if (markingUnreachable.isSome()) {
       // Need a copy for non-const access.
-      Future<Nothing> future = shuttingDown.get();
+      Future<Nothing> future = markingUnreachable.get();
       future.discard();
     }
   }
@@ -205,64 +205,64 @@ protected:
       if (timeouts >= maxSlavePingTimeouts) {
         // No pong has been received for the last
         // 'maxSlavePingTimeouts' pings.
-        shutdown();
+        markUnreachable();
       }
     }
 
-    // NOTE: We keep pinging even if we schedule a shutdown. This is
-    // because if the slave eventually responds to a ping, we can
-    // cancel the shutdown.
+    // NOTE: We keep pinging even if we schedule a transition to
+    // UNREACHABLE. This is because if the slave eventually responds
+    // to a ping, we can cancel the UNREACHABLE transition.
     ping();
   }
 
-  // NOTE: The shutdown of the slave is rate limited and can be
-  // canceled if a pong was received before the actual shutdown is
-  // called.
-  void shutdown()
+  // Marking slaves unreachable is rate-limited and can be canceled if
+  // a pong is received before `_markUnreachable` is called.
+  //
+  // TODO(neilc): Using a rate-limit when marking slaves unreachable
+  // is only necessary for frameworks that are not PARTITION_AWARE.
+  // For such frameworks, we shutdown their tasks when an unreachable
+  // agent reregisters, so a rate-limit is a useful safety
+  // precaution. Once all frameworks are PARTITION_AWARE, we can
+  // likely remove the rate-limit (MESOS-5948).
+  void markUnreachable()
   {
-    if (shuttingDown.isSome()) {
-      return;  // Shutdown is already in progress.
+    if (markingUnreachable.isSome()) {
+      return; // Unreachable transition is already in progress.
     }
 
     Future<Nothing> acquire = Nothing();
 
     if (limiter.isSome()) {
-      LOG(INFO) << "Scheduling shutdown of agent " << slaveId
-                << " due to health check timeout";
+      LOG(INFO) << "Scheduling transition of agent " << slaveId
+                << " to UNREACHABLE because of health check timeout";
 
       acquire = limiter.get()->acquire();
     }
 
-    shuttingDown = acquire.onAny(defer(self(), &Self::_shutdown));
+    markingUnreachable = acquire.onAny(defer(self(), &Self::_markUnreachable));
     ++metrics->slave_unreachable_scheduled;
   }
 
-  void _shutdown()
+  void _markUnreachable()
   {
-    CHECK_SOME(shuttingDown);
+    CHECK_SOME(markingUnreachable);
 
-    const Future<Nothing>& future = shuttingDown.get();
+    const Future<Nothing>& future = markingUnreachable.get();
 
     CHECK(!future.isFailed());
 
     if (future.isReady()) {
-      LOG(INFO) << "Shutting down agent " << slaveId
-                << " due to health check timeout";
-
       ++metrics->slave_unreachable_completed;
 
-      dispatch(master,
-               &Master::shutdownSlave,
-               slaveId,
-               "health check timed out");
+      dispatch(master, &Master::markUnreachable, slaveId);
     } else if (future.isDiscarded()) {
-      LOG(INFO) << "Canceling shutdown of agent " << slaveId
-                << " since a pong is received!";
+      LOG(INFO) << "Canceling transition of agent " << slaveId
+                << " to UNREACHABLE because a pong was received!";
 
       ++metrics->slave_unreachable_canceled;
     }
 
-    shuttingDown = None();
+    markingUnreachable = None();
   }
 
 private:
@@ -272,7 +272,7 @@ private:
   const PID<Master> master;
   const Option<shared_ptr<RateLimiter>> limiter;
   shared_ptr<Metrics> metrics;
-  Option<Future<Nothing>> shuttingDown;
+  Option<Future<Nothing>> markingUnreachable;
   const Duration slavePingTimeout;
   const size_t maxSlavePingTimeouts;
   uint32_t timeouts;
@@ -1725,7 +1725,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     const string failure = "Agent removal rate limit acquisition failed";
 
     acquire
-      .then(defer(self(), &Self::removeSlave, slave))
+      .then(defer(self(), &Self::markUnreachableAfterFailover, slave))
       .onFailed(lambda::bind(fail, failure, lambda::_1))
       .onDiscarded(lambda::bind(fail, failure, "discarded"));
 
@@ -1734,13 +1734,13 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 }
 
 
-Nothing Master::removeSlave(const Registry::Slave& slave)
+Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
 {
   // The slave is removed from 'recovered' when it re-registers.
   if (!slaves.recovered.contains(slave.info().id())) {
-    LOG(INFO) << "Canceling removal of agent "
+    LOG(INFO) << "Canceling transition of agent "
               << slave.info().id() << " (" << slave.info().hostname() << ")"
-              << " since it re-registered!";
+              << " to unreachable because it re-registered";
 
     ++metrics->slave_unreachable_canceled;
     return Nothing();
@@ -1749,7 +1749,7 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
   LOG(WARNING) << "Agent " << slave.info().id()
                << " (" << slave.info().hostname() << ") did not re-register"
                << " within " << flags.agent_reregister_timeout
-               << " after master failover; removing it from the registrar";
+               << " after master failover; marking it unreachable";
 
   ++metrics->slave_unreachable_completed;
   ++metrics->recovery_slave_removals;
@@ -1757,25 +1757,24 @@ Nothing Master::removeSlave(const Registry::Slave& slave)
   slaves.recovered.erase(slave.info().id());
 
   if (flags.registry_strict) {
-    slaves.removing.insert(slave.info().id());
+    slaves.markingUnreachable.insert(slave.info().id());
 
-    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+    registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave.info())))
       .onAny(defer(self(),
-                   &Self::_removeSlave,
+                   &Self::_markUnreachable,
                    slave.info(),
                    vector<StatusUpdate>(), // No TASK_LOST updates to send.
                    lambda::_1,
-                   "did not re-register after master failover",
-                   metrics->slave_removals_reason_unhealthy));
+                   "did not re-register after master failover"));
   } else {
     // When a non-strict registry is in use, we want to ensure the
     // registry is used in a write-only manner. Therefore we remove
     // the slave from the registry but we do not inform the
     // framework.
     const string& message =
-      "Failed to remove agent " + stringify(slave.info().id());
+      "Failed to mark agent " + stringify(slave.info().id()) + " unreachable";
 
-    registrar->apply(Owned<Operation>(new RemoveSlave(slave.info())))
+    registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave.info())))
       .onFailed(lambda::bind(fail, message, lambda::_1));
   }
 
@@ -4688,18 +4687,14 @@ void Master::executorMessage(
   metrics->messages_executor_to_framework++;
 
   if (slaves.removed.get(slaveId).isSome()) {
-    // If the slave is removed, we have already informed
-    // frameworks that its tasks were LOST, so the slave
-    // should shut down.
+    // If the slave has been removed, drop the executor message. The
+    // master is no longer trying to health check this slave; when the
+    // slave realizes it hasn't received any pings from the master, it
+    // will eventually try to reregister.
     LOG(WARNING) << "Ignoring executor message"
                  << " from executor" << " '" << executorId << "'"
                  << " of framework " << frameworkId
-                 << " on removed agent " << slaveId
-                 << " ; asking agent to shutdown";
-
-    ShutdownMessage message;
-    message.set_message("Executor message from unknown agent");
-    reply(message);
+                 << " on removed agent " << slaveId;
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
@@ -5019,22 +5014,6 @@ void Master::reregisterSlave(
     return;
   }
 
-  if (slaves.removed.get(slaveInfo.id()).isSome()) {
-    // To compensate for the case where a non-strict registrar is
-    // being used, we explicitly deny removed slaves from
-    // re-registering. This is because a non-strict registrar cannot
-    // enforce this. We've already told frameworks the tasks were
-    // lost so it's important to deny the slave from re-registering.
-    LOG(WARNING) << "Agent " << slaveInfo.id() << " at " << from
-                 << " (" << slaveInfo.hostname() << ") attempted to "
-                 << "re-register after removal; shutting it down";
-
-    ShutdownMessage message;
-    message.set_message("Agent attempted to re-register after removal");
-    send(from, message);
-    return;
-  }
-
   Slave* slave = slaves.registered.get(slaveInfo.id());
 
   if (slave != nullptr) {
@@ -5126,10 +5105,13 @@ void Master::reregisterSlave(
 
   slaves.reregistering.insert(slaveInfo.id());
 
-  // This handles the case when the slave tries to re-register with
-  // a failed over master, in which case we must consult the
-  // registrar.
-  registrar->apply(Owned<Operation>(new ReadmitSlave(slaveInfo)))
+  // Consult the registry to determine whether to readmit the
+  // slave. In the common case, the slave has been marked unreachable
+  // by the master, so we move the slave to the reachable list and
+  // readmit it. If the slave isn't in the unreachable list (which
+  // might occur if the slave's entry in the unreachable list is
+  // GC'd), we admit the slave anyway.
+  registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
     .onAny(defer(self(),
                  &Self::_reregisterSlave,
                  slaveInfo,
@@ -5158,60 +5140,85 @@ void Master::_reregisterSlave(
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
   slaves.reregistering.erase(slaveInfo.id());
 
-  CHECK(!readmit.isDiscarded());
-
   if (readmit.isFailed()) {
     LOG(FATAL) << "Failed to readmit agent " << slaveInfo.id() << " at " << pid
                << " (" << slaveInfo.hostname() << "): " << readmit.failure();
-  } else if (!readmit.get()) {
-    LOG(WARNING) << "The agent " << slaveInfo.id() << " at "
-                 << pid << " (" << slaveInfo.hostname() << ") could not be"
-                 << " readmitted; shutting it down";
-    slaves.removed.put(slaveInfo.id(), Nothing());
-
-    ShutdownMessage message;
-    message.set_message(
-        "Agent attempted to re-register with unknown agent id " +
-        stringify(slaveInfo.id()));
-    send(pid, message);
-  } else {
-    // Re-admission succeeded.
-    MachineID machineId;
-    machineId.set_hostname(slaveInfo.hostname());
-    machineId.set_ip(stringify(pid.address.ip));
-
-    Slave* slave = new Slave(
-        this,
-        slaveInfo,
-        pid,
-        machineId,
-        version,
-        Clock::now(),
-        checkpointedResources,
-        executorInfos,
-        tasks);
-
-    slave->reregisteredTime = Clock::now();
-
-    ++metrics->slave_reregistrations;
-
-    addSlave(slave, completedFrameworks);
-
-    Duration pingTimeout =
-      flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
-    MasterSlaveConnection connection;
-    connection.set_total_ping_timeout_seconds(pingTimeout.secs());
-
-    SlaveReregisteredMessage message;
-    message.mutable_slave_id()->CopyFrom(slave->id);
-    message.mutable_connection()->CopyFrom(connection);
-    send(slave->pid, message);
-
-    LOG(INFO) << "Re-registered agent " << *slave
-              << " with " << slave->info.resources();
-
-    __reregisterSlave(slave, tasks, frameworks);
   }
+
+  CHECK(!readmit.isDiscarded());
+
+  // `MarkSlaveReachable` registry operation should never fail.
+  CHECK(readmit.get());
+
+  // Re-admission succeeded.
+  MachineID machineId;
+  machineId.set_hostname(slaveInfo.hostname());
+  machineId.set_ip(stringify(pid.address.ip));
+
+  Slave* slave = new Slave(
+      this,
+      slaveInfo,
+      pid,
+      machineId,
+      version,
+      Clock::now(),
+      checkpointedResources,
+      executorInfos,
+      tasks);
+
+  slave->reregisteredTime = Clock::now();
+
+  ++metrics->slave_reregistrations;
+
+  // Check whether this master was the one that removed the
+  // reregistering agent from the cluster originally. This is false
+  // if the master has failed over since the agent was removed, for
+  // example.
+  bool slaveWasRemoved = slaves.removed.get(slave->id).isSome();
+
+  addSlave(slave, completedFrameworks);
+
+  Duration pingTimeout =
+    flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
+  MasterSlaveConnection connection;
+  connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
+  SlaveReregisteredMessage message;
+  message.mutable_slave_id()->CopyFrom(slave->id);
+  message.mutable_connection()->CopyFrom(connection);
+  send(slave->pid, message);
+
+  LOG(INFO) << "Re-registered agent " << *slave
+            << " with " << slave->info.resources();
+
+  // Shutdown any frameworks running on the slave that don't have the
+  // PARTITION_AWARE capability, provided that this instance of the
+  // master previously added the slave to the `slaves.removed`
+  // collection. This matches the Mesos 1.0 "non-strict" semantics for
+  // frameworks that are not partition-aware: when a previously
+  // unreachable slave reregisters, its tasks are only shutdown if the
+  // master has not failed over.
+  if (slaveWasRemoved) {
+    foreach (const FrameworkInfo& framework, frameworks) {
+      if (!protobuf::frameworkHasCapability(
+              framework, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        LOG(INFO) << "Shutting down framework " << framework.id()
+                  << " at reregistered agent " << *slave
+                  << " because the framework is not partition-aware";
+
+        ShutdownFrameworkMessage message;
+        message.mutable_framework_id()->MergeFrom(framework.id());
+        send(slave->pid, message);
+
+        // Remove the framework's tasks from the master's in-memory state.
+        foreachvalue (Task* task, utils::copy(slave->tasks[framework.id()])) {
+          removeTask(task);
+        }
+      }
+    }
+  }
+
+  __reregisterSlave(slave, tasks, frameworks);
 }
 
 
@@ -5314,17 +5321,13 @@ void Master::updateSlave(
   ++metrics->messages_update_slave;
 
   if (slaves.removed.get(slaveId).isSome()) {
-    // If the slave is removed, we have already informed
-    // frameworks that its tasks were LOST, so the slave should
-    // shut down.
+    // If the slave has been removed, drop the status update. The
+    // master is no longer trying to health check this slave; when the
+    // slave realizes it hasn't received any pings from the master, it
+    // will eventually try to reregister.
     LOG(WARNING)
       << "Ignoring update of agent with total oversubscribed resources "
-      << oversubscribedResources << " on removed agent " << slaveId
-      << " ; asking agent to shutdown";
-
-    ShutdownMessage message;
-    message.set_message("Update agent message from unknown agent");
-    reply(message);
+      << oversubscribedResources << " on removed agent " << slaveId;
     return;
   }
 
@@ -5446,18 +5449,13 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
   ++metrics->messages_status_update;
 
   if (slaves.removed.get(update.slave_id()).isSome()) {
-    // If the slave is removed, we have already informed
-    // frameworks that its tasks were LOST, so the slave should
-    // shut down.
+    // If the slave has been removed, drop the status update. The
+    // master is no longer trying to health check this slave; when the
+    // slave realizes it hasn't received any pings from the master, it
+    // will eventually try to reregister.
     LOG(WARNING) << "Ignoring status update " << update
                  << " from removed agent " << pid
-                 << " with id " << update.slave_id() << " ; asking agent "
-                 << " to shutdown";
-
-    ShutdownMessage message;
-    message.set_message("Status update from unknown agent");
-    send(pid, message);
-
+                 << " with id " << update.slave_id();
     metrics->invalid_status_updates++;
     return;
   }
@@ -5566,17 +5564,13 @@ void Master::exitedExecutor(
   ++metrics->messages_exited_executor;
 
   if (slaves.removed.get(slaveId).isSome()) {
-    // If the slave is removed, we have already informed
-    // frameworks that its tasks were LOST, so the slave should
-    // shut down.
+    // If the slave has been removed, drop the executor message. The
+    // master is no longer trying to health check this slave; when the
+    // slave realizes it hasn't received any pings from the master, it
+    // will eventually try to reregister.
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
-                 << " on removed agent " << slaveId
-                 << " ; asking agent to shutdown";
-
-    ShutdownMessage message;
-    message.set_message("Executor exited message from unknown agent");
-    reply(message);
+                 << " on removed agent " << slaveId;
     return;
   }
 
@@ -5653,27 +5647,182 @@ void Master::shutdown(
 }
 
 
-void Master::shutdownSlave(const SlaveID& slaveId, const string& message)
+// TODO(neilc): Refactor to reduce code duplication with
+// `Master::removeSlave`.
+void Master::markUnreachable(const SlaveID& slaveId)
 {
-  if (!slaves.registered.contains(slaveId)) {
-    // Possible when the SlaveObserver dispatches a message to
-    // shutdown a slave but the slave is concurrently removed for
-    // another reason (e.g., `UnregisterSlaveMessage` is received).
-    LOG(WARNING) << "Unable to shutdown unknown agent " << slaveId;
+  Slave* slave = slaves.registered.get(slaveId);
+
+  if (slave == nullptr) {
+    // Possible when the `SlaveObserver` dispatches a message to mark an
+    // unhealthy slave as unreachable, but the slave is concurrently
+    // removed for another reason (e.g., `UnregisterSlaveMessage` is
+    // received).
+    LOG(WARNING) << "Unable to mark unknown agent "
+                 << slaveId << " unreachable";
     return;
   }
 
-  Slave* slave = slaves.registered.get(slaveId);
-  CHECK_NOTNULL(slave);
+  LOG(INFO) << "Marking agent " << *slave
+            << " unreachable: health check timed out";
 
-  LOG(WARNING) << "Shutting down agent " << *slave << " with message '"
-               << message << "'";
+  // We want to remove the slave first, to avoid the allocator
+  // re-allocating the recovered resources.
+  //
+  // NOTE: Removing the slave is not sufficient for recovering the
+  // resources in the allocator, because the "Sorters" are updated
+  // only within recoverResources() (see MESOS-621). The calls to
+  // recoverResources() below are therefore required, even though
+  // the slave is already removed.
+  allocator->removeSlave(slave->id);
 
-  ShutdownMessage message_;
-  message_.set_message(message);
-  send(slave->pid, message_);
+  // Transition the tasks to TASK_LOST and remove them, BUT do not
+  // send updates yet. Rather, build up the updates so that we can can
+  // send them after the slave has been moved to the unreachable list
+  // in the registry.
+  // TODO(neilc): Update this to send TASK_UNREACHABLE for
+  // partition-aware frameworks.
+  vector<StatusUpdate> updates;
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    Framework* framework = getFramework(frameworkId);
+    CHECK_NOTNULL(framework);
 
-  removeSlave(slave, message, metrics->slave_removals_reason_unhealthy);
+    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          task->framework_id(),
+          task->slave_id(),
+          task->task_id(),
+          TASK_LOST,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          "Slave " + slave->info.hostname() + " is unreachable",
+          TaskStatus::REASON_SLAVE_REMOVED,
+          (task->has_executor_id() ?
+              Option<ExecutorID>(task->executor_id()) : None()));
+
+      updateTask(task, update);
+      removeTask(task);
+
+      updates.push_back(update);
+    }
+  }
+
+  // Remove executors from the slave for proper resource accounting.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
+    foreachkey (const ExecutorID& executorId,
+                utils::copy(slave->executors[frameworkId])) {
+      removeExecutor(slave, frameworkId, executorId);
+    }
+  }
+
+  foreach (Offer* offer, utils::copy(slave->offers)) {
+    // TODO(vinod): We don't need to call 'Allocator::recoverResources'
+    // once MESOS-621 is fixed.
+    allocator->recoverResources(
+        offer->framework_id(), slave->id, offer->resources(), None());
+
+    // Remove and rescind offers.
+    removeOffer(offer, true); // Rescind!
+  }
+
+  // Remove inverse offers because sending them for a slave that is
+  // unreachable doesn't make sense.
+  foreach (InverseOffer* inverseOffer, utils::copy(slave->inverseOffers)) {
+    // We don't need to update the allocator because we've already called
+    // `RemoveSlave()`.
+    // Remove and rescind inverse offers.
+    removeInverseOffer(inverseOffer, true); // Rescind!
+  }
+
+  // Mark the slave as being unreachable.
+  slaves.registered.remove(slave);
+  slaves.removed.put(slave->id, Nothing());
+  slaves.markingUnreachable.insert(slave->id);
+  authenticated.erase(slave->pid);
+
+  // Remove the slave from the `machines` mapping.
+  CHECK(machines.contains(slave->machineId));
+  CHECK(machines[slave->machineId].slaves.contains(slave->id));
+  machines[slave->machineId].slaves.erase(slave->id);
+
+  // Kill the slave observer.
+  terminate(slave->observer);
+  wait(slave->observer);
+  delete slave->observer;
+
+  // TODO(benh): unlink(slave->pid);
+
+  // Update the registry to move this slave from the list of admitted
+  // slaves to the list of unreachable slaves. Once this is completed,
+  // we can forward the TASK_LOST updates to the frameworks.
+  registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave->info)))
+    .onAny(defer(self(),
+                 &Self::_markUnreachable,
+                 slave->info,
+                 updates,
+                 lambda::_1,
+                 "health check timed out"));
+
+  delete slave;
+}
+
+
+void Master::_markUnreachable(
+    const SlaveInfo& slaveInfo,
+    const vector<StatusUpdate>& updates,
+    const Future<bool>& registrarResult,
+    const string& unreachableCause)
+{
+  CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
+  slaves.markingUnreachable.erase(slaveInfo.id());
+
+  if (registrarResult.isFailed()) {
+    LOG(FATAL) << "Failed to mark agent " << slaveInfo.id()
+               << " (" << slaveInfo.hostname() << ")"
+               << " unreachable in the registry: "
+               << registrarResult.failure();
+  }
+
+  CHECK(!registrarResult.isDiscarded());
+
+  // `MarkSlaveUnreachable` registry operation should never fail.
+  CHECK(registrarResult.get());
+
+  LOG(INFO) << "Marked agent " << slaveInfo.id() << " ("
+            << slaveInfo.hostname() << ") unreachable: "
+            << unreachableCause;
+
+  // TODO(neilc): Consider renaming these metrics or adding new
+  // metrics for the new PARTITION_AWARE semantics.
+  ++metrics->slave_removals;
+  ++metrics->slave_removals_reason_unhealthy;
+
+  // Forward the TASK_LOST updates on to the frameworks.
+  foreach (const StatusUpdate& update, updates) {
+    Framework* framework = getFramework(update.framework_id());
+
+    if (framework == nullptr) {
+      LOG(WARNING) << "Dropping update " << update << " from unknown framework "
+                   << update.framework_id();
+    } else {
+      forward(update, UPID(), framework);
+    }
+  }
+
+  // Notify all frameworks of the lost slave.
+  foreachvalue (Framework* framework, frameworks.registered) {
+    LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
+              << "after recovering";
+    LostSlaveMessage message;
+    message.mutable_slave_id()->MergeFrom(slaveInfo.id());
+    framework->send(message);
+  }
+
+  // Finally, notify the `SlaveLost` hooks.
+  if (HookManager::hooksAvailable()) {
+    HookManager::masterSlaveLostHook(slaveInfo);
+  }
 }
 
 
@@ -7057,27 +7206,27 @@ void Master::removeSlave(
 void Master::_removeSlave(
     const SlaveInfo& slaveInfo,
     const vector<StatusUpdate>& updates,
-    const Future<bool>& removed,
-    const string& message,
+    const Future<bool>& registrarResult,
+    const string& removalCause,
     Option<Counter> reason)
 {
   CHECK(slaves.removing.contains(slaveInfo.id()));
   slaves.removing.erase(slaveInfo.id());
 
-  CHECK(!removed.isDiscarded());
+  CHECK(!registrarResult.isDiscarded());
 
-  if (removed.isFailed()) {
+  if (registrarResult.isFailed()) {
     LOG(FATAL) << "Failed to remove agent " << slaveInfo.id()
                << " (" << slaveInfo.hostname() << ")"
-               << " from the registrar: " << removed.failure();
+               << " from the registrar: " << registrarResult.failure();
   }
 
-  CHECK(removed.get())
+  CHECK(registrarResult.get())
     << "Agent " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
     << "already removed from the registrar";
 
   LOG(INFO) << "Removed agent " << slaveInfo.id() << " ("
-            << slaveInfo.hostname() << "): " << message;
+            << slaveInfo.hostname() << "): " << removalCause;
 
   ++metrics->slave_removals;
 
