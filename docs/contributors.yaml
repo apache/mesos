@@ -190,6 +190,14 @@
   jira_user: idownes
   reviewboard_user: idownes
 
+- name: Ilya Pronin
+  affiliations:
+    - {organization: Twitter}
+  emails:
+    - ipronin@twitter.com
+  jira_user: ipronin
+  reviewboard_user: ipronin
+
 - name: Isabel Jimenez
   affiliations:
     - {organization: Mesosphere}
