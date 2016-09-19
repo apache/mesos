@@ -5835,8 +5835,8 @@ void Master::_markUnreachable(
   // Notify all frameworks of the lost slave.
   foreachvalue (Framework* framework, frameworks.registered) {
     LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
-              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
-              << "after recovering";
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
+
     LostSlaveMessage message;
     message.mutable_slave_id()->MergeFrom(slaveInfo.id());
     framework->send(message);
@@ -7295,8 +7295,8 @@ void Master::_removeSlave(
   // Notify all frameworks of the lost slave.
   foreachvalue (Framework* framework, frameworks.registered) {
     LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
-              << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
-              << "after recovering";
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
+
     LostSlaveMessage message;
     message.mutable_slave_id()->MergeFrom(slaveInfo.id());
     framework->send(message);
