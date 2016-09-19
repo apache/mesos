@@ -262,9 +262,8 @@ TEST_P(PartitionTest, ReregisterSlavePartitionAware)
 
   Clock::advance(masterFlags.agent_ping_timeout);
 
-  // TODO(neilc): Update this when TASK_UNREACHABLE is introduced.
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_LOST, unreachableStatus.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
   EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
   EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
@@ -272,8 +271,8 @@ TEST_P(PartitionTest, ReregisterSlavePartitionAware)
   AWAIT_READY(slaveLost);
 
   JSON::Object stats = Metrics();
-  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+  EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
   EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
@@ -642,10 +641,9 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   EXPECT_EQ(slaveId, lostStatus.get().slave_id());
   EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
 
-  // `sched2` should see TASK_LOST.
-  // TODO(neilc): Update this to expect TASK_UNREACHABLE.
+  // `sched2` should see TASK_UNREACHABLE.
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_LOST, unreachableStatus.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
   EXPECT_EQ(task2.task_id(), unreachableStatus.get().task_id());
   EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
@@ -805,9 +803,9 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  Future<TaskStatus> lostStatus;
+  Future<TaskStatus> unreachableStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&lostStatus));
+    .WillOnce(FutureArg<1>(&unreachableStatus));
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -835,13 +833,12 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
 
   Clock::advance(Milliseconds(100));
 
-  // TODO(neilc): Update this to expect `TASK_UNREACHABLE`.
-  AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
-  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+  AWAIT_READY(unreachableStatus);
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
+  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
 
   AWAIT_READY(slaveLost);
 
@@ -1325,9 +1322,13 @@ TEST_P(PartitionTest, RegistryGcByCount)
   AWAIT_READY(slaveRegisteredMessage1);
   const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1443,7 +1444,7 @@ TEST_P(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
   EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
 
@@ -1485,7 +1486,7 @@ TEST_P(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate3.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
   EXPECT_EQ(partitionTime2, reconcileUpdate3.get().unreachable_time());
 
@@ -1558,10 +1559,15 @@ TEST_P(PartitionTest, RegistryGcByCountManySlaves)
   Clock::advance(masterFlags.registry_gc_interval);
   Clock::settle();
 
-  // Start a scheduler: we verify GC behavior by doing reconciliation.
+  // Start a partition-aware scheduler. We verify GC behavior by doing
+  // reconciliation.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -1589,7 +1595,7 @@ TEST_P(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
   EXPECT_EQ(unreachableTime, reconcileUpdate1.get().unreachable_time());
 
@@ -1660,9 +1666,13 @@ TEST_P(PartitionTest, RegistryGcByAge)
   AWAIT_READY(slaveRegisteredMessage1);
   const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1782,7 +1792,7 @@ TEST_P(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
   EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
 
@@ -1798,7 +1808,7 @@ TEST_P(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate2.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
   EXPECT_EQ(partitionTime2, reconcileUpdate2.get().unreachable_time());
 
@@ -1837,7 +1847,7 @@ TEST_P(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status4});
 
   AWAIT_READY(reconcileUpdate4);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate4.get().state());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate4.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4.get().reason());
   EXPECT_EQ(partitionTime2, reconcileUpdate4.get().unreachable_time());
 

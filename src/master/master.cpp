@@ -5858,9 +5858,9 @@ void Master::markUnreachable(const SlaveID& slaveId)
   TimeInfo unreachableTime = protobuf::getCurrentTime();
 
   // Update the registry to move this slave from the list of admitted
-  // slaves to the list of unreachable slaves. After this is
-  // completed, we can update the master's in-memory state to remove
-  // the slave and send TASK_LOST status updates to the frameworks.
+  // slaves to the list of unreachable slaves. After this is complete,
+  // we can remove the slave from the master's in-memory state and
+  // send TASK_UNREACHABLE / TASK_LOST updates to the frameworks.
   registrar->apply(Owned<Operation>(
           new MarkSlaveUnreachable(slave->info, unreachableTime)))
     .onAny(defer(self(),
@@ -5909,19 +5909,25 @@ void Master::_markUnreachable(
   // the slave is already removed.
   allocator->removeSlave(slave->id);
 
-  // Transition the tasks to TASK_LOST and remove them.
-  // TODO(neilc): Update this to send TASK_UNREACHABLE for
-  // PARTITION_AWARE frameworks.
+  // Transition tasks to TASK_UNREACHABLE / TASK_LOST and remove them.
+  // We only use TASK_UNREACHABLE if the framework has opted in to the
+  // PARTITION_AWARE capability.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
     CHECK_NOTNULL(framework);
+
+    TaskState newTaskState = TASK_UNREACHABLE;
+    if (!protobuf::frameworkHasCapability(
+            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      newTaskState = TASK_LOST;
+    }
 
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
           task->slave_id(),
           task->task_id(),
-          TASK_LOST,
+          newTaskState,
           TaskStatus::SOURCE_MASTER,
           None(),
           "Slave " + slave->info.hostname() + " is unreachable",
@@ -6120,7 +6126,7 @@ void Master::_reconcileTasks(
   //   (2) Task is known: send the latest state.
   //   (3) Task is unknown, slave is registered: TASK_LOST.
   //   (4) Task is unknown, slave is transitioning: no-op.
-  //   (5) Task is unknown, slave is unreachable: TASK_LOST.
+  //   (5) Task is unknown, slave is unreachable: TASK_UNREACHABLE.
   //   (6) Task is unknown, slave is unknown: TASK_LOST.
   //
   // When using a non-strict registry, case (6) may result in
@@ -6190,16 +6196,23 @@ void Master::_reconcileTasks(
                 << " for framework " << *framework
                 << " because there are transitional agents";
     } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
-      // (5) Slave is unreachable: TASK_LOST. The status update
-      // includes the time at which the slave was marked as
-      // unreachable.
+      // (5) Slave is unreachable: TASK_UNREACHABLE. If the framework
+      // does not have the PARTITION_AWARE capability, send TASK_LOST
+      // for backward compatibility. In either case, the status update
+      // also includes the time when the slave was marked unreachable.
       TimeInfo unreachableTime = slaves.unreachable[slaveId.get()];
+
+      TaskState taskState = TASK_UNREACHABLE;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
 
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId.get(),
           status.task_id(),
-          TASK_LOST,
+          taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
           "Reconciliation: Task is unreachable",

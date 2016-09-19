@@ -230,15 +230,20 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
 
 // This test verifies that reconciliation of a task that belongs to an
-// unknown slave results in TASK_LOST.
+// unknown slave results in TASK_LOST, even if the framework has
+// enabled the PARTITION_AWARE capability.
 TEST_F(ReconciliationTest, UnknownSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -253,7 +258,7 @@ TEST_F(ReconciliationTest, UnknownSlave)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&update));
 
-  // Create a task status with a random slave id (and task id).
+  // Create a task status with a random slave id and task id.
   TaskStatus status;
   status.mutable_task_id()->set_value(UUID::random().toString());
   status.mutable_slave_id()->set_value(UUID::random().toString());
