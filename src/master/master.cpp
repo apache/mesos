@@ -1880,27 +1880,14 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
 
   TimeInfo unreachableTime = protobuf::getCurrentTime();
 
-  if (flags.registry_strict) {
-    slaves.markingUnreachable.insert(slave.info().id());
+  slaves.markingUnreachable.insert(slave.info().id());
 
-    registrar->apply(Owned<Operation>(
-        new MarkSlaveUnreachable(slave.info(), unreachableTime)))
-      .onAny(defer(self(),
-                   &Self::_markUnreachableAfterFailover,
-                   slave.info(),
-                   lambda::_1));
-  } else {
-    // When a non-strict registry is in use, we want to ensure the
-    // registry is used in a write-only manner. Therefore we remove
-    // the slave from the registry but we do not inform the
-    // framework.
-    const string& message =
-      "Failed to mark agent " + stringify(slave.info().id()) + " unreachable";
-
-    registrar->apply(Owned<Operation>(
-        new MarkSlaveUnreachable(slave.info(), unreachableTime)))
-      .onFailed(lambda::bind(fail, message, lambda::_1));
-  }
+  registrar->apply(Owned<Operation>(
+          new MarkSlaveUnreachable(slave.info(), unreachableTime)))
+    .onAny(defer(self(),
+                 &Self::_markUnreachableAfterFailover,
+                 slave.info(),
+                 lambda::_1));
 
   return Nothing();
 }
