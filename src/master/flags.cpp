@@ -89,10 +89,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::registry_strict,
       "registry_strict",
       "Whether the master will take actions based on the persistent\n"
-      "information stored in the Registry. Setting this to false means\n"
-      "that the Registrar will never reject the admission, readmission,\n"
-      "or removal of an agent. Consequently, `false` can be used to\n"
-      "bootstrap the persistent state on a running cluster.\n"
+      "information stored in the Registry.\n"
       "NOTE: This flag is *disabled* and will be removed in a future\n"
       "version of Mesos.",
       false,

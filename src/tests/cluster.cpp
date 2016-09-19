@@ -192,10 +192,8 @@ Try<process::Owned<Master>> Master::start(
   }
 
   // Check for some invalid flag combinations.
-  if (flags.registry == "in_memory" && flags.registry_strict) {
-    return Error(
-        "Cannot use '--registry_strict' when using in-memory storage based"
-        " registry");
+  if (flags.registry_strict) {
+    return Error("Support for '--registry_strict' has been removed");
   }
 
   if (flags.registry == "replicated_log" && flags.work_dir.isNone()) {
