@@ -339,6 +339,7 @@ suspension---ends when either:
   requested resources (e.g. 10 CPUs on a single node).
 * The quota set request does not allow to specify constraints (e.g. 2*5 cpus on
   disjoint nodes for an HA like setup).
-* Quota is not allowed for the default role ‘*’ (see MESOS-3938).
+* Quota is not allowed for the default role ‘*’ (see
+  [MESOS-3938](https://issues.apache.org/jira/browse/MESOS-3938)).
 * Currently it is not possible to update previously configured quotas. See
   [quota set request](#setRequest) for details.
