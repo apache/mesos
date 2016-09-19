@@ -2813,6 +2813,78 @@ TEST_F(SlaveTest, CancelSlaveRemoval)
 }
 
 
+// This test checks that the master behaves correctly when a slave
+// fails health checks, but concurrently the slave unregisters from
+// the master.
+TEST_F(SlaveTest, HealthCheckUnregisterRace)
+{
+  // Start a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave.
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Start a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(offers);
+
+  SlaveID slaveId = offers.get()[0].slave_id();
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(1); // Expect a single offer to be rescinded.
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Cause the slave to shutdown gracefully by sending it SIGUSR1.
+  // This should result in the slave sending `UnregisterSlaveMessage`
+  // to the master.
+  Future<UnregisterSlaveMessage> unregisterSlaveMessage =
+    FUTURE_PROTOBUF(
+        UnregisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
+
+  kill(getpid(), SIGUSR1);
+
+  AWAIT_READY(unregisterSlaveMessage);
+  AWAIT_READY(slaveLost);
+
+  Clock::pause();
+  Clock::settle();
+
+  // We now want to arrange for the agent to fail health checks. We
+  // can't do that directly, because the `SlaveObserver` for this
+  // agent has already been removed. Instead, we dispatch to the
+  // master's `markUnreachable` method directly.
+  process::dispatch(master.get()->pid, &Master::markUnreachable, slaveId);
+
+  Clock::settle();
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test ensures that a killTask() can happen between runTask()
 // and _run() and then gets "handled properly". This means that
 // the task never gets started, but also does not get lost. The end
