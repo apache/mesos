@@ -1956,11 +1956,17 @@ TEST_F(MasterTest, RecoveredSlaveCanReregister)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
+  // Expect a resource offer from the re-registered slave.
+  Future<Nothing> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&offers));
+
   detector = master.get()->createDetector();
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(offers);
 
   driver.stop();
   driver.join();
