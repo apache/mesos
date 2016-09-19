@@ -25,7 +25,9 @@ UpdateWeights::UpdateWeights(const std::vector<WeightInfo>& _weightInfos)
   : weightInfos(_weightInfos) {}
 
 
-Try<bool> UpdateWeights::perform(Registry* registry, hashset<SlaveID>*, bool)
+Try<bool> UpdateWeights::perform(
+    Registry* registry,
+    hashset<SlaveID>* /*slaveIDs*/)
 {
   bool mutated = false;
   if (weightInfos.empty()) {

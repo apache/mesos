@@ -1929,10 +1929,7 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool)
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs)
   {
     // Check if this slave is currently admitted. This should only
     // happen if there is a slaveID collision, but that is extremely
@@ -1964,10 +1961,7 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool)
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs)
   {
     // As currently implemented, this should not be possible: the
     // master will only mark slaves unreachable that are currently
@@ -2017,10 +2011,7 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool)
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs)
   {
     // A slave might try to reregister that appears in the list of
     // admitted slaves. This can occur when the master fails over:
@@ -2073,7 +2064,7 @@ public:
     : toRemove(_toRemove) {}
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>*, bool)
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
   {
     // Attempt to remove the SlaveIDs in `toRemove` from the
     // unreachable list. Some SlaveIDs in `toRemove` might not appear
@@ -2118,10 +2109,7 @@ public:
   }
 
 protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool)
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs)
   {
     for (int i = 0; i < registry->slaves().slaves().size(); i++) {
       const Registry::Slave& slave = registry->slaves().slaves(i);

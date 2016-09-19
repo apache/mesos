@@ -46,9 +46,6 @@ namespace quota {
 // will render the operation hanging (i.e. `Future` for the operation
 // will not be set).
 
-// The `strict` flag is not relevant for quota operations: they will
-// always succeed, even if the flag is set to `true`.
-
 /**
  * Sets quota for a role. No assumptions are made here: the role may
  * be unknown to the master, or quota can be already set for the role.
@@ -67,10 +64,7 @@ public:
   explicit UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo);
 
 protected:
-  Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
   const mesos::quota::QuotaInfo info;
@@ -89,10 +83,7 @@ public:
   explicit RemoveQuota(const std::string& _role);
 
 protected:
-  Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
   const std::string role;

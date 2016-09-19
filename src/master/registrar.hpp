@@ -52,18 +52,11 @@ public:
   // Aided by accumulator(s):
   //   slaveIDs - is the set of registered slaves.
   //
-  // NOTE: the "strict" parameter only applies to operations that
-  // affect slaves (i.e. registration).  See Flags::registry_strict
-  // in master/flags.cpp for more information.
-  //
   // Returns whether the operation mutates 'registry', or an error if
   // the operation cannot be applied successfully.
-  Try<bool> operator()(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict)
+  Try<bool> operator()(Registry* registry, hashset<SlaveID>* slaveIDs)
   {
-    const Try<bool> result = perform(registry, slaveIDs, strict);
+    const Try<bool> result = perform(registry, slaveIDs);
 
     success = !result.isError();
 
@@ -74,10 +67,7 @@ public:
   bool set() { return process::Promise<bool>::set(success); }
 
 protected:
-  virtual Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict) = 0;
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) = 0;
 
 private:
   bool success;
@@ -101,8 +91,6 @@ private:
 class Registrar
 {
 public:
-  // If flags.registry_strict is true, all operations will be
-  // permitted.
   Registrar(const Flags& flags,
             mesos::state::protobuf::State* state,
             const Option<std::string>& authenticationRealm = None());

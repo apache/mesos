@@ -54,10 +54,7 @@ public:
       const mesos::maintenance::Schedule& _schedule);
 
 protected:
-  Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
   const mesos::maintenance::Schedule schedule;
@@ -78,10 +75,7 @@ public:
       const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
-  Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
   hashset<MachineID> ids;
@@ -101,10 +95,7 @@ public:
       const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
-  Try<bool> perform(
-      Registry* registry,
-      hashset<SlaveID>* slaveIDs,
-      bool strict);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
   hashset<MachineID> ids;
