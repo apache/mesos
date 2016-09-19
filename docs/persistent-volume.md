@@ -376,6 +376,12 @@ Information about the persistent volumes at each agent in the cluster can be
 found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
 (under the `reserved_resources_full` key).
 
+The same information can also be found in the [/state](endpoints/slave/state.md)
+endpoint on the agent (under the `reserved_resources_full` key). The agent
+endpoint is useful to confirm if changes to persistent volumes have been
+propagated to the agent (which can fail in the event of network partition or
+master/agent restarts).
+
 ## Programming with Persistent Volumes
 
 Some suggestions to keep in mind when building applications that use persistent

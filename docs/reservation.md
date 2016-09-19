@@ -383,3 +383,9 @@ can examine the state of the appropriate Mesos slave (e.g., via the slave's
 Information about the reserved resources at each slave in the cluster can be
 found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
 (under the `reserved_resources_full` key).
+
+The same information can also be found in the [/state](endpoints/slave/state.md)
+endpoint on the agent (under the `reserved_resources_full` key). The agent
+endpoint is useful to confirm if a reservation has been propagated to the
+agent (which can fail in the event of network partition or master/agent
+restarts).
