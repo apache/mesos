@@ -212,23 +212,10 @@ protected:
 };
 
 
-class RegistrarTest : public RegistrarTestBase,
-                      public WithParamInterface<bool>
-{
-protected:
-  virtual void SetUp()
-  {
-    RegistrarTestBase::SetUp();
-    flags.registry_strict = GetParam();
-  }
-};
+class RegistrarTest : public RegistrarTestBase {};
 
 
-// The Registrar tests are parameterized by "strictness".
-INSTANTIATE_TEST_CASE_P(Strict, RegistrarTest, ::testing::Bool());
-
-
-TEST_P(RegistrarTest, Recover)
+TEST_F(RegistrarTest, Recover)
 {
   Registrar registrar(flags, state);
 
@@ -268,7 +255,7 @@ TEST_P(RegistrarTest, Recover)
 }
 
 
-TEST_P(RegistrarTest, Admit)
+TEST_F(RegistrarTest, Admit)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -278,7 +265,7 @@ TEST_P(RegistrarTest, Admit)
 }
 
 
-TEST_P(RegistrarTest, MarkReachable)
+TEST_F(RegistrarTest, MarkReachable)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -310,7 +297,7 @@ TEST_P(RegistrarTest, MarkReachable)
 }
 
 
-TEST_P(RegistrarTest, MarkUnreachable)
+TEST_F(RegistrarTest, MarkUnreachable)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -353,7 +340,7 @@ TEST_P(RegistrarTest, MarkUnreachable)
 }
 
 
-TEST_P(RegistrarTest, PruneUnreachable)
+TEST_F(RegistrarTest, PruneUnreachable)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -399,7 +386,7 @@ TEST_P(RegistrarTest, PruneUnreachable)
 }
 
 
-TEST_P(RegistrarTest, Remove)
+TEST_F(RegistrarTest, Remove)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -460,7 +447,7 @@ TEST_P(RegistrarTest, Remove)
 
 // Adds maintenance schedules to the registry, one machine at a time.
 // Then removes machines from the schedule.
-TEST_P(RegistrarTest, UpdateMaintenanceSchedule)
+TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
 {
   // Machine definitions used in this test.
   MachineID machine1;
@@ -619,7 +606,7 @@ TEST_P(RegistrarTest, UpdateMaintenanceSchedule)
 
 
 // Creates a schedule and properly starts maintenance.
-TEST_P(RegistrarTest, StartMaintenance)
+TEST_F(RegistrarTest, StartMaintenance)
 {
   // Machine definitions used in this test.
   MachineID machine1;
@@ -706,7 +693,7 @@ TEST_P(RegistrarTest, StartMaintenance)
 
 
 // Creates a schedule and properly starts and stops maintenance.
-TEST_P(RegistrarTest, StopMaintenance)
+TEST_F(RegistrarTest, StopMaintenance)
 {
   // Machine definitions used in this test.
   MachineID machine1;
@@ -788,7 +775,7 @@ TEST_P(RegistrarTest, StopMaintenance)
 
 
 // Tests that adding and updating quotas in the registry works properly.
-TEST_P(RegistrarTest, UpdateQuota)
+TEST_F(RegistrarTest, UpdateQuota)
 {
   const string ROLE1 = "role1";
   const string ROLE2 = "role2";
@@ -915,7 +902,7 @@ TEST_P(RegistrarTest, UpdateQuota)
 
 
 // Tests removing quotas from the registry.
-TEST_P(RegistrarTest, RemoveQuota)
+TEST_F(RegistrarTest, RemoveQuota)
 {
   const string ROLE1 = "role1";
   const string ROLE2 = "role2";
@@ -993,7 +980,7 @@ TEST_P(RegistrarTest, RemoveQuota)
 
 
 // Tests that updating weights in the registry works properly.
-TEST_P(RegistrarTest, UpdateWeights)
+TEST_F(RegistrarTest, UpdateWeights)
 {
   const string ROLE1 = "role1";
   double WEIGHT1 = 2.0;
@@ -1056,7 +1043,7 @@ TEST_P(RegistrarTest, UpdateWeights)
 }
 
 
-TEST_P(RegistrarTest, Bootstrap)
+TEST_F(RegistrarTest, Bootstrap)
 {
   // Run 1 simulates the reregistration of a slave that is not present
   // in the registry.
@@ -1092,7 +1079,7 @@ public:
 };
 
 
-TEST_P(RegistrarTest, FetchTimeout)
+TEST_F(RegistrarTest, FetchTimeout)
 {
   Clock::pause();
 
@@ -1121,7 +1108,7 @@ TEST_P(RegistrarTest, FetchTimeout)
 }
 
 
-TEST_P(RegistrarTest, StoreTimeout)
+TEST_F(RegistrarTest, StoreTimeout)
 {
   Clock::pause();
 
@@ -1153,7 +1140,7 @@ TEST_P(RegistrarTest, StoreTimeout)
 }
 
 
-TEST_P(RegistrarTest, Abort)
+TEST_F(RegistrarTest, Abort)
 {
   MockStorage storage;
   State state(&storage);
@@ -1180,7 +1167,7 @@ TEST_P(RegistrarTest, Abort)
 
 // Tests that requests to the '/registry' endpoint are authenticated when HTTP
 // authentication is enabled.
-TEST_P(RegistrarTest, Authentication)
+TEST_F(RegistrarTest, Authentication)
 {
   const string AUTHENTICATION_REALM = "realm";
 

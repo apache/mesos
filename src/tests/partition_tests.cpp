@@ -79,21 +79,14 @@ namespace internal {
 namespace tests {
 
 
-class PartitionTest : public MesosTest,
-                      public WithParamInterface<bool> {};
-
-
-// The Registrar tests are parameterized by "strictness".
-INSTANTIATE_TEST_CASE_P(Strict, PartitionTest, ::testing::Bool());
+class PartitionTest : public MesosTest {};
 
 
 // This test checks that a scheduler gets a slave lost
 // message for a partitioned slave.
-TEST_P(PartitionTest, PartitionedSlave)
+TEST_F(PartitionTest, PartitionedSlave)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -171,13 +164,11 @@ TEST_P(PartitionTest, PartitionedSlave)
 // This test checks that a slave can reregister with the master after
 // a partition, and that PARTITION_AWARE tasks running on the slave
 // continue to run.
-TEST_P(PartitionTest, ReregisterSlavePartitionAware)
+TEST_F(PartitionTest, ReregisterSlavePartitionAware)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -317,13 +308,11 @@ TEST_P(PartitionTest, ReregisterSlavePartitionAware)
 // This test checks that a slave can reregister with the master after
 // a partition, and that non-PARTITION_AWARE tasks running on the
 // slave are shutdown.
-TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
+TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -480,13 +469,11 @@ TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
 // not. Both tasks should survive the reregistration of the partitioned
 // agent: we allow the non-partition-aware task to continue running for
 // backward compatibility with the "non-strict" Mesos 1.0 behavior.
-TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
+TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -733,13 +720,11 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 // a task for a PARTITION_AWARE scheduler. The scheduler disconnects
 // before the partition heals. Right now, the task is left running as
 // an orphan; once MESOS-4659 is fixed, the task should be shutdown.
-TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
+TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -903,13 +888,11 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
 // master (e.g., because of a spurious Zk leader flag at the slave),
 // the master does not kill any tasks on the slave, even if those
 // tasks are not PARTITION_AWARE.
-TEST_P(PartitionTest, SpuriousSlaveReregistration)
+TEST_F(PartitionTest, SpuriousSlaveReregistration)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1006,13 +989,11 @@ TEST_P(PartitionTest, SpuriousSlaveReregistration)
 // master's POV). In prior Mesos versions, the master would shutdown
 // the slave in this situation. In Mesos >= 1.1, the master will drop
 // the status update; the slave will eventually try to reregister.
-TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
+TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 {
   Clock::pause();
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1160,11 +1141,9 @@ TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
 // versions, the master would shutdown the slave in this situation. In
 // Mesos >= 1.1, the master will drop the message; the slave will
 // eventually try to reregister.
-TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
+TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1282,12 +1261,11 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
 // This test checks that the master correctly garbage collects
 // information about unreachable agents from the registry using the
 // count-based GC criterion.
-TEST_P(PartitionTest, RegistryGcByCount)
+TEST_F(PartitionTest, RegistryGcByCount)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
   masterFlags.registry_max_agent_count = 1;
 
   // Test logic assumes that two agents can be marked unreachable in
@@ -1510,12 +1488,11 @@ TEST_P(PartitionTest, RegistryGcByCount)
 // would be annoying to do by creating slaves and simulating network
 // partitions; instead we add agents to the unreachable list by
 // directly applying registry operations.
-TEST_P(PartitionTest, RegistryGcByCountManySlaves)
+TEST_F(PartitionTest, RegistryGcByCountManySlaves)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
   masterFlags.registry_max_agent_count = 1;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -1632,12 +1609,11 @@ TEST_P(PartitionTest, RegistryGcByCountManySlaves)
 // 900 secs (15 mins):  GC runs, nothing discarded
 // 1800 secs (30 mins): GC runs, slave1 is discarded
 // 2700 secs (45 mins): GC runs, slave2 is discarded
-TEST_P(PartitionTest, RegistryGcByAge)
+TEST_F(PartitionTest, RegistryGcByAge)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_gc_interval = Minutes(15);
   masterFlags.registry_max_agent_age = Minutes(20);
-  masterFlags.registry_strict = GetParam();
 
   // Pause the clock before starting the master. This ensures that we
   // know precisely when the GC timer will fire.
@@ -1888,10 +1864,9 @@ TEST_P(PartitionTest, RegistryGcByAge)
 // configure GC to only keep a single agent. Concurrently with GC
 // running, we arrange for one of those agents to reregister with the
 // master.
-TEST_P(PartitionTest, RegistryGcRace2)
+TEST_F(PartitionTest, RegistryGcRace2)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
   masterFlags.registry_max_agent_count = 1;
 
   Clock::pause();
@@ -2165,11 +2140,9 @@ TEST_P(PartitionTest, RegistryGcRace2)
 // health checks twice. At present, this can only occur if the registry
 // operation to mark the slave unreachable takes so long that the
 // slave fails an additional health check in the mean time.
-TEST_P(PartitionTest, FailHealthChecksTwice)
+TEST_F(PartitionTest, FailHealthChecksTwice)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.registry_strict = GetParam();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
