@@ -1263,8 +1263,6 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  vector<SlaveInfo> infos;
-
   Attributes attributes = Attributes::parse("foo:bar;baz:quux");
   Resources resources =
     Resources::parse("cpus(*):1.0;mem(*):512;disk(*):2048").get();
@@ -1272,6 +1270,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   size_t slaveCount = GetParam();
 
   // Create slaves.
+  vector<SlaveInfo> infos;
   for (size_t i = 0; i < slaveCount; ++i) {
     // Simulate real slave information.
     SlaveInfo info;
@@ -1331,6 +1330,144 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   }
   AWAIT_READY_FOR(result, Minutes(5));
   cout << "Removed " << slaveCount << " agents in " << watch.elapsed() << endl;
+}
+
+
+// Test the performance of marking all registered slaves unreachable,
+// then marking them reachable again. This might occur if there is a
+// network partition and then the partition heals.
+TEST_P(Registrar_BENCHMARK_Test, MarkUnreachableThenReachable)
+{
+  Registrar registrar(flags, state);
+  AWAIT_READY(registrar.recover(master));
+
+  Attributes attributes = Attributes::parse("foo:bar;baz:quux");
+  Resources resources =
+    Resources::parse("cpus(*):1.0;mem(*):512;disk(*):2048").get();
+
+  size_t slaveCount = GetParam();
+
+  // Create slaves.
+  vector<SlaveInfo> infos;
+  for (size_t i = 0; i < slaveCount; ++i) {
+    // Simulate real slave information.
+    SlaveInfo info;
+    info.set_hostname("localhost");
+    info.mutable_id()->set_value(
+        string("201310101658-2280333834-5050-48574-") + stringify(i));
+    info.mutable_resources()->MergeFrom(resources);
+    info.mutable_attributes()->MergeFrom(attributes);
+    infos.push_back(info);
+  }
+
+  // Admit slaves.
+  Stopwatch watch;
+  watch.start();
+  Future<bool> result;
+  foreach (const SlaveInfo& info, infos) {
+    result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
+  }
+  AWAIT_READY_FOR(result, Minutes(5));
+  LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
+
+  // Shuffle the slaves so that we mark them unreachable in random
+  // order (same as in production).
+  std::random_shuffle(infos.begin(), infos.end());
+
+  // Mark all slaves unreachable.
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  watch.start();
+  foreach (const SlaveInfo& info, infos) {
+    result = registrar.apply(
+        Owned<Operation>(new MarkSlaveUnreachable(info, unreachableTime)));
+  }
+  AWAIT_READY_FOR(result, Minutes(5));
+  cout << "Marked " << slaveCount << " agents unreachable in "
+       << watch.elapsed() << endl;
+
+  // Shuffles the slaves again so that we mark them reachable in
+  // random order (same as in production).
+  std::random_shuffle(infos.begin(), infos.end());
+
+  // Mark all slaves reachable.
+  watch.start();
+  foreach (const SlaveInfo& info, infos) {
+    result = registrar.apply(
+        Owned<Operation>(new MarkSlaveReachable(info)));
+  }
+  AWAIT_READY_FOR(result, Minutes(5));
+  cout << "Marked " << slaveCount << " agents reachable in "
+       << watch.elapsed() << endl;
+}
+
+
+// Test the performance of garbage collecting a large portion of the
+// unreachable list in a single operation. We use a fixed percentage
+// at the moment (50%).
+TEST_P(Registrar_BENCHMARK_Test, GcManyAgents)
+{
+  Registrar registrar(flags, state);
+  AWAIT_READY(registrar.recover(master));
+
+  Attributes attributes = Attributes::parse("foo:bar;baz:quux");
+  Resources resources =
+    Resources::parse("cpus(*):1.0;mem(*):512;disk(*):2048").get();
+
+  size_t slaveCount = GetParam();
+
+  // Create slaves.
+  vector<SlaveInfo> infos;
+  for (size_t i = 0; i < slaveCount; ++i) {
+    // Simulate real slave information.
+    SlaveInfo info;
+    info.set_hostname("localhost");
+    info.mutable_id()->set_value(
+        string("201310101658-2280333834-5050-48574-") + stringify(i));
+    info.mutable_resources()->MergeFrom(resources);
+    info.mutable_attributes()->MergeFrom(attributes);
+    infos.push_back(info);
+  }
+
+  // Admit slaves.
+  Stopwatch watch;
+  watch.start();
+  Future<bool> result;
+  foreach (const SlaveInfo& info, infos) {
+    result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
+  }
+  AWAIT_READY_FOR(result, Minutes(5));
+  LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
+
+  // Shuffle the slaves so that we mark them unreachable in random
+  // order (same as in production).
+  std::random_shuffle(infos.begin(), infos.end());
+
+  // Mark all slaves unreachable.
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  watch.start();
+  foreach (const SlaveInfo& info, infos) {
+    result = registrar.apply(
+        Owned<Operation>(new MarkSlaveUnreachable(info, unreachableTime)));
+  }
+  AWAIT_READY_FOR(result, Minutes(5));
+  LOG(INFO) << "Marked " << slaveCount << " agents unreachable in "
+            << watch.elapsed() << endl;
+
+  // Prepare to GC the first half of the unreachable list.
+  hashset<SlaveID> toRemove;
+  for (size_t i = 0; (i * 2) < slaveCount; i++) {
+    const SlaveInfo& info = infos[i];
+    toRemove.insert(info.id());
+  }
+
+  // Do GC.
+  watch.start();
+  result = registrar.apply(Owned<Operation>(new PruneUnreachable(toRemove)));
+  AWAIT_READY_FOR(result, Minutes(5));
+  cout << "Garbage collected " << toRemove.size() << " agents in "
+       << watch.elapsed() << endl;
 }
 
 } // namespace tests {
