@@ -102,7 +102,8 @@ StatusUpdate createStatusUpdate(
     const Option<ExecutorID>& executorId,
     const Option<bool>& healthy,
     const Option<Labels>& labels,
-    const Option<ContainerStatus>& containerStatus)
+    const Option<ContainerStatus>& containerStatus,
+    const Option<TimeInfo> unreachableTime)
 {
   StatusUpdate update;
 
@@ -148,6 +149,10 @@ StatusUpdate createStatusUpdate(
 
   if (containerStatus.isSome()) {
     status->mutable_container_status()->CopyFrom(containerStatus.get());
+  }
+
+  if (unreachableTime.isSome()) {
+    status->mutable_unreachable_time()->CopyFrom(unreachableTime.get());
   }
 
   return update;

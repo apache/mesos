@@ -55,6 +55,7 @@ using mesos::master::detector::StandaloneMasterDetector;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 using process::Promise;
@@ -65,6 +66,7 @@ using testing::_;
 using testing::An;
 using testing::AtMost;
 using testing::DoAll;
+using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
@@ -262,6 +264,7 @@ TEST_F(ReconciliationTest, UnknownSlave)
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  EXPECT_FALSE(update.get().has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -318,6 +321,7 @@ TEST_F(ReconciliationTest, UnknownTask)
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  EXPECT_FALSE(update.get().has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -359,6 +363,7 @@ TEST_F(ReconciliationTest, UnknownKillTask)
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  EXPECT_FALSE(update.get().has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -873,6 +878,169 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_F(ReconciliationTest, PartitionedAgentThenMasterFailover)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the `SlaveObserver` process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  StandaloneMasterDetector schedulerDetector(master.get()->pid);
+  TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Launch `task` using `sched`.
+  TaskInfo task = createTask(offer, "sleep 60");
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
+  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+
+  const SlaveID slaveId = runningStatus.get().slave_id();
+
+  AWAIT_READY(statusUpdateAck);
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Future<TaskStatus> lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Clock::pause();
+
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unhealthy. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
+
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
+  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+
+  AWAIT_READY(slaveLost);
+
+  // Do the first explicit reconciliation before restarting the master.
+  TaskStatus status1;
+  status1.mutable_task_id()->CopyFrom(task.task_id());
+  status1.mutable_slave_id()->CopyFrom(slaveId);
+  status1.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate1));
+
+  driver.reconcileTasks({status1});
+
+  AWAIT_READY(reconcileUpdate1);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(partitionTime, reconcileUpdate1.get().unreachable_time());
+
+  // Drop all subsequent messages from the slave, since they aren't
+  // useful anymore.
+  DROP_MESSAGES(_, slave.get()->pid, _);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Simulate master failover by restarting the master.
+  master->reset();
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Re-register the framework. Note that we don't update the slave's
+  // master detector, so it does not try to reregister.
+  schedulerDetector.appoint(master.get()->pid);
+
+  AWAIT_READY(registered);
+
+  // Do a second explicit reconciliation; we expect to observe the same data.
+  TaskStatus status2;
+  status2.mutable_task_id()->CopyFrom(task.task_id());
+  status2.mutable_slave_id()->CopyFrom(slaveId);
+  status2.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate2));
+
+  driver.reconcileTasks({status2});
+
+  AWAIT_READY(reconcileUpdate2);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_EQ(partitionTime, reconcileUpdate2.get().unreachable_time());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();

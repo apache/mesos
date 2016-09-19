@@ -1569,6 +1569,11 @@ Future<Nothing> Master::_recover(const Registry& registry)
     slaves.recovered.insert(slave.info().id());
   }
 
+  foreach (const Registry::UnreachableSlave& unreachable,
+           registry.unreachable().slaves()) {
+    slaves.unreachable[unreachable.id()] = unreachable.timestamp();
+  }
+
   // Set up a timeout for slaves to re-register.
   slaves.recoveredTimer =
     delay(flags.agent_reregister_timeout,
@@ -1759,7 +1764,8 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
   if (flags.registry_strict) {
     slaves.markingUnreachable.insert(slave.info().id());
 
-    registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave.info())))
+    registrar->apply(Owned<Operation>(
+        new MarkSlaveUnreachable(slave.info(), protobuf::getCurrentTime())))
       .onAny(defer(self(),
                    &Self::_markUnreachable,
                    slave.info(),
@@ -1774,7 +1780,8 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
     const string& message =
       "Failed to mark agent " + stringify(slave.info().id()) + " unreachable";
 
-    registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave.info())))
+    registrar->apply(Owned<Operation>(
+        new MarkSlaveUnreachable(slave.info(), protobuf::getCurrentTime())))
       .onFailed(lambda::bind(fail, message, lambda::_1));
   }
 
@@ -5676,6 +5683,10 @@ void Master::markUnreachable(const SlaveID& slaveId)
   // the slave is already removed.
   allocator->removeSlave(slave->id);
 
+  // Use the same timestamp for all status updates sent below; we also
+  // use this timestamp when updating the registry.
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
   // Transition the tasks to TASK_LOST and remove them, BUT do not
   // send updates yet. Rather, build up the updates so that we can can
   // send them after the slave has been moved to the unreachable list
@@ -5698,7 +5709,11 @@ void Master::markUnreachable(const SlaveID& slaveId)
           "Slave " + slave->info.hostname() + " is unreachable",
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
-              Option<ExecutorID>(task->executor_id()) : None()));
+              Option<ExecutorID>(task->executor_id()) : None()),
+          None(),
+          None(),
+          None(),
+          unreachableTime);
 
       updateTask(task, update);
       removeTask(task);
@@ -5737,6 +5752,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
   // Mark the slave as being unreachable.
   slaves.registered.remove(slave);
   slaves.removed.put(slave->id, Nothing());
+  slaves.unreachable[slave->id] = unreachableTime;
   slaves.markingUnreachable.insert(slave->id);
   authenticated.erase(slave->pid);
 
@@ -5755,7 +5771,8 @@ void Master::markUnreachable(const SlaveID& slaveId)
   // Update the registry to move this slave from the list of admitted
   // slaves to the list of unreachable slaves. Once this is completed,
   // we can forward the TASK_LOST updates to the frameworks.
-  registrar->apply(Owned<Operation>(new MarkSlaveUnreachable(slave->info)))
+  registrar->apply(Owned<Operation>(
+          new MarkSlaveUnreachable(slave->info, unreachableTime)))
     .onAny(defer(self(),
                  &Self::_markUnreachable,
                  slave->info,
@@ -5955,9 +5972,10 @@ void Master::_reconcileTasks(
   //   (2) Task is known: send the latest state.
   //   (3) Task is unknown, slave is registered: TASK_LOST.
   //   (4) Task is unknown, slave is transitioning: no-op.
-  //   (5) Task is unknown, slave is unknown: TASK_LOST.
+  //   (5) Task is unknown, slave is unreachable: TASK_LOST.
+  //   (6) Task is unknown, slave is unknown: TASK_LOST.
   //
-  // When using a non-strict registry, case (5) may result in
+  // When using a non-strict registry, case (6) may result in
   // a TASK_LOST for a task that may later be non-terminal. This
   // is better than no reply at all because the framework can take
   // action for TASK_LOST. Later, if the task is running, the
@@ -6023,8 +6041,28 @@ void Master::_reconcileTasks(
       LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
                 << " for framework " << *framework
                 << " because there are transitional agents";
+    } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
+      // (5) Slave is unreachable: TASK_LOST. The status update
+      // includes the time at which the slave was marked as
+      // unreachable.
+      TimeInfo unreachableTime = slaves.unreachable[slaveId.get()];
+
+      update = protobuf::createStatusUpdate(
+          framework->id(),
+          slaveId.get(),
+          status.task_id(),
+          TASK_LOST,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          "Reconciliation: Task is unreachable",
+          TaskStatus::REASON_RECONCILIATION,
+          None(),
+          None(),
+          None(),
+          None(),
+          unreachableTime);
     } else {
-      // (5) Task is unknown, slave is unknown: TASK_LOST.
+      // (6) Task is unknown, slave is unknown: TASK_LOST.
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId,
@@ -7000,6 +7038,7 @@ void Master::addSlave(
   CHECK_NOTNULL(slave);
 
   slaves.removed.erase(slave->id);
+  slaves.unreachable.erase(slave->id);
   slaves.registered.put(slave);
 
   link(slave->pid);

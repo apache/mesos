@@ -236,7 +236,9 @@ TEST_P(RegistrarTest, Recover)
   AWAIT_EXPECT_FAILED(
       registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
   AWAIT_EXPECT_FAILED(
-      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(slave))));
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(slave, protobuf::getCurrentTime()))));
   AWAIT_EXPECT_FAILED(
       registrar.apply(Owned<Operation>(new MarkSlaveReachable(slave))));
   AWAIT_EXPECT_FAILED(
@@ -249,7 +251,8 @@ TEST_P(RegistrarTest, Recover)
   Future<bool> admit = registrar.apply(
       Owned<Operation>(new AdmitSlave(slave)));
   Future<bool> unreachable = registrar.apply(
-      Owned<Operation>(new MarkSlaveUnreachable(slave)));
+      Owned<Operation>(
+          new MarkSlaveUnreachable(slave, protobuf::getCurrentTime())));
   Future<bool> reachable = registrar.apply(
       Owned<Operation>(new MarkSlaveReachable(slave)));
   Future<bool> remove = registrar.apply(
@@ -334,18 +337,24 @@ TEST_P(RegistrarTest, MarkUnreachable)
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
   AWAIT_TRUE(
-      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
   AWAIT_TRUE(
       registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
 
   AWAIT_TRUE(
-      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
   // If a slave is already unreachable, trying to mark it unreachable
   // again should fail.
   AWAIT_FALSE(
-      registrar.apply(Owned<Operation>(new MarkSlaveUnreachable(info1))));
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 }
 
 

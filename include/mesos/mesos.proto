@@ -1636,6 +1636,12 @@ message TaskStatus {
   // Container related information that is resolved dynamically such as
   // network address.
   optional ContainerStatus container_status = 13;
+
+  // The time (according to the master's clock) when the agent where
+  // this task was running became unreachable. This is only set on
+  // status updates for tasks running on agents that are unreachable
+  // (e.g., partitioned away from the master).
+  optional TimeInfo unreachable_time = 14;
 }
 
 

@@ -402,6 +402,15 @@ TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
   }
 
   Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unhealthy. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
 
   // The scheduler should see TASK_LOST because it is not
   // PARTITION_AWARE.
@@ -410,6 +419,7 @@ TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
   EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
   EXPECT_EQ(slaveId, lostStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
 
   AWAIT_READY(slaveLost);
 
@@ -450,6 +460,7 @@ TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
   AWAIT_READY(reconcileUpdate);
   EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+  EXPECT_FALSE(reconcileUpdate.get().has_unreachable_time());
 
   Clock::resume();
 
@@ -608,6 +619,15 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   }
 
   Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unhealthy. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
 
   // `sched1` should see TASK_LOST.
   AWAIT_READY(lostStatus);
@@ -615,6 +635,7 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
   EXPECT_EQ(task1.task_id(), lostStatus.get().task_id());
   EXPECT_EQ(slaveId, lostStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
 
   // `sched2` should see TASK_UNREACHABLE.
   AWAIT_READY(unreachableStatus);
@@ -622,6 +643,7 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
   EXPECT_EQ(task2.task_id(), unreachableStatus.get().task_id());
   EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
 
   // The master should notify both schedulers that the slave was lost.
   AWAIT_READY(slaveLost1);
@@ -797,12 +819,22 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
   }
 
   Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unhealthy. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
 
   AWAIT_READY(unreachableStatus);
   EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
   EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
   EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
 
   AWAIT_READY(slaveLost);
 

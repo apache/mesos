@@ -1697,6 +1697,11 @@ private:
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     Cache<SlaveID, Nothing> removed;
 
+    // Slaves that have been marked unreachable. We recover this from the
+    // registry, so it includes slaves marked as unreachable by other
+    // instances of the master.
+    hashmap<SlaveID, TimeInfo> unreachable;
+
     // This rate limiter is used to limit the removal of slaves failing
     // health checks.
     // NOTE: Using a 'shared_ptr' here is OK because 'RateLimiter' is
@@ -1942,7 +1947,8 @@ private:
 class MarkSlaveUnreachable : public Operation
 {
 public:
-  explicit MarkSlaveUnreachable(const SlaveInfo& _info) : info(_info) {
+  MarkSlaveUnreachable(const SlaveInfo& _info, TimeInfo _unreachableTime)
+    : info(_info), unreachableTime(_unreachableTime) {
     CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
   }
 
@@ -1970,7 +1976,7 @@ protected:
           registry->mutable_unreachable()->add_slaves();
 
         unreachable->mutable_id()->CopyFrom(info.id());
-        unreachable->mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
+        unreachable->mutable_timestamp()->CopyFrom(unreachableTime);
 
         return true; // Mutation.
       }
@@ -1982,6 +1988,7 @@ protected:
 
 private:
   const SlaveInfo info;
+  const TimeInfo unreachableTime;
 };
 
 
