@@ -1766,16 +1766,30 @@ void Master::_doRegistryGc(
   // `PruneUnreachable` registry operation should never fail.
   CHECK(registrarResult.get());
 
-  // TODO(neilc): Add a metric for # of agents discarded from the registry?
-  LOG(INFO) << "Garbage collected " << toRemove.size()
-            << " unreachable agents from the registry";
-
-  // Update in-memory state to be consistent with registry changes.
+  // Update in-memory state to be consistent with registry changes. If
+  // there was a concurrent registry operation that also modified the
+  // unreachable list (e.g., an agent in `toRemove` concurrently
+  // reregistered), entries in `toRemove` might not appear in
+  // `slaves.unreachable`.
+  //
+  // TODO(neilc): It would be nice to verify that the effect of these
+  // in-memory updates is equivalent to the changes made by the registry
+  // operation, but there isn't an easy way to do that.
+  size_t numRemoved = 0;
   foreach (const SlaveID& slave, toRemove) {
-    // NOTE: `slave` might not appear in `slaves.unreachable` if there
-    // have been concurrent changes.
+    if (!slaves.unreachable.contains(slave)) {
+      LOG(WARNING) << "Failed to garbage collect " << slave
+                   << " from the unreachable list";
+      continue;
+    }
+
     slaves.unreachable.erase(slave);
+    numRemoved++;
   }
+
+  // TODO(neilc): Add a metric for # of agents discarded from the registry?
+  LOG(INFO) << "Garbage collected " << numRemoved
+            << " unreachable agents from the registry";
 }
 
 
