@@ -543,8 +543,8 @@ inline Result<PROCESSENTRY32> process_entry(pid_t pid)
   // Get first process so that we can loop through process entries until we
   // find the one we care about.
   SetLastError(ERROR_SUCCESS);
-  bool has_next = Process32First(safe_snapshot_handle.get(), &process_entry);
-  if (!has_next) {
+  BOOL has_next = Process32First(safe_snapshot_handle.get(), &process_entry);
+  if (has_next == FALSE) {
     // No first process was found. We should never be here; it is arguable we
     // should return `None`, since we won't find the PID we're looking for, but
     // we elect to return `Error` because something terrible has probably
@@ -557,14 +557,14 @@ inline Result<PROCESSENTRY32> process_entry(pid_t pid)
   }
 
   // Loop through processes until we find the one we're looking for.
-  while (has_next) {
+  while (has_next == TRUE) {
     if (process_entry.th32ProcessID == pid) {
       // Process found.
       return process_entry;
     }
 
     has_next = Process32Next(safe_snapshot_handle.get(), &process_entry);
-    if (!has_next) {
+    if (has_next == FALSE) {
       DWORD last_error = GetLastError();
       if (last_error != ERROR_NO_MORE_FILES && last_error != ERROR_SUCCESS) {
         return WindowsError(
