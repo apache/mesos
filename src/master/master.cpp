@@ -5839,6 +5839,12 @@ void Master::markUnreachable(const SlaveID& slaveId)
     return;
   }
 
+  if (slaves.removing.contains(slaveId)) {
+    LOG(WARNING) << "Not marking agent " << slaveId
+                 << " unreachable because it is unregistering";
+    return;
+  }
+
   LOG(INFO) << "Marking agent " << *slave
             << " unreachable: health check timed out";
 
@@ -7284,9 +7290,25 @@ void Master::removeSlave(
 {
   CHECK_NOTNULL(slave);
 
-  LOG(INFO) << "Removing agent " << *slave << ": " << message;
+  // It would be better to remove the slave here instead of continuing
+  // to mark it unreachable, but probably not worth the complexity.
+  if (slaves.markingUnreachable.contains(slave->id)) {
+    LOG(WARNING) << "Ignoring removal of agent " << *slave
+                 << " that is in the process of being marked unreachable";
+    return;
+  }
+
+  // This should not be possible, but we protect against it anyway for
+  // the sake of paranoia.
+  if (slaves.removing.contains(slave->id)) {
+    LOG(WARNING) << "Ignoring removal of agent " << *slave
+                 << " that is in the process of being removed";
+    return;
+  }
 
   slaves.removing.insert(slave->id);
+
+  LOG(INFO) << "Removing agent " << *slave << ": " << message;
 
   // Remove this slave from the registrar. Note that we update the
   // registry BEFORE we update the master's in-memory state; this

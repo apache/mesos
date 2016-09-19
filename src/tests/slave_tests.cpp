@@ -2886,6 +2886,235 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
 }
 
 
+// This test checks that the master behaves correctly when a slave
+// fails health checks and is in the process of being marked
+// unreachable in the registry, but concurrently the slave unregisters
+// from the master.
+TEST_F(SlaveTest, UnreachableThenUnregisterRace)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
+
+  Clock::pause();
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Now advance through the PINGs.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  // Intercept the next registry operation. This operation should be
+  // attempting to mark the slave unreachable.
+  Future<Owned<master::Operation>> markUnreachable;
+  Promise<bool> markUnreachableContinue;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
+                    Return(markUnreachableContinue.future())));
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(markUnreachable);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveUnreachable*>(
+          markUnreachable.get().get()));
+
+  // Cause the slave to shutdown gracefully by sending it SIGUSR1.
+  // This should result in the slave sending `UnregisterSlaveMessage`
+  // to the master. Normally, the master would then remove the slave
+  // from the registry, but since the slave is already being marked
+  // unreachable, the master should ignore the unregister message.
+  Future<UnregisterSlaveMessage> unregisterSlaveMessage =
+    FUTURE_PROTOBUF(
+        UnregisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
+
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  kill(getpid(), SIGUSR1);
+
+  AWAIT_READY(unregisterSlaveMessage);
+
+  // Apply the registry operation to mark the slave unreachable, then
+  // pass the result back to the master to allow it to continue.
+  Future<bool> applyUnreachable =
+    master.get()->registrar->unmocked_apply(markUnreachable.get());
+
+  AWAIT_READY(applyUnreachable);
+  markUnreachableContinue.set(applyUnreachable.get());
+
+  AWAIT_READY(slaveLost);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks that the master behaves correctly when a slave is
+// in the process of unregistering from the master when it is marked
+// unreachable.
+TEST_F(SlaveTest, UnregisterThenUnreachableRace)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
+
+  ASSERT_EQ(1u, resourceOffers.get().size());
+  SlaveID slaveId = resourceOffers.get()[0].slave_id();
+
+  Clock::pause();
+
+  // Simulate the slave shutting down gracefully. This might happen
+  // normally if the slave receives SIGUSR1. However, we don't use
+  // that approach here, because that would also result in an `exited`
+  // event at the master; we want to test the case where the slave
+  // begins to shutdown but the socket hasn't been closed yet. Hence,
+  // we spoof the `UnregisterSlaveMessage`.
+  //
+  // When the master receives the `UnregisterSlaveMessage`, it should
+  // attempt to remove the slave from the registry.
+  Future<Owned<master::Operation>> removeSlave;
+  Promise<bool> removeSlaveContinue;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&removeSlave),
+                    Return(removeSlaveContinue.future())));
+
+  process::dispatch(master.get()->pid,
+                    &Master::unregisterSlave,
+                    slave.get()->pid,
+                    slaveId);
+
+  AWAIT_READY(removeSlave);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::RemoveSlave*>(removeSlave.get().get()));
+
+  // Next, cause the slave to fail health checks; master will attempt
+  // to mark it unreachable.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  // We expect the `SlaveObserver` to dispatch a message to the master
+  // to mark the slave unreachable. The master should ignore this
+  // request because the slave is already being removed.
+  Future<Nothing> unreachableDispatch =
+    FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
+
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(unreachableDispatch);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Apply the registry operation to remove the slave, then pass the
+  // result back to the master to allow it to continue.
+  Future<bool> applyRemove =
+    master.get()->registrar->unmocked_apply(removeSlave.get());
+
+  AWAIT_READY(applyRemove);
+  removeSlaveContinue.set(applyRemove.get());
+
+  AWAIT_READY(slaveLost);
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test ensures that a killTask() can happen between runTask()
 // and _run() and then gets "handled properly". This means that
 // the task never gets started, but also does not get lost. The end
