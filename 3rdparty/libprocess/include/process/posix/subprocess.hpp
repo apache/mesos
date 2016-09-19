@@ -126,7 +126,7 @@ inline void signalHandler(int signal)
 }
 
 
-// Creates a seperate watchdog process to monitor the child process and
+// Creates a separate watchdog process to monitor the child process and
 // kill it in case the parent process dies.
 //
 // NOTE: This function needs to be async signal safe. In fact,
