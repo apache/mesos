@@ -607,6 +607,123 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 }
 
 
+// This test checks that the HTTP endpoints return the expected
+// information for agents that the master is in the process of marking
+// unreachable, but that have not yet been so marked (because the
+// registry update hasn't completed yet).
+TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<process::Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  // Now advance through the PINGs.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  // Intercept the first registrar operation that is attempted; this
+  // should be the operation that marks the slave as unreachable.
+  Future<Owned<master::Operation>> unreachable;
+  Promise<bool> promise;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&unreachable),
+                    Return(promise.future())));
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  slave.get()->terminate();
+  slave->reset();
+
+  // Wait for the master to attempt to update the registry, but don't
+  // allow the registry update to succeed yet.
+  AWAIT_READY(unreachable);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveUnreachable*>(unreachable.get().get()));
+
+  // Settle the clock for the sake of paranoia.
+  Clock::settle();
+
+  // Metrics should not be updated yet.
+  JSON::Object stats1 = Metrics();
+  EXPECT_EQ(1, stats1.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats1.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(0, stats1.values["master/slave_removals"]);
+  EXPECT_EQ(0, stats1.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats1.values["master/slave_removals/reason_unregistered"]);
+
+  // HTTP endpoints (e.g., /state) should not reflect the removal of
+  // the slave yet.
+  Future<Response> response1 = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response1);
+
+  Try<JSON::Object> parse1 = JSON::parse<JSON::Object>(response1.get().body);
+  Result<JSON::Array> array1 = parse1.get().find<JSON::Array>("slaves");
+  ASSERT_SOME(array1);
+  EXPECT_EQ(1u, array1.get().values.size());
+
+  // Allow the registry operation to return success. Note that we
+  // don't actually update the registry here, since the test doesn't
+  // require it.
+  promise.set(true);
+
+  Clock::settle();
+
+  // Metrics should be updated.
+  JSON::Object stats2 = Metrics();
+  EXPECT_EQ(1, stats2.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(1, stats2.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats2.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats2.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats2.values["master/slave_removals/reason_unregistered"]);
+
+  // HTTP endpoints should be updated.
+  Future<Response> response2 = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response2);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response2);
+
+  Try<JSON::Object> parse2 = JSON::parse<JSON::Object>(response2.get().body);
+  Result<JSON::Array> array2 = parse2.get().find<JSON::Array>("slaves");
+  ASSERT_SOME(array2);
+  EXPECT_EQ(0u, array2.get().values.size());
+
+  Clock::resume();
+}
+
+
 TEST_F(MasterTest, StatusUpdateAck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
