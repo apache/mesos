@@ -2875,7 +2875,12 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   // We now want to arrange for the agent to fail health checks. We
   // can't do that directly, because the `SlaveObserver` for this
   // agent has already been removed. Instead, we dispatch to the
-  // master's `markUnreachable` method directly.
+  // master's `markUnreachable` method directly. We expect the master
+  // to ignore this message; in particular, the master should not
+  // attempt to update the registry to mark the slave unreachable.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
   process::dispatch(master.get()->pid, &Master::markUnreachable, slaveId);
 
   Clock::settle();
