@@ -82,7 +82,7 @@ public:
      * descriptor if one is present.
      *
      * NOTE: We initialize `read` to -1 so that we do not close an
-     * arbitrary file descriptor,in case we encounter an error
+     * arbitrary file descriptor, in case we encounter an error
      * while starting a subprocess (closing -1 is always a no-op).
      */
     struct InputFileDescriptors
@@ -102,7 +102,7 @@ public:
      * descriptor if one is present.
      *
      * NOTE: We initialize `write` to -1 so that we do not close an
-     * arbitrary file descriptor,in case we encounter an error
+     * arbitrary file descriptor, in case we encounter an error
      * while starting a subprocess (closing -1 is always a no-op).
      */
     struct OutputFileDescriptors
