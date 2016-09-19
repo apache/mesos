@@ -2293,10 +2293,9 @@ void SocketManager::swap_implementing_socket(
 
 
 ProcessManager::ProcessManager(const Option<string>& _delegate)
-  : delegate(_delegate)
-{
-  running.store(0);
-}
+  : delegate(_delegate),
+    running(0),
+    joining_threads(false) {}
 
 
 ProcessManager::~ProcessManager()
@@ -2355,8 +2354,6 @@ ProcessManager::~ProcessManager()
 
 long ProcessManager::init_threads()
 {
-  joining_threads.store(false);
-
   // We create no fewer than 8 threads because some tests require
   // more worker threads than `sysconf(_SC_NPROCESSORS_ONLN)` on
   // computers with fewer cores.
