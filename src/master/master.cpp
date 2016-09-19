@@ -1757,21 +1757,20 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
                << " after master failover; marking it unreachable";
 
   ++metrics->slave_unreachable_completed;
-  ++metrics->recovery_slave_removals;
 
   slaves.recovered.erase(slave.info().id());
+
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
 
   if (flags.registry_strict) {
     slaves.markingUnreachable.insert(slave.info().id());
 
     registrar->apply(Owned<Operation>(
-        new MarkSlaveUnreachable(slave.info(), protobuf::getCurrentTime())))
+        new MarkSlaveUnreachable(slave.info(), unreachableTime)))
       .onAny(defer(self(),
-                   &Self::_markUnreachable,
+                   &Self::_markUnreachableAfterFailover,
                    slave.info(),
-                   vector<StatusUpdate>(), // No TASK_LOST updates to send.
-                   lambda::_1,
-                   "did not re-register after master failover"));
+                   lambda::_1));
   } else {
     // When a non-strict registry is in use, we want to ensure the
     // registry is used in a write-only manner. Therefore we remove
@@ -1781,11 +1780,59 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
       "Failed to mark agent " + stringify(slave.info().id()) + " unreachable";
 
     registrar->apply(Owned<Operation>(
-        new MarkSlaveUnreachable(slave.info(), protobuf::getCurrentTime())))
+        new MarkSlaveUnreachable(slave.info(), unreachableTime)))
       .onFailed(lambda::bind(fail, message, lambda::_1));
   }
 
   return Nothing();
+}
+
+
+void Master::_markUnreachableAfterFailover(
+    const SlaveInfo& slaveInfo,
+    const Future<bool>& registrarResult)
+{
+  CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
+  slaves.markingUnreachable.erase(slaveInfo.id());
+
+  if (registrarResult.isFailed()) {
+    LOG(FATAL) << "Failed to mark agent " << slaveInfo.id()
+               << " (" << slaveInfo.hostname() << ")"
+               << " unreachable in the registry: "
+               << registrarResult.failure();
+  }
+
+  CHECK(!registrarResult.isDiscarded());
+
+  // `MarkSlaveUnreachable` registry operation should never fail.
+  CHECK(registrarResult.get());
+
+  LOG(INFO) << "Marked agent " << slaveInfo.id() << " ("
+            << slaveInfo.hostname() << ") unreachable: "
+            << "did not re-register after master failover";
+
+  ++metrics->slave_removals;
+  ++metrics->slave_removals_reason_unhealthy;
+  ++metrics->recovery_slave_removals;
+
+  sendSlaveLost(slaveInfo);
+}
+
+
+void Master::sendSlaveLost(const SlaveInfo& slaveInfo)
+{
+  foreachvalue (Framework* framework, frameworks.registered) {
+    LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
+              << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
+
+    LostSlaveMessage message;
+    message.mutable_slave_id()->MergeFrom(slaveInfo.id());
+    framework->send(message);
+  }
+
+  if (HookManager::hooksAvailable()) {
+    HookManager::masterSlaveLostHook(slaveInfo);
+  }
 }
 
 
@@ -5679,6 +5726,54 @@ void Master::markUnreachable(const SlaveID& slaveId)
   CHECK(!slaves.unreachable.contains(slaveId));
   CHECK(slaves.removed.get(slaveId).isNone());
 
+  slaves.markingUnreachable.insert(slave->id);
+
+  // Use the same timestamp for all status updates sent below; we also
+  // use this timestamp when updating the registry.
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  // Update the registry to move this slave from the list of admitted
+  // slaves to the list of unreachable slaves. After this is
+  // completed, we can update the master's in-memory state to remove
+  // the slave and send TASK_LOST status updates to the frameworks.
+  registrar->apply(Owned<Operation>(
+          new MarkSlaveUnreachable(slave->info, unreachableTime)))
+    .onAny(defer(self(),
+                 &Self::_markUnreachable,
+                 slave,
+                 unreachableTime,
+                 lambda::_1));
+}
+
+
+void Master::_markUnreachable(
+    Slave* slave,
+    TimeInfo unreachableTime,
+    const Future<bool>& registrarResult)
+{
+  CHECK_NOTNULL(slave);
+  CHECK(slaves.markingUnreachable.contains(slave->info.id()));
+  slaves.markingUnreachable.erase(slave->info.id());
+
+  if (registrarResult.isFailed()) {
+    LOG(FATAL) << "Failed to mark agent " << slave->info.id()
+               << " (" << slave->info.hostname() << ")"
+               << " unreachable in the registry: "
+               << registrarResult.failure();
+  }
+
+  CHECK(!registrarResult.isDiscarded());
+
+  // `MarkSlaveUnreachable` registry operation should never fail.
+  CHECK(registrarResult.get());
+
+  LOG(INFO) << "Marked agent " << slave->info.id() << " ("
+            << slave->info.hostname() << ") unreachable: "
+            << "health check timed out";
+
+  ++metrics->slave_removals;
+  ++metrics->slave_removals_reason_unhealthy;
+
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
   //
@@ -5689,17 +5784,9 @@ void Master::markUnreachable(const SlaveID& slaveId)
   // the slave is already removed.
   allocator->removeSlave(slave->id);
 
-  // Use the same timestamp for all status updates sent below; we also
-  // use this timestamp when updating the registry.
-  TimeInfo unreachableTime = protobuf::getCurrentTime();
-
-  // Transition the tasks to TASK_LOST and remove them, BUT do not
-  // send updates yet. Rather, build up the updates so that we can can
-  // send them after the slave has been moved to the unreachable list
-  // in the registry.
+  // Transition the tasks to TASK_LOST and remove them.
   // TODO(neilc): Update this to send TASK_UNREACHABLE for
-  // partition-aware frameworks.
-  vector<StatusUpdate> updates;
+  // PARTITION_AWARE frameworks.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
     CHECK_NOTNULL(framework);
@@ -5724,7 +5811,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
       updateTask(task, update);
       removeTask(task);
 
-      updates.push_back(update);
+      forward(update, UPID(), framework);
     }
   }
 
@@ -5759,7 +5846,6 @@ void Master::markUnreachable(const SlaveID& slaveId)
   slaves.registered.remove(slave);
   slaves.removed.put(slave->id, Nothing());
   slaves.unreachable[slave->id] = unreachableTime;
-  slaves.markingUnreachable.insert(slave->id);
   authenticated.erase(slave->pid);
 
   // Remove the slave from the `machines` mapping.
@@ -5774,78 +5860,9 @@ void Master::markUnreachable(const SlaveID& slaveId)
 
   // TODO(benh): unlink(slave->pid);
 
-  // Update the registry to move this slave from the list of admitted
-  // slaves to the list of unreachable slaves. Once this is completed,
-  // we can forward the TASK_LOST updates to the frameworks.
-  registrar->apply(Owned<Operation>(
-          new MarkSlaveUnreachable(slave->info, unreachableTime)))
-    .onAny(defer(self(),
-                 &Self::_markUnreachable,
-                 slave->info,
-                 updates,
-                 lambda::_1,
-                 "health check timed out"));
+  sendSlaveLost(slave->info);
 
   delete slave;
-}
-
-
-void Master::_markUnreachable(
-    const SlaveInfo& slaveInfo,
-    const vector<StatusUpdate>& updates,
-    const Future<bool>& registrarResult,
-    const string& unreachableCause)
-{
-  CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
-  slaves.markingUnreachable.erase(slaveInfo.id());
-
-  if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to mark agent " << slaveInfo.id()
-               << " (" << slaveInfo.hostname() << ")"
-               << " unreachable in the registry: "
-               << registrarResult.failure();
-  }
-
-  CHECK(!registrarResult.isDiscarded());
-
-  // `MarkSlaveUnreachable` registry operation should never fail.
-  CHECK(registrarResult.get());
-
-  LOG(INFO) << "Marked agent " << slaveInfo.id() << " ("
-            << slaveInfo.hostname() << ") unreachable: "
-            << unreachableCause;
-
-  // TODO(neilc): Consider renaming these metrics or adding new
-  // metrics for the new PARTITION_AWARE semantics.
-  ++metrics->slave_removals;
-  ++metrics->slave_removals_reason_unhealthy;
-
-  // Forward the TASK_LOST updates on to the frameworks.
-  foreach (const StatusUpdate& update, updates) {
-    Framework* framework = getFramework(update.framework_id());
-
-    if (framework == nullptr) {
-      LOG(WARNING) << "Dropping update " << update << " from unknown framework "
-                   << update.framework_id();
-    } else {
-      forward(update, UPID(), framework);
-    }
-  }
-
-  // Notify all frameworks of the lost slave.
-  foreachvalue (Framework* framework, frameworks.registered) {
-    LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
-              << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
-
-    LostSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(slaveInfo.id());
-    framework->send(message);
-  }
-
-  // Finally, notify the `SlaveLost` hooks.
-  if (HookManager::hooksAvailable()) {
-    HookManager::masterSlaveLostHook(slaveInfo);
-  }
 }
 
 
@@ -7150,6 +7167,55 @@ void Master::removeSlave(
 
   LOG(INFO) << "Removing agent " << *slave << ": " << message;
 
+  slaves.removing.insert(slave->id);
+
+  // Remove this slave from the registrar. Note that we update the
+  // registry BEFORE we update the master's in-memory state; this
+  // means that until the registry operation has completed, the slave
+  // is not considered to be removed (so we might offer its resources
+  // to frameworks, etc.). Ensuring that the registry update succeeds
+  // before we modify in-memory state ensures that external clients
+  // see consistent behavior if the master fails over.
+  registrar->apply(Owned<Operation>(new RemoveSlave(slave->info)))
+    .onAny(defer(self(),
+                 &Self::_removeSlave,
+                 slave,
+                 lambda::_1,
+                 message,
+                 reason));
+}
+
+
+void Master::_removeSlave(
+    Slave* slave,
+    const Future<bool>& registrarResult,
+    const string& removalCause,
+    Option<Counter> reason)
+{
+  CHECK_NOTNULL(slave);
+  CHECK(slaves.removing.contains(slave->info.id()));
+  slaves.removing.erase(slave->info.id());
+
+  CHECK(!registrarResult.isDiscarded());
+
+  if (registrarResult.isFailed()) {
+    LOG(FATAL) << "Failed to remove agent " << slave->info.id()
+               << " (" << slave->info.hostname() << ")"
+               << " from the registrar: " << registrarResult.failure();
+  }
+
+  CHECK(registrarResult.get())
+    << "Agent " << slave->info.id() << " (" << slave->info.hostname() << ") "
+    << "already removed from the registrar";
+
+  LOG(INFO) << "Removed agent " << slave->info.id() << " ("
+            << slave->info.hostname() << "): " << removalCause;
+
+  ++metrics->slave_removals;
+  if (reason.isSome()) {
+    ++utils::copy(reason.get()); // Remove const.
+  }
+
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
   //
@@ -7160,10 +7226,7 @@ void Master::removeSlave(
   // the slave is already removed.
   allocator->removeSlave(slave->id);
 
-  // Transition the tasks to lost and remove them, BUT do not send
-  // updates. Rather, build up the updates so that we can send them
-  // after the slave is removed from the registry.
-  vector<StatusUpdate> updates;
+  // Transition the tasks to lost and remove them.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
@@ -7173,7 +7236,7 @@ void Master::removeSlave(
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
           None(),
-          "Slave " + slave->info.hostname() + " removed: " + message,
+          "Slave " + slave->info.hostname() + " removed: " + removalCause,
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
@@ -7181,7 +7244,13 @@ void Master::removeSlave(
       updateTask(task, update);
       removeTask(task);
 
-      updates.push_back(update);
+      Framework* framework = getFramework(frameworkId);
+      if (framework == nullptr) {
+        LOG(WARNING) << "Dropping update " << update
+                     << " for unknown framework " << frameworkId;
+      } else {
+        forward(update, UPID(), framework);
+      }
     }
   }
 
@@ -7216,7 +7285,6 @@ void Master::removeSlave(
   slave->pendingTasks.clear();
 
   // Mark the slave as being removed.
-  slaves.removing.insert(slave->id);
   slaves.registered.remove(slave);
   slaves.removed.put(slave->id, Nothing());
   authenticated.erase(slave->pid);
@@ -7233,79 +7301,9 @@ void Master::removeSlave(
 
   // TODO(benh): unlink(slave->pid);
 
-  // Remove this slave from the registrar. Once this is completed, we
-  // can forward the LOST task updates to the frameworks and notify
-  // all frameworks that this slave was lost.
-  registrar->apply(Owned<Operation>(new RemoveSlave(slave->info)))
-    .onAny(defer(self(),
-                 &Self::_removeSlave,
-                 slave->info,
-                 updates,
-                 lambda::_1,
-                 message,
-                 reason));
+  sendSlaveLost(slave->info);
 
   delete slave;
-}
-
-
-void Master::_removeSlave(
-    const SlaveInfo& slaveInfo,
-    const vector<StatusUpdate>& updates,
-    const Future<bool>& registrarResult,
-    const string& removalCause,
-    Option<Counter> reason)
-{
-  CHECK(slaves.removing.contains(slaveInfo.id()));
-  slaves.removing.erase(slaveInfo.id());
-
-  CHECK(!registrarResult.isDiscarded());
-
-  if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to remove agent " << slaveInfo.id()
-               << " (" << slaveInfo.hostname() << ")"
-               << " from the registrar: " << registrarResult.failure();
-  }
-
-  CHECK(registrarResult.get())
-    << "Agent " << slaveInfo.id() << " (" << slaveInfo.hostname() << ") "
-    << "already removed from the registrar";
-
-  LOG(INFO) << "Removed agent " << slaveInfo.id() << " ("
-            << slaveInfo.hostname() << "): " << removalCause;
-
-  ++metrics->slave_removals;
-
-  if (reason.isSome()) {
-    ++utils::copy(reason.get()); // Remove const.
-  }
-
-  // Forward the LOST updates on to the framework.
-  foreach (const StatusUpdate& update, updates) {
-    Framework* framework = getFramework(update.framework_id());
-
-    if (framework == nullptr) {
-      LOG(WARNING) << "Dropping update " << update << " from unknown framework "
-                   << update.framework_id();
-    } else {
-      forward(update, UPID(), framework);
-    }
-  }
-
-  // Notify all frameworks of the lost slave.
-  foreachvalue (Framework* framework, frameworks.registered) {
-    LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
-              << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
-
-    LostSlaveMessage message;
-    message.mutable_slave_id()->MergeFrom(slaveInfo.id());
-    framework->send(message);
-  }
-
-  // Finally, notify the `SlaveLost` hooks.
-  if (HookManager::hooksAvailable()) {
-    HookManager::masterSlaveLostHook(slaveInfo);
-  }
 }
 
 

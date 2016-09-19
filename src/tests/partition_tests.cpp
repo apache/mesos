@@ -156,6 +156,7 @@ TEST_P(PartitionTest, PartitionedSlave)
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
 
   driver.stop();
   driver.join();
@@ -430,6 +431,7 @@ TEST_P(PartitionTest, ReregisterSlaveNotPartitionAware)
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
 
   // We now complete the partition on the slave side as well. We
   // simulate a master loss event, which would normally happen during
@@ -637,9 +639,10 @@ TEST_P(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   EXPECT_EQ(slaveId, lostStatus.get().slave_id());
   EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
 
-  // `sched2` should see TASK_UNREACHABLE.
+  // `sched2` should see TASK_LOST.
+  // TODO(neilc): Update this to expect TASK_UNREACHABLE.
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
+  EXPECT_EQ(TASK_LOST, unreachableStatus.get().state());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
   EXPECT_EQ(task2.task_id(), unreachableStatus.get().task_id());
   EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
@@ -799,9 +802,9 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  Future<TaskStatus> unreachableStatus;
+  Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&unreachableStatus));
+    .WillOnce(FutureArg<1>(&lostStatus));
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -829,12 +832,13 @@ TEST_P(PartitionTest, PartitionedSlaveOrphanedTask)
 
   Clock::advance(Milliseconds(100));
 
-  AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
+  // TODO(neilc): Update this to expect `TASK_UNREACHABLE`.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
+  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
+  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
 
   AWAIT_READY(slaveLost);
 
@@ -1079,6 +1083,7 @@ TEST_P(PartitionTest, PartitionedSlaveStatusUpdates)
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
 
   // At this point, the slave still thinks it's registered, so we
   // simulate a status update coming from the slave.
@@ -1252,6 +1257,7 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
 
   EXPECT_CALL(sched, executorLost(&driver, _, _, _))
     .Times(0);

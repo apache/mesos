@@ -685,14 +685,19 @@ protected:
         std::vector<Archive::Framework>());
 
   void _markUnreachable(
-      const SlaveInfo& slaveInfo,
-      const std::vector<StatusUpdate>& updates,
-      const process::Future<bool>& registrarResult,
-      const std::string& unreachableCause);
+      Slave* slave,
+      TimeInfo unreachableTime,
+      const process::Future<bool>& registrarResult);
 
   // Mark a slave as unreachable in the registry. Called when the slave
   // does not re-register in time after a master failover.
   Nothing markUnreachableAfterFailover(const Registry::Slave& slave);
+
+  void _markUnreachableAfterFailover(
+      const SlaveInfo& slaveInfo,
+      const process::Future<bool>& registrarResult);
+
+  void sendSlaveLost(const SlaveInfo& slaveInfo);
 
   // Remove the slave from the registrar and from the master's state.
   //
@@ -703,8 +708,7 @@ protected:
       Option<process::metrics::Counter> reason = None());
 
   void _removeSlave(
-      const SlaveInfo& slaveInfo,
-      const std::vector<StatusUpdate>& updates,
+      Slave* slave,
       const process::Future<bool>& registrarResult,
       const std::string& removalCause,
       Option<process::metrics::Counter> reason = None());

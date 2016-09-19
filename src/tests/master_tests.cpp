@@ -1821,6 +1821,7 @@ TEST_F(MasterTest, RecoveredSlaveCanReregister)
   EXPECT_EQ(1, stats.values["master/recovery_slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
   EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
 

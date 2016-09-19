@@ -165,6 +165,7 @@ TEST_F(SlaveTest, Shutdown)
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unregistered"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unhealthy"]);
 
   driver.stop();
   driver.join();
