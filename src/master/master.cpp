@@ -7372,6 +7372,8 @@ void Master::_removeSlave(
                << " from the registrar: " << registrarResult.failure();
   }
 
+  // Should not happen: the master will only try to remove agents that
+  // are currently admitted.
   CHECK(registrarResult.get())
     << "Agent " << slave->info.id() << " (" << slave->info.hostname() << ") "
     << "already removed from the registrar";

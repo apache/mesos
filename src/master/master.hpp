@@ -1932,18 +1932,14 @@ protected:
   virtual Try<bool> perform(
       Registry* registry,
       hashset<SlaveID>* slaveIDs,
-      bool strict)
+      bool)
   {
     // Check if this slave is currently admitted. This should only
     // happen if there is a slaveID collision, but that is extremely
     // unlikely in practice: slaveIDs are prefixed with the master ID,
     // which is a randomly generated UUID.
     if (slaveIDs->contains(info.id())) {
-      if (strict) {
-        return Error("Agent already admitted");
-      } else {
-        return false; // No mutation.
-      }
+      return Error("Agent already admitted");
     }
 
     Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
@@ -1971,7 +1967,7 @@ protected:
   virtual Try<bool> perform(
       Registry* registry,
       hashset<SlaveID>* slaveIDs,
-      bool strict)
+      bool)
   {
     // As currently implemented, this should not be possible: the
     // master will only mark slaves unreachable that are currently
@@ -2024,7 +2020,7 @@ protected:
   virtual Try<bool> perform(
       Registry* registry,
       hashset<SlaveID>* slaveIDs,
-      bool strict)
+      bool)
   {
     // A slave might try to reregister that appears in the list of
     // admitted slaves. This can occur when the master fails over:
@@ -2125,7 +2121,7 @@ protected:
   virtual Try<bool> perform(
       Registry* registry,
       hashset<SlaveID>* slaveIDs,
-      bool strict)
+      bool)
   {
     for (int i = 0; i < registry->slaves().slaves().size(); i++) {
       const Registry::Slave& slave = registry->slaves().slaves(i);
@@ -2136,11 +2132,9 @@ protected:
       }
     }
 
-    if (strict) {
-      return Error("Agent not yet admitted");
-    } else {
-      return false; // No mutation.
-    }
+    // Should not happen: the master will only try to remove agents
+    // that are currently admitted.
+    return Error("Agent not yet admitted");
   }
 
 private:

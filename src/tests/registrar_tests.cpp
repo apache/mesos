@@ -274,12 +274,7 @@ TEST_P(RegistrarTest, Admit)
   AWAIT_READY(registrar.recover(master));
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
-
-  if (flags.registry_strict) {
-    AWAIT_FALSE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
-  } else {
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
-  }
+  AWAIT_FALSE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
 }
 
 
@@ -436,29 +431,17 @@ TEST_P(RegistrarTest, Remove)
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
 
-  if (flags.registry_strict) {
-    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
-  } else {
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
-  }
+  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
 
-  if (flags.registry_strict) {
-    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
-  } else {
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
-  }
+  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
 
-  if (flags.registry_strict) {
-    AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
-  } else {
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
-  }
+  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
 }
 
 
