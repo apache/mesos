@@ -88,6 +88,7 @@
 #include "slave/containerizer/fetcher.hpp"
 
 #include "tests/cluster.hpp"
+#include "tests/mock_registrar.hpp"
 
 using mesos::master::contender::StandaloneMasterContender;
 using mesos::master::contender::ZooKeeperMasterContender;
@@ -243,7 +244,7 @@ Try<process::Owned<Master>> Master::start(
 
   // Instantiate some other master dependencies.
   master->state.reset(new mesos::state::protobuf::State(master->storage.get()));
-  master->registrar.reset(new master::Registrar(
+  master->registrar.reset(new MockRegistrar(
       flags, master->state.get(), master::READONLY_HTTP_AUTHENTICATION_REALM));
 
   if (slaveRemovalLimiter.isNone() && flags.agent_removal_rate_limit.isSome()) {

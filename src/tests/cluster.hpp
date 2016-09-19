@@ -53,7 +53,6 @@
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
-#include "master/registrar.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -64,6 +63,7 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
+#include "tests/mock_registrar.hpp"
 
 namespace mesos {
 namespace internal {
@@ -111,7 +111,12 @@ private:
   Option<zookeeper::URL> zookeeperUrl;
   Files files;
 
-  // Dependencies that are created by the factory method.
+  // Dependencies that are created by the factory method. The order in
+  // which these fields are declared should match the order in which
+  // they are initialized by the constructor; this ensures that
+  // dependencies between these fields are handled correctly during
+  // destruction.
+
   process::Owned<mesos::allocator::Allocator> allocator;
   process::Owned<Authorizer> authorizer;
   process::Owned<mesos::master::contender::MasterContender> contender;
@@ -119,8 +124,14 @@ private:
   process::Owned<mesos::log::Log> log;
   process::Owned<mesos::state::Storage> storage;
   process::Owned<mesos::state::protobuf::State> state;
-  process::Owned<master::Registrar> registrar;
+public:
+  // Exposed for testing and mocking purposes. We always use a
+  // `MockRegistrar` in case the test case wants to inspect how the
+  // master interacts with the registrar; by default, the mock
+  // registrar behaves identically to the normal registrar.
+  process::Owned<MockRegistrar> registrar;
 
+private:
   Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
   // Indicates whether or not authorization callbacks were set when this master
