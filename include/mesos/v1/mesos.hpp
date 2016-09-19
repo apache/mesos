@@ -285,6 +285,11 @@ std::ostream& operator<<(std::ostream& stream, const MachineID& machineId);
 std::ostream& operator<<(std::ostream& stream, const TaskInfo& task);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const TaskGroupInfo& taskGroupInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const TaskState& state);
 
 

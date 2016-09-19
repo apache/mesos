@@ -468,6 +468,12 @@ ostream& operator<<(ostream& stream, const TaskInfo& task)
 }
 
 
+ostream& operator<<(ostream& stream, const TaskGroupInfo& taskGroupInfo)
+{
+  return stream << taskGroupInfo.DebugString();
+}
+
+
 ostream& operator<<(ostream& stream, const TaskState& state)
 {
   return stream << TaskState_Name(state);
