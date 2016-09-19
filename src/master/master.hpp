@@ -1928,9 +1928,6 @@ protected:
       }
     }
 
-    // TODO(neilc): Check if the slave appears in the list of
-    // `unreachable` slaves in the registry?
-
     Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
     slave->mutable_info()->CopyFrom(info);
     slaveIDs->insert(info.id());

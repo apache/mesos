@@ -5183,6 +5183,9 @@ void Master::_reregisterSlave(
   // example.
   bool slaveWasRemoved = slaves.removed.get(slave->id).isSome();
 
+  slaves.removed.erase(slave->id);
+  slaves.unreachable.erase(slave->id);
+
   addSlave(slave, completedFrameworks);
 
   Duration pingTimeout =
@@ -5672,6 +5675,9 @@ void Master::markUnreachable(const SlaveID& slaveId)
 
   LOG(INFO) << "Marking agent " << *slave
             << " unreachable: health check timed out";
+
+  CHECK(!slaves.unreachable.contains(slaveId));
+  CHECK(slaves.removed.get(slaveId).isNone());
 
   // We want to remove the slave first, to avoid the allocator
   // re-allocating the recovered resources.
@@ -7036,9 +7042,10 @@ void Master::addSlave(
     const vector<Archive::Framework>& completedFrameworks)
 {
   CHECK_NOTNULL(slave);
+  CHECK(!slaves.registered.contains(slave->id));
+  CHECK(!slaves.unreachable.contains(slave->id));
+  CHECK(slaves.removed.get(slave->id).isNone());
 
-  slaves.removed.erase(slave->id);
-  slaves.unreachable.erase(slave->id);
   slaves.registered.put(slave);
 
   link(slave->pid);
