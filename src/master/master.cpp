@@ -5458,20 +5458,23 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 {
   ++metrics->messages_unregister_slave;
 
-  LOG(INFO) << "Asked to unregister agent " << slaveId;
-
   Slave* slave = slaves.registered.get(slaveId);
 
-  if (slave != nullptr) {
-    if (slave->pid != from) {
-      LOG(WARNING) << "Ignoring unregister agent message from " << from
-                   << " because it is not the agent " << slave->pid;
-      return;
-    }
-    removeSlave(slave,
-                "the agent unregistered",
-                metrics->slave_removals_reason_unregistered);
+  if (slave == nullptr) {
+    LOG(WARNING) << "Ignoring unregister agent message from " << from
+                 << " for unknown agent";
+    return;
   }
+
+  if (slave->pid != from) {
+    LOG(WARNING) << "Ignoring unregister agent message from " << from
+                 << " because it is not the agent " << slave->pid;
+    return;
+  }
+
+  removeSlave(slave,
+              "the agent unregistered",
+              metrics->slave_removals_reason_unregistered);
 }
 
 
