@@ -28,6 +28,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -412,14 +413,17 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
 
-  // Drop '&Master::_reregisterSlave' dispatch so that the slave is
-  // in 'reregistering' state.
-  Future<Nothing> _reregisterSlave =
-    DROP_DISPATCH(_, &Master::_reregisterSlave);
-
   // Restart the master.
   master = StartMaster(masterFlags);
   ASSERT_SOME(master);
+
+  // Intercept the first registrar operation that is attempted; this
+  // should be the registry operation that reregisters the slave.
+  Future<Owned<master::Operation>> reregister;
+  Promise<bool> promise; // Never satisfied.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&reregister),
+                    Return(promise.future())));
 
   driver.start();
 
@@ -431,8 +435,11 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  // Slave will be in 'reregistering' state here.
-  AWAIT_READY(_reregisterSlave);
+  // Wait for the slave to start reregistration.
+  AWAIT_READY(reregister);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveReachable*>(reregister.get().get()));
 
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);

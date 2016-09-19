@@ -555,22 +555,6 @@ public:
   // Made public for testing purposes.
   process::Future<Nothing> _recover(const Registry& registry);
 
-  // Continuation of reregisterSlave().
-  // Made public for testing purposes.
-  // TODO(vinod): Instead of doing this create and use a
-  // MockRegistrar.
-  // TODO(dhamon): Consider FRIEND_TEST macro from gtest.
-  void _reregisterSlave(
-      const SlaveInfo& slaveInfo,
-      const process::UPID& pid,
-      const std::vector<Resource>& checkpointedResources,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<FrameworkInfo>& frameworks,
-      const std::vector<Archive::Framework>& completedFrameworks,
-      const std::string& version,
-      const process::Future<bool>& readmit);
-
   MasterInfo info() const
   {
     return info_;
@@ -619,6 +603,17 @@ protected:
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
       const process::Future<bool>& admit);
+
+  void _reregisterSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const std::vector<Resource>& checkpointedResources,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks,
+      const std::vector<Archive::Framework>& completedFrameworks,
+      const std::string& version,
+      const process::Future<bool>& readmit);
 
   void __reregisterSlave(
       Slave* slave,

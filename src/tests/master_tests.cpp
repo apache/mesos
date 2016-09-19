@@ -535,9 +535,6 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  Future<Nothing> _reregisterSlave =
-    DROP_DISPATCH(_, &Master::_reregisterSlave);
-
   // Stop master and slave.
   master->reset();
   slave.get()->terminate();
@@ -550,6 +547,14 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   // Restart master.
   master = StartMaster();
   ASSERT_SOME(master);
+
+  // Intercept the first registrar operation that is attempted; this
+  // should be the registry operation that reregisters the slave.
+  Future<Owned<master::Operation>> reregister;
+  Promise<bool> promise; // Never satisfied.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&reregister),
+                    Return(promise.future())));
 
   frameworkId = Future<FrameworkID>();
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -567,7 +572,10 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   ASSERT_SOME(slave);
 
   // Wait for the slave to start reregistration.
-  AWAIT_READY(_reregisterSlave);
+  AWAIT_READY(reregister);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveReachable*>(reregister.get().get()));
 
   // As Master::killTask isn't doing anything, we shouldn't get a status update.
   EXPECT_CALL(sched, statusUpdate(&driver, _))
