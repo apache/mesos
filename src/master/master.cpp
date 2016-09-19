@@ -5827,6 +5827,18 @@ void Master::markUnreachable(const SlaveID& slaveId)
     return;
   }
 
+  if (slaves.markingUnreachable.contains(slaveId)) {
+    // Possible if marking the slave unreachable in the registry takes
+    // a long time. While the registry operation is in progress, the
+    // `SlaveObserver` will continue to ping the slave; if the slave
+    // fails another health check, the `SlaveObserver` will trigger
+    // another attempt to mark it unreachable.
+    LOG(WARNING) << "Not marking agent " << slaveId
+                 << " unreachable because another unreachable"
+                 << " transition is already in progress";
+    return;
+  }
+
   LOG(INFO) << "Marking agent " << *slave
             << " unreachable: health check timed out";
 

@@ -58,6 +58,7 @@ using process::Future;
 using process::Message;
 using process::Owned;
 using process::PID;
+using process::Promise;
 using process::Time;
 
 using process::http::OK;
@@ -67,6 +68,7 @@ using std::vector;
 
 using testing::_;
 using testing::AtMost;
+using testing::DoAll;
 using testing::Eq;
 using testing::Return;
 
@@ -1861,6 +1863,128 @@ TEST_P(PartitionTest, RegistryGcByAge)
   EXPECT_EQ(TASK_LOST, reconcileUpdate5.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5.get().reason());
   EXPECT_FALSE(reconcileUpdate5.get().has_unreachable_time());
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
+}
+
+
+// This test checks that the master behaves correctly if a slave fails
+// health checks twice. At present, this can only occur if the registry
+// operation to mark the slave unreachable takes so long that the
+// slave fails an additional health check in the mean time.
+TEST_P(PartitionTest, FailHealthChecksTwice)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_strict = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
+
+  Clock::pause();
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Now advance through the PINGs.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  // The slave observer should dispatch a message to the master. We
+  // intercept the next registrar operation; this should be the
+  // registry operation marking the slave unreachable.
+  Future<Nothing> unreachableDispatch1 =
+    FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
+
+  Future<Owned<master::Operation>> markUnreachable;
+  Promise<bool> markUnreachableContinue;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
+                    Return(markUnreachableContinue.future())));
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(unreachableDispatch1);
+  AWAIT_READY(markUnreachable);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveUnreachable*>(
+          markUnreachable.get().get()));
+
+  // Cause the slave to fail another health check. This is possible
+  // because we don't shutdown the SlaveObserver until we have marked
+  // the slave as unreachable in the registry. The second health check
+  // failure should dispatch to the master but this should NOT result
+  // in another registry operation.
+  Future<Nothing> unreachableDispatch2 =
+    FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
+
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(unreachableDispatch2);
+
+  // Apply the registry operation, then pass the result back to the
+  // master to allow it to continue.
+  Future<bool> applyUnreachable =
+    master.get()->registrar->unmocked_apply(markUnreachable.get());
+
+  AWAIT_READY(applyUnreachable);
+  markUnreachableContinue.set(applyUnreachable.get());
+
+  AWAIT_READY(slaveLost);
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(2, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(2, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
 
   driver.stop();
   driver.join();
