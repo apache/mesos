@@ -89,6 +89,9 @@ public:
   size_t max_completed_tasks_per_framework;
   Option<std::string> master_contender;
   Option<std::string> master_detector;
+  Duration registry_gc_interval;
+  Duration registry_max_agent_age;
+  size_t registry_max_agent_count;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_agent;

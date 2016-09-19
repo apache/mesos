@@ -1201,6 +1201,10 @@ void Master::finalize()
     Clock::cancel(slaves.recoveredTimer.get());
   }
 
+  if (registryGcTimer.isSome()) {
+    Clock::cancel(registryGcTimer.get());
+  }
+
   terminate(whitelistWatcher);
   wait(whitelistWatcher);
   delete whitelistWatcher;
@@ -1574,6 +1578,9 @@ Future<Nothing> Master::_recover(const Registry& registry)
     slaves.unreachable[unreachable.id()] = unreachable.timestamp();
   }
 
+  // Set up a timer for age-based registry GC.
+  scheduleRegistryGc();
+
   // Set up a timeout for slaves to re-register.
   slaves.recoveredTimer =
     delay(flags.agent_reregister_timeout,
@@ -1672,6 +1679,103 @@ Future<Nothing> Master::_recover(const Registry& registry)
             << " for agents to re-register";
 
   return Nothing();
+}
+
+
+void Master::scheduleRegistryGc()
+{
+  registryGcTimer = delay(flags.registry_gc_interval,
+                          self(),
+                          &Self::doRegistryGc);
+}
+
+
+void Master::doRegistryGc()
+{
+  // Schedule next periodic GC.
+  scheduleRegistryGc();
+
+  // Determine which unreachable agents to GC from the registry, if
+  // any. We do this by examining the master's in-memory copy of the
+  // unreachable list and checking two criteria, "age" and "count". To
+  // check the "count" criteria, we remove elements from the beginning
+  // of the list until it contains at most "registry_max_agent_count"
+  // elements (note that `slaves.unreachable` is a `LinkedHashMap`,
+  // which provides iteration over keys in insertion-order). To check
+  // the "age" criteria, we remove any element in the list whose age
+  // is more than "registry_max_agent_age". Note that for the latter,
+  // we check the entire list, not just the beginning: this avoids
+  // requiring that the list be kept sorted by timestamp.
+  //
+  // We build a candidate list of SlaveIDs to remove. We then try to
+  // remove this list from the registry. Note that all the slaveIDs we
+  // want to remove might not be found in the registrar's copy of the
+  // unreachable list; this can occur if there is a concurrent write
+  // (e.g., an unreachable agent we want to GC reregisters
+  // concurrently). In this situation, we skip removing any elements
+  // we don't find.
+
+  size_t unreachableCount = slaves.unreachable.size();
+  TimeInfo currentTime = protobuf::getCurrentTime();
+  hashset<SlaveID> toRemove;
+
+  foreach (const SlaveID& slave, slaves.unreachable.keys()) {
+    // Count-based GC.
+    CHECK(toRemove.size() <= unreachableCount);
+
+    size_t liveCount = unreachableCount - toRemove.size();
+    if (liveCount > flags.registry_max_agent_count) {
+      toRemove.insert(slave);
+      continue;
+    }
+
+    // Age-based GC.
+    const TimeInfo& unreachableTime = slaves.unreachable[slave];
+    Duration age = Nanoseconds(
+        currentTime.nanoseconds() - unreachableTime.nanoseconds());
+
+    if (age > flags.registry_max_agent_age) {
+      toRemove.insert(slave);
+    }
+  }
+
+  if (toRemove.empty()) {
+    VLOG(1) << "Skipping periodic registry garbage collection: "
+            << "no agents qualify for removal";
+    return;
+  }
+
+  VLOG(1) << "Attempting to remove " << toRemove.size()
+          << " unreachable agents from the registry";
+
+  registrar->apply(Owned<Operation>(new PruneUnreachable(toRemove)))
+    .onAny(defer(self(),
+                 &Self::_doRegistryGc,
+                 toRemove,
+                 lambda::_1));
+}
+
+
+void Master::_doRegistryGc(
+    const hashset<SlaveID>& toRemove,
+    const Future<bool>& registrarResult)
+{
+  CHECK(!registrarResult.isDiscarded());
+  CHECK(!registrarResult.isFailed());
+
+  // `PruneUnreachable` registry operation should never fail.
+  CHECK(registrarResult.get());
+
+  // TODO(neilc): Add a metric for # of agents discarded from the registry?
+  LOG(INFO) << "Garbage collected " << toRemove.size()
+            << " unreachable agents from the registry";
+
+  // Update in-memory state to be consistent with registry changes.
+  foreach (const SlaveID& slave, toRemove) {
+    // NOTE: `slave` might not appear in `slaves.unreachable` if there
+    // have been concurrent changes.
+    slaves.unreachable.erase(slave);
+  }
 }
 
 

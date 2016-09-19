@@ -76,6 +76,12 @@ message Registry {
 
   // Slaves that have failed health checks. They may or may not still
   // be running.
+  //
+  // New entries are added to the end of this list; hence the first
+  // element of the list was added first (although if there is clock
+  // drift, it might not necessarily have the smallest timestamp). The
+  // size of this list is limited by the `registry_max_agent_age` and
+  // `registry_max_agent_count` flags.
   optional UnreachableSlaves unreachable = 7;
 
   // Holds a list of machines and some status information about each.

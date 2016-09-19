@@ -91,6 +91,12 @@ constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 // Default number of tasks (limit) for /master/tasks endpoint.
 constexpr size_t TASK_LIMIT = 100;
 
+constexpr Duration DEFAULT_REGISTRY_GC_INTERVAL = Minutes(15);
+
+constexpr Duration DEFAULT_REGISTRY_MAX_AGENT_AGE = Weeks(2);
+
+constexpr size_t DEFAULT_REGISTRY_MAX_AGENT_COUNT = 100 * 1024;
+
 /**
  * Label used by the Leader Contender and Detector.
  *

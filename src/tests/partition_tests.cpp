@@ -58,6 +58,7 @@ using process::Future;
 using process::Message;
 using process::Owned;
 using process::PID;
+using process::Time;
 
 using process::http::OK;
 using process::http::Response;
@@ -1276,6 +1277,595 @@ TEST_P(PartitionTest, PartitionedSlaveExitedExecutor)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test checks that the master correctly garbage collects
+// information about unreachable agents from the registry using the
+// count-based GC criterion.
+TEST_P(PartitionTest, RegistryGcByCount)
+{
+  // Configure GC to only keep the most recent partitioned agent in
+  // the unreachable list.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_strict = GetParam();
+  masterFlags.registry_max_agent_count = 1;
+
+  // Test logic assumes that two agents can be marked unreachable in
+  // sequence without triggering GC.
+  const Duration health_check_duration =
+    masterFlags.agent_ping_timeout * masterFlags.max_agent_ping_timeouts;
+
+  CHECK(masterFlags.registry_gc_interval >= health_check_duration * 2);
+
+  // Pause the clock before starting the master. This ensures that we
+  // know precisely when the GC timer will fire.
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> slaveDetector1 = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(slaveDetector1.get());
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(slaveRegisteredMessage1);
+  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<Nothing> slaveLost1;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost1));
+
+  // Simulate the first slave becoming partitioned from the master.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unreachable. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime1 = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
+
+  AWAIT_READY(slaveLost1);
+
+  // Shutdown the first slave. This is necessary because we only drop
+  // PONG messages; after advancing the clock below, the slave would
+  // try to reregister and would succeed. Hence, stop the slave first.
+  slave1.get()->terminate();
+  slave1->reset();
+
+  // Start another slave.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get());
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slaveRegisteredMessage2);
+  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+
+  Future<Nothing> slaveLost2;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost2));
+
+  // Simulate the second slave becoming partitioned from the master.
+  pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unreachable. We then advance the clock -- this shouldn't
+  // do anything, but it ensures that the `unreachable_time` we check
+  // below is computed at the right time.
+  TimeInfo partitionTime2 = protobuf::getCurrentTime();
+
+  Clock::advance(Milliseconds(100));
+
+  AWAIT_READY(slaveLost2);
+
+  // Shutdown the second slave. This is necessary because we only drop
+  // PONG messages; after advancing the clock below, the slave would
+  // try to reregister and would succeed. Hence, stop the slave first.
+  slave2.get()->terminate();
+  slave2->reset();
+
+  // Do explicit reconciliation for a random task ID on `slave1`. GC
+  // has not occurred yet (since `registry_gc_interval` has not
+  // elapsed since the master was started), so the slave should be in
+  // the unreachable list; hence `unreachable_time` should be set on
+  // the result of the reconciliation request.
+  TaskStatus status1;
+  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_slave_id()->CopyFrom(slaveId1);
+  status1.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate1));
+
+  driver.reconcileTasks({status1});
+
+  AWAIT_READY(reconcileUpdate1);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+
+  // Advance the clock to cause GC to be performed.
+  Clock::advance(masterFlags.registry_gc_interval);
+  Clock::settle();
+
+  // Do explicit reconciliation for a random task ID on `slave1`.
+  // Because the agent has been removed from the unreachable list in
+  // the registry, `unreachable_time` should NOT be set.
+  TaskStatus status2;
+  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_slave_id()->CopyFrom(slaveId1);
+  status2.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate2));
+
+  driver.reconcileTasks({status2});
+
+  AWAIT_READY(reconcileUpdate2);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+
+  // Do explicit reconciliation for a random task ID on the second
+  // partitioned slave. Because the agent is still in the unreachable
+  // list in the registry, `unreachable_time` should be set.
+  TaskStatus status3;
+  status3.mutable_task_id()->set_value(UUID::random().toString());
+  status3.mutable_slave_id()->CopyFrom(slaveId2);
+  status3.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate3;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate3));
+
+  driver.reconcileTasks({status3});
+
+  AWAIT_READY(reconcileUpdate3);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate3.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate3.get().unreachable_time());
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(2, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(2, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(2, stats.values["master/slave_removals"]);
+  EXPECT_EQ(2, stats.values["master/slave_removals/reason_unhealthy"]);
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
+}
+
+
+// This test ensures that when using the count-based criterion to
+// garbage collect unreachable agents from the registry, the agents
+// that were marked unreachable first are the ones that are
+// removed. This requires creating a large unreachable list, which
+// would be annoying to do by creating slaves and simulating network
+// partitions; instead we add agents to the unreachable list by
+// directly applying registry operations.
+TEST_P(PartitionTest, RegistryGcByCountManySlaves)
+{
+  // Configure GC to only keep the most recent partitioned agent in
+  // the unreachable list.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_strict = GetParam();
+  masterFlags.registry_max_agent_count = 1;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Clock::pause();
+
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  vector<SlaveID> slaveIDs;
+  for (int i = 0; i < 50; i++) {
+    SlaveID slaveID;
+    slaveID.set_value(UUID::random().toString());
+    slaveIDs.push_back(slaveID);
+
+    SlaveInfo slaveInfo;
+    slaveInfo.set_hostname("localhost");
+    slaveInfo.mutable_id()->CopyFrom(slaveID);
+
+    Future<bool> admitApply =
+      master.get()->registrar->unmocked_apply(
+          Owned<master::Operation>(
+              new master::AdmitSlave(slaveInfo)));
+
+    AWAIT_EXPECT_TRUE(admitApply);
+
+    Future<bool> unreachableApply =
+      master.get()->registrar->unmocked_apply(
+          Owned<master::Operation>(
+              new master::MarkSlaveUnreachable(slaveInfo, unreachableTime)));
+
+    AWAIT_EXPECT_TRUE(unreachableApply);
+  }
+
+  // Restart the master to recover from updated registry.
+  master->reset();
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Advance the clock to cause GC to be performed.
+  Clock::advance(masterFlags.registry_gc_interval);
+  Clock::settle();
+
+  // Start a scheduler: we verify GC behavior by doing reconciliation.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // We expect that only the most-recently inserted SlaveID will have
+  // survived GC. We also check that the second-most-recent SlaveID
+  // has been GC'd.
+  SlaveID keptSlaveID = slaveIDs.back();
+  SlaveID removedSlaveID = *(slaveIDs.crbegin() + 1);
+
+  TaskStatus status1;
+  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_slave_id()->CopyFrom(keptSlaveID);
+  status1.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate1));
+
+  driver.reconcileTasks({status1});
+
+  AWAIT_READY(reconcileUpdate1);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(unreachableTime, reconcileUpdate1.get().unreachable_time());
+
+  TaskStatus status2;
+  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_slave_id()->CopyFrom(removedSlaveID);
+  status2.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate2));
+
+  driver.reconcileTasks({status2});
+
+  AWAIT_READY(reconcileUpdate2);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
+}
+
+
+// This test checks that the master correctly garbage collects
+// information about unreachable agents from the registry using the
+// age-based GC criterion. We configure GC to discard agents after 20
+// minutes; GC occurs every 15 mins. We test the following schedule:
+//
+// 75 sec:              slave1 is marked unreachable
+// 720 secs (12 mins):  slave2 is marked unreachable
+// 900 secs (15 mins):  GC runs, nothing discarded
+// 1800 secs (30 mins): GC runs, slave1 is discarded
+// 2700 secs (45 mins): GC runs, slave2 is discarded
+TEST_P(PartitionTest, RegistryGcByAge)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_gc_interval = Minutes(15);
+  masterFlags.registry_max_agent_age = Minutes(20);
+  masterFlags.registry_strict = GetParam();
+
+  // Pause the clock before starting the master. This ensures that we
+  // know precisely when the GC timer will fire.
+  Clock::pause();
+
+  Time startTime = Clock::now();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Set these expectations up before we spawn the slave so that we
+  // don't miss the first PING.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> slaveDetector1 = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(slaveDetector1.get());
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(slaveRegisteredMessage1);
+  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Need to make sure the framework AND slave have registered with
+  // master. Waiting for resource offers should accomplish both.
+  AWAIT_READY(resourceOffers);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<Nothing> slaveLost1;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost1));
+
+  // Simulate the first slave becoming partitioned from the master.
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unreachable.
+  TimeInfo partitionTime1 = protobuf::getCurrentTime();
+
+  AWAIT_READY(slaveLost1);
+
+  // Shutdown the first slave. This is necessary because we only drop
+  // PONG messages; after advancing the clock below, the slave would
+  // try to reregister and would succeed. Hence, stop the slave first.
+  slave1.get()->terminate();
+  slave1->reset();
+
+  // Per the schedule above, we want the second slave to be
+  // partitioned after 720 seconds have elapsed, so we advance the
+  // clock by 570 seconds (570 + 75 + 75 = 720).
+  EXPECT_EQ(Seconds(75), Clock::now() - startTime);
+
+  Clock::advance(Seconds(570));
+
+  // Start another slave.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get());
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slaveRegisteredMessage2);
+  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+
+  Future<Nothing> slaveLost2;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost2));
+
+  // Simulate the second slave becoming partitioned from the master.
+  pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // Record the time at which we expect the master to have marked the
+  // agent as unreachable.
+  TimeInfo partitionTime2 = protobuf::getCurrentTime();
+
+  AWAIT_READY(slaveLost2);
+
+  // Shutdown the second slave. This is necessary because we only drop
+  // PONG messages; after advancing the clock below, the slave would
+  // try to reregister and would succeed. Hence, stop the slave first.
+  slave2.get()->terminate();
+  slave2->reset();
+
+  EXPECT_EQ(Seconds(720), Clock::now() - startTime);
+
+  // Advance the clock to trigger a GC. The first GC occurs at 900
+  // elapsed seconds, so we advance by 180 seconds.
+  Clock::advance(Seconds(180));
+  Clock::settle();
+
+  // Do explicit reconciliation for random task IDs on both slaves.
+  // Since neither slave has exceeded the age-based GC bound, we
+  // expect to find both slaves (i.e., `unreachable_time` will be set).
+  TaskStatus status1;
+  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_slave_id()->CopyFrom(slaveId1);
+  status1.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate1));
+
+  driver.reconcileTasks({status1});
+
+  AWAIT_READY(reconcileUpdate1);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+
+  TaskStatus status2;
+  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_slave_id()->CopyFrom(slaveId2);
+  status2.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate2));
+
+  driver.reconcileTasks({status2});
+
+  AWAIT_READY(reconcileUpdate2);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate2.get().unreachable_time());
+
+  // Advance the clock to cause GC to be performed.
+  Clock::advance(Minutes(15));
+  Clock::settle();
+
+  // Do explicit reconciliation for random task IDs on both slaves.
+  // We expect `slave1` to have been garbage collected, but `slave2`
+  // should still be present in the registry.
+  TaskStatus status3;
+  status3.mutable_task_id()->set_value(UUID::random().toString());
+  status3.mutable_slave_id()->CopyFrom(slaveId1);
+  status3.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate3;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate3));
+
+  driver.reconcileTasks({status3});
+
+  AWAIT_READY(reconcileUpdate3);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate3.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
+  EXPECT_FALSE(reconcileUpdate3.get().has_unreachable_time());
+
+  TaskStatus status4;
+  status4.mutable_task_id()->set_value(UUID::random().toString());
+  status4.mutable_slave_id()->CopyFrom(slaveId2);
+  status4.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate4;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate4));
+
+  driver.reconcileTasks({status4});
+
+  AWAIT_READY(reconcileUpdate4);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate4.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4.get().reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate4.get().unreachable_time());
+
+  // Advance the clock to cause GC to be performed.
+  Clock::advance(Minutes(15));
+  Clock::settle();
+
+  // Do explicit reconciliation for a random task ID on `slave2`. We
+  // expect that it has been garbage collected, which means
+  // `unreachable_time` will not be set.
+  TaskStatus status5;
+  status5.mutable_task_id()->set_value(UUID::random().toString());
+  status5.mutable_slave_id()->CopyFrom(slaveId2);
+  status5.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate5;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate5));
+
+  driver.reconcileTasks({status5});
+
+  AWAIT_READY(reconcileUpdate5);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate5.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5.get().reason());
+  EXPECT_FALSE(reconcileUpdate5.get().has_unreachable_time());
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
 }
 
 

@@ -557,4 +557,35 @@ mesos::internal::master::Flags::Flags()
       "should exist in a module specified through the --modules flag.\n"
       "Cannot be used in conjunction with --zk.\n"
       "Must be used in conjunction with --master_contender.");
+
+  add(&Flags::registry_gc_interval,
+      "registry_gc_interval",
+      "How often to garbage collect the registry. The current leading\n"
+      "master will periodically discard information from the registry.\n"
+      "How long registry state is retained is controlled by other\n"
+      "parameters (e.g., registry_max_agent_age, registry_max_agent_count);\n"
+      "this parameter controls how often the master will examine the\n"
+      "registry to see if data should be discarded.",
+      DEFAULT_REGISTRY_GC_INTERVAL);
+
+  add(&Flags::registry_max_agent_age,
+      "registry_max_agent_age",
+      "Maximum length of time to store information in the registry about\n"
+      "agents that are not currently connected to the cluster. This\n"
+      "information allows frameworks to determine the status of unreachable\n"
+      "and removed agents. Note that the registry always stores information\n"
+      "on all connected agents. If there are more than\n"
+      "`registry_max_agent_count` partitioned or removed agents, agent\n"
+      "information may be discarded from the registry sooner than indicated\n"
+      "by this parameter.",
+      DEFAULT_REGISTRY_MAX_AGENT_AGE);
+
+  add(&Flags::registry_max_agent_count,
+      "registry_max_agent_count",
+      "Maximum number of disconnected agents to store in the registry.\n"
+      "This informtion allows frameworks to determine the status of\n"
+      "disconnected agents. Note that the registry always stores\n"
+      "information about all connected agents. See also the\n"
+      "`registry_max_agent_age` flag.",
+      DEFAULT_REGISTRY_MAX_AGENT_COUNT);
 }

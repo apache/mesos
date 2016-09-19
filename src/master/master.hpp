@@ -56,6 +56,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/recordio.hpp>
@@ -964,6 +965,14 @@ private:
     return leader.isSome() && leader.get() == info_;
   }
 
+  void scheduleRegistryGc();
+
+  void doRegistryGc();
+
+  void _doRegistryGc(
+      const hashset<SlaveID>& toRemove,
+      const process::Future<bool>& registrarResult);
+
   process::Future<bool> authorizeLogAccess(
       const Option<std::string>& principal);
 
@@ -1595,6 +1604,10 @@ private:
   // master is elected as a leader.
   Option<process::Future<Nothing>> recovered;
 
+  // If this is the leading master, we periodically check whether we
+  // should GC some information from the registry.
+  Option<process::Timer> registryGcTimer;
+
   struct Slaves
   {
     Slaves() : removed(MAX_REMOVED_SLAVES) {}
@@ -1696,10 +1709,13 @@ private:
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     Cache<SlaveID, Nothing> removed;
 
-    // Slaves that have been marked unreachable. We recover this from the
-    // registry, so it includes slaves marked as unreachable by other
-    // instances of the master.
-    hashmap<SlaveID, TimeInfo> unreachable;
+    // Slaves that have been marked unreachable. We recover this from
+    // the registry, so it includes slaves marked as unreachable by
+    // other instances of the master. Note that we use a linkedhashmap
+    // to ensure the order of elements here matches the order in the
+    // registry's unreachable list, which matches the order in which
+    // agents are marked unreachable.
+    LinkedHashMap<SlaveID, TimeInfo> unreachable;
 
     // This rate limiter is used to limit the removal of slaves failing
     // health checks.
@@ -2048,6 +2064,48 @@ protected:
 
 private:
   const SlaveInfo info;
+};
+
+
+class PruneUnreachable : public Operation
+{
+public:
+  explicit PruneUnreachable(const hashset<SlaveID>& _toRemove)
+    : toRemove(_toRemove) {}
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>*, bool)
+  {
+    // Attempt to remove the SlaveIDs in `toRemove` from the
+    // unreachable list. Some SlaveIDs in `toRemove` might not appear
+    // in the registry; this is possible if there was a concurrent
+    // registry operation.
+    //
+    // TODO(neilc): This has quadratic worst-case behavior, because
+    // `DeleteSubrange` for a `repeated` object takes linear time.
+    bool mutate = false;
+    int i = 0;
+    while (i < registry->unreachable().slaves().size()) {
+      const Registry::UnreachableSlave& slave =
+        registry->unreachable().slaves(i);
+
+      if (toRemove.contains(slave.id())) {
+        Registry::UnreachableSlaves* unreachable =
+          registry->mutable_unreachable();
+
+        unreachable->mutable_slaves()->DeleteSubrange(i, i+1);
+        mutate = true;
+        continue;
+      }
+
+      i++;
+    }
+
+    return mutate;
+  }
+
+private:
+  const hashset<SlaveID> toRemove;
 };
 
 
