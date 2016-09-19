@@ -660,18 +660,17 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   // Wait until authorization is in progress.
   AWAIT_READY(authorize);
 
+  Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
-    .Times(AtMost(1));
+    .WillOnce(FutureSatisfy(&slaveLost));
 
-  Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
-
-  // Stop the slave with explicit shutdown message so that the master does not
-  // wait for it to reconnect.
+  // Stop the slave with explicit shutdown message so that the master
+  // does not wait for it to reconnect.
   slave.get()->shutdown();
   slave->reset();
 
-  AWAIT_READY(deactivateSlave);
+  // Wait for the slave to be removed by the master.
+  AWAIT_READY(slaveLost);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
