@@ -5079,50 +5079,50 @@ void Master::_registerSlave(
   if (admit.isFailed()) {
     LOG(FATAL) << "Failed to admit agent " << slaveInfo.id() << " at " << pid
                << " (" << slaveInfo.hostname() << "): " << admit.failure();
-  } else if (!admit.get()) {
-    // This means the slave is already present in the registrar, it's
-    // likely we generated a duplicate slave id!
-    LOG(ERROR) << "Agent " << slaveInfo.id() << " at " << pid
-               << " (" << slaveInfo.hostname() << ") was not admitted, "
-               << "asking to shut down";
-    slaves.removed.put(slaveInfo.id(), Nothing());
-
-    ShutdownMessage message;
-    message.set_message(
-        "Agent attempted to register but got duplicate agent id " +
-        stringify(slaveInfo.id()));
-    send(pid, message);
-  } else {
-    MachineID machineId;
-    machineId.set_hostname(slaveInfo.hostname());
-    machineId.set_ip(stringify(pid.address.ip));
-
-    Slave* slave = new Slave(
-        this,
-        slaveInfo,
-        pid,
-        machineId,
-        version,
-        Clock::now(),
-        checkpointedResources);
-
-    ++metrics->slave_registrations;
-
-    addSlave(slave);
-
-    Duration pingTimeout =
-      flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
-    MasterSlaveConnection connection;
-    connection.set_total_ping_timeout_seconds(pingTimeout.secs());
-
-    SlaveRegisteredMessage message;
-    message.mutable_slave_id()->CopyFrom(slave->id);
-    message.mutable_connection()->CopyFrom(connection);
-    send(slave->pid, message);
-
-    LOG(INFO) << "Registered agent " << *slave
-              << " with " << slave->info.resources();
   }
+
+  if (!admit.get()) {
+    // This should only happen if there is a slaveID collision, but that
+    // is extremely unlikely in practice: slaveIDs are prefixed with the
+    // master ID, which is a randomly generated UUID. In this situation,
+    // we ignore the registration attempt. The slave will eventually try
+    // to register again and be assigned a new slave ID.
+    LOG(ERROR) << "Agent " << slaveInfo.id() << " at " << pid
+               << " (" << slaveInfo.hostname() << ") was assigned"
+               << " an agent ID that already appears in the registry;"
+               << " ignoring registration attempt";
+    return;
+  }
+
+  MachineID machineId;
+  machineId.set_hostname(slaveInfo.hostname());
+  machineId.set_ip(stringify(pid.address.ip));
+
+  Slave* slave = new Slave(
+      this,
+      slaveInfo,
+      pid,
+      machineId,
+      version,
+      Clock::now(),
+      checkpointedResources);
+
+  ++metrics->slave_registrations;
+
+  addSlave(slave);
+
+  Duration pingTimeout =
+    flags.agent_ping_timeout * flags.max_agent_ping_timeouts;
+  MasterSlaveConnection connection;
+  connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
+  SlaveRegisteredMessage message;
+  message.mutable_slave_id()->CopyFrom(slave->id);
+  message.mutable_connection()->CopyFrom(connection);
+  send(slave->pid, message);
+
+  LOG(INFO) << "Registered agent " << *slave
+            << " with " << slave->info.resources();
 }
 
 

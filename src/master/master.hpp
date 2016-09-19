@@ -1934,7 +1934,10 @@ protected:
       hashset<SlaveID>* slaveIDs,
       bool strict)
   {
-    // Check and see if this slave is currently admitted.
+    // Check if this slave is currently admitted. This should only
+    // happen if there is a slaveID collision, but that is extremely
+    // unlikely in practice: slaveIDs are prefixed with the master ID,
+    // which is a randomly generated UUID.
     if (slaveIDs->contains(info.id())) {
       if (strict) {
         return Error("Agent already admitted");
