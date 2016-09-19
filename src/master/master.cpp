@@ -7630,8 +7630,8 @@ InverseOffer* Master::getInverseOffer(const OfferID& inverseOfferId)
 
 
 // Create a new framework ID. We format the ID as MASTERID-FWID, where
-// MASTERID is the ID of the master (launch date plus fault tolerant ID)
-// and FWID is an increasing integer.
+// MASTERID is the ID of the master (randomly generated UUID) and FWID
+// is an increasing integer.
 FrameworkID Master::newFrameworkId()
 {
   std::ostringstream out;
