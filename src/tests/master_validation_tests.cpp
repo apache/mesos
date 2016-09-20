@@ -1758,7 +1758,6 @@ TEST_F(TaskGroupValidationTest, ExecutorUsesDockerContainerInfo)
   executor.mutable_executor_id()->set_value("E");
   executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
   executor.mutable_container()->set_type(ContainerInfo::DOCKER);
-  executor.mutable_container()->mutable_docker()->set_image("mesos:forthewin");
 
   TaskInfo task1;
   task1.set_name("1");
@@ -1934,7 +1933,6 @@ TEST_F(TaskGroupValidationTest, TaskUsesDockerContainerInfo)
   task1.mutable_slave_id()->MergeFrom(offer.slave_id());
   task1.mutable_resources()->MergeFrom(resources);
   task1.mutable_container()->set_type(ContainerInfo::DOCKER);
-  task1.mutable_container()->mutable_docker()->set_image("mesos:forthewin");
 
   // Create a valid task.
   TaskInfo task2;
@@ -2023,10 +2021,8 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offer.slave_id());
   task1.mutable_resources()->MergeFrom(resources);
-  task1.mutable_container()->add_network_infos();
   task1.mutable_container()->set_type(ContainerInfo::MESOS);
-  task1.mutable_container()->mutable_mesos()->CopyFrom(
-      ContainerInfo::MesosInfo());
+  task1.mutable_container()->add_network_infos();
 
   // Create a valid task.
   TaskInfo task2;

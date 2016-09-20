@@ -282,7 +282,6 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
-  container->mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
 
   // Make sure the container join the mock CNI network.
   container->add_network_infos()->set_name("__MESOS_TEST__");
@@ -404,7 +403,6 @@ TEST_F(CniIsolatorTest, ROOT_FailedPlugin)
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
-  container->mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   container->add_network_infos()->set_name("__MESOS_TEST__");
 
   Future<TaskStatus> statusFailed;
@@ -474,7 +472,6 @@ TEST_F(CniIsolatorTest, ROOT_SlaveRecovery)
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
-  container->mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
 
   // Make sure the container join the mock CNI network.
   container->add_network_infos()->set_name("__MESOS_TEST__");

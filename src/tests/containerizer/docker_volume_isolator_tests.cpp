@@ -295,7 +295,6 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo.add_volumes()->CopyFrom(volume1);
   containerInfo.add_volumes()->CopyFrom(volume2);
 
@@ -449,7 +448,6 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo.add_volumes()->CopyFrom(volume1);
   containerInfo.add_volumes()->CopyFrom(volume2);
 
@@ -555,7 +553,6 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo.add_volumes()->CopyFrom(volume1);
   containerInfo.add_volumes()->CopyFrom(volume2);
 
@@ -734,7 +731,6 @@ TEST_F(DockerVolumeIsolatorTest,
 
   ContainerInfo containerInfo1;
   containerInfo1.set_type(ContainerInfo::MESOS);
-  containerInfo1.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo1.add_volumes()->CopyFrom(volume1);
 
   task1.mutable_container()->CopyFrom(containerInfo1);
@@ -751,7 +747,6 @@ TEST_F(DockerVolumeIsolatorTest,
 
   ContainerInfo containerInfo2;
   containerInfo2.set_type(ContainerInfo::MESOS);
-  containerInfo2.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo2.add_volumes()->CopyFrom(volume1);
 
   task2.mutable_container()->CopyFrom(containerInfo2);

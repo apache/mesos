@@ -167,8 +167,6 @@ TEST_F(ContainerLoggerTest, MesosContainerizerRecover)
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
-  executorInfo.mutable_container()->mutable_mesos()->CopyFrom(
-      ContainerInfo::MesosInfo());
 
   ExecutorState executorState;
   executorState.id = executorId;

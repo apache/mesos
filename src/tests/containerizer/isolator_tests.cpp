@@ -133,7 +133,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo.add_volumes()->CopyFrom(
       CREATE_VOLUME(containerPath, hostPath, Volume::RW));
 
@@ -240,7 +239,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_mesos()->CopyFrom(ContainerInfo::MesosInfo());
   containerInfo.add_volumes()->CopyFrom(
       CREATE_VOLUME(containerPath, hostPath, Volume::RW));
 
