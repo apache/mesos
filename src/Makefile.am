@@ -2132,6 +2132,7 @@ mesos_tests_SOURCES =						\
   tests/script.cpp						\
   tests/slave_authorization_tests.cpp				\
   tests/slave_recovery_tests.cpp				\
+  tests/slave_validation_tests.cpp				\
   tests/slave_tests.cpp						\
   tests/sorter_tests.cpp					\
   tests/state_tests.cpp						\

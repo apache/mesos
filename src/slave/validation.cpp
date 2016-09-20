@@ -18,6 +18,7 @@
 
 #include <mesos/agent/agent.hpp>
 
+#include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
@@ -100,14 +101,67 @@ Option<Error> validate(
     case mesos::agent::Call::GET_TASKS:
       return None();
 
-    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER:
-      return Error("Unimplemented");
+    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER: {
+      if (!call.has_launch_nested_container()) {
+        return Error("Expecting 'launch_nested_container' to be present");
+      }
+
+      const mesos::agent::Call::LaunchNestedContainer& launchNestedContainer =
+        call.launch_nested_container();
+
+      // The `ContainerID` must be a RFC-4122 Version 4 UUID
+      // in standard string format.
+      Try<UUID> uuid = UUID::fromString(
+          launchNestedContainer.container_id().value());
+
+      if (uuid.isError()) {
+        return Error("'launch_nested_container.container_id.value' must be"
+                     " an RFC-4122 version 4 UUID in string format: " +
+                     uuid.error());
+      }
+
+      if (uuid->version() != UUID::version_random_number_based) {
+        return Error("Expected version 4 UUID but was version"
+                     " " + stringify(uuid->version()));
+      }
+
+      // A single parent `ContainerID` is expected, so that we know
+      // which container to place it underneath.
+      if (!launchNestedContainer.container_id().has_parent()) {
+        return Error("Expecting 'launch_nested_container.container_id.parent'"
+                     " to be present");
+      } else if (launchNestedContainer.container_id().parent().has_parent()) {
+        return Error("Expecting a single parent ContainerID but"
+                     " 'launch_nested_container.container_id.parent.parent'"
+                     " is set");
+      }
+
+      return None();
+    }
 
     case mesos::agent::Call::WAIT_NESTED_CONTAINER:
-      return Error("Unimplemented");
+      if (!call.has_wait_nested_container()) {
+        return Error("Expecting 'wait_nested_container' to be present");
+      }
+
+      if (call.wait_nested_container().container_id().has_parent()) {
+        return Error("Not expecting 'wait_nested_container.container_id.parent'"
+                     " to be present");
+      }
+
+      return None();
 
     case mesos::agent::Call::KILL_NESTED_CONTAINER:
-      return Error("Unimplemented");
+      if (!call.has_kill_nested_container()) {
+        return Error("Expecting 'kill_nested_container' to be present");
+      }
+
+      if (call.kill_nested_container().container_id().has_parent()) {
+        return Error("Not expecting 'kill_nested_container.container_id.parent'"
+                     " to be present");
+      }
+
+      return None();
   }
 
   UNREACHABLE();
