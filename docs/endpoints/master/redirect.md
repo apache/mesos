@@ -23,6 +23,7 @@ running multiple Masters.
 2. This is broken currently "on the cloud" (e.g. EC2) as
 this will attempt to redirect to the private IP address, unless
 advertise_ip points to an externally accessible IP
+3. Any path after `/redirect` or `/master/redirect` will be appended to the protocol-relative redirect URL
 
 
 ### AUTHENTICATION ###

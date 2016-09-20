@@ -2033,11 +2033,26 @@ Future<Response> Master::Http::redirect(const Request& request) const
   // http://stackoverflow.com/questions/12436669/using-protocol-relative-uris-within-location-headers
   // which discusses this.
   string basePath = "//" + hostname.get() + ":" + stringify(info.port());
-  if (request.url.path == "/redirect" ||
-      request.url.path == "/" + master->self().id + "/redirect") {
-    // When request url is '/redirect' or '/master/redirect', redirect to the
-    // base url of leading master to avoid infinite redirect loop.
-    return TemporaryRedirect(basePath);
+  string redirectPath = "/redirect";
+  string masterRedirectPath = "/" + master->self().id + "/redirect";
+  // When request url starts with '/redirect' or '/master/redirect',
+  // redirect to the base url of leading master to avoid infinite redirect
+  // loop. Otherwise just redirect
+  if (request.url.path.compare(0, redirectPath.length(), redirectPath) == 0) {
+    // Suffix of `/` is OK
+    int suffixLength = request.url.path.length() - redirectPath.length();
+    string suffixPath = request.url.path
+                        .substr(redirectPath.length(), suffixLength);
+    return TemporaryRedirect(basePath + suffixPath);
+  } else if(request.url.path
+            .compare(0, masterRedirectPath.length(), masterRedirectPath) == 0) {
+    // Exactly the same as above path. If this logic is used more than
+    // here it should be broken out
+    int suffixLength = request.url.path.length()
+                       - masterRedirectPath.length();
+    string suffixPath = request.url.path
+                        .substr(masterRedirectPath.length(), suffixLength);
+    return TemporaryRedirect(basePath + suffixPath);
   } else {
     // `request.url` is not absolute so we can safely append it to
     // `basePath`. See https://tools.ietf.org/html/rfc2616#section-5.1.2
