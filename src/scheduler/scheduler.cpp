@@ -552,7 +552,12 @@ protected:
       // Responses to SUBSCRIBE calls should always include a stream ID.
       CHECK(response->headers.contains("Mesos-Stream-Id"));
 
-      streamId = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+      Try<UUID> uuid =
+        UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+
+      CHECK_SOME(uuid);
+
+      streamId = uuid.get();
 
       read();
 
