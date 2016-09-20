@@ -302,6 +302,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
   const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
   list<Future<Nothing>> recovers;
+  hashset<string> recoveredSubsystems;
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
@@ -327,6 +328,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
     }
 
     foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
+      recoveredSubsystems.insert(subsystem->name());
       recovers.push_back(subsystem->recover(containerId));
     }
   }
@@ -336,12 +338,14 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
         PID<CgroupsIsolatorProcess>(this),
         &CgroupsIsolatorProcess::____recover,
         containerId,
+        recoveredSubsystems,
         lambda::_1));
 }
 
 
 Future<Nothing> CgroupsIsolatorProcess::____recover(
     const ContainerID& containerId,
+    const hashset<string>& recoveredSubsystems,
     const list<Future<Nothing>>& futures)
 {
   vector<string> errors;
@@ -364,6 +368,8 @@ Future<Nothing> CgroupsIsolatorProcess::____recover(
   infos[containerId] = Owned<Info>(new Info(
       containerId,
       path::join(flags.cgroups_root, containerId.value())));
+
+  infos[containerId]->subsystems = recoveredSubsystems;
 
   return Nothing();
 }
@@ -389,6 +395,8 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
   infos[containerId] = Owned<Info>(new Info(
       containerId,
       path::join(flags.cgroups_root, containerId.value())));
+
+  list<Future<Nothing>> prepares;
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
@@ -417,6 +425,11 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
       return Failure(
           "Failed to create the cgroup at "
           "'" + path + "': " + create.error());
+    }
+
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
+      infos[containerId]->subsystems.insert(subsystem->name());
+      prepares.push_back(subsystem->prepare(containerId));
     }
 
     // Chown the cgroup so the executor can create nested cgroups. Do
@@ -465,11 +478,6 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
         }
       }
     }
-  }
-
-  list<Future<Nothing>> prepares;
-  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    prepares.push_back(subsystem->prepare(containerId));
   }
 
   return await(prepares)
@@ -607,12 +615,14 @@ Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
   }
 
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    subsystem->watch(containerId)
-      .onAny(defer(
-          PID<CgroupsIsolatorProcess>(this),
-          &CgroupsIsolatorProcess::_watch,
-          containerId,
-          lambda::_1));
+    if (infos[containerId]->subsystems.contains(subsystem->name())) {
+      subsystem->watch(containerId)
+        .onAny(defer(
+            PID<CgroupsIsolatorProcess>(this),
+            &CgroupsIsolatorProcess::_watch,
+            containerId,
+            lambda::_1));
+    }
   }
 
   return infos[containerId]->limitation.future();
@@ -647,7 +657,9 @@ Future<Nothing> CgroupsIsolatorProcess::update(
 
   list<Future<Nothing>> updates;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    updates.push_back(subsystem->update(containerId, resources));
+    if (infos[containerId]->subsystems.contains(subsystem->name())) {
+      updates.push_back(subsystem->update(containerId, resources));
+    }
   }
 
   return await(updates)
@@ -693,7 +705,9 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
 
   list<Future<ResourceStatistics>> usages;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    usages.push_back(subsystem->usage(containerId));
+    if (infos[containerId]->subsystems.contains(subsystem->name())) {
+      usages.push_back(subsystem->usage(containerId));
+    }
   }
 
   return await(usages)
@@ -729,7 +743,9 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
 
   list<Future<ContainerStatus>> statuses;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    statuses.push_back(subsystem->status(containerId));
+    if (infos[containerId]->subsystems.contains(subsystem->name())) {
+      statuses.push_back(subsystem->status(containerId));
+    }
   }
 
   return await(statuses)
@@ -768,7 +784,9 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
 
   list<Future<Nothing>> cleanups;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    cleanups.push_back(subsystem->cleanup(containerId));
+    if (infos[containerId]->subsystems.contains(subsystem->name())) {
+      cleanups.push_back(subsystem->cleanup(containerId));
+    }
   }
 
   return await(cleanups)
@@ -805,10 +823,16 @@ Future<Nothing> CgroupsIsolatorProcess::_cleanup(
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
-    destroys.push_back(cgroups::destroy(
-        hierarchy,
-        infos[containerId]->cgroup,
-        cgroups::DESTROY_TIMEOUT));
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
+      if (infos[containerId]->subsystems.contains(subsystem->name())) {
+        destroys.push_back(cgroups::destroy(
+            hierarchy,
+            infos[containerId]->cgroup,
+            cgroups::DESTROY_TIMEOUT));
+
+        break;
+      }
+    }
   }
 
   return await(destroys)

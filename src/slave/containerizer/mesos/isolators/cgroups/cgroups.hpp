@@ -97,6 +97,10 @@ private:
     // This promise will complete if a container is impacted by a resource
     // limitation and should be terminated.
     process::Promise<mesos::slave::ContainerLimitation> limitation;
+
+    // This `hashset` stores the name of subsystems which are recovered
+    // or prepared for the container.
+    hashset<std::string> subsystems;
   };
 
   CgroupsIsolatorProcess(
@@ -117,6 +121,7 @@ private:
 
   process::Future<Nothing> ____recover(
     const ContainerID& containerId,
+    const hashset<std::string>& recoveredSubsystems,
     const std::list<process::Future<Nothing>>& futures);
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
