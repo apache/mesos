@@ -467,7 +467,7 @@ public:
    *
    * Valid even before calling spawn.
    */
-  PID<T> self() const { return PID<T>(dynamic_cast<const T*>(this)); }
+  PID<T> self() const { return PID<T>(static_cast<const T*>(this)); }
 
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
