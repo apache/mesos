@@ -50,10 +50,14 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
+#include "tests/containerizer/mock_containerizer.hpp"
+
 using google::protobuf::RepeatedPtrField;
 
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
+
+using mesos::slave::ContainerTermination;
 
 using mesos::internal::recordio::Reader;
 
@@ -67,6 +71,7 @@ using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Promise;
 
 using process::http::Accepted;
 using process::http::NotFound;
@@ -3201,6 +3206,221 @@ TEST_P(AgentAPITest, GetState)
     ASSERT_EQ(0u, getState.get_executors().executors_size());
     ASSERT_EQ(1u, getState.get_executors().completed_executors_size());
   }
+}
+
+
+TEST_P(AgentAPITest, NestedContainerWaitNotFound)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  StandaloneMasterDetector detector;
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &mockContainerizer);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Expect a 404 for waiting on unknown containers.
+  {
+    EXPECT_CALL(mockContainerizer, wait(_))
+      .WillOnce(Return(Future<Option<ContainerTermination>>(None())));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::WAIT_NESTED_CONTAINER);
+
+    v1::ContainerID unknownContainerId;
+    unknownContainerId.set_value(UUID::random().toString());
+
+    call.mutable_wait_nested_container()->mutable_container_id()
+      ->CopyFrom(unknownContainerId);
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  }
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
+}
+
+
+TEST_P(AgentAPITest, NestedContainerKillNotFound)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  StandaloneMasterDetector detector;
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &mockContainerizer);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Expect a 404 for killing unknown containers.
+  {
+    EXPECT_CALL(mockContainerizer, destroy(_))
+      .WillOnce(Return(Future<bool>(false)));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::KILL_NESTED_CONTAINER);
+
+    v1::ContainerID unknownContainerId;
+    unknownContainerId.set_value(UUID::random().toString());
+
+    call.mutable_kill_nested_container()->mutable_container_id()
+      ->CopyFrom(unknownContainerId);
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  }
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
+}
+
+
+TEST_P(AgentAPITest, NestedContainerLaunch)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  StandaloneMasterDetector detector;
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &mockContainerizer);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Launch a nested container and wait for it to finish.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  {
+    EXPECT_CALL(mockContainerizer, launch(_, _, _, _))
+      .WillOnce(Return(Future<Nothing>(Nothing())));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER);
+
+    call.mutable_launch_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    call.mutable_launch_nested_container()->mutable_container_id()
+      ->mutable_parent()->set_value(UUID::random().toString());
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  Promise<Option<ContainerTermination>> waitPromise;
+  Future<v1::agent::Response> wait;
+
+  {
+    EXPECT_CALL(mockContainerizer, wait(_))
+      .WillOnce(Return(waitPromise.future()));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::WAIT_NESTED_CONTAINER);
+
+    call.mutable_wait_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    wait = post(slave.get()->pid, call, contentType);
+
+    Clock::settle();
+
+    EXPECT_TRUE(wait.isPending());
+  }
+
+  // Now kill the nested container.
+  {
+    EXPECT_CALL(mockContainerizer, destroy(_))
+      .WillOnce(Return(Future<bool>(true)));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::KILL_NESTED_CONTAINER);
+
+    call.mutable_kill_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  ContainerTermination termination;
+  termination.set_status(1);
+
+  waitPromise.set(Option<ContainerTermination>::some(termination));
+
+  AWAIT_READY(wait);
+  ASSERT_EQ(v1::agent::Response::WAIT_NESTED_CONTAINER, wait->type());
+  EXPECT_EQ(1, wait->wait_nested_container().exit_status());
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
 }
 
 } // namespace tests {
