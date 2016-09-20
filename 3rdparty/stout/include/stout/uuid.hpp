@@ -15,6 +15,7 @@
 
 #include <assert.h>
 
+#include <stdexcept>
 #include <string>
 
 #include <boost/uuid/random_generator.hpp>
@@ -69,14 +70,18 @@ public:
     return UUID(uuid);
   }
 
-  static UUID fromString(const std::string& s)
+  static Try<UUID> fromString(const std::string& s)
   {
-    // NOTE: We don't use THREAD_LOCAL for the `string_generator`
-    // (unlike for the `random_generator` above), because it is cheap
-    // to construct one each time.
-    boost::uuids::string_generator gen;
-    boost::uuids::uuid uuid = gen(s);
-    return UUID(uuid);
+    try {
+      // NOTE: We don't use THREAD_LOCAL for the `string_generator`
+      // (unlike for the `random_generator` above), because it is cheap
+      // to construct one each time.
+      boost::uuids::string_generator gen;
+      boost::uuids::uuid uuid = gen(s);
+      return UUID(uuid);
+    } catch (const std::runtime_error& e) {
+      return Error(e.what());
+    }
   }
 
   std::string toBytes() const

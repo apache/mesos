@@ -49,9 +49,9 @@ TEST(UUIDTest, Test)
   EXPECT_EQ(string2, string3);
   EXPECT_EQ(string1, string3);
 
-  EXPECT_EQ(uuid1, UUID::fromString(string1));
-  EXPECT_EQ(uuid2, UUID::fromString(string2));
-  EXPECT_EQ(uuid3, UUID::fromString(string3));
+  EXPECT_SOME_EQ(uuid1, UUID::fromString(string1));
+  EXPECT_SOME_EQ(uuid2, UUID::fromString(string2));
+  EXPECT_SOME_EQ(uuid3, UUID::fromString(string3));
 }
 
 
@@ -60,4 +60,6 @@ TEST(UUIDTest, MalformedUUID)
   EXPECT_SOME(UUID::fromBytes(UUID::random().toBytes()));
   EXPECT_ERROR(UUID::fromBytes("malformed-uuid"));
   EXPECT_ERROR(UUID::fromBytes("invalidstringmsg"));
+
+  EXPECT_ERROR(UUID::fromString("malformed-uuid"));
 }
