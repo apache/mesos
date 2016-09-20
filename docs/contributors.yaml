@@ -329,6 +329,14 @@
   jira_user: magedm
   reviewboard_user: magedm
 
+- name: Mao Geng
+  affiliations:
+    - {organization: Pinterest}
+  emails:
+    - gengmao@pinterest.com
+  jira_user: gengmao
+  reviewboard_user: gengmao
+
 - name: Megha Sharma
   affiliations:
     - {organization: Apple}
