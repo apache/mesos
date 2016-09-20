@@ -1690,7 +1690,11 @@ void MesosSchedulerDriver::initialize() {
     return;
   }
 
-  // Initialize libprocess.
+  // Initialize libprocess. NOTE: We need to ensure this happens
+  // before we invoke anything in libprocess. While libprocess will
+  // call `process::initialize` internally if needed, it will do so
+  // without passing any parameters; any subsequent calls to
+  // `process::initialize` (with non-empty arguments) will be ignored.
   process::initialize(schedulerId);
 
   if (process::address().ip.isLoopback()) {
@@ -1774,6 +1778,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     framework(_framework),
     master(_master),
     process(nullptr),
+    latch(nullptr),
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(true),
     credential(nullptr),
@@ -1793,6 +1798,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     framework(_framework),
     master(_master),
     process(nullptr),
+    latch(nullptr),
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(true),
     credential(new Credential(_credential)),
@@ -1812,6 +1818,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     framework(_framework),
     master(_master),
     process(nullptr),
+    latch(nullptr),
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(_implicitAcknowlegements),
     credential(nullptr),
@@ -1832,6 +1839,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     framework(_framework),
     master(_master),
     process(nullptr),
+    latch(nullptr),
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(_implicitAcknowlegements),
     credential(new Credential(_credential)),
