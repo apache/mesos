@@ -554,11 +554,9 @@ protected:
   {
     CHECK_EQ(SUBSCRIBED, state);
 
-    CHECK_NE(task.isSome(), taskGroup.isSome())
-      << "Either task or task group should be set but not both";
-
     cout << "Received status update " << status.state()
          << " for task '" << status.task_id() << "'" << endl;
+
     if (status.has_message()) {
       cout << "  message: '" << status.message() << "'" << endl;
     }
@@ -597,6 +595,9 @@ protected:
     }
 
     if (mesos::internal::protobuf::isTerminalState(devolve(status).state())) {
+      CHECK_NE(task.isSome(), taskGroup.isSome())
+        << "Either task or task group should be set but not both";
+
       if (task.isSome()) {
         terminate(self());
       } else {
