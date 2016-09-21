@@ -40,7 +40,7 @@ namespace paths {
 //                 |-- <backend> (copy, bind, etc.)
 //                     |-- rootfses
 //                         |-- <rootfs_id> (the rootfs)
-//             |-- containers (nested sub-containers)
+//             |-- containers (nested containers)
 //                 |-- <container_id>
 //                     |-- backends
 //                         |-- <backend> (copy, bind, etc.)
