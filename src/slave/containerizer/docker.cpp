@@ -387,7 +387,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
     const SlaveID& slaveId)
 {
   CHECK(containers_.contains(containerId));
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   return fetcher->fetch(
       containerId,
@@ -406,7 +406,7 @@ Future<Nothing> DockerContainerizerProcess::pull(
     return Failure("Container is already destroyed");
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
   container->state = Container::PULLING;
 
   string image = container->image();
@@ -416,7 +416,7 @@ Future<Nothing> DockerContainerizerProcess::pull(
     image,
     container->forcePullImage());
 
-  containers_[containerId]->pull = future;
+  containers_.at(containerId)->pull = future;
 
   return future.then(defer(self(), [=]() {
     VLOG(1) << "Docker pull " << image << " completed";
@@ -558,7 +558,7 @@ Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
     return Failure("Container is already destroyed");
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
   container->state = Container::MOUNTING;
 
   if (container->task.isNone() &&
@@ -635,7 +635,7 @@ Try<Nothing> DockerContainerizerProcess::checkpoint(
 {
   CHECK(containers_.contains(containerId));
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   container->executorPid = pid;
 
@@ -1037,7 +1037,7 @@ Future<bool> DockerContainerizerProcess::launch(
           return Failure("Container is already destroyed");
         }
 
-        Container* container = containers_[containerId];
+        Container* container = containers_.at(containerId);
 
         if (taskInfo.isSome()) {
           // The built-in command executors explicitly support passing
@@ -1086,7 +1086,7 @@ Future<bool> DockerContainerizerProcess::_launch(
     return Failure("Container is already destroyed");
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   if (HookManager::hooksAvailable()) {
     HookManager::slavePreLaunchDockerHook(
@@ -1182,7 +1182,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     return Failure("Container is already destroyed");
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
 
   return logger->prepare(container->executor, container->directory)
@@ -1255,7 +1255,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     return Failure("Container is already destroyed");
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
 
   // Prepare environment variables for the executor.
@@ -1380,7 +1380,7 @@ Future<bool> DockerContainerizerProcess::reapExecutor(
   // after we set 'status', which we do in this function.
   CHECK(containers_.contains(containerId));
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   // And finally watch for when the container gets reaped.
   container->status.set(process::reap(pid));
@@ -1404,7 +1404,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   if (container->state == Container::DESTROYING)  {
     LOG(INFO) << "Ignoring updating container " << containerId
@@ -1436,7 +1436,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return __update(containerId, _resources, container->pid.get());
   }
 
-  return docker->inspect(containers_[containerId]->name())
+  return docker->inspect(containers_.at(containerId)->name())
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();
@@ -1459,7 +1459,7 @@ Future<Nothing> DockerContainerizerProcess::_update(
     return Nothing();
   }
 
-  containers_[containerId]->pid = container.pid.get();
+  containers_.at(containerId)->pid = container.pid.get();
 
   return __update(containerId, _resources, container.pid.get());
 }
@@ -1637,7 +1637,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return Failure("Unknown container: " + stringify(containerId));
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   if (container->state == Container::DESTROYING) {
     return Failure("Container is being removed: " + stringify(containerId));
@@ -1650,7 +1650,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
       return Failure("Container has been destroyed: " + stringify(containerId));
     }
 
-    Container* container = containers_[containerId];
+    Container* container = containers_.at(containerId);
 
     if (container->state == Container::DESTROYING) {
       return Failure("Container is being removed: " + stringify(containerId));
@@ -1698,7 +1698,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
             "Container has been destroyed:" + stringify(containerId));
         }
 
-        Container* container = containers_[containerId];
+        Container* container = containers_.at(containerId);
 
         // Update the container's pid now. We ran inspect because we didn't have
         // a pid for the container.
@@ -1805,7 +1805,7 @@ void DockerContainerizerProcess::destroy(
     return;
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   if (container->launch.isFailed()) {
     VLOG(1) << "Container " << containerId << " launch failed";
@@ -1944,7 +1944,7 @@ void DockerContainerizerProcess::_destroy(
 {
   CHECK(containers_.contains(containerId));
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   CHECK(container->state == Container::DESTROYING);
 
@@ -1981,7 +1981,7 @@ void DockerContainerizerProcess::__destroy(
 {
   CHECK(containers_.contains(containerId));
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   if (!kill.isReady() && !container->status.future().isReady()) {
     // TODO(benh): This means we've failed to do a Docker::kill, which
@@ -2032,7 +2032,7 @@ void DockerContainerizerProcess::___destroy(
                  << " container " << containerId << ": " << unmount.error();
   }
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   ContainerTermination termination;
 
@@ -2066,7 +2066,7 @@ Future<Nothing> DockerContainerizerProcess::destroyTimeout(
 
   LOG(WARNING) << "Docker stop timed out for container " << containerId;
 
-  Container* container = containers_[containerId];
+  Container* container = containers_.at(containerId);
 
   // A hanging `docker stop` could be a problem with docker or even a kernel
   // bug. Assuming that this is a docker problem, circumventing docker and
