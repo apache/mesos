@@ -15,7 +15,6 @@
 // limitations under the License.
 
 #include <sys/types.h>
-#include <sys/user.h>
 
 #include <climits>
 #include <sstream>
@@ -27,6 +26,7 @@
 #include <stout/bytes.hpp>
 #include <stout/error.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/result.hpp>
 
 #include "common/protobuf_utils.hpp"
@@ -224,10 +224,11 @@ Future<Nothing> MemorySubsystem::update(
   // value which may be one of following possible values:
   //   * LONG_MAX (Linux Kernel Version < 3.12)
   //   * ULONG_MAX (3.12 <= Linux Kernel Version < 3.19)
-  //   * LONG_MAX / PAGE_SIZE * PAGE_SIZE (Linux Kernel Version >= 3.19)
+  //   * LONG_MAX / pageSize * pageSize (Linux Kernel Version >= 3.19)
   // Thus, if 'currentLimit' is greater or equals to 'initialLimit'
   // below, we know it's the first time.
-  Bytes initialLimit(static_cast<uint64_t>(LONG_MAX / PAGE_SIZE * PAGE_SIZE));
+  static const size_t pageSize = os::pagesize();
+  Bytes initialLimit(static_cast<uint64_t>(LONG_MAX / pageSize * pageSize));
 
   if (currentLimit.get() >= initialLimit || limit > currentLimit.get()) {
     // We always set limit_in_bytes first and optionally set
