@@ -241,6 +241,9 @@ private:
       status.set_message(message.get());
     }
 
+    // TODO(vinod): Implement health checks.
+    status.set_healthy(true);
+
     Call call;
     call.set_type(Call::UPDATE);
 
