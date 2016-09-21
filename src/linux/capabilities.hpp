@@ -17,13 +17,13 @@
 #ifndef __LINUX_CAPABILITIES_HPP__
 #define __LINUX_CAPABILITIES_HPP__
 
+#include <set>
 #include <string>
 #include <vector>
 
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
 #include <stout/protobuf.hpp>
-#include <stout/set.hpp>
 #include <stout/try.hpp>
 
 #include <mesos/mesos.hpp>
@@ -93,8 +93,8 @@ enum Type
 class ProcessCapabilities
 {
 public:
-  Set<Capability> get(const Type& type) const;
-  void set(const Type& type, const Set<Capability>& capabilities);
+  std::set<Capability> get(const Type& type) const;
+  void set(const Type& type, const std::set<Capability>& capabilities);
   void add(const Type& type, const Capability& capability);
   void drop(const Type& type, const Capability& capability);
 
@@ -103,10 +103,10 @@ private:
       std::ostream& stream,
       const ProcessCapabilities& set);
 
-  Set<Capability> effective;
-  Set<Capability> permitted;
-  Set<Capability> inheritable;
-  Set<Capability> bounding;
+  std::set<Capability> effective;
+  std::set<Capability> permitted;
+  std::set<Capability> inheritable;
+  std::set<Capability> bounding;
 };
 
 
@@ -165,7 +165,7 @@ public:
    *
    * @return the set of supported capabilities.
    */
-  Set<Capability> getAllSupportedCapabilities();
+  std::set<Capability> getAllSupportedCapabilities();
 
 private:
   explicit Capabilities(int _lastCap) : lastCap(_lastCap) {}
@@ -176,8 +176,8 @@ private:
 
 
 Capability convert(const CapabilityInfo::Capability& capability);
-Set<Capability> convert(const CapabilityInfo& capabilityInfo);
-CapabilityInfo convert(const Set<Capability>& capabilitySet);
+std::set<Capability> convert(const CapabilityInfo& capabilityInfo);
+CapabilityInfo convert(const std::set<Capability>& capabilitySet);
 
 
 std::ostream& operator<<(
@@ -188,11 +188,6 @@ std::ostream& operator<<(
 std::ostream& operator<<(
     std::ostream& stream,
     const Type& type);
-
-
-std::ostream& operator<<(
-    std::ostream& stream,
-    const Set<Capability>& capabilities);
 
 
 std::ostream& operator<<(

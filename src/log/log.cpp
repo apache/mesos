@@ -94,7 +94,7 @@ LogProcess::LogProcess(
         timeout,
         znode,
         auth,
-        Set<UPID>((UPID) replica->pid()))),
+        {replica->pid()})),
     autoInitialize(_autoInitialize),
     group(new zookeeper::Group(servers, timeout, znode, auth)),
     metrics(*this, metricsPrefix) {}

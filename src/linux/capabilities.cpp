@@ -20,7 +20,6 @@
 
 #include <sys/prctl.h>
 
-#include <set>
 #include <string>
 
 #include <stout/numify.hpp>
@@ -105,7 +104,7 @@ struct SyscallPayload
 
 
 // Helper function to convert capability set to bitset.
-static uint64_t toCapabilityBitset(const Set<Capability>& capabilities)
+static uint64_t toCapabilityBitset(const set<Capability>& capabilities)
 {
   uint64_t result = 0;
 
@@ -119,10 +118,10 @@ static uint64_t toCapabilityBitset(const Set<Capability>& capabilities)
 }
 
 
-// Helper function to convert capability bitset to Set.
-static Set<Capability> toCapabilitySet(uint64_t bitset)
+// Helper function to convert capability bitset to std::set.
+static set<Capability> toCapabilitySet(uint64_t bitset)
 {
-  Set<Capability> result;
+  set<Capability> result;
 
   for (int i = 0; i < MAX_CAPABILITY; i++) {
     if ((bitset & (1ULL << i)) != 0) {
@@ -134,7 +133,7 @@ static Set<Capability> toCapabilitySet(uint64_t bitset)
 }
 
 
-Set<Capability> ProcessCapabilities::get(const Type& type) const
+set<Capability> ProcessCapabilities::get(const Type& type) const
 {
   switch (type) {
     case EFFECTIVE:   return effective;
@@ -149,7 +148,7 @@ Set<Capability> ProcessCapabilities::get(const Type& type) const
 
 void ProcessCapabilities::set(
     const Type& type,
-    const Set<Capability>& capabilities)
+    const std::set<Capability>& capabilities)
 {
   switch (type) {
     case EFFECTIVE:   effective = capabilities;   return;
@@ -254,7 +253,7 @@ Try<ProcessCapabilities> Capabilities::get() const
   capabilities.set(PERMITTED, toCapabilitySet(payload.permitted()));
   capabilities.set(INHERITABLE, toCapabilitySet(payload.inheritable()));
 
-  Set<Capability> bounding;
+  std::set<Capability> bounding;
 
   // TODO(bbannier): Parse bounding set from the `CapBnd` entry in
   // `/proc/self/status`.
@@ -320,9 +319,9 @@ Try<Nothing> Capabilities::setKeepCaps()
 }
 
 
-Set<Capability> Capabilities::getAllSupportedCapabilities()
+set<Capability> Capabilities::getAllSupportedCapabilities()
 {
-  Set<Capability> result;
+  std::set<Capability> result;
 
   for (int i = 0; i <= lastCap; i++) {
     result.insert(Capability(i));
@@ -343,9 +342,9 @@ Capability convert(const CapabilityInfo::Capability& capability)
 }
 
 
-Set<Capability> convert(const CapabilityInfo& capabilityInfo)
+set<Capability> convert(const CapabilityInfo& capabilityInfo)
 {
-  Set<Capability> result;
+  set<Capability> result;
 
   foreach (int value, capabilityInfo.capabilities()) {
     result.insert(convert(static_cast<CapabilityInfo::Capability>(value)));
@@ -355,7 +354,7 @@ Set<Capability> convert(const CapabilityInfo& capabilityInfo)
 }
 
 
-CapabilityInfo convert(const Set<Capability>& capabilities)
+CapabilityInfo convert(const set<Capability>& capabilities)
 {
   CapabilityInfo capabilityInfo;
 
@@ -429,20 +428,14 @@ ostream& operator<<(ostream& stream, const Type& type)
 }
 
 
-ostream& operator<<(ostream& stream, const Set<Capability>& capabilities)
-{
-  return stream << stringify(capabilities);
-}
-
-
 ostream& operator<<(ostream& stream, const ProcessCapabilities& capabilities)
 {
   return stream
     << "{"
-    << EFFECTIVE    << ": " << capabilities.effective   << ", "
-    << PERMITTED    << ": " << capabilities.permitted   << ", "
-    << INHERITABLE  << ": " << capabilities.inheritable << ", "
-    << BOUNDING     << ": " << capabilities.bounding
+    << EFFECTIVE    << ": " << stringify(capabilities.effective)   << ", "
+    << PERMITTED    << ": " << stringify(capabilities.permitted)   << ", "
+    << INHERITABLE  << ": " << stringify(capabilities.inheritable) << ", "
+    << BOUNDING     << ": " << stringify(capabilities.bounding)
     << "}";
 }
 

@@ -16,6 +16,7 @@
 
 #include <errno.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@
 
 #include "tests/containerizer/capabilities_test_helper.hpp"
 
+using std::set;
 using std::string;
 using std::vector;
 
@@ -55,7 +57,7 @@ class CapabilitiesTest : public ::testing::Test
 public:
   // Launch 'ping' using the given capabilities and user.
   Try<Subprocess> ping(
-      const Set<Capability>& capabilities,
+      const set<Capability>& capabilities,
       const Option<string>& user = None())
   {
     CapabilitiesTestHelper helper;
@@ -150,7 +152,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithNoNetRawCapsChangeUser)
 // that were specified in the file permitted set during 'exec'.
 TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
 {
-  Set<Capability> capabilities = {
+  set<Capability> capabilities = {
     capabilities::NET_RAW,
     capabilities::NET_ADMIN
   };

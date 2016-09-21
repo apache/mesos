@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <iostream>
+#include <set>
 
 #include <process/subprocess.hpp>
 
@@ -42,6 +43,7 @@
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -436,7 +438,7 @@ int MesosContainerizerLaunch::execute()
     }
 
     // Set up requested capabilities.
-    Set<Capability> target = capabilities::convert(requestedCapabilities.get());
+    set<Capability> target = capabilities::convert(requestedCapabilities.get());
 
     capabilities->set(capabilities::EFFECTIVE, target);
     capabilities->set(capabilities::PERMITTED, target);

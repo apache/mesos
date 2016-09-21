@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,7 @@
 namespace capabilities = mesos::internal::capabilities;
 
 using std::cerr;
+using std::set;
 using std::endl;
 using std::string;
 using std::vector;
@@ -122,7 +124,7 @@ int CapabilitiesTestHelper::execute()
     }
   }
 
-  Set<Capability> target = capabilities::convert(flags.capabilities.get());
+  set<Capability> target = capabilities::convert(flags.capabilities.get());
 
   capabilities->set(capabilities::EFFECTIVE,   target);
   capabilities->set(capabilities::PERMITTED,   target);
