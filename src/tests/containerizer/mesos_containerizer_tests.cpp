@@ -785,7 +785,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyUnknownContainer)
 
   ASSERT_SOME(create);
 
-  MesosContainerizer* containerizer = create.get();
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
