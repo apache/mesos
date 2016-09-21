@@ -117,7 +117,7 @@ pid_t launchTaskPosix(
       &launchFlags,
       None(),
       None(),
-      Subprocess::Hook::None(),
+      {},
       {Subprocess::ChildHook::SETSID()});
 
   if (s.isError()) {

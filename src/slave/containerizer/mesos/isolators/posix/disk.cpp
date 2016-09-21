@@ -549,8 +549,8 @@ private:
         nullptr,
         None(),
         None(),
-        Subprocess::Hook::None(),
-        Subprocess::ChildHook::None(),
+        {},
+        {},
         MONITOR);
 
     if (s.isError()) {

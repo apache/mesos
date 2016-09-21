@@ -92,8 +92,8 @@ Future<string> DriverClient::mount(
       nullptr,
       None(),
       None(),
-      Subprocess::Hook::None(),
-      Subprocess::ChildHook::None(),
+      {},
+      {},
       MONITOR);
 
   if (s.isError()) {
@@ -177,8 +177,8 @@ Future<Nothing> DriverClient::unmount(
       nullptr,
       None(),
       None(),
-      Subprocess::Hook::None(),
-      Subprocess::ChildHook::None(),
+      {},
+      {},
       MONITOR);
 
   if (s.isError()) {
