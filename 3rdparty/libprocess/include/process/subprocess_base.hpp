@@ -170,11 +170,6 @@ public:
    */
   struct Hook
   {
-    /**
-     * Returns an empty list of hooks.
-     */
-    static std::vector<Hook> None() { return std::vector<Hook>(); }
-
     Hook(const lambda::function<Try<Nothing>(pid_t)>& _parent_callback);
 
     /**
@@ -211,11 +206,6 @@ public:
      * `ChildHook` for generating a new session id.
      */
     static ChildHook SETSID();
-
-    /**
-     * Returns an empty list of `ChildHooks`.
-     */
-    static std::vector<ChildHook> None() { return std::vector<ChildHook>(); }
 
     Try<Nothing> operator()() const { return child_setup(); }
 
@@ -385,10 +375,8 @@ Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
-    const std::vector<Subprocess::Hook>& parent_hooks =
-      Subprocess::Hook::None(),
-    const std::vector<Subprocess::ChildHook>& child_hooks =
-      Subprocess::ChildHook::None(),
+    const std::vector<Subprocess::Hook>& parent_hooks = {},
+    const std::vector<Subprocess::ChildHook>& child_hooks = {},
     const Watchdog watchdog = NO_MONITOR);
 
 
@@ -426,10 +414,8 @@ inline Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
-    const std::vector<Subprocess::Hook>& parent_hooks =
-      Subprocess::Hook::None(),
-    const std::vector<Subprocess::ChildHook>& child_hooks =
-      Subprocess::ChildHook::None(),
+    const std::vector<Subprocess::Hook>& parent_hooks = {},
+    const std::vector<Subprocess::ChildHook>& child_hooks = {},
     const Watchdog watchdog = NO_MONITOR)
 {
   std::vector<std::string> argv = {os::Shell::arg0, os::Shell::arg1, command};
