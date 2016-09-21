@@ -108,10 +108,10 @@ TEST_F(ComposingContainerizerTest, DestroyDuringLaunchLoop)
 {
   vector<Containerizer*> containerizers;
 
-  MockContainerizer* mockContainerizer = new MockContainerizer();
+  MockContainerizer* mockContainerizer1 = new MockContainerizer();
   MockContainerizer* mockContainerizer2 = new MockContainerizer();
 
-  containerizers.push_back(mockContainerizer);
+  containerizers.push_back(mockContainerizer1);
   containerizers.push_back(mockContainerizer2);
 
   ComposingContainerizer containerizer(containerizers);
@@ -124,12 +124,12 @@ TEST_F(ComposingContainerizerTest, DestroyDuringLaunchLoop)
 
   Promise<bool> launchPromise;
 
-  EXPECT_CALL(*mockContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _, _, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
 
-  EXPECT_CALL(*mockContainerizer, destroy(_))
+  EXPECT_CALL(*mockContainerizer1, destroy(_))
     .WillOnce(DoAll(FutureSatisfy(&destroy),
                     Return(Future<bool>(false))));
 
@@ -168,10 +168,10 @@ TEST_F(ComposingContainerizerTest, DestroyUnknownContainer)
 {
   vector<Containerizer*> containerizers;
 
-  MockContainerizer* mockContainerizer = new MockContainerizer();
+  MockContainerizer* mockContainerizer1 = new MockContainerizer();
   MockContainerizer* mockContainerizer2 = new MockContainerizer();
 
-  containerizers.push_back(mockContainerizer);
+  containerizers.push_back(mockContainerizer1);
   containerizers.push_back(mockContainerizer2);
 
   ComposingContainerizer containerizer(containerizers);
@@ -189,10 +189,10 @@ TEST_F(ComposingContainerizerTest, WaitUnknownContainer)
 {
   vector<Containerizer*> containerizers;
 
-  MockContainerizer* mockContainerizer = new MockContainerizer();
+  MockContainerizer* mockContainerizer1 = new MockContainerizer();
   MockContainerizer* mockContainerizer2 = new MockContainerizer();
 
-  containerizers.push_back(mockContainerizer);
+  containerizers.push_back(mockContainerizer1);
   containerizers.push_back(mockContainerizer2);
 
   ComposingContainerizer containerizer(containerizers);
