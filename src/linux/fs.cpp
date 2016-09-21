@@ -117,13 +117,14 @@ Try<MountInfoTable> MountInfoTable::read(
   // them according to the invariant that all parent entries
   // appear before their child entries.
   if (hierarchicalSort) {
-    int rootParentId;
+    Option<int> rootParentId = None();
 
     // Construct a representation of the mount hierarchy using a hashmap.
     hashmap<int, vector<MountInfoTable::Entry>> parentToChildren;
 
     foreach (const MountInfoTable::Entry& entry, table.entries) {
       if (entry.target == "/") {
+        CHECK_NONE(rootParentId);
         rootParentId = entry.parent;
       }
       parentToChildren[entry.parent].push_back(std::move(entry));
@@ -150,7 +151,8 @@ Try<MountInfoTable> MountInfoTable::read(
 
     // We know the node with a parent id of
     // `rootParentId` is the root mount point.
-    sortFrom(rootParentId);
+    CHECK_SOME(rootParentId);
+    sortFrom(rootParentId.get());
 
     table.entries = std::move(sortedEntries);
   }
