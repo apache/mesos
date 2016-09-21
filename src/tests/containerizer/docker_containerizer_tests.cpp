@@ -3783,8 +3783,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_WaitUnknownContainer)
 
   DockerContainerizer* containerizer = create.get();
 
-  AWAIT_READY(containerizer->recover(None()));
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
