@@ -206,13 +206,12 @@ inline int childMain(
     const string& path,
     char** argv,
     char** envp,
-    const Setsid set_sid,
     const InputFileDescriptors& stdinfds,
     const OutputFileDescriptors& stdoutfds,
     const OutputFileDescriptors& stderrfds,
     bool blocking,
     int pipes[2],
-    const Option<string>& working_directory,
+    const vector<Subprocess::ChildHook>& child_hooks,
     const Watchdog watchdog)
 {
   // Close parent's end of the pipes.
@@ -274,21 +273,13 @@ inline int childMain(
     ::close(pipes[0]);
   }
 
-  // Move to a different session (and new process group) so we're
-  // independent from the caller's session (otherwise children will
-  // receive SIGHUP if the slave exits).
-  if (set_sid == SETSID) {
-    // POSIX guarantees a forked child's pid does not match any existing
-    // process group id so only a single `setsid()` is required and the
-    // session id will be the pid.
-    if (::setsid() == -1) {
-      ABORT("Failed to put child in a new session");
-    }
-  }
+  // Run the child hooks.
+  foreach (const Subprocess::ChildHook& hook, child_hooks) {
+    Try<Nothing> callback = hook();
 
-  if (working_directory.isSome()) {
-    if (::chdir(working_directory->c_str()) == -1) {
-      ABORT("Failed to change directory");
+    // If the callback failed, we should abort execution.
+    if (callback.isError()) {
+      ABORT("Failed to execute Subprocess::ChildHook: " + callback.error());
     }
   }
 
@@ -311,12 +302,11 @@ inline int childMain(
 inline Try<pid_t> cloneChild(
     const string& path,
     vector<string> argv,
-    const Setsid set_sid,
     const Option<map<string, string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::Hook>& parent_hooks,
-    const Option<string>& working_directory,
+    const vector<Subprocess::ChildHook>& child_hooks,
     const Watchdog watchdog,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
@@ -373,13 +363,12 @@ inline Try<pid_t> cloneChild(
       path,
       _argv,
       envp,
-      set_sid,
       stdinfds,
       stdoutfds,
       stderrfds,
       blocking,
       pipes,
-      working_directory,
+      child_hooks,
       watchdog));
 
   delete[] _argv;

@@ -53,6 +53,38 @@ Subprocess::Hook::Hook(
     const lambda::function<Try<Nothing>(pid_t)>& _parent_callback)
   : parent_callback(_parent_callback) {}
 
+
+Subprocess::ChildHook::ChildHook(
+    const lambda::function<Try<Nothing>()>& _child_setup)
+  : child_setup(_child_setup) {}
+
+
+Subprocess::ChildHook Subprocess::ChildHook::CHDIR(
+    const std::string& working_directory)
+{
+  return Subprocess::ChildHook([working_directory]() -> Try<Nothing> {
+    if (::chdir(working_directory.c_str()) == -1) {
+      return Error("Could not chdir");
+    }
+
+    return Nothing();
+  });
+}
+
+
+Subprocess::ChildHook Subprocess::ChildHook::SETSID()
+{
+  return Subprocess::ChildHook([]() -> Try<Nothing> {
+    // Put child into its own process session to prevent slave suicide
+    // on child process SIGKILL/SIGTERM.
+    if (::setsid() == -1) {
+      return Error("Could not setsid");
+    }
+
+    return Nothing();
+  });
+}
+
 namespace internal {
 
 static void cleanup(
@@ -92,13 +124,12 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
-    const Setsid set_sid,
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::Hook>& parent_hooks,
-    const Option<string>& working_directory,
+    const vector<Subprocess::ChildHook>& child_hooks,
     const Watchdog watchdog)
 {
   // File descriptors for redirecting stdin/stdout/stderr.
@@ -172,11 +203,10 @@ Try<Subprocess> subprocess(
     Try<pid_t> pid = internal::cloneChild(
         path,
         argv,
-        set_sid,
         environment,
         _clone,
         parent_hooks,
-        working_directory,
+        child_hooks,
         watchdog,
         stdinfds,
         stdoutfds,
