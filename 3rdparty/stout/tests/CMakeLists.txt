@@ -48,7 +48,6 @@ set(STOUT_TESTS_SRC
   protobuf_tests.pb.h
   protobuf_tests.proto
   result_tests.cpp
-  set_tests.cpp
   some_tests.cpp
   strings_tests.cpp
   uuid_tests.cpp

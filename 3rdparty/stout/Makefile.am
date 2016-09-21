@@ -139,7 +139,6 @@ stout_tests_SOURCES =			\
   tests/protobuf_tests.proto		\
   tests/recordio_tests.cpp		\
   tests/result_tests.cpp		\
-  tests/set_tests.cpp			\
   tests/some_tests.cpp			\
   tests/strings_tests.cpp		\
   tests/subcommand_tests.cpp		\

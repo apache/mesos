@@ -62,23 +62,6 @@ std::string stringify(const std::set<T>& set)
 
 
 template <typename T>
-std::string stringify(const Set<T>& set)
-{
-  std::ostringstream out;
-  out << "{ ";
-  typename Set<T>::const_iterator iterator = set.begin();
-  while (iterator != set.end()) {
-    out << stringify(*iterator);
-    if (++iterator != set.end()) {
-      out << ", ";
-    }
-  }
-  out << " }";
-  return out.str();
-}
-
-
-template <typename T>
 std::string stringify(const std::list<T>& list)
 {
   std::ostringstream out;
