@@ -219,16 +219,6 @@ protected:
     foreach (const TaskInfo& task, _taskGroup.tasks()) {
       update(task.task_id(), TASK_RUNNING);
     }
-
-    foreach (const TaskInfo& task, _taskGroup.tasks()) {
-      update(task.task_id(), TASK_FINISHED);
-    }
-
-    // TODO(qianzhang): Remove this hack since the executor now receives
-    // acknowledgements for status updates. The executor can terminate
-    // after it receives an ACK for a terminal status update.
-    os::sleep(Seconds(1));
-    terminate(self());
   }
 
 private:

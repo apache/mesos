@@ -105,9 +105,9 @@ TEST_F(DefaultExecutorTest, TaskRunning)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
 
-  Future<v1::scheduler::Event::Update> update1;
+  Future<v1::scheduler::Event::Update> update;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update1));
+    .WillOnce(FutureArg<1>(&update));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());
@@ -138,33 +138,10 @@ TEST_F(DefaultExecutorTest, TaskRunning)
     mesos.send(call);
   }
 
-  AWAIT_READY(update1);
+  AWAIT_READY(update);
 
-  ASSERT_EQ(TASK_RUNNING, update1->status().state());
-  EXPECT_EQ(taskInfo.task_id(), update1->status().task_id());
-
-  Future<v1::scheduler::Event::Update> update2;
-  EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update2));
-
-  {
-    // Acknowledge TASK_RUNNING update.
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::ACKNOWLEDGE);
-
-    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(taskInfo.task_id());
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
-    acknowledge->set_uuid(update1->status().uuid());
-
-    mesos.send(call);
-  }
-
-  AWAIT_READY(update2);
-
-  ASSERT_EQ(TASK_FINISHED, update2->status().state());
-  EXPECT_EQ(taskInfo.task_id(), update2->status().task_id());
+  ASSERT_EQ(TASK_RUNNING, update->status().state());
+  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
 }
 
 } // namespace tests {
