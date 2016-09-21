@@ -227,7 +227,7 @@ protected:
   {
     CHECK_EQ(SUBSCRIBED, state);
 
-    cout << "Received kill for task '" << taskId << "'";
+    cout << "Received kill for task '" << taskId << "'" << endl;
 
     // Send TASK_KILLED updates for all tasks in the group.
     //
