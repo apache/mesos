@@ -113,7 +113,7 @@ protected:
   {
     // Kill the perf process (if it's still running) by sending
     // SIGTERM to the signal handler which will then SIGKILL the
-    // perf process group created by the watchdog process.
+    // perf process group created by the supervisor process.
     if (perf.isSome() && perf->status().isPending()) {
       kill(perf->pid(), SIGTERM);
     }
@@ -124,7 +124,7 @@ protected:
 private:
   void execute()
   {
-    // NOTE: The watchdog process places perf in its own process group
+    // NOTE: The supervisor childhook places perf in its own process group
     // and will kill the perf process when the parent dies.
     Try<Subprocess> _perf = subprocess(
         "perf",
@@ -136,8 +136,7 @@ private:
         None(),
         None(),
         {},
-        {},
-        MONITOR);
+        {Subprocess::ChildHook::SUPERVISOR()});
 
     if (_perf.isError()) {
       promise.fail("Failed to launch perf process: " + _perf.error());

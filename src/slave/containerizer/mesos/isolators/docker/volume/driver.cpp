@@ -36,7 +36,6 @@ using std::vector;
 
 using process::Failure;
 using process::Future;
-using process::MONITOR;
 using process::Owned;
 using process::Subprocess;
 
@@ -93,8 +92,7 @@ Future<string> DriverClient::mount(
       None(),
       None(),
       {},
-      {},
-      MONITOR);
+      {Subprocess::ChildHook::SUPERVISOR()});
 
   if (s.isError()) {
     return Failure("Failed to execute '" + command + "': " + s.error());
@@ -178,8 +176,7 @@ Future<Nothing> DriverClient::unmount(
       None(),
       None(),
       {},
-      {},
-      MONITOR);
+      {Subprocess::ChildHook::SUPERVISOR()});
 
   if (s.isError()) {
     return Failure("Failed to execute '" + command + "': " + s.error());
