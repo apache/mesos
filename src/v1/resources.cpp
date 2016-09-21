@@ -1894,6 +1894,11 @@ ostream& operator<<(ostream& stream, const Resources::Resource_& resource_)
 
 ostream& operator<<(ostream& stream, const Resources& resources)
 {
+  if (resources.empty()) {
+    stream << "{}";
+    return stream;
+  }
+
   Resources::const_iterator it = resources.begin();
 
   while (it != resources.end()) {
