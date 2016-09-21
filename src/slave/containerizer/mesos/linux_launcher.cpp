@@ -304,11 +304,11 @@ Try<pid_t> LinuxLauncher::fork(
       in,
       out,
       err,
-      SETSID,
       flags,
       environment,
       lambda::bind(&os::clone, lambda::_1, cloneFlags),
-      parentHooks);
+      parentHooks,
+      {Subprocess::ChildHook::SETSID()});
 
   if (child.isError()) {
     return Error("Failed to clone child process: " + child.error());

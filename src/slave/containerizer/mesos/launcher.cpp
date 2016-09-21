@@ -139,11 +139,11 @@ Try<pid_t> PosixLauncher::fork(
       in,
       out,
       err,
-      SETSID,
       flags,
       environment,
       None(),
-      parentHooks);
+      parentHooks,
+      {Subprocess::ChildHook::SETSID()});
 
   if (child.isError()) {
     return Error("Failed to fork a child process: " + child.error());

@@ -132,12 +132,11 @@ private:
         Subprocess::PIPE(),
         Subprocess::PIPE(),
         Subprocess::PIPE(),
-        NO_SETSID,
         nullptr,
         None(),
         None(),
         Subprocess::Hook::None(),
-        None(),
+        Subprocess::ChildHook::None(),
         MONITOR);
 
     if (_perf.isError()) {

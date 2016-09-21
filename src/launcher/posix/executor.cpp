@@ -37,7 +37,6 @@
 namespace fs = mesos::internal::fs;
 #endif
 
-using process::SETSID;
 using process::Subprocess;
 
 using std::cout;
@@ -115,8 +114,11 @@ pid_t launchTaskPosix(
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
-      SETSID,
-      &launchFlags);
+      &launchFlags,
+      None(),
+      None(),
+      Subprocess::Hook::None(),
+      {Subprocess::ChildHook::SETSID()});
 
   if (s.isError()) {
     ABORT("Failed to launch '" + commandString + "': " + s.error());

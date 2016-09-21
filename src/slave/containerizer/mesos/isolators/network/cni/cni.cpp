@@ -48,7 +48,6 @@ using std::vector;
 
 using process::Failure;
 using process::Future;
-using process::NO_SETSID;
 using process::Owned;
 using process::PID;
 using process::Subprocess;
@@ -876,7 +875,6 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
-      NO_SETSID,
       &setup.flags);
 
   if (s.isError()) {
@@ -1038,7 +1036,6 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
-      NO_SETSID,
       nullptr,
       environment);
 
@@ -1336,7 +1333,6 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
-      NO_SETSID,
       nullptr,
       environment);
 

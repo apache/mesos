@@ -38,7 +38,6 @@ using std::string;
 using std::vector;
 
 using process::Future;
-using process::NO_SETSID;
 using process::Subprocess;
 
 using mesos::internal::capabilities::Capabilities;
@@ -76,7 +75,6 @@ public:
         Subprocess::FD(STDIN_FILENO),
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO),
-        NO_SETSID,
         &helper.flags);
   }
 };

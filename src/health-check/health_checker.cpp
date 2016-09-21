@@ -55,7 +55,6 @@ using process::delay;
 using process::Clock;
 using process::Failure;
 using process::Future;
-using process::NO_SETSID;
 using process::Owned;
 using process::Promise;
 using process::Subprocess;
@@ -311,7 +310,6 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
-        NO_SETSID,
         environment,
         clone);
   } else {
@@ -330,7 +328,6 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
-        NO_SETSID,
         nullptr,
         environment,
         clone);
@@ -404,7 +401,6 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      NO_SETSID,
       nullptr,
       None(),
       clone);
@@ -516,7 +512,6 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      NO_SETSID,
       nullptr,
       None(),
       clone);

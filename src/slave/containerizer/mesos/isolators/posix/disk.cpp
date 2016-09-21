@@ -59,7 +59,6 @@ using std::vector;
 using process::Failure;
 using process::Future;
 using process::MONITOR;
-using process::NO_SETSID;
 using process::Owned;
 using process::PID;
 using process::Process;
@@ -547,12 +546,11 @@ private:
         Subprocess::PATH("/dev/null"),
         Subprocess::PIPE(),
         Subprocess::PIPE(),
-        NO_SETSID,
         nullptr,
         None(),
         None(),
         Subprocess::Hook::None(),
-        None(),
+        Subprocess::ChildHook::None(),
         MONITOR);
 
     if (s.isError()) {
