@@ -1283,7 +1283,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
           -> Future<pid_t> {
     // NOTE: The child process will be blocked until all hooks have been
     // executed.
-    vector<Subprocess::Hook> parentHooks;
+    vector<Subprocess::ParentHook> parentHooks;
 
     // NOTE: Currently we don't care about the order of the hooks, as
     // both hooks are independent.
@@ -1297,7 +1297,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     // - It is safe to bind `this`, as hooks are executed immediately
     //   in a `subprocess` call.
     // - If `checkpoiont` returns an Error, the child process will be killed.
-    parentHooks.emplace_back(Subprocess::Hook(lambda::bind(
+    parentHooks.emplace_back(Subprocess::ParentHook(lambda::bind(
         &DockerContainerizerProcess::checkpoint,
         this,
         containerId,
@@ -1307,7 +1307,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     // If we are on systemd, then extend the life of the executor. Any
     // grandchildren's lives will also be extended.
     if (systemd::enabled()) {
-      parentHooks.emplace_back(Subprocess::Hook(
+      parentHooks.emplace_back(Subprocess::ParentHook(
           &systemd::mesos::extendLifetime));
     }
 #endif // __linux__

@@ -133,8 +133,8 @@ Try<Nothing> initialize(const Flags& flags)
   // This allows the life-time of the process to be extended past the life-time
   // of the slave. See MESOS-3352.
   // This function takes responsibility for creating and starting this slice.
-  // We inject a `Subprocess::Hook` into the `subprocess` function that migrates
-  // pids into this slice if the `EXTEND_LIFETIME` option is set on the
+  // We inject a `Subprocess::ParentHook` into the `subprocess` function that
+  // migrates pids into this slice if the `EXTEND_LIFETIME` option is set on the
   // `subprocess` call.
 
   // Ensure that the `MESOS_EXECUTORS_SLICE` exists and is running.

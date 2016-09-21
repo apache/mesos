@@ -274,7 +274,7 @@ Try<pid_t> LinuxLauncher::fork(
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
     const Option<int>& namespaces,
-    vector<Subprocess::Hook> parentHooks)
+    vector<Subprocess::ParentHook> parentHooks)
 {
   int cloneFlags = namespaces.isSome() ? namespaces.get() : 0;
   cloneFlags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
@@ -288,11 +288,12 @@ Try<pid_t> LinuxLauncher::fork(
   // If we are on systemd, then extend the life of the child. As with the
   // freezer, any grandchildren will also be contained in the slice.
   if (systemdHierarchy.isSome()) {
-    parentHooks.emplace_back(Subprocess::Hook(&systemd::mesos::extendLifetime));
+    parentHooks.emplace_back(Subprocess::ParentHook(
+        &systemd::mesos::extendLifetime));
   }
 
   // Create parent Hook for moving child into freezer cgroup.
-  parentHooks.emplace_back(Subprocess::Hook(lambda::bind(
+  parentHooks.emplace_back(Subprocess::ParentHook(lambda::bind(
       &assignFreezerHierarchy,
       lambda::_1,
       freezerHierarchy,

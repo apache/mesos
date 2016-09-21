@@ -48,7 +48,7 @@ public:
       const flags::FlagsBase* flags,
       const Option<std::map<std::string, std::string>>& environment,
       const Option<int>& namespaces,
-      std::vector<process::Subprocess::Hook> parentHooks);
+      std::vector<process::Subprocess::ParentHook> parentHooks);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
