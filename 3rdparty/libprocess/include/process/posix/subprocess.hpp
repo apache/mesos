@@ -305,7 +305,7 @@ inline Try<pid_t> cloneChild(
     const Option<map<string, string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
-    const vector<Subprocess::Hook>& parent_hooks,
+    const vector<Subprocess::ParentHook>& parent_hooks,
     const vector<Subprocess::ChildHook>& child_hooks,
     const Watchdog watchdog,
     const InputFileDescriptors stdinfds,
@@ -403,15 +403,15 @@ inline Try<pid_t> cloneChild(
     os::close(pipes[0]);
 
     // Run the parent hooks.
-    foreach (const Subprocess::Hook& hook, parent_hooks) {
-      Try<Nothing> callback = hook.parent_callback(pid);
+    foreach (const Subprocess::ParentHook& hook, parent_hooks) {
+      Try<Nothing> parentSetup = hook.parent_setup(pid);
 
       // If the hook callback fails, we shouldn't proceed with the
       // execution and hence the child process should be killed.
-      if (callback.isError()) {
+      if (parentSetup.isError()) {
         LOG(WARNING)
-          << "Failed to execute Subprocess::Hook in parent for child '"
-          << pid << "': " << callback.error();
+          << "Failed to execute Subprocess::ParentHook in parent for child '"
+          << pid << "': " << parentSetup.error();
 
         os::close(pipes[1]);
 
@@ -425,8 +425,8 @@ inline Try<pid_t> cloneChild(
         ::kill(pid, SIGKILL);
 
         return Error(
-            "Failed to execute Subprocess::Hook in parent for child '" +
-            stringify(pid) + "': " + callback.error());
+            "Failed to execute Subprocess::ParentHook in parent for child '" +
+            stringify(pid) + "': " + parentSetup.error());
       }
     }
 

@@ -49,9 +49,9 @@ using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
 using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
 
 
-Subprocess::Hook::Hook(
-    const lambda::function<Try<Nothing>(pid_t)>& _parent_callback)
-  : parent_callback(_parent_callback) {}
+Subprocess::ParentHook::ParentHook(
+    const lambda::function<Try<Nothing>(pid_t)>& _parent_setup)
+  : parent_setup(_parent_setup) {}
 
 
 Subprocess::ChildHook::ChildHook(
@@ -128,7 +128,7 @@ Try<Subprocess> subprocess(
     const Option<map<string, string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
-    const vector<Subprocess::Hook>& parent_hooks,
+    const vector<Subprocess::ParentHook>& parent_hooks,
     const vector<Subprocess::ChildHook>& child_hooks,
     const Watchdog watchdog)
 {
@@ -218,6 +218,7 @@ Try<Subprocess> subprocess(
 
     process.data->pid = pid.get();
 #else
+    // TODO(joerg84): Consider using the childHooks and parentHooks here.
     Try<PROCESS_INFORMATION> processInformation = internal::createChildProcess(
         path, argv, environment, stdinfds, stdoutfds, stderrfds);
 

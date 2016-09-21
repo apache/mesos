@@ -53,7 +53,7 @@ class Subprocess
 {
 public:
   // Forward declarations.
-  struct Hook;
+  struct ParentHook;
   class ChildHook;
 
   /**
@@ -143,7 +143,7 @@ public:
         const Option<std::map<std::string, std::string>>& environment,
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
-        const std::vector<Subprocess::Hook>& parent_hooks,
+        const std::vector<Subprocess::ParentHook>& parent_hooks,
         const std::vector<Subprocess::ChildHook>& child_hooks,
         const Watchdog watchdog);
 
@@ -166,11 +166,11 @@ public:
   /**
    * A hook can be passed to a `subprocess` call. It provides a way to
    * inject dynamic implementation behavior between the clone and exec
-   * calls in the implementation of `subprocess`.
+   * calls in the parent process.
    */
-  struct Hook
+  struct ParentHook
   {
-    Hook(const lambda::function<Try<Nothing>(pid_t)>& _parent_callback);
+    ParentHook(const lambda::function<Try<Nothing>(pid_t)>& _parent_setup);
 
     /**
      * The callback that must be specified for execution after the
@@ -179,7 +179,7 @@ public:
      * initialization to add tracking or modify execution state of
      * the child before it executes the new process.
      */
-    const lambda::function<Try<Nothing>(pid_t)> parent_callback;
+    const lambda::function<Try<Nothing>(pid_t)> parent_setup;
 
     friend class Subprocess;
   };
@@ -292,7 +292,7 @@ private:
       const Option<std::map<std::string, std::string>>& environment,
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
-      const std::vector<Subprocess::Hook>& parent_hooks,
+      const std::vector<Subprocess::ParentHook>& parent_hooks,
       const std::vector<Subprocess::ChildHook>& child_hooks,
       const Watchdog watchdog);
 
@@ -375,7 +375,7 @@ Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
-    const std::vector<Subprocess::Hook>& parent_hooks = {},
+    const std::vector<Subprocess::ParentHook>& parent_hooks = {},
     const std::vector<Subprocess::ChildHook>& child_hooks = {},
     const Watchdog watchdog = NO_MONITOR);
 
@@ -414,7 +414,7 @@ inline Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
-    const std::vector<Subprocess::Hook>& parent_hooks = {},
+    const std::vector<Subprocess::ParentHook>& parent_hooks = {},
     const std::vector<Subprocess::ChildHook>& child_hooks = {},
     const Watchdog watchdog = NO_MONITOR)
 {
