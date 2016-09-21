@@ -75,17 +75,23 @@ Subprocess::ChildHook Subprocess::ChildHook::CHDIR(
 Subprocess::ChildHook Subprocess::ChildHook::SETSID()
 {
   return Subprocess::ChildHook([]() -> Try<Nothing> {
+    // TODO(josephw): By default, child processes on Windows do not
+    // terminate when the parent terminates. We need to implement
+    // `JobObject` support to change this default.
+#ifndef __WINDOWS__
     // Put child into its own process session to prevent slave suicide
     // on child process SIGKILL/SIGTERM.
     if (::setsid() == -1) {
       return Error("Could not setsid");
     }
+#endif // __WINDOWS__
 
     return Nothing();
   });
 }
 
 
+#ifdef __linux__
 inline void signalHandler(int signal)
 {
   // Send SIGKILL to every process in the process group of the
@@ -93,6 +99,7 @@ inline void signalHandler(int signal)
   kill(0, SIGKILL);
   abort();
 }
+#endif // __linux__
 
 
 Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
@@ -158,7 +165,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
       abort();
       UNREACHABLE();
     }
-#endif
+#endif // __linux__
     return Nothing();
   });
 }
