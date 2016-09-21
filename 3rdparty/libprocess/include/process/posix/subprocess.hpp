@@ -126,79 +126,6 @@ inline void signalHandler(int signal)
 }
 
 
-// Creates a separate watchdog process to monitor the child process and
-// kill it in case the parent process dies.
-//
-// NOTE: This function needs to be async signal safe. In fact,
-// all the library functions we used in this function are async
-// signal safe.
-inline int watchdogProcess()
-{
-#ifdef __linux__
-  // Send SIGTERM to the current process if the parent (i.e., the
-  // slave) exits.
-  // NOTE:: This function should always succeed because we are passing
-  // in a valid signal.
-  prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-  // Put the current process into a separate process group so that
-  // we can kill it and all its children easily.
-  if (setpgid(0, 0) != 0) {
-    abort();
-  }
-
-  // Install a SIGTERM handler which will kill the current process
-  // group. Since we already setup the death signal above, the
-  // signal handler will be triggered when the parent (e.g., the
-  // slave) exits.
-  if (os::signals::install(SIGTERM, &signalHandler) != 0) {
-    abort();
-  }
-
-  pid_t pid = fork();
-  if (pid == -1) {
-    abort();
-  } else if (pid == 0) {
-    // Child. This is the process that is going to exec the
-    // process if zero is returned.
-
-    // We setup death signal for the process as well in case
-    // someone, though unlikely, accidentally kill the parent of
-    // this process (the bookkeeping process).
-    prctl(PR_SET_PDEATHSIG, SIGKILL);
-
-    // NOTE: We don't need to clear the signal handler explicitly
-    // because the subsequent 'exec' will clear them.
-    return 0;
-  } else {
-    // Parent. This is the bookkeeping process which will wait for
-    // the child process to finish.
-
-    // Close the files to prevent interference on the communication
-    // between the slave and the child process.
-    ::close(STDIN_FILENO);
-    ::close(STDOUT_FILENO);
-    ::close(STDERR_FILENO);
-
-    // Block until the child process finishes.
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) {
-      abort();
-    }
-
-    // Forward the exit status if the child process exits normally.
-    if (WIFEXITED(status)) {
-      _exit(WEXITSTATUS(status));
-    }
-
-    abort();
-    UNREACHABLE();
-  }
-#endif
-  return 0;
-}
-
-
 // The main entry of the child process.
 //
 // NOTE: This function has to be async signal safe.
@@ -211,8 +138,7 @@ inline int childMain(
     const OutputFileDescriptors& stderrfds,
     bool blocking,
     int pipes[2],
-    const vector<Subprocess::ChildHook>& child_hooks,
-    const Watchdog watchdog)
+    const vector<Subprocess::ChildHook>& child_hooks)
 {
   // Close parent's end of the pipes.
   if (stdinfds.write.isSome()) {
@@ -283,16 +209,6 @@ inline int childMain(
     }
   }
 
-  // If the child process should die together with its parent we spawn a
-  // separate watchdog process which kills the child when the parent dies.
-  //
-  // NOTE: The watchdog process sets the process group id in order for it and
-  // its child processes to be killed together. We should not (re)set the sid
-  // after this.
-  if (watchdog == MONITOR) {
-    watchdogProcess();
-  }
-
   os::execvpe(path.c_str(), argv, envp);
 
   ABORT("Failed to os::execvpe on path '" + path + "': " + os::strerror(errno));
@@ -307,7 +223,6 @@ inline Try<pid_t> cloneChild(
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::ParentHook>& parent_hooks,
     const vector<Subprocess::ChildHook>& child_hooks,
-    const Watchdog watchdog,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
     const OutputFileDescriptors stderrfds)
@@ -368,8 +283,7 @@ inline Try<pid_t> cloneChild(
       stderrfds,
       blocking,
       pipes,
-      child_hooks,
-      watchdog));
+      child_hooks));
 
   delete[] _argv;
 

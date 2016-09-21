@@ -85,6 +85,85 @@ Subprocess::ChildHook Subprocess::ChildHook::SETSID()
   });
 }
 
+
+inline void signalHandler(int signal)
+{
+  // Send SIGKILL to every process in the process group of the
+  // calling process.
+  kill(0, SIGKILL);
+  abort();
+}
+
+
+Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
+{
+  return Subprocess::ChildHook([]() -> Try<Nothing> {
+    #ifdef __linux__
+      // Send SIGTERM to the current process if the parent (i.e., the
+      // slave) exits.
+      // NOTE:: This function should always succeed because we are passing
+      // in a valid signal.
+      prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+      // Put the current process into a separate process group so that
+      // we can kill it and all its children easily.
+      if (setpgid(0, 0) != 0) {
+        return Error("Could not start supervisor process.");
+      }
+
+      // Install a SIGTERM handler which will kill the current process
+      // group. Since we already setup the death signal above, the
+      // signal handler will be triggered when the parent (e.g., the
+      // slave) exits.
+      if (os::signals::install(SIGTERM, &signalHandler) != 0) {
+        return Error("Could not start supervisor process.");
+      }
+
+      pid_t pid = fork();
+      if (pid == -1) {
+        return Error("Could not start supervisor process.");
+      } else if (pid == 0) {
+        // Child. This is the process that is going to exec the
+        // process if zero is returned.
+
+        // We setup death signal for the process as well in case
+        // someone, though unlikely, accidentally kill the parent of
+        // this process (the bookkeeping process).
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
+
+        // NOTE: We don't need to clear the signal handler explicitly
+        // because the subsequent 'exec' will clear them.
+        return Nothing();
+      } else {
+        // Parent. This is the bookkeeping process which will wait for
+        // the child process to finish.
+
+        // Close the files to prevent interference on the communication
+        // between the slave and the child process.
+        ::close(STDIN_FILENO);
+        ::close(STDOUT_FILENO);
+        ::close(STDERR_FILENO);
+
+        // Block until the child process finishes.
+        int status = 0;
+        if (waitpid(pid, &status, 0) == -1) {
+          abort();
+        }
+
+        // Forward the exit status if the child process exits normally.
+        if (WIFEXITED(status)) {
+          _exit(WEXITSTATUS(status));
+        }
+
+        abort();
+        UNREACHABLE();
+      }
+    #endif
+    return Nothing();
+  });
+}
+
+
 namespace internal {
 
 static void cleanup(
@@ -129,8 +208,7 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::ParentHook>& parent_hooks,
-    const vector<Subprocess::ChildHook>& child_hooks,
-    const Watchdog watchdog)
+    const vector<Subprocess::ChildHook>& child_hooks)
 {
   // File descriptors for redirecting stdin/stdout/stderr.
   // These file descriptors are used for different purposes depending
@@ -207,7 +285,6 @@ Try<Subprocess> subprocess(
         _clone,
         parent_hooks,
         child_hooks,
-        watchdog,
         stdinfds,
         stdoutfds,
         stderrfds);

@@ -34,13 +34,6 @@
 
 namespace process {
 
-// Flag describing whether a new process should be monitored by a separate
-// watch process and be killed in case the parent process dies.
-enum Watchdog {
-  MONITOR,
-  NO_MONITOR,
-};
-
 /**
  * Represents a fork() exec()ed subprocess. Access is provided to the
  * input / output of the process, as well as the exit status. The
@@ -144,8 +137,7 @@ public:
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
         const std::vector<Subprocess::ParentHook>& parent_hooks,
-        const std::vector<Subprocess::ChildHook>& child_hooks,
-        const Watchdog watchdog);
+        const std::vector<Subprocess::ChildHook>& child_hooks);
 
     IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
        const lambda::function<Try<OutputFileDescriptors>()>& _output)
@@ -206,6 +198,16 @@ public:
      * `ChildHook` for generating a new session id.
      */
     static ChildHook SETSID();
+
+    /**
+     * `ChildHook` for starting a Supervisor process monitoring
+     *  and killing the child process if the parent process terminates.
+     *
+     * NOTE: The supervisor process sets the process group id in order for it
+     * and its child processes to be killed together. We should not (re)set the
+     * sid after this.
+     */
+    static ChildHook SUPERVISOR();
 
     Try<Nothing> operator()() const { return child_setup(); }
 
@@ -293,8 +295,7 @@ private:
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
       const std::vector<Subprocess::ParentHook>& parent_hooks,
-      const std::vector<Subprocess::ChildHook>& child_hooks,
-      const Watchdog watchdog);
+      const std::vector<Subprocess::ChildHook>& child_hooks);
 
   struct Data
   {
@@ -359,8 +360,6 @@ private:
  *     before the child execs.
  * @param child_hooks Hooks that will be executed in the child
  *     before the child execs but after parent_hooks have executed.
- * @param watchdog Indicator whether the new process should be monitored
- *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occurred.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -376,8 +375,7 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::ParentHook>& parent_hooks = {},
-    const std::vector<Subprocess::ChildHook>& child_hooks = {},
-    const Watchdog watchdog = NO_MONITOR);
+    const std::vector<Subprocess::ChildHook>& child_hooks = {});
 
 
 /**
@@ -400,8 +398,6 @@ Try<Subprocess> subprocess(
  *     before the child execs.
  * @param child_hooks Hooks that will be executed in the child
  *     before the child execs but after parent_hooks have executed.
- * @param watchdog Indicator whether the new process should be monitored
- *     and killed if the parent process terminates.
  * @return The subprocess or an error if one occurred.
  */
 // TODO(jmlvanre): Consider removing default argument for
@@ -415,8 +411,7 @@ inline Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::ParentHook>& parent_hooks = {},
-    const std::vector<Subprocess::ChildHook>& child_hooks = {},
-    const Watchdog watchdog = NO_MONITOR)
+    const std::vector<Subprocess::ChildHook>& child_hooks = {})
 {
   std::vector<std::string> argv = {os::Shell::arg0, os::Shell::arg1, command};
 
@@ -430,8 +425,7 @@ inline Try<Subprocess> subprocess(
       environment,
       clone,
       parent_hooks,
-      child_hooks,
-      watchdog);
+      child_hooks);
 }
 
 } // namespace process {

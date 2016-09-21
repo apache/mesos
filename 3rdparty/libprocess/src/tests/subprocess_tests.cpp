@@ -1003,4 +1003,4 @@ static int setupChdir(const string& directory)
 
 
 // TODO(joerg84): Consider adding tests for setsid, working_directory,
-// and watchdog options.
+// and supervisor childHooks.
