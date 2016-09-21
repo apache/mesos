@@ -1243,7 +1243,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   ASSERT_FALSE(termination.isFailed());
 
-  AWAIT_FAILED(dockerContainerizer.wait(reapedContainerId));
+  // The reaped container should be cleaned up and unknown at this point.
+  Future<Option<ContainerTermination>> termination2 =
+    dockerContainerizer.wait(reapedContainerId);
+
+  AWAIT_READY(termination2);
+  EXPECT_NONE(termination2.get());
 
   // Expect the orphan to be stopped!
   AWAIT_READY(orphanRun);
@@ -1375,7 +1380,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   ASSERT_FALSE(termination.isFailed());
 
   // The orphaned container should be correctly cleaned up.
-  AWAIT_FAILED(dockerContainerizer.wait(orphanContainerId));
+  Future<Option<ContainerTermination>> termination2 =
+    dockerContainerizer.wait(orphanContainerId);
+
+  AWAIT_READY(termination2);
+  EXPECT_NONE(termination2.get());
   ASSERT_FALSE(exists(docker, oldSlaveId, orphanContainerId));
 
   AWAIT_READY(orphanRun);
