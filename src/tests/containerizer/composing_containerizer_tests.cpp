@@ -33,6 +33,8 @@
 
 #include "tests/mesos.hpp"
 
+#include "tests/containerizer/mock_containerizer.hpp"
+
 using namespace mesos::internal::slave;
 
 using namespace process;
@@ -49,53 +51,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-
 class ComposingContainerizerTest : public MesosTest {};
-
-class MockContainerizer : public slave::Containerizer
-{
-public:
-  MOCK_METHOD1(
-      recover,
-      process::Future<Nothing>(
-          const Option<slave::state::SlaveState>&));
-
-  MOCK_METHOD8(
-      launch,
-      process::Future<bool>(
-          const ContainerID&,
-          const Option<TaskInfo>&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
-          const std::map<std::string, std::string>&,
-          bool));
-
-  MOCK_METHOD2(
-      update,
-      process::Future<Nothing>(
-          const ContainerID&,
-          const Resources&));
-
-  MOCK_METHOD1(
-      usage,
-      process::Future<ResourceStatistics>(
-          const ContainerID&));
-
-  MOCK_METHOD1(
-      wait,
-      process::Future<Option<ContainerTermination>>(
-          const ContainerID&));
-
-  MOCK_METHOD1(
-      destroy,
-      process::Future<bool>(const ContainerID&));
-
-  MOCK_METHOD0(
-      containers,
-      process::Future<hashset<ContainerID>>());
-};
 
 
 // This test ensures that destroy can be called while in the
