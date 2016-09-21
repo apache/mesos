@@ -2404,7 +2404,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   CommandInfo command;
   command.set_shell(false);
 
-  // We should also be able to skip setting the comamnd value and just
+  // We should also be able to skip setting the command value and just
   // set the arguments and those should also get passed through to the
   // entrypoint!
   command.add_arguments(uuid);
