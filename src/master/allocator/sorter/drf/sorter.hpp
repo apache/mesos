@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/values.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
@@ -120,7 +121,7 @@ public:
 
   virtual std::vector<std::string> sort();
 
-  virtual bool contains(const std::string& name);
+  virtual bool contains(const std::string& name) const;
 
   virtual int count();
 
@@ -130,7 +131,7 @@ private:
   void update(const std::string& name);
 
   // Returns the dominant resource share for the client.
-  double calculateShare(const std::string& name);
+  double calculateShare(const std::string& name) const;
 
   // Resources (by name) that will be excluded from fair sharing.
   Option<std::set<std::string>> fairnessExcludeResourceNames;
@@ -168,6 +169,15 @@ private:
     // omitted because sharedness inherently refers to the identities of
     // resources and not quantities.
     Resources scalarQuantities;
+
+    // We also store a map version of `scalarQuantities`, mapping
+    // the `Resource::name` to aggregated scalar. This improves the
+    // performance of calculating shares. See MESOS-4694.
+    //
+    // TODO(bmahler): Ideally we do not store `scalarQuantities`
+    // redundantly here, investigate performance improvements to
+    // `Resources` to make this unnecessary.
+    hashmap<std::string, Value::Scalar> totals;
   } total_;
 
   // Allocation for a client.
@@ -182,6 +192,15 @@ private:
     // about dynamic reservations, persistent volumes and sharedness of
     // the corresponding resource. See notes above.
     Resources scalarQuantities;
+
+    // We also store a map version of `scalarQuantities`, mapping
+    // the `Resource::name` to aggregated scalar. This improves the
+    // performance of calculating shares. See MESOS-4694.
+    //
+    // TODO(bmahler): Ideally we do not store `scalarQuantities`
+    // redundantly here, investigate performance improvements to
+    // `Resources` to make this unnecessary.
+    hashmap<std::string, Value::Scalar> totals;
   };
 
   // Maps client names to the resources they have been allocated.

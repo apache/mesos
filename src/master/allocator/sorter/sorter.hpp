@@ -134,7 +134,7 @@ public:
 
   // Returns true if this Sorter contains the specified client,
   // either active or deactivated.
-  virtual bool contains(const std::string& client) = 0;
+  virtual bool contains(const std::string& client) const = 0;
 
   // Returns the number of clients this Sorter contains,
   // either active or deactivated.
