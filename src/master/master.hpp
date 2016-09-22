@@ -914,11 +914,11 @@ private:
       const scheduler::Call::Accept& accept);
 
   void _accept(
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
-    const Resources& offeredResources,
-    const scheduler::Call::Accept& accept,
-    const process::Future<std::list<process::Future<bool>>>& authorizations);
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const Resources& offeredResources,
+      const scheduler::Call::Accept& accept,
+      const process::Future<std::list<process::Future<bool>>>& authorizations);
 
   void acceptInverseOffers(
       Framework* framework,
