@@ -38,6 +38,10 @@ namespace spec {
 constexpr char WHITEOUT_PREFIX[] = ".wh.";
 
 
+// The prefix of opaque whiteout files in a docker image.
+constexpr char WHITEOUT_OPAQUE_PREFIX[] = ".wh..wh..opq";
+
+
 /**
  * Parse the docker image reference. Docker expects the image
  * reference to be in the following format:

@@ -318,11 +318,16 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 // This function is currently docker image specific. Depending
 // on docker v1 spec, a docker image may include filesystem
 // changeset, which may need to delete directories or files.
-// The file/dir to be deleted will be labeled by creating a
-// 'whiteout' file, which is at the same location and with the
-// basename of the deleted file or directory prefixed with
-// '.wh.'. Please see:
+// The file/directory to be deleted will be labeled by creating
+// a 'whiteout' file, which is at the same location and with the
+// basename of the deleted file or directory prefixed with '.wh.'.
+// For the directory which has an opaque whiteout file '.wh..wh..opq'
+// under it, we need to delete all the files/directories under it.
+// Please see:
 // https://github.com/docker/docker/blob/master/image/spec/v1.md
+// https://github.com/docker/docker/blob/master/pkg/archive/whiteouts.go
+// And OCI image spec also has the concepts 'whiteout' and 'opaque whiteout':
+// https://github.com/opencontainers/image-spec/blob/master/layer.md#whiteouts
 Future<ProvisionInfo> ProvisionerProcess::__provision(
     const string& rootfs,
     const Image& image,
@@ -353,21 +358,26 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
   }
 
   vector<string> whiteout;
+  vector<string> whiteoutOpaque;
 
   for (FTSENT *node = ::fts_read(tree);
        node != nullptr; node = ::fts_read(tree)) {
     if (node->fts_info == FTS_F &&
         strings::startsWith(node->fts_name, string(spec::WHITEOUT_PREFIX))) {
       Path path = Path(node->fts_path);
-
-      whiteout.push_back(path::join(path.dirname(), path.basename().substr(
-          strlen(spec::WHITEOUT_PREFIX))));
+      if (node->fts_name == string(spec::WHITEOUT_OPAQUE_PREFIX)) {
+        whiteoutOpaque.push_back(path.dirname());
+      } else {
+        whiteout.push_back(path::join(
+            path.dirname(),
+            path.basename().substr(strlen(spec::WHITEOUT_PREFIX))));
+      }
 
       Try<Nothing> rm = os::rm(path.string());
       if (rm.isError()) {
         ::fts_close(tree);
         return Failure(
-            "Failed to remove the whiteout '.wh.' file '" +
+            "Failed to remove whiteout file '" +
             path.string() + "': " + rm.error());
       }
     }
@@ -384,20 +394,35 @@ Future<ProvisionInfo> ProvisionerProcess::__provision(
         "Failed to stop traversing file system: " + os::strerror(errno));
   }
 
+  foreach (const string& path, whiteoutOpaque) {
+    Try<Nothing> rmdir = os::rmdir(path, true, false);
+    if (rmdir.isError()) {
+      return Failure(
+          "Failed to remove the entries under the directory labeled as"
+          " opaque whiteout '" + path + "': " + rmdir.error());
+    }
+  }
+
   foreach (const string& path, whiteout) {
-    if (os::stat::isdir(path)) {
-      Try<Nothing> rmdir = os::rmdir(path);
-      if (rmdir.isError()) {
-        return Failure(
-            "Failed to remove whiteout directory '" +
-            path + "': " + rmdir.error());
-      }
-    } else {
-      Try<Nothing> rm = os::rm(path);
-      if (rm.isError()) {
-        return Failure(
-            "Failed to remove whiteout file '" +
-            path + "': " + rm.error());
+    // The file/directory labeled as whiteout may have already been
+    // removed with the code above due to its parent directory labeled
+    // as opaque whiteout, so here we need to check if it still exists
+    // before trying to remove it.
+    if (os::exists(path)) {
+      if (os::stat::isdir(path)) {
+        Try<Nothing> rmdir = os::rmdir(path);
+        if (rmdir.isError()) {
+          return Failure(
+              "Failed to remove the directory labeled as whiteout '" +
+              path + "': " + rmdir.error());
+        }
+      } else {
+        Try<Nothing> rm = os::rm(path);
+        if (rm.isError()) {
+          return Failure(
+              "Failed to remove the file labeled as whiteout '" +
+              path + "': " + rm.error());
+        }
       }
     }
   }
