@@ -17,6 +17,12 @@
 #ifndef __STOUT_OS_POSIX_MKDTEMP_HPP__
 #define __STOUT_OS_POSIX_MKDTEMP_HPP__
 
+#include <stdlib.h>
+#include <string.h>
+
+#include <string>
+
+#include <stout/error.hpp>
 #include <stout/try.hpp>
 
 

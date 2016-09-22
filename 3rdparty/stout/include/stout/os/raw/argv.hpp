@@ -13,6 +13,8 @@
 #ifndef __STOUT_OS_RAW_ARGV_HPP__
 #define __STOUT_OS_RAW_ARGV_HPP__
 
+#include <string.h>
+
 #include <string>
 #include <vector>
 

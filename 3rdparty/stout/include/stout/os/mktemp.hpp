@@ -13,6 +13,9 @@
 #ifndef __STOUT_OS_MKTEMP_HPP__
 #define __STOUT_OS_MKTEMP_HPP__
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <string>
 
 #include <stout/error.hpp>
