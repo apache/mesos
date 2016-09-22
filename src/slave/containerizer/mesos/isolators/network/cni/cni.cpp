@@ -30,6 +30,8 @@
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 
+#include "slave/containerizer/mesos/utils.hpp"
+
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 
 namespace io = process::io;
@@ -350,6 +352,12 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
 }
 
 
+bool NetworkCniIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Future<Nothing> NetworkCniIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -366,6 +374,11 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
 
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
+
+    if (containerId.has_parent()) {
+      // We do not need to recover nested containers.
+      continue;
+    }
 
     Try<Nothing> recover = _recover(containerId, state);
     if (recover.isError()) {
@@ -551,44 +564,89 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  const ExecutorInfo& executorInfo = containerConfig.executor_info();
-  if (!executorInfo.has_container()) {
-    return None();
-  }
-
-  if (executorInfo.container().type() != ContainerInfo::MESOS) {
-    return Failure("Can only prepare CNI networks for a MESOS container");
-  }
-
-  int ifIndex = 0;
-  hashset<string> networkNames;
   hashmap<string, ContainerNetwork> containerNetworks;
-  foreach (const mesos::NetworkInfo& networkInfo,
-           executorInfo.container().network_infos()) {
-    if (!networkInfo.has_name()) {
-      continue;
+
+  if (!containerId.has_parent()) {
+    const ExecutorInfo& executorInfo = containerConfig.executor_info();
+    if (!executorInfo.has_container()) {
+      return None();
     }
 
-    const string& name = networkInfo.name();
-    if (!networkConfigs.contains(name)) {
-      return Failure("Unknown CNI network '" + name + "'");
+    if (executorInfo.container().type() != ContainerInfo::MESOS) {
+      return Failure("Can only prepare CNI networks for a MESOS container");
     }
 
-    if (networkNames.contains(name)) {
+    int ifIndex = 0;
+    foreach (const mesos::NetworkInfo& networkInfo,
+             executorInfo.container().network_infos()) {
+      if (!networkInfo.has_name()) {
+        continue;
+      }
+
+      const string& name = networkInfo.name();
+      if (!networkConfigs.contains(name)) {
+        return Failure("Unknown CNI network '" + name + "'");
+      }
+
+      if (containerNetworks.contains(name)) {
+        return Failure(
+            "Attempted to join CNI network '" + name + "' multiple times");
+      }
+
+      ContainerNetwork containerNetwork;
+      containerNetwork.networkName = name;
+      containerNetwork.ifName = "eth" + stringify(ifIndex++);
+      containerNetwork.networkInfo = networkInfo;
+
+      containerNetworks.put(name, containerNetwork);
+    }
+  } else {
+    // This is a nested container. If the `NetworkInfo` in
+    // `ContainerConfig.container` is set, it implies that the nested
+    // container needs to have a separate network namespace, else the
+    // nested container shares its network namespace with the parent.
+    if (containerConfig.has_container_info() &&
+        containerConfig.container_info().network_infos().size() > 0) {
       return Failure(
-          "Attempted to join CNI network '" + name + "' multiple times");
+          "Currently, we don't support different network namespaces for "
+          "parent and nested containers.");
     }
 
-    networkNames.insert(name);
+    ContainerID rootContainerId = getRootContainerId(containerId);
 
-    ContainerNetwork containerNetwork;
-    containerNetwork.networkName = name;
-    containerNetwork.ifName = "eth" + stringify(ifIndex++);
-    containerNetwork.networkInfo = networkInfo;
-
-    containerNetworks.put(name, containerNetwork);
+    // NOTE: The `network/cni` isolator checkpoints only the following
+    // top-level containers:
+    // * Containers joining the host network with an image.
+    // * Containers joining a non-host network.
+    //
+    // Therefore, after `recover` it can happen that `infos` does not
+    // contain top-level containers that have joined the host-network.
+    // Hence, we cannot return a `Failure` here if we do not find the
+    // `rootContainerId` in `infos`. If the `rootContainerId` is not
+    // found, it's implied that the root container is a container
+    // attached to the host network, which in turn implies that
+    // `containerNetworks` should be left empty.
+    if (infos.contains(rootContainerId)) {
+      containerNetworks = infos[rootContainerId]->containerNetworks;
+    }
   }
 
+  // There are two groups of cases that need to be handled when
+  // attaching containers to networks.
+  // * Cases where the containers don't need a new mount namespace:
+  //    a) Containers (nested or stand alone) join the host network
+  //       without an image.
+  // * Cases where the container needs a new mount namespace:
+  //    a) Containers (nested or stand alone) join the host network
+  //       with an image.
+  //    b) Containers (nested or stand alone) join a non-host network,
+  //       with or without image.
+  //
+  // The `network/cni` isolator will add any container needing a new
+  // mount namespace to the `infos` structure. Reason being that for
+  // these containers, the isolator needs to setup network files
+  // (/etc/hosts, /etc/hostname, /etc/resolv.conf) in their new mount
+  // space, in order to give them proper connectivity.
   if (containerNetworks.empty()) {
     // This is for the case where the container has an image and wants
     // to join host network, we will make sure it has access to host
@@ -604,6 +662,8 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     // in a new mount namespace.
     return None();
   } else {
+    // This is the case where the container is joining a non-host
+    // network namespace.
     if (containerConfig.has_rootfs()) {
       Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
       infos.put(containerId, info);
@@ -623,16 +683,31 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     env->set_name("LIBPROCESS_IP");
     env->set_value("0.0.0.0");
 
-    // This is only for test. For testing 'network/cni' isolator, we will
-    // use a mock CNI plugin and a mock CNI network configuration file
-    // which has "__MESOS_TEST__" as network name. The mock plugin will
-    // not create a new network namespace for the container. The container
-    // will be launched in the host's network namespace. The mock plugin
-    // will return the host's IP address for this test container.
-    if (networkNames.contains("__MESOS_TEST__")) {
-      launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
+    if (!containerId.has_parent()) {
+      if (containerNetworks.contains("__MESOS_TEST__")) {
+        // This is only for test. For testing 'network/cni' isolator,
+        // we will use a mock CNI plugin and a mock CNI network
+        // configuration file which has "__MESOS_TEST__" as network
+        // name. The mock plugin will not create a new network
+        // namespace for the container. The container will be launched
+        // in the host's network namespace. The mock plugin will
+        // return the host's IP address for this test container.
+        //
+        // NOTE: There is an implicit assumption here that when used
+        // for testing, '__MESOS_TEST__' is the only network the
+        // container is going to join.
+        launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
+      } else {
+        launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+      }
     } else {
-      launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+      // This is a nested container. This shares the parent's network
+      // and UTS namespace. We still need to give this container a new
+      // mount namespace since its joining a non-host network and
+      // therefore we will need to bind mount its network files
+      // (/etc/hosts, /etc/hostname, /etc/resolv.conf) which will be
+      // different than those on the host file system.
+      launchInfo.set_namespaces(CLONE_NEWNS);
     }
 
     return launchInfo;
@@ -651,10 +726,14 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     return Nothing();
   }
 
-  // For the container which has an image and wants to join host
-  // network, we will make sure it has access to host /etc/* files.
-  if (infos[containerId]->containerNetworks.empty() &&
-      infos[containerId]->rootfs.isSome()) {
+  // We first deal with containers (both top level or nested) that
+  // want to join the host network. Given the above 'contains' check,
+  // the container here must have rootfs defined (otherwise, we won't
+  // create an Info struct for the container). For those containers,
+  // we will make sure it has access to host /etc/* files.
+  if (infos[containerId]->containerNetworks.empty()) {
+    CHECK(infos[containerId]->rootfs.isSome());
+
     NetworkCniIsolatorSetup setup;
     setup.flags.pid = pid;
     setup.flags.rootfs = infos[containerId]->rootfs;
@@ -674,6 +753,9 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     return __isolate(setup);
   }
 
+  // If the control reaches here, we know that the container (both top
+  // level or nested) wants to join non-host networks.
+
   // If the `network/cni` isolator is providing network isolation to a
   // container its `rootDir` and `pluginDir` should always be set.
   // These properties of the isolator will not be set only if the
@@ -681,6 +763,60 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   // '--network_cni_config_dir' flags at agent startup.
   CHECK_SOME(rootDir);
   CHECK_SOME(pluginDir);
+
+  if (containerId.has_parent()) {
+    // We create network files for only those containers for which we
+    // create a new network namespace. Therefore, in a nested
+    // container hierarchy only the container at the root of the
+    // hierarchy (the top level container) would have network files
+    // created. Hence, find the top level container for the hierarchy
+    // to which this container belongs. We will use the network files
+    // of the top level root container to setup the network files for
+    // this nested container.
+    ContainerID rootContainerId = getRootContainerId(containerId);
+
+    // Since the nested container joins non-host networks, its root
+    // container has to join non-host networks because we have the
+    // invariant that all containers in a hierarchy join the same
+    // networks.
+    CHECK(infos.contains(rootContainerId));
+
+    const string rootContainerDir = paths::getContainerDir(
+        rootDir.get(),
+        rootContainerId.value());
+
+    CHECK(os::exists(rootContainerDir));
+
+    // Use the root container's network files to setup the network
+    // files for the nested container.
+    string rootHostsPath = path::join(rootContainerDir, "hosts");
+    string rootHostnamePath = path::join(rootContainerDir, "hostname");
+    string rootResolvPath = path::join(rootContainerDir, "resolv.conf");
+
+    CHECK(os::exists(rootHostsPath));
+    CHECK(os::exists(rootHostnamePath));
+    CHECK(os::exists(rootResolvPath));
+
+    // Setup the required network files and the hostname in the
+    // container's filesystem and UTS namespace.
+    //
+    // NOTE: Since nested containers share the UTS and network
+    // namespace with their root container, we do not need to setup
+    // the hostname here. The hostname should have already been setup
+    // when setting up the network namespace for the root container.
+    NetworkCniIsolatorSetup setup;
+    setup.flags.pid = pid;
+    setup.flags.rootfs = infos[containerId]->rootfs;
+    setup.flags.etc_hosts_path = rootHostsPath;
+    setup.flags.etc_hostname_path = rootHostnamePath;
+    setup.flags.etc_resolv_conf = rootResolvPath;
+
+    // Since the container joins non-host network, none of the
+    // processes in the container should see host network files.
+    setup.flags.bind_host_files = true;
+
+    return __isolate(setup);
+  }
 
   // Create the container directory.
   const string containerDir =
@@ -759,7 +895,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
 
   CHECK(os::exists(containerDir));
 
-  // Create the network file.
+  // Create the network files.
   string hostsPath = path::join(containerDir, "hosts");
   string hostnamePath = path::join(containerDir, "hostname");
   string resolvPath = path::join(containerDir, "resolv.conf");
@@ -857,6 +993,10 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
   setup.flags.etc_hosts_path = hostsPath;
   setup.flags.etc_hostname_path = hostnamePath;
   setup.flags.etc_resolv_conf = resolvPath;
+
+  // Since the container joins non-host network, none of the
+  // processes in the container should see host network files.
+  setup.flags.bind_host_files = true;
 
   return __isolate(setup);
 }
@@ -1143,6 +1283,15 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     const ContainerID& containerId)
 {
+  // NOTE: Currently, nested containers share their network namespace
+  // with the parent containers in the hierarchy to which they belong.
+  // Hence, in order to obtain the IP address of this nested container
+  // one should always look up the IP address of the root container of
+  // the hierarchy to which this container belongs.
+  if (containerId.has_parent()) {
+    return Failure("Not supported for nested containers");
+  }
+
   // TODO(jieyu): We don't create 'Info' struct for containers that want
   // to join the host network and have no image. Currently, we rely on
   // the slave/containerizer to set the IP addresses in ContainerStatus.
@@ -1203,6 +1352,12 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
   // this container is not required anymore (e.g., cleanup is done already, but
   // the slave crashed and didn't realize that it's done).
   if (!infos.contains(containerId)) {
+    return Nothing();
+  }
+
+  // For nested containers, we just need to remove it from `infos`.
+  if (containerId.has_parent()) {
+    infos.erase(containerId);
     return Nothing();
   }
 
@@ -1433,6 +1588,12 @@ NetworkCniIsolatorSetup::Flags::Flags()
   add(&etc_resolv_conf,
       "etc_resolv_conf",
       "Path in the host file system for 'resolv.conf'");
+
+  add(&bind_host_files,
+      "bind_host_files",
+      "Bind mount the container's network files to the network files "
+      "present on host filesystem",
+      false);
 }
 
 
@@ -1518,22 +1679,19 @@ int NetworkCniIsolatorSetup::execute()
   }
 
   foreachpair (const string& file, const string& source, files) {
-    // Do the bind mount in the host filesystem since no process in
-    // the new network namespace should be seeing the original network
-    // files from the host filesystem. The container's hostname will be
-    // changed to the `ContainerID` and this information needs to be
-    // reflected in the /etc/hosts and /etc/hostname files seen by
+    // Do the bind mount for network files in the host filesystem if
+    // the container joins non-host network since no process in the
+    // new network namespace should be seeing the original network
+    // files from the host filesystem. The container's hostname will
+    // be changed to the `ContainerID` and this information needs to
+    // be reflected in the /etc/hosts and /etc/hostname files seen by
     // processes in the new network namespace.
     //
     // Specifically, the command executor will be launched with the
     // rootfs of the host filesystem. The command executor may later
     // pivot to the rootfs of the container filesystem when launching
     // the task.
-    //
-    // NOTE: We only need to do this if a non-host network is used.
-    // Currently, we use `flags.hostname` to distinguish if a host
-    // network is being used or not.
-    if (flags.hostname.isSome()) {
+    if (flags.bind_host_files) {
       if (!os::exists(file)) {
         // We need /etc/hosts and /etc/hostname to be present in order
         // to bind mount the container's /etc/hosts and /etc/hostname.

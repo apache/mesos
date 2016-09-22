@@ -51,6 +51,8 @@ public:
 
   virtual ~NetworkCniIsolatorProcess() {}
 
+  virtual bool supportsNesting();
+
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
@@ -103,6 +105,11 @@ private:
         rootfs(_rootfs) {}
 
     // CNI network information keyed by network name.
+    //
+    // NOTE: For nested containers, since the container shares the
+    // network namespace with the root container of its hierarchy,
+    // this should simply be a copy of the `containerNetworks` of its
+    // root container.
     hashmap<std::string, ContainerNetwork> containerNetworks;
 
     // Rootfs of the container file system. In case the container uses
@@ -198,6 +205,7 @@ public:
     Option<std::string> etc_hosts_path;
     Option<std::string> etc_hostname_path;
     Option<std::string> etc_resolv_conf;
+    bool bind_host_files;
   };
 
   NetworkCniIsolatorSetup() : Subcommand(NAME) {}
