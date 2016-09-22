@@ -29,7 +29,9 @@ namespace os {
 inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
 {
   char* temp = new char[path.size() + 1];
-  if (::mkdtemp(::strcpy(temp, path.c_str())) != nullptr) {
+  ::memcpy(temp, path.c_str(), path.size() + 1);
+
+  if (::mkdtemp(temp) != nullptr) {
     std::string result(temp);
     delete[] temp;
     return result;
