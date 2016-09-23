@@ -287,7 +287,8 @@ public:
       const ContainerID& containerId,
       const process::Future<bool>& future);
 
-  void executorTerminated(
+  // Made 'virtual' for Slave mocking.
+  virtual void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const process::Future<Option<

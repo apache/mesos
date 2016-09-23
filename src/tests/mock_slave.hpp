@@ -184,6 +184,11 @@ public:
 
   process::Future<ResourceUsage> unmocked_usage();
 
+  MOCK_METHOD3(executorTerminated, void(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const process::Future<mesos::slave::ContainerTermination>& termination));
+
 private:
   Files files;
   MockGarbageCollector gc;

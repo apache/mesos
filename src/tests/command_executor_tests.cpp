@@ -21,6 +21,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/slave/containerizer.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -31,15 +33,25 @@
 
 #include "master/master.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/mesos/containerizer.hpp"
+
 #include "tests/mesos.hpp"
+#include "tests/mock_slave.hpp"
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
+
+using mesos::slave::ContainerTermination;
 
 using process::Future;
 using process::Owned;
@@ -199,6 +211,89 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 
   driver.stop();
   driver.join();
+}
+
+
+class HTTPCommandExecutorTest
+  : public MesosTest {};
+
+
+// This test ensures that the HTTP command executor can self terminate
+// after it gets the ACK for the terminal status update from agent.
+TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = true;
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  CHECK_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  MockSlave slave(flags, &detector, containerizer.get());
+  spawn(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Launch a short lived task.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "sleep 1");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  Future<Future<ContainerTermination>> termination;
+  EXPECT_CALL(slave, executorTerminated(_, _, _))
+    .WillOnce(FutureArg<2>(&termination));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  // Scheduler should first receive TASK_RUNNING followed by TASK_FINISHED.
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  // The executor should self terminate with 0 as exit status once
+  // it gets the ACK for the terminal status update from agent.
+  AWAIT_READY(termination);
+  ASSERT_TRUE(termination.get().isReady());
+  EXPECT_EQ(0, termination.get().get().status());
+
+  driver.stop();
+  driver.join();
+
+  terminate(slave);
+  wait(slave);
 }
 
 } // namespace tests {
