@@ -21,6 +21,8 @@
 
 #include <stout/try.hpp>
 
+#include <stout/os/raw/argv.hpp>
+
 namespace os {
 
 namespace Shell {
@@ -104,6 +106,21 @@ inline int system(const std::string& command)
 }
 
 
+// Executes a command by calling "<command> <arguments...>", and
+// returns after the command has been completed. Returns 0 if
+// succeeds, and -1 on error.
+inline int spawn(
+    const std::string& command,
+    const std::vector<std::string>& arguments)
+{
+  return ::_spawnvp(_P_WAIT, command.c_str(), os::raw::Argv(arguments));
+}
+
+
+// On Windows, the `_spawnlp` call creates a new process.
+// In order to emulate the semantics of `execlp`, we spawn with `_P_WAIT`,
+// which forces the parent process to block on the child. When the child exits,
+// the exit code is propagated back through the parent via `exit()`.
 template<typename... T>
 inline int execlp(const char* file, T... t)
 {
