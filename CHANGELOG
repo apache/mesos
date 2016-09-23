@@ -6,10 +6,11 @@ All Issues:
 ** Bug
     * [MESOS-6013] - Use readdir instead of readdir_r.
     * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
+    * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
     * [MESOS-6122] - Mesos slave throws systemd errors even when passed a flag to disable systemd.
     * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
     * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
-    * [MESOS-6235] - Add 'argv' variant of 'os::system'.
+    * [MESOS-6235] - Add 'os::spawn', 'argv' variant of 'os::system'.
 
 
 Release Notes - Mesos - Version 1.0.1
