@@ -480,10 +480,16 @@ Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
           backend,
           rootfsId);
 
+      string backendDir = provisioner::paths::getBackendDir(
+          rootDir,
+          containerId,
+          backend);
+
       LOG(INFO) << "Destroying container rootfs at '" << rootfs
                 << "' for container " << containerId;
 
-      futures.push_back(backends.get(backend).get()->destroy(rootfs));
+      futures.push_back(
+          backends.get(backend).get()->destroy(rootfs, backendDir));
     }
   }
 

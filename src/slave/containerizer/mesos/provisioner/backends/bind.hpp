@@ -60,7 +60,9 @@ public:
       const std::string& rootfs,
       const std::string& backendDir);
 
-  virtual process::Future<bool> destroy(const std::string& rootfs);
+  virtual process::Future<bool> destroy(
+      const std::string& rootfs,
+      const std::string& backendDir);
 
 private:
   explicit BindBackend(process::Owned<BindBackendProcess> process);

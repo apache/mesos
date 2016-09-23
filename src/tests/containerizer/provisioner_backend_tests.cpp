@@ -113,9 +113,52 @@ TEST_F(OverlayBackendTest, ROOT_OVERLAYFS_OverlayFSBackend)
   EXPECT_SOME_EQ("test3", os::read(path::join(rootfs, "file")));
   EXPECT_SOME_EQ("test2", os::read(path::join(layer2, "file")));
 
-  AWAIT_READY(backends["overlay"]->destroy(rootfs));
+  AWAIT_READY(backends["overlay"]->destroy(rootfs, sandbox.get()));
 
   EXPECT_FALSE(os::exists(rootfs));
+}
+
+
+// Test overlayfs backend for rootfs provisioning when an image has
+// many layers. This test is used to verify the fix for MESOS-6000.
+TEST_F(OverlayBackendTest, ROOT_OVERLAYFS_OverlayFSBackendWithManyLayers)
+{
+  // Create 64 image layers with more than 64 char length path to make
+  // sure total length of mount option exceeds the 4096 support limit.
+  const int imageCount = 64;
+  vector<string> layers;
+
+  for (int i = 0; i < imageCount; ++i) {
+    const string layer = path::join(
+        sandbox.get(),
+        strings::format("lower_%.59d", i).get());
+
+    const string dir = strings::format("dir%d", i).get();
+
+    ASSERT_SOME(os::mkdir(layer));
+    ASSERT_SOME(os::mkdir(path::join(layer, dir)));
+
+    layers.push_back(layer);
+  }
+
+  string rootfs = path::join(sandbox.get(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains("overlay"));
+
+  AWAIT_READY(backends["overlay"]->provision(
+      layers,
+      rootfs,
+      sandbox.get()));
+
+  // Verify that all layers are available.
+  for (int i = 0; i < imageCount; ++i) {
+    EXPECT_TRUE(os::exists(path::join(
+        rootfs,
+        strings::format("dir%d", i).get())));
+  }
+
+  AWAIT_READY(backends["overlay"]->destroy(rootfs, sandbox.get()));
 }
 
 
@@ -150,7 +193,7 @@ TEST_F(BindBackendTest, ROOT_BindBackend)
   EXPECT_TRUE(os::Permissions(mode.get()).owner.w);
   EXPECT_ERROR(os::write(path::join(target, "tmp", "test"), "data"));
 
-  AWAIT_READY(backends["bind"]->destroy(target));
+  AWAIT_READY(backends["bind"]->destroy(target, sandbox.get()));
 
   EXPECT_FALSE(os::exists(target));
 }
@@ -201,7 +244,7 @@ TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackend)
   EXPECT_SOME_EQ("test3", os::read(path::join(rootfs, "file")));
   EXPECT_SOME_EQ("test2", os::read(path::join(layer2, "file")));
 
-  AWAIT_READY(backends["aufs"]->destroy(rootfs));
+  AWAIT_READY(backends["aufs"]->destroy(rootfs, sandbox.get()));
 
   EXPECT_FALSE(os::exists(rootfs));
 }
@@ -246,7 +289,7 @@ TEST_F(CopyBackendTest, ROOT_CopyBackend)
   EXPECT_TRUE(os::exists(path::join(rootfs, "file")));
   EXPECT_SOME_EQ("test2", os::read(path::join(rootfs, "file")));
 
-  AWAIT_READY(backends["copy"]->destroy(rootfs));
+  AWAIT_READY(backends["copy"]->destroy(rootfs, sandbox.get()));
 
   EXPECT_FALSE(os::exists(rootfs));
 }

@@ -20,6 +20,7 @@
 
 #include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/os.hpp>
 
 #include "linux/fs.hpp"
@@ -54,7 +55,9 @@ public:
       const string& rootfs,
       const string& backendDir);
 
-  Future<bool> destroy(const string& rootfs);
+  Future<bool> destroy(
+      const string& rootfs,
+      const string& backendDir);
 };
 
 
@@ -105,9 +108,15 @@ Future<Nothing> OverlayBackend::provision(
       backendDir);
 }
 
-Future<bool> OverlayBackend::destroy(const string& rootfs)
+Future<bool> OverlayBackend::destroy(
+    const string& rootfs,
+    const string& backendDir)
 {
-  return dispatch(process.get(), &OverlayBackendProcess::destroy, rootfs);
+  return dispatch(
+      process.get(),
+      &OverlayBackendProcess::destroy,
+      rootfs,
+      backendDir);
 }
 
 
@@ -146,10 +155,48 @@ Future<Nothing> OverlayBackendProcess::provision(
         workdir + "': " + mkdir.error());
   }
 
+  // We create symlink with shorter path to each of the base layers.
+  Try<string> mktemp = os::mkdtemp();
+  if (mktemp.isError()) {
+    return Failure(
+      "Failued to create temporary directory for symlinks to layers: " +
+      mktemp.error());
+  }
+
+  const string tempDir = mktemp.get();
+  const string tempLink = path::join(backendDir, "links");
+
+  Try<Nothing> symlink = ::fs::symlink(tempDir, tempLink);
+  if (symlink.isError()) {
+    return Failure(
+        "Failed to create symlink '" + tempLink + "' -> '" + tempDir + "'");
+  }
+
+  VLOG(1) << "Created symlink '" << tempLink << "' -> '" << tempDir << "'";
+
+  vector<string> links;
+  links.reserve(layers.size());
+
+  // We create symlinks with file name 0, 1, ..., N-1 in tempDir which
+  // points to the corresponding layers in the same order.
+  size_t idx = 0;
+  foreach (const string& layer, layers) {
+    const string link = path::join(tempDir, std::to_string(idx++));
+
+    Try<Nothing> symlink = ::fs::symlink(layer, link);
+    if (symlink.isError()) {
+      return Failure(
+          "Failed to create symlink at '" + link +
+          "' -> '" + layer + "': " + symlink.error());
+    }
+
+    links.push_back(link);
+  }
+
   // For overlayfs, the specified lower directories will be stacked
   // beginning from the rightmost one and going left. But we need the
   // first layer in the vector to be the bottom most layer.
-  string options = "lowerdir=" + strings::join(":", adaptor::reverse(layers));
+  string options = "lowerdir=" + strings::join(":", adaptor::reverse(links));
   options += ",upperdir=" + upperdir;
   options += ",workdir=" + workdir;
 
@@ -199,7 +246,9 @@ Future<Nothing> OverlayBackendProcess::provision(
 }
 
 
-Future<bool> OverlayBackendProcess::destroy(const string& rootfs)
+Future<bool> OverlayBackendProcess::destroy(
+    const string& rootfs,
+    const string& backendDir)
 {
   Try<fs::MountInfoTable> mountTable = fs::MountInfoTable::read();
   if (mountTable.isError()) {
@@ -221,6 +270,43 @@ Future<bool> OverlayBackendProcess::destroy(const string& rootfs)
         return Failure(
             "Failed to remove rootfs mount point '" + rootfs + "': " +
             rmdir.error());
+      }
+
+      // Clean up tempDir used for image layer links.
+      const string tempLink = path::join(backendDir, "links");
+
+      if (!os::exists(tempLink)) {
+        // TODO(zhitao): This should be converted into a failure after
+        // deprecation cycle started by 1.1.0.
+        VLOG(1) << "Cannot find symlink to temporary directory '" << tempLink
+                <<"' for image links";
+
+        return true;
+      }
+
+      if (!os::stat::islink(tempLink)) {
+        return Failure("Invalid symlink '" + tempLink + "'");
+      }
+
+      Result<string> realpath = os::realpath(tempLink);
+
+      // NOTE: It's possible that the symlink is a dangling symlink.
+      // This is possible if agent crashes after we remove the temp
+      // directory but before we remove the symlink itself.
+      if (realpath.isSome()) {
+        Try<Nothing> rmdir = os::rmdir(realpath.get());
+        if (rmdir.isError()) {
+          return Failure("");
+        }
+
+        VLOG(1) << "Removed temporary directory '" << realpath.get()
+                << "' pointed by '" << tempLink << "'";
+      }
+
+      Try<Nothing> rm = os::rm(tempLink);
+      if (rm.isError()) {
+        return Failure("Failed to remove symlink at '" + tempLink +
+                       "': " + rm.error());
       }
 
       return true;

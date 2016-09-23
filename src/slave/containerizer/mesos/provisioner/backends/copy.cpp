@@ -89,7 +89,9 @@ Future<Nothing> CopyBackend::provision(
 }
 
 
-Future<bool> CopyBackend::destroy(const string& rootfs)
+Future<bool> CopyBackend::destroy(
+    const string& rootfs,
+    const string& backendDir)
 {
   return dispatch(process.get(), &CopyBackendProcess::destroy, rootfs);
 }

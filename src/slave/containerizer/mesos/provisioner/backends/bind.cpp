@@ -102,7 +102,9 @@ Future<Nothing> BindBackend::provision(
 }
 
 
-Future<bool> BindBackend::destroy(const string& rootfs)
+Future<bool> BindBackend::destroy(
+    const string& rootfs,
+    const string& backendDir)
 {
   return dispatch(process.get(), &BindBackendProcess::destroy, rootfs);
 }

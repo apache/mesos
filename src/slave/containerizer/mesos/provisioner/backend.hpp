@@ -56,7 +56,9 @@ public:
   // Destroy the root filesystem provisioned at the specified 'rootfs'
   // directory. Return false if there is no provisioned root filesystem
   // to destroy for the given directory.
-  virtual process::Future<bool> destroy(const std::string& rootfs) = 0;
+  virtual process::Future<bool> destroy(
+      const std::string& rootfs,
+      const std::string& backendDir) = 0;
 };
 
 } // namespace slave {
