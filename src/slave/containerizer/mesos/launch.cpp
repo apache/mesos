@@ -459,7 +459,7 @@ int MesosContainerizerLaunch::execute()
   } else {
     // Use execvp to launch the command.
     os::execvp(command->value().c_str(),
-           os::raw::Argv(command->arguments()));
+               os::raw::Argv(command->arguments()));
   }
 
   // If we get here, the execle call failed.
