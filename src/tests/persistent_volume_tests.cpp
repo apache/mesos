@@ -166,7 +166,7 @@ protected:
       case NONE: {
         diskResource = createDiskResource(
             stringify(mb.megabytes()),
-            DEFAULT_ROLE,
+            DEFAULT_TEST_ROLE,
             None(),
             None());
 
@@ -175,7 +175,7 @@ protected:
       case PATH: {
         diskResource = createDiskResource(
             stringify(mb.megabytes()),
-            DEFAULT_ROLE,
+            DEFAULT_TEST_ROLE,
             None(),
             None(),
             createDiskSourcePath(path::join(diskPath, "disk" + stringify(id))));
@@ -185,7 +185,7 @@ protected:
       case MOUNT: {
         diskResource = createDiskResource(
             stringify(mb.megabytes()),
-            DEFAULT_ROLE,
+            DEFAULT_TEST_ROLE,
             None(),
             None(),
             createDiskSourceMount(
@@ -254,7 +254,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   Clock::pause();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -429,7 +429,7 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -495,7 +495,7 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -564,7 +564,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
@@ -659,7 +659,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   spawn(slave1);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -746,7 +746,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -900,14 +900,14 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources =
-    "cpus:2;mem:1024;disk(" + string(DEFAULT_ROLE) + "):1024";
+    "cpus:2;mem:1024;disk(" + string(DEFAULT_TEST_ROLE) + "):1024";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -933,7 +933,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      DEFAULT_ROLE,
+      DEFAULT_TEST_ROLE,
       "id1",
       "path1",
       None(),
@@ -941,8 +941,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
       frameworkInfo.principal(),
       true); // Shared.
 
-  Try<Resources> taskResources1 =
-    Resources::parse("cpus:1;mem:128;disk(" + string(DEFAULT_ROLE) + "):32");
+  Try<Resources> taskResources1 = Resources::parse(
+      "cpus:1;mem:128;disk(" + string(DEFAULT_TEST_ROLE) + "):32");
 
   // Create 2 tasks which write distinct files in the shared volume.
   TaskInfo task1 = createTask(
@@ -950,8 +950,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
       taskResources1.get() + volume,
       "echo task1 > path1/file1");
 
-  Try<Resources> taskResources2 =
-    Resources::parse("cpus:1;mem:256;disk(" + string(DEFAULT_ROLE) + "):64");
+  Try<Resources> taskResources2 = Resources::parse(
+      "cpus:1;mem:256;disk(" + string(DEFAULT_TEST_ROLE) + "):64");
 
   TaskInfo task2 = createTask(
       offer.slave_id(),
@@ -988,7 +988,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
 
   const string& volumePath = slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
-      DEFAULT_ROLE,
+      DEFAULT_TEST_ROLE,
       "id1");
 
   EXPECT_SOME_EQ("task1\n", os::read(path::join(volumePath, "file1")));
@@ -1018,7 +1018,7 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
@@ -1152,7 +1152,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   filters.set_refuse_seconds(0);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -1298,7 +1298,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_name("no-principal");
   frameworkInfo.set_user(os::user().get());
-  frameworkInfo.set_role(DEFAULT_ROLE);
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
 
   // Create a master. Since the framework has no
   // principal, we don't authenticate frameworks.
@@ -1452,11 +1452,11 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   FrameworkInfo frameworkInfo1;
   frameworkInfo1.set_name("no-principal");
   frameworkInfo1.set_user(os::user().get());
-  frameworkInfo1.set_role(DEFAULT_ROLE);
+  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
 
   // Create a `FrameworkInfo` with a principal.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role(DEFAULT_ROLE);
+  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
 
   // Create a master. Since one framework has no
   // principal, we don't authenticate frameworks.
@@ -1667,13 +1667,13 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   // Create a `FrameworkInfo` that cannot create or destroy volumes.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role(DEFAULT_ROLE);
+  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
 
   // Create a `FrameworkInfo` that can create volumes.
   FrameworkInfo frameworkInfo2;
   frameworkInfo2.set_name("creator-framework");
   frameworkInfo2.set_user(os::user().get());
-  frameworkInfo2.set_role(DEFAULT_ROLE);
+  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
   frameworkInfo2.set_principal("creator-principal");
 
   // Create a master.

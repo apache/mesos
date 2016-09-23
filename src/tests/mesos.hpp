@@ -93,7 +93,7 @@ namespace tests {
 
 constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "test-readonly-realm";
 constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "test-readwrite-realm";
-constexpr char DEFAULT_ROLE[] = "default-role";
+constexpr char DEFAULT_TEST_ROLE[] = "default-role";
 
 // Forward declarations.
 class MockExecutor;
