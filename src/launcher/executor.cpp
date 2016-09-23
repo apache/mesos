@@ -214,8 +214,18 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
+        const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
+
+        // Terminate if we receive the ACK for the terminal status update.
+        // NOTE: The executor receives an ACK iff it uses the HTTP library.
+        // No ACK will be received if V0ToV1Adapter is used.
+        if (mesos::internal::protobuf::isTerminalState(
+            updates[uuid].status().state())) {
+          terminate(self());
+        }
+
         // Remove the corresponding update.
-        updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
+        updates.erase(uuid);
 
         // Remove the corresponding task.
         task = None();
@@ -658,11 +668,18 @@ private:
       update(taskId.get(), taskState, None(), message);
     }
 
-    // TODO(qianzhang): Remove this hack since the executor now receives
-    // acknowledgements for status updates. The executor can terminate
-    // after it receives an ACK for a terminal status update.
-    os::sleep(Seconds(1));
-    terminate(self());
+    Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
+    if (value.isSome() && value.get() == "1") {
+      // For HTTP based executor, this is a fail safe in case the agent
+      // doesn't send an ACK for the terminal update for some reason.
+      delay(Seconds(60), self(), &Self::selfTerminate);
+    } else {
+      // For adapter based executor, this is a hack to ensure the status
+      // update is sent to the agent before we exit the process. Without
+      // this we may exit before libprocess has sent the data over the
+      // socket. See MESOS-4111 for more details.
+      delay(Seconds(1), self(), &Self::selfTerminate);
+    }
   }
 
   void escalated(const Duration& timeout)
@@ -731,6 +748,23 @@ private:
     updates[uuid] = call.update();
 
     mesos->send(evolve(call));
+  }
+
+  void selfTerminate()
+  {
+    Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
+    if (value.isSome() && value.get() == "1") {
+      // If we get here, that means HTTP based command executor does
+      // not get the ACK for the terminal status update, let's exit
+      // with non-zero status since this should not happen.
+      EXIT(EXIT_FAILURE)
+        << "Did not receive ACK for the terminal status update from the agent";
+    } else {
+      // For adapter based executor, the terminal status update should
+      // have already been sent to the agent at this point, so we can
+      // safely self terminate.
+      terminate(self());
+    }
   }
 
   enum State
