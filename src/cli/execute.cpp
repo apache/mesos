@@ -299,7 +299,8 @@ public:
       const Option<Duration>& _killAfter,
       const Option<Credential>& _credential,
       const Option<TaskInfo>& _task,
-      const Option<TaskGroupInfo> _taskGroup)
+      const Option<TaskGroupInfo>& _taskGroup,
+      const Option<string>& _networks)
     : state(DISCONNECTED),
       frameworkInfo(_frameworkInfo),
       master(_master),
@@ -307,6 +308,7 @@ public:
       credential(_credential),
       task(_task),
       taskGroup(_taskGroup),
+      networks(_networks),
       launched(false),
       terminatedTaskCount(0) {}
 
@@ -462,6 +464,18 @@ protected:
          executorInfo->mutable_framework_id()->CopyFrom(frameworkInfo.id());
          executorInfo->mutable_resources()->CopyFrom(
              Resources::parse("cpus:0.1;mem:32;disk:32").get());
+
+         // Setup any CNI networks that the `task_group` needs to
+         // join, in case the `--networks` flag was specified.
+         if (networks.isSome() && !networks->empty()) {
+           ContainerInfo* containerInfo = executorInfo->mutable_container();
+           containerInfo->set_type(ContainerInfo::MESOS);
+
+           foreach (const string& network,
+                    strings::tokenize(networks.get(), ",")) {
+             containerInfo->add_network_infos()->set_name(network);
+           }
+         }
 
          operation->mutable_launch_group()->mutable_task_group()->CopyFrom(
              _taskGroup);
@@ -624,6 +638,7 @@ private:
   const Option<Credential> credential;
   const Option<TaskInfo> task;
   const Option<TaskGroupInfo> taskGroup;
+  const Option<string> networks;
   bool launched;
   int terminatedTaskCount;
   Owned<Mesos> mesos;
@@ -1017,7 +1032,8 @@ int main(int argc, char** argv)
         flags.kill_after,
         credential,
         taskInfo,
-        flags.task_group));
+        flags.task_group,
+        flags.networks));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
