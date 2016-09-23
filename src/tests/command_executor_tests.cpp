@@ -270,7 +270,7 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  Future<Future<ContainerTermination>> termination;
+  Future<Future<Option<ContainerTermination>>> termination;
   EXPECT_CALL(slave, executorTerminated(_, _, _))
     .WillOnce(FutureArg<2>(&termination));
 
@@ -287,7 +287,7 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
   // it gets the ACK for the terminal status update from agent.
   AWAIT_READY(termination);
   ASSERT_TRUE(termination.get().isReady());
-  EXPECT_EQ(0, termination.get().get().status());
+  EXPECT_EQ(0, termination.get().get().get().status());
 
   driver.stop();
   driver.join();

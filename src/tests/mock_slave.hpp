@@ -187,7 +187,8 @@ public:
   MOCK_METHOD3(executorTerminated, void(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const process::Future<mesos::slave::ContainerTermination>& termination));
+      const process::Future<Option<
+          mesos::slave::ContainerTermination>>& termination));
 
 private:
   Files files;
