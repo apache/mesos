@@ -36,7 +36,7 @@ class LocalPullerProcess;
 
 /**
  * LocalPuller assumes Docker images are stored in a local directory
- * (configured with flags.docker_local_archives_dir), with all the
+ * (configured with flags.docker_registry), with all the
  * images saved as tars with file names in the form of <repo>:<tag>.tar.
  */
 class LocalPuller : public Puller
