@@ -27,6 +27,7 @@
 #include <stout/format.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/raw/argv.hpp>
 
 namespace os {
 
@@ -133,6 +134,36 @@ inline int system(const std::string& command)
     // In child process.
     ::execlp(
         Shell::name, Shell::arg0, Shell::arg1, command.c_str(), (char*)nullptr);
+    ::exit(127);
+  } else {
+    // In parent process.
+    int status;
+    while (::waitpid(pid, &status, 0) == -1) {
+      if (errno != EINTR) {
+        return -1;
+      }
+    }
+
+    return status;
+  }
+}
+
+// Executes a command by calling "<command> <arguments...>", and
+// returns after the command has been completed. Returns 0 if
+// succeeds, and -1 on error (e.g., fork/exec/waitpid failed). This
+// function is async signal safe. We return int instead of returning a
+// Try because Try involves 'new', which is not async signal safe.
+inline int spawn(
+    const std::string& command,
+    const std::vector<std::string>& arguments)
+{
+  pid_t pid = ::fork();
+
+  if (pid == -1) {
+    return -1;
+  } else if (pid == 0) {
+    // In child process.
+    ::execvp(command.c_str(), os::raw::Argv(arguments));
     ::exit(127);
   } else {
     // In parent process.

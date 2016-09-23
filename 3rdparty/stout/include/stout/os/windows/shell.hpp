@@ -21,6 +21,8 @@
 
 #include <stout/try.hpp>
 
+#include <stout/os/raw/argv.hpp>
+
 namespace os {
 
 namespace Shell {
@@ -101,6 +103,17 @@ inline int system(const std::string& command)
 {
   return ::_spawnlp(
       _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str(), nullptr);
+}
+
+
+// Executes a command by calling "<command> <arguments...>", and
+// returns after the command has been completed. Returns 0 if
+// succeeds, and -1 on error.
+inline int spawn(
+    const std::string& command,
+    const std::vector<std::string>& arguments)
+{
+  return ::_spawnvp(_P_WAIT, command.c_str(), os::raw::Argv(arguments));
 }
 
 
