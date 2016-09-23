@@ -69,19 +69,25 @@ We categorize the changes as follows:
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
       <li>DC <a href="#1-0-x-executorinfo">ExecutorInfo.source</a></li>
       <li>N <a href="#1-0-x-v1-commandinfo">CommandInfo.URI output_file</a></li>
       <li>C <a href="#1-0-x-scheduler-proto">scheduler.proto optional fields</a></li>
       <li>C <a href="#1-0-x-executor-proto">executor.proto optional fields</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
-    <li>C <a href="#1-0-x-authorizer">Authorizer</a></li>
-    <li>C <a href="#1-0-x-allocator">Allocator</a></li>
+    <ul style="padding-left:10px;">
+      <li>C <a href="#1-0-x-authorizer">Authorizer</a></li>
+      <li>C <a href="#1-0-x-allocator">Allocator</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
-    <li>C <a href="#1-0-x-status-code">HTTP return codes</a></li>
-    <li>R <a href="#1-0-x-status-code">/observe</a></li>
-    <li>C <a href="#1-0-x-endpoint-authorization">Added authorization</a></li>
+    <ul style="padding-left:10px;">
+      <li>C <a href="#1-0-x-status-code">HTTP return codes</a></li>
+      <li>R <a href="#1-0-x-status-code">/observe</a></li>
+      <li>C <a href="#1-0-x-endpoint-authorization">Added authorization</a></li>
+    </ul>
   </td>
 </tr>
 <tr>
