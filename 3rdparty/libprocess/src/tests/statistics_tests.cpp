@@ -59,13 +59,13 @@ TEST(StatisticsTest, Statistics)
 
   EXPECT_EQ(11u, statistics.get().count);
 
-  EXPECT_FLOAT_EQ(-5.0, statistics.get().min);
-  EXPECT_FLOAT_EQ(5.0, statistics.get().max);
+  EXPECT_DOUBLE_EQ(-5.0, statistics.get().min);
+  EXPECT_DOUBLE_EQ(5.0, statistics.get().max);
 
-  EXPECT_FLOAT_EQ(0.0, statistics.get().p50);
-  EXPECT_FLOAT_EQ(4.0, statistics.get().p90);
-  EXPECT_FLOAT_EQ(4.5, statistics.get().p95);
-  EXPECT_FLOAT_EQ(4.9, statistics.get().p99);
-  EXPECT_FLOAT_EQ(4.99, statistics.get().p999);
-  EXPECT_FLOAT_EQ(4.999, statistics.get().p9999);
+  EXPECT_DOUBLE_EQ(0.0, statistics.get().p50);
+  EXPECT_DOUBLE_EQ(4.0, statistics.get().p90);
+  EXPECT_DOUBLE_EQ(4.5, statistics.get().p95);
+  EXPECT_DOUBLE_EQ(4.9, statistics.get().p99);
+  EXPECT_DOUBLE_EQ(4.99, statistics.get().p999);
+  EXPECT_DOUBLE_EQ(4.999, statistics.get().p9999);
 }
