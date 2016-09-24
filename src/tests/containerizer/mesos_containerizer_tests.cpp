@@ -140,6 +140,7 @@ public:
     }
 
     slave::Flags flags = CreateSlaveFlags();
+    flags.launcher = "posix";
 
     Try<Launcher*> launcher = PosixLauncher::create(flags);
     if (launcher.isError()) {
@@ -614,6 +615,7 @@ public:
 TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
@@ -682,6 +684,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
@@ -805,6 +808,7 @@ public:
 TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher_ = PosixLauncher::create(flags);
   ASSERT_SOME(launcher_);
@@ -899,6 +903,7 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher_ = PosixLauncher::create(flags);
   ASSERT_SOME(launcher_);
@@ -995,6 +1000,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher_ = PosixLauncher::create(flags);
   ASSERT_SOME(launcher_);
@@ -1105,6 +1111,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 {
   // Create a TestLauncher backed by PosixLauncher.
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher_ = PosixLauncher::create(flags);
   ASSERT_SOME(launcher_);
@@ -1241,6 +1248,7 @@ class MesosLauncherStatusTest : public MesosTest {};
 TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);

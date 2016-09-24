@@ -140,6 +140,7 @@ TEST_F(ContainerLoggerTest, MesosContainerizerRecover)
 {
   // Prepare a MesosContainerizer with a mocked container logger.
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
 
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
