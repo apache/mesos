@@ -330,9 +330,9 @@ decltype(strerror_s(buffer, length, errnum))
 // to guarantee that the return type is identical to whatever is in the Windows
 // implementation of the standard.
 inline auto write(int fd, const void* buffer, size_t count) ->
-decltype(_write(fd, buffer, count))
+decltype(_write(fd, buffer, static_cast<unsigned int>(count)))
 {
-  return _write(fd, buffer, count);
+  return _write(fd, buffer, static_cast<unsigned int>(count));
 }
 
 
