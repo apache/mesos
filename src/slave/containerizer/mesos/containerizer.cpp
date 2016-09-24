@@ -235,9 +235,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       return Error("Unknown or unsupported launcher: " + flags_.launcher);
     }
 #elif __WINDOWS__
-    // NOTE: Because the most basic launcher historically has been "posix", we
-    // accept this flag on Windows, but map it to the `WindowsLauncher`.
-    if (flags_.launcher != "posix" && flags_.launcher != "windows") {
+    if (flags_.launcher != "windows") {
       return Error("Unsupported launcher: " + flags_.launcher);
     }
 
