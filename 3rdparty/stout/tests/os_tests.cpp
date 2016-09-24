@@ -683,13 +683,18 @@ TEST_F(OsTest, User)
     strings::split(strings::trim(gids_.get(), strings::ANY, "\n"), " ");
 
   ASSERT_SOME(tokens);
+  std::sort(tokens.get().begin(), tokens.get().end());
 
   Try<vector<gid_t>> gids = os::getgrouplist(user.get());
   EXPECT_SOME(gids);
 
+  vector<string> expected_gids;
   for (int i = 0; i < gids.get().size(); i++) {
-    EXPECT_EQ(tokens.get()[i], stringify(gids.get()[i]));
+    expected_gids.push_back(stringify(gids.get()[i]));
   }
+  std::sort(expected_gids.begin(), expected_gids.end());
+
+  EXPECT_EQ(tokens.get(), expected_gids);
 
   EXPECT_SOME(os::setgid(gid.get()));
 
