@@ -398,32 +398,29 @@ decltype(_access(fileName, accessMode))
   return _access(fileName, accessMode);
 }
 
+
+#define SIGPIPE 100
+
 // `os::system` returns -1 if the processor cannot be started
 // therefore any return value indicates the process has been started
 #ifndef WIFEXITED
 #define WIFEXITED(x) ((x) != -1)
-#endif // WIFWXITED
+#endif // WIFEXITED
 
 // Returns the exit status of the child.
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(x) (x & 0xFF)
 #endif // WEXITSTATUS
 
-#define SIGPIPE 100
-
-// Specifies that `::waitpid` should return immediately rather than blocking
-// and waiting for child to notify of state change.
-#ifndef WNOHANG
-#define WNOHANG 1
-#endif // WNOHANG
-
 #ifndef WIFSIGNALED
 #define WIFSIGNALED(x) ((x) != -1)
 #endif // WIFSIGNALED
 
-#ifndef WUNTRACED
-#define WUNTRACED   2 // Tell about stopped, untraced children.
-#endif // WUNTRACED
+// Returns the number of the signal that caused the child process to
+// terminate, only be used if WIFSIGNALED is true.
+#ifndef WTERMSIG
+#define WTERMSIG(x) 0
+#endif // WTERMSIG
 
 // Whether the child produced a core dump, only be used if WIFSIGNALED is true.
 #ifndef WCOREDUMP
@@ -435,10 +432,19 @@ decltype(_access(fileName, accessMode))
 #define WIFSTOPPED(x) false
 #endif // WIFSTOPPED
 
-// Returns the number of the signals that caused the child process to terminate,
-// only be used if WIFSIGNALED is true.
-#ifndef WTERMSIG
-#define WTERMSIG(x) 0
-#endif // WTERMSIG
+// Whether the child was stopped by delivery of a signal.
+#ifndef WSTOPSIG
+#define WSTOPSIG(x) 0
+#endif // WSTOPSIG
+
+// Specifies that `::waitpid` should return immediately rather than
+// blocking and waiting for child to notify of state change.
+#ifndef WNOHANG
+#define WNOHANG 1
+#endif // WNOHANG
+
+#ifndef WUNTRACED
+#define WUNTRACED   2 // Tell about stopped, untraced children.
+#endif // WUNTRACED
 
 #endif // __STOUT_WINDOWS_HPP__
