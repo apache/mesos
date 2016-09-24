@@ -130,7 +130,7 @@ inline int spawn(
 template<typename... T>
 inline int execlp(const char* file, T... t)
 {
-  exit(static_cast<int>(::_spawnlp(_P_WAIT, file, t...));
+  exit(static_cast<int>(::_spawnlp(_P_WAIT, file, t...)));
   return 0;
 }
 
@@ -144,7 +144,7 @@ inline int execlp(const char* file, T... t)
 // `_P_WAIT` is used.
 inline int execvp(const char* file, char* const argv[])
 {
-  exit(static_cast<int>(::_spawnvp(_P_WAIT, file, argv));
+  exit(static_cast<int>(::_spawnvp(_P_WAIT, file, argv)));
   return 0;
 }
 
