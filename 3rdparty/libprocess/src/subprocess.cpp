@@ -79,8 +79,8 @@ Subprocess::ChildHook Subprocess::ChildHook::SETSID()
     // terminate when the parent terminates. We need to implement
     // `JobObject` support to change this default.
 #ifndef __WINDOWS__
-    // Put child into its own process session to prevent slave suicide
-    // on child process SIGKILL/SIGTERM.
+    // Put child into its own process session to prevent the parent
+    // suicide on child process SIGKILL/SIGTERM.
     if (::setsid() == -1) {
       return Error("Could not setsid");
     }
@@ -106,8 +106,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
 {
   return Subprocess::ChildHook([]() -> Try<Nothing> {
 #ifdef __linux__
-    // Send SIGTERM to the current process if the parent (i.e., the
-    // slave) exits.
+    // Send SIGTERM to the current process if the parent exits.
     // NOTE:: This function should always succeed because we are passing
     // in a valid signal.
     prctl(PR_SET_PDEATHSIG, SIGTERM);
@@ -120,8 +119,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
 
     // Install a SIGTERM handler which will kill the current process
     // group. Since we already setup the death signal above, the
-    // signal handler will be triggered when the parent (e.g., the
-    // slave) exits.
+    // signal handler will be triggered when the parent exits.
     if (os::signals::install(SIGTERM, &signalHandler) != 0) {
       return Error("Could not start supervisor process.");
     }
@@ -146,7 +144,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
       // the child process to finish.
 
       // Close the files to prevent interference on the communication
-      // between the slave and the child process.
+      // between the parent and the child process.
       ::close(STDIN_FILENO);
       ::close(STDOUT_FILENO);
       ::close(STDERR_FILENO);
