@@ -14,6 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
+#include <sys/wait.h>
+#endif // __WINDOWS__
+
 #include <set>
 
 #include <mesos/module/isolator.hpp>
@@ -112,6 +116,7 @@
 #include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 using process::collect;
@@ -706,9 +711,8 @@ Future<Nothing> MesosContainerizerProcess::__recover(
 
     Owned<Container> container(new Container());
 
-    Future<Option<int>> status = process::reap(run.pid());
-    status.onAny(defer(self(), &Self::reaped, containerId));
-    container->status = status;
+    container->status = reap(containerId, run.pid());
+    container->status->onAny(defer(self(), &Self::reaped, containerId));
 
     // We only checkpoint the containerizer pid after the container
     // successfully launched, therefore we can assume checkpointed
@@ -883,6 +887,24 @@ Future<bool> MesosContainerizerProcess::launch(
     const SlaveID& slaveId,
     bool checkpoint)
 {
+  // Before we launch the container, we first create the container
+  // runtime directory to hold internal checkpoint information about
+  // the container.
+  //
+  // NOTE: This is different than the checkpoint information requested
+  // by the agent via the `checkpoint` parameter. The containerizer
+  // itself uses the runtime directory created here to checkpoint
+  // state for internal use.
+  const string runtimePath =
+    containerizer::paths::getRuntimePath(flags.runtime_dir, containerId);
+
+  Try<Nothing> mkdir = os::mkdir(runtimePath);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to make the containerizer runtime directory"
+        " '" + runtimePath + "': " + mkdir.error());
+  }
+
   Owned<Container> container(new Container());
   container->state = PROVISIONING;
   container->config = containerConfig;
@@ -1242,6 +1264,18 @@ Future<bool> MesosContainerizerProcess::_launch(
 #endif // __WINDOWS
     launchFlags.pre_exec_commands = preExecCommands;
 
+#ifndef __WINDOWS__
+    // Set the `runtime_directory` launcher flag so that the launch
+    // helper knows where to checkpoint the status of the container
+    // once it exits.
+    const string runtimePath =
+      containerizer::paths::getRuntimePath(flags.runtime_dir, containerId);
+
+    CHECK(os::exists(runtimePath));
+
+    launchFlags.runtime_directory = runtimePath;
+#endif // __WINDOWS__
+
     VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
             << launchFlags << "'";
 
@@ -1268,7 +1302,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     }
     pid_t pid = forked.get();
 
-    // Checkpoint the executor's pid if requested.
+    // Checkpoint the forked pid if requested by the agent.
     if (checkpoint) {
       const string& path = slave::paths::getForkedPidPath(
           slave::paths::getMetaRootDir(flags.work_dir),
@@ -1277,26 +1311,48 @@ Future<bool> MesosContainerizerProcess::_launch(
           container->config.executor_info().executor_id(),
           containerId);
 
-      LOG(INFO) << "Checkpointing executor's forked pid " << pid
+      LOG(INFO) << "Checkpointing container's forked pid " << pid
                 << " to '" << path <<  "'";
 
       Try<Nothing> checkpointed =
         slave::state::checkpoint(path, stringify(pid));
 
       if (checkpointed.isError()) {
-        LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
+        LOG(ERROR) << "Failed to checkpoint container's forked pid to '"
                    << path << "': " << checkpointed.error();
 
-        return Failure("Could not checkpoint executor's pid");
+        return Failure("Could not checkpoint container's pid");
       }
     }
 
-    // Monitor the executor's pid. We keep the future because we'll
-    // refer to it again during container destroy.
-    Future<Option<int>> status = process::reap(pid);
-    status.onAny(defer(self(), &Self::reaped, containerId));
+    // Checkpoint the forked pid to the container runtime directory.
+    //
+    // NOTE: This checkpoint MUST happen after checkpointing the `pid`
+    // to the meta directory above. This ensures that there will never
+    // be a pid checkpointed to the container runtime directory until
+    // after it has been checkpointed in the agent's meta directory.
+    // By maintaining this invariant we know that the only way a `pid`
+    // could ever exist in the runtime directory and NOT in the agent
+    // meta directory is if the meta directory was wiped clean for
+    // some reason. As such, we know if we run into this situation
+    // that it is safe to treat the relevant containers as orphans and
+    // destroy them.
+    const string pidPath = path::join(
+        containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
+        containerizer::paths::PID_FILE);
 
-    container->status = status;
+    Try<Nothing> checkpointed =
+      slave::state::checkpoint(pidPath, stringify(pid));
+
+    if (checkpointed.isError()) {
+      return Failure("Failed to checkpoint the container pid to"
+                     " '" + pidPath + "': " + checkpointed.error());
+    }
+
+    // Monitor the forked process's pid. We keep the future because
+    // we'll refer to it again during container destroy.
+    container->status = reap(containerId, pid);
+    container->status->onAny(defer(self(), &Self::reaped, containerId));
 
     return isolate(containerId, pid)
       .then(defer(self(),
@@ -1825,9 +1881,70 @@ void MesosContainerizerProcess::_____destroy(
     termination.set_message(strings::join("; ", messages));
   }
 
-  container->termination.set(termination);
+  // Remove the runtime path for the container. Note that it is likely
+  // that the runtime path does not exist (e.g., legacy container). We
+  // should ignore the removal if that's the case.
+  const string runtimePath =
+    containerizer::paths::getRuntimePath(flags.runtime_dir, containerId);
 
+  if (os::exists(runtimePath)) {
+    Try<Nothing> rmdir = os::rmdir(runtimePath);
+    if (rmdir.isError()) {
+      LOG(WARNING) << "Failed to remove the runtime directory"
+                   << " for container " << containerId
+                   << ": " << rmdir.error();
+    }
+  }
+
+  container->termination.set(termination);
   containers_.erase(containerId);
+}
+
+
+Future<Option<int>> MesosContainerizerProcess::reap(
+    const ContainerID& containerId,
+    pid_t pid)
+{
+#ifdef __WINDOWS__
+  // We currently don't checkpoint the wait status on windows so
+  // just return the reaped status directly.
+  return process::reap(pid);
+#else
+  return process::reap(pid)
+    .then(defer(self(), [=](const Option<int>& status) -> Future<Option<int>> {
+      // Determine if we just reaped a legacy container or a
+      // non-legacy container. We do this by checking for the
+      // existence of the container runtime directory (which only
+      // exists for new (i.e. non-legacy) containers). If it is a
+      // legacy container, we simply forward the reaped exit status
+      // back to the caller.
+      const string runtimePath =
+        containerizer::paths::getRuntimePath(flags.runtime_dir, containerId);
+
+      if (!os::exists(runtimePath)) {
+        return status;
+      }
+
+      // If we are a non-legacy container, attempt to reap the
+      // container status from the checkpointed status file.
+      Result<int> containerStatus =
+        containerizer::paths::getContainerStatus(
+            flags.runtime_dir,
+            containerId);
+
+      if (containerStatus.isError()) {
+        return Failure("Failed to get container status: " +
+                       containerStatus.error());
+      } else if (containerStatus.isSome()) {
+        return containerStatus.get();
+      }
+
+      // If there isn't a container status file or it is empty, then the
+      // init process must have been interrupted by a SIGKILL before
+      // it had a chance to write the file. Return as such.
+      return W_EXITCODE(0, SIGKILL);
+    }));
+#endif // __WINDOWS__
 }
 
 

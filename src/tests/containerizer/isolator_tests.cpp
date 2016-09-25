@@ -357,12 +357,13 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   EXPECT_NE(stringify(testPidNamespace.get()),
             strings::trim(containerPidNamespace.get()));
 
-  // Check that 'sh' is the container's 'init' process.
-  // This verifies that /proc has been correctly mounted for the container.
+  // Check that the word 'mesos' is the part of the name for the
+  // container's 'init' process. This verifies that /proc has been
+  // correctly mounted for the container.
   Try<string> init = os::read(path::join(directory, "init"));
   ASSERT_SOME(init);
 
-  EXPECT_EQ("sh", strings::trim(init.get()));
+  EXPECT_TRUE(strings::contains(init.get(), "mesos"));
 }
 #endif // __linux__
 
