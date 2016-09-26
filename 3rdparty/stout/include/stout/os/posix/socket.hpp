@@ -20,6 +20,12 @@
 
 namespace net {
 
+// Import `socket` functions into `net::` namespace.
+using ::bind;
+using ::connect;
+using ::recv;
+using ::send;
+
 // The error indicates the last socket operation has been
 // interupted, the operation can be restarted imediately.
 inline bool is_restartable_error(int error)
