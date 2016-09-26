@@ -357,6 +357,7 @@ if (NOT WIN32)
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
     slave/containerizer/mesos/isolators/network/cni/paths.cpp
     slave/containerizer/mesos/isolators/network/cni/spec.cpp
+    slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
     )
 endif (NOT WIN32)
 
