@@ -266,7 +266,7 @@ Future<hashmap<string, double>> MetricsProcess::__snapshot(
     Option<Statistics<double>> statistics_ = statistics.get(key).get();
 
     if (statistics_.isSome()) {
-      snapshot[key + "/count"] = statistics_.get().count;
+      snapshot[key + "/count"] = static_cast<double>(statistics_.get().count);
       snapshot[key + "/min"] = statistics_.get().min;
       snapshot[key + "/max"] = statistics_.get().max;
       snapshot[key + "/p50"] = statistics_.get().p50;
