@@ -178,12 +178,15 @@ HealthCheckerProcess::HealthCheckerProcess(
 Future<Nothing> HealthCheckerProcess::healthCheck()
 {
   VLOG(1) << "Health check starting in "
-          << Seconds(check.delay_seconds()) << ", grace period "
-          << Seconds(check.grace_period_seconds());
+          << Seconds(static_cast<int64_t>(check.delay_seconds()))
+          << ", grace period "
+          << Seconds(static_cast<int64_t>(check.grace_period_seconds()));
 
   startTime = Clock::now();
 
-  delay(Seconds(check.delay_seconds()), self(), &Self::_healthCheck);
+  delay(Seconds(static_cast<int64_t>(check.delay_seconds())),
+        self(),
+        &Self::_healthCheck);
   return promise.future();
 }
 
@@ -340,7 +343,7 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
   }
 
   pid_t commandPid = external->pid();
-  Duration timeout = Seconds(check.timeout_seconds());
+  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
 
   return external->status()
     .after(timeout, [timeout, commandPid](Future<Option<int>> future) {
@@ -412,7 +415,7 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
   }
 
   pid_t curlPid = s->pid();
-  Duration timeout = Seconds(check.timeout_seconds());
+  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
 
   return await(
       s->status(),
@@ -523,7 +526,7 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
   }
 
   pid_t bashPid = s->pid();
-  Duration timeout = Seconds(check.timeout_seconds());
+  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
 
   return await(
       s->status(),
@@ -586,9 +589,11 @@ Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
 void HealthCheckerProcess::reschedule()
 {
   VLOG(1) << "Rescheduling health check in "
-          << Seconds(check.interval_seconds());
+          << Seconds(static_cast<int64_t>(check.interval_seconds()));
 
-  delay(Seconds(check.interval_seconds()), self(), &Self::_healthCheck);
+  delay(Seconds(static_cast<int64_t>(check.interval_seconds())),
+        self(),
+        &Self::_healthCheck);
 }
 
 
