@@ -73,7 +73,7 @@ void read(
       // error will be propagted out.
       // NOTE: We cast to `char*` here because the function prototypes on
       // Windows use `char*` instead of `void*`.
-      length = ::recv(fd, (char*) data, size, MSG_PEEK);
+      length = net::recv(fd, (char*) data, size, MSG_PEEK);
     }
 
 #ifdef __WINDOWS__

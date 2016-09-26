@@ -167,7 +167,7 @@ Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
   CHECK(size > 0);
 
   while (true) {
-    ssize_t length = send(socket.get(), data, size, MSG_NOSIGNAL);
+    ssize_t length = net::send(socket.get(), data, size, MSG_NOSIGNAL);
 
 #ifdef __WINDOWS__
     int error = WSAGetLastError();

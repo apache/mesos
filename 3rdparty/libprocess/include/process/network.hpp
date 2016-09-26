@@ -48,7 +48,7 @@ inline Try<Nothing> bind(int s, const Address& address)
   struct sockaddr_storage storage =
     net::createSockaddrStorage(address.ip, address.port);
 
-  if (::bind(s, (struct sockaddr*) &storage, address.size()) < 0) {
+  if (net::bind(s, (struct sockaddr*) &storage, address.size()) < 0) {
     return ErrnoError("Failed to bind on " + stringify(address));
   }
 
@@ -62,7 +62,7 @@ inline Try<Nothing, SocketError> connect(int s, const Address& address)
   struct sockaddr_storage storage =
     net::createSockaddrStorage(address.ip, address.port);
 
-  if (::connect(s, (struct sockaddr*) &storage, address.size()) < 0) {
+  if (net::connect(s, (struct sockaddr*) &storage, address.size()) < 0) {
     return SocketError("Failed to connect to " + stringify(address));
   }
 
