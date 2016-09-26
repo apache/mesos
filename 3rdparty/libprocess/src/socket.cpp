@@ -174,7 +174,7 @@ static Future<string> _recv(
                          chunk,
                          data,
                          lambda::_1));
-  } else if (size.get() > buffer->size()) {
+  } else if (static_cast<string::size_type>(size.get()) > buffer->size()) {
     // We've been asked to receive a particular amount of data and we
     // haven't yet received that much data so keep receiving.
     return socket.recv(data.get(), size.get() - buffer->size())
