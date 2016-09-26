@@ -172,7 +172,7 @@ private:
     decoder->request->method =
       http_method_str((http_method) decoder->parser.method);
 
-    decoder->request->keepAlive = http_should_keep_alive(&decoder->parser);
+    decoder->request->keepAlive = http_should_keep_alive(&decoder->parser) != 0;
 
     return 0;
   }
@@ -239,8 +239,10 @@ private:
         return 1;
       }
       decoder->request->body = decompressed.get();
+
+      CHECK_LE(decoder->request->body.length(), CHAR_MAX);
       decoder->request->headers["Content-Length"] =
-        decoder->request->body.length();
+        static_cast<char>(decoder->request->body.length());
     }
 
     decoder->requests.push_back(decoder->request);
@@ -430,8 +432,10 @@ private:
         return 1;
       }
       decoder->response->body = decompressed.get();
+
+      CHECK_LE(decoder->response->body.length(), CHAR_MAX);
       decoder->response->headers["Content-Length"] =
-        decoder->response->body.length();
+        static_cast<char>(decoder->response->body.length());
     }
 
     decoder->responses.push_back(decoder->response);

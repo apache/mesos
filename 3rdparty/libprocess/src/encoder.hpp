@@ -267,7 +267,7 @@ public:
   virtual int next(off_t* offset, size_t* length)
   {
     off_t temp = index;
-    index = size;
+    index = static_cast<off_t>(size);
     *offset = temp;
     *length = size - temp;
     return fd;
@@ -276,7 +276,7 @@ public:
   virtual void backup(size_t length)
   {
     if (index >= length) {
-      index -= length;
+      index -= static_cast<off_t>(length);
     }
   }
 
