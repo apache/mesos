@@ -60,7 +60,7 @@ public:
 private:
   friend class Clock;
 
-  Timer(long _id,
+  Timer(uint64_t _id,
         const Timeout& _t,
         const process::UPID& _pid,
         const lambda::function<void()>& _thunk)
