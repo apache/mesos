@@ -13,7 +13,7 @@
 #ifndef __STOUT_OS_WINDOWS_KILL_HPP__
 #define __STOUT_OS_WINDOWS_KILL_HPP__
 
-#include <logging/logging.hpp>
+#include <glog/logging.h>
 
 #include <stout/windows.hpp>
 #include <stout/windows/os.hpp>
