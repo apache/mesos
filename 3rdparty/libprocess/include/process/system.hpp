@@ -143,7 +143,7 @@ private:
   {
     Try<os::Memory> memory = os::memory();
     if (memory.isSome()) {
-      return memory.get().total.bytes();
+      return static_cast<double>(memory.get().total.bytes());
     }
     return Failure("Failed to get memory: " + memory.error());
   }
@@ -153,7 +153,7 @@ private:
   {
     Try<os::Memory> memory = os::memory();
     if (memory.isSome()) {
-      return memory.get().free.bytes();
+      return static_cast<double>(memory.get().free.bytes());
     }
     return Failure("Failed to get memory: " + memory.error());
   }
