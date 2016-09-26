@@ -34,6 +34,7 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/os.hpp>
+#include <stout/os/process.hpp>
 #include <stout/os/read.hpp>
 
 #include <stout/os/raw/environment.hpp>
