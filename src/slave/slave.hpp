@@ -641,7 +641,7 @@ private:
   // Gauge methods.
   double _frameworks_active()
   {
-    return frameworks.size();
+    return static_cast<double>(frameworks.size());
   }
 
   double _uptime_secs()
