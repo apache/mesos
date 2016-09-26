@@ -494,7 +494,6 @@ Future<bool> MesosContainerizer::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const Resources& resources,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId)
@@ -504,7 +503,6 @@ Future<bool> MesosContainerizer::launch(
       const ContainerID&,
       const CommandInfo&,
       const Option<ContainerInfo>&,
-      const Resources&,
       const string&,
       const Option<string>&,
       const SlaveID&) = &MesosContainerizerProcess::launch;
@@ -514,7 +512,6 @@ Future<bool> MesosContainerizer::launch(
                   containerId,
                   commandInfo,
                   containerInfo,
-                  resources,
                   directory,
                   user,
                   slaveId);
@@ -1466,7 +1463,6 @@ Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const Resources& resources,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId)
@@ -1482,7 +1478,6 @@ Future<bool> MesosContainerizerProcess::launch(
 
   ContainerConfig containerConfig;
   containerConfig.mutable_command_info()->CopyFrom(commandInfo);
-  containerConfig.mutable_resources()->CopyFrom(resources);
   containerConfig.set_directory(directory);
 
   if (user.isSome()) {

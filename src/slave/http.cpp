@@ -1925,7 +1925,6 @@ Future<Response> Slave::Http::launchNestedContainer(
       call.launch_nested_container().has_container()
         ? call.launch_nested_container().container()
         : Option<ContainerInfo>::none(),
-      call.launch_nested_container().resources(),
       os::temp(),
       None(),
       slave->info.id());

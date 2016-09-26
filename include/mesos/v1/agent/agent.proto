@@ -108,9 +108,6 @@ message Call {
 
     optional CommandInfo command = 2;
     optional ContainerInfo container = 3;
-
-    // TODO(bmahler): Are there requirements on providing resources?
-    repeated Resource resources = 4;
   }
 
   // Waits for the nested container to terminate and receives the exit status.

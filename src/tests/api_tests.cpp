@@ -3345,7 +3345,7 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
   containerId.set_value(UUID::random().toString());
 
   {
-    EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _, _, _))
+    EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _, _))
       .WillOnce(Return(Future<bool>(true)));
 
     v1::agent::Call call;
