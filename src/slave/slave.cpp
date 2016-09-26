@@ -3616,6 +3616,22 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
     return;
   }
 
+  if (update.slave_id() != info.id()) {
+    LOG(WARNING) << "Ignoring status update " << update << " due to "
+                 << "Slave ID mismatch; expected '" << info.id()
+                 << "', received '" << update.slave_id() << "'";
+    metrics.invalid_status_updates++;
+    return;
+  }
+
+  if (update.status().slave_id() != info.id()) {
+    LOG(WARNING) << "Ignoring status update " << update << " due to "
+                 << "Slave ID mismatch; expected '" << info.id()
+                 << "', received '" << update.status().slave_id() << "'";
+    metrics.invalid_status_updates++;
+    return;
+  }
+
   // TODO(bmahler): With the HTTP API, we must validate the UUID
   // inside the TaskStatus. For now, we ensure that the uuid of task
   // status matches the update's uuid, in case the executor is using

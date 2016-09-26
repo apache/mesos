@@ -172,11 +172,17 @@ StatusUpdate createStatusUpdate(
     update.mutable_executor_id()->MergeFrom(status.executor_id());
   }
 
+  update.mutable_status()->MergeFrom(status);
+
   if (slaveId.isSome()) {
     update.mutable_slave_id()->MergeFrom(slaveId.get());
-  }
 
-  update.mutable_status()->MergeFrom(status);
+    // We also populate `TaskStatus.slave_id` if the executor
+    // did not set it.
+    if (!status.has_slave_id()) {
+      update.mutable_status()->mutable_slave_id()->MergeFrom(slaveId.get());
+    }
+  }
 
   if (!status.has_timestamp()) {
     update.set_timestamp(process::Clock::now().secs());

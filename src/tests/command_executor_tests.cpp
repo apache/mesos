@@ -185,7 +185,7 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "sleep 1000");
+       "sleep 1000");
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -294,6 +294,82 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
 
   terminate(slave);
   wait(slave);
+}
+
+
+// This test ensures that driver based schedulers using explicit
+// acknowledgements can acknowledge status updates sent from
+// HTTP based executors.
+TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = true;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      false,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Launch a task with the command executor.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "sleep 1000");
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  // Ensure no status update acknowledgements are sent from the driver
+  // to the master until the explicit acknowledgement is sent.
+  EXPECT_NO_FUTURE_CALLS(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _ ,
+      master.get()->pid);
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_TRUE(statusRunning->has_slave_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Now send the acknowledgement.
+  Future<mesos::scheduler::Call> acknowledgement = FUTURE_CALL(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _,
+      master.get()->pid);
+
+  driver.acknowledgeStatusUpdate(statusRunning.get());
+
+  AWAIT_READY(acknowledgement);
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {
