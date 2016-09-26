@@ -69,7 +69,7 @@ inline Try<double> usage(const std::string& path = "/")
         "Error invoking 'GetDiskFreeSpaceEx' on '" + path + "'");
   }
 
-  double used = total_bytes.QuadPart - free_bytes.QuadPart;
+  double used = static_cast<double>(total_bytes.QuadPart - free_bytes.QuadPart);
   return used / total_bytes.QuadPart;
 }
 
