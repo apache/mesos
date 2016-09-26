@@ -199,7 +199,8 @@ bool exists()
     const Result<string> realpath = os::realpath("/sbin/init");
     if (realpath.isError() || realpath.isNone()) {
       LOG(WARNING) << "Failed to test /sbin/init for systemd environment: "
-                   << realpath.error();
+                   << (realpath.isError() ? realpath.error()
+                                          : "does not exist");
 
       return false;
     }
