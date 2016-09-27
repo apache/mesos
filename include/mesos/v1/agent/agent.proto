@@ -100,12 +100,7 @@ message Call {
 
   // Launches a nested container within an executor's tree of containers.
   message LaunchNestedContainer {
-    // The user is responsible for generating a new 'container_id.value'
-    // which must be an RFC-4122 Version 4 UUID (in canonical string form)
-    // and the 'container_id.parent' must be set to determine under which
-    // container to nest the new container.
     required ContainerID container_id = 1;
-
     optional CommandInfo command = 2;
     optional ContainerInfo container = 3;
   }

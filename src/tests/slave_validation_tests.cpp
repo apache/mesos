@@ -37,6 +37,53 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+TEST(AgentValidationTest, ContainerID)
+{
+  ContainerID containerId;
+  Option<Error> error;
+
+  // No empty IDs.
+  containerId.set_value("");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // No slashes.
+  containerId.set_value("/");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  containerId.set_value("\\");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // No spaces.
+  containerId.set_value(" ");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // No periods.
+  containerId.set_value(".");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // Valid.
+  containerId.set_value("redis");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_NONE(error);
+
+  // Valid with invalid parent (empty `ContainerID.value`).
+  containerId.set_value("backup");
+  containerId.mutable_parent();
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // Valid with valid parent.
+  containerId.set_value("backup");
+  containerId.mutable_parent()->set_value("redis");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_NONE(error);
+}
+
 
 TEST(AgentCallValidationTest, LaunchNestedContainer)
 {
@@ -47,9 +94,9 @@ TEST(AgentCallValidationTest, LaunchNestedContainer)
   Option<Error> error = validation::agent::call::validate(call);
   EXPECT_SOME(error);
 
-  // `container_id` is not a valid RFC-4122 Version 4 UUID.
+  // `container_id` is not valid.
   ContainerID badContainerId;
-  badContainerId.set_value("not-a-uuid");
+  badContainerId.set_value("no spaces allowed");
 
   agent::Call::LaunchNestedContainer* launch =
     call.mutable_launch_nested_container();
@@ -77,7 +124,7 @@ TEST(AgentCallValidationTest, LaunchNestedContainer)
   error = validation::agent::call::validate(call);
   EXPECT_NONE(error);
 
-  // Not expecting a `container_id.parent.parent`.
+  // Any number of parents is valid.
   ContainerID grandparentContainerId;
   grandparentContainerId.set_value(UUID::random().toString());
 
@@ -85,7 +132,7 @@ TEST(AgentCallValidationTest, LaunchNestedContainer)
     ->CopyFrom(grandparentContainerId);
 
   error = validation::agent::call::validate(call);
-  EXPECT_SOME(error);
+  EXPECT_NONE(error);
 }
 
 
@@ -98,7 +145,7 @@ TEST(AgentCallValidationTest, WaitNestedContainer)
   Option<Error> error = validation::agent::call::validate(call);
   EXPECT_SOME(error);
 
-  // Test the valid case.
+  // Expecting a `container_id.parent`.
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
@@ -108,16 +155,16 @@ TEST(AgentCallValidationTest, WaitNestedContainer)
   wait->mutable_container_id()->CopyFrom(containerId);
 
   error = validation::agent::call::validate(call);
-  EXPECT_NONE(error);
+  EXPECT_SOME(error);
 
-  // Not expecting a `container_id.parent`.
+  // Test the valid case.
   ContainerID parentContainerId;
   parentContainerId.set_value(UUID::random().toString());
 
   wait->mutable_container_id()->mutable_parent()->CopyFrom(containerId);
 
   error = validation::agent::call::validate(call);
-  EXPECT_SOME(error);
+  EXPECT_NONE(error);
 }
 
 
@@ -130,7 +177,7 @@ TEST(AgentCallValidationTest, KillNestedContainer)
   Option<Error> error = validation::agent::call::validate(call);
   EXPECT_SOME(error);
 
-  // Test the valid case.
+  // Expecting a `container_id.parent`.
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
@@ -140,16 +187,16 @@ TEST(AgentCallValidationTest, KillNestedContainer)
   kill->mutable_container_id()->CopyFrom(containerId);
 
   error = validation::agent::call::validate(call);
-  EXPECT_NONE(error);
+  EXPECT_SOME(error);
 
-  // Not expecting a `container_id.parent`.
+  // Test the valid case.
   ContainerID parentContainerId;
   parentContainerId.set_value(UUID::random().toString());
 
   kill->mutable_container_id()->mutable_parent()->CopyFrom(containerId);
 
   error = validation::agent::call::validate(call);
-  EXPECT_SOME(error);
+  EXPECT_NONE(error);
 }
 
 } // namespace tests {

@@ -1917,6 +1917,14 @@ Future<Response> Slave::Http::launchNestedContainer(
   const ContainerID& containerId =
     call.launch_nested_container().container_id();
 
+  // We do not yet support launching containers that are nested
+  // two levels beneath the executor's container.
+  if (containerId.parent().has_parent()) {
+    return NotImplemented(
+        "Only a single level of container nesting is supported currently,"
+        " but 'launch_nested_container.container_id.parent.parent' is set");
+  }
+
   // TODO(gilbert): The sandbox directory and user are incorrect,
   // Please update it.
   Future<bool> launched = slave->containerizer->launch(

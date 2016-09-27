@@ -29,6 +29,12 @@ namespace internal {
 namespace slave {
 namespace validation {
 
+namespace container {
+
+Option<Error> validateContainerId(const ContainerID& containerId);
+
+} // namespace container {
+
 namespace agent {
 namespace call {
 

@@ -75,6 +75,7 @@ using process::Promise;
 
 using process::http::Accepted;
 using process::http::NotFound;
+using process::http::NotImplemented;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
@@ -3242,6 +3243,7 @@ TEST_P(AgentAPITest, NestedContainerWaitNotFound)
 
     v1::ContainerID unknownContainerId;
     unknownContainerId.set_value(UUID::random().toString());
+    unknownContainerId.mutable_parent()->set_value(UUID::random().toString());
 
     call.mutable_wait_nested_container()->mutable_container_id()
       ->CopyFrom(unknownContainerId);
@@ -3296,6 +3298,7 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
 
     v1::ContainerID unknownContainerId;
     unknownContainerId.set_value(UUID::random().toString());
+    unknownContainerId.mutable_parent()->set_value(UUID::random().toString());
 
     call.mutable_kill_nested_container()->mutable_container_id()
       ->CopyFrom(unknownContainerId);
@@ -3314,6 +3317,49 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
   // remaining containers by inspecting the result of `containers()`.
   EXPECT_CALL(mockContainerizer, containers())
     .WillRepeatedly(Return(hashset<ContainerID>()));
+}
+
+
+TEST_P(AgentAPITest, NestedContainerLaunchGrandchildNotSupported)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Try to launch a grandchild container.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(UUID::random().toString());
+  containerId.mutable_parent()->mutable_parent()
+    ->set_value(UUID::random().toString());
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER);
+
+    call.mutable_launch_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotImplemented().status, response);
+  }
 }
 
 
@@ -3343,6 +3389,7 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
   // Launch a nested container and wait for it to finish.
   v1::ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(UUID::random().toString());
 
   {
     EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _, _))
@@ -3353,9 +3400,6 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
 
     call.mutable_launch_nested_container()->mutable_container_id()
       ->CopyFrom(containerId);
-
-    call.mutable_launch_nested_container()->mutable_container_id()
-      ->mutable_parent()->set_value(UUID::random().toString());
 
     Future<Response> response = process::http::post(
       slave.get()->pid,
