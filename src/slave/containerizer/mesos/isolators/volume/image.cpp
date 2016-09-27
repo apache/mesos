@@ -62,6 +62,12 @@ VolumeImageIsolatorProcess::VolumeImageIsolatorProcess(
 VolumeImageIsolatorProcess::~VolumeImageIsolatorProcess() {}
 
 
+bool VolumeImageIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Try<Isolator*> VolumeImageIsolatorProcess::create(
     const Flags& flags,
     const Shared<Provisioner>& provisioner)
@@ -77,21 +83,19 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  const ExecutorInfo& executorInfo = containerConfig.executor_info();
-
-  if (!executorInfo.has_container()) {
+  if (!containerConfig.has_container_info()) {
     return None();
   }
 
-  if (executorInfo.container().type() != ContainerInfo::MESOS) {
+  if (containerConfig.container_info().type() != ContainerInfo::MESOS) {
     return Failure("Can only prepare image volumes for a MESOS container");
   }
 
   vector<string> targets;
   list<Future<ProvisionInfo>> futures;
 
-  for (int i = 0; i < executorInfo.container().volumes_size(); i++) {
-    const Volume& volume = executorInfo.container().volumes(i);
+  for (int i = 0; i < containerConfig.container_info().volumes_size(); i++) {
+    const Volume& volume = containerConfig.container_info().volumes(i);
 
     if (!volume.has_image()) {
       continue;
