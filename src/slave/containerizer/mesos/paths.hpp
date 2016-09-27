@@ -82,6 +82,12 @@ Result<int> getContainerStatus(
 Try<std::vector<ContainerID>> getContainerIds(
     const std::string& runtimeDir);
 
+
+// The helper method to get the sandbox path.
+std::string getSandboxPath(
+    const std::string& rootSandboxPath,
+    const ContainerID& containerId);
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {

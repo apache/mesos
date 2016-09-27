@@ -180,6 +180,19 @@ Try<vector<ContainerID>> getContainerIds(const string& runtimeDir)
   return helper(None());
 }
 
+
+string getSandboxPath(
+    const string& rootSandboxPath,
+    const ContainerID& containerId)
+{
+  return containerId.has_parent()
+    ? path::join(
+        getSandboxPath(rootSandboxPath, containerId.parent()),
+        "containers",
+        containerId.value())
+    : rootSandboxPath;
+}
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
