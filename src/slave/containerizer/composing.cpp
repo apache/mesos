@@ -32,6 +32,8 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/composing.hpp"
 
+#include "slave/containerizer/mesos/utils.hpp"
+
 using namespace process;
 
 using std::list;
@@ -70,6 +72,14 @@ public:
       const map<string, string>& environment,
       bool checkpoint);
 
+  Future<bool> launch(
+      const ContainerID& containerId,
+      const CommandInfo& commandInfo,
+      const Option<ContainerInfo>& containerInfo,
+      const string& directory,
+      const Option<string>& user,
+      const SlaveID& slaveId);
+
   Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resources);
@@ -105,6 +115,10 @@ private:
       const map<string, string>& environment,
       bool checkpoint,
       vector<Containerizer*>::iterator containerizer,
+      bool launched);
+
+  Future<bool> _launch(
+      const ContainerID& containerId,
       bool launched);
 
   vector<Containerizer*> containerizers_;
@@ -181,6 +195,25 @@ Future<bool> ComposingContainerizer::launch(
                   slaveId,
                   environment,
                   checkpoint);
+}
+
+
+Future<bool> ComposingContainerizer::launch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId)
+{
+  return dispatch(process,
+                  &ComposingContainerizerProcess::launch,
+                  containerId,
+                  commandInfo,
+                  containerInfo,
+                  directory,
+                  user,
+                  slaveId);
 }
 
 
@@ -405,6 +438,72 @@ Future<bool> ComposingContainerizerProcess::launch(
                 checkpoint,
                 containerizer,
                 lambda::_1));
+}
+
+
+Future<bool> ComposingContainerizerProcess::launch(
+          const ContainerID& containerId,
+          const CommandInfo& commandInfo,
+          const Option<ContainerInfo>& containerInfo,
+          const std::string& directory,
+          const Option<std::string>& user,
+          const SlaveID& slaveId)
+{
+  ContainerID rootContainerId = getRootContainerId(containerId);
+
+  if (!containers_.contains(rootContainerId)) {
+    return Failure(
+        "Root container '" + rootContainerId.value() + "' not found");
+  }
+
+  // Use the containerizer that launched the root container to launch
+  // the nested container.
+  Containerizer* containerizer = containers_.at(rootContainerId)->containerizer;
+
+  Container* container = new Container();
+  container->state = LAUNCHING;
+  container->containerizer = containerizer;
+  containers_[containerId] = container;
+
+  return containerizer->launch(
+      containerId,
+      commandInfo,
+      containerInfo,
+      directory,
+      user,
+      slaveId)
+    .then(defer(self(),
+                &Self::_launch,
+                containerId,
+                lambda::_1));
+}
+
+
+Future<bool> ComposingContainerizerProcess::_launch(
+          const ContainerID& containerId,
+          bool launched)
+{
+  // The container struct will not be cleaned up by destroy
+  // when the container is in the LAUNCHING state.
+  CHECK(containers_.contains(containerId));
+  Container* container = containers_.at(containerId);
+
+  // A destroy arrived in the interim.
+  if (container->state == DESTROYING) {
+    container->destroyed.set(true);
+    containers_.erase(containerId);
+    delete container;
+    return Failure("Container was destroyed while launching");
+  }
+
+  if (launched) {
+    container->state = LAUNCHED;
+    return true;
+  } else {
+    containers_.erase(containerId);
+    delete container;
+    return false;
+  }
 }
 
 

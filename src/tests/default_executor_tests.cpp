@@ -17,6 +17,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <string>
+
 #include <mesos/v1/executor.hpp>
 #include <mesos/v1/scheduler.hpp>
 
@@ -35,6 +37,10 @@ using mesos::v1::scheduler::Mesos;
 using process::Future;
 using process::Owned;
 
+using std::string;
+
+using testing::WithParamInterface;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -42,10 +48,20 @@ namespace tests {
 // Tests that exercise the default executor implementation
 // should be located in this file.
 
-class DefaultExecutorTest : public MesosTest {};
+class DefaultExecutorTest
+  : public MesosTest,
+    public WithParamInterface<string> {};
+
+
+// These tests are parameterized by the containerizers enabled on the agent.
+INSTANTIATE_TEST_CASE_P(
+    Containterizers,
+    DefaultExecutorTest,
+    ::testing::Values("mesos", "docker,mesos"));
+
 
 // This test verifies that the default executor can launch a task group.
-TEST_F(DefaultExecutorTest, TaskRunning)
+TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -66,6 +82,7 @@ TEST_F(DefaultExecutorTest, TaskRunning)
   // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
   flags.authenticate_http_readwrite = false;
+  flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -156,7 +173,7 @@ TEST_F(DefaultExecutorTest, TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_F(DefaultExecutorTest, KillTask)
+TEST_P(DefaultExecutorTest, ROOT_KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -177,6 +194,7 @@ TEST_F(DefaultExecutorTest, KillTask)
   // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
   flags.authenticate_http_readwrite = false;
+  flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
