@@ -52,13 +52,17 @@ message ContainerLimitation {
  * any dependency on RunState and in turn on internal protobufs.
  */
 message ContainerState {
-  required ExecutorInfo executor_info = 1;
+  // This field only exists for top level containers.
+  optional ExecutorInfo executor_info = 1;
 
-  // Container id of the last executor run.
+  // The container Id.
   required ContainerID container_id = 2;
 
-  required uint64 pid = 3;            // Executor pid.
-  required string directory = 4;      // Executor work directory.
+  // The pid of the init process in the container.
+  required uint64 pid = 3;
+
+  // The sandbox directory.
+  required string directory = 4;
 }
 
 
