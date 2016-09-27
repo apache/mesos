@@ -49,6 +49,7 @@ namespace slave {
 // Forward declaration.
 class MesosContainerizerProcess;
 
+
 class MesosContainerizer : public Containerizer
 {
 public:
@@ -182,11 +183,6 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
-  // Made public for testing.
-  void ___recover(
-      const ContainerID& containerId,
-      const process::Future<std::list<process::Future<Nothing>>>& future);
-
 private:
   enum State
   {
@@ -301,6 +297,16 @@ private:
 
     // Promise for futures returned from wait().
     process::Promise<mesos::slave::ContainerTermination> termination;
+
+    // NOTE: this represents 'PID 1', i.e., the "init" of the
+    // container that we created (it may be for an executor, or any
+    // arbitrary process that has been launched in the event of nested
+    // containers).
+    Option<pid_t> pid;
+
+    // Sandbox directory for the container. It is optional here because
+    // we don't keep track of sandbox directory for orphan containers.
+    Option<std::string> directory;
 
     // We keep track of the future exit status for the container if it
     // has been launched. If the container has not been launched yet,
