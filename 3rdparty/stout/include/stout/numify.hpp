@@ -50,7 +50,17 @@ Try<T> numify(const std::string& s)
         if (strings::startsWith(s, "-")) {
           ss << std::hex << s.substr(1);
           ss >> result;
+          // Note: When numify is instantiated with unsigned scalars
+          // the expected behaviour is as follow:
+          // numify<T>("-1") == std::numeric_limits<T>::max();
+          // Disabled unary negation warning for all types.
+#ifdef __WINDOWS__
+          #pragma warning(disable:4146)
+#endif
           result = -result;
+#ifdef __WINDOWS__
+          #pragma warning(default:4146)
+#endif
         } else {
           ss << std::hex << s;
           ss >> result;
