@@ -39,6 +39,7 @@
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"
+#include "common/status_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -91,13 +92,25 @@ public:
   void connected()
   {
     state = CONNECTED;
+    connectionId = UUID::random();
 
     doReliableRegistration();
   }
 
   void disconnected()
   {
+    LOG(INFO) << "Disconnected from agent";
+
     state = DISCONNECTED;
+    connectionId = None();
+
+    // Disconnect all active connections used for waiting on child
+    // containers.
+    foreach (Connection connection, waiting.values()) {
+      connection.disconnect();
+    }
+
+    waiting.clear();
   }
 
   void received(const Event& event)
@@ -114,6 +127,13 @@ public:
 
         CHECK(event.subscribed().has_container_id());
         executorContainerId = event.subscribed().container_id();
+
+        // It is possible that the agent process had failed after we
+        // had launched the child containers. We can resume waiting on the
+        // child containers again.
+        if (launched) {
+          wait();
+        }
 
         break;
       }
@@ -371,8 +391,201 @@ protected:
       << stringify(containers.keys()) << " for tasks "
       << stringify(containers.values());
 
-    // TODO(anand): We need to wait for the tasks via the
-    // `WAIT_NESTED_CONTAINERS` call.
+    wait();
+  }
+
+  void wait()
+  {
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK(launched);
+    CHECK_SOME(connectionId);
+
+    list<Future<Connection>> connections;
+    for (size_t i = 0; i < containers.size(); i++) {
+      connections.push_back(process::http::connect(agent));
+    }
+
+    process::collect(connections)
+      .onAny(defer(self(), &Self::_wait, lambda::_1, connectionId.get()));
+  }
+
+  void _wait(
+      const Future<list<Connection>>& _connections,
+      const UUID& _connectionId)
+  {
+    // It is possible that the agent process failed in the interim.
+    // We would resume waiting on the child containers once we
+    // subscribe again with the agent.
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring the wait operation from stale connection";
+      return;
+    }
+
+    if (!_connections.isReady()) {
+      LOG(ERROR)
+        << "Unable to establish connection with the agent: "
+        << (_connections.isFailed() ? _connections.failure() : "discarded");
+      __shutdown();
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK_SOME(connectionId);
+
+    list<Connection> connections = _connections.get();
+    CHECK_EQ(containers.size(), connections.size());
+
+    foreach (const ContainerID& containerId, containers.keys()) {
+      CHECK(!waiting.contains(containerId));
+
+      __wait(connectionId.get(),
+             connections.front(),
+             containers[containerId],
+             containerId);
+
+      connections.pop_front();
+    }
+  }
+
+  void __wait(
+      const UUID& _connectionId,
+      const Connection& connection,
+      const TaskID& taskId,
+      const ContainerID& containerId)
+  {
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring the wait operation from a stale connection";
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK_SOME(connectionId);
+    CHECK(!waiting.contains(containerId));
+
+    LOG(INFO) << "Waiting for child container " << containerId
+              << " of task '" << taskId << "'";
+
+    waiting.put(containerId, connection);
+
+    agent::Call call;
+    call.set_type(agent::Call::WAIT_NESTED_CONTAINER);
+
+    agent::Call::WaitNestedContainer* containerWait =
+      call.mutable_wait_nested_container();
+
+    containerWait->mutable_container_id()->CopyFrom(containerId);
+
+    Future<Response> response = post(connection, call);
+    response
+      .onAny(defer(self(),
+                   &Self::waited,
+                   connectionId.get(),
+                   connection,
+                   taskId,
+                   containerId,
+                   lambda::_1));
+  }
+
+  void waited(
+      const UUID& _connectionId,
+      Connection connection,
+      const TaskID& taskId,
+      const ContainerID& containerId,
+      const Future<Response>& response)
+  {
+    // It is possible that this callback executed after the agent process
+    // failed in the interim. We can resume waiting on the child containers
+    // once we subscribe again with the agent.
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring the waited callback from a stale connection";
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK(waiting.contains(containerId));
+    CHECK(waiting.get(containerId) == connection);
+
+    auto retry_ = [this, connection, taskId, containerId]() mutable {
+      connection.disconnect();
+      waiting.erase(containerId);
+      retry(connectionId.get(), taskId, containerId);
+    };
+
+    // It is possible that the response failed due to a network blip
+    // rather than the agent process failing. In that case, reestablish
+    // the connection.
+    if (!response.isReady()) {
+      LOG(ERROR)
+        << "Connection for waiting on child container "
+        << containerId << " of task '" << taskId << "' interrupted: "
+        << (response.isFailed() ? response.failure() : "discarded");
+      retry_();
+      return;
+    }
+
+    // It is possible that the agent was still recovering when we
+    // subscribed again after an agent process failure and started to
+    // wait for the child container. In that case, reestablish
+    // the connection.
+    if (response->code == process::http::Status::SERVICE_UNAVAILABLE) {
+      LOG(WARNING) << "Received '" << response->status << "' ("
+                   << response->body << ") waiting on child container "
+                   << containerId << " of task '" << taskId << "'";
+      retry_();
+      return;
+    }
+
+    // Check if we receive a 200 OK response for the `WAIT_NESTED_CONTAINER`
+    // calls. Shutdown the executor otherwise.
+    if (response->code != process::http::Status::OK) {
+      LOG(ERROR) << "Received '" << response->status << "' ("
+                 << response->body << ") waiting on child container "
+                 << containerId << " of task '" << taskId << "'";
+      __shutdown();
+      return;
+    }
+
+    Try<agent::Response> waitResponse =
+      deserialize<agent::Response>(contentType, response->body);
+    CHECK_SOME(waitResponse);
+
+    TaskState taskState;
+    Option<string> message;
+
+    Option<int> status = waitResponse->wait_nested_container().exit_status();
+
+    if (status.isNone()) {
+      taskState = TASK_FAILED;
+    } else {
+      CHECK(WIFEXITED(status.get()) || WIFSIGNALED(status.get()))
+        << status.get();
+
+      if (WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0) {
+        taskState = TASK_FINISHED;
+      } else if (shuttingDown) {
+        // Send TASK_KILLED if the task was killed as a result of
+        // `killTask()` or `shutdown()`.
+        taskState = TASK_KILLED;
+      } else {
+        taskState = TASK_FAILED;
+      }
+
+      message = "Command " + WSTRINGIFY(status.get());
+    }
+
+    update(taskId, taskState, message);
+
+    LOG(INFO) << "Successfully waited for child container " << containerId
+              << " of task '" << taskId << "'"
+              << " in state " << stringify(taskState);
+
+    CHECK(containers.contains(containerId));
+    containers.erase(containerId);
+
+    // Shutdown the executor if all the active child containers have terminated.
+    if (containers.empty()) {
+      __shutdown();
+    }
   }
 
   void shutdown()
@@ -558,6 +771,81 @@ private:
     return connection.send(request);
   }
 
+  void retry(
+      const UUID& _connectionId,
+      const TaskID& taskId,
+      const ContainerID& containerId)
+  {
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring retry attempt from a stale connection";
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+
+    process::http::connect(agent)
+      .onAny(defer(self(),
+                   &Self::_retry,
+                   lambda::_1,
+                   connectionId.get(),
+                   taskId,
+                   containerId));
+  }
+
+  void _retry(
+      const Future<Connection>& connection,
+      const UUID& _connectionId,
+      const TaskID& taskId,
+      const ContainerID& containerId)
+  {
+    const Duration duration = Seconds(1);
+
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring retry attempt from a stale connection";
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK_SOME(connectionId);
+
+    if (!connection.isReady()) {
+      LOG(ERROR)
+        << "Unable to establish connection with the agent ("
+        << (connection.isFailed() ? connection.failure() : "discarded")
+        << ") for waiting on child container " << containerId
+        << " of task '" << taskId << "'; Retrying again in " << duration;
+
+      process::delay(
+          duration,
+          self(),
+          &Self::retry,
+          connectionId.get(),
+          taskId,
+          containerId);
+
+      return;
+    }
+
+    LOG(INFO)
+      << "Established connection to wait for child container " << containerId
+      << " of task '" << taskId << "'; Retrying the WAIT_NESTED_CONTAINER call "
+      << "in " << duration;
+
+    // It is possible that we were able to reestablish the connection
+    // but the agent might still be recovering. To avoid the vicious
+    // cycle i.e., the `WAIT_NESTED_CONTAINER` call failing immediately
+    // with a '503 SERVICE UNAVAILABLE' followed by retrying establishing
+    // the connection again, we wait before making the call.
+    process::delay(
+        duration,
+        self(),
+        &Self::__wait,
+        connectionId.get(),
+        connection.get(),
+        taskId,
+        containerId);
+  }
+
   enum State
   {
     CONNECTED,
@@ -576,7 +864,24 @@ private:
   const ::URL agent; // Agent API URL.
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
+
+  // TODO(anand): Consider creating a `Container` struct to manage
+  // information about an active container and its waiting connection.
+
   LinkedHashMap<ContainerID, TaskID> containers; // Active child containers.
+
+  // Connections used for waiting on child containers. A child container
+  // can be active and present in `containers` but not present
+  // in `waiting` if a connection for sending the `WAIT_NESTED_CONTAINER`
+  // call has not been established yet.
+  hashmap<ContainerID, Connection> waiting;
+
+  // There can be multiple simulataneous ongoing (re-)connection attempts
+  // with the agent for waiting on child containers. This helps us in
+  // uniquely identifying the current connection and ignoring
+  // the stale instance. We initialize this to a new value upon receiving
+  // a `connected()` callback.
+  Option<UUID> connectionId;
 };
 
 } // namespace internal {
