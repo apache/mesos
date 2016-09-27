@@ -1392,8 +1392,6 @@ Future<bool> MesosContainerizerProcess::isolate(
     const ContainerID& containerId,
     pid_t _pid)
 {
-  CHECK(!containerId.has_parent());
-
   if (!containers_.contains(containerId)) {
     return Failure("Container destroyed during preparing");
   }
@@ -1653,8 +1651,6 @@ Future<ContainerStatus> _status(
 Future<ContainerStatus> MesosContainerizerProcess::status(
     const ContainerID& containerId)
 {
-  CHECK(!containerId.has_parent());
-
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
