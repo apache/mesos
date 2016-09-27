@@ -796,6 +796,7 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
   ASSERT_EQ(event.get().get().subscribed().executor_info().executor_id(),
             call.executor_id());
+  ASSERT_TRUE(event.get().get().subscribed().has_container_id());
 
   reader.get().close();
 

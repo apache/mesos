@@ -72,6 +72,9 @@ message Event {
     required ExecutorInfo executor_info = 1;
     required FrameworkInfo framework_info = 2;
     required SlaveInfo slave_info = 3;
+
+    // Uniquely identifies the container of an executor run.
+    optional ContainerID container_id = 4;
   }
 
   // Received when the framework attempts to launch a task. Once

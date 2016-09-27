@@ -3084,13 +3084,16 @@ void Slave::subscribe(
 
       // Tell executor it's registered and give it any queued tasks
       // or task groups.
-      ExecutorRegisteredMessage message;
-      message.mutable_executor_info()->MergeFrom(executor->info);
-      message.mutable_framework_id()->MergeFrom(framework->id());
-      message.mutable_framework_info()->MergeFrom(framework->info);
-      message.mutable_slave_id()->MergeFrom(info.id());
-      message.mutable_slave_info()->MergeFrom(info);
-      executor->send(message);
+      executor::Event event;
+      event.set_type(executor::Event::SUBSCRIBED);
+
+      executor::Event::Subscribed* subscribed = event.mutable_subscribed();
+      subscribed->mutable_executor_info()->CopyFrom(executor->info);
+      subscribed->mutable_framework_info()->MergeFrom(framework->info);
+      subscribed->mutable_slave_info()->CopyFrom(info);
+      subscribed->mutable_container_id()->CopyFrom(executor->containerId);
+
+      executor->send(event);
 
       // Handle all the pending updates.
       // The status update manager might have already checkpointed some
