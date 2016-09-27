@@ -72,6 +72,7 @@ v1::MasterInfo evolve(const MasterInfo& masterInfo);
 v1::FileInfo evolve(const FileInfo& fileInfo);
 v1::Resource evolve(const Resource& resource);
 
+v1::agent::Call evolve(const mesos::agent::Call& call);
 v1::agent::Response evolve(const mesos::agent::Response& response);
 
 v1::master::Response evolve(const mesos::master::Response& response);

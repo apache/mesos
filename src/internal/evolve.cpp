@@ -174,6 +174,12 @@ v1::Resource evolve(const Resource& resource)
 }
 
 
+v1::agent::Call evolve(const mesos::agent::Call& call)
+{
+  return evolve<v1::agent::Call>(call);
+}
+
+
 v1::agent::Response evolve(const mesos::agent::Response& response)
 {
   return evolve<v1::agent::Response>(response);
