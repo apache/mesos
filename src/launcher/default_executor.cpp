@@ -111,7 +111,7 @@ public:
 
   void received(const Event& event)
   {
-    LOG(INFO) << "Received " << event.type();
+    LOG(INFO) << "Received " << event.type() << " event";
 
     switch (event.type()) {
       case Event::SUBSCRIBED: {
