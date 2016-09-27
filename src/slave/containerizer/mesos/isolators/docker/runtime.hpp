@@ -33,9 +33,7 @@ public:
 
   virtual ~DockerRuntimeIsolatorProcess();
 
-  virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
+  virtual bool supportsNesting();
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
