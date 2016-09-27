@@ -87,7 +87,7 @@ message ContainerRecoverInfo {
  */
 message ContainerConfig {
   // The executor associated with this container.
-  required ExecutorInfo executor_info = 8;
+  optional ExecutorInfo executor_info = 8;
 
   // The task (optional) associated with this container.
   optional TaskInfo task_info = 9;
