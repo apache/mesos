@@ -92,11 +92,17 @@ public:
 
   // Launch a nested container.
   // TODO(jieyu): Consider combining with the 'launch' above.
-  virtual process::Future<Nothing> launch(
+  //
+  // TODO(gilbert): Remove the 'slaveId' once the fetcher does
+  // not rely on SlaveID.
+  virtual process::Future<bool> launch(
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
-      const Resources& resources)
+      const Resources& resources,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId)
   {
     return process::Failure("Unsupported");
   }

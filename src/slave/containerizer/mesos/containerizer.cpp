@@ -490,25 +490,34 @@ Future<bool> MesosContainerizer::launch(
 }
 
 
-Future<Nothing> MesosContainerizer::launch(
+Future<bool> MesosContainerizer::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const Resources& resources)
+    const Resources& resources,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId)
 {
   // Need to disambiguate for the compiler.
-  Future<Nothing> (MesosContainerizerProcess::*launch)(
+  Future<bool> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const CommandInfo&,
       const Option<ContainerInfo>&,
-      const Resources&) = &MesosContainerizerProcess::launch;
+      const Resources&,
+      const string&,
+      const Option<string>&,
+      const SlaveID&) = &MesosContainerizerProcess::launch;
 
   return dispatch(process.get(),
                   launch,
                   containerId,
                   commandInfo,
                   containerInfo,
-                  resources);
+                  resources,
+                  directory,
+                  user,
+                  slaveId);
 }
 
 
@@ -909,6 +918,19 @@ Future<bool> MesosContainerizerProcess::launch(
   container->state = PROVISIONING;
   container->config = containerConfig;
   container->resources = containerConfig.resources();
+
+  // Maintain the 'children' list in the parent's 'Container' struct,
+  // which will be used for recursive destroy.
+  if (containerId.has_parent()) {
+    const ContainerID& parentContainerId = containerId.parent();
+    if (!containers_.contains(parentContainerId)) {
+      return Failure(
+          "Parent container " + stringify(parentContainerId) +
+          " does not exist");
+    }
+
+    containers_[parentContainerId]->containers.insert(containerId);
+  }
 
   containers_.put(containerId, container);
 
@@ -1442,13 +1464,42 @@ Future<bool> MesosContainerizerProcess::exec(
 }
 
 
-Future<Nothing> MesosContainerizerProcess::launch(
+Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const Resources& resources)
+    const Resources& resources,
+    const string& directory,
+    const Option<string>& user,
+    const SlaveID& slaveId)
 {
-  return Failure("Unsupported");
+  CHECK(containerId.has_parent());
+
+  if (containers_.contains(containerId)) {
+    return Failure(
+        "Nested container " + stringify(containerId) + " already started");
+  }
+
+  LOG(INFO) << "Starting nested container " << containerId;
+
+  ContainerConfig containerConfig;
+  containerConfig.mutable_command_info()->CopyFrom(commandInfo);
+  containerConfig.mutable_resources()->CopyFrom(resources);
+  containerConfig.set_directory(directory);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (containerInfo.isSome()) {
+    containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
+  }
+
+  return launch(containerId,
+                containerConfig,
+                map<string, string>(),
+                slaveId,
+                false);
 }
 
 
