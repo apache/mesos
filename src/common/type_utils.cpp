@@ -444,7 +444,9 @@ bool operator!=(const TaskStatus& left, const TaskStatus& right)
 
 ostream& operator<<(ostream& stream, const ContainerID& containerId)
 {
-  return stream << containerId.value();
+  return containerId.has_parent()
+    ? stream << containerId.parent() << "." << containerId.value()
+    : stream << containerId.value();
 }
 
 
