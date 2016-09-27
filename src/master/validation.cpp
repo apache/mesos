@@ -429,6 +429,8 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
       }
 
       // Ensure persistence ID does not have invalid characters.
+      //
+      // TODO(bmahler): Validate against empty id!
       string id = resource.disk().persistence().id();
       if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
         return Error("Persistence ID '" + id + "' contains invalid characters");
@@ -700,6 +702,7 @@ Option<Error> validateTaskID(const TaskInfo& task)
 {
   const string& id = task.task_id().value();
 
+  // TODO(bmahler): Validate against empty id!
   if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
     return Error("TaskID '" + id + "' contains invalid characters");
   }
