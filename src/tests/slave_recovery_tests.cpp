@@ -525,7 +525,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 //
 // TODO(anand): Remove the `ROOT_CGROUPS` prefix once the posix isolator
 // is nested aware.
-TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
+TYPED_TEST(SlaveRecoveryTest, ROOT_CGROUPS_ReconnectDefaultExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);

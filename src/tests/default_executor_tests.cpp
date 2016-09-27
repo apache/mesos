@@ -45,7 +45,7 @@ namespace tests {
 class DefaultExecutorTest : public MesosTest {};
 
 // This test verifies that the default executor can launch a task group.
-TEST_F(DefaultExecutorTest, DISABLED_TaskRunning)
+TEST_F(DefaultExecutorTest, TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -156,7 +156,7 @@ TEST_F(DefaultExecutorTest, DISABLED_TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_F(DefaultExecutorTest, DISABLED_KillTask)
+TEST_F(DefaultExecutorTest, KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
