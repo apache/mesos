@@ -14,12 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
 #include "slave/containerizer/mesos/paths.hpp"
 
+using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -115,6 +118,66 @@ Result<int> getContainerStatus(
   }
 
   return None();
+}
+
+
+Try<vector<ContainerID>> getContainerIds(const string& runtimeDir)
+{
+  lambda::function<Try<vector<ContainerID>>(const Option<ContainerID>&)> helper;
+
+  helper = [&helper, &runtimeDir](const Option<ContainerID>& parentContainerId)
+    -> Try<vector<ContainerID>> {
+    // Loop through each container at the path, if it exists.
+    const string path = path::join(
+        parentContainerId.isSome()
+          ? getRuntimePath(runtimeDir, parentContainerId.get())
+          : runtimeDir,
+        CONTAINER_DIRECTORY);
+
+    if (!os::exists(path)) {
+      return vector<ContainerID>();
+    }
+
+    Try<list<string>> entries = os::ls(path);
+    if (entries.isError()) {
+      return Error("Failed to list '" + path + "': " + entries.error());
+    }
+
+    // The order always guarantee that a parent container is inserted
+    // before its child containers. This is necessary for constructing
+    // the hashmap 'containers_' in 'Containerizer::recover()'.
+    vector<ContainerID> containers;
+
+    foreach (const string& entry, entries.get()) {
+      // We're not expecting anything else but directories here
+      // representing each container.
+      CHECK(os::stat::isdir(path::join(path, entry)));
+
+      // TODO(benh): Validate that the entry looks like a ContainerID?
+      ContainerID container;
+      container.set_value(entry);
+
+      if (parentContainerId.isSome()) {
+        container.mutable_parent()->CopyFrom(parentContainerId.get());
+      }
+
+      containers.push_back(container);
+
+      // Now recursively build the list of nested containers.
+      Try<vector<ContainerID>> children = helper(container);
+      if (children.isError()) {
+        return Error(children.error());
+      }
+
+      if (!children->empty()) {
+        containers.insert(containers.end(), children->begin(), children->end());
+      }
+    }
+
+    return containers;
+  };
+
+  return helper(None());
 }
 
 } // namespace paths {

@@ -74,6 +74,14 @@ Result<int> getContainerStatus(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 
+
+// The helper method to list all container IDs (including nested
+// containers) from the container runtime directory. The order of
+// returned vector is a result of pre-ordering walk (i.e., parent
+// is inserted before its children).
+Try<std::vector<ContainerID>> getContainerIds(
+    const std::string& runtimeDir);
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
