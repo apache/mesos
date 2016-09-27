@@ -46,6 +46,9 @@ using mesos::v1::executor::Mesos;
 
 using process::Clock;
 using process::Owned;
+using process::UPID;
+
+using process::http::URL;
 
 using std::cout;
 using std::cerr;
@@ -61,14 +64,16 @@ class DefaultExecutor : public process::Process<DefaultExecutor>
 public:
   DefaultExecutor(
       const FrameworkID& _frameworkId,
-      const ExecutorID& _executorId)
+      const ExecutorID& _executorId,
+      const ::URL& _agent)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       launched(false),
       frameworkInfo(None()),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      taskGroup(None()) {}
+      taskGroup(None()),
+      agent(_agent) {}
 
   virtual ~DefaultExecutor() = default;
 
@@ -299,6 +304,7 @@ private:
   const ExecutorID executorId;
   Owned<Mesos> mesos;
   Option<TaskGroupInfo> taskGroup;
+  const ::URL agent; // Agent API URL.
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 };
@@ -311,6 +317,8 @@ int main(int argc, char** argv)
 {
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
+  string scheme = "http"; // Default scheme.
+  ::URL agent;
 
   Option<string> value = os::getenv("MESOS_FRAMEWORK_ID");
   if (value.isNone()) {
@@ -326,10 +334,31 @@ int main(int argc, char** argv)
   }
   executorId.set_value(value.get());
 
+  value = os::getenv("SSL_ENABLED");
+  if (value.isSome() && (value.get() == "1" || value.get() == "true")) {
+    scheme = "https";
+  }
+
+  value = os::getenv("MESOS_SLAVE_PID");
+  if (value.isNone()) {
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
+  }
+
+  UPID upid(value.get());
+  CHECK(upid) << "Failed to parse MESOS_SLAVE_PID '" << value.get() << "'";
+
+  agent = ::URL(
+      scheme,
+      upid.address.ip,
+      upid.address.port,
+      upid.id + "/api/v1");
+
   Owned<mesos::internal::DefaultExecutor> executor(
       new mesos::internal::DefaultExecutor(
           frameworkId,
-          executorId));
+          executorId,
+          agent));
 
   process::spawn(executor.get());
   process::wait(executor.get());
