@@ -497,7 +497,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   Option<Container> container = containers.get(containerId);
 
   if (container.isNone()) {
-    return Failure("Container does not exist");
+    return Nothing();
   }
 
   // Check if `container` has any nested containers.
