@@ -503,7 +503,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 
   // Wait for the child process.
   int status;
-  EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
+  EXPECT_NE(-1, ::waitpid(pid, &status, 0));
   ASSERT_TRUE(WIFSIGNALED(status));
   EXPECT_EQ(SIGKILL, WTERMSIG(status));
 }
