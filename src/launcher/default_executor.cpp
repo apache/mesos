@@ -69,10 +69,10 @@ public:
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       launched(false),
+      shuttingDown(false),
       frameworkInfo(None()),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      taskGroup(None()),
       agent(_agent) {}
 
   virtual ~DefaultExecutor() = default;
@@ -107,8 +107,7 @@ public:
         cerr << "LAUNCH event is not supported" << endl;
         // Shut down because this is unexpected; `LAUNCH` event
         // should never go to the default executor.
-        //
-        // TODO(anand): Invoke `shutdown()`.
+        shutdown();
         break;
       }
 
@@ -132,7 +131,7 @@ public:
       }
 
       case Event::SHUTDOWN: {
-        // TODO(anand): Implement this.
+        shutdown();
         break;
       }
 
@@ -214,7 +213,6 @@ protected:
     }
 
     launched = true;
-    taskGroup = _taskGroup;
 
     foreach (const TaskInfo& task, taskGroup->tasks()) {
       tasks[task.task_id()] = task;
@@ -230,27 +228,37 @@ protected:
     }
   }
 
+  void shutdown()
+  {
+    if (shuttingDown) {
+      return;
+    }
+
+    LOG(INFO) << "Shutting down";
+
+    CHECK_EQ(SUBSCRIBED, state);
+
+    if (!launched) {
+      return;
+    }
+
+    shuttingDown = true;
+
+    // TODO(anand): We need to kill the child containers via the
+    // `KILL_NESTED_CONTAINERS` call.
+  }
+
   void killTask(const TaskID& taskId)
   {
+    if (shuttingDown) {
+      return;
+    }
+
     CHECK_EQ(SUBSCRIBED, state);
 
     cout << "Received kill for task '" << taskId << "'" << endl;
 
-    // Send TASK_KILLED updates for all tasks in the group.
-    //
-    // TODO(vinod): We need to send `KILL_NESTED_CONTAINER` call to the Agent
-    // API for each of the tasks and wait for `WAIT_NESTED_CONTAINER` responses.
-
-    CHECK_SOME(taskGroup); // Should not get a `KILL` before `LAUNCH_GROUP`.
-    foreach (const TaskInfo& task, taskGroup->tasks()) {
-      update(task.task_id(), TASK_KILLED);
-    }
-
-    // TODO(qianzhang): Remove this hack since the executor now receives
-    // acknowledgements for status updates. The executor can terminate
-    // after it receives an ACK for a terminal status update.
-    os::sleep(Seconds(1));
-    terminate(self());
+    shutdown();
   }
 
 private:
@@ -299,11 +307,11 @@ private:
   } state;
 
   bool launched;
+  bool shuttingDown;
   Option<FrameworkInfo> frameworkInfo;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<Mesos> mesos;
-  Option<TaskGroupInfo> taskGroup;
   const ::URL agent; // Agent API URL.
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
