@@ -378,32 +378,131 @@ protected:
   void shutdown()
   {
     if (shuttingDown) {
+      LOG(WARNING) << "Ignoring shutdown since it is in progress";
       return;
     }
-
-    LOG(INFO) << "Shutting down";
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    if (!launched) {
-      return;
-    }
+    LOG(INFO) << "Shutting down";
 
     shuttingDown = true;
 
-    // TODO(anand): We need to kill the child containers via the
-    // `KILL_NESTED_CONTAINERS` call.
+    if (!launched) {
+      __shutdown();
+      return;
+    }
+
+    process::http::connect(agent)
+      .onAny(defer(self(), &Self::_shutdown, lambda::_1));
+  }
+
+  void _shutdown(const Future<Connection>& connection)
+  {
+    if (!connection.isReady()) {
+      LOG(ERROR)
+        << "Unable to establish connection with the agent: "
+        << (connection.isFailed() ? connection.failure() : "discarded");
+      __shutdown();
+      return;
+    }
+
+    // It is possible that the agent process failed before we could
+    // kill the child containers.
+    if (state == DISCONNECTED || state == CONNECTED) {
+      LOG(ERROR) << "Unable to kill child containers as the "
+                 << "executor is in state " << state;
+      __shutdown();
+      return;
+    }
+
+    list<Future<Nothing>> killing;
+    foreach (const ContainerID& containerId, containers.keys()) {
+      killing.push_back(kill(connection.get(), containerId));
+    }
+
+    // It is possible that the agent process can fail while we are
+    // killing child containers. We fail fast if this happens. We
+    // capture `connection` to ensure that the connection is not
+    // disconnected before the responses are complete.
+    collect(killing)
+      .onAny(defer(
+          self(),
+          [this, connection](const Future<list<Nothing>>& future) {
+        if (future.isReady()) {
+          return;
+        }
+
+        LOG(ERROR)
+          << "Unable to complete the operation of killing "
+          << "child containers: "
+          << (future.isFailed() ? future.failure() : "discarded");
+
+        __shutdown();
+      }));
+  }
+
+  void __shutdown()
+  {
+    const Duration duration = Seconds(1);
+
+    LOG(INFO) << "Terminating after " << duration;
+
+    // TODO(qianzhang): Remove this hack since the executor now receives
+    // acknowledgements for status updates. The executor can terminate
+    // after it receives an ACK for a terminal status update.
+    os::sleep(duration);
+    terminate(self());
+  }
+
+  Future<Nothing> kill(Connection connection, const ContainerID& containerId)
+  {
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK(containers.contains(containerId));
+
+    LOG(INFO) << "Killing child container " << containerId;
+
+    agent::Call call;
+    call.set_type(agent::Call::KILL_NESTED_CONTAINER);
+
+    agent::Call::KillNestedContainer* kill =
+      call.mutable_kill_nested_container();
+
+    kill->mutable_container_id()->CopyFrom(containerId);
+
+    return post(connection, call)
+      .then([](const Response& /* response */) {
+        return Nothing();
+      });
   }
 
   void killTask(const TaskID& taskId)
   {
     if (shuttingDown) {
+      LOG(WARNING) << "Ignoring kill for task '" << taskId
+                   << "' since the executor is shutting down";
       return;
     }
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    cout << "Received kill for task '" << taskId << "'" << endl;
+    // TODO(anand): Add support for handling kill policies.
+
+    LOG(INFO) << "Received kill for task '" << taskId << "'";
+
+    bool found = false;
+    foreach (const TaskID& taskId_, containers.values()) {
+      if (taskId_ == taskId) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      LOG(WARNING) << "Ignoring kill for task '" << taskId
+                   << "' as it is no longer active";
+      return;
+    }
 
     shutdown();
   }
