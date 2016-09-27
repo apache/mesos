@@ -795,7 +795,16 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
 
     CHECK(os::exists(rootHostsPath));
     CHECK(os::exists(rootHostnamePath));
-    CHECK(os::exists(rootResolvPath));
+
+    if (!os::exists(rootResolvPath)) {
+      // If the root container does not have its own resolv.conf it
+      // will be using the host's resolv.conf.
+      rootResolvPath = "/etc/resolv.conf";
+
+      // This is because if '/etc/resolv.conf' does not exist on the
+      // host filesystem, the launch of the root container will fail.
+      CHECK(os::exists(rootResolvPath));
+    }
 
     // Setup the required network files and the hostname in the
     // container's filesystem and UTS namespace.
