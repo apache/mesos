@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <iostream>
+#include <list>
 #include <queue>
 #include <string>
 
@@ -25,6 +26,7 @@
 #include <mesos/v1/mesos.hpp>
 
 #include <process/clock.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -36,6 +38,8 @@
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/http.hpp"
+
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
@@ -45,14 +49,19 @@ using mesos::executor::Event;
 using mesos::v1::executor::Mesos;
 
 using process::Clock;
+using process::Future;
 using process::Owned;
 using process::UPID;
 
+using process::http::Connection;
+using process::http::Request;
+using process::http::Response;
 using process::http::URL;
 
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::list;
 using std::queue;
 using std::string;
 
@@ -68,9 +77,11 @@ public:
       const ::URL& _agent)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
+      contentType(ContentType::PROTOBUF),
       launched(false),
       shuttingDown(false),
       frameworkInfo(None()),
+      executorContainerId(None()),
       frameworkId(_frameworkId),
       executorId(_executorId),
       agent(_agent) {}
@@ -100,6 +111,10 @@ public:
 
         frameworkInfo = event.subscribed().framework_info();
         state = SUBSCRIBED;
+
+        CHECK(event.subscribed().has_container_id());
+        executorContainerId = event.subscribed().container_id();
+
         break;
       }
 
@@ -155,7 +170,7 @@ protected:
   virtual void initialize()
   {
     mesos.reset(new Mesos(
-        ContentType::PROTOBUF,
+        contentType,
         defer(self(), &Self::connected),
         defer(self(), &Self::disconnected),
         defer(self(), [this](queue<v1::executor::Event> events) {
@@ -197,12 +212,15 @@ protected:
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
-  void launchGroup(const TaskGroupInfo& _taskGroup)
+  void launchGroup(const TaskGroupInfo& taskGroup)
   {
     CHECK_EQ(SUBSCRIBED, state);
 
     if (launched) {
-      foreach (const TaskInfo& task, _taskGroup.tasks()) {
+      LOG(WARNING) << "Ignoring the launch operation since a task group "
+                   << "has been already launched";
+
+      foreach (const TaskInfo& task, taskGroup.tasks()) {
         update(
             task.task_id(),
             TASK_FAILED,
@@ -214,18 +232,147 @@ protected:
 
     launched = true;
 
-    foreach (const TaskInfo& task, taskGroup->tasks()) {
-      tasks[task.task_id()] = task;
+    process::http::connect(agent)
+      .onAny(defer(self(), &Self::_launchGroup, taskGroup, lambda::_1));
+  }
+
+  void _launchGroup(
+      const TaskGroupInfo& taskGroup,
+      const Future<Connection>& connection)
+  {
+    if (shuttingDown) {
+      LOG(WARNING) << "Ignoring the launch operation as the "
+                   << "executor is shutting down";
+      return;
     }
 
-    // Send a TASK_RUNNING status update followed immediately by a
-    // TASK_FINISHED update.
-    //
-    // TODO(anand): Eventually, we need to invoke the `LAUNCH_NESTED_CONTAINER`
-    // call via the Agent API.
-    foreach (const TaskInfo& task, taskGroup->tasks()) {
+    if (!connection.isReady()) {
+      LOG(ERROR)
+        << "Unable to establish connection with the agent: "
+        << (connection.isFailed() ? connection.failure() : "discarded");
+      __shutdown();
+      return;
+    }
+
+    // It is possible that the agent process failed after the connection was
+    // established. Shutdown the executor if this happens.
+    if (state == DISCONNECTED || state == CONNECTED) {
+      LOG(ERROR) << "Unable to complete the launch operation "
+                 << "as the executor is in state " << state;
+      __shutdown();
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK_SOME(executorContainerId);
+
+    list<ContainerID> pending;
+    list<Future<Response>> responses;
+
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
+      ContainerID containerId;
+      containerId.set_value(UUID::random().toString());
+      containerId.mutable_parent()->CopyFrom(executorContainerId.get());
+
+      pending.push_back(containerId);
+
+      agent::Call call;
+      call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER);
+
+      agent::Call::LaunchNestedContainer* launch =
+        call.mutable_launch_nested_container();
+
+      launch->mutable_container_id()->CopyFrom(containerId);
+
+      if (task.has_command()) {
+        launch->mutable_command()->CopyFrom(task.command());
+      }
+
+      if (task.has_container()) {
+        launch->mutable_container()->CopyFrom(task.container());
+      }
+
+      responses.push_back(post(connection.get(), call));
+    }
+
+    process::collect(responses)
+      .onAny(defer(self(),
+                   &Self::__launchGroup,
+                   taskGroup,
+                   pending,
+                   connection.get(),
+                   lambda::_1));
+  }
+
+  void __launchGroup(
+      const TaskGroupInfo& taskGroup,
+      list<ContainerID> pending,
+      const Connection& connection,
+      const Future<list<Response>>& responses)
+  {
+    if (shuttingDown) {
+      LOG(WARNING) << "Ignoring the launch operation as the "
+                   << "executor is shutting down";
+      return;
+    }
+
+    // This could happen if the agent process failed while the child
+    // containers were being launched. Shutdown the executor if this
+    // happens.
+    if (!responses.isReady()) {
+      LOG(ERROR) << "Unable to receive a response from the agent for "
+                 << "the LAUNCH_NESTED_CONTAINER call: "
+                 << (responses.isFailed() ? responses.failure() : "discarded");
+      __shutdown();
+      return;
+    }
+
+    // Check if we received a 200 OK response for all the
+    // `LAUNCH_NESTED_CONTAINER` calls. Shutdown the executor
+    // if this is not the case.
+    foreach (const Response& response, responses.get()) {
+      if (response.code != process::http::Status::OK) {
+        LOG(ERROR) << "Received '" << response.status << "' ("
+                   << response.body << ") while launching child container";
+        __shutdown();
+        return;
+      }
+    }
+
+    // This could happen if the agent process failed after the child
+    // containers were launched. Shutdown the executor if this happens.
+    if (state == DISCONNECTED || state == CONNECTED) {
+      LOG(ERROR) << "Unable to complete the operation of launching child "
+                 << "containers as the executor is in state " << state;
+      __shutdown();
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK(launched);
+
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
+      const TaskID& taskId = task.task_id();
+
+      tasks[taskId] = task;
+      containers[pending.front()] = taskId;
+
+      pending.pop_front();
+    }
+
+    // Send a TASK_RUNNING status update now that the task group has
+    // been successfully launched.
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
       update(task.task_id(), TASK_RUNNING);
     }
+
+    LOG(INFO)
+      << "Successfully launched child containers "
+      << stringify(containers.keys()) << " for tasks "
+      << stringify(containers.values());
+
+    // TODO(anand): We need to wait for the tasks via the
+    // `WAIT_NESTED_CONTAINERS` call.
   }
 
   void shutdown()
@@ -299,6 +446,19 @@ private:
     mesos->send(evolve(call));
   }
 
+  Future<Response> post(Connection connection, const agent::Call& call)
+  {
+    ::Request request;
+    request.method = "POST";
+    request.url = agent;
+    request.body = serialize(contentType, evolve(call));
+    request.keepAlive = true;
+    request.headers = {{"Accept", stringify(contentType)},
+                       {"Content-Type", stringify(contentType)}};
+
+    return connection.send(request);
+  }
+
   enum State
   {
     CONNECTED,
@@ -306,15 +466,18 @@ private:
     SUBSCRIBED
   } state;
 
+  const ContentType contentType;
   bool launched;
   bool shuttingDown;
   Option<FrameworkInfo> frameworkInfo;
+  Option<ContainerID> executorContainerId;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<Mesos> mesos;
   const ::URL agent; // Agent API URL.
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
+  LinkedHashMap<ContainerID, TaskID> containers; // Active child containers.
 };
 
 } // namespace internal {
