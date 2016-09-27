@@ -22,6 +22,8 @@
 
 #include <process/owned.hpp>
 
+#include <stout/hashset.hpp>
+
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
@@ -43,7 +45,7 @@ namespace tests {
 class DefaultExecutorTest : public MesosTest {};
 
 // This test verifies that the default executor can launch a task group.
-TEST_F(DefaultExecutorTest, TaskRunning)
+TEST_F(DefaultExecutorTest, DISABLED_TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -61,8 +63,12 @@ TEST_F(DefaultExecutorTest, TaskRunning)
   executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -150,7 +156,7 @@ TEST_F(DefaultExecutorTest, TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_F(DefaultExecutorTest, KillTask)
+TEST_F(DefaultExecutorTest, DISABLED_KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -168,8 +174,12 @@ TEST_F(DefaultExecutorTest, KillTask)
   executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -287,6 +297,13 @@ TEST_F(DefaultExecutorTest, KillTask)
     mesos.send(call);
   }
 
+  // When killing a task, TASK_KILLED update for the tasks in a task
+  // group can be received in any order.
+  hashset<v1::TaskID> tasks;
+
+  tasks.insert(taskInfo1.task_id());
+  tasks.insert(taskInfo2.task_id());
+
   Future<v1::scheduler::Event::Update> killedUpdate1;
   Future<v1::scheduler::Event::Update> killedUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
@@ -309,11 +326,13 @@ TEST_F(DefaultExecutorTest, KillTask)
 
   AWAIT_READY(killedUpdate1);
   ASSERT_EQ(TASK_KILLED, killedUpdate1->status().state());
-  EXPECT_EQ(taskInfo1.task_id(), killedUpdate1->status().task_id());
+  ASSERT_TRUE(tasks.contains(killedUpdate1->status().task_id()));
+
+  tasks.erase(killedUpdate1->status().task_id());
 
   AWAIT_READY(killedUpdate2);
   ASSERT_EQ(TASK_KILLED, killedUpdate2->status().state());
-  EXPECT_EQ(taskInfo2.task_id(), killedUpdate2->status().task_id());
+  ASSERT_TRUE(tasks.contains(killedUpdate2->status().task_id()));
 }
 
 } // namespace tests {
