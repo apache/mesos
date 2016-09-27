@@ -143,6 +143,7 @@ TEST_F(DefaultExecutorTest, TaskRunning)
   ASSERT_EQ(TASK_RUNNING, update->status().state());
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().healthy());
+  EXPECT_TRUE(update->status().has_timestamp());
 }
 
 

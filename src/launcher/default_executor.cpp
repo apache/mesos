@@ -24,6 +24,7 @@
 #include <mesos/v1/executor.hpp>
 #include <mesos/v1/mesos.hpp>
 
+#include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -43,6 +44,7 @@ using mesos::executor::Event;
 
 using mesos::v1::executor::Mesos;
 
+using process::Clock;
 using process::Owned;
 
 using std::cout;
@@ -261,6 +263,7 @@ private:
     status.set_state(state);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
     status.set_uuid(uuid.toBytes());
+    status.set_timestamp(Clock::now().secs());
 
     if (message.isSome()) {
       status.set_message(message.get());

@@ -727,6 +727,7 @@ private:
     status.set_state(state);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
     status.set_uuid(uuid.toBytes());
+    status.set_timestamp(Clock::now().secs());
 
     if (healthy.isSome()) {
       status.set_healthy(healthy.get());
