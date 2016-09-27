@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
 #include <list>
 #include <queue>
 #include <string>
@@ -59,9 +58,6 @@ using process::http::Request;
 using process::http::Response;
 using process::http::URL;
 
-using std::cout;
-using std::cerr;
-using std::endl;
 using std::list;
 using std::queue;
 using std::string;
@@ -115,12 +111,12 @@ public:
 
   void received(const Event& event)
   {
-    cout << "Received " << event.type() << " event" << endl;
+    LOG(INFO) << "Received " << event.type();
 
     switch (event.type()) {
       case Event::SUBSCRIBED: {
-        cout << "Subscribed executor on "
-             << event.subscribed().slave_info().hostname() << endl;
+        LOG(INFO) << "Subscribed executor on "
+                  << event.subscribed().slave_info().hostname();
 
         frameworkInfo = event.subscribed().framework_info();
         state = SUBSCRIBED;
@@ -139,7 +135,7 @@ public:
       }
 
       case Event::LAUNCH: {
-        cerr << "LAUNCH event is not supported" << endl;
+        LOG(ERROR) << "LAUNCH event is not supported";
         // Shut down because this is unexpected; `LAUNCH` event
         // should never go to the default executor.
         shutdown();
@@ -175,7 +171,7 @@ public:
       }
 
       case Event::ERROR: {
-        cerr << "Error: " << event.error().message() << endl;
+        LOG(ERROR) << "Error: " << event.error().message();
         break;
       }
 
