@@ -730,7 +730,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
     Owned<Container> container(new Container());
     container->state = RUNNING;
-    container->pid = pid.isSome() ? pid.get() : Option<int>();
+    container->pid = pid.isSome() ? pid.get() : Option<pid_t>();
     container->directory = directory;
 
     // Invoke 'reap' on each 'Container'. However, It's possible
