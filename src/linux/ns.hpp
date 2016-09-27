@@ -431,6 +431,7 @@ inline Try<pid_t> clone(
 
   pid_t child = fork();
   if (child < 0) {
+    delete[] stack.address;
     close(fds.values());
     ::close(sockets[0]);
     ::close(sockets[1]);
