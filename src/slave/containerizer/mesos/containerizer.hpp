@@ -352,8 +352,8 @@ private:
     // maintain the order of `status` requests for a given container.
     process::Sequence sequence;
 
-    // Containers nested under this container.
-    hashset<ContainerID> containers;
+    // Child containers nested under this container.
+    hashset<ContainerID> children;
   };
 
   hashmap<ContainerID, process::Owned<Container>> containers_;
