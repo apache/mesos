@@ -399,6 +399,16 @@ decltype(_access(fileName, accessMode))
 }
 
 
+// NOTE: Signals do not exist on Windows, so all signals are unknown.
+// If the signal number is unknown, the Posix specification leaves the
+// return value of `strsignal` unspecified.
+inline const char* strsignal(int signum)
+{
+  static const char UNKNOWN_STRSIGNAL[] = "Unknown signal";
+  return UNKNOWN_STRSIGNAL;
+}
+
+
 #define SIGPIPE 100
 
 // `os::system` returns -1 if the processor cannot be started
