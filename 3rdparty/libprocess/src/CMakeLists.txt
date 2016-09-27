@@ -47,6 +47,7 @@ set(PROCESS_SRC
   latch.cpp
   logging.cpp
   metrics/metrics.cpp
+  mime.cpp
   pid.cpp
   poll_socket.cpp
   poll_socket.hpp

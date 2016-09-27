@@ -149,6 +149,7 @@ libprocess_la_SOURCES =		\
   src/latch.cpp			\
   src/logging.cpp		\
   src/metrics/metrics.cpp	\
+  src/mime.cpp			\
   src/pid.cpp			\
   src/poll_socket.cpp		\
   src/poll_socket.hpp		\
