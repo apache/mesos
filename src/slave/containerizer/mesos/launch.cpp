@@ -664,6 +664,13 @@ int MesosContainerizerLaunch::execute()
           exitWithStatus(EXIT_FAILURE);
         }
 
+        // We only forward the signal if the child has terminated. If
+        // the child has stopped due to some signal (e.g., SIGSTOP),
+        // we will simply ignore it.
+        if (WIFSTOPPED(status)) {
+          continue;
+        }
+
         if (pid == waitpid.get()) {
           break;
         }
