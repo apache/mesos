@@ -1549,7 +1549,13 @@ void SocketManager::link(
         // from SSL to POLL if enabled.
         Try<Socket> create = Socket::create(kind);
         if (create.isError()) {
-          VLOG(1) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link, create socket: " << create.error();
+
+          // Failure to create a new socket should generate an `ExitedEvent`
+          // for the linkee. At this point, we have not passed ownership of
+          // this socket to the `SocketManager`, so there is only one possible
+          // linkee to notify.
+          process->enqueue(new ExitedEvent(to));
           return;
         }
         socket = create.get();
@@ -1575,7 +1581,13 @@ void SocketManager::link(
         // create a new socket anyway.
         Try<Socket> create = Socket::create(kind);
         if (create.isError()) {
-          VLOG(1) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link, create socket: " << create.error();
+
+          // Failure to create a new socket should generate an `ExitedEvent`
+          // for the linkee. At this point, we have not passed ownership of
+          // this socket to the `SocketManager`, so there is only one possible
+          // linkee to notify.
+          process->enqueue(new ExitedEvent(to));
           return;
         }
 
