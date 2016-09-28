@@ -1952,7 +1952,10 @@ Future<Response> Slave::Http::launchNestedContainer(
     }));
 
   return launched
-    .then([]() -> Response {
+    .then([](bool launched) -> Response {
+      if (!launched) {
+        return BadRequest("The provided ContainerInfo is not supported");
+      }
       return OK();
     });
 }

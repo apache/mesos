@@ -74,6 +74,7 @@ using process::Owned;
 using process::Promise;
 
 using process::http::Accepted;
+using process::http::BadRequest;
 using process::http::NotFound;
 using process::http::NotImplemented;
 using process::http::OK;
@@ -3311,6 +3312,65 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
       stringify(contentType));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  }
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
+}
+
+
+// When containerizer returns false from launching a nested
+// container, it is considered a bad request (e.g. image
+// type is not supported).
+TEST_P(AgentAPITest, NestedContainerLaunchFalse)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  StandaloneMasterDetector detector;
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &mockContainerizer);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Try to launch an "unsupported" container.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(UUID::random().toString());
+
+  {
+    // Return false here to indicate "unsupported".
+    EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _, _))
+      .WillOnce(Return(Future<bool>(false)));
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER);
+
+    call.mutable_launch_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    Future<Response> response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
   }
 
   // The destructor of `cluster::Slave` will try to clean up any
