@@ -578,6 +578,17 @@ protected:
     CHECK(containers.contains(containerId));
     containers.erase(containerId);
 
+    // The default restart policy for a task group is to kill all the
+    // remaining child containers if one of them terminated with a
+    // non-zero exit code. Ignore if a shutdown is in progress.
+    if (!shuttingDown && taskState == TASK_FAILED) {
+      LOG(ERROR)
+        << "Child container " << containerId << " terminated with status "
+        << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
+      shutdown();
+      return;
+    }
+
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
       __shutdown();
