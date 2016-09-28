@@ -1008,14 +1008,8 @@ Future<bool> MesosContainerizerProcess::launch(
   // Maintain the 'children' list in the parent's 'Container' struct,
   // which will be used for recursive destroy.
   if (containerId.has_parent()) {
-    const ContainerID& parentContainerId = containerId.parent();
-    if (!containers_.contains(parentContainerId)) {
-      return Failure(
-          "Parent container " + stringify(parentContainerId) +
-          " does not exist");
-    }
-
-    containers_[parentContainerId]->children.insert(containerId);
+    CHECK(containers_.contains(containerId.parent()));
+    containers_[containerId.parent()]->children.insert(containerId);
   }
 
   containers_.put(containerId, container);
@@ -1561,6 +1555,19 @@ Future<bool> MesosContainerizerProcess::launch(
   if (containers_.contains(containerId)) {
     return Failure(
         "Nested container " + stringify(containerId) + " already started");
+  }
+
+  const ContainerID& parentContainerId = containerId.parent();
+  if (!containers_.contains(parentContainerId)) {
+    return Failure(
+        "Parent container " + stringify(parentContainerId) +
+        " does not exist");
+  }
+
+  if (containers_[parentContainerId]->state == DESTROYING) {
+    return Failure(
+        "Parent container " + stringify(parentContainerId) +
+        " is in 'DESTROYING' state");
   }
 
   LOG(INFO) << "Starting nested container " << containerId;
