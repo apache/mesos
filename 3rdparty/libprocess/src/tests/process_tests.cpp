@@ -951,6 +951,40 @@ TEST_F(ProcessRemoteLinkTest, RemoteDoubleLinkRelink)
 }
 
 
+// Verifies that remote links will trigger an `ExitedEvent` if the link
+// fails during socket creation. The test instigates a socket creation
+// failure by hogging all available file descriptors.
+TEST_F(ProcessRemoteLinkTest, RemoteLinkLeak)
+{
+  RemoteLinkTestProcess relinker(pid);
+  Future<UPID> relinkerExitedPid;
+
+  EXPECT_CALL(relinker, exited(pid))
+    .WillOnce(FutureArg<0>(&relinkerExitedPid));
+
+  spawn(relinker);
+
+  // Open enough sockets to fill up all available FDs.
+  vector<Socket> fdHogs;
+  while (true) {
+    Try<Socket> hog = Socket::create();
+
+    if (hog.isError()) {
+      break;
+    }
+
+    fdHogs.push_back(hog.get());
+  }
+
+  relinker.linkup();
+
+  AWAIT_ASSERT_EQ(pid, relinkerExitedPid);
+
+  terminate(relinker);
+  wait(relinker);
+}
+
+
 namespace process {
 
 // Forward declare the `get_persistent_socket` function since we want
