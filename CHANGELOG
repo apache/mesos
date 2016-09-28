@@ -47,6 +47,9 @@ All Issues:
     * [MESOS-6235] - Add 'os::spawn', 'argv' variant of 'os::system'.
     * [MESOS-6245] - Driver based schedulers using explicit acknowledgements
       cannot acknowledge updates from HTTP based executors.
+    * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
+    * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
+    * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
 
 
 Release Notes - Mesos - Version 1.0.1
@@ -928,6 +931,9 @@ All Issues:
   * [MESOS-5986] - SSL Socket CHECK can fail after socket receives EOF.
   * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
   * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
+  * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
+  * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
+  * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
 
 
 Release Notes - Mesos - Version 0.28.2
