@@ -29,11 +29,13 @@ inline Result<std::string> read(int fd, size_t size);
 
 inline ssize_t read(int fd, void* data, size_t size)
 {
+  CHECK_LE(size, UINT_MAX);
+
   if (net::is_socket(fd)) {
-    return ::recv(fd, (char*) data, size, 0);
+    return net::recv(fd, (char*) data, size, 0);
   }
 
-  return ::_read(fd, data, size);
+  return ::_read(fd, data, static_cast<unsigned int>(size));
 }
 
 

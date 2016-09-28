@@ -27,6 +27,10 @@ namespace os {
 inline Try<ssize_t, SocketError> sendfile(
     int s, int fd, off_t offset, size_t length)
 {
+  // NOTE: We convert the `offset` here to avoid potential data loss
+  // in the type casting and bitshifting below.
+  uint64_t offset_ = offset;
+
   // NOTE: It is not necessary to close the `HANDLE`; when we call `_close` on
   // `fd` it will close the underlying `HANDLE` as well.
   HANDLE file = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
@@ -34,10 +38,12 @@ inline Try<ssize_t, SocketError> sendfile(
   OVERLAPPED from = {
       0,
       0,
-      {static_cast<DWORD>(offset), static_cast<DWORD>(offset >> 32)},
+      {static_cast<DWORD>(offset_), static_cast<DWORD>(offset_ >> 32)},
       nullptr};
 
-  if (TransmitFile(s, file, length, 0, &from, nullptr, 0) == FALSE &&
+  CHECK_LE(length, MAXDWORD);
+  if (TransmitFile(
+          s, file, static_cast<DWORD>(length), 0, &from, nullptr, 0) == FALSE &&
       (WSAGetLastError() == WSA_IO_PENDING ||
        WSAGetLastError() == ERROR_IO_PENDING)) {
     DWORD sent = 0;
