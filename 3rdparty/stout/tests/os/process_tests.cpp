@@ -67,6 +67,8 @@ int getppid()
       }
     } while (Process32Next(h, &pe));
   }
+
+  return -1;
 }
 #endif // __WINDOWS__
 
@@ -227,7 +229,7 @@ TEST_F(ProcessTest, Pstree)
       nullptr,                // Use parent's starting directory.
       &si,
       &pi);
-  ASSERT_TRUE(created);
+  ASSERT_TRUE(created == TRUE);
 
   Try<ProcessTree> tree_after_spawn = os::pstree(getpid());
   ASSERT_SOME(tree_after_spawn);

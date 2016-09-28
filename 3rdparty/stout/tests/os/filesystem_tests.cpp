@@ -398,22 +398,22 @@ TEST_F(FsTest, Close)
   DWORD bytes_written;
   BOOL written = WriteFile(
       open_valid_handle,
-      test_message1.c_str(), // Data to write.
-      test_message1.size(),  // Bytes to write.
-      &bytes_written,        // Bytes written.
-      nullptr);              // No overlapped I/O.
-  ASSERT_TRUE(written);
+      test_message1.c_str(),                     // Data to write.
+      static_cast<DWORD>(test_message1.size()),  // Bytes to write.
+      &bytes_written,                            // Bytes written.
+      nullptr);                                  // No overlapped I/O.
+  ASSERT_TRUE(written == TRUE);
   ASSERT_EQ(test_message1.size(), bytes_written);
 
   EXPECT_SOME(os::close(open_valid_handle));
 
   written = WriteFile(
       open_valid_handle,
-      error_message.c_str(), // Data to write.
-      error_message.size(),  // Bytes to write.
-      &bytes_written,        // Bytes written.
-      nullptr);              // No overlapped I/O.
-  ASSERT_FALSE(written);
+      error_message.c_str(),                     // Data to write.
+      static_cast<DWORD>(error_message.size()),  // Bytes to write.
+      &bytes_written,                            // Bytes written.
+      nullptr);                                  // No overlapped I/O.
+  ASSERT_TRUE(written == FALSE);
   ASSERT_EQ(0, bytes_written);
 
   const Result<string> read_valid_handle = os::read(testfile);
