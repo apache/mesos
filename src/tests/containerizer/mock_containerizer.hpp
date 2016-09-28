@@ -57,13 +57,12 @@ public:
           const std::map<std::string, std::string>&,
           bool));
 
-  MOCK_METHOD6(
+  MOCK_METHOD5(
       launch,
       process::Future<bool>(
           const ContainerID& containerId,
           const CommandInfo& commandInfo,
           const Option<ContainerInfo>& containerInfo,
-          const std::string& directory,
           const Option<std::string>& user,
           const SlaveID& slaveId));
 

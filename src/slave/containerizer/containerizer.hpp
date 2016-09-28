@@ -99,7 +99,6 @@ public:
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
-      const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId)
   {

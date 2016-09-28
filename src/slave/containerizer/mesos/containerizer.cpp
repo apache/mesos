@@ -500,7 +500,6 @@ Future<bool> MesosContainerizer::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId)
 {
@@ -509,7 +508,6 @@ Future<bool> MesosContainerizer::launch(
       const ContainerID&,
       const CommandInfo&,
       const Option<ContainerInfo>&,
-      const string&,
       const Option<string>&,
       const SlaveID&) = &MesosContainerizerProcess::launch;
 
@@ -518,7 +516,6 @@ Future<bool> MesosContainerizer::launch(
                   containerId,
                   commandInfo,
                   containerInfo,
-                  directory,
                   user,
                   slaveId);
 }
@@ -1004,6 +1001,7 @@ Future<bool> MesosContainerizerProcess::launch(
   container->state = PROVISIONING;
   container->config = containerConfig;
   container->resources = containerConfig.resources();
+  container->directory = containerConfig.directory();
 
   // Maintain the 'children' list in the parent's 'Container' struct,
   // which will be used for recursive destroy.
@@ -1402,7 +1400,9 @@ Future<bool> MesosContainerizerProcess::_launch(
     if (forked.isError()) {
       return Failure("Failed to fork: " + forked.error());
     }
+
     pid_t pid = forked.get();
+    container->pid = pid;
 
     // Checkpoint the forked pid if requested by the agent.
     if (checkpoint) {
@@ -1546,7 +1546,6 @@ Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId)
 {
@@ -1571,6 +1570,42 @@ Future<bool> MesosContainerizerProcess::launch(
   }
 
   LOG(INFO) << "Starting nested container " << containerId;
+
+  const ContainerID rootContainerId = getRootContainerId(containerId);
+
+  CHECK(containers_.contains(rootContainerId));
+  if (containers_[rootContainerId]->directory.isNone()) {
+    return Failure(
+        "Unexpected empty sandbox directory for root container " +
+        stringify(rootContainerId));
+  }
+
+  const string directory = containerizer::paths::getSandboxPath(
+      containers_[rootContainerId]->directory.get(),
+      containerId);
+
+  Try<Nothing> mkdir = os::mkdir(directory);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create nested sandbox directory '" +
+        directory + "': " + mkdir.error());
+  }
+
+#ifndef __WINDOWS__
+  if (user.isSome()) {
+    LOG(INFO) << "Trying to chown '" << directory << "' to user '"
+              << user.get() << "'";
+
+    Try<Nothing> chown = os::chown(user.get(), directory);
+    if (chown.isError()) {
+      LOG(WARNING) << "Failed to chown sandbox directory '" << directory
+                   << "'. This may be due to attempting to run the container "
+                   << "as a nonexistent user on the agent; see the description"
+                   << " for the `--switch_user` flag for more information: "
+                   << chown.error();
+    }
+  }
+#endif // __WINDOWS__
 
   ContainerConfig containerConfig;
   containerConfig.mutable_command_info()->CopyFrom(commandInfo);

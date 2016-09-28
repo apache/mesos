@@ -1933,7 +1933,6 @@ Future<Response> Slave::Http::launchNestedContainer(
       call.launch_nested_container().has_container()
         ? call.launch_nested_container().container()
         : Option<ContainerInfo>::none(),
-      os::temp(),
       None(),
       slave->info.id());
 
