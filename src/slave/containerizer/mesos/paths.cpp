@@ -193,6 +193,46 @@ string getSandboxPath(
     : rootSandboxPath;
 }
 
+
+Try<ContainerID> parseSandboxPath(
+    const ContainerID& rootContainerId,
+    const string& _rootSandboxPath,
+    const string& path)
+{
+  // Make sure there's a separator at the end of the `rootdir` so that
+  // we don't accidentally slice off part of a directory.
+  const string rootSandboxPath = path::join(_rootSandboxPath, "");
+
+  if (!strings::startsWith(path, rootSandboxPath)) {
+    return Error(
+        "Directory '" + path + "' does not fall under "
+        "the root sandbox directory '" + rootSandboxPath + "'");
+  }
+
+  ContainerID currentContainerId = rootContainerId;
+
+  vector<string> tokens = strings::tokenize(
+      path.substr(rootSandboxPath.size()),
+      "/");
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    // For a nested container x.y.z, the sandbox layout is the
+    // following: '.../runs/x/containers/y/containers/z'.
+    if (i % 2 == 0) {
+      if (tokens[i] != CONTAINER_DIRECTORY) {
+        break;
+      }
+    } else {
+      ContainerID id;
+      id.set_value(tokens[i]);
+      id.mutable_parent()->CopyFrom(currentContainerId);
+      currentContainerId = id;
+    }
+  }
+
+  return currentContainerId;
+}
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
