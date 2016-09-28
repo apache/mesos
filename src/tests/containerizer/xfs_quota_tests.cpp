@@ -506,12 +506,26 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
 // working directories without getting any checkpointed recovery state.
 TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
 {
-  slave::Flags flags = CreateSlaveFlags();
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -556,22 +570,33 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   // We should have 1 executor using resources.
   ASSERT_EQ(1, usage1.get().executors().size());
 
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *containers.get().begin();
+
   // Restart the slave.
   slave.get()->terminate();
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Following the example of the filesystem isolator tests, wait
-  // until the containerizer cleans up the orphans. Only after that
-  // should we expect to find the project IDs removed.
-  Future<Nothing> _recover =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
 
-  slave = StartSlave(detector.get(), flags);
+  containerizer.reset(_containerizer.get());
+
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(_recover);
+  // Wait until slave recovery is complete.
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
+
+  // Wait until the orphan containers are cleaned up.
+  AWAIT_READY_FOR(containerizer.get()->wait(containerId), Seconds(60));
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<ResourceUsage> usage2 =
