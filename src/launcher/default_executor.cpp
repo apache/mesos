@@ -16,6 +16,7 @@
 #include <list>
 #include <queue>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -31,6 +32,7 @@
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
+#include <process/protobuf.hpp>
 
 #include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
@@ -39,6 +41,8 @@
 
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
+
+#include "health-check/health_checker.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -61,11 +65,12 @@ using process::http::URL;
 using std::list;
 using std::queue;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
 
-class DefaultExecutor : public process::Process<DefaultExecutor>
+class DefaultExecutor : public ProtobufProcess<DefaultExecutor>
 {
 public:
   DefaultExecutor(
@@ -77,6 +82,7 @@ public:
       contentType(ContentType::PROTOBUF),
       launched(false),
       shuttingDown(false),
+      unhealthy(false),
       frameworkInfo(None()),
       executorContainerId(None()),
       frameworkId(_frameworkId),
@@ -185,6 +191,12 @@ public:
 protected:
   virtual void initialize()
   {
+    install<TaskHealthStatus>(
+        &Self::taskHealthUpdated,
+        &TaskHealthStatus::task_id,
+        &TaskHealthStatus::healthy,
+        &TaskHealthStatus::kill_task);
+
     mesos.reset(new Mesos(
         contentType,
         defer(self(), &Self::connected),
@@ -374,6 +386,43 @@ protected:
       containers[pending.front()] = taskId;
 
       pending.pop_front();
+
+      if (task.has_health_check()) {
+        // TODO(anand): Add support for command health checks.
+        CHECK_NE(HealthCheck::COMMAND, task.health_check().type())
+          << "Command health checks are not supported yet";
+
+        Try<Owned<health::HealthChecker>> _checker =
+          health::HealthChecker::create(
+              task.health_check(),
+              self(),
+              taskId,
+              None(),
+              vector<string>());
+
+        if (_checker.isError()) {
+          // TODO(anand): Should we send a TASK_FAILED instead?
+          LOG(ERROR) << "Failed to create health checker: "
+                     << _checker.error();
+          __shutdown();
+          return;
+        }
+
+        Owned<health::HealthChecker> checker = _checker.get();
+
+        checker->healthCheck()
+          .onAny(defer(self(), [this, taskId](const Future<Nothing>& future) {
+            if (!future.isReady()) {
+              LOG(ERROR)
+                << "Health check for task '" << taskId << "' failed due to: "
+                << (future.isFailed() ? future.failure() : "discarded");
+
+              __shutdown();
+            }
+          }));
+
+        checkers.push_back(checker);
+      }
     }
 
     // Send a TASK_RUNNING status update now that the task group has
@@ -569,7 +618,11 @@ protected:
       message = "Command " + WSTRINGIFY(status.get());
     }
 
-    update(taskId, taskState, message);
+    if (unhealthy) {
+      update(taskId, taskState, message, false);
+    } else {
+      update(taskId, taskState, message, None());
+    }
 
     LOG(INFO) << "Successfully waited for child container " << containerId
               << " of task '" << taskId << "'"
@@ -727,11 +780,29 @@ protected:
     shutdown();
   }
 
+  void taskHealthUpdated(
+      const TaskID& taskId,
+      bool healthy,
+      bool initiateTaskKill)
+  {
+    LOG(INFO) << "Received task health update for task '" << taskId
+              << "', task is "
+              << (healthy ? "healthy" : "not healthy");
+
+    update(taskId, TASK_RUNNING, None(), healthy);
+
+    if (initiateTaskKill) {
+      unhealthy = true;
+      killTask(taskId);
+    }
+  }
+
 private:
   void update(
       const TaskID& taskId,
       const TaskState& state,
-      const Option<string>& message = None())
+      const Option<string>& message = None(),
+      const Option<bool>& healthy = None())
   {
     UUID uuid = UUID::random();
 
@@ -748,8 +819,9 @@ private:
       status.set_message(message.get());
     }
 
-    // TODO(vinod): Implement health checks.
-    status.set_healthy(true);
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
 
     Call call;
     call.set_type(Call::UPDATE);
@@ -863,6 +935,7 @@ private:
   const ContentType contentType;
   bool launched;
   bool shuttingDown;
+  bool unhealthy; // Set to true if any of the tasks are reported unhealthy.
   Option<FrameworkInfo> frameworkInfo;
   Option<ContainerID> executorContainerId;
   const FrameworkID frameworkId;
@@ -889,6 +962,8 @@ private:
   // the stale instance. We initialize this to a new value upon receiving
   // a `connected()` callback.
   Option<UUID> connectionId;
+
+  list<Owned<health::HealthChecker>> checkers; // Health checkers.
 };
 
 } // namespace internal {
