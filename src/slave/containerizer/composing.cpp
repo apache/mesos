@@ -401,8 +401,7 @@ Future<bool> ComposingContainerizerProcess::launch(
     bool checkpoint)
 {
   if (containers_.contains(containerId)) {
-    return Failure("Container '" + stringify(containerId) +
-                   "' is already launching");
+    return Failure("Duplicate container found");
   }
 
   // Try each containerizer. If none of them handle the
@@ -449,7 +448,7 @@ Future<bool> ComposingContainerizerProcess::launch(
 
   if (!containers_.contains(rootContainerId)) {
     return Failure(
-        "Root container '" + rootContainerId.value() + "' not found");
+        "Root container " + stringify(rootContainerId) + " not found");
   }
 
   // Use the containerizer that launched the root container to launch
@@ -507,7 +506,7 @@ Future<Nothing> ComposingContainerizerProcess::update(
     const Resources& resources)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container '" + containerId.value() + "' not found");
+    return Failure("Container not found");
   }
 
   return containers_[containerId]->containerizer->update(
@@ -519,7 +518,7 @@ Future<ResourceStatistics> ComposingContainerizerProcess::usage(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container '" + containerId.value() + "' not found");
+    return Failure("Container not found");
   }
 
   return containers_[containerId]->containerizer->usage(containerId);
@@ -530,7 +529,7 @@ Future<ContainerStatus> ComposingContainerizerProcess::status(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container " + containerId.value() + " not found");
+    return Failure("Container not found");
   }
 
   return containers_[containerId]->containerizer->status(containerId);
