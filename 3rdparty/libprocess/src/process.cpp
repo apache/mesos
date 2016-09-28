@@ -1497,16 +1497,26 @@ void SocketManager::link_connect(
     return;
   }
 
-  size_t size = 80 * 1024;
-  char* data = new char[size];
+  synchronized (mutex) {
+    // It is possible that a prior call to `link()` with `RECONNECT`
+    // semantics has swapped out this socket before we finished
+    // connecting. In this case, we simply stop here and allow the
+    // latest created socket to complete the link.
+    if (sockets.count(socket) <= 0) {
+      return;
+    }
 
-  socket.recv(data, size)
-    .onAny(lambda::bind(
-        &internal::ignore_recv_data,
-        lambda::_1,
-        socket,
-        data,
-        size));
+    size_t size = 80 * 1024;
+    char* data = new char[size];
+
+    socket.recv(data, size)
+      .onAny(lambda::bind(
+          &internal::ignore_recv_data,
+          lambda::_1,
+          socket,
+          data,
+          size));
+  }
 
   // In order to avoid a race condition where internal::send() is
   // called after SocketManager::link() but before the socket is
@@ -1603,10 +1613,21 @@ void SocketManager::link(
 
         // Update all the data structures that are mapped to the old
         // socket. They will now point to the new socket we are about
-        // to try to connect. The old socket should no longer have any
-        // references after the swap and should be closed.
+        // to try to connect.
         Socket existing(sockets.at(persists.at(to.address)));
         swap_implementing_socket(existing, socket.get());
+
+        // The `existing` socket could be a perfectly functional socket.
+        // In this case, the socket may be referenced in the callback
+        // loop of `internal::ignore_recv_data`. We shutdown the socket
+        // in order to interrupt this callback loop and thereby release
+        // the final socket reference. This will not result in an
+        // `ExitedEvent` because we have already removed the `existing`
+        // socket from the mapping of linkees and linkers.
+        Try<Nothing> shutdown = existing.shutdown();
+        if (shutdown.isError()) {
+          VLOG(1) << "Failed to shutdown old link: " << shutdown.error();
+        }
 
         connect = true;
       }
