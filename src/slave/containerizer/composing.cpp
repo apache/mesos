@@ -76,7 +76,6 @@ public:
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
-      const string& directory,
       const Option<string>& user,
       const SlaveID& slaveId);
 
@@ -202,7 +201,6 @@ Future<bool> ComposingContainerizer::launch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
-    const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId)
 {
@@ -211,7 +209,6 @@ Future<bool> ComposingContainerizer::launch(
                   containerId,
                   commandInfo,
                   containerInfo,
-                  directory,
                   user,
                   slaveId);
 }
@@ -445,7 +442,6 @@ Future<bool> ComposingContainerizerProcess::launch(
           const ContainerID& containerId,
           const CommandInfo& commandInfo,
           const Option<ContainerInfo>& containerInfo,
-          const std::string& directory,
           const Option<std::string>& user,
           const SlaveID& slaveId)
 {
