@@ -1869,12 +1869,16 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
     MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(_containerizer);
+
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      slaveFlags);
+
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2035,8 +2039,16 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // NOTE: We add 'cgroups/cpu,cgroups/mem' to bypass MESOS-2554.
   flags.isolation = "cgroups/cpu,cgroups/mem,network/port_mapping";
 
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2075,6 +2087,13 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *containers.get().begin();
+
   slave.get()->terminate();
 
   // Wipe the slave meta directory so that the slave will treat the
@@ -2084,16 +2103,22 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Future<Nothing> orphansDestroyed =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+
+  containerizer.reset(_containerizer.get());
 
   // Restart the slave.
-  slave = StartSlave(detector.get(), flags);
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  // Wait until slave recovery is complete.
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
 
-  AWAIT_READY(orphansDestroyed);
+  // Wait until the orphan containers are cleaned up.
+  AWAIT_READY_FOR(containerizer.get()->wait(containerId), Seconds(60));
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Expect that qdiscs still exist on eth0 and lo but with no filters.
   Try<bool> hostEth0ExistsQdisc = ingress::exists(eth0);
@@ -2291,6 +2316,10 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   AWAIT_READY(containers);
   ASSERT_EQ(2u, containers.get().size());
 
+  auto iterator = containers.get().begin();
+  const ContainerID containerId1 = *iterator;
+  const ContainerID containerId2 = *(++iterator);
+
   slave.get()->terminate();
 
   // Wipe the slave meta directory so that the slave will treat the
@@ -2299,10 +2328,9 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 
   // Remove the network namespace symlink for one container so that it
   // becomes an unknown orphan.
-  const ContainerID containerId = *(containers.get().begin());
   const string symlink = path::join(
       slave::PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
-      stringify(containerId));
+      stringify(containerId1));
 
   ASSERT_TRUE(os::exists(symlink));
   ASSERT_TRUE(os::stat::islink(symlink));
@@ -2311,15 +2339,22 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Future<Nothing> knownOrphansDestroyed =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+
+  containerizer.reset(_containerizer.get());
 
   // Restart the slave.
-  slave = StartSlave(detector.get(), flags);
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
+  // Wait until slave recovery is complete.
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
+
+  // Wait until the orphan containers are cleaned up.
+  AWAIT_READY_FOR(containerizer.get()->wait(containerId2), Seconds(60));
   AWAIT_READY(slaveRegisteredMessage);
-  AWAIT_READY(knownOrphansDestroyed);
 
   // We settle the clock here to ensure that the processing of
   // 'MesosContainerizerProcess::___destroy()' is complete and the
