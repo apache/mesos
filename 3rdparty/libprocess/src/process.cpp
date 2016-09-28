@@ -1349,6 +1349,14 @@ void SocketManager::link_connect(
     // POLL socket.
     if (attempt_downgrade) {
       synchronized (mutex) {
+        // It is possible that a prior call to `link()` with `RECONNECT`
+        // semantics has swapped out this socket before we finished
+        // connecting. In this case, we simply stop here and allow the
+        // latest created socket to complete the link.
+        if (sockets.count(*socket) <= 0) {
+          return;
+        }
+
         Try<Socket> create = Socket::create(Socket::POLL);
         if (create.isError()) {
           VLOG(1) << "Failed to link, create socket: " << create.error();
