@@ -469,7 +469,6 @@ Future<bool> ComposingContainerizerProcess::launch(
       containerId,
       commandInfo,
       containerInfo,
-      directory,
       user,
       slaveId)
     .then(defer(self(),

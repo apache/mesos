@@ -105,14 +105,10 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
   sandboxPath->set_type(Volume::Source::SandboxPath::PARENT);
   sandboxPath->set_path("shared");
 
-  directory = environment->mkdtemp();
-  ASSERT_SOME(directory);
-
   launch = containerizer->launch(
       nestedContainerId1,
       CREATE_COMMAND_INFO("touch parent/file; sleep 1000"),
       containerInfo,
-      directory.get(),
       None(),
       state.id);
 
@@ -122,15 +118,11 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
   nestedContainerId2.mutable_parent()->CopyFrom(containerId);
   nestedContainerId2.set_value(UUID::random().toString());
 
-  directory = environment->mkdtemp();
-  ASSERT_SOME(directory);
-
   launch = containerizer->launch(
       nestedContainerId2,
       CREATE_COMMAND_INFO(
         "while true; do if [ -f parent/file ]; then exit 0; fi; done"),
       containerInfo,
-      directory.get(),
       None(),
       state.id);
 

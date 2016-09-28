@@ -3354,7 +3354,7 @@ TEST_P(AgentAPITest, NestedContainerLaunchFalse)
 
   {
     // Return false here to indicate "unsupported".
-    EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _, _))
+    EXPECT_CALL(mockContainerizer, launch(_, _, _, _, _))
       .WillOnce(Return(Future<bool>(false)));
 
     v1::agent::Call call;
