@@ -482,8 +482,29 @@ void reinitialize()
         EXIT(EXIT_FAILURE) << "Could not load default CA file and/or directory";
       }
 
-      LOG(INFO) << "Using default CA file '" << X509_get_default_cert_file()
-                << "' and/or directory '" << X509_get_default_cert_dir() << "'";
+      // For getting the defaults for ca-directory and/or ca-file from
+      // openssl, we have to mimic parts of its logic; if the user has
+      // set the openssl-specific environment variable, use that one -
+      // if the user has not set that variable, use the compiled in
+      // defaults.
+      string ca_dir;
+
+      if (environments.count(X509_get_default_cert_dir_env()) > 0) {
+        ca_dir = environments.at(X509_get_default_cert_dir_env());
+      } else {
+        ca_dir = X509_get_default_cert_dir();
+      }
+
+      string ca_file;
+
+      if (environments.count(X509_get_default_cert_file_env()) > 0) {
+        ca_file = environments.at(X509_get_default_cert_file_env());
+      } else {
+        ca_file = X509_get_default_cert_file();
+      }
+
+      LOG(INFO) << "Using default CA file '" << ca_file
+                << "' and/or directory '" << ca_dir << "'";
     }
 
     // Set SSL peer verification callback.
