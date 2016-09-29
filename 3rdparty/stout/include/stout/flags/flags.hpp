@@ -861,7 +861,7 @@ inline Try<Warnings> FlagsBase::load(
   // Update 'argc' and 'argv' if we successfully loaded the flags.
   if (!result.isError()) {
     CHECK_LE(args.size(), (size_t) *argc);
-    size_t i = 1; // Start at '1' to skip argv[0].
+    int i = 1; // Start at '1' to skip argv[0].
     foreach (char* arg, args) {
       (*argv)[i++] = arg;
     }
