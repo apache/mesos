@@ -1720,6 +1720,70 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 }
 
 
+// This test checks that the order in which `addFramework()` and `addSlave()`
+// are called does not influence the bookkeeping. We start with two frameworks
+// with identical allocations, but we update the allocator in different order
+// for each framework. We expect the fair shares of the frameworks to be
+// identical, which we implicitly check by subsequent allocations.
+TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  const string agentResources{"cpus:1;mem:0;disk:0"};
+
+  initialize();
+
+  // Start with two identical agents and two frameworks,
+  // each having one agent allocated to it.
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  SlaveInfo agent2 = createSlaveInfo(agentResources);
+
+  const string ROLE1 = "ROLE1";
+  FrameworkInfo framework1 = createFrameworkInfo(ROLE1);
+
+  const string ROLE2 = "ROLE2";
+  FrameworkInfo framework2 = createFrameworkInfo(ROLE2);
+
+  hashmap<FrameworkID, Resources> agent1Allocation =
+    {{framework1.id(), agent1.resources()}};
+  hashmap<FrameworkID, Resources> agent2Allocation =
+    {{framework2.id(), agent2.resources()}};
+
+  hashmap<SlaveID, Resources> framework1Allocation =
+    {{agent1.id(), agent1.resources()}};
+  hashmap<SlaveID, Resources> framework2Allocation =
+    {{agent2.id(), agent2.resources()}};
+
+  // Call `addFramework()` and `addSlave()` in different order for
+  // `framework1` and `framework2`
+  allocator->addFramework(framework1.id(), framework1, framework1Allocation);
+
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), agent1Allocation);
+
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), agent2Allocation);
+
+  allocator->addFramework(framework2.id(), framework2, framework2Allocation);
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // ROLE1 share = 0.5
+  //   framework1 share = 1
+  // ROLE2 share = 0.5
+  //   framework2 share = 1
+
+  // We expect the frameworks to have identical resource allocations and
+  // hence identical dominant shares.
+  JSON::Object metrics = Metrics();
+  string metric1 = "allocator/mesos/roles/" + ROLE1 + "/shares/dominant";
+  string metric2 = "allocator/mesos/roles/" + ROLE2 + "/shares/dominant";
+  EXPECT_EQ(metrics.values[metric1], metrics.values[metric2]);
+}
+
+
 // The quota tests that are specific to the built-in Hierarchical DRF
 // allocator (i.e. the way quota is satisfied) are in this file.
 
