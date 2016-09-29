@@ -315,6 +315,14 @@ public:
     TERMINATING,  // Slave is shutting down.
   } state;
 
+  // Describes information about agent recovery.
+  struct RecoveryInfo
+  {
+    // Flag to indicate if recovery, including reconciling
+    // (i.e., reconnect/kill) with executors is finished.
+    process::Promise<Nothing> recovered;
+  } recoveryInfo;
+
   // TODO(benh): Clang requires members to be public in order to take
   // their address which we do in tests (for things like
   // FUTURE_DISPATCH).
@@ -727,10 +735,6 @@ private:
   // Timer for triggering re-detection when no ping is received from
   // the master.
   process::Timer pingTimer;
-
-  // Flag to indicate if recovery, including reconciling (i.e., reconnect/kill)
-  // with executors is finished.
-  process::Promise<Nothing> recovered;
 
   // Root meta directory containing checkpointed data.
   const std::string metaDir;
