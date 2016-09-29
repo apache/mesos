@@ -2503,8 +2503,8 @@ void Slave::shutdownFramework(
     return;
   }
 
-  LOG(INFO) << "Asked to shut down framework " << frameworkId
-            << " by " << from;
+  VLOG(1) << "Asked to shut down framework " << frameworkId
+          << " by " << from;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -2518,7 +2518,7 @@ void Slave::shutdownFramework(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == nullptr) {
-    LOG(WARNING) << "Cannot shut down unknown framework " << frameworkId;
+    VLOG(1) << "Cannot shut down unknown framework " << frameworkId;
     return;
   }
 
