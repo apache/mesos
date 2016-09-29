@@ -4059,14 +4059,37 @@ void Master::_accept(
 
           // Validate the task.
 
-          // Make a copy of the original task so that we can
-          // fill the missing `framework_id` in ExecutorInfo
-          // if needed. This field was added to the API later
-          // and thus was made optional.
+          // TODO(haosdent): Once we have internal `TaskInfo` separate from
+          // the v0 `TaskInfo` (see MESOS-6268), consider extracting the
+          // following adaptation code into devolve methods from v0 and v1
+          // `TaskInfo` to internal `TaskInfo`.
+          //
+          // Make a copy of the original task so that we can fill the missing
+          // `framework_id` in `ExecutorInfo` if needed. This field was added
+          // to the API later and thus was made optional.
           TaskInfo task_(task);
           if (task.has_executor() && !task.executor().has_framework_id()) {
             task_.mutable_executor()
                 ->mutable_framework_id()->CopyFrom(framework->id());
+          }
+
+          // For backwards compatibility with the v0 and v1 API, when
+          // the type of the health check is not specified, determine
+          // its type from the `http` and `command` fields.
+          //
+          // TODO(haosdent): Remove this after the deprecation cycle which
+          // starts in 2.0.
+          if (task.has_health_check() && !task.health_check().has_type()) {
+            LOG(WARNING) << "The type of health check is not set; use of "
+                         << "'HealthCheck' without specifying 'type' will be "
+                         << "deprecated in Mesos 2.0";
+
+            HealthCheck healthCheck = task.health_check();
+            if (healthCheck.has_command() && !healthCheck.has_http()) {
+              task_.mutable_health_check()->set_type(HealthCheck::COMMAND);
+            } else if (healthCheck.has_http() && !healthCheck.has_command()) {
+              task_.mutable_health_check()->set_type(HealthCheck::HTTP);
+            }
           }
 
           // We add back offered shared resources for validation even if they
