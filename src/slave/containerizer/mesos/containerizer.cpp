@@ -808,7 +808,29 @@ Future<list<Nothing>> MesosContainerizerProcess::recoverIsolators(
 
   // Then recover the isolators.
   foreach (const Owned<Isolator>& isolator, isolators) {
-    futures.push_back(isolator->recover(recoverable, orphans));
+    // NOTE: We should not send nested containers to the isolator if
+    // the isolator does not support nesting.
+    if (isolator->supportsNesting()) {
+      futures.push_back(isolator->recover(recoverable, orphans));
+    } else {
+      // Strip nested containers from 'recoverable' and 'orphans'.
+      list<ContainerState> _recoverable;
+      hashset<ContainerID> _orphans;
+
+      foreach (const ContainerState& state, recoverable) {
+        if (!state.container_id().has_parent()) {
+          _recoverable.push_back(state);
+        }
+      }
+
+      foreach (const ContainerID& orphan, orphans) {
+        if (!orphan.has_parent()) {
+          _orphans.insert(orphan);
+        }
+      }
+
+      futures.push_back(isolator->recover(_recoverable, _orphans));
+    }
   }
 
   // If all isolators recover then continue.
@@ -840,6 +862,12 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     const ContainerID& containerId = run.container_id();
 
     foreach (const Owned<Isolator>& isolator, isolators) {
+      // If this is a nested container, we need to skip isolators that
+      // do not support nesting.
+      if (containerId.has_parent() && !isolator->supportsNesting()) {
+        continue;
+      }
+
       isolator->watch(containerId)
         .onAny(defer(self(), &Self::limited, containerId, lambda::_1));
     }
@@ -1106,6 +1134,12 @@ Future<Nothing> MesosContainerizerProcess::prepare(
     list<Option<ContainerLaunchInfo>>();
 
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // If this is a nested container, we need to skip isolators that
+    // do not support nesting.
+    if (containerId.has_parent() && !isolator->supportsNesting()) {
+      continue;
+    }
+
     // Chain together preparing each isolator.
     f = f.then([=](list<Option<ContainerLaunchInfo>> launchInfos) {
       return isolator->prepare(containerId, containerConfig)
@@ -1492,6 +1526,12 @@ Future<bool> MesosContainerizerProcess::isolate(
 
   // Set up callbacks for isolator limitations.
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // If this is a nested container, we need to skip isolators that
+    // do not support nesting.
+    if (containerId.has_parent() && !isolator->supportsNesting()) {
+      continue;
+    }
+
     isolator->watch(containerId)
       .onAny(defer(self(), &Self::limited, containerId, lambda::_1));
   }
@@ -1502,6 +1542,12 @@ Future<bool> MesosContainerizerProcess::isolate(
   // isolation.
   list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // If this is a nested container, we need to skip isolators that
+    // do not support nesting.
+    if (containerId.has_parent() && !isolator->supportsNesting()) {
+      continue;
+    }
+
     futures.push_back(isolator->isolate(containerId, _pid));
   }
 
@@ -1677,6 +1723,8 @@ Future<Nothing> MesosContainerizerProcess::update(
   // Update each isolator.
   list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // NOTE: No need to skip non-nesting aware isolator here because
+    // 'update' currently will not be called for nested container.
     futures.push_back(isolator->update(containerId, resources));
   }
 
@@ -1740,6 +1788,8 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
 
   list<Future<ResourceStatistics>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // NOTE: No need to skip non-nesting aware isolator here because
+    // 'update' currently will not be called for nested container.
     futures.push_back(isolator->usage(containerId));
   }
 
@@ -1787,6 +1837,12 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
 
   list<Future<ContainerStatus>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
+    // If this is a nested container, we need to skip isolators that
+    // do not support nesting.
+    if (containerId.has_parent() && !isolator->supportsNesting()) {
+      continue;
+    }
+
     futures.push_back(isolator->status(containerId));
   }
   futures.push_back(launcher->status(containerId));
@@ -2213,6 +2269,12 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
   // NOTE: We clean up each isolator in the reverse order they were
   // prepared (see comment in prepare()).
   foreach (const Owned<Isolator>& isolator, adaptor::reverse(isolators)) {
+    // If this is a nested container, we need to skip isolators that
+    // do not support nesting.
+    if (containerId.has_parent() && !isolator->supportsNesting()) {
+      continue;
+    }
+
     // We'll try to clean up all isolators, waiting for each to
     // complete and continuing if one fails.
     // TODO(jieyu): Technically, we cannot bind 'isolator' here
