@@ -60,13 +60,13 @@ message ImageManifest {
     // Name of the image as it was passed by the operator.
     optional string Image = 8;
 
-    // NOTE: We cannot use 'Labels' here becasue otherwise,
+    // NOTE: We cannot use 'Labels' here because otherwise,
     // json->protobuf parsing will fail. 'labels' is manually
     // set during parsing.
     repeated Label labels = 9;
 
     // TODO(gilbert): Create a message including string-message
-    // pair to match ExposedPoarts' map (map[nat.Port]struct{}).
+    // pair to match ExposedPorts' map (map[nat.Port]struct{}).
   }
 
   optional Config container_config = 6;
