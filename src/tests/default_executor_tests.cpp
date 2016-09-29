@@ -171,6 +171,16 @@ TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
   ASSERT_EQ(TASK_RUNNING, update->status().state());
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().has_timestamp());
+
+  // Ensure that the task sandbox symbolic link is created.
+  EXPECT_TRUE(os::exists(path::join(
+      slave::paths::getExecutorLatestRunPath(
+          flags.work_dir,
+          slaveId,
+          devolve(frameworkId),
+          executorInfo.executor_id()),
+      "tasks",
+      taskInfo.task_id().value())));
 }
 
 

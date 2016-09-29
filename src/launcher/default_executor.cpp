@@ -34,6 +34,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/fs.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -76,7 +77,8 @@ public:
   DefaultExecutor(
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
-      const ::URL& _agent)
+      const ::URL& _agent,
+      const string& _sandboxDirectory)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       contentType(ContentType::PROTOBUF),
@@ -87,7 +89,8 @@ public:
       executorContainerId(None()),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      agent(_agent) {}
+      agent(_agent),
+      sandboxDirectory(_sandboxDirectory) {}
 
   virtual ~DefaultExecutor() = default;
 
@@ -381,9 +384,10 @@ protected:
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
       const TaskID& taskId = task.task_id();
+      ContainerID containerId = pending.front();
 
       tasks[taskId] = task;
-      containers[pending.front()] = taskId;
+      containers[containerId] = taskId;
 
       pending.pop_front();
 
@@ -422,6 +426,30 @@ protected:
           }));
 
         checkers.push_back(checker);
+      }
+
+      // Currently, the Mesos agent does not expose the mapping from
+      // `ContainerID` to `TaskID` for nested containers.
+      // In order for the Web UI to access the task sandbox, we create
+      // a symbolic link from 'tasks/taskId' -> 'containers/containerId'.
+      const string TASKS_DIRECTORY = "tasks";
+      const string CONTAINERS_DIRECTORY = "containers";
+
+      Try<Nothing> mkdir = os::mkdir(TASKS_DIRECTORY);
+      if (mkdir.isError()) {
+        LOG(FATAL) << "Unable to create task directory: " << mkdir.error();
+      }
+
+      Try<Nothing> symlink = fs::symlink(
+          path::join(sandboxDirectory,
+                     CONTAINERS_DIRECTORY,
+                     containerId.value()),
+          path::join(TASKS_DIRECTORY, taskId.value()));
+
+      if (symlink.isError()) {
+        LOG(FATAL) << "Unable to create symbolic link for container "
+                   << containerId << " of task '" << taskId << "' due to: "
+                   << symlink.error();
       }
     }
 
@@ -942,6 +970,7 @@ private:
   const ExecutorID executorId;
   Owned<Mesos> mesos;
   const ::URL agent; // Agent API URL.
+  const string sandboxDirectory;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 
@@ -976,6 +1005,7 @@ int main(int argc, char** argv)
   mesos::ExecutorID executorId;
   string scheme = "http"; // Default scheme.
   ::URL agent;
+  string sandboxDirectory;
 
   Option<string> value = os::getenv("MESOS_FRAMEWORK_ID");
   if (value.isNone()) {
@@ -1011,11 +1041,19 @@ int main(int argc, char** argv)
       upid.address.port,
       upid.id + "/api/v1");
 
+  value = os::getenv("MESOS_SANDBOX");
+  if (value.isNone()) {
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_SANDBOX' to be set in the environment";
+  }
+  sandboxDirectory = value.get();
+
   Owned<mesos::internal::DefaultExecutor> executor(
       new mesos::internal::DefaultExecutor(
           frameworkId,
           executorId,
-          agent));
+          agent,
+          sandboxDirectory));
 
   process::spawn(executor.get());
   process::wait(executor.get());
