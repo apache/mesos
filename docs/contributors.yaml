@@ -313,6 +313,14 @@
   jira_user: Kris-Paprocki
   reviewboard_user: Kris-Paprocki
 
+- name: Lawrence Wu
+  affiliations:
+    - {organization: Twitter}
+  emails:
+    - lawrencew@twitter.com
+  jira_user: lawrencew
+  reviewboard_user: lawrencew
+
 - name: Lily Chen
   affiliations:
     - {organization: Mesosphere}
