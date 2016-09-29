@@ -1780,7 +1780,10 @@ TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
   JSON::Object metrics = Metrics();
   string metric1 = "allocator/mesos/roles/" + ROLE1 + "/shares/dominant";
   string metric2 = "allocator/mesos/roles/" + ROLE2 + "/shares/dominant";
-  EXPECT_EQ(metrics.values[metric1], metrics.values[metric2]);
+
+  double share1 = metrics.values[metric1].as<JSON::Number>().as<double>();
+  double share2 = metrics.values[metric2].as<JSON::Number>().as<double>();
+  EXPECT_DOUBLE_EQ(share1, share2);
 }
 
 
