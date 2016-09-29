@@ -335,8 +335,8 @@ message FrameworkInfo {
 
 /**
  * Describes a health check for a task or executor (or any arbitrary
- * process/command). A "strategy" is picked by specifying one of the
- * optional fields. Specifying more than one strategy is an error.
+ * process/command). A type is picked by specifying one of the
+ * optional fields. Specifying more than one type is an error.
  */
 message HealthCheck {
   enum Type {
@@ -347,18 +347,19 @@ message HealthCheck {
   }
 
   // Describes an HTTP health check. Sends a GET request to
-  // scheme://<host>:port/path. Return codes between 200 and 399 are treated
-  // as success, failure otherwise. Note that <host> is not configurable
-  // and is resolved automatically, in most cases to localhost.
+  // scheme://<host>:port/path. Note that <host> is not configurable and is
+  // resolved automatically, in most cases to 127.0.0.1. Default executors
+  // treat return codes between 200 and 399 as success; custom executors
+  // may employ a different strategy, e.g. leveraging the `statuses` field.
   message HTTPCheckInfo {
     // Currently "http" and "https" are supported.
-    optional string scheme = 1;
+    optional string scheme = 3;
 
     // Port to send the HTTP request.
-    required uint32 port = 2;
+    required uint32 port = 1;
 
     // HTTP request path.
-    optional string path = 3;
+    optional string path = 2;
 
     // TODO(alexr): Add support for HTTP method. While adding POST
     // and PUT is simple, supporting payload is more involved.
@@ -367,6 +368,14 @@ message HealthCheck {
 
     // TODO(alexr): Add support for success and possibly failure
     // statuses.
+
+    // NOTE: It is up to the custom executor to interpret and act on this
+    // field. Setting this field has no effect on the default executors.
+    //
+    // TODO(haosdent): Deprecate this field when we add better support for
+    // success and possibly failure statuses, e.g. ranges of success and
+    // failure statuses.
+    repeated uint32 statuses = 4;
 
     // TODO(haosdent): Consider adding a flag to enable task's certificate
     // validation for HTTPS health checks, see MESOS-5997.
@@ -411,7 +420,7 @@ message HealthCheck {
   optional CommandInfo command = 7;
 
   // HTTP health check.
-  optional HTTPCheckInfo http = 10;
+  optional HTTPCheckInfo http = 1;
 
   // TCP health check.
   optional TCPCheckInfo tcp = 9;
