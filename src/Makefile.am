@@ -964,7 +964,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/docker/volume/state.hpp		\
   slave/containerizer/mesos/isolators/network/cni/paths.hpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.hpp		\
-  slave/containerizer/mesos/isolators/network/cni/spec.hpp		\
   slave/containerizer/mesos/isolators/volume/sandbox_path.hpp		\
   slave/containerizer/mesos/isolators/windows.hpp			\
   slave/containerizer/mesos/provisioner/backend.hpp			\
