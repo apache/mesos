@@ -435,6 +435,11 @@ string Slave::Http::EXECUTOR_HELP() {
 
 Future<Response> Slave::Http::executor(const Request& request) const
 {
+  if (!slave->recoveryInfo.reconnect) {
+    CHECK(slave->state == RECOVERING);
+    return ServiceUnavailable("Agent has not finished recovery");
+  }
+
   // TODO(anand): Add metrics for rejected requests.
 
   if (request.method != "POST") {

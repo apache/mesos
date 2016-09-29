@@ -34,8 +34,12 @@
 
 #include "master/master.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+
+#include "tests/containerizer/mock_containerizer.hpp"
 
 using mesos::internal::master::Master;
 
@@ -44,6 +48,7 @@ using mesos::internal::recordio::Reader;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::v1::executor::Call;
 using mesos::v1::executor::Event;
@@ -53,6 +58,7 @@ using process::Future;
 using process::Message;
 using process::Owned;
 using process::PID;
+using process::Promise;
 
 using process::http::BadRequest;
 using process::http::MethodNotAllowed;
@@ -60,6 +66,7 @@ using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
+using process::http::ServiceUnavailable;
 using process::http::UnsupportedMediaType;
 
 using recordio::Decoder;
@@ -703,6 +710,58 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, responseStatusUpdate);
   }
+}
+
+
+// This test verifies that the executor cannot subscribe with the agent
+// before it recovers the containerizer.
+TEST_F(ExecutorHttpApiTest, SubscribeBeforeContainerizerRecovery)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockContainerizer mockContainerizer;
+  StandaloneMasterDetector detector;
+
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::recover);
+
+  Promise<Nothing> recoveryPromise;
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(recoveryPromise.future()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &mockContainerizer);
+  ASSERT_SOME(slave);
+
+  // Ensure that the agent has atleast set up HTTP routes upon startup.
+  AWAIT_READY(recover);
+
+  // Send a subscribe call. This should fail with a '503 Service Unavailable'
+  // since the agent hasn't finished recovering the containerizer.
+
+  Call call;
+  call.mutable_framework_id()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO.id());
+  call.mutable_executor_id()->CopyFrom(DEFAULT_V1_EXECUTOR_ID);
+
+  call.set_type(Call::SUBSCRIBE);
+
+  call.mutable_subscribe();
+
+  process::http::Headers headers;
+  headers["Accept"] = APPLICATION_JSON;
+
+  Future<Response> response = process::http::post(
+        slave.get()->pid,
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::JSON, call),
+        APPLICATION_JSON);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(ServiceUnavailable().status, response);
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
 }
 
 
