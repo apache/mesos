@@ -1381,9 +1381,19 @@ Future<Docker::Image> Docker::__pull(
   // TODO(gilbert): Deprecate the fetching docker config file
   // specified as URI method on 0.30.0 release.
   map<string, string> environment = os::environment();
-  environment["HOME"] = home.isSome()
-    ? home.get()
-    : directory;
+  environment["HOME"] = directory;
+
+  bool configExisted =
+    os::exists(path::join(directory, ".docker", "config.json")) ||
+    os::exists(path::join(directory, ".dockercfg"));
+
+  // We always set the sandbox as the 'HOME' directory, unless
+  // there is no docker config file downloaded in the sandbox
+  // and another docker config file is specified using the
+  // '--docker_config' agent flag.
+  if (!configExisted && home.isSome()) {
+    environment["HOME"] = home.get();
+  }
 
   Try<Subprocess> s_ = subprocess(
       path,
