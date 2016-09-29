@@ -60,7 +60,7 @@ sleep 2
 kill -0 ${MASTER_PID} >/dev/null 2>&1
 STATUS=${?}
 if [[ ${STATUS} -ne 0 ]]; then
-  echo "{RED}Master crashed; failing test${NORMAL}"
+  echo "${RED}Master crashed; failing test${NORMAL}"
   exit 2
 fi
 
