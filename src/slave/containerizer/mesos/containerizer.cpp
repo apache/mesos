@@ -671,7 +671,6 @@ Future<Nothing> MesosContainerizerProcess::recover(
     // first, to maintain the children list in the container.
     Owned<Container> container(new Container());
     container->status = reap(containerId, state.pid());
-    container->status->onAny(defer(self(), &Self::reaped, containerId));
 
     // We only checkpoint the containerizer pid after the container
     // successfully launched, therefore we can assume checkpointed
@@ -737,7 +736,6 @@ Future<Nothing> MesosContainerizerProcess::recover(
     // and do not call 'reap' on it.
     if (pid.isSome()) {
       container->status = reap(containerId, pid.get());
-      container->status->onAny(defer(self(), &Self::reaped, containerId));
     } else {
       container->status = Future<Option<int>>(None());
     }
@@ -862,11 +860,19 @@ Future<Nothing> MesosContainerizerProcess::__recover(
   }
 
   // Maintain the children list in the `Container` struct.
-  foreachkey (const ContainerID& containerId, containers_) {
+  foreachpair (const ContainerID& containerId,
+               const Owned<Container>& container,
+               containers_) {
     if (containerId.has_parent()) {
       CHECK(containers_.contains(containerId.parent()));
       containers_[containerId.parent()]->children.insert(containerId);
     }
+
+    // NOTE: We do not register the callback until we correctly setup
+    // the parent/child relationship. 'destroy' uses that information
+    // to make sure all child containers are cleaned up before it
+    // starts to cleanup the parent container.
+    container->status->onAny(defer(self(), &Self::reaped, containerId));
   }
 
   // Destroy all the orphan containers.
