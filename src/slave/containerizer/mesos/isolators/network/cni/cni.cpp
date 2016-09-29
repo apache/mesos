@@ -699,6 +699,11 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
       } else {
         launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+
+        // This is a top-level container joining a new network
+        // namespace. Hence, set up `pre_exec_command` to bring up the
+        // loopback interface.
+        launchInfo.add_pre_exec_commands()->set_value("ifconfig lo up");
       }
     } else {
       // This is a nested container. This shares the parent's network
