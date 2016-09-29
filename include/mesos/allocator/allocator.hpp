@@ -121,7 +121,8 @@ public:
    *
    * @param used Resources used by this framework. The allocator should
    *     account for these resources when updating the allocation of this
-   *     framework.
+   *     framework. The allocator should avoid double accounting when yet
+   *     unknown agents are added later in `addSlave()`.
    */
   virtual void addFramework(
       const FrameworkID& frameworkId,
@@ -174,7 +175,9 @@ public:
    * @param total The `total` resources are passed explicitly because it
    *     includes resources that are dynamically "checkpointed" on the agent
    *     (e.g. persistent volumes, dynamic reservations, etc).
-   * @param used Resources that are allocated on the current agent.
+   * @param used Resources that are allocated on the current agent. The
+   *     allocator should avoid double accounting when yet unknown frameworks
+   *     are added later in `addFramework()`.
    */
   virtual void addSlave(
       const SlaveID& slaveId,

@@ -245,13 +245,16 @@ void HierarchicalAllocatorProcess::addFramework(
 
   // Update the allocation for this framework.
   foreachpair (const SlaveID& slaveId, const Resources& allocated, used) {
-    roleSorter->allocated(role, slaveId, allocated);
-    frameworkSorters[role]->add(slaveId, allocated);
-    frameworkSorters[role]->allocated(frameworkId.value(), slaveId, allocated);
+    if (slaves.contains(slaveId)) {
+      roleSorter->allocated(role, slaveId, allocated);
+      frameworkSorters[role]->add(slaveId, allocated);
+      frameworkSorters[role]->allocated(
+          frameworkId.value(), slaveId, allocated);
 
-    if (quotas.contains(role)) {
-      // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-      quotaRoleSorter->allocated(role, slaveId, allocated.nonRevocable());
+      if (quotas.contains(role)) {
+        // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+        quotaRoleSorter->allocated(role, slaveId, allocated.nonRevocable());
+      }
     }
   }
 
