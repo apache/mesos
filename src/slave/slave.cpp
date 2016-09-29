@@ -4725,6 +4725,10 @@ Future<Nothing> Slave::_recoverContainerizer(
 
 Future<Nothing> Slave::_recover()
 {
+  // Alow HTTP based executors to subscribe after the
+  // containerizer recovery is complete.
+  recoveryInfo.reconnect = true;
+
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
       // Set up callback for executor termination.

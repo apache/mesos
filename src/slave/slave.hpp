@@ -303,6 +303,11 @@ public:
     // Flag to indicate if recovery, including reconciling
     // (i.e., reconnect/kill) with executors is finished.
     process::Promise<Nothing> recovered;
+
+    // Flag to indicate that HTTP based executors can
+    // subscribe with the agent. We allow them to subscribe
+    // after the agent recovers the containerizer.
+    bool reconnect = false;
   } recoveryInfo;
 
   // TODO(benh): Clang requires members to be public in order to take
