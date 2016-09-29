@@ -413,39 +413,39 @@ void reinitialize()
   }
 
   if (ssl_flags->ca_file.isNone()) {
-    VLOG(2) << "CA file path is unspecified! NOTE: "
-            << "Set CA file path with LIBPROCESS_SSL_CA_FILE=<filepath>";
+    LOG(INFO) << "CA file path is unspecified! NOTE: "
+              << "Set CA file path with LIBPROCESS_SSL_CA_FILE=<filepath>";
   }
 
   if (ssl_flags->ca_dir.isNone()) {
-    VLOG(2) << "CA directory path unspecified! NOTE: "
-            << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
+    LOG(INFO) << "CA directory path unspecified! NOTE: "
+              << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
   }
 
   if (!ssl_flags->verify_cert) {
-    VLOG(2) << "Will not verify peer certificate!\n"
-            << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
-            << "peer certificate verification";
+    LOG(INFO) << "Will not verify peer certificate!\n"
+              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
+              << "peer certificate verification";
   }
 
   if (!ssl_flags->require_cert) {
-    VLOG(2) << "Will only verify peer certificate if presented!\n"
-            << "NOTE: Set LIBPROCESS_SSL_REQUIRE_CERT=1 to require "
-            << "peer certificate verification";
+    LOG(INFO) << "Will only verify peer certificate if presented!\n"
+              << "NOTE: Set LIBPROCESS_SSL_REQUIRE_CERT=1 to require "
+              << "peer certificate verification";
   }
 
   if (ssl_flags->verify_ipadd) {
-    VLOG(2) << "Will use IP address verification in subject alternative name "
-            << "certificate extension.";
+    LOG(INFO) << "Will use IP address verification in subject alternative name "
+              << "certificate extension.";
   }
 
   if (ssl_flags->require_cert && !ssl_flags->verify_cert) {
     // Requiring a certificate implies that is should be verified.
     ssl_flags->verify_cert = true;
 
-    VLOG(2) << "LIBPROCESS_SSL_REQUIRE_CERT implies "
-            << "peer certificate verification.\n"
-            << "LIBPROCESS_SSL_VERIFY_CERT set to true";
+    LOG(INFO) << "LIBPROCESS_SSL_REQUIRE_CERT implies "
+              << "peer certificate verification.\n"
+              << "LIBPROCESS_SSL_VERIFY_CERT set to true";
   }
 
   // Initialize OpenSSL if we've been asked to do verification of peer
@@ -472,18 +472,18 @@ void reinitialize()
       }
 
       if (ca_file != nullptr) {
-        VLOG(2) << "Using CA file: " << ca_file;
+        LOG(INFO) << "Using CA file: " << ca_file;
       }
       if (ca_dir != nullptr) {
-        VLOG(2) << "Using CA dir: " << ca_dir;
+        LOG(INFO) << "Using CA dir: " << ca_dir;
       }
     } else {
       if (SSL_CTX_set_default_verify_paths(ctx) != 1) {
         EXIT(EXIT_FAILURE) << "Could not load default CA file and/or directory";
       }
 
-      VLOG(2) << "Using default CA file '" << X509_get_default_cert_file()
-              << "' and/or directory '" << X509_get_default_cert_dir() << "'";
+      LOG(INFO) << "Using default CA file '" << X509_get_default_cert_file()
+                << "' and/or directory '" << X509_get_default_cert_dir() << "'";
     }
 
     // Set SSL peer verification callback.
