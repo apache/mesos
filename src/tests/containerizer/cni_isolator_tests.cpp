@@ -364,11 +364,19 @@ TEST_F(CniIsolatorTest, ROOT_FailedPlugin)
   flags.network_cni_plugins_dir = cniPluginDir;
   flags.network_cni_config_dir = cniConfigDir;
 
-  ASSERT_SOME(os::write(
+  Try<Nothing> write = os::write(
       path::join(cniPluginDir, "mockPlugin"),
-      "#!/bin/sh\n"
-      "echo \"Plugin failed\"\n"
-      "exit 1"));
+      R"~(
+      #!/bin/sh
+      if [ x$CNI_COMMAND = xADD ]; then
+        echo Plugin failed
+        exit 1
+      else
+        exit 0
+      fi
+      )~");
+
+  ASSERT_SOME(write);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
