@@ -532,8 +532,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
 TEST_F(FetcherTest, NoExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -572,8 +571,7 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
 TEST_F(FetcherTest, NoExtractExecutable)
 {
   // First construct a temporary file that can be fetched.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -614,8 +612,7 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched and archived with tar
   // gzip.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -668,8 +665,7 @@ TEST_F(FetcherTest, ExtractTar)
 {
   // First construct a temporary file that can be fetched and archived with
   // tar.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -713,8 +709,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
 {
   // First construct a temporary file that can be fetched and archived with
   // gzip.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -915,8 +910,7 @@ TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
 TEST_F(FetcherTest, UseCustomOutputFile)
 {
   // First construct a temporary file that can be fetched.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
@@ -955,8 +949,7 @@ TEST_F(FetcherTest, UseCustomOutputFile)
 TEST_F(FetcherTest, CustomGzipOutputFile)
 {
   // First construct a temporary file that can be fetched.
-  Try<string> dir =
-      os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
   Try<string> path = os::mktemp(path::join(dir.get(), "XXXXXX"));
