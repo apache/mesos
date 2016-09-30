@@ -5520,7 +5520,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
 
   const list<QoSCorrection>& corrections = future.get();
 
-  LOG(INFO) << "Received " << corrections.size() << " QoS corrections";
+  VLOG(1) << "Received " << corrections.size() << " QoS corrections";
 
   foreach (const QoSCorrection& correction, corrections) {
     // TODO(nnielsen): Print correction, once the operator overload
