@@ -69,6 +69,7 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   // Start 10 slaves.
   for (int i = 0; i < 10; i++) {
     slave::Flags flags = CreateSlaveFlags();
+    flags.launcher = "posix";
 
     flags.resources = Option<std::string>("cpus:2;mem:1024");
 
