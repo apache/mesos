@@ -43,24 +43,13 @@ string buildPath(
       default:      UNREACHABLE();
     }
   } else {
+    const string path = buildPath(containerId.parent(), separator, mode);
+
     switch (mode) {
-      case PREFIX:
-        return path::join(
-            buildPath(containerId.parent(), separator, PREFIX),
-            separator,
-            containerId.value());
-      case SUFFIX:
-        return path::join(
-            buildPath(containerId.parent(), separator, SUFFIX),
-            containerId.value(),
-            separator);
-      case JOIN:
-        return path::join(
-            buildPath(containerId.parent(), separator, JOIN),
-            separator,
-            containerId.value());
-      default:
-        UNREACHABLE();
+      case PREFIX:  return path::join(path, separator, containerId.value());
+      case SUFFIX:  return path::join(path, containerId.value(), separator);
+      case JOIN:    return path::join(path, separator, containerId.value());
+      default:      UNREACHABLE();
     }
   }
 }
