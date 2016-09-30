@@ -3685,6 +3685,15 @@ void Master::_accept(
       }();
 
       foreach (const TaskInfo& task, tasks) {
+        // Remove the task from being pending.
+        framework->pendingTasks.erase(task.task_id());
+        if (slave != nullptr) {
+          slave->pendingTasks[framework->id()].erase(task.task_id());
+          if (slave->pendingTasks[framework->id()].empty()) {
+            slave->pendingTasks.erase(framework->id());
+          }
+        }
+
         const TaskStatus::Reason reason =
             slave == nullptr ? TaskStatus::REASON_SLAVE_REMOVED
                           : TaskStatus::REASON_SLAVE_DISCONNECTED;
@@ -4183,6 +4192,21 @@ void Master::_accept(
         const ExecutorInfo& executor = operation.launch_group().executor();
         const TaskGroupInfo& taskGroup = operation.launch_group().task_group();
 
+        // Remove all the tasks from being pending.
+        hashset<TaskID> killed;
+        foreach (const TaskInfo& task, taskGroup.tasks()) {
+          bool pending = framework->pendingTasks.contains(task.task_id());
+          framework->pendingTasks.erase(task.task_id());
+          slave->pendingTasks[framework->id()].erase(task.task_id());
+          if (slave->pendingTasks[framework->id()].empty()) {
+            slave->pendingTasks.erase(framework->id());
+          }
+
+          if (!pending) {
+            killed.insert(task.task_id());
+          }
+        }
+
         // Note that we do not fill in the `ExecutorInfo.framework_id`
         // since we do not have to support backwards compatiblity like
         // in the `Launch` operation case.
@@ -4267,22 +4291,9 @@ void Master::_accept(
           continue;
         }
 
-        // Remove all the tasks from being pending. If any of the tasks
-        // have been killed in the interim, we will send TASK_KILLED
-        // for all other tasks in the group, since a TaskGroup must
-        // be delivered in its entirety.
-        hashset<TaskID> killed;
-        foreach (const TaskInfo& task, taskGroup.tasks()) {
-          bool pending = framework->pendingTasks.contains(task.task_id());
-          framework->pendingTasks.erase(task.task_id());
-
-          if (!pending) {
-            killed.insert(task.task_id());
-          }
-        }
-
         // If task(s) were killed, send TASK_KILLED for
-        // all of the remaining tasks.
+        // all of the remaining tasks, since a TaskGroup must
+        // be delivered in its entirety.
         //
         // TODO(bmahler): Do this killing when processing
         // the `Kill` call, rather than doing it here.
