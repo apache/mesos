@@ -35,15 +35,20 @@ Metrics::Metrics(
     const Option<string>& prefix)
   : recovered(
         prefix.getOrElse("") + "log/recovered",
-        defer(process, &LogProcess::_recovered))
+        defer(process, &LogProcess::_recovered)),
+    ensemble_size(
+        prefix.getOrElse("") + "log/ensemble_size",
+        defer(process, &LogProcess::_ensemble_size))
 {
   process::metrics::add(recovered);
+  process::metrics::add(ensemble_size);
 }
 
 
 Metrics::~Metrics()
 {
   process::metrics::remove(recovered);
+  process::metrics::remove(ensemble_size);
 }
 
 } // namespace log {

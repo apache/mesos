@@ -37,6 +37,8 @@ struct Metrics
   ~Metrics();
 
   process::metrics::Gauge recovered;
+
+  process::metrics::Gauge ensemble_size;
 };
 
 } // namespace log {

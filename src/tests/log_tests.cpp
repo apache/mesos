@@ -2102,6 +2102,9 @@ TEST_F(LogTest, Metrics)
 
   ASSERT_EQ(1u, snapshot.values.count("prefix/log/recovered"));
   EXPECT_EQ(1, snapshot.values["prefix/log/recovered"]);
+
+  ASSERT_EQ(1u, snapshot.values.count("prefix/log/ensemble_size"));
+  EXPECT_EQ(1, snapshot.values["prefix/log/ensemble_size"]);
 }
 
 

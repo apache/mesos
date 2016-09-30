@@ -103,6 +103,16 @@ private:
 
   friend Metrics;
   Metrics metrics;
+
+  // The size of the network. We use "ensemble" because it as a metric
+  // name more intuitively means the "replica set".
+  process::Future<double> _ensemble_size()
+  {
+    // Watching for any value different than 0 should give us the
+    // current value.
+    return network->watch(0u)
+      .then([](size_t size) -> double { return size; });
+  }
 };
 
 
