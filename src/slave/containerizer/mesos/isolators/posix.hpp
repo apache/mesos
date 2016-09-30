@@ -116,7 +116,10 @@ public:
   virtual process::Future<Nothing> cleanup(const ContainerID& containerId)
   {
     if (!promises.contains(containerId)) {
-      return process::Failure("Unknown container: " + stringify(containerId));
+      VLOG(1) << "Ignoring cleanup request for unknown container "
+              << containerId;
+
+      return Nothing();
     }
 
     // TODO(idownes): We should discard the container's promise here to signal
