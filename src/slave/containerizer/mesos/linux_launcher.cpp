@@ -29,8 +29,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
-
-#include <stout/os/stat.hpp>
+#include <stout/stringify.hpp>
 
 #include "linux/cgroups.hpp"
 #include "linux/ns.hpp"
@@ -274,13 +273,8 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
     // matches our separator structure) or one that someone else
     // created (e.g., in the future we might have nested containers
     // that are managed by something else rooted within the freezer
-    // hierarchy). First we remove the `flags.cgroups_root` prefix.
-    Option<ContainerID> containerId = parse(
-        strings::remove(
-            cgroup,
-            flags.cgroups_root,
-            strings::PREFIX));
-
+    // hierarchy).
+    Option<ContainerID> containerId = parse(cgroup);
     if (containerId.isNone()) {
       LOG(INFO) << "Not recovering cgroup " << cgroup;
       continue;
@@ -596,7 +590,9 @@ Option<ContainerID> LinuxLauncherProcess::parse(const string& cgroup)
   // non-separator we see.
   bool separator = false;
 
-  vector<string> tokens = strings::tokenize(cgroup, "/");
+  vector<string> tokens = strings::tokenize(
+      strings::remove(cgroup, flags.cgroups_root, strings::PREFIX),
+      stringify(os::PATH_SEPARATOR));
 
   for (size_t i = 0; i < tokens.size(); i++) {
     if (separator && tokens[i] == CGROUP_SEPARATOR) {
