@@ -31,6 +31,7 @@
 #include <stout/nothing.hpp>
 
 #include "log/coordinator.hpp"
+#include "log/metrics.hpp"
 #include "log/network.hpp"
 #include "log/recover.hpp"
 #include "log/replica.hpp"
@@ -100,16 +101,8 @@ private:
   zookeeper::Group* group;
   process::Future<zookeeper::Group::Membership> membership;
 
-  struct Metrics
-  {
-    explicit Metrics(
-        const LogProcess& process,
-        const Option<std::string>& prefix);
-
-    ~Metrics();
-
-    process::metrics::Gauge recovered;
-  } metrics;
+  friend Metrics;
+  Metrics metrics;
 };
 
 

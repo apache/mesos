@@ -280,23 +280,6 @@ void LogProcess::discarded()
 }
 
 
-LogProcess::Metrics::Metrics(
-    const LogProcess& process,
-    const Option<string>& prefix)
-  : recovered(
-        prefix.getOrElse("") + "log/recovered",
-        defer(process, &LogProcess::_recovered))
-{
-  process::metrics::add(recovered);
-}
-
-
-LogProcess::Metrics::~Metrics()
-{
-  process::metrics::remove(recovered);
-}
-
-
 /////////////////////////////////////////////////
 // Implementation of LogReaderProcess.
 /////////////////////////////////////////////////

@@ -337,6 +337,7 @@ set(LOG_SRC
   log/leveldb.cpp
   log/log.cpp
   log/main.cpp
+  log/metrics.cpp
   log/recover.cpp
   log/replica.cpp
   log/tool/benchmark.cpp

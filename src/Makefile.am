@@ -1362,6 +1362,7 @@ liblog_la_SOURCES =							\
   log/coordinator.cpp							\
   log/leveldb.cpp							\
   log/log.cpp								\
+  log/metrics.cpp							\
   log/recover.cpp							\
   log/replica.cpp							\
   log/tool/benchmark.cpp						\
@@ -1374,6 +1375,7 @@ liblog_la_SOURCES +=							\
   log/coordinator.hpp							\
   log/leveldb.hpp							\
   log/log.hpp								\
+  log/metrics.hpp							\
   log/network.hpp							\
   log/recover.hpp							\
   log/replica.hpp							\
