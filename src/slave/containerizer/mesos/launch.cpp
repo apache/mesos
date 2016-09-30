@@ -236,6 +236,11 @@ static void exitWithStatus(int status)
 
 int MesosContainerizerLaunch::execute()
 {
+  if (flags.help) {
+    cerr << flags.usage();
+    return EXIT_SUCCESS;
+  }
+
 #ifndef __WINDOWS__
   // The existence of the `runtime_directory` flag implies that we
   // want to checkpoint the container's status upon exit.

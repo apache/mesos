@@ -1616,9 +1616,7 @@ int NetworkCniIsolatorSetup::execute()
   // NOTE: This method has to be run in a new mount namespace.
 
   if (flags.help) {
-    cerr << "Usage: " << name() << " [OPTIONS]" << endl
-         << "Supported options:" << endl
-         << flags.usage();
+    cerr << flags.usage();
     return EXIT_SUCCESS;
   }
 

@@ -52,6 +52,11 @@ MesosContainerizerMount::Flags::Flags()
 
 int MesosContainerizerMount::execute()
 {
+  if (flags.help) {
+    cerr << flags.usage();
+    return EXIT_SUCCESS;
+  }
+
 #ifdef __linux__
   if (flags.operation.isNone()) {
     cerr << "Flag --operation is not specified" << endl;
