@@ -140,8 +140,11 @@ Future<Nothing> _destroy(const Future<Option<int>>& future);
 
 Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
 {
+  LOG(INFO) << "Asked to destroy container " << containerId;
+
   if (!pids.contains(containerId)) {
-    return Failure("Unknown container " + containerId.value());
+    LOG(WARNING) << "Ignored destroy for unknown container " << containerId;
+    return Nothing();
   }
 
   pid_t pid = pids.get(containerId).get();
