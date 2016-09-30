@@ -55,6 +55,9 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+static const char CGROUP_SEPARATOR[] = "mesos";
+
+
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
 // track pids.
 class LinuxLauncherProcess : public Process<LinuxLauncherProcess>
@@ -108,6 +111,10 @@ private:
   // Helper for determining the cgroup for a container (i.e., the path
   // in a cgroup subsystem).
   std::string cgroup(const ContainerID& containerId);
+
+  // Helper for parsing the cgroup path to determine the container ID
+  // it belongs to.
+  Option<ContainerID> parse(const string& cgroup);
 
   static const std::string subsystem;
   const Flags flags;
@@ -262,23 +269,25 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
         ": "+ cgroups.error());
   }
 
-  foreach (string cgroup, cgroups.get()) {
-    Container container;
+  foreach (const string& cgroup, cgroups.get()) {
+    // Need to parse the cgroup to see if it's one we created (i.e.,
+    // matches our separator structure) or one that someone else
+    // created (e.g., in the future we might have nested containers
+    // that are managed by something else rooted within the freezer
+    // hierarchy). First we remove the `flags.cgroups_root` prefix.
+    Option<ContainerID> containerId = parse(
+        strings::remove(
+            cgroup,
+            flags.cgroups_root,
+            strings::PREFIX));
 
-    // Determine ContainerID from cgroup, but first remove
-    // `flags.cgroups_root` prefix.
-    cgroup = strings::remove(cgroup, flags.cgroups_root, strings::PREFIX);
-
-    foreach (const string& token, strings::tokenize(cgroup, "/")) {
-      ContainerID id;
-      id.set_value(token);
-
-      if (container.id.has_value()) {
-        id.mutable_parent()->CopyFrom(container.id);
-      }
-
-      container.id = id;
+    if (containerId.isNone()) {
+      LOG(INFO) << "Not recovering cgroup " << cgroup;
+      continue;
     }
+
+    Container container;
+    container.id = containerId.get();
 
     // Add this to `containers` so when `destroy` gets called we
     // properly destroy the container, even if we determine it's an
@@ -537,6 +546,9 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
 
   LOG(INFO) << "Using freezer to destroy cgroup " << cgroup(container->id);
 
+  // TODO(benh): If this is the last container at a nesting level,
+  // should we also delete the `CGROUP_SEPARATOR` cgroup too?
+
   // TODO(benh): What if we fail to destroy the container? Should we
   // retry?
   return cgroups::destroy(
@@ -569,7 +581,54 @@ string LinuxLauncherProcess::cgroup(const ContainerID& containerId)
 {
   return path::join(
       flags.cgroups_root,
-      containerizer::paths::buildPath(containerId));
+      strings::remove(
+          strings::trim(
+              containerizer::paths::buildPath(containerId, CGROUP_SEPARATOR),
+              strings::PREFIX,
+              "/"),
+          CGROUP_SEPARATOR,
+          strings::PREFIX));
+}
+
+
+Option<ContainerID> LinuxLauncherProcess::parse(const string& cgroup)
+{
+  Option<ContainerID> current;
+
+  // Start not expecting to see a separator and adjust after each
+  // non-separator we see.
+  bool separator = false;
+
+  vector<string> tokens = strings::tokenize(cgroup, "/");
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (separator && tokens[i] == CGROUP_SEPARATOR) {
+      separator = false;
+
+      // If the cgroup has CGROUP_SEPARATOR as the last segment,
+      // should just ignore it because this cgroup belongs to us.
+      if (i == tokens.size() - 1) {
+        return None();
+      } else {
+        continue;
+      }
+    } else if (separator) {
+      return None();
+    } else {
+      separator = true;
+    }
+
+    ContainerID id;
+    id.set_value(tokens[i]);
+
+    if (current.isSome()) {
+      id.mutable_parent()->CopyFrom(current.get());
+    }
+
+    current = id;
+  }
+
+  return current;
 }
 
 } // namespace slave {
