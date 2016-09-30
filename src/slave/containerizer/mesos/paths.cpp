@@ -32,15 +32,36 @@ namespace paths {
 
 string buildPath(
     const ContainerID& containerId,
-    const string& prefix)
+    const string& separator,
+    const Mode& mode)
 {
   if (!containerId.has_parent()) {
-    return path::join(prefix, containerId.value());
+    switch (mode) {
+      case PREFIX:  return path::join(separator, containerId.value());
+      case SUFFIX:  return path::join(containerId.value(), separator);
+      case JOIN:    return containerId.value();
+      default:      UNREACHABLE();
+    }
   } else {
-    return path::join(
-        buildPath(containerId.parent(), prefix),
-        prefix,
-        containerId.value());
+    switch (mode) {
+      case PREFIX:
+        return path::join(
+            buildPath(containerId.parent(), separator, PREFIX),
+            separator,
+            containerId.value());
+      case SUFFIX:
+        return path::join(
+            buildPath(containerId.parent(), separator, SUFFIX),
+            containerId.value(),
+            separator);
+      case JOIN:
+        return path::join(
+            buildPath(containerId.parent(), separator, JOIN),
+            separator,
+            containerId.value());
+      default:
+        UNREACHABLE();
+    }
   }
 }
 
@@ -51,7 +72,7 @@ string getRuntimePath(
 {
   return path::join(
       runtimeDir,
-      buildPath(containerId, CONTAINER_DIRECTORY));
+      buildPath(containerId, CONTAINER_DIRECTORY, PREFIX));
 }
 
 

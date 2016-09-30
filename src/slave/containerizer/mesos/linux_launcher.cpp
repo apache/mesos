@@ -581,13 +581,10 @@ string LinuxLauncherProcess::cgroup(const ContainerID& containerId)
 {
   return path::join(
       flags.cgroups_root,
-      strings::remove(
-          strings::trim(
-              containerizer::paths::buildPath(containerId, CGROUP_SEPARATOR),
-              strings::PREFIX,
-              "/"),
+      containerizer::paths::buildPath(
+          containerId,
           CGROUP_SEPARATOR,
-          strings::PREFIX));
+          containerizer::paths::JOIN));
 }
 
 
