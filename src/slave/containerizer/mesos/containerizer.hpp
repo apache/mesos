@@ -192,6 +192,8 @@ private:
     DESTROYING
   };
 
+  friend std::ostream& operator<<(std::ostream& stream, const State& state);
+
   process::Future<Nothing> _recover(
       const std::list<mesos::slave::ContainerState>& recoverable,
       const hashset<ContainerID>& orphans);
@@ -364,6 +366,11 @@ private:
     process::metrics::Counter container_destroy_errors;
   } metrics;
 };
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const MesosContainerizerProcess::State& state);
 
 } // namespace slave {
 } // namespace internal {

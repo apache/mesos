@@ -42,6 +42,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -1894,7 +1895,8 @@ Future<bool> MesosContainerizerProcess::destroy(
       .then([]() { return true; });
   }
 
-  LOG(INFO) << "Destroying container " << containerId;
+  LOG(INFO) << "Destroying container " << containerId << " in "
+            << container->state << " state";
 
   // NOTE: We save the preivous state so that '_destroy' can properly
   // cleanup based on the previous state of the container.
@@ -2296,6 +2298,29 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
 
   return f;
 }
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const MesosContainerizerProcess::State& state)
+{
+  switch (state) {
+    case MesosContainerizerProcess::PROVISIONING:
+      return stream << "PROVISIONING";
+    case MesosContainerizerProcess::PREPARING:
+      return stream << "PREPARING";
+    case MesosContainerizerProcess::ISOLATING:
+      return stream << "ISOLATING";
+    case MesosContainerizerProcess::FETCHING:
+      return stream << "FETCHING";
+    case MesosContainerizerProcess::RUNNING:
+      return stream << "RUNNING";
+    case MesosContainerizerProcess::DESTROYING:
+      return stream << "DESTROYING";
+    default:
+      UNREACHABLE();
+  }
+};
 
 } // namespace slave {
 } // namespace internal {
