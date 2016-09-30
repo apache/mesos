@@ -227,13 +227,24 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED, status.get().reason());
 
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We pause the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
   driver.stop();
   driver.join();
 }
 
 
 // This test verifies that a 'killTask()' that comes before
-// '_launchTasks()' is called results in TASK_KILLED.
+// '_accept()' is called results in TASK_KILLED.
 TEST_F(MasterAuthorizationTest, KillTask)
 {
   MockAuthorizer authorizer;
@@ -299,13 +310,24 @@ TEST_F(MasterAuthorizationTest, KillTask)
   // returned to the allocator.
   AWAIT_READY(recoverResources);
 
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We pause the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
   driver.stop();
   driver.join();
 }
 
 
 // This test verifies that a slave removal that comes before
-// '_launchTasks()' is called results in TASK_LOST.
+// '_accept()' is called results in TASK_LOST.
 TEST_F(MasterAuthorizationTest, SlaveRemoved)
 {
   MockAuthorizer authorizer;
@@ -387,6 +409,17 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
   EXPECT_EQ(
       1u, stats.values["master/task_lost/source_master/reason_slave_removed"]);
+
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We pause the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
 
   driver.stop();
   driver.join();
@@ -481,13 +514,24 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
       1u,
       stats.values["master/task_lost/source_master/reason_slave_removed"]);
 
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We pause the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
   driver.stop();
   driver.join();
 }
 
 
 // This test verifies that a framework removal that comes before
-// '_launchTasks()' is called results in recovery of resources.
+// '_accept()' is called results in recovery of resources.
 TEST_F(MasterAuthorizationTest, FrameworkRemoved)
 {
   MockAuthorizer authorizer;

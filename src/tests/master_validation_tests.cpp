@@ -652,6 +652,17 @@ TEST_F(TaskValidationTest, TaskUsesInvalidFrameworkID)
   EXPECT_TRUE(strings::startsWith(
       status.get().message(), "ExecutorInfo has an invalid FrameworkID"));
 
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We pause the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
   driver.stop();
   driver.join();
 }
