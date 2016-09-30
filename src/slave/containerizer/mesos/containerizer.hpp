@@ -238,7 +238,8 @@ private:
   // Continues 'destroy()' once nested containers are handled.
   process::Future<bool> _destroy(
       const ContainerID& containerId,
-      const State& previousState);
+      const State& previousState,
+      const std::list<process::Future<bool>>& destroys);
 
   // Continues '_destroy()' once isolators has completed.
   void __destroy(const ContainerID& containerId);

@@ -1906,24 +1906,48 @@ Future<bool> MesosContainerizerProcess::destroy(
 
   list<Future<bool>> destroys;
   foreach (const ContainerID& child, container->children) {
-    LOG(INFO) << "Destroying nested container " << child;
     destroys.push_back(destroy(child));
   }
 
-  return collect(destroys)
-    .then(defer(self(), &Self::_destroy, containerId, previousState));
+  return await(destroys)
+    .then(defer(self(),
+                &Self::_destroy,
+                containerId,
+                previousState,
+                lambda::_1));
 }
 
 
 Future<bool> MesosContainerizerProcess::_destroy(
     const ContainerID& containerId,
-    const State& previousState)
+    const State& previousState,
+    const list<Future<bool>>& destroys)
 {
   CHECK(containers_.contains(containerId));
 
   const Owned<Container>& container = containers_[containerId];
 
   CHECK_EQ(container->state, DESTROYING);
+
+  vector<string> errors;
+  foreach (const Future<bool>& future, destroys) {
+    if (!future.isReady()) {
+      errors.push_back(future.isFailed()
+        ? future.failure()
+        : "discarded");
+    }
+  }
+
+  if (!errors.empty()) {
+    container->termination.fail(
+        "Failed to destroy nested containers: " +
+        strings::join("; ", errors));
+
+    ++metrics.container_destroy_errors;
+
+    return container->termination.future()
+      .then([]() { return true; });
+  }
 
   if (previousState == PROVISIONING) {
     VLOG(1) << "Waiting for the provisioner to complete provisioning "
@@ -2021,8 +2045,6 @@ void MesosContainerizerProcess::___destroy(
         "Failed to kill all processes in the container: " +
         (future.isFailed() ? future.failure() : "discarded future"));
 
-    containers_.erase(containerId);
-
     ++metrics.container_destroy_errors;
     return;
   }
@@ -2059,9 +2081,8 @@ void MesosContainerizerProcess::_____destroy(
   const Owned<Container>& container = containers_.at(containerId);
 
   // Check cleanup succeeded for all isolators. If not, we'll fail the
-  // container termination and remove the container from the map.
+  // container termination.
   vector<string> errors;
-
   foreach (const Future<Nothing>& cleanup, cleanups.get()) {
     if (!cleanup.isReady()) {
       errors.push_back(cleanup.isFailed()
@@ -2074,8 +2095,6 @@ void MesosContainerizerProcess::_____destroy(
     container->termination.fail(
         "Failed to clean up an isolator when destroying container: " +
         strings::join("; ", errors));
-
-    containers_.erase(containerId);
 
     ++metrics.container_destroy_errors;
     return;
@@ -2098,8 +2117,6 @@ void MesosContainerizerProcess::______destroy(
     container->termination.fail(
         "Failed to destroy the provisioned rootfs when destroying container: " +
         (destroy.isFailed() ? destroy.failure() : "discarded future"));
-
-    containers_.erase(containerId);
 
     ++metrics.container_destroy_errors;
     return;
@@ -2150,6 +2167,12 @@ void MesosContainerizerProcess::______destroy(
   }
 
   container->termination.set(termination);
+
+  if (containerId.has_parent()) {
+    CHECK(containers_.contains(containerId.parent()));
+    CHECK(containers_[containerId.parent()]->children.contains(containerId));
+    containers_[containerId.parent()]->children.erase(containerId);
+  }
 
   containers_.erase(containerId);
 }
