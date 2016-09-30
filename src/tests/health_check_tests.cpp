@@ -1335,7 +1335,9 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
 // v0 and v1 API.
 //
 // TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
-TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
+//
+// TODO(alexr): Enable this test once MESOS-6293 is resolved.
+TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
 {
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
