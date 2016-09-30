@@ -704,6 +704,19 @@ Future<Nothing> MesosContainerizerProcess::recover(
       continue;
     }
 
+    // Nested containers may have already been destroyed, but we leave
+    // their runtime directories around for the lifetime of their
+    // top-level container. If they have already been destroyed, we
+    // checkpoint their termination state, so the existence of this
+    // checkpointed information means we can safely ignore them here.
+    const string terminationPath = path::join(
+        containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
+        containerizer::paths::TERMINATION_FILE);
+
+    if (os::exists(terminationPath)) {
+      continue;
+    }
+
     // Attempt to read the pid from the container runtime directory.
     Result<pid_t> pid =
       containerizer::paths::getContainerPid(flags.runtime_dir, containerId);
@@ -1684,8 +1697,28 @@ Future<Option<ContainerTermination>> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
-    // See the comments in destroy() for race conditions
-    // which lead to "unknown containers".
+    // If a container does not exist in our `container_` hashmap, it
+    // may be a nested container with checkpointed termination
+    // state. Attempt to return as such.
+    if (containerId.has_parent()) {
+      Result<ContainerTermination> termination =
+        containerizer::paths::getContainerTermination(
+            flags.runtime_dir,
+            containerId);
+
+      if (termination.isError()) {
+        return Failure("Failed to get container termination state:"
+                       " " + termination.error());
+      }
+
+      if (termination.isSome()) {
+        return termination.get();
+      }
+    }
+
+    // For all other cases return `None()`. See the comments in
+    // `destroy()` for race conditions which lead to "unknown
+    // containers".
     return None();
   }
 
@@ -2151,13 +2184,46 @@ void MesosContainerizerProcess::______destroy(
     termination.set_message(strings::join("; ", messages));
   }
 
-  // Remove the runtime path for the container. Note that it is likely
-  // that the runtime path does not exist (e.g., legacy container). We
-  // should ignore the removal if that's the case.
+  // Now that we are done destroying the container we need to cleanup
+  // it's runtime directory. There are two cases to consider:
+  //
+  // (1) We are a nested container:
+  //     In this case we should defer deletion of the runtime directory
+  //     until the top-level container is destroyed. Instead, we
+  //     checkpoint a file with the termination state indicating that
+  //     the container has already been destroyed. This allows
+  //     subsequent calls to `wait()` to succeed with the proper
+  //     termination state until the top-level container is destroyed.
+  //     It also prevents subsequent `destroy()` calls from attempting
+  //     to cleanup the container a second time.
+  //
+  // (2) We are a top-level container:
+  //     We should simply remove the runtime directory. Since we build
+  //     the runtime directories of nested containers hierarchically,
+  //     removing the top-level runtime directory will automatically
+  //     cleanup all nested container runtime directories as well.
+  //
+  // NOTE: The runtime directory will not exist for legacy containers,
+  // so we need to make sure it actually exists before attempting to
+  // remove it.
   const string runtimePath =
     containerizer::paths::getRuntimePath(flags.runtime_dir, containerId);
 
-  if (os::exists(runtimePath)) {
+  if (containerId.has_parent()) {
+    const string terminationPath =
+      path::join(runtimePath, containerizer::paths::TERMINATION_FILE);
+
+    LOG(INFO) << "Checkpointing termination state to nested container's"
+              << " runtime directory '" << terminationPath <<  "'";
+
+    Try<Nothing> checkpointed =
+      slave::state::checkpoint(terminationPath, termination);
+
+    if (checkpointed.isError()) {
+      LOG(ERROR) << "Failed to checkpoint nested container's termination state"
+                 << " to '" << terminationPath << "': " << checkpointed.error();
+    }
+  } else if (os::exists(runtimePath)) {
     Try<Nothing> rmdir = os::rmdir(runtimePath);
     if (rmdir.isError()) {
       LOG(WARNING) << "Failed to remove the runtime directory"

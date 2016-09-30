@@ -27,6 +27,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/slave/containerizer.hpp>
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -35,6 +37,7 @@ namespace paths {
 
 constexpr char PID_FILE[] = "pid";
 constexpr char STATUS_FILE[] = "status";
+constexpr char TERMINATION_FILE[] = "termination";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 
 
@@ -86,6 +89,12 @@ Result<pid_t> getContainerPid(
 
 // The helper method to read the status file.
 Result<int> getContainerStatus(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to read the container termination state.
+Result<mesos::slave::ContainerTermination> getContainerTermination(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 

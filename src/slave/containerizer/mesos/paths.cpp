@@ -17,8 +17,11 @@
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 
 #include "slave/containerizer/mesos/paths.hpp"
+
+using mesos::slave::ContainerTermination;
 
 using std::list;
 using std::string;
@@ -128,6 +131,34 @@ Result<int> getContainerStatus(
   }
 
   return None();
+}
+
+
+Result<ContainerTermination> getContainerTermination(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = path::join(
+      getRuntimePath(runtimeDir, containerId),
+      TERMINATION_FILE);
+
+  if (!os::exists(path)) {
+    // This is possible because we don't atomically create the
+    // directory and write the 'TERMINATION' file and thus we might
+    // terminate/restart after we've created the directory but
+    // before we've written the file.
+    return None();
+  }
+
+  const Result<ContainerTermination>& termination =
+    ::protobuf::read<ContainerTermination>(path);
+
+  if (termination.isError()) {
+    return Error("Failed to read termination state of container:"
+                 " " + termination.error());
+  }
+
+  return termination;
 }
 
 
