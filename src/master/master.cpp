@@ -3234,6 +3234,9 @@ void Master::_accept(
       }
 
       foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        // Remove the task from being pending.
+        framework->pendingTasks.erase(task.task_id());
+
         const TaskStatus::Reason reason =
             slave == NULL ? TaskStatus::REASON_SLAVE_REMOVED
                           : TaskStatus::REASON_SLAVE_DISCONNECTED;
