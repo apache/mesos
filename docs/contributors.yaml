@@ -571,3 +571,12 @@
     - w.rouesnel@gmail.com
   jira_user: wrouesnel
   reviewboard_user: wrouesnel
+
+- name: Zhitao Li
+  affiliations:
+    - {organization: Uber}
+  emails:
+    - zhitaoli.cs@gmail.com
+    - zhitao@uber.com
+  jira_user: zhitao
+  reviewboard_user: zhitao
