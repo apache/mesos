@@ -1942,16 +1942,18 @@ Future<bool> MesosContainerizerProcess::destroy(
     destroys.push_back(destroy(child));
   }
 
-  return await(destroys)
-    .then(defer(self(),
-                &Self::_destroy,
-                containerId,
-                previousState,
-                lambda::_1));
+  await(destroys)
+    .then(defer(self(), [=](const list<Future<bool>>& futures) {
+      _destroy(containerId, previousState, futures);
+      return Nothing();
+    }));
+
+  return container->termination.future()
+    .then([]() { return true; });
 }
 
 
-Future<bool> MesosContainerizerProcess::_destroy(
+void MesosContainerizerProcess::_destroy(
     const ContainerID& containerId,
     const State& previousState,
     const list<Future<bool>>& destroys)
@@ -1977,9 +1979,7 @@ Future<bool> MesosContainerizerProcess::_destroy(
         strings::join("; ", errors));
 
     ++metrics.container_destroy_errors;
-
-    return container->termination.future()
-      .then([]() { return true; });
+    return;
   }
 
   if (previousState == PROVISIONING) {
@@ -1995,8 +1995,7 @@ Future<bool> MesosContainerizerProcess::_destroy(
           containerId,
           list<Future<Nothing>>()));
 
-    return container->termination.future()
-      .then([]() { return true; });
+    return;
   }
 
   if (previousState == PREPARING) {
@@ -2019,8 +2018,7 @@ Future<bool> MesosContainerizerProcess::_destroy(
             : None())
       .onAny(defer(self(), &Self::____destroy, containerId));
 
-    return container->termination.future()
-      .then([]() { return true; });
+    return;
   }
 
   if (previousState == ISOLATING) {
@@ -2032,8 +2030,7 @@ Future<bool> MesosContainerizerProcess::_destroy(
     container->isolation
       .onAny(defer(self(), &Self::__destroy, containerId));
 
-    return container->termination.future()
-      .then([]() { return true; });
+    return;
   }
 
   // Either RUNNING or FETCHING at this point.
@@ -2042,9 +2039,6 @@ Future<bool> MesosContainerizerProcess::_destroy(
   }
 
   __destroy(containerId);
-
-  return container->termination.future()
-    .then([]() { return true; });
 }
 
 

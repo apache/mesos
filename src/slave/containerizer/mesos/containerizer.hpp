@@ -236,7 +236,7 @@ private:
       pid_t _pid);
 
   // Continues 'destroy()' once nested containers are handled.
-  process::Future<bool> _destroy(
+  void _destroy(
       const ContainerID& containerId,
       const State& previousState,
       const std::list<process::Future<bool>>& destroys);
