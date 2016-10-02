@@ -166,7 +166,7 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit);
  * upper bound for the size of the data to peek. It does not wait
  * until the specified amount of bytes is peeked. It returns as soon
  * as some amount of data becomes available.
- * It can not concatenate data from subsequent peeks because MSG_PEEK
+ * It cannot concatenate data from subsequent peeks because MSG_PEEK
  * has known limitations when it comes to spanning message boundaries.
  *
  * **NOTE**: this function will return an error if the limit is

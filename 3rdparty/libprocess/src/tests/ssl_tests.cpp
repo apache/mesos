@@ -500,7 +500,7 @@ TEST_F(SSLTest, ValidDowngrade)
 }
 
 
-// Ensure we can NOT communicate between a POLL based socket and an
+// Ensure we CANNOT communicate between a POLL based socket and an
 // SSL socket if 'SSL_SUPPORT_DOWNGRADE' is not enabled.
 TEST_F(SSLTest, NoValidDowngrade)
 {
@@ -571,7 +571,7 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
 }
 
 
-// For each protocol: ensure we can NOT communicate between a POLL
+// For each protocol: ensure we CANNOT communicate between a POLL
 // based socket and an SSL socket if 'SSL_SUPPORT_DOWNGRADE' is not
 // enabled.
 TEST_F(SSLTest, NoValidDowngradeEachProtocol)

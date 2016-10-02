@@ -598,7 +598,7 @@ Future<string> peek(int fd, size_t limit)
   return io::peek(fd, data.get(), BUFFERED_READ_SIZE, limit)
     .then([=](size_t length) -> Future<string> {
       // At this point we have to return whatever data we were able to
-      // peek, because we can not rely on peeking across message
+      // peek, because we cannot rely on peeking across message
       // boundaries.
       return string(data.get(), length);
     });

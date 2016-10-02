@@ -1605,7 +1605,7 @@ TEST(ProcessTest, Defers)
   }
 
 //   {
-//     // CAN NOT DO IN CLANG!
+//     // CANNOT DO IN CLANG!
 //     std::function<void(string)> f =
 //       defer(std::bind(baz, std::placeholders::_1));
 
@@ -1617,7 +1617,7 @@ TEST(ProcessTest, Defers)
 //   }
 
 //   {
-//     // CAN NOT DO WITH GCC OR CLANG!
+//     // CANNOT DO WITH GCC OR CLANG!
 //     std::function<int(int)> f =
 //       defer(std::bind(baz, std::placeholders::_1));
 //   }

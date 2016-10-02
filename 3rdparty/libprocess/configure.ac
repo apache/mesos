@@ -84,7 +84,7 @@ AC_ARG_ENABLE([debug],
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],
                              [install libprocess]),
-              [AC_MSG_ERROR([libprocess can not currently be installed])])
+              [AC_MSG_ERROR([libprocess cannot currently be installed])])
 
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
