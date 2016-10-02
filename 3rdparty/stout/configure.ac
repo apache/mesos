@@ -83,7 +83,7 @@ AC_ARG_ENABLE([debug],
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],
                              [install stout]),
-              [AC_MSG_ERROR([stout can not currently be installed])])
+              [AC_MSG_ERROR([stout cannot currently be installed])])
 
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
