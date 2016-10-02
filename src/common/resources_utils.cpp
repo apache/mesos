@@ -30,7 +30,7 @@ bool needCheckpointing(const Resource& resource)
 
 
 // NOTE: We effectively duplicate the logic in 'Resources::apply'
-// which is less than ideal. But we can not simply create
+// which is less than ideal. But we cannot simply create
 // 'Offer::Operation' and invoke 'Resources::apply' here.
 // 'RESERVE' operation requires that the specified resources are
 // dynamically reserved only, and 'CREATE' requires that the

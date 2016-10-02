@@ -169,7 +169,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
 
   // Note that the read (i.e., DB::Get) and the write (i.e., DB::Put)
   // are inherently "atomic" because only one db can be opened at a
-  // time, so there can not be any writes that occur concurrently.
+  // time, so there cannot be any writes that occur concurrently.
 
   Try<bool> result = write(entry);
 
@@ -207,7 +207,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
 
   // Note that the read (i.e., DB::Get) and DB::Delete are inherently
   // "atomic" because only one db can be opened at a time, so there
-  // can not be any writes that occur concurrently.
+  // cannot be any writes that occur concurrently.
 
   leveldb::WriteOptions options;
   options.sync = true;

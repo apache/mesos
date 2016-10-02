@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Implementation of State that uses ZooKeeper to store
  * variables/values. Note that this means the values associated with
- * variables can not be more than 1 MB (actually slightly less since
+ * variables cannot be more than 1 MB (actually slightly less since
  * we store some bookkeeping information).
  */
 public class ZooKeeperState extends AbstractState {

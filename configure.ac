@@ -949,7 +949,7 @@ if test "x$enable_java" = "xyes"; then
     AC_PATH_PROG([JAVA], [java], [$JAVA])
 
     if test "x$JAVA" = "x" || test "x$JAVAC" = "x"; then
-      AC_MSG_ERROR([can not guess JAVA_HOME (no 'java' or 'javac' found)])
+      AC_MSG_ERROR([cannot guess JAVA_HOME (no 'java' or 'javac' found)])
     fi
 
     AC_MSG_CHECKING([value of Java system property 'java.home'])
@@ -1082,7 +1082,7 @@ __EOF__
     AC_PATH_PROG([MVN], [mvn], [$MVN])
 
     if test "x$MVN" = "x"; then
-      AC_MSG_ERROR([can not find mvn on your path
+      AC_MSG_ERROR([cannot find mvn on your path
 -------------------------------------------------------------------
 You may want verify that Maven has been correctly installed and
 added to your PATH or set the MAVEN_HOME environment variable
@@ -1094,7 +1094,7 @@ to point to your Maven installation.
     AC_PATH_PROGS([MVN], [mvn], [$MVN], [$MAVEN_HOME/bin])
 
     if test "x$MVN" = "x"; then
-      AC_MSG_ERROR([can not find mvn inside $MAVEN_HOME/bin
+      AC_MSG_ERROR([cannot find mvn inside $MAVEN_HOME/bin
 -------------------------------------------------------------------
 You may want verify the MAVEN_HOME validity or check that Maven
 has been correctly installed.

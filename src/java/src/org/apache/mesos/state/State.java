@@ -31,7 +31,7 @@ import java.util.concurrent.Future;
  * replicated guarantees.
  * <p>
  * Note that the semantics of 'fetch' and 'store' provide
- * atomicity. That is, you can not store a variable that has changed
+ * atomicity. That is, you cannot store a variable that has changed
  * since you did the last fetch. That is, if a store succeeds then no
  * other writes have been performed on the variable since your fetch.
  *

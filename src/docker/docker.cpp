@@ -851,7 +851,7 @@ Future<Nothing> Docker::stop(
 {
   int timeoutSecs = (int) timeout.secs();
   if (timeoutSecs < 0) {
-    return Failure("A negative timeout can not be applied to docker stop: " +
+    return Failure("A negative timeout cannot be applied to docker stop: " +
                    stringify(timeoutSecs));
   }
 

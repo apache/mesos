@@ -1636,7 +1636,7 @@ void HierarchicalAllocatorProcess::allocate(
           resources = resources.nonRevocable();
         }
 
-        // If the resources are not allocatable, ignore. We can not break
+        // If the resources are not allocatable, ignore. We cannot break
         // here, because another framework under the same role could accept
         // revocable resources and breaking would skip all other frameworks.
         if (!allocatable(resources)) {

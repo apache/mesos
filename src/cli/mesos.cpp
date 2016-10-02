@@ -130,7 +130,7 @@ int main(int argc, char** argv)
     execvp(executable.c_str(), argv + 1);
     if (errno == ENOENT) {
       cerr << "'" << command << "' is not a valid command "
-           << "(or can not be found)" << endl;
+           << "(or cannot be found)" << endl;
     } else {
       cerr << "Failed to execute '" << command << "': "
            << os::strerror(errno) << endl;

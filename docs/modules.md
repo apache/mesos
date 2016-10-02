@@ -31,7 +31,7 @@ without having to know all the internal details.
 
 ## Where can Mesos modules be used?
 Modules can be specified for master, agent and tests. Modules can also be used
-with schedulers that link against libmesos. Currently, modules can not be
+with schedulers that link against libmesos. Currently, modules cannot be
 used with executors.
 
 ## <a name="Invoking"></a>Invoking Mesos modules

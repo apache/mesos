@@ -847,7 +847,7 @@ message Resource {
       }
 
       // A mounted file-system set up by the Agent administrator. This
-      // can only be used exclusively: a framework can not accept a
+      // can only be used exclusively: a framework cannot accept a
       // partial amount of this disk.
       message Mount {
         // Path to mount point (e.g., /mnt/raid/disk0).

@@ -362,7 +362,7 @@ Future<http::Response> Master::QuotaHandler::_set(
   // TODO(joerg84): Update error message once quota update is in place.
   if (master->quotas.contains(quotaInfo.role())) {
     return BadRequest(
-        "Failed to validate set quota request: Can not set quota"
+        "Failed to validate set quota request: Cannot set quota"
         " for role '" + quotaInfo.role() + "' which already has quota");
   }
 

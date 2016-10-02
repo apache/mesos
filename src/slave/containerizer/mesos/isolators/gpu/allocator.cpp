@@ -201,7 +201,7 @@ static Try<Resources> enumerateGpuResources(const Flags& flags)
   }
 
   if (resources.gpus().isSome() && !flags.nvidia_gpu_devices.isSome()) {
-    return Error("The `gpus` resource can not be set without also"
+    return Error("The `gpus` resource cannot be set without also"
                  " setting `--nvidia_gpu_devices`");
   }
 

@@ -2600,7 +2600,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
         createVethPair.error());
   }
 
-  // We can not reuse the existing veth pair, because one of them is
+  // We cannot reuse the existing veth pair, because one of them is
   // still inside another container.
   if (!createVethPair.get()) {
     return Failure(

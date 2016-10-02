@@ -1993,7 +1993,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
   }
 
   {
-    // Second default principal can not see the flags.
+    // Second default principal cannot see the flags.
     mesos::ACL::ViewFlags* acl = acls.add_view_flags();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_flags()->set_type(ACL::Entity::NONE);
