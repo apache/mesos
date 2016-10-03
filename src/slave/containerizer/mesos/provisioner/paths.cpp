@@ -183,6 +183,17 @@ Try<hashmap<string, hashset<string>>> listContainerRootfses(
           provisionerDir,
           containerId));
 
+  // It is possible that the 'backends' directory does not exist
+  // for a container ID that is present in the checkpoint directory
+  // because we allow the case where a nested container specifies a
+  // container image while its parent container does not. In this
+  // case, no image is provisioned for the parent container and the
+  // 'backends' directory does not exist, so we can skip recovering
+  // the parent container's `Info` in the provisioner.
+  if (!os::exists(backendsDir)) {
+    return results;
+  }
+
   Try<list<string>> backends = os::ls(backendsDir);
   if (backends.isError()) {
     return Error("Unable to list the container directory: " + backends.error());
