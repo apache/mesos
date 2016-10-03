@@ -717,8 +717,8 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 }
 
 
-// This test case causes a slave to be partitioned while it is running
-// a task for a PARTITION_AWARE scheduler. The scheduler disconnects
+// This test causes a slave to be partitioned while it is running a
+// task for a PARTITION_AWARE scheduler. The scheduler disconnects
 // before the partition heals. Right now, the task is left running as
 // an orphan; once MESOS-4659 is fixed, the task should be shutdown.
 TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
@@ -1043,7 +1043,7 @@ TEST_F(PartitionTest, DisconnectedFramework)
 
 
 // This test checks that when a registered slave reregisters with the
-// master (e.g., because of a spurious Zk leader flag at the slave),
+// master (e.g., because of a spurious Zk leader flap at the slave),
 // the master does not kill any tasks on the slave, even if those
 // tasks are not PARTITION_AWARE.
 TEST_F(PartitionTest, SpuriousSlaveReregistration)
