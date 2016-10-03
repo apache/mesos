@@ -2467,7 +2467,7 @@ void Master::_subscribe(
       }
     }
 
-    // N.B. Need to add the framework _after_ we add its tasks
+    // NOTE: Need to add the framework _after_ we add its tasks
     // (above) so that we can properly determine the resources it's
     // currently using!
     addFramework(framework);
@@ -6831,9 +6831,7 @@ void Master::addFramework(Framework* framework)
   frameworks.registered[framework->id()] = framework;
 
   // Remove from 'frameworks.recovered' if necessary.
-  if (frameworks.recovered.contains(framework->id())) {
-    frameworks.recovered.erase(framework->id());
-  }
+  frameworks.recovered.erase(framework->id());
 
   if (framework->pid.isSome()) {
     link(framework->pid.get());
@@ -7172,9 +7170,7 @@ void Master::removeFramework(Framework* framework)
   allocator->removeFramework(framework->id());
 
   // Remove from 'frameworks.recovered' if necessary.
-  if (frameworks.recovered.contains(framework->id())) {
-    frameworks.recovered.erase(framework->id());
-  }
+  frameworks.recovered.erase(framework->id());
 
   // The completedFramework buffer now owns the framework pointer.
   frameworks.completed.push_back(shared_ptr<Framework>(framework));

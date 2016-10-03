@@ -1744,10 +1744,10 @@ private:
 
     hashmap<FrameworkID, Framework*> registered;
 
-    // 'Recovered' contains 'FrameworkInfo's for frameworks which
-    // would otherwise be unknown during recovery after master
-    // failover.
+    // `recovered` contains 'FrameworkInfo's for frameworks that have
+    // not yet re-registered after master failover.
     hashmap<FrameworkID, FrameworkInfo> recovered;
+
     boost::circular_buffer<std::shared_ptr<Framework>> completed;
 
     // Principals of frameworks keyed by PID.
