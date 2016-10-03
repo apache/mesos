@@ -203,7 +203,7 @@ class MesosContainerizerIsolatorPreparationTest : public MesosTest
 public:
   // Construct a MesosContainerizer with MockIsolator(s) which return
   // the provided ContainerLaunchInfo for Isolator::prepare.
-  Try<Owned<MesosContainerizer>> CreateContainerizer(
+  Try<MesosContainerizer*> createContainerizer(
       Fetcher* fetcher,
       const vector<Option<ContainerLaunchInfo>>& launchInfos)
   {
@@ -239,24 +239,22 @@ public:
       return Error("Failed to create provisioner: " + provisioner.error());
     }
 
-    return Owned<MesosContainerizer>(new MesosContainerizer(
+    return new MesosContainerizer(
         flags,
         false,
         fetcher,
         Owned<ContainerLogger>(logger.get()),
         Owned<Launcher>(launcher.get()),
         provisioner->share(),
-        isolators));
+        isolators);
   }
 
-  Try<Owned<MesosContainerizer>> CreateContainerizer(
+  Try<MesosContainerizer*> createContainerizer(
       Fetcher* fetcher,
       const Option<ContainerLaunchInfo>& launchInfo)
   {
-    vector<Option<ContainerLaunchInfo>> launchInfos;
-    launchInfos.push_back(launchInfo);
-
-    return CreateContainerizer(fetcher, launchInfos);
+    vector<Option<ContainerLaunchInfo>> launchInfos = {launchInfo};
+    return createContainerizer(fetcher, launchInfos);
   }
 };
 
@@ -272,15 +270,18 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   ContainerLaunchInfo launchInfo;
   launchInfo.add_pre_exec_commands()->set_value("touch " + file);
 
-  Try<Owned<MesosContainerizer>> containerizer = CreateContainerizer(
+  Try<MesosContainerizer*> create = createContainerizer(
       &fetcher,
       launchInfo);
-  ASSERT_SOME(containerizer);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       createExecutorInfo("executor", "exit 0"),
@@ -294,8 +295,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -308,7 +308,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   EXPECT_TRUE(os::exists(file));
 
   // Destroy the container.
-  containerizer.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 }
 
 
@@ -324,16 +324,18 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   launchInfo.add_pre_exec_commands()->set_value(
       "touch " + file + " && exit 1");
 
-  Try<Owned<MesosContainerizer>> containerizer = CreateContainerizer(
+  Try<MesosContainerizer*> create = createContainerizer(
       &fetcher,
       launchInfo);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       createExecutorInfo("executor", "exit 0"),
@@ -347,8 +349,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -361,7 +362,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   EXPECT_TRUE(os::exists(file));
 
   // Destroy the container.
-  containerizer.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 }
 
 
@@ -389,15 +390,18 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
   Fetcher fetcher;
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    CreateContainerizer(&fetcher, launchInfos);
+  Try<MesosContainerizer*> create = createContainerizer(
+      &fetcher,
+      launchInfos);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       createExecutorInfo("executor", "exit 0"),
@@ -411,8 +415,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script(s) + executor) to complete.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -425,7 +428,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   EXPECT_TRUE(os::exists(file2));
 
   // Destroy the container.
-  containerizer.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 }
 
 
@@ -453,11 +456,13 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   variable->set_name("TEST_ENVIRONMENT");
   variable->set_value(file);
 
-  Try<Owned<MesosContainerizer>> containerizer = CreateContainerizer(
+  Try<MesosContainerizer*> create = createContainerizer(
       &fetcher,
       launchInfo);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -481,7 +486,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
       PID<Slave>(),
       false);
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executorInfo,
@@ -495,8 +500,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   AWAIT_READY(launch);
 
   // Wait for the child (preparation script + executor) to complete.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -509,7 +513,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   EXPECT_TRUE(os::exists(file));
 
   // Destroy the container.
-  containerizer.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 
   // Reset LIBPROCESS_IP if necessary.
   if (libprocessIP.isSome()) {
@@ -532,11 +536,14 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   Fetcher fetcher;
 
   // Use local=false so std{err,out} are redirected to files.
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
 
-  ASSERT_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -788,8 +795,10 @@ TEST_F(MesosContainerizerDestroyTest, DestroyUnknownContainer)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> create =
-    MesosContainerizer::create(flags, true, &fetcher);
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
 
   ASSERT_SOME(create);
 
@@ -1218,11 +1227,14 @@ TEST_F(MesosContainerizerRecoverTest, SkipRecoverNonMesosContainers)
   slave::Flags flags = CreateSlaveFlags();
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, true, &fetcher);
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
 
-  ASSERT_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ExecutorID executorId;
   executorId.set_value(UUID::random().toString());
@@ -1314,12 +1326,14 @@ TEST_F(MesosContainerizerWaitTest, WaitUnknownContainer)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> create =
-    MesosContainerizer::create(flags, true, &fetcher);
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
 
   ASSERT_SOME(create);
 
-  MesosContainerizer* containerizer = create.get();
+  Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
