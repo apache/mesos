@@ -347,10 +347,10 @@ TEST(HTTPTest, PipeEOF)
   // The write end cannot be closed twice.
   EXPECT_FALSE(writer.close());
 
-  // Close the read end, this should not notify the writer
-  // since the write end was already closed.
+  // Close the read end.
+  // This should discard the associated future held by the write end.
   EXPECT_TRUE(reader.close());
-  EXPECT_TRUE(writer.readerClosed().isPending());
+  EXPECT_TRUE(writer.readerClosed().isDiscarded());
 }
 
 
@@ -378,12 +378,11 @@ TEST(HTTPTest, PipeFailure)
   EXPECT_FALSE(writer.close());
   EXPECT_FALSE(writer.fail("not again"));
 
-  // The writer shouldn't be notified of the reader closing,
-  // since the writer had already failed.
+  // Close the read end.
+  // This should discard the associated future held by the write end.
   EXPECT_TRUE(reader.close());
-  EXPECT_TRUE(writer.readerClosed().isPending());
+  EXPECT_TRUE(writer.readerClosed().isDiscarded());
 }
-
 
 
 TEST(HTTPTest, PipeReaderCloses)

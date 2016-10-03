@@ -452,6 +452,11 @@ bool Pipe::Reader::close()
 
     if (notify) {
       data->readerClosure.set(Nothing());
+    } else {
+      // This future is only satisifed when the reader is closed before
+      // the write-end of the pipe. In other cases, discard the promise
+      // in order to clear any associated callbacks.
+      data->readerClosure.discard();
     }
   }
 

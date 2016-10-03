@@ -307,9 +307,8 @@ struct Request
 //
 // Unlike unix pipes, if the read-end of the pipe is closed before
 // the write-end is closed, rather than receiving SIGPIPE or EPIPE
-// during a write, the writer is notified via a future. Like unix
-// pipes, we are not notified if the read-end is closed after the
-// write-end is closed, even if data is remaining in the pipe!
+// during a write, the writer is notified via a future. This future
+// is discarded if the write-end is closed first.
 //
 // No buffering means that each non-empty write to the pipe will
 // correspond to to an equivalent read from the pipe, and the
