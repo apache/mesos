@@ -148,7 +148,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   frameworkInfo.set_user("bar");
 
   // Create an executor with user "bar".
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO("test-executor", "sleep 2");
+  ExecutorInfo executor = createExecutorInfo("test-executor", "sleep 2");
   executor.mutable_command()->set_user("bar");
 
   MockExecutor exec(executor.executor_id());

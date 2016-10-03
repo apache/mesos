@@ -218,32 +218,6 @@ protected:
     return info;
   }
 
-  Volume createVolumeFromHostPath(
-      const string& containerPath,
-      const string& hostPath,
-      const Volume::Mode& mode)
-  {
-    return CREATE_VOLUME(containerPath, hostPath, mode);
-  }
-
-  Volume createVolumeFromImage(
-      const string& containerPath,
-      const string& imageName,
-      const Volume::Mode& mode)
-  {
-    Volume volume;
-    volume.set_container_path(containerPath);
-    volume.set_mode(mode);
-
-    Image* image = volume.mutable_image();
-    image->set_type(Image::APPC);
-
-    Image::Appc* appc = image->mutable_appc();
-    appc->set_name(imageName);
-
-    return volume;
-  }
-
 private:
   Fetcher fetcher;
 };
@@ -264,7 +238,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "[ ! -d '" + os::getcwd() + "' ]");
 
@@ -781,7 +755,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
   ASSERT_SOME(containerizer);
 
   // Use a long running task so we can reliably capture the moment it's alive.
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "sleep 1000");
 
@@ -842,7 +816,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "echo abc > /tmp/file");
 
@@ -898,7 +872,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -d /tmp/sandbox");
 
@@ -952,7 +926,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -f /tmp/test/file.txt");
 
@@ -1006,7 +980,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -d mountpoint/sandbox");
 
@@ -1060,7 +1034,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -f mountpoint/file.txt");
 
@@ -1117,7 +1091,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "echo abc > volume/file");
 
@@ -1186,7 +1160,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "echo abc > volume/file");
 
@@ -1260,13 +1234,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -d rootfs/bin");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       None(),
-      {createVolumeFromImage("rootfs", "test_image", Volume::RW)}));
+      {createVolumeFromAppcImage("rootfs", "test_image", Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -1316,13 +1290,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 
   ASSERT_SOME(containerizer);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "[ ! -d '" + os::getcwd() + "' ] && [ -d rootfs/bin ]");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image_rootfs",
-      {createVolumeFromImage("rootfs", "test_image_volume", Volume::RW)}));
+      {createVolumeFromAppcImage("rootfs", "test_image_volume", Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -1385,7 +1359,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   // First launch container 1 which has a long running task which
   // guarantees that its work directory mount is in the host mount
   // table when container 2 is launched.
-  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor1 = createExecutorInfo(
       "test_executor1",
       "sleep 1000"); // Long running task.
 
@@ -1429,7 +1403,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   // Now launch container 2 which will copy the host mount table with
   // container 1's work directory mount in it.
-  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor2 = createExecutorInfo(
       "test_executor2",
       "[ ! -d '" + os::getcwd() + "' ]");
 
@@ -1506,7 +1480,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
 
   ASSERT_SOME(script);
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+  ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       script.get());
 

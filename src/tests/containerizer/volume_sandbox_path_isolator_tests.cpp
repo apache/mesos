@@ -69,8 +69,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  ExecutorInfo executor = CREATE_EXECUTOR_INFO("executor", "sleep 1000");
-  executor.mutable_resources()->CopyFrom(Resources::parse("cpus:1").get());
+  ExecutorInfo executor = createExecutorInfo("executor", "sleep 99", "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -107,7 +106,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
 
   launch = containerizer->launch(
       nestedContainerId1,
-      CREATE_COMMAND_INFO("touch parent/file; sleep 1000"),
+      createCommandInfo("touch parent/file; sleep 1000"),
       containerInfo,
       None(),
       state.id);
@@ -120,7 +119,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
 
   launch = containerizer->launch(
       nestedContainerId2,
-      CREATE_COMMAND_INFO(
+      createCommandInfo(
         "while true; do if [ -f parent/file ]; then exit 0; fi; done"),
       containerInfo,
       None(),

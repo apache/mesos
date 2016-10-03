@@ -134,7 +134,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.add_volumes()->CopyFrom(
-      CREATE_VOLUME(containerPath, hostPath, Volume::RW));
+      createVolumeFromHostPath(containerPath, hostPath, Volume::RW));
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_container()->CopyFrom(containerInfo);
@@ -240,7 +240,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.add_volumes()->CopyFrom(
-      CREATE_VOLUME(containerPath, hostPath, Volume::RW));
+      createVolumeFromHostPath(containerPath, hostPath, Volume::RW));
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_container()->CopyFrom(containerInfo);
@@ -329,7 +329,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   process::Future<bool> launch = containerizer->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", command),
+      createExecutorInfo("executor", command),
       directory,
       None(),
       SlaveID(),

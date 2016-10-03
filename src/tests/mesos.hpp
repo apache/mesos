@@ -346,13 +346,6 @@ protected:
         executor; })
 
 
-#define CREATE_EXECUTOR_INFO(executorId, command)                       \
-      ({ ExecutorInfo executor;                                         \
-        executor.mutable_executor_id()->set_value(executorId);          \
-        executor.mutable_command()->set_value(command);                 \
-        executor; })
-
-
 #define DEFAULT_CREDENTIAL                                             \
      ({ Credential credential;                                         \
         credential.set_principal("test-principal");                    \
@@ -404,20 +397,55 @@ protected:
         containerId; })
 
 
-#define CREATE_COMMAND_INFO(command)                                  \
-  ({ CommandInfo commandInfo;                                         \
-     commandInfo.set_value(command);                                  \
-     commandInfo; })
+inline ExecutorInfo createExecutorInfo(
+    const std::string& executorId,
+    const std::string& command,
+    const Option<std::string>& resources = None())
+{
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value(executorId);
+  executor.mutable_command()->set_value(command);
+  if (resources.isSome()) {
+    executor.mutable_resources()->CopyFrom(
+        Resources::parse(resources.get()).get());
+  }
+  return executor;
+}
 
 
-// TODO(jieyu): Consider making it a function to support more
-// overloads (e.g., createVolumeFromHost, createVolumeFromImage).
-#define CREATE_VOLUME(containerPath, hostPath, mode)                  \
-      ({ Volume volume;                                               \
-         volume.set_container_path(containerPath);                    \
-         volume.set_host_path(hostPath);                              \
-         volume.set_mode(mode);                                       \
-         volume; })
+inline CommandInfo createCommandInfo(const std::string& command)
+{
+  CommandInfo commandInfo;
+  commandInfo.set_value(command);
+  return commandInfo;
+}
+
+
+inline Volume createVolumeFromHostPath(
+    const std::string& containerPath,
+    const std::string& hostPath,
+    const Volume::Mode& mode)
+{
+  Volume volume;
+  volume.set_container_path(containerPath);
+  volume.set_host_path(hostPath);
+  volume.set_mode(mode);
+  return volume;
+}
+
+
+inline Volume createVolumeFromAppcImage(
+    const std::string& containerPath,
+    const std::string& imageName,
+    const Volume::Mode& mode)
+{
+  Volume volume;
+  volume.set_container_path(containerPath);
+  volume.set_mode(mode);
+  volume.mutable_image()->set_type(Image::APPC);
+  volume.mutable_image()->mutable_appc()->set_name(imageName);
+  return volume;
+}
 
 
 // TODO(bmahler): Refactor this to make the distinction between
@@ -459,7 +487,7 @@ inline TaskInfo createTask(
   return createTask(
       slaveId,
       resources,
-      CREATE_COMMAND_INFO(command),
+      createCommandInfo(command),
       executorId,
       name,
       id);

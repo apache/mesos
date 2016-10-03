@@ -294,8 +294,9 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
   ContainerID containerId;
   containerId.set_value("test_container");
 
-  ExecutorInfo executorInfo =
-    CREATE_EXECUTOR_INFO("executor", "test $FOO = 'bar'");
+  ExecutorInfo executorInfo = createExecutorInfo(
+      "executor",
+      "test $FOO = 'bar'");
 
   SlaveID slaveId = SlaveID();
 

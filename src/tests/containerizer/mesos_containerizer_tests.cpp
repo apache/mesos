@@ -204,7 +204,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      createExecutorInfo("executor", "exit 0"),
       directory,
       None(),
       SlaveID(),
@@ -257,7 +257,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      createExecutorInfo("executor", "exit 0"),
       directory,
       None(),
       SlaveID(),
@@ -321,7 +321,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      createExecutorInfo("executor", "exit 0"),
       directory,
       None(),
       SlaveID(),
@@ -389,7 +389,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
     "if [ -n \"$LIBPROCESS_IP\" ]; "
     "then touch $TEST_ENVIRONMENT; fi";
 
-  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", executorCmd);
+  ExecutorInfo executorInfo = createExecutorInfo("executor", executorCmd);
   SlaveID slaveId = SlaveID();
 
   slave::Flags flags;
@@ -470,7 +470,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   Future<bool> launch = containerizer->launch(
       containerId,
       None(),
-      CREATE_EXECUTOR_INFO("executor", command),
+      createExecutorInfo("executor", command),
       directory,
       None(),
       SlaveID(),
@@ -659,7 +659,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   containerizer.launch(
       containerId,
       taskInfo,
-      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      createExecutorInfo("executor", "exit 0"),
       os::getcwd(),
       None(),
       SlaveID(),
@@ -730,7 +730,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   containerizer.launch(
       containerId,
       taskInfo,
-      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      createExecutorInfo("executor", "exit 0"),
       os::getcwd(),
       None(),
       SlaveID(),
@@ -866,7 +866,7 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   taskInfo.mutable_command()->MergeFrom(commandInfo);
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
-  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
+  ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
   Future<bool> launch = containerizer.launch(
@@ -961,7 +961,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   taskInfo.mutable_command()->MergeFrom(commandInfo);
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
-  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
+  ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
   Future<bool> launch = containerizer.launch(
@@ -1063,7 +1063,7 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   taskInfo.mutable_command()->MergeFrom(commandInfo);
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
-  ExecutorInfo executorInfo = CREATE_EXECUTOR_INFO("executor", "exit 0");
+  ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
   Future<bool> launch = containerizer.launch(
@@ -1155,7 +1155,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   Future<bool> launch = containerizer.launch(
       containerId,
       taskInfo,
-      CREATE_EXECUTOR_INFO("executor", "sleep 1000"),
+      createExecutorInfo("executor", "sleep 1000"),
       os::getcwd(),
       None(),
       SlaveID(),
