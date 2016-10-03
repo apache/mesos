@@ -25,16 +25,62 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class TestIsolatorProcess : public slave::MesosIsolatorProcess
+// Provides a mock Isolator that by default expects calls to
+// Isolator::prepare, Isolator::isolate, Isolator::watch, and
+// Isolator::cleanup and simply returns "nothing" as appropriate for
+// each call. This behavior can be overriden by adding EXPECT_CALL as
+// necessary. For example, if you don't expect any calls to
+// Isolator::cleanup you can do:
+//
+//   MockIsolator isolator;
+//   EXPECT_CALL(isolator, prepare(_, _))
+//    .Times(0);
+//
+// Or if you want to override that only a single invocation should
+// occur you can do:
+//
+//   MockIsolator isolator;
+//   EXPECT_CALL(isolator, prepare(_, _))
+//    .WillOnce(Return(ContainerLaunchInfo(...)));
+//
+// But note that YOU MUST use exactly `prepare(_, _)` otherwise gmock
+// will not properly match this new expectation with the default
+// expectation created by MockIsolator.
+//
+// In the event you want to override a single invocation but let all
+// subsequent invocations return the "default" you can do:
+//
+//   MockIsolator isolator;
+//   EXPECT_CALL(isolator, prepare(_, _))
+//    .WillOnce(Return(ContainerLaunchInfo(...)))
+//    .RetiresOnSaturation();
+//
+// Another example, if you want to override what gets returned for a
+// every invocation you can do:
+//
+//   MockIsolator isolator;
+//   EXPECT_CALL(isolator, prepare(_, _))
+//    .WillRepeatedly(Return(Failure(...)));
+//
+// Again, YOU MUST use exactly `prepare(_, _)` to override the default
+// expectation.
+class MockIsolator : public mesos::slave::Isolator
 {
 public:
-  static Try<mesos::slave::Isolator*> create(
-      const Option<mesos::slave::ContainerLaunchInfo>& prepare)
+  MockIsolator()
   {
-    process::Owned<MesosIsolatorProcess> process(
-        new TestIsolatorProcess(prepare));
+    EXPECT_CALL(*this, prepare(_, _))
+      .WillRepeatedly(Return(None()));
 
-    return new slave::MesosIsolator(process);
+    EXPECT_CALL(*this, isolate(_, _))
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, watch(_))
+      .WillRepeatedly(
+          Return(process::Future<mesos::slave::ContainerLimitation>()));
+
+    EXPECT_CALL(*this, cleanup(_))
+      .WillRepeatedly(Return(Nothing()));
   }
 
   MOCK_METHOD2(
@@ -43,12 +89,11 @@ public:
           const std::list<mesos::slave::ContainerState>&,
           const hashset<ContainerID>&));
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
-      const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig)
-  {
-    return launchInfo;
-  }
+  MOCK_METHOD2(
+      prepare,
+      process::Future<Option<mesos::slave::ContainerLaunchInfo>>(
+          const ContainerID&,
+          const mesos::slave::ContainerConfig&));
 
   MOCK_METHOD2(
       isolate,
@@ -69,24 +114,6 @@ public:
   MOCK_METHOD1(
       cleanup,
       process::Future<Nothing>(const ContainerID&));
-
-private:
-  TestIsolatorProcess( const Option<mesos::slave::ContainerLaunchInfo>& info)
-    : launchInfo(info)
-  {
-    EXPECT_CALL(*this, watch(testing::_))
-      .WillRepeatedly(testing::Return(promise.future()));
-
-    EXPECT_CALL(*this, isolate(testing::_, testing::_))
-      .WillRepeatedly(testing::Return(Nothing()));
-
-    EXPECT_CALL(*this, cleanup(testing::_))
-      .WillRepeatedly(testing::Return(Nothing()));
-  }
-
-  const Option<mesos::slave::ContainerLaunchInfo> launchInfo;
-
-  process::Promise<mesos::slave::ContainerLimitation> promise;
 };
 
 } // namespace tests {

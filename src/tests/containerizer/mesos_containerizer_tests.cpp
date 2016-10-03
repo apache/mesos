@@ -201,8 +201,8 @@ TEST_F(MesosContainerizerTest, Destroy)
 class MesosContainerizerIsolatorPreparationTest : public MesosTest
 {
 public:
-  // Construct a MesosContainerizer with TestIsolator(s) which use the provided
-  // 'prepare' command(s).
+  // Construct a MesosContainerizer with MockIsolator(s) which return
+  // the provided ContainerLaunchInfo for Isolator::prepare.
   Try<Owned<MesosContainerizer>> CreateContainerizer(
       Fetcher* fetcher,
       const vector<Option<ContainerLaunchInfo>>& launchInfos)
@@ -210,12 +210,12 @@ public:
     vector<Owned<Isolator>> isolators;
 
     foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
-      Try<Isolator*> isolator = TestIsolatorProcess::create(launchInfo);
-      if (isolator.isError()) {
-        return Error(isolator.error());
-      }
+      MockIsolator* isolator = new MockIsolator();
 
-      isolators.push_back(Owned<Isolator>(isolator.get()));
+      EXPECT_CALL(*isolator, prepare(_, _))
+        .WillOnce(Return(launchInfo));
+
+      isolators.push_back(Owned<Isolator>(isolator));
     }
 
     slave::Flags flags = CreateSlaveFlags();
@@ -625,67 +625,6 @@ public:
         containerId,
         pipeWrite);
   }
-};
-
-
-class MockIsolator : public mesos::slave::Isolator
-{
-public:
-  MockIsolator()
-  {
-    EXPECT_CALL(*this, watch(_))
-      .WillRepeatedly(Return(watchPromise.future()));
-
-    EXPECT_CALL(*this, isolate(_, _))
-      .WillRepeatedly(Return(Nothing()));
-
-    EXPECT_CALL(*this, cleanup(_))
-      .WillRepeatedly(Return(Nothing()));
-
-    EXPECT_CALL(*this, prepare(_, _))
-      .WillRepeatedly(Invoke(this, &MockIsolator::_prepare));
-  }
-
-  MOCK_METHOD2(
-      recover,
-      Future<Nothing>(
-          const list<ContainerState>&,
-          const hashset<ContainerID>&));
-
-  MOCK_METHOD2(
-      prepare,
-      Future<Option<ContainerLaunchInfo>>(
-          const ContainerID&,
-          const ContainerConfig&));
-
-  virtual Future<Option<ContainerLaunchInfo>> _prepare(
-      const ContainerID& containerId,
-      const ContainerConfig& containerConfig)
-  {
-    return None();
-  }
-
-  MOCK_METHOD2(
-      isolate,
-      Future<Nothing>(const ContainerID&, pid_t));
-
-  MOCK_METHOD1(
-      watch,
-      Future<mesos::slave::ContainerLimitation>(const ContainerID&));
-
-  MOCK_METHOD2(
-      update,
-      Future<Nothing>(const ContainerID&, const Resources&));
-
-  MOCK_METHOD1(
-      usage,
-      Future<ResourceStatistics>(const ContainerID&));
-
-  MOCK_METHOD1(
-      cleanup,
-      Future<Nothing>(const ContainerID&));
-
-  Promise<mesos::slave::ContainerLimitation> watchPromise;
 };
 
 
