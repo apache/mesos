@@ -5949,11 +5949,23 @@ void Master::_markUnreachable(
   // PARTITION_AWARE capability.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
-    CHECK_NOTNULL(framework);
+
+    // If the framework has not yet re-registered after master failover,
+    // its FrameworkInfo will be in the `recovered` collection. Note that
+    // if the master knows about a task, its FrameworkInfo must appear in
+    // either the `registered` or `recovered` collections.
+    FrameworkInfo frameworkInfo;
+
+    if (framework == nullptr) {
+      CHECK(frameworks.recovered.contains(frameworkId));
+      frameworkInfo = frameworks.recovered[frameworkId];
+    } else {
+      frameworkInfo = framework->info;
+    }
 
     TaskState newTaskState = TASK_UNREACHABLE;
     if (!protobuf::frameworkHasCapability(
-            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
       newTaskState = TASK_LOST;
     }
 
@@ -5977,7 +5989,12 @@ void Master::_markUnreachable(
       updateTask(task, update);
       removeTask(task);
 
-      forward(update, UPID(), framework);
+      if (framework == nullptr) {
+        LOG(WARNING) << "Dropping update " << update
+                     << " for unknown framework " << frameworkId;
+      } else {
+        forward(update, UPID(), framework);
+      }
     }
   }
 
