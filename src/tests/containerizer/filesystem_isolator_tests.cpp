@@ -878,76 +878,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 }
 
 
-// This test verifies that the environment variables for sandbox
-// (i.e., MESOS_DIRECTORY and MESOS_SANDBOX) are set properly.
-// TODO(jieyu): Make this an end to end integration tests.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
-{
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
-
-  Try<MesosContainerizer*> create =
-    MesosContainerizer::create(flags, true, &fetcher);
-
-  ASSERT_SOME(create);
-
-  Owned<Containerizer> containerizer(create.get());
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
-  string directory = path::join(sandbox.get(), "sandbox");
-  ASSERT_SOME(os::mkdir(directory));
-
-  Try<string> script = strings::format(
-      "if [ \"$MESOS_DIRECTORY\" != \"%s\" ]; then exit 1; fi &&"
-      "if [ \"$MESOS_SANDBOX\" != \"%s\" ]; then exit 1; fi",
-      directory,
-      flags.sandbox_directory);
-
-  ASSERT_SOME(script);
-
-  ExecutorInfo executor = createExecutorInfo(
-      "test_executor",
-      script.get());
-
-  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
-
-  map<string, string> environment = executorEnvironment(
-      flags,
-      executor,
-      directory,
-      SlaveID(),
-      PID<Slave>(),
-      false);
-
-  Future<bool> launch = containerizer->launch(
-      containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
-      environment,
-      false);
-
-  AWAIT_READY(launch);
-
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait->get().has_status());
-  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
-}
-
-
 // This test verifies the case where we don't need a bind mount for
 // slave's working directory because the mount containing it is
 // already a shared mount in its own peer group.
@@ -1459,6 +1389,80 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
     EXPECT_FALSE(strings::contains(entry.target, directory))
       << "Target was not unmounted: " << entry.target;
   }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that the environment variables for sandbox
+// (i.e., MESOS_SANDBOX) is set properly.
+TEST_F(LinuxFilesystemIsolatorMesosTest, ROOT_SandboxEnvironmentVariable)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      strings::format(
+          "if [ \"$MESOS_SANDBOX\" != \"%s\" ]; then exit 1; fi &&"
+          "if [ ! -d \"$MESOS_SANDBOX\" ]; then exit 1; fi",
+          flags.sandbox_directory).get());
+
+  task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  driver.launchTasks(offer.id(), {task});
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
