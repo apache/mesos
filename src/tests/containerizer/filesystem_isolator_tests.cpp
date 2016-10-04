@@ -274,473 +274,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 }
 
 
-// This test verifies that the root filesystem of the container is
-// properly changed to the one that's provisioned by the provisioner.
-// Also runs the command executor with the new root filesystem.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
-{
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-
-  MesosSchedulerDriver driver(
-      &sched,
-      DEFAULT_FRAMEWORK_INFO,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
-
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      offer.resources(),
-      "test -d " + flags.sandbox_directory);
-
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-  task.mutable_container()->CopyFrom(containerInfo);
-
-  driver.launchTasks(offer.id(), {task});
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusFinished;
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusFinished));
-
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-
-  driver.stop();
-  driver.join();
-}
-
-
-// This test verifies that the root filesystem of the container is
-// properly changed to the one that's provisioned by the provisioner.
-// Also runs the command executor with the new root filesystem.
-TEST_F(LinuxFilesystemIsolatorTest,
-       ROOT_ChangeRootFilesystemCommandExecutorWithVolumes)
-{
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-
-  MesosSchedulerDriver driver(
-      &sched,
-      DEFAULT_FRAMEWORK_INFO,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
-
-  const Offer& offer = offers.get()[0];
-
-  // Preparing two volumes:
-  // - host_path: dir1, container_path: /tmp
-  // - host_path: dir2, container_path: relative_dir
-  const string dir1 = path::join(os::getcwd(), "dir1");
-  ASSERT_SOME(os::mkdir(dir1));
-
-  const string testFile = path::join(dir1, "testfile");
-  ASSERT_SOME(os::touch(testFile));
-
-  const string dir2 = path::join(os::getcwd(), "dir2");
-  ASSERT_SOME(os::mkdir(dir2));
-
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      offer.resources(),
-      "test -f /tmp/testfile && test -d " +
-      path::join(flags.sandbox_directory, "relative_dir"));
-
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("relative_dir", dir2, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
-
-  driver.launchTasks(offer.id(), {task});
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusFinished;
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusFinished));
-
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-
-  driver.stop();
-  driver.join();
-}
-
-
-// This test verifies that a command task with new root filesystem
-// with persistent volumes works correctly.
-TEST_F(LinuxFilesystemIsolatorTest,
-       ROOT_ChangeRootFilesystemCommandExecutorPersistentVolume)
-{
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-  flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-
-  // Need this otherwise the persistent volumes are not created
-  // within the slave work_dir and thus not retrievable.
-  flags.work_dir = os::getcwd();
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  MesosSchedulerDriver driver(
-      &sched,
-      frameworkInfo,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
-
-  Offer offer = offers.get()[0];
-
-  const string dir1 = path::join(os::getcwd(), "dir1");
-  ASSERT_SOME(os::mkdir(dir1));
-
-  Resource persistentVolume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
-      "id1",
-      "path1",
-      None(),
-      None(),
-      frameworkInfo.principal());
-
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
-
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:512").get() + persistentVolume,
-      "echo abc > path1/file");
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
-
-  // Create the persistent volumes and launch task via `acceptOffers`.
-  driver.acceptOffers(
-      {offer.id()},
-      {CREATE(persistentVolume), LAUNCH({task})},
-      filters);
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusFinished;
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusFinished));
-
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-
-  // NOTE: The command executor's id is the same as the task id.
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
-
-  const string& directory = slave::paths::getExecutorLatestRunPath(
-      flags.work_dir,
-      offer.slave_id(),
-      frameworkId.get(),
-      executorId);
-
-  EXPECT_FALSE(os::exists(path::join(directory, "path1")));
-
-  const string& volumePath = slave::paths::getPersistentVolumePath(
-      flags.work_dir,
-      "role1",
-      "id1");
-
-  EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
-
-  driver.stop();
-  driver.join();
-}
-
-
-// This test verifies that persistent volumes are unmounted properly
-// after a checkpointed framework disappears and the slave restarts.
-//
-// TODO(jieyu): Even though the command task specifies a new
-// filesystem root, the executor (command executor) itself does not
-// change filesystem root (uses the host filesystem). We need to add a
-// test to test the scenario that the executor itself changes rootfs.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
-{
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-  flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-  flags.isolation = "disk/du,filesystem/linux";
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-  frameworkInfo.set_checkpoint(true);
-
-  MesosSchedulerDriver driver(
-      &sched,
-      frameworkInfo,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
-
-  Offer offer = offers.get()[0];
-
-  const string dir1 = path::join(os::getcwd(), "dir1");
-  ASSERT_SOME(os::mkdir(dir1));
-
-  Resource persistentVolume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
-      "id1",
-      "path1",
-      None(),
-      None(),
-      frameworkInfo.principal());
-
-  // Create a task that does nothing for a long time.
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:512").get() + persistentVolume,
-      "sleep 1000");
-
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(DoDefault());
-
-  Future<Nothing> ack =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
-
-  // Create the persistent volumes and launch task via `acceptOffers`.
-  driver.acceptOffers(
-      {offer.id()},
-      {CREATE(persistentVolume), LAUNCH({task})});
-
-  AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-
-  // Wait for the ACK to be checkpointed.
-  AWAIT_READY(ack);
-
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
-
-  AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
-
-  ContainerID containerId = *containers.get().begin();
-
-  // Restart the slave.
-  slave.get()->terminate();
-
-  // Wipe the slave meta directory so that the slave will treat the
-  // above running task as an orphan.
-  ASSERT_SOME(os::rmdir(slave::paths::getMetaRootDir(flags.work_dir)));
-
-  // Recreate the containerizer using the same helper as above.
-  containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  slave = StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  // Wait until slave recovery is complete.
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-  AWAIT_READY_FOR(_recover, Seconds(60));
-
-  // Wait until the orphan containers are cleaned up.
-  AWAIT_READY_FOR(containerizer.get()->wait(containerId), Seconds(60));
-
-  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
-  ASSERT_SOME(table);
-
-  // All mount targets should be under this directory.
-  const string directory = slave::paths::getSandboxRootDir(flags.work_dir);
-
-  // Verify that the orphaned container's persistent volume and
-  // the rootfs are unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    EXPECT_FALSE(strings::contains(entry.target, directory))
-      << "Target was not unmounted: " << entry.target;
-  }
-
-  driver.stop();
-  driver.join();
-}
-
-
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 {
   slave::Flags flags = CreateSlaveFlags();
@@ -1597,6 +1130,473 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
   EXPECT_TRUE(mountFound);
 
   delete isolator.get();
+}
+
+
+// This test verifies that the root filesystem of the container is
+// properly changed to the one that's provisioned by the provisioner.
+// Also runs the command executor with the new root filesystem.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.image_provisioner_backend = "copy";
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test -d " + flags.sandbox_directory);
+
+  ContainerInfo containerInfo;
+  Image* image = containerInfo.mutable_mesos()->mutable_image();
+  image->set_type(Image::APPC);
+  image->mutable_appc()->set_name("test_image");
+  containerInfo.set_type(ContainerInfo::MESOS);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  driver.launchTasks(offer.id(), {task});
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that the root filesystem of the container is
+// properly changed to the one that's provisioned by the provisioner.
+// Also runs the command executor with the new root filesystem.
+TEST_F(LinuxFilesystemIsolatorTest,
+       ROOT_ChangeRootFilesystemCommandExecutorWithVolumes)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.image_provisioner_backend = "copy";
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Preparing two volumes:
+  // - host_path: dir1, container_path: /tmp
+  // - host_path: dir2, container_path: relative_dir
+  const string dir1 = path::join(os::getcwd(), "dir1");
+  ASSERT_SOME(os::mkdir(dir1));
+
+  const string testFile = path::join(dir1, "testfile");
+  ASSERT_SOME(os::touch(testFile));
+
+  const string dir2 = path::join(os::getcwd(), "dir2");
+  ASSERT_SOME(os::mkdir(dir2));
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test -f /tmp/testfile && test -d " +
+      path::join(flags.sandbox_directory, "relative_dir"));
+
+  ContainerInfo containerInfo;
+  Image* image = containerInfo.mutable_mesos()->mutable_image();
+  image->set_type(Image::APPC);
+  image->mutable_appc()->set_name("test_image");
+  containerInfo.set_type(ContainerInfo::MESOS);
+
+  // We are assuming the image created by the tests have /tmp to be
+  // able to mount the directory.
+  containerInfo.add_volumes()->CopyFrom(
+      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
+  containerInfo.add_volumes()->CopyFrom(
+      createVolumeFromHostPath("relative_dir", dir2, Volume::RW));
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  driver.launchTasks(offer.id(), {task});
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a command task with new root filesystem
+// with persistent volumes works correctly.
+TEST_F(LinuxFilesystemIsolatorTest,
+       ROOT_ChangeRootFilesystemCommandExecutorPersistentVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.image_provisioner_backend = "copy";
+  flags.resources = "cpus:2;mem:1024;disk(role1):1024";
+
+  // Need this otherwise the persistent volumes are not created
+  // within the slave work_dir and thus not retrievable.
+  flags.work_dir = os::getcwd();
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  Offer offer = offers.get()[0];
+
+  const string dir1 = path::join(os::getcwd(), "dir1");
+  ASSERT_SOME(os::mkdir(dir1));
+
+  Resource persistentVolume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:512").get() + persistentVolume,
+      "echo abc > path1/file");
+  ContainerInfo containerInfo;
+  Image* image = containerInfo.mutable_mesos()->mutable_image();
+  image->set_type(Image::APPC);
+  image->mutable_appc()->set_name("test_image");
+  containerInfo.set_type(ContainerInfo::MESOS);
+
+  // We are assuming the image created by the tests have /tmp to be
+  // able to mount the directory.
+  containerInfo.add_volumes()->CopyFrom(
+      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // Create the persistent volumes and launch task via `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(persistentVolume), LAUNCH({task})},
+      filters);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  // NOTE: The command executor's id is the same as the task id.
+  ExecutorID executorId;
+  executorId.set_value(task.task_id().value());
+
+  const string& directory = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      offer.slave_id(),
+      frameworkId.get(),
+      executorId);
+
+  EXPECT_FALSE(os::exists(path::join(directory, "path1")));
+
+  const string& volumePath = slave::paths::getPersistentVolumePath(
+      flags.work_dir,
+      "role1",
+      "id1");
+
+  EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that persistent volumes are unmounted properly
+// after a checkpointed framework disappears and the slave restarts.
+//
+// TODO(jieyu): Even though the command task specifies a new
+// filesystem root, the executor (command executor) itself does not
+// change filesystem root (uses the host filesystem). We need to add a
+// test to test the scenario that the executor itself changes rootfs.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.image_provisioner_backend = "copy";
+  flags.resources = "cpus:2;mem:1024;disk(role1):1024";
+  flags.isolation = "disk/du,filesystem/linux";
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->empty());
+
+  Offer offer = offers.get()[0];
+
+  const string dir1 = path::join(os::getcwd(), "dir1");
+  ASSERT_SOME(os::mkdir(dir1));
+
+  Resource persistentVolume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  // Create a task that does nothing for a long time.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:512").get() + persistentVolume,
+      "sleep 1000");
+
+  ContainerInfo containerInfo;
+  Image* image = containerInfo.mutable_mesos()->mutable_image();
+  image->set_type(Image::APPC);
+  image->mutable_appc()->set_name("test_image");
+  containerInfo.set_type(ContainerInfo::MESOS);
+
+  // We are assuming the image created by the tests have /tmp to be
+  // able to mount the directory.
+  containerInfo.add_volumes()->CopyFrom(
+      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(DoDefault());
+
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  // Create the persistent volumes and launch task via `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(persistentVolume), LAUNCH({task})});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack);
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *containers.get().begin();
+
+  // Restart the slave.
+  slave.get()->terminate();
+
+  // Wipe the slave meta directory so that the slave will treat the
+  // above running task as an orphan.
+  ASSERT_SOME(os::rmdir(slave::paths::getMetaRootDir(flags.work_dir)));
+
+  // Recreate the containerizer using the same helper as above.
+  containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  slave = StartSlave(detector.get(), containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  // Wait until slave recovery is complete.
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  AWAIT_READY_FOR(_recover, Seconds(60));
+
+  // Wait until the orphan containers are cleaned up.
+  AWAIT_READY_FOR(containerizer.get()->wait(containerId), Seconds(60));
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  // All mount targets should be under this directory.
+  const string directory = slave::paths::getSandboxRootDir(flags.work_dir);
+
+  // Verify that the orphaned container's persistent volume and
+  // the rootfs are unmounted.
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    EXPECT_FALSE(strings::contains(entry.target, directory))
+      << "Target was not unmounted: " << entry.target;
+  }
+
+  driver.stop();
+  driver.join();
 }
 
 
