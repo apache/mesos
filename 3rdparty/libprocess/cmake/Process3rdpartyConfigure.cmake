@@ -142,10 +142,15 @@ set(
   MESOS_CONTAINERIZER mesos-containerizer
   CACHE STRING "Target for containerizer")
 
+# Define target for docker executor.
+set(
+  MESOS_DOCKER_EXECUTOR mesos-docker-executor
+  CACHE STRING "Target for docker executor")
+
 # Define target for command executor.
 set(
   MESOS_EXECUTOR mesos-executor
-  CACHE STRING "Target for executor")
+  CACHE STRING "Target for command executor")
 
 # Define target for fetcher.
 set(
@@ -161,8 +166,3 @@ set(
 set(
   MESOS_USAGE mesos-usage
   CACHE STRING "Target for usage")
-
-# Define target for docker executor.
-set(
-  MESOS_DOCKER_EXECUTOR mesos-docker-executor
-  CACHE STRING "Target for docker executor")
