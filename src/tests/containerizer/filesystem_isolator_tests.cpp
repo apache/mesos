@@ -18,8 +18,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/slave/container_logger.hpp>
-
 #include <process/owned.hpp>
 #include <process/gtest.hpp>
 
@@ -28,7 +26,6 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
-#include <stout/hashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
@@ -38,26 +35,17 @@
 #include "slave/paths.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
-#include "slave/containerizer/mesos/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 
-#include "slave/containerizer/mesos/isolators/volume/image.hpp"
-
-#include "slave/containerizer/mesos/provisioner/backend.hpp"
-#include "slave/containerizer/mesos/provisioner/paths.hpp"
-#include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
-
-#include "tests/flags.hpp"
+#include "tests/cluster.hpp"
 #include "tests/mesos.hpp"
 
-#include "tests/containerizer/rootfs.hpp"
-#include "tests/containerizer/store.hpp"
+#include "tests/containerizer/docker_archive.hpp"
 
 using process::Future;
 using process::Owned;
 using process::PID;
-using process::Shared;
 
 using std::map;
 using std::string;
@@ -65,22 +53,14 @@ using std::vector;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Backend;
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::Launcher;
 using mesos::internal::slave::LinuxFilesystemIsolatorProcess;
-using mesos::internal::slave::LinuxLauncher;
 using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::MesosContainerizerProcess;
-using mesos::internal::slave::Provisioner;
-using mesos::internal::slave::ProvisionerProcess;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::Store;
-using mesos::internal::slave::VolumeImageIsolatorProcess;
 
 using mesos::master::detector::MasterDetector;
 
-using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
@@ -105,97 +85,7 @@ protected:
     MesosTest::TearDown();
   }
 
-  // This helper creates a MesosContainerizer instance that uses the
-  // LinuxFilesystemIsolator. The filesystem isolator takes a
-  // TestAppcProvisioner which provisions APPC images by copying files
-  // from the host filesystem.
-  // 'images' is a map of imageName -> rootfsPath.
-  // TODO(xujyan): The current assumption of one rootfs per image name
-  // is inconsistent with the real provisioner and we should fix it.
-  Try<Owned<MesosContainerizer>> createContainerizer(
-      const slave::Flags& flags,
-      const hashmap<string, string>& images)
-  {
-    // Create the root filesystems.
-    hashmap<string, Shared<Rootfs>> rootfses;
-    foreachpair (const string& imageName, const string& rootfsPath, images) {
-      Try<Owned<Rootfs>> rootfs = LinuxRootfs::create(rootfsPath);
-
-      if (rootfs.isError()) {
-        return Error("Failed to create LinuxRootfs: " + rootfs.error());
-      }
-
-      rootfses.put(imageName, rootfs.get().share());
-    }
-
-    Owned<Store> store(new TestStore(rootfses));
-    hashmap<Image::Type, Owned<Store>> stores;
-    stores[Image::APPC] = store;
-
-    hashmap<string, Owned<Backend>> backends = Backend::create(flags);
-
-    const string rootDir = slave::paths::getProvisionerDir(flags.work_dir);
-
-    if (!os::exists(rootDir)) {
-      Try<Nothing> mkdir = os::mkdir(rootDir);
-      if (mkdir.isError()) {
-        return Error("Failed to create root dir: " + mkdir.error());
-      }
-    }
-
-    Owned<ProvisionerProcess> provisionerProcess(new ProvisionerProcess(
-        flags,
-        rootDir,
-        stores,
-        backends));
-
-    Owned<Provisioner> _provisioner(new Provisioner(provisionerProcess));
-    Shared<Provisioner> provisioner = _provisioner.share();
-
-    Try<Isolator*> linuxIsolator =
-      LinuxFilesystemIsolatorProcess::create(flags);
-
-    if (linuxIsolator.isError()) {
-      return Error(
-          "Failed to create LinuxFilesystemIsolatorProcess: " +
-          linuxIsolator.error());
-    }
-
-    Try<Isolator*> imageIsolator =
-      VolumeImageIsolatorProcess::create(flags, provisioner);
-
-    if (imageIsolator.isError()) {
-      return Error(
-          "Failed to create VolumeImageIsolatorProcess: " +
-          imageIsolator.error());
-    }
-
-    Try<Launcher*> launcher = LinuxLauncher::create(flags);
-
-    if (launcher.isError()) {
-      return Error("Failed to create LinuxLauncher: " + launcher.error());
-    }
-
-    // Create and initialize a new container logger.
-    Try<ContainerLogger*> logger =
-      ContainerLogger::create(flags.container_logger);
-
-    if (logger.isError()) {
-      return Error("Failed to create container logger: " + logger.error());
-    }
-
-    return Owned<MesosContainerizer>(
-        new MesosContainerizer(
-            flags,
-            true,
-            &fetcher,
-            Owned<ContainerLogger>(logger.get()),
-            Owned<Launcher>(launcher.get()),
-            provisioner,
-            {Owned<Isolator>(linuxIsolator.get()),
-             Owned<Isolator>(imageIsolator.get())}));
-  }
-
+  // TODO(jieyu): Move this to the common test utils file.
   ContainerInfo createContainerInfo(
       const Option<string>& imageName = None(),
       const vector<Volume>& volumes = vector<Volume>())
@@ -205,10 +95,10 @@ protected:
 
     if (imageName.isSome()) {
       Image* image = info.mutable_mesos()->mutable_image();
-      image->set_type(Image::APPC);
+      image->set_type(Image::DOCKER);
 
-      Image::Appc* appc = image->mutable_appc();
-      appc->set_name(imageName.get());
+      Image::Docker* docker = image->mutable_docker();
+      docker->set_name(imageName.get());
     }
 
     foreach (const Volume& volume, volumes) {
@@ -218,7 +108,6 @@ protected:
     return info;
   }
 
-private:
   Fetcher fetcher;
 };
 
@@ -227,27 +116,35 @@ private:
 // properly changed to the one that's provisioned by the provisioner.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
-      "[ ! -d '" + os::getcwd() + "' ]");
+      "[ ! -d '" + sandbox.get() + "' ]");
 
   executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -257,35 +154,39 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
+// This test verifies that the metrics about the number of executors
+// that have root filesystem specified is correctly reported.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   // Use a long running task so we can reliably capture the moment it's alive.
   ExecutorInfo executor = createExecutorInfo(
@@ -294,10 +195,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 
   executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -307,29 +208,22 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Check metrics.
   JSON::Object stats = Metrics();
   EXPECT_EQ(1u, stats.values.count(
       "containerizer/mesos/filesystem/containers_new_rootfs"));
   EXPECT_EQ(
       1, stats.values["containerizer/mesos/filesystem/containers_new_rootfs"]);
 
-  containerizer.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Executor was killed.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(9, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait->get().status());
 }
 
 
@@ -338,16 +232,24 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 // in the container's mount namespace.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -357,10 +259,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
       "test_image",
       {createVolumeFromHostPath("/tmp", "tmp", Volume::RW)}));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -370,20 +272,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
 }
@@ -394,29 +290,40 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 // container's mount namespace.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
-      "test -d /tmp/sandbox");
+      "test -d /tmp/dir");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", os::getcwd(), Volume::RW)}));
+      {createVolumeFromHostPath("/tmp", sandbox.get(), Volume::RW)}));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string dir = path::join(sandbox.get(), "dir");
+  ASSERT_SOME(os::mkdir(dir));
+
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -426,20 +333,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -448,32 +349,40 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 // in the container's mount namespace.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -f /tmp/test/file.txt");
 
-  const string file = path::join(os::getcwd(), "file");
+  string file = path::join(sandbox.get(), "file");
   ASSERT_SOME(os::touch(file));
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
       {createVolumeFromHostPath("/tmp/test/file.txt", file, Volume::RW)}));
 
-  const string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -485,15 +394,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 
   AWAIT_READY_FOR(launch, Seconds(60));
 
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -502,29 +408,40 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 // mount namespace. The mount point will be created in the sandbox.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
-      "test -d mountpoint/sandbox");
+      "test -d mountpoint/dir");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("mountpoint", os::getcwd(), Volume::RW)}));
+      {createVolumeFromHostPath("mountpoint", sandbox.get(), Volume::RW)}));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string dir = path::join(sandbox.get(), "dir");
+  ASSERT_SOME(os::mkdir(dir));
+
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -534,20 +451,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -556,32 +467,40 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 // mount namespace. The mount point will be created in the sandbox.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "test -f mountpoint/file.txt");
 
-  const string file = path::join(os::getcwd(), "file");
+  string file = path::join(sandbox.get(), "file");
   ASSERT_SOME(os::touch(file));
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
       {createVolumeFromHostPath("mountpoint/file.txt", file, Volume::RW)}));
 
-  const string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -593,15 +512,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 
   AWAIT_READY_FOR(launch, Seconds(60));
 
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -609,20 +525,24 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 // the container's root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 {
-  slave::Flags flags = CreateSlaveFlags();
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
 
-  // Need this otherwise the persistent volumes are not created
-  // within the slave work_dir and thus not retrievable.
-  flags.work_dir = os::getcwd();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -638,16 +558,16 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
-      os::getcwd(),
+      flags.work_dir,
       "test_role",
       "persistent_volume_id");
 
   ASSERT_SOME(os::mkdir(volume));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -657,41 +577,41 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(volume, "file")));
 }
 
 
+// This test verifies that persistent volumes are properly mounted if
+// the container does not specify a root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 {
-  slave::Flags flags = CreateSlaveFlags();
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
 
-  // Need this otherwise the persistent volumes are not created
-  // within the slave work_dir and thus not retrievable.
-  flags.work_dir = os::getcwd();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -707,22 +627,16 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
-      os::getcwd(),
+      flags.work_dir,
       "test_role",
       "persistent_volume_id");
 
   ASSERT_SOME(os::mkdir(volume));
 
-  // To make sure the sandbox directory has the container ID in its
-  // path so it doesn't get unmounted by the launcher.
-  string directory = slave::paths::createExecutorDirectory(
-      flags.work_dir,
-      SlaveID(),
-      FrameworkID(),
-      executor.executor_id(),
-      containerId);
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -732,20 +646,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(volume, "file")));
 }
@@ -756,16 +664,24 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 // root filesystem is not specified.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -773,12 +689,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       None(),
-      {createVolumeFromAppcImage("rootfs", "test_image", Volume::RW)}));
+      {createVolumeFromDockerImage("rootfs", "test_image", Volume::RW)}));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -788,20 +704,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -810,31 +720,39 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 // root filesystem is specified.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image_rootfs"));
+  AWAIT_READY(DockerArchive::create(registry, "test_image_volume"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(
-        flags,
-        {{"test_image_rootfs", path::join(os::getcwd(), "test_image_rootfs")},
-         {"test_image_volume", path::join(os::getcwd(), "test_image_volume")}});
-
-  ASSERT_SOME(containerizer);
-
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
-      "[ ! -d '" + os::getcwd() + "' ] && [ -d rootfs/bin ]");
+      "[ ! -d '" + sandbox.get() + "' ] && [ -d rootfs/bin ]");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image_rootfs",
-      {createVolumeFromAppcImage("rootfs", "test_image_volume", Volume::RW)}));
+      {createVolumeFromDockerImage(
+          "rootfs", "test_image_volume", Volume::RW)}));
 
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -844,21 +762,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch, Seconds(240));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
-  // Because destroy rootfs spents a lot of time, we use 30s as timeout here.
-  AWAIT_READY_FOR(wait, Seconds(30));
+  AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -866,11 +777,22 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 // launched simultaneously with no interference.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 {
-  slave::Flags flags = CreateSlaveFlags();
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image1"));
+  AWAIT_READY(DockerArchive::create(registry, "test_image2"));
 
-  // Need this otherwise the persistent volumes are not created
-  // within the slave work_dir and thus not retrievable.
-  flags.work_dir = os::getcwd();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId1;
   containerId1.set_value(UUID::random().toString());
@@ -878,23 +800,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   ContainerID containerId2;
   containerId2.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(
-        flags,
-        {{"test_image1", path::join(os::getcwd(), "test_image1")},
-         {"test_image2", path::join(os::getcwd(), "test_image2")}});
-
-  ASSERT_SOME(containerizer);
-
-  SlaveID slaveId;
-  slaveId.set_value("test_agent");
-
-  // First launch container 1 which has a long running task which
-  // guarantees that its work directory mount is in the host mount
-  // table when container 2 is launched.
   ExecutorInfo executor1 = createExecutorInfo(
       "test_executor1",
-      "sleep 1000"); // Long running task.
+      "sleep 1000");
 
   executor1.mutable_container()->CopyFrom(createContainerInfo("test_image1"));
 
@@ -907,102 +815,94 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
       "volume"));
 
   string volume = slave::paths::getPersistentVolumePath(
-      os::getcwd(),
+      flags.work_dir,
       "test_role",
       "persistent_volume_id");
 
   ASSERT_SOME(os::mkdir(volume));
 
-  string directory1 = slave::paths::createExecutorDirectory(
-      flags.work_dir,
-      slaveId,
-      DEFAULT_FRAMEWORK_INFO.id(),
-      executor1.executor_id(),
-      containerId1);
+  string directory1 = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory1));
 
-  Future<bool> launch1 = containerizer.get()->launch(
+  Future<bool> launch1 = containerizer->launch(
       containerId1,
       None(),
       executor1,
       directory1,
       None(),
-      slaveId,
+      SlaveID(),
       map<string, string>(),
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch1, Seconds(120));
+  AWAIT_READY(launch1);
 
-  // Now launch container 2 which will copy the host mount table with
-  // container 1's work directory mount in it.
   ExecutorInfo executor2 = createExecutorInfo(
       "test_executor2",
-      "[ ! -d '" + os::getcwd() + "' ]");
+      "[ ! -d '" + sandbox.get() + "' ]");
 
   executor2.mutable_container()->CopyFrom(createContainerInfo("test_image2"));
 
-  string directory2 = slave::paths::createExecutorDirectory(
-      flags.work_dir,
-      slaveId,
-      DEFAULT_FRAMEWORK_INFO.id(),
-      executor2.executor_id(),
-      containerId2);
+  string directory2 = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory2));
 
-  Future<bool> launch2 = containerizer.get()->launch(
+  Future<bool> launch2 = containerizer->launch(
       containerId2,
       None(),
       executor2,
       directory2,
       None(),
-      slaveId,
+      SlaveID(),
       map<string, string>(),
       false);
 
-  // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch1, Seconds(60));
-
-  containerizer.get()->destroy(containerId1);
+  AWAIT_READY(launch1);
 
   // Wait on the containers.
   Future<Option<ContainerTermination>> wait1 =
-    containerizer.get()->wait(containerId1);
+    containerizer->wait(containerId1);
 
   Future<Option<ContainerTermination>> wait2 =
-    containerizer.get()->wait(containerId2);
+    containerizer->wait(containerId2);
 
-  AWAIT_READY_FOR(wait1, Seconds(60));
+  containerizer->destroy(containerId1);
+
+  AWAIT_READY(wait1);
   ASSERT_SOME(wait1.get());
+  ASSERT_TRUE(wait1->get().has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait1->get().status());
 
-  AWAIT_READY_FOR(wait2, Seconds(60));
+  AWAIT_READY(wait2);
   ASSERT_SOME(wait2.get());
-
-  // Executor 1 was forcefully killed.
-  EXPECT_TRUE(wait1->get().has_status());
-  EXPECT_EQ(9, wait1->get().status());
-
-  // Executor 2 exited normally.
-  EXPECT_TRUE(wait2->get().has_status());
-  EXPECT_EQ(0, wait2->get().status());
+  ASSERT_TRUE(wait2->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait2->get().status());
 }
 
 
 // This test verifies that the environment variables for sandbox
 // (i.e., MESOS_DIRECTORY and MESOS_SANDBOX) are set properly.
+// TODO(jieyu): Make this an end to end integration tests.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
 {
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  string directory = path::join(os::getcwd(), "sandbox");
+  string directory = path::join(sandbox.get(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
   Try<string> script = strings::format(
@@ -1027,7 +927,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
       PID<Slave>(),
       false);
 
-  Future<bool> launch = containerizer.get()->launch(
+  Future<bool> launch = containerizer->launch(
       containerId,
       None(),
       executor,
@@ -1037,20 +937,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
       environment,
       false);
 
-  // Wait for the launch to complete.
-  // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  AWAIT_READY(launch);
 
-  // Wait on the container.
-  Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
-  EXPECT_TRUE(wait->get().has_status());
-  EXPECT_EQ(0, wait->get().status());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
 }
 
 
@@ -1133,27 +1027,30 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
 }
 
 
-// This test verifies that the root filesystem of the container is
-// properly changed to the one that's provisioned by the provisioner.
-// Also runs the command executor with the new root filesystem.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
+// End to end Mesos integration tests for linux filesystem isolator.
+class LinuxFilesystemIsolatorMesosTest : public LinuxFilesystemIsolatorTest {};
+
+
+// This test verifies that the framework can launch a command task
+// that specifies a container image.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_ChangeRootFilesystemCommandExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1164,9 +1061,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
+    .Times(1);
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1174,8 +1070,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
-
-  AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers->size());
@@ -1187,114 +1081,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
       offer.resources(),
       "test -d " + flags.sandbox_directory);
 
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-  task.mutable_container()->CopyFrom(containerInfo);
-
-  driver.launchTasks(offer.id(), {task});
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusFinished;
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusFinished));
-
-  // Need to wait for Rootfs copying.
-  AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-
-  driver.stop();
-  driver.join();
-}
-
-
-// This test verifies that the root filesystem of the container is
-// properly changed to the one that's provisioned by the provisioner.
-// Also runs the command executor with the new root filesystem.
-TEST_F(LinuxFilesystemIsolatorTest,
-       ROOT_ChangeRootFilesystemCommandExecutorWithVolumes)
-{
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-
-  MesosSchedulerDriver driver(
-      &sched,
-      DEFAULT_FRAMEWORK_INFO,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
-
-  const Offer& offer = offers.get()[0];
-
-  // Preparing two volumes:
-  // - host_path: dir1, container_path: /tmp
-  // - host_path: dir2, container_path: relative_dir
-  const string dir1 = path::join(os::getcwd(), "dir1");
-  ASSERT_SOME(os::mkdir(dir1));
-
-  const string testFile = path::join(dir1, "testfile");
-  ASSERT_SOME(os::touch(testFile));
-
-  const string dir2 = path::join(os::getcwd(), "dir2");
-  ASSERT_SOME(os::mkdir(dir2));
-
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      offer.resources(),
-      "test -f /tmp/testfile && test -d " +
-      path::join(flags.sandbox_directory, "relative_dir"));
-
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("relative_dir", dir2, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
   driver.launchTasks(offer.id(), {task});
 
@@ -1307,6 +1094,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
@@ -1315,32 +1103,115 @@ TEST_F(LinuxFilesystemIsolatorTest,
 }
 
 
-// This test verifies that a command task with new root filesystem
-// with persistent volumes works correctly.
-TEST_F(LinuxFilesystemIsolatorTest,
+// This test verifies that the framework can launch a command task
+// that specifies both container image and host volumes.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_ChangeRootFilesystemCommandExecutorWithHostVolumes)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Preparing two volumes:
+  // - host_path: dir1, container_path: /tmp
+  // - host_path: dir2, container_path: relative_dir
+  string dir1 = path::join(sandbox.get(), "dir1");
+  ASSERT_SOME(os::mkdir(dir1));
+
+  string testFile = path::join(dir1, "testfile");
+  ASSERT_SOME(os::touch(testFile));
+
+  string dir2 = path::join(sandbox.get(), "dir2");
+  ASSERT_SOME(os::mkdir(dir2));
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test -f /tmp/testfile && test -d " +
+      path::join(flags.sandbox_directory, "relative_dir"));
+
+  task.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeFromHostPath("/tmp", dir1, Volume::RW),
+       createVolumeFromHostPath("relative_dir", dir2, Volume::RW)}));
+
+  driver.launchTasks(offer.id(), {task});
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that the framework can launch a command task
+// that specifies both container image and persistent volumes.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
        ROOT_ChangeRootFilesystemCommandExecutorPersistentVolume)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-
-  // Need this otherwise the persistent volumes are not created
-  // within the slave work_dir and thus not retrievable.
-  flags.work_dir = os::getcwd();
-
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
-
-  ASSERT_SOME(containerizer);
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1371,7 +1242,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 
   Offer offer = offers.get()[0];
 
-  const string dir1 = path::join(os::getcwd(), "dir1");
+  string dir1 = path::join(sandbox.get(), "dir1");
   ASSERT_SOME(os::mkdir(dir1));
 
   Resource persistentVolume = createPersistentVolume(
@@ -1392,17 +1263,10 @@ TEST_F(LinuxFilesystemIsolatorTest,
       offer.slave_id(),
       Resources::parse("cpus:1;mem:512").get() + persistentVolume,
       "echo abc > path1/file");
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
 
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeFromHostPath("/tmp", dir1, Volume::RW)}));
 
   // Create the persistent volumes and launch task via `acceptOffers`.
   driver.acceptOffers(
@@ -1419,6 +1283,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
@@ -1426,7 +1291,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
   ExecutorID executorId;
   executorId.set_value(task.task_id().value());
 
-  const string& directory = slave::paths::getExecutorLatestRunPath(
+  string directory = slave::paths::getExecutorLatestRunPath(
       flags.work_dir,
       offer.slave_id(),
       frameworkId.get(),
@@ -1434,7 +1299,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 
   EXPECT_FALSE(os::exists(path::join(directory, "path1")));
 
-  const string& volumePath = slave::paths::getPersistentVolumePath(
+  string volumePath = slave::paths::getPersistentVolumePath(
       flags.work_dir,
       "role1",
       "id1");
@@ -1453,26 +1318,36 @@ TEST_F(LinuxFilesystemIsolatorTest,
 // filesystem root, the executor (command executor) itself does not
 // change filesystem root (uses the host filesystem). We need to add a
 // test to test the scenario that the executor itself changes rootfs.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_RecoverOrphanedPersistentVolume)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
-  flags.image_provisioner_backend = "copy";
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-  flags.isolation = "disk/du,filesystem/linux";
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get().get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1486,9 +1361,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
+    .Times(1);
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1497,14 +1371,12 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
 
   driver.start();
 
-  AWAIT_READY(frameworkId);
-
   AWAIT_READY(offers);
   EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
-  const string dir1 = path::join(os::getcwd(), "dir1");
+  string dir1 = path::join(sandbox.get(), "dir1");
   ASSERT_SOME(os::mkdir(dir1));
 
   Resource persistentVolume = createPersistentVolume(
@@ -1522,17 +1394,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
       Resources::parse("cpus:1;mem:512").get() + persistentVolume,
       "sleep 1000");
 
-  ContainerInfo containerInfo;
-  Image* image = containerInfo.mutable_mesos()->mutable_image();
-  image->set_type(Image::APPC);
-  image->mutable_appc()->set_name("test_image");
-  containerInfo.set_type(ContainerInfo::MESOS);
-
-  // We are assuming the image created by the tests have /tmp to be
-  // able to mount the directory.
-  containerInfo.add_volumes()->CopyFrom(
-      createVolumeFromHostPath("/tmp", dir1, Volume::RW));
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeFromHostPath("/tmp", dir1, Volume::RW)}));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1553,7 +1417,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
   EXPECT_EQ(1u, containers.get().size());
@@ -1568,25 +1432,26 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
   ASSERT_SOME(os::rmdir(slave::paths::getMetaRootDir(flags.work_dir)));
 
   // Recreate the containerizer using the same helper as above.
-  containerizer = createContainerizer(
-      flags,
-      {{"test_image", path::join(os::getcwd(), "test_image")}});
+  containerizer.reset();
 
-  slave = StartSlave(detector.get(), containerizer.get().get(), flags);
+  create = MesosContainerizer::create(flags, true, &fetcher);
+  containerizer.reset(create.get());
+
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Wait until slave recovery is complete.
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-  AWAIT_READY_FOR(_recover, Seconds(60));
+  AWAIT_READY(_recover);
 
   // Wait until the orphan containers are cleaned up.
-  AWAIT_READY_FOR(containerizer.get()->wait(containerId), Seconds(60));
+  AWAIT_READY(containerizer->wait(containerId));
 
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   ASSERT_SOME(table);
 
   // All mount targets should be under this directory.
-  const string directory = slave::paths::getSandboxRootDir(flags.work_dir);
+  string directory = slave::paths::getSandboxRootDir(flags.work_dir);
 
   // Verify that the orphaned container's persistent volume and
   // the rootfs are unmounted.
@@ -1600,25 +1465,30 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
 }
 
 
-// This test verifies that the volume usage accounting for sandboxes with
-// bind-mounted volumes works correctly by creating a file within the volume
-// the size of which exceeds the sandbox quota.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
+// This test verifies that the volume usage accounting for sandboxes
+// with bind-mounted volumes (while linux filesystem isolator is used)
+// works correctly by creating a file within the volume the size of
+// which exceeds the sandbox quota.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_VolumeUsageExceedsSandboxQuota)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "disk/du,filesystem/linux";
+  flags.resources = "cpus:2;mem:128;disk(role1):128";
+  flags.isolation = "disk/du,filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
   flags.container_disk_watch_interval = Milliseconds(1);
   flags.enforce_container_disk_quota = true;
-  flags.resources = "cpus:2;mem:128;disk(role1):128";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1626,6 +1496,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MesosSchedulerDriver driver(
       &sched,
@@ -1633,9 +1505,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
+    .Times(1);
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1643,8 +1514,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
-
-  AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers->size());

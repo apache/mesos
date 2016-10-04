@@ -434,7 +434,7 @@ inline Volume createVolumeFromHostPath(
 }
 
 
-inline Volume createVolumeFromAppcImage(
+inline Volume createVolumeFromDockerImage(
     const std::string& containerPath,
     const std::string& imageName,
     const Volume::Mode& mode)
@@ -442,8 +442,8 @@ inline Volume createVolumeFromAppcImage(
   Volume volume;
   volume.set_container_path(containerPath);
   volume.set_mode(mode);
-  volume.mutable_image()->set_type(Image::APPC);
-  volume.mutable_image()->mutable_appc()->set_name(imageName);
+  volume.mutable_image()->set_type(Image::DOCKER);
+  volume.mutable_image()->mutable_docker()->set_name(imageName);
   return volume;
 }
 
