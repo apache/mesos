@@ -670,7 +670,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   EXPECT_NE(0u, offers.get().size());
 
   // Create a temporary file.
-  Try<string> temporaryPath = os::mktemp();
+  Try<string> temporaryPath = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(temporaryPath);
   string tmpPath = temporaryPath.get();
 
@@ -830,8 +830,6 @@ TEST_F(HealthCheckTest, HealthStatusChange)
         "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
     EXPECT_SOME_TRUE(find);
   }
-
-  os::rm(tmpPath); // Clean up the temporary file.
 
   driver.stop();
   driver.join();
