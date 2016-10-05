@@ -57,6 +57,8 @@ class MockExecutor;
 class TestContainerizer : public slave::Containerizer
 {
 public:
+  // TODO(bmahler): These constructors assume that ExecutorIDs are
+  // unique across FrameworkIDs, which is not the case.
   TestContainerizer(
       const ExecutorID& executorId,
       const std::shared_ptr<MockV1HTTPExecutor>& executor);
@@ -89,6 +91,15 @@ public:
           const std::map<std::string, std::string>&,
           bool checkpoint));
 
+  MOCK_METHOD5(
+      launch,
+      process::Future<bool>(
+          const ContainerID& containerId,
+          const CommandInfo& commandInfo,
+          const Option<ContainerInfo>& containerInfo,
+          const Option<std::string>& user,
+          const SlaveID& slaveId));
+
   MOCK_METHOD2(
       update,
       process::Future<Nothing>(const ContainerID&, const Resources&));
@@ -120,6 +131,7 @@ private:
   void setup();
 
   // Default implementations of mock methods.
+
   process::Future<bool> _launch(
       const ContainerID& containerId,
       const Option<TaskInfo>& taskInfo,
@@ -130,19 +142,43 @@ private:
       const std::map<std::string, std::string>& environment,
       bool checkpoint);
 
+  process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const CommandInfo& commandInfo,
+      const Option<ContainerInfo>& containerInfo,
+      const Option<std::string>& user,
+      const SlaveID& slaveId);
+
   process::Future<Option<mesos::slave::ContainerTermination>> _wait(
       const ContainerID& containerId) const;
 
   process::Future<bool> _destroy(const ContainerID& containerID);
 
-  hashmap<ExecutorID, Executor*> executors;
-  hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
+  struct ContainerData
+  {
+    Option<ExecutorID> executorId;
+    Option<FrameworkID> frameworkId;
 
-  hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers_;
-  hashmap<ContainerID, process::Owned<MesosExecutorDriver>> drivers;
-  hashmap<ContainerID, process::Owned<executor::TestV1Mesos>> v1Libraries;
-  hashmap<ContainerID, process::Owned<
-      process::Promise<mesos::slave::ContainerTermination>>> promises;
+    process::Promise<mesos::slave::ContainerTermination> termination;
+  };
+
+  hashmap<ContainerID, process::Owned<ContainerData>> containers_;
+
+  struct ExecutorData
+  {
+    // Pre-HTTP executors.
+    Executor* executor;
+    process::Owned<MesosExecutorDriver> driver;
+
+    // HTTP executors. Note that `mesos::v1::executor::Mesos`
+    // requires that we provide it a shared pointer to the executor.
+    std::shared_ptr<MockV1HTTPExecutor> v1ExecutorMock;
+    process::Owned<executor::TestV1Mesos> v1Library;
+  };
+
+  // TODO(bmahler): The test containerizer currently assumes that
+  // executor IDs are unique across frameworks (see the constructors).
+  hashmap<ExecutorID, process::Owned<ExecutorData>> executors;
 };
 
 } // namespace tests {

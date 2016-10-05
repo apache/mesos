@@ -44,15 +44,21 @@ TestContainerizer::TestContainerizer(
     const ExecutorID& executorId,
     const shared_ptr<MockV1HTTPExecutor>& executor)
 {
-  v1Executors[executorId] = executor;
+  executors[executorId] = Owned<ExecutorData>(new ExecutorData());
+  executors.at(executorId)->v1ExecutorMock = executor;
+
   setup();
 }
 
 
 TestContainerizer::TestContainerizer(
     const hashmap<ExecutorID, Executor*>& _executors)
-  : executors(_executors)
 {
+  foreachpair (const ExecutorID& executorId, Executor* executor, _executors) {
+    executors[executorId] = Owned<ExecutorData>(new ExecutorData());
+    executors.at(executorId)->executor = executor;
+  }
+
   setup();
 }
 
@@ -61,14 +67,18 @@ TestContainerizer::TestContainerizer(
     const ExecutorID& executorId,
     Executor* executor)
 {
-  executors[executorId] = executor;
+  executors[executorId] = Owned<ExecutorData>(new ExecutorData());
+  executors.at(executorId)->executor = executor;
+
   setup();
 }
 
 
 TestContainerizer::TestContainerizer(MockExecutor* executor)
 {
-  executors[executor->id] = executor;
+  executors[executor->id] = Owned<ExecutorData>(new ExecutorData());
+  executors.at(executor->id)->executor = executor;
+
   setup();
 }
 
@@ -81,11 +91,12 @@ TestContainerizer::TestContainerizer()
 
 TestContainerizer::~TestContainerizer()
 {
-  foreachvalue (const Owned<MesosExecutorDriver>& driver, drivers) {
-    driver->stop();
-    driver->join();
+  foreachvalue (const Owned<ExecutorData>& data, executors) {
+    if (data->driver.get() != nullptr) {
+      data->driver->stop();
+      data->driver->join();
+    }
   }
-  drivers.clear();
 }
 
 
@@ -99,22 +110,20 @@ Future<bool> TestContainerizer::_launch(
     const map<string, string>& environment,
     bool checkpoint)
 {
-  CHECK(!drivers.contains(containerId))
-    << "Failed to launch executor '" << executorInfo.executor_id()
-    << "' of framework " << executorInfo.framework_id()
+  CHECK(!containers_.contains(containerId))
+    << "Failed to launch container " << containerId
+    << " for executor '" << executorInfo.executor_id() << "'"
+    << " of framework " << executorInfo.framework_id()
     << " because it is already launched";
 
-  CHECK(executors.contains(executorInfo.executor_id()) ||
-        v1Executors.contains(executorInfo.executor_id()))
-    << "Failed to launch executor '" << executorInfo.executor_id()
-    << "' of framework " << executorInfo.framework_id()
+  CHECK(executors.contains(executorInfo.executor_id()))
+    << "Failed to launch executor '" << executorInfo.executor_id() << "'"
+    << " of framework " << executorInfo.framework_id()
     << " because it is unknown to the containerizer";
 
-  // Store mapping from (frameworkId, executorId) -> containerId to facilitate
-  // easy destroy from tests.
-  std::pair<FrameworkID, ExecutorID> key(executorInfo.framework_id(),
-                                         executorInfo.executor_id());
-  containers_[key] = containerId;
+  containers_[containerId] = Owned<ContainerData>(new ContainerData());
+  containers_.at(containerId)->executorId = executorInfo.executor_id();
+  containers_.at(containerId)->frameworkId = executorInfo.framework_id();
 
   // We need to synchronize all reads and writes to the environment as this is
   // global state.
@@ -153,21 +162,17 @@ Future<bool> TestContainerizer::_launch(
 
     os::setenv("MESOS_LOCAL", "1");
 
-    if (executors.contains(executorInfo.executor_id())) {
-      Executor* executor = executors[executorInfo.executor_id()];
+    const Owned<ExecutorData>& executorData =
+      executors.at(executorInfo.executor_id());
 
-      Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
-      drivers[containerId] = driver;
-
-      driver->start();
+    if (executorData->executor != nullptr) {
+      executorData->driver = Owned<MesosExecutorDriver>(
+          new MesosExecutorDriver(executorData->executor));
+      executorData->driver->start();
     } else {
-      shared_ptr<MockV1HTTPExecutor> executor =
-        v1Executors[executorInfo.executor_id()];
-
-      Owned<executor::TestV1Mesos> mesos(
-          new executor::TestV1Mesos(ContentType::PROTOBUF, executor));
-
-      v1Libraries[containerId] = mesos;
+      shared_ptr<MockV1HTTPExecutor> executor = executorData->v1ExecutorMock;
+      executorData->v1Library = Owned<executor::TestV1Mesos>(
+        new executor::TestV1Mesos(ContentType::PROTOBUF, executor));
     }
 
     os::unsetenv("MESOS_LOCAL");
@@ -186,10 +191,24 @@ Future<bool> TestContainerizer::_launch(
     }
   }
 
-  promises[containerId] =
-    Owned<Promise<ContainerTermination>>(
-      new Promise<ContainerTermination>());
+  return true;
+}
 
+
+Future<bool> TestContainerizer::_launch(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo,
+    const Option<string>& user,
+    const SlaveID& slaveId)
+{
+  CHECK(!containers_.contains(containerId))
+    << "Failed to launch nested container " << containerId
+    << " because it is already launched";
+
+  containers_[containerId] = Owned<ContainerData>(new ContainerData());
+
+  // No-op for now.
   return true;
 }
 
@@ -199,11 +218,11 @@ Future<Option<ContainerTermination>> TestContainerizer::_wait(
 {
   // An unknown container is possible for tests where we "drop" the
   // 'launch' in order to verify recovery still works correctly.
-  if (!promises.contains(containerId)) {
+  if (!containers_.contains(containerId)) {
     return None();
   }
 
-  return promises.at(containerId)->future()
+  return containers_.at(containerId)->termination.future()
     .then(Option<ContainerTermination>::some);
 }
 
@@ -212,38 +231,57 @@ Future<bool> TestContainerizer::destroy(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
-  std::pair<FrameworkID, ExecutorID> key(frameworkId, executorId);
-  if (!containers_.contains(key)) {
-    LOG(WARNING) << "Ignoring destroy of unknown container for executor '"
-                 << executorId << "' of framework " << frameworkId;
+  Option<ContainerID> containerId = None();
+
+  foreachpair (const ContainerID& containerId_,
+               const Owned<ContainerData>& container,
+               containers_) {
+    if (container->frameworkId == frameworkId &&
+        container->executorId == executorId) {
+      containerId = containerId_;
+    }
+  }
+
+  if (containerId.isNone()) {
+    LOG(WARNING) << "Ignoring destroy of unknown container"
+                 << " for executor '" << executorId << "'"
+                 << " of framework " << frameworkId;
     return false;
   }
 
-  return _destroy(containers_.at(key));
+  return _destroy(containerId.get());
 }
 
 
 Future<bool> TestContainerizer::_destroy(const ContainerID& containerId)
 {
-  if (drivers.contains(containerId)) {
-    Owned<MesosExecutorDriver> driver = drivers.at(containerId);
-    driver->stop();
-    driver->join();
-    drivers.erase(containerId);
+  if (!containers_.contains(containerId)) {
+    return false;
   }
 
-  if (v1Libraries.contains(containerId)) {
-    v1Libraries.erase(containerId);
+  const Owned<ContainerData>& containerData = containers_.at(containerId);
+
+  if (containerData->executorId.isSome()) {
+    CHECK(executors.contains(containerData->executorId.get()));
+
+    const Owned<ExecutorData>& executorData =
+      executors.at(containerData->executorId.get());
+
+    if (executorData->driver.get() != nullptr) {
+      executorData->driver->stop();
+      executorData->driver->join();
+    }
+
+    executors.erase(containerData->executorId.get());
   }
 
-  if (promises.contains(containerId)) {
-    ContainerTermination termination;
-    termination.set_message("Killed executor");
-    termination.set_status(0);
+  ContainerTermination termination;
+  termination.set_message("Killed executor");
+  termination.set_status(0);
 
-    promises.at(containerId)->set(termination);
-    promises.erase(containerId);
-  }
+  containerData->termination.set(termination);
+
+  containers_.erase(containerId);
 
   return true;
 }
@@ -251,7 +289,7 @@ Future<bool> TestContainerizer::_destroy(const ContainerID& containerId)
 
 Future<hashset<ContainerID>> TestContainerizer::containers()
 {
-  return promises.keys();
+  return containers_.keys();
 }
 
 
@@ -280,8 +318,30 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, update(_, _))
     .WillRepeatedly(Return(Nothing()));
 
+  Future<bool> (TestContainerizer::*_launch)(
+      const ContainerID& containerId,
+      const Option<TaskInfo>& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const string& directory,
+      const Option<string>& user,
+      const SlaveID& slaveId,
+      const map<string, string>& environment,
+      bool checkpoint) =
+    &TestContainerizer::_launch;
+
   EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
-    .WillRepeatedly(Invoke(this, &TestContainerizer::_launch));
+    .WillRepeatedly(Invoke(this, _launch));
+
+  Future<bool> (TestContainerizer::*_launchNested)(
+      const ContainerID& containerId,
+      const CommandInfo& commandInfo,
+      const Option<ContainerInfo>& containerInfo,
+      const Option<string>& user,
+      const SlaveID& slaveId) =
+    &TestContainerizer::_launch;
+
+  EXPECT_CALL(*this, launch(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, _launchNested));
 
   EXPECT_CALL(*this, wait(_))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_wait));
