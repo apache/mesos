@@ -1403,6 +1403,87 @@ TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
   driver.join();
 }
 
+
+// Tests the transition from healthy to unhealthy within the grace period, to
+// make sure that failures within the grace period aren't ignored if they come
+// after a success.
+TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Create a temporary file.
+  const string tmpPath = path::join(os::getcwd(), "healthyToUnhealthy");
+
+  // This command fails every other invocation.
+  // For all runs i in Nat0, the following case i % 2 applies:
+  //
+  // Case 0:
+  //   - Remove the temporary file.
+  //
+  // Case 1:
+  //   - Attempt to remove the nonexistent temporary file.
+  //   - Create the temporary file.
+  //   - Exit with a non-zero status.
+  const string healthCheckCmd =
+    "rm " + tmpPath + " || (touch " + tmpPath + " && exit 1)";
+
+  // Set the grace period to 9999 seconds, so that the healthy -> unhealthy
+  // transition happens during the grace period.
+  vector<TaskInfo> tasks = populateTasks(
+      "sleep 120", healthCheckCmd, offers.get()[0], 9999, 0);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusUnhealthy;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillOnce(FutureArg<1>(&statusUnhealthy))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().has_healthy());
+  EXPECT_TRUE(statusHealthy.get().healthy());
+
+  AWAIT_READY(statusUnhealthy);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
+  EXPECT_TRUE(statusUnhealthy.get().has_healthy());
+  EXPECT_FALSE(statusUnhealthy.get().healthy());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

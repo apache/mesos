@@ -193,7 +193,8 @@ Future<Nothing> HealthCheckerProcess::healthCheck()
 
 void HealthCheckerProcess::failure(const string& message)
 {
-  if (check.grace_period_seconds() > 0 &&
+  if (initializing &&
+      check.grace_period_seconds() > 0 &&
       (Clock::now() - startTime).secs() <= check.grace_period_seconds()) {
     LOG(INFO) << "Ignoring failure as health check still in grace period";
     reschedule();
