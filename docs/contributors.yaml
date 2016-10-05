@@ -418,13 +418,14 @@
   jira_user: yanyanhu
   reviewboard_user: yanyanhu
 
-- name: Yong Qiao Wang
+- name: Yongqiao Wang
   affiliations:
-    - {organization: IBM}
+    - {organization: Huawei, start_date: 2016-09-15}
+    - {organization: IBM, end_date: 2016-09-14}
   emails:
-    - yqwyq@cn.ibm.com
+    - grady.wang@foxmail.com
   jira_user: gradywang
-  reviewboard_user: JamesYongQiaoWang
+  reviewboard_user: gradywang
 
 - name: Yong Tang
   emails:
