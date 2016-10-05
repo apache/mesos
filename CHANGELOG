@@ -51,6 +51,7 @@ All Issues:
     * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
     * [MESOS-6299] - Master doesn't remove task from pending when it is invalid.
     * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w sendExecutorTerminatedStatusUpdate() and _statusUpdate().
+    * [MESOS-6269] - CNI isolator doesn't activate loopback interface.
     * [MESOS-6274] - Agent should not allow HTTP based executors to subscribe before containerizer recovery is done.
 
 
