@@ -421,6 +421,15 @@ inline CommandInfo createCommandInfo(const std::string& command)
 }
 
 
+inline Image createDockerImage(const std::string& imageName)
+{
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name(imageName);
+  return image;
+}
+
+
 inline Volume createVolumeFromHostPath(
     const std::string& containerPath,
     const std::string& hostPath,
@@ -442,9 +451,28 @@ inline Volume createVolumeFromDockerImage(
   Volume volume;
   volume.set_container_path(containerPath);
   volume.set_mode(mode);
-  volume.mutable_image()->set_type(Image::DOCKER);
-  volume.mutable_image()->mutable_docker()->set_name(imageName);
+  volume.mutable_image()->CopyFrom(createDockerImage(imageName));
   return volume;
+}
+
+
+inline ContainerInfo createContainerInfo(
+    const Option<std::string> imageName = None(),
+    const vector<Volume>& volumes = {})
+{
+  ContainerInfo info;
+  info.set_type(ContainerInfo::MESOS);
+
+  if (imageName.isSome()) {
+    Image* image = info.mutable_mesos()->mutable_image();
+    image->CopyFrom(createDockerImage(imageName.get()));
+  }
+
+  foreach (const Volume& volume, volumes) {
+    info.add_volumes()->CopyFrom(volume);
+  }
+
+  return info;
 }
 
 

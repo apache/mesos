@@ -85,29 +85,6 @@ protected:
     MesosTest::TearDown();
   }
 
-  // TODO(jieyu): Move this to the common test utils file.
-  ContainerInfo createContainerInfo(
-      const Option<string>& imageName = None(),
-      const vector<Volume>& volumes = vector<Volume>())
-  {
-    ContainerInfo info;
-    info.set_type(ContainerInfo::MESOS);
-
-    if (imageName.isSome()) {
-      Image* image = info.mutable_mesos()->mutable_image();
-      image->set_type(Image::DOCKER);
-
-      Image::Docker* docker = image->mutable_docker();
-      docker->set_name(imageName.get());
-    }
-
-    foreach (const Volume& volume, volumes) {
-      info.add_volumes()->CopyFrom(volume);
-    }
-
-    return info;
-  }
-
   Fetcher fetcher;
 };
 
@@ -622,8 +599,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
       "test_role",
       "persistent_volume_id",
       "volume"));
-
-  executor.mutable_container()->CopyFrom(createContainerInfo());
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
