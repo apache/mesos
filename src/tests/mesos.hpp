@@ -1238,6 +1238,13 @@ protected:
   }
 
 private:
+  // TODO(bmahler): This is a shared pointer because the `Mesos`
+  // library copies the pointer into callbacks that can execute
+  // after `Mesos` is destructed. We can avoid this by ensuring
+  // that `~Mesos()` blocks until deferred callbacks are cleared
+  // (merely grabbing the `process::Mutex` lock is sufficient).
+  // The `Mesos` library can also provide a `Future<Nothing> stop()`
+  // to allow callers to wait for all events to be flushed.
   std::shared_ptr<MockHTTPExecutor<Mesos, Event>> executor;
 };
 
