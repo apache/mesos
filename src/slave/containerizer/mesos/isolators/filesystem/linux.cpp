@@ -373,7 +373,7 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
   mountFlags.path = "/";
 
   foreachvalue (const flags::Flag& flag, mountFlags) {
-    const Option<string> value = flag.stringify(flags);
+    const Option<string> value = flag.stringify(mountFlags);
     if (value.isSome()) {
       command.add_arguments(
           "--" + flag.effective_name().value + "=" + value.get());
