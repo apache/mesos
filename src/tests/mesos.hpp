@@ -413,6 +413,22 @@ inline ExecutorInfo createExecutorInfo(
 }
 
 
+inline ExecutorInfo createExecutorInfo(
+    const std::string& executorId,
+    const CommandInfo& command,
+    const Option<std::string>& resources = None())
+{
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value(executorId);
+  executor.mutable_command()->CopyFrom(command);
+  if (resources.isSome()) {
+    executor.mutable_resources()->CopyFrom(
+        Resources::parse(resources.get()).get());
+  }
+  return executor;
+}
+
+
 inline CommandInfo createCommandInfo(const std::string& command)
 {
   CommandInfo commandInfo;
