@@ -421,8 +421,8 @@ TEST_F(ProvisionerAppcTest, Recover)
   flags.image_provisioner_backend = "copy";
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
-  Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags);
-  ASSERT_SOME(provisioner1);
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
 
   Try<string> createImage = createTestImage(
       flags.appc_store_dir,
@@ -431,7 +431,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   ASSERT_SOME(createImage);
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioner1.get()->recover({}));
+  AWAIT_READY(provisioner.get()->recover({}));
 
   Image image;
   image.mutable_appc()->CopyFrom(getTestImage());
@@ -440,18 +440,20 @@ TEST_F(ProvisionerAppcTest, Recover)
   containerId.set_value(UUID::random().toString());
 
   Future<slave::ProvisionInfo> provisionInfo =
-    provisioner1.get()->provision(containerId, image);
+    provisioner.get()->provision(containerId, image);
   AWAIT_READY(provisionInfo);
 
-  // Create a new provisioner to recover the state from the container.
-  Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags);
-  ASSERT_SOME(provisioner2);
+  provisioner->reset();
 
-  AWAIT_READY(provisioner2.get()->recover({containerId}));
+  // Create a new provisioner to recover the state from the container.
+  provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  AWAIT_READY(provisioner.get()->recover({containerId}));
 
   // It's possible for the user to provision two different rootfses
   // from the same image.
-  AWAIT_READY(provisioner2.get()->provision(containerId, image));
+  AWAIT_READY(provisioner.get()->provision(containerId, image));
 
   string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
@@ -471,7 +473,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
   EXPECT_EQ(2u, rootfses->get(flags.image_provisioner_backend)->size());
 
-  Future<bool> destroy = provisioner2.get()->destroy(containerId);
+  Future<bool> destroy = provisioner.get()->destroy(containerId);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
 
@@ -490,8 +492,8 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
   flags.image_provisioner_backend = "copy";
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
-  Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags);
-  ASSERT_SOME(provisioner1);
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
 
   Try<string> createImage = createTestImage(
       flags.appc_store_dir,
@@ -500,7 +502,7 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
   ASSERT_SOME(createImage);
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioner1.get()->recover({}));
+  AWAIT_READY(provisioner.get()->recover({}));
 
   Image image;
   image.mutable_appc()->CopyFrom(getTestImage());
@@ -512,15 +514,17 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
   child.set_value(UUID::random().toString());
   child.mutable_parent()->CopyFrom(parent);
 
-  AWAIT_READY(provisioner1.get()->provision(parent, image));
-  AWAIT_READY(provisioner1.get()->provision(child, image));
+  AWAIT_READY(provisioner.get()->provision(parent, image));
+  AWAIT_READY(provisioner.get()->provision(child, image));
+
+  provisioner->reset();
 
   // Create a new provisioner to recover the state from the container.
-  Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags);
-  ASSERT_SOME(provisioner2);
+  provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
 
-  AWAIT_READY(provisioner2.get()->recover({parent, child}));
-  AWAIT_READY(provisioner2.get()->provision(child, image));
+  AWAIT_READY(provisioner.get()->recover({parent, child}));
+  AWAIT_READY(provisioner.get()->provision(child, image));
 
   const string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
@@ -529,7 +533,7 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
         provisionerDir,
         child);
 
-  Future<bool> destroy = provisioner2.get()->destroy(child);
+  Future<bool> destroy = provisioner.get()->destroy(child);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
   EXPECT_FALSE(os::exists(containerDir));
@@ -539,7 +543,7 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
         provisionerDir,
         parent);
 
-  destroy = provisioner2.get()->destroy(parent);
+  destroy = provisioner.get()->destroy(parent);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
   EXPECT_FALSE(os::exists(containerDir));
