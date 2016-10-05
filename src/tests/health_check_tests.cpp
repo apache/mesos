@@ -17,7 +17,6 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -55,7 +54,6 @@ using mesos::master::detector::MasterDetector;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerTermination;
 
-using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -1117,8 +1115,8 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 }
 
 
-// Testing grace period that ignores all failed task failures.
-TEST_F(HealthCheckTest, DISABLED_GracePeriod)
+// Tests that health check failures are ignored during the grace period.
+TEST_F(HealthCheckTest, GracePeriod)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1144,33 +1142,29 @@ TEST_F(HealthCheckTest, DISABLED_GracePeriod)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
+  // The health check for this task will always fail, but the grace period of
+  // 9999 seconds should mask the failures.
   vector<TaskInfo> tasks = populateTasks(
-    "sleep 120", "exit 1", offers.get()[0], 6);
+    "sleep 2", "false", offers.get()[0], 9999);
 
   Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusHealth;
+  Future<TaskStatus> statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusHealth))
+    .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(Return());
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  Clock::pause();
-  EXPECT_TRUE(statusHealth.isPending());
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_FALSE(statusRunning.get().has_healthy());
 
   // No task unhealthy update should be called in grace period.
-  Clock::advance(Seconds(5));
-  EXPECT_TRUE(statusHealth.isPending());
-
-  Clock::advance(Seconds(1));
-  Clock::settle();
-  Clock::resume();
-
-  AWAIT_READY(statusHealth);
-  EXPECT_EQ(TASK_RUNNING, statusHealth.get().state());
-  EXPECT_FALSE(statusHealth.get().healthy());
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_FALSE(statusFinished.get().has_healthy());
 
   driver.stop();
   driver.join();
