@@ -235,21 +235,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -388,7 +375,6 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
@@ -522,7 +508,6 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
       docker);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-
   Try<Owned<cluster::Slave>> slave =
     StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
@@ -610,21 +595,8 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -679,21 +651,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -915,7 +874,6 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
       docker);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-
   Try<Owned<cluster::Slave>> slave =
     StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
@@ -1034,21 +992,8 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1124,21 +1069,8 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1191,21 +1123,8 @@ TEST_F(HealthCheckTest, DISABLED_GracePeriod)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1264,21 +1183,8 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  CHECK_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1348,7 +1254,6 @@ TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
   flags.isolation = "posix/cpu,posix/mem";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
   ASSERT_SOME(agent);
 
