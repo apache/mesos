@@ -841,15 +841,10 @@ void tests::Environment::TemporaryDirectoryEventListener::OnTestEnd(
 #ifdef __linux__
     // Try to remove any mounts under 'directory'.
     if (::geteuid() == 0) {
-      Try<string> umount = os::shell(
-          "grep '%s' /proc/mounts | "
-          "cut -d' ' -f2 | "
-          "xargs --no-run-if-empty umount -l",
-          directory.c_str());
-
-      if (umount.isError()) {
+      Try<Nothing> unmount = fs::unmountAll(directory, MNT_DETACH);
+      if (unmount.isError()) {
         LOG(ERROR) << "Failed to umount for directory '" << directory
-                   << "': " << umount.error();
+                   << "': " << unmount.error();
       }
     }
 #endif
