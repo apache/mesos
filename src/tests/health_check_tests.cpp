@@ -684,30 +684,32 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   //   - Attempt to remove the nonexistent temporary file.
   //   - Create the temporary file.
   //   - Exit with a non-zero status.
-  string alt = "rm " + tmpPath + " || (touch " + tmpPath + " && exit 1)";
+  const string healthCheckCmd =
+    "rm " + tmpPath + " || (touch " + tmpPath + " && exit 1)";
 
   vector<TaskInfo> tasks = populateTasks(
-      "sleep 120", alt, offers.get()[0], 0, 3);
+      "sleep 120", healthCheckCmd, offers.get()[0], 0, 3);
 
   Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusHealth1;
-  Future<TaskStatus> statusHealth2;
-  Future<TaskStatus> statusHealth3;
+  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusUnhealthy;
+  Future<TaskStatus> statusHealthyAgain;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusHealth1))
-    .WillOnce(FutureArg<1>(&statusHealth2))
-    .WillOnce(FutureArg<1>(&statusHealth3));
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillOnce(FutureArg<1>(&statusUnhealthy))
+    .WillOnce(FutureArg<1>(&statusHealthyAgain))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  AWAIT_READY(statusHealth1);
-  EXPECT_EQ(TASK_RUNNING, statusHealth1.get().state());
-  EXPECT_TRUE(statusHealth1.get().healthy());
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().healthy());
 
   // Verify that task health is exposed in the master's state endpoint.
   {
@@ -745,9 +747,9 @@ TEST_F(HealthCheckTest, HealthStatusChange)
     EXPECT_SOME_TRUE(find);
   }
 
-  AWAIT_READY(statusHealth2);
-  EXPECT_EQ(TASK_RUNNING, statusHealth2.get().state());
-  EXPECT_FALSE(statusHealth2.get().healthy());
+  AWAIT_READY(statusUnhealthy);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
+  EXPECT_FALSE(statusUnhealthy.get().healthy());
 
   // Verify that the task health change is reflected in the master's
   // state endpoint.
@@ -787,9 +789,9 @@ TEST_F(HealthCheckTest, HealthStatusChange)
     EXPECT_SOME_FALSE(find);
   }
 
-  AWAIT_READY(statusHealth3);
-  EXPECT_EQ(TASK_RUNNING, statusHealth3.get().state());
-  EXPECT_TRUE(statusHealth3.get().healthy());
+  AWAIT_READY(statusHealthyAgain);
+  EXPECT_EQ(TASK_RUNNING, statusHealthyAgain.get().state());
+  EXPECT_TRUE(statusHealthyAgain.get().healthy());
 
   // Verify through master's state endpoint that the task is back to a
   // healthy state.
