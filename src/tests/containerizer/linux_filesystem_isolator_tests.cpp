@@ -71,20 +71,6 @@ namespace tests {
 class LinuxFilesystemIsolatorTest : public MesosTest
 {
 protected:
-  virtual void TearDown()
-  {
-    // Try to remove any mounts under sandbox.
-    if (::geteuid() == 0) {
-      Try<Nothing> unmount = fs::unmountAll(sandbox.get(), MNT_DETACH);
-      if (unmount.isError()) {
-        LOG(ERROR) << "Failed to umount for sandbox '" << sandbox.get()
-                   << "': " << unmount.error();
-      }
-    }
-
-    MesosTest::TearDown();
-  }
-
   Fetcher fetcher;
 };
 
