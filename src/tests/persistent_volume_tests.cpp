@@ -1619,6 +1619,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
 
+  offer = offers.get()[0];
+
   // Check that the persistent volume is still contained in this offer.
   // TODO(greggomann): In addition to checking that the volume is contained in
   // the offer, we should also confirm that the Destroy operation failed for the
@@ -1835,6 +1837,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
 
   // Check that the persistent volume is still contained in this offer.
   // TODO(greggomann): In addition to checking that the volume is contained in
