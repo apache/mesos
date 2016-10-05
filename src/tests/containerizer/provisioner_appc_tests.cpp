@@ -550,6 +550,74 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
 }
 
 
+// This test verifies that the provisioner can recover the rootfses
+// for the child containers if there is no image specified for its
+// parent container.
+TEST_F(ProvisionerAppcTest, RecoverNestedContainerNoParentImage)
+{
+  slave::Flags flags;
+  flags.image_providers = "APPC";
+  flags.appc_store_dir = path::join(os::getcwd(), "store");
+  flags.image_provisioner_backend = "copy";
+  flags.work_dir = path::join(sandbox.get(), "work_dir");
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  Try<string> createImage = createTestImage(
+      flags.appc_store_dir,
+      getManifest());
+
+  ASSERT_SOME(createImage);
+
+  // Recover. This is when the image in the store is loaded.
+  AWAIT_READY(provisioner.get()->recover({}));
+
+  Image image;
+  image.mutable_appc()->CopyFrom(getTestImage());
+
+  ContainerID parent;
+  ContainerID child;
+
+  parent.set_value(UUID::random().toString());
+  child.set_value(UUID::random().toString());
+  child.mutable_parent()->CopyFrom(parent);
+
+  AWAIT_READY(provisioner.get()->provision(child, image));
+
+  provisioner->reset();
+
+  // Create a new provisioner to recover the state from the container.
+  provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  AWAIT_READY(provisioner.get()->recover({parent, child}));
+  AWAIT_READY(provisioner.get()->provision(child, image));
+
+  const string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
+
+  string containerDir =
+    slave::provisioner::paths::getContainerDir(
+        provisionerDir,
+        child);
+
+  Future<bool> destroy = provisioner.get()->destroy(child);
+  AWAIT_READY(destroy);
+  EXPECT_TRUE(destroy.get());
+  EXPECT_FALSE(os::exists(containerDir));
+
+  containerDir =
+    slave::provisioner::paths::getContainerDir(
+        provisionerDir,
+        parent);
+
+  destroy = provisioner.get()->destroy(parent);
+  AWAIT_READY(destroy);
+  EXPECT_TRUE(destroy.get());
+  EXPECT_FALSE(os::exists(containerDir));
+}
+
+
 // Mock HTTP image server.
 class TestAppcImageServer : public Process<TestAppcImageServer>
 {
