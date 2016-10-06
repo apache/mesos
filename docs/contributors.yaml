@@ -552,6 +552,12 @@
   jira_user: tnachen
   reviewboard_user: tnachen
 
+- name: Tomasz Janiszewski
+  emails:
+    - janiszt@gmail.com
+  jira_user: janisz
+  reviewboard_user: janisz
+
 - name: Lijun Tang
   emails:
     - hercule2400@gmail.com
