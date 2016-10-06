@@ -56,73 +56,47 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
+#include "slave/containerizer/mesos/constants.hpp"
+#include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
-#ifdef __linux__
-#include "slave/containerizer/mesos/linux_launcher.hpp"
-#endif // __linux__
+#include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
+#include "slave/containerizer/mesos/utils.hpp"
 
+#include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
 #include "slave/containerizer/mesos/isolators/posix.hpp"
+#include "slave/containerizer/mesos/isolators/posix/disk.hpp"
+#include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
+
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
+
 #ifdef __WINDOWS__
 #include "slave/containerizer/mesos/isolators/windows.hpp"
-#endif // __WINDOWS__
-
-#include "slave/containerizer/mesos/isolators/posix/disk.hpp"
-
-#if ENABLE_XFS_DISK_ISOLATOR
-#include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
-#endif
-
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/appc/runtime.hpp"
-#endif // __linux__
-
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
-#endif // __linux__
-
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
-#endif // __linux__
-
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
-#endif // __linux__
-
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
-#endif // __linux__
-#include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
-#ifdef __WINDOWS__
 #include "slave/containerizer/mesos/isolators/filesystem/windows.hpp"
 #endif // __WINDOWS__
+
 #ifdef __linux__
+#include "slave/containerizer/mesos/linux_launcher.hpp"
+
+#include "slave/containerizer/mesos/isolators/appc/runtime.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
+#include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
+#include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
-#endif // __linux__
-
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
-
-#ifdef __linux__
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
-#endif
+#include "slave/containerizer/mesos/isolators/volume/image.hpp"
+#endif // __linux__
 
 #ifdef WITH_NETWORK_ISOLATOR
 #include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
 
-#ifdef __linux__
-#include "slave/containerizer/mesos/isolators/volume/image.hpp"
+#if ENABLE_XFS_DISK_ISOLATOR
+#include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
 #endif
-
-#include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
-
-#include "slave/containerizer/mesos/constants.hpp"
-#include "slave/containerizer/mesos/containerizer.hpp"
-#include "slave/containerizer/mesos/launch.hpp"
-#include "slave/containerizer/mesos/paths.hpp"
-#include "slave/containerizer/mesos/utils.hpp"
-
-#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 using process::collect;
 using process::dispatch;
