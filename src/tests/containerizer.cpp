@@ -110,6 +110,13 @@ Future<bool> TestContainerizer::_launch(
     const map<string, string>& environment,
     bool checkpoint)
 {
+  CHECK(!terminatedContainers.contains(containerId))
+    << "Failed to launch nested container " << containerId
+    << " for executor '" << executorInfo.executor_id() << "'"
+    << " of framework " << executorInfo.framework_id()
+    << " because this ContainerID is being re-used with"
+    << " a previously terminated container";
+
   CHECK(!containers_.contains(containerId))
     << "Failed to launch container " << containerId
     << " for executor '" << executorInfo.executor_id() << "'"
@@ -202,6 +209,11 @@ Future<bool> TestContainerizer::_launch(
     const Option<string>& user,
     const SlaveID& slaveId)
 {
+  CHECK(!terminatedContainers.contains(containerId))
+    << "Failed to launch nested container " << containerId
+    << " because this ContainerID is being re-used with"
+    << " a previously terminated container";
+
   CHECK(!containers_.contains(containerId))
     << "Failed to launch nested container " << containerId
     << " because it is already launched";
@@ -216,6 +228,10 @@ Future<bool> TestContainerizer::_launch(
 Future<Option<ContainerTermination>> TestContainerizer::_wait(
     const ContainerID& containerId) const
 {
+  if (terminatedContainers.contains(containerId)) {
+    return terminatedContainers.at(containerId);
+  }
+
   // An unknown container is possible for tests where we "drop" the
   // 'launch' in order to verify recovery still works correctly.
   if (!containers_.contains(containerId)) {
@@ -282,6 +298,7 @@ Future<bool> TestContainerizer::_destroy(const ContainerID& containerId)
   containerData->termination.set(termination);
 
   containers_.erase(containerId);
+  terminatedContainers[containerId] = termination;
 
   return true;
 }

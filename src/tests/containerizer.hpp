@@ -162,7 +162,11 @@ private:
     process::Promise<mesos::slave::ContainerTermination> termination;
   };
 
+  // We also store the terminated containers to allow callers to
+  // "reap" the termination if a container is already destroyed.
+  // This mimics the behavior of the mesos containerizer.
   hashmap<ContainerID, process::Owned<ContainerData>> containers_;
+  hashmap<ContainerID, mesos::slave::ContainerTermination> terminatedContainers;
 
   struct ExecutorData
   {
