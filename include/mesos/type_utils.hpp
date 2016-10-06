@@ -248,6 +248,9 @@ std::ostream& operator<<(
     const CapabilityInfo& capabilityInfo);
 
 
+std::ostream& operator<<(std::ostream& stream, const CommandInfo& commandInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const ContainerID& containerId);
 
 
