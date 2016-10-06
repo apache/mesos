@@ -627,14 +627,14 @@ TEST(ResourcesTest, ParsingFromJSONError)
 
   EXPECT_ERROR(Resources::parse(jsonString));
 
-  // Empty Resources.
+  // Negative Resources.
   jsonString =
     "["
     "  {"
     "    \"name\": \"panda_power\","
     "    \"type\": \"SCALAR\","
     "    \"scalar\": {"
-    "      \"value\": 0"
+    "      \"value\": -1"
     "    }"
     "  },"
     "  {"
