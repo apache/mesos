@@ -1404,6 +1404,100 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
 }
 
 
+// This test verifies that a subscriber can receive `AGENT_ADDED`
+// and `AGENT_REMOVED` events.
+TEST_P(MasterAPITest, SubscribeAgentEvents)
+{
+  ContentType contentType = GetParam();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  headers["Accept"] = stringify(contentType);
+
+  Future<Response> response = process::http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_SOME(response->reader);
+
+  Pipe::Reader reader = response->reader.get();
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Reader<v1::master::Event> decoder(
+      Decoder<v1::master::Event>(deserializer), reader);
+
+  Future<Result<v1::master::Event>> event = decoder.read();
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event.get().get().type());
+  const v1::master::Response::GetState& getState =
+      event.get().get().subscribed().get_state();
+
+  EXPECT_EQ(0u, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(0u, getState.get_agents().agents_size());
+  EXPECT_EQ(0u, getState.get_tasks().tasks_size());
+  EXPECT_EQ(0u, getState.get_executors().executors_size());
+
+  // Start one agent.
+  Future<SlaveRegisteredMessage> agentRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.hostname = "host";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(agentRegisteredMessage);
+
+  event = decoder.read();
+  AWAIT_READY(event);
+
+  SlaveID agentID = agentRegisteredMessage.get().slave_id();
+
+  {
+    ASSERT_EQ(v1::master::Event::AGENT_ADDED, event.get().get().type());
+
+    const v1::master::Response::GetAgents::Agent& agent =
+      event.get().get().agent_added().agent();
+
+    ASSERT_EQ("host", agent.agent_info().hostname());
+    ASSERT_EQ(evolve<v1::AgentID>(agentID), agent.agent_info().id());
+    ASSERT_EQ(slave.get()->pid, agent.pid());
+    ASSERT_EQ(MESOS_VERSION, agent.version());
+    ASSERT_EQ(4, agent.total_resources_size());
+  }
+
+  // Forcefully trigger a shutdown on the slave so that master will remove it.
+  slave.get()->shutdown();
+  slave->reset();
+
+  event = decoder.read();
+  AWAIT_READY(event);
+
+  {
+    ASSERT_EQ(v1::master::Event::AGENT_REMOVED, event.get().get().type());
+    ASSERT_EQ(evolve<v1::AgentID>(agentID),
+              event.get().get().agent_removed().agent_id());
+  }
+}
+
+
 // This test tries to verify that a client subscribed to the 'api/v1'
 // endpoint is able to receive `TASK_ADDED`/`TASK_UPDATED` events.
 TEST_P(MasterAPITest, Subscribe)
