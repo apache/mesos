@@ -828,6 +828,7 @@ struct Executor
       const ExecutorInfo& info,
       const ContainerID& containerId,
       const std::string& directory,
+      const Option<std::string>& user,
       bool checkpoint);
 
   ~Executor();
@@ -908,6 +909,11 @@ struct Executor
   const ContainerID containerId;
 
   const std::string directory;
+
+  // The sandbox will be owned by this user and the executor will
+  // run as this user. This can be set to None when --switch_user
+  // is false or when compiled for Windows.
+  const Option<std::string> user;
 
   const bool checkpoint;
 

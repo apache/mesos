@@ -6131,7 +6131,13 @@ Executor* Framework::launchExecutor(
       user);
 
   Executor* executor = new Executor(
-      slave, id(), executorInfo, containerId, directory, info.checkpoint());
+      slave,
+      id(),
+      executorInfo,
+      containerId,
+      directory,
+      user,
+      info.checkpoint());
 
   if (executor->checkpoint) {
     executor->checkpointExecutor();
@@ -6346,7 +6352,13 @@ void Framework::recoverExecutor(const ExecutorState& state)
       slave->flags.work_dir, slave->info.id(), id(), state.id, latest);
 
   Executor* executor = new Executor(
-      slave, id(), state.info.get(), latest, directory, info.checkpoint());
+      slave,
+      id(),
+      state.info.get(),
+      latest,
+      directory,
+      info.user(),
+      info.checkpoint());
 
   // Recover the libprocess PID if possible for PID based executors.
   if (run.get().http.isSome()) {
@@ -6443,6 +6455,7 @@ Executor::Executor(
     const ExecutorInfo& _info,
     const ContainerID& _containerId,
     const string& _directory,
+    const Option<string>& _user,
     bool _checkpoint)
   : state(REGISTERING),
     slave(_slave),
@@ -6451,6 +6464,7 @@ Executor::Executor(
     frameworkId(_frameworkId),
     containerId(_containerId),
     directory(_directory),
+    user(_user),
     checkpoint(_checkpoint),
     http(None()),
     pid(None()),
