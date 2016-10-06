@@ -187,6 +187,15 @@ mesos::master::Event createTaskAdded(const Task& task);
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave);
 
+
+// Helper for creating an `AGENT_ADDED` event from a `Slave`.
+mesos::master::Event createAgentAdded(
+    const mesos::internal::master::Slave& slave);
+
+
+// Helper for creating an `AGENT_REMOVED` event from a `SlaveID`.
+mesos::master::Event createAgentRemoved(const SlaveID& slaveId);
+
 } // namespace event {
 } // namespace master {
 

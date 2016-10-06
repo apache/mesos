@@ -529,6 +529,31 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
   return agent;
 }
 
+
+mesos::master::Event createAgentAdded(
+    const mesos::internal::master::Slave& slave)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::AGENT_ADDED);
+
+  event.mutable_agent_added()->mutable_agent()->CopyFrom(
+      createAgentResponse(slave));
+
+  return event;
+}
+
+
+mesos::master::Event createAgentRemoved(const SlaveID& slaveId)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::AGENT_REMOVED);
+
+  event.mutable_agent_removed()->mutable_agent_id()->CopyFrom(
+      slaveId);
+
+  return event;
+}
+
 } // namespace event {
 } // namespace master {
 

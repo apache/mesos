@@ -7341,6 +7341,10 @@ void Master::addSlave(
       unavailability,
       slave->totalResources,
       slave->usedResources);
+
+  if (!subscribers.subscribed.empty()) {
+    subscribers.send(protobuf::master::event::createAgentAdded(*slave));
+  }
 }
 
 
@@ -7506,6 +7510,10 @@ void Master::_removeSlave(
   // TODO(benh): unlink(slave->pid);
 
   sendSlaveLost(slave->info);
+
+  if (!subscribers.subscribed.empty()) {
+    subscribers.send(protobuf::master::event::createAgentRemoved(slave->id));
+  }
 
   delete slave;
 }
