@@ -33,7 +33,7 @@ traffic from docker bridge interface through add below rule:
 
 TaskInfo before 0.20.0 used to only support either setting a
 CommandInfo that launches a task running the bash command, or an
-ExecutorInfo that launches a custom Executor that will launches the
+ExecutorInfo that launches a custom Executor that will launch the
 task.
 
 With 0.20.0 we added a ContainerInfo field to TaskInfo and
