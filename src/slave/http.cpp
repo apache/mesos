@@ -1930,6 +1930,37 @@ Future<Response> Slave::Http::launchNestedContainer(
         " but 'launch_nested_container.container_id.parent.parent' is set");
   }
 
+  // Locate the executor (for now we just loop since we don't
+  // index based on container id and this likely won't have a
+  // significant performance impact due to the low number of
+  // executors per-agent).
+  Executor* executor = nullptr;
+  foreachvalue (Framework* framework, slave->frameworks) {
+    foreachvalue (Executor* executor_, framework->executors) {
+      if (executor_->containerId == containerId.parent()) {
+        executor = executor_;
+        break;
+      }
+    }
+  }
+
+  // Return a "Bad Request" here rather than "Not Found" since
+  // the executor needs to set parent to its container id.
+  if (executor == nullptr) {
+    return BadRequest("Unable to locate executor for parent container"
+                      " " + stringify(containerId.parent()));
+  }
+
+  // By default, we use the executor's user.
+  // The command user overrides it if specified.
+  Option<string> user = executor->user;
+
+#ifndef __WINDOWS__
+  if (call.launch_nested_container().command().has_user()) {
+    user = call.launch_nested_container().command().user();
+  }
+#endif
+
   // TODO(gilbert): The sandbox directory and user are incorrect,
   // Please update it.
   Future<bool> launched = slave->containerizer->launch(
@@ -1938,7 +1969,7 @@ Future<Response> Slave::Http::launchNestedContainer(
       call.launch_nested_container().has_container()
         ? call.launch_nested_container().container()
         : Option<ContainerInfo>::none(),
-      None(),
+      user,
       slave->info.id());
 
   // TODO(bmahler): The containerizers currently require that
