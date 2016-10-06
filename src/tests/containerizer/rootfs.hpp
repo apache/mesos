@@ -67,12 +67,18 @@ public:
 
     // TODO(jieyu): Make sure 'path' is not under 'root'.
 
+    // Copy the files. We perserve all attributes so that e.g., `ping`
+    // keeps its file-based capabilities.
     if (os::stat::isdir(path)) {
-      if (os::system("cp -r '" + path + "' '" + target + "'") != 0) {
+      if (os::system(strings::format(
+              "cp -r --preserve=all '%s' '%s'",
+              path, target).get()) != 0) {
         return ErrnoError("Failed to copy '" + path + "' to rootfs");
       }
     } else {
-      if (os::system("cp '" + path + "' '" + target + "'") != 0) {
+      if (os::system(strings::format(
+              "cp --preserve=all '%s' '%s'",
+              path, target).get()) != 0) {
         return ErrnoError("Failed to copy '" + path + "' to rootfs");
       }
     }
@@ -104,6 +110,7 @@ public:
     std::vector<std::string> files = {
       "/bin/echo",
       "/bin/ls",
+      "/bin/ping",
       "/bin/sh",
       "/bin/sleep",
       "/usr/bin/sh",
@@ -111,6 +118,7 @@ public:
       "/lib64/ld-linux-x86-64.so.2",
       "/lib64/libc.so.6",
       "/lib64/libdl.so.2",
+      "/lib64/libidn.so.11",
       "/lib64/libtinfo.so.5",
       "/lib64/libselinux.so.1",
       "/lib64/libpcre.so.1",
