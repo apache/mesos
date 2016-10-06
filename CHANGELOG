@@ -38,6 +38,7 @@ Release Notes - Mesos - Version 1.0.2
 
 All Issues:
 ** Bug
+    * [MESOS-5613] - mesos-local fails to start if MESOS_WORK_DIR isn't set.
     * [MESOS-6013] - Use readdir instead of readdir_r.
     * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
     * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
