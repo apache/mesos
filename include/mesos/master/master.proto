@@ -441,6 +441,8 @@ message Event {
     SUBSCRIBED = 1; // See `Subscribed` below.
     TASK_ADDED = 2; // See `TaskAdded` below.
     TASK_UPDATED = 3; // See `TaskUpdated` below.
+    AGENT_ADDED = 4; // See `AgentAdded` below.
+    AGENT_REMOVED = 5; // See `AgentRemoved` below.
 
     // TODO(vinod): Fill in more events.
   }
@@ -468,9 +470,31 @@ message Event {
     required TaskState state = 5;
   }
 
+  // Forwarded by the master when an agent becomes known to it.
+  // This can happen when an agent registered for the first
+  // time, or reregistered after a disconnection or failover.
+  message AgentAdded {
+    required Response.GetAgents.Agent agent = 1;
+  }
+
+  // Forwarded by the master when an agent is removed.
+  // This can happen when an agent does not re-register
+  // within `--agent_reregister_timeout` upon a master failover,
+  // or when the agent is scheduled for maintenance.
+  //
+  // NOTE: It's possible that an agent might become
+  // active once it has been removed, i.e. if the master
+  // has gc'ed its list of known "dead" agents.
+  // See MESOS-5965 for context.
+  message AgentRemoved {
+    required SlaveID agent_id = 1;
+  }
+
   optional Type type = 1;
 
   optional Subscribed subscribed = 2;
   optional TaskAdded task_added = 3;
   optional TaskUpdated task_updated = 4;
+  optional AgentAdded agent_added = 5;
+  optional AgentRemoved agent_removed = 6;
 }
