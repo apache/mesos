@@ -47,6 +47,12 @@ struct UPID;
 
 namespace mesos {
 namespace internal {
+
+namespace master {
+// Forward declaration (in lieu of an include).
+struct Slave;
+} // namespace master {
+
 namespace protobuf {
 
 bool frameworkHasCapability(
@@ -175,6 +181,11 @@ mesos::master::Event createTaskUpdated(
 
 // Helper for creating a `TASK_ADDED` event from a `Task`.
 mesos::master::Event createTaskAdded(const Task& task);
+
+
+// Helper for creating an `Agent` response.
+mesos::master::Response::GetAgents::Agent createAgentResponse(
+    const mesos::internal::master::Slave& slave);
 
 } // namespace event {
 } // namespace master {

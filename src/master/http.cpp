@@ -2308,32 +2308,7 @@ mesos::master::Response::GetAgents Master::Http::_getAgents() const
   mesos::master::Response::GetAgents getAgents;
   foreachvalue (const Slave* slave, master->slaves.registered) {
     mesos::master::Response::GetAgents::Agent* agent = getAgents.add_agents();
-
-    agent->mutable_agent_info()->CopyFrom(slave->info);
-
-    agent->set_pid(string(slave->pid));
-    agent->set_active(slave->active);
-    agent->set_version(slave->version);
-
-    agent->mutable_registered_time()->set_nanoseconds(
-        slave->registeredTime.duration().ns());
-
-    if (slave->reregisteredTime.isSome()) {
-      agent->mutable_reregistered_time()->set_nanoseconds(
-          slave->reregisteredTime.get().duration().ns());
-    }
-
-    foreach (const Resource& resource, slave->totalResources) {
-      agent->add_total_resources()->CopyFrom(resource);
-    }
-
-    foreach (const Resource& resource, Resources::sum(slave->usedResources)) {
-      agent->add_allocated_resources()->CopyFrom(resource);
-    }
-
-    foreach (const Resource& resource, slave->offeredResources) {
-      agent->add_offered_resources()->CopyFrom(resource);
-    }
+    agent->CopyFrom(protobuf::master::event::createAgentResponse(*slave));
   }
 
   return getAgents;
