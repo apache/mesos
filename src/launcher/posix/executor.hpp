@@ -32,7 +32,8 @@ pid_t launchTaskPosix(
     const Option<std::string>& user,
     const Option<std::string>& rootfs,
     const Option<std::string>& sandboxDirectory,
-    const Option<std::string>& workingDirectory);
+    const Option<std::string>& workingDirectory,
+    const Option<CapabilityInfo>& capabilities);
 
 } // namespace internal {
 } // namespace mesos {

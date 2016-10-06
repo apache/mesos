@@ -57,7 +57,8 @@ pid_t launchTaskPosix(
     const Option<string>& user,
     const Option<string>& rootfs,
     const Option<string>& sandboxDirectory,
-    const Option<string>& workingDirectory)
+    const Option<string>& workingDirectory,
+    const Option<CapabilityInfo>& capabilities)
 {
   // Prepare the flags to pass to the launch process.
   MesosContainerizerLaunch::Flags launchFlags;
@@ -96,6 +97,12 @@ pid_t launchTaskPosix(
 
   launchFlags.rootfs = rootfs;
   launchFlags.user = user;
+
+#ifdef __linux__
+  launchFlags.capabilities = capabilities.isSome()
+    ? JSON::protobuf(capabilities.get())
+    : Option<JSON::Object>::none();
+#endif // __linux__
 
   string commandString = strings::format(
       "%s %s %s",

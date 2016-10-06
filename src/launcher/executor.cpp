@@ -65,6 +65,7 @@
 #include <stout/os/killtree.hpp>
 
 #include "common/http.hpp"
+#include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
@@ -127,6 +128,7 @@ public:
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
       const Option<string>& _taskCommand,
+      const Option<CapabilityInfo>& _capabilities,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
@@ -146,6 +148,7 @@ public:
       workingDirectory(_workingDirectory),
       user(_user),
       taskCommand(_taskCommand),
+      capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
       task(None())
@@ -410,7 +413,8 @@ protected:
         user,
         rootfs,
         sandboxDirectory,
-        workingDirectory);
+        workingDirectory,
+        capabilities);
 #else
     // A Windows process is started using the `CREATE_SUSPENDED` flag
     // and is part of a job object. While the process handle is kept
@@ -799,6 +803,7 @@ private:
   Option<string> workingDirectory;
   Option<string> user;
   Option<string> taskCommand;
+  Option<CapabilityInfo> capabilities;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
@@ -840,6 +845,10 @@ public:
         "If specified, this is the overrided command for launching the\n"
         "task (instead of the command from TaskInfo).");
 
+    add(&capabilities,
+        "capabilities",
+        "Capabilities the command can use.");
+
     add(&launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries.",
@@ -854,6 +863,7 @@ public:
   Option<string> working_directory;
   Option<string> user;
   Option<string> task_command;
+  Option<mesos::CapabilityInfo> capabilities;
   string launcher_dir;
 };
 
@@ -927,6 +937,7 @@ int main(int argc, char** argv)
           flags.working_directory,
           flags.user,
           flags.task_command,
+          flags.capabilities,
           frameworkId,
           executorId,
           shutdownGracePeriod));
