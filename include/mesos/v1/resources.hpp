@@ -508,6 +508,9 @@ private:
 
   // Validation-free versions of += and -= `Resource_` operators.
   // These can be used when `r` is already validated.
+  //
+  // NOTE: `Resource` objects are implicitly converted to `Resource_`
+  // objects, so here the API can also accept a `Resource` object.
   void add(const Resource_& r);
   void subtract(const Resource_& r);
 
