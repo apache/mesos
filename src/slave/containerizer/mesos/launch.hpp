@@ -21,6 +21,8 @@
 #include <stout/option.hpp>
 #include <stout/subcommand.hpp>
 
+#include <mesos/mesos.hpp>
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -45,8 +47,8 @@ public:
     Option<int> pipe_write;
     Option<JSON::Array> pre_exec_commands;
 #ifdef __linux__
+    Option<CapabilityInfo> capabilities;
     bool unshare_namespace_mnt;
-    Option<JSON::Object> capabilities;
 #endif // __linux__
   };
 

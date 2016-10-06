@@ -85,6 +85,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
+#include "slave/containerizer/mesos/isolators/linux/capabilities.hpp"
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
@@ -304,6 +305,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
+    {"linux/capabilities", &LinuxCapabilitiesIsolatorProcess::create},
 
     {"volume/image",
       [&provisioner] (const Flags& flags) -> Try<Isolator*> {
@@ -1226,6 +1228,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   Option<CommandInfo> launchCommand;
   Option<string> workingDirectory;
   JSON::Array preExecCommands;
+  Option<CapabilityInfo> capabilities;
 
   // TODO(jieyu): We should use Option here. If no namespace is
   // required, we should pass None() to 'launcher->fork'.
@@ -1287,6 +1290,15 @@ Future<bool> MesosContainerizerProcess::_launch(
 
     if (launchInfo->has_namespaces()) {
       namespaces |= launchInfo->namespaces();
+    }
+
+    if (launchInfo->has_capabilities()) {
+      if (capabilities.isSome()) {
+        return Failure(
+            "At most one capabilities set can be returned from isolators");
+      } else {
+        capabilities = launchInfo->capabilities();
+      }
     }
   }
 
@@ -1377,6 +1389,13 @@ Future<bool> MesosContainerizerProcess::_launch(
         ? workingDirectory
         : flags.sandbox_directory;
     }
+
+#ifdef __linux__
+    // TODO(bbannier): For the case where the user requested
+    // capabilities, but no capabilities isolation was configured for
+    // the agent, the master should reject the task.
+    launchFlags.capabilities = capabilities;
+#endif // __linux__
 
 #ifdef __WINDOWS__
     if (rootfs.isSome()) {

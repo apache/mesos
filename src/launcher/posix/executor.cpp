@@ -99,9 +99,7 @@ pid_t launchTaskPosix(
   launchFlags.user = user;
 
 #ifdef __linux__
-  launchFlags.capabilities = capabilities.isSome()
-    ? JSON::protobuf(capabilities.get())
-    : Option<JSON::Object>::none();
+  launchFlags.capabilities = capabilities;
 #endif // __linux__
 
   string commandString = strings::format(

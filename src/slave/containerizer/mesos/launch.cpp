@@ -31,13 +31,16 @@
 #include <stout/path.hpp>
 #include <stout/unreachable.hpp>
 
+#include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
+
+#include "common/parse.hpp"
+
 #ifdef __linux__
 #include "linux/capabilities.hpp"
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 #endif
-
-#include "mesos/mesos.hpp"
 
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
@@ -110,14 +113,14 @@ MesosContainerizerLaunch::Flags::Flags()
       "executing the command.");
 
 #ifdef __linux__
+  add(&capabilities,
+      "capabilities",
+      "Capabilities the command can use.");
+
   add(&unshare_namespace_mnt,
       "unshare_namespace_mnt",
       "Whether to launch the command in a new mount namespace.",
       false);
-
-  add(&capabilities,
-      "capabilities",
-      "Capabilities of the command can use.");
 #endif // __linux__
 }
 
@@ -557,15 +560,6 @@ int MesosContainerizerLaunch::execute()
 
 #ifdef __linux__
   if (flags.capabilities.isSome()) {
-    Try<CapabilityInfo> requestedCapabilities =
-      ::protobuf::parse<CapabilityInfo>(flags.capabilities.get());
-
-    if (requestedCapabilities.isError()) {
-      cerr << "Failed to parse capabilities: "
-           << requestedCapabilities.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
@@ -586,7 +580,7 @@ int MesosContainerizerLaunch::execute()
     }
 
     // Set up requested capabilities.
-    set<Capability> target = capabilities::convert(requestedCapabilities.get());
+    set<Capability> target = capabilities::convert(flags.capabilities.get());
 
     capabilities->set(capabilities::EFFECTIVE, target);
     capabilities->set(capabilities::PERMITTED, target);

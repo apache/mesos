@@ -828,9 +828,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/launcher.cpp				\
   slave/containerizer/mesos/mount.cpp					\
   slave/containerizer/mesos/paths.cpp					\
-  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/paths.cpp		\
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
   slave/containerizer/mesos/isolators/network/cni/paths.cpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
   slave/containerizer/mesos/isolators/posix/disk.cpp			\
@@ -1048,6 +1048,7 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/gpu/isolator.cpp					\
   slave/containerizer/mesos/isolators/gpu/nvml.cpp					\
   slave/containerizer/mesos/isolators/gpu/volume.cpp					\
+  slave/containerizer/mesos/isolators/linux/capabilities.cpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
   slave/containerizer/mesos/isolators/network/cni/cni.cpp				\
   slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp	\
@@ -1086,6 +1087,7 @@ MESOS_LINUX_FILES +=									\
   slave/containerizer/mesos/isolators/gpu/nvidia.hpp					\
   slave/containerizer/mesos/isolators/gpu/nvml.hpp					\
   slave/containerizer/mesos/isolators/gpu/volume.hpp					\
+  slave/containerizer/mesos/isolators/linux/capabilities.hpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp				\
   slave/containerizer/mesos/isolators/network/cni/cni.hpp				\
   slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp	\
@@ -2201,6 +2203,7 @@ mesos_tests_DEPENDENCIES =					\
 if OS_LINUX
 mesos_tests_SOURCES +=						\
   tests/ldcache_tests.cpp					\
+  tests/containerizer/linux_capabilities_isolator_tests.cpp	\
   tests/containerizer/capabilities_tests.cpp			\
   tests/containerizer/capabilities_test_helper.cpp		\
   tests/containerizer/cgroups_isolator_tests.cpp		\

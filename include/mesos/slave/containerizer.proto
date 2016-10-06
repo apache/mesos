@@ -163,6 +163,10 @@ message ContainerLaunchInfo {
   // The working directory for the container.
   // NOTE: This is different than Mesos sandbox.
   optional string working_directory = 6;
+
+  // (Linux only) The capabilities requested for the container.
+  // The capabilities are set while launching the container.
+  optional CapabilityInfo capabilities = 7;
 }
 
 
