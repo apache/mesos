@@ -107,7 +107,7 @@ private:
     // Check whether this Resource_ object is empty.
     bool isEmpty() const;
 
-    // The `Resource_` arithmetric, comparison operators and `contains()`
+    // The `Resource_` arithmetic, comparison operators and `contains()`
     // method require the wrapped `resource` protobuf to have the same
     // sharedness.
     //
@@ -470,7 +470,7 @@ public:
   bool operator!=(const Resources& that) const;
 
   // NOTE: If any error occurs (e.g., input Resource is not valid or
-  // the first operand is not a superset of the second oprand while
+  // the first operand is not a superset of the second operand while
   // doing subtraction), the semantics is as though the second operand
   // was actually just an empty resource (as though you didn't do the
   // operation at all).
