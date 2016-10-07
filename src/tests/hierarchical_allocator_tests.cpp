@@ -1769,6 +1769,9 @@ TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
 
   allocator->addFramework(framework2.id(), framework2, framework2Allocation);
 
+  // Process all triggered allocation events.
+  Clock::settle();
+
   // Total cluster resources (2 identical agents): cpus=2, mem=1024.
   // ROLE1 share = 0.5
   //   framework1 share = 1
