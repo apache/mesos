@@ -296,24 +296,24 @@ void reinitialize()
   // environment. See comment at top of openssl.hpp for a full list.
   //
   // NOTE: We used to look for environment variables prefixed by SSL_.
-  // To be backward compatible, for each environment variable prefixed
-  // by SSL_, we generate the corresponding LIBPROCESS_SSL_ version.
-  // See details in MESOS-5863.
-  map<string, string> environments = os::environment();
-  foreachpair (const string& key, const string& value, environments) {
-    if (strings::startsWith(key, "SSL_")) {
-      const string new_key = "LIBPROCESS_" + key;
-      if (environments.count(new_key) == 0) {
-        os::setenv(new_key, value);
-      } else if (environments[new_key] != value) {
-        LOG(WARNING) << "Mismatched SSL environment variables: "
-                     << key << "=" << value << ", "
-                     << new_key << "=" << environments[new_key];
-      }
+  // To be backward compatible, we interpret environment variables
+  // prefixed with either SSL_ and LIBPROCESS_SSL_ where the latter
+  // one takes precedence. See details in MESOS-5863.
+  map<string, Option<string>> environment_ssl =
+      ssl_flags->extract("SSL_");
+  map<string, Option<string>> environments =
+      ssl_flags->extract("LIBPROCESS_SSL_");
+  foreachpair (
+      const string& key, const Option<string>& value, environment_ssl) {
+    if (environments.count(key) > 0 && environments.at(key) != value) {
+      LOG(WARNING) << "Mismatched values for SSL environment variables "
+                   << "SSL_" << key << " and "
+                   << "LIBPROCESS_SSL_" << key;
     }
   }
+  environments.insert(environment_ssl.begin(), environment_ssl.begin());
 
-  Try<flags::Warnings> load = ssl_flags->load("LIBPROCESS_SSL_");
+  Try<flags::Warnings> load = ssl_flags->load(environments);
   if (load.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to load flags from environment variables "
