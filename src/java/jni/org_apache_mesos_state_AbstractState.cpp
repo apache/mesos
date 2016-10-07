@@ -47,7 +47,7 @@ extern "C" {
 // anonymous futures that used these function accidentally captured the 'thiz'
 // for the 'AbstractState' class, which was not intended and caused the C++
 // Future to be prematurely deleted as a result of the anonymous Future getting
-// garbaged collected by the JVM and invoking the finalizer which deleted the
+// garbage collected by the JVM and invoking the finalizer which deleted the
 // C++ Future. The intent was to capture the 'thiz' for the 'Future'. This is
 // done correctly by using the named inner classes.
 
