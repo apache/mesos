@@ -297,24 +297,24 @@ void reinitialize()
   // environment. See comment at top of openssl.hpp for a full list.
   //
   // NOTE: We used to look for environment variables prefixed by SSL_.
-  // To be backward compatible, for each environment variable prefixed
-  // by SSL_, we generate the corresponding LIBPROCESS_SSL_ version.
-  // See details in MESOS-5863.
-  map<string, string> environments = os::environment();
-  foreachpair (const string& key, const string& value, environments) {
-    if (strings::startsWith(key, "SSL_")) {
-      const string new_key = "LIBPROCESS_" + key;
-      if (environments.count(new_key) == 0) {
-        os::setenv(new_key, value);
-      } else if (environments[new_key] != value) {
-        LOG(WARNING) << "Mismatched SSL environment variables: "
-                     << key << "=" << value << ", "
-                     << new_key << "=" << environments[new_key];
-      }
+  // To be backward compatible, we interpret environment variables
+  // prefixed with either SSL_ and LIBPROCESS_SSL_ where the latter
+  // one takes precedence. See details in MESOS-5863.
+  map<string, Option<string>> environment_ssl =
+      ssl_flags->extract("SSL_");
+  map<string, Option<string>> environments =
+      ssl_flags->extract("LIBPROCESS_SSL_");
+  foreachpair (
+      const string& key, const Option<string>& value, environment_ssl) {
+    if (environments.count(key) > 0 && environments.at(key) != value) {
+      LOG(WARNING) << "Mismatched values for SSL environment variables "
+                   << "SSL_" << key << " and "
+                   << "LIBPROCESS_SSL_" << key;
     }
   }
+  environments.insert(environment_ssl.begin(), environment_ssl.begin());
 
-  Try<flags::Warnings> load = ssl_flags->load("LIBPROCESS_SSL_");
+  Try<flags::Warnings> load = ssl_flags->load(environments);
   if (load.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to load flags from environment variables "
@@ -489,16 +489,18 @@ void reinitialize()
       // defaults.
       string ca_dir;
 
-      if (environments.count(X509_get_default_cert_dir_env()) > 0) {
-        ca_dir = environments.at(X509_get_default_cert_dir_env());
+      const map<string, string> environment = os::environment();
+
+      if (environment.count(X509_get_default_cert_dir_env()) > 0) {
+        ca_dir = environment.at(X509_get_default_cert_dir_env());
       } else {
         ca_dir = X509_get_default_cert_dir();
       }
 
       string ca_file;
 
-      if (environments.count(X509_get_default_cert_file_env()) > 0) {
-        ca_file = environments.at(X509_get_default_cert_file_env());
+      if (environment.count(X509_get_default_cert_file_env()) > 0) {
+        ca_file = environment.at(X509_get_default_cert_file_env());
       } else {
         ca_file = X509_get_default_cert_file();
       }
