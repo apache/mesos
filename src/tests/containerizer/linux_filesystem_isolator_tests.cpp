@@ -39,6 +39,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 
 #include "tests/cluster.hpp"
+#include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 
 #include "tests/containerizer/docker_archive.hpp"
@@ -730,19 +731,22 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 // already a shared mount in its own peer group.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNotNeeded)
 {
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
   // Make 'sandbox' a shared mount in its own peer group.
   ASSERT_SOME(os::shell(
       "mount --bind %s %s && "
       "mount --make-private %s &&"
       "mount --make-shared %s",
-      sandbox->c_str(),
-      sandbox->c_str(),
-      sandbox->c_str(),
-      sandbox->c_str()));
+      directory->c_str(),
+      directory->c_str(),
+      directory->c_str(),
+      directory->c_str()));
 
   // Slave's working directory is under 'sandbox'.
   slave::Flags flags = CreateSlaveFlags();
-  flags.work_dir = path::join(sandbox.get(), "slave");
+  flags.work_dir = path::join(directory.get(), "slave");
 
   ASSERT_SOME(os::mkdir(flags.work_dir));
 
@@ -771,16 +775,19 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNotNeeded)
 // shared mount in its own peer group.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
 {
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
   // Make 'sandbox' a private mount.
   ASSERT_SOME(os::shell(
       "mount --bind %s %s && "
       "mount --make-private %s",
-      sandbox->c_str(),
-      sandbox->c_str(),
-      sandbox->c_str()));
+      directory->c_str(),
+      directory->c_str(),
+      directory->c_str()));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.work_dir = path::join(sandbox.get(), "slave");
+  flags.work_dir = path::join(directory.get(), "slave");
 
   ASSERT_SOME(os::mkdir(flags.work_dir));
 
