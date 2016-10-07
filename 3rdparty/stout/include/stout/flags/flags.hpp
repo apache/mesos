@@ -371,6 +371,10 @@ public:
   // do when the user asks for help.
   bool help;
 
+  // Extract environment variable "flags" with the specified prefix.
+  std::map<std::string, Option<std::string>> extract(
+      const std::string& prefix) const;
+
 protected:
   // The program's name, extracted from argv[0] by default;
   // declared 'protected' so that derived classes can alter this
@@ -384,9 +388,6 @@ protected:
   Option<std::string> usageMessage_;
 
 private:
-  // Extract environment variable "flags" with the specified prefix.
-  std::map<std::string, Option<std::string>> extract(const std::string& prefix);
-
   Try<Warnings> load(
       Multimap<std::string, Option<std::string>>& values,
       bool unknowns = false,
@@ -725,7 +726,7 @@ inline void FlagsBase::add(const Flag& flag)
 
 // Extract environment variable "flags" with the specified prefix.
 inline std::map<std::string, Option<std::string>> FlagsBase::extract(
-    const std::string& prefix)
+    const std::string& prefix) const
 {
   std::map<std::string, Option<std::string>> values;
 
