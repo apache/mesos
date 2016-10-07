@@ -297,17 +297,18 @@ message FrameworkInfo {
       // Receive offers with resources that are shared.
       SHARED_RESOURCES = 4;
 
-      // Indicates that the framework is prepared to handle the
+      // Indicates that (1) the framework is prepared to handle the
       // following TaskStates: TASK_UNREACHABLE, TASK_DROPPED,
-      // TASK_GONE, TASK_GONE_BY_OPERATOR, and TASK_UNKNOWN.
+      // TASK_GONE, TASK_GONE_BY_OPERATOR, and TASK_UNKNOWN, and (2)
+      // the framework will assume responsibility for managing
+      // partitioned tasks that reregister with the master.
       //
-      // With this capability, frameworks can define how they would
-      // like to handle partitioned tasks. Frameworks will receive
-      // TASK_UNREACHABLE for tasks on partitioned agents; if/when the
-      // partitioned agent reregisters, the task will not be killed.
-      // Frameworks that enable this capability will never receive
-      // TASK_LOST; they will receive one of the most specific task
-      // statuses listed above instead.
+      // Frameworks that enable this capability can define how they
+      // would like to handle partitioned tasks. Frameworks will
+      // receive TASK_UNREACHABLE for tasks on agents that are
+      // partitioned from the master. If/when a partitioned agent
+      // reregisters, tasks on the agent that were started by
+      // PARTITION_AWARE frameworks will not killed.
       //
       // Without this capability, frameworks will receive TASK_LOST
       // for tasks on partitioned agents; such tasks will be killed by
@@ -1516,8 +1517,8 @@ enum TaskState {
   TASK_KILLED = 4;   // TERMINAL: The task was killed by the executor.
   TASK_ERROR = 7;    // TERMINAL: The task description contains an error.
 
-  // This is only sent when the framework does NOT opt-in to the
-  // PARTITION_AWARE capability.
+  // In Mesos 1.2, this will only be sent when the framework does NOT
+  // opt-in to the PARTITION_AWARE capability.
   TASK_LOST = 5;     // TERMINAL: The task failed but can be rescheduled.
 
   // The following task statuses are only sent when the framework
@@ -1526,8 +1527,8 @@ enum TaskState {
   // The task failed to launch because of a transient error. The
   // task's executor never started running. Unlike TASK_ERROR, the
   // task description is valid -- attempting to launch the task again
-  // may be successful. This is a terminal state.
-  TASK_DROPPED = 9;
+  // may be successful.
+  TASK_DROPPED = 9;  // TERMINAL.
 
   // The task was running on an agent that has lost contact with the
   // master, typically due to a network failure or partition. The task
@@ -1537,23 +1538,22 @@ enum TaskState {
   // The task was running on an agent that has been shutdown (e.g.,
   // the agent become partitioned, rebooted, and then reconnected to
   // the master; any tasks running before the reboot will transition
-  // from UNREACHABLE to GONE). The task is no longer running. This is
-  // a terminal state.
-  TASK_GONE = 11;
+  // from UNREACHABLE to GONE). The task is no longer running.
+  TASK_GONE = 11;    // TERMINAL.
 
   // The task was running on an agent that the master cannot contact;
   // the operator has asserted that the agent has been shutdown, but
   // this has not been directly confirmed by the master. If the
   // operator is correct, the task is not running and this is a
-  // terminal state; if the operator is mistaken, the task might still
-  // be running, and might return to the RUNNING state in the future.
+  // terminal state; if the operator is mistaken, the task may still
+  // be running and might return to RUNNING in the future.
   TASK_GONE_BY_OPERATOR = 12;
 
   // The master has no knowledge of the task. This is typically
   // because either (a) the master never had knowledge of the task, or
-  // (b) the master forgot about the task because it garbaged
-  // collected its metadata about the task. The task may or may not
-  // still be running.
+  // (b) the master forgot about the task because it garbage collected
+  // its metadata about the task. The task may or may not still be
+  // running.
   TASK_UNKNOWN = 13;
 }
 
