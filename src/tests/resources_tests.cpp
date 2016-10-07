@@ -2785,7 +2785,7 @@ public:
     reservations.totalOperations = 10;
 
     // Test the performance of ranges using a fragmented range of
-    // ports: [1-2,4-5,7-9,...,1000]. Note that the benchmark will
+    // ports: [1-2,4-5,7-8,...,1000]. Note that the benchmark will
     // continuously sum together the same port range, which does
     // not preserve arithmetic invariants (a+a-a != a).
     string ports;
