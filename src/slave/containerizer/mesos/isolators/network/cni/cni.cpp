@@ -699,11 +699,6 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
       } else {
         launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
-
-        // This is a top-level container joining a new network
-        // namespace. Hence, set up `pre_exec_command` to bring up the
-        // loopback interface.
-        launchInfo.add_pre_exec_commands()->set_value("ifconfig lo up");
       }
     } else {
       // This is a nested container. This shares the parent's network
@@ -1813,7 +1808,22 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    LOG(INFO) << "Set hostname to '" << flags.hostname.get() << "'" << endl;
+    // Since, the hostname is set, this is a top-level container in a
+    // new network namespace. This implies that we have to bring up
+    // the loopback interface as well.
+    setns = ns::setns(flags.pid.get(), "net");
+    if (setns.isError()) {
+      cerr << "Failed to enter the network namespace of pid "
+           << flags.pid.get() << ": " << setns.error() << endl;
+      return EXIT_FAILURE;
+    }
+
+    if (os::system("ifconfig lo up") != 0) {
+      cerr << "Failed to bring up the loopback interface in the new "
+           << "network namespace of pid " << flags.pid.get()
+           << ": " << os::strerror(errno) << endl;
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;
