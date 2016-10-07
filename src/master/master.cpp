@@ -5542,7 +5542,19 @@ void Master::updateSlave(
   LOG(INFO) << "Received update of agent " << *slave << " with total"
             << " oversubscribed resources " <<  oversubscribedResources;
 
-  // First, rescind any outstanding offers with revocable resources.
+  // NOTE: We must *first* update the agent's resources before we
+  // recover the resources. If we recovered the resources first,
+  // an allocation could trigger between recovering resources and
+  // updating the agent in the allocator. This would lead us to
+  // re-send out the stale oversubscribed resources!
+
+  slave->totalResources =
+    slave->totalResources.nonRevocable() + oversubscribedResources.revocable();
+
+  // First update the agent's resources in the allocator.
+  allocator->updateSlave(slaveId, oversubscribedResources);
+
+  // Then rescind any outstanding offers with revocable resources.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.
   foreach (Offer* offer, utils::copy(slave->offers)) {
     const Resources& offered = offer->resources();
@@ -5560,12 +5572,6 @@ void Master::updateSlave(
 
   // NOTE: We don't need to rescind inverse offers here as they are unrelated to
   // oversubscription.
-
-  slave->totalResources =
-    slave->totalResources.nonRevocable() + oversubscribedResources.revocable();
-
-  // Now, update the allocator with the new estimate.
-  allocator->updateSlave(slaveId, oversubscribedResources);
 }
 
 
