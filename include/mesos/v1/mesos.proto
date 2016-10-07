@@ -1999,8 +1999,8 @@ message NetworkInfo {
 
 
 /**
- *  Encapsulation of `Capabilities` supported by Linux.
- *  Reference: http://linux.die.net/man/7/capabilities.
+ * Encapsulation of `Capabilities` supported by Linux.
+ * Reference: http://linux.die.net/man/7/capabilities.
  */
 message CapabilityInfo {
   // We start the actual values at an offset(1000) because Protobuf 2
@@ -2149,7 +2149,7 @@ message ContainerStatus {
   // Information about Linux control group (cgroup).
   optional CgroupInfo cgroup_info = 2;
 
-  //Information about Executor PID.
+  // Information about Executor PID.
   optional uint32 executor_pid = 3;
 }
 
