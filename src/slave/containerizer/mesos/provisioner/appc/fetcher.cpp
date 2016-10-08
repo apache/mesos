@@ -119,7 +119,7 @@ static Try<URI> getUri(const string& prefix, const string& path)
   int port = static_cast<int>(url.port.get());
 
   if (url.scheme.get() == "http") {
-    return uri::http( host, url.path, port);
+    return uri::http(host, url.path, port);
   }
 
   if (url.scheme.get() == "https") {
