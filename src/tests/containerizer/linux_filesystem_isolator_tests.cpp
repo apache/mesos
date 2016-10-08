@@ -1215,17 +1215,20 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   // above running task as an orphan.
   ASSERT_SOME(os::rmdir(slave::paths::getMetaRootDir(flags.work_dir)));
 
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
   // Recreate the containerizer using the same helper as above.
   containerizer.reset();
 
   create = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(create);
+
   containerizer.reset(create.get());
 
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Wait until slave recovery is complete.
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
   AWAIT_READY(_recover);
 
   // Wait until the orphan containers are cleaned up.
