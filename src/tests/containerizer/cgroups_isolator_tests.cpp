@@ -43,6 +43,7 @@ using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_CLS_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::DEFAULT_EXECUTOR_CPUS;
+using mesos::internal::slave::EXECUTOR_REREGISTER_TIMEOUT;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -54,6 +55,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::Queue;
@@ -1114,6 +1116,175 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   EXPECT_TRUE(usage->has_perf());
 
   // TODO(jieyu): Consider kill the perf process.
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Test that the memory subsystem can be enabled after the agent
+// restart. Previously created containers will not perform memory
+// isolation but newly created containers will.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start an agent using a containerizer without the memory isolation.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/cpu";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<slave::Containerizer> containerizer(create.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1->size());
+
+  Future<TaskStatus> statusRunning1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning1))
+    .WillRepeatedly(Return());
+
+  TaskInfo task1 = createTask(
+      offers1.get()[0].slave_id(),
+      Resources::parse("cpus:0.5;mem:128").get(),
+      "sleep 1000");
+
+  // We want to be notified immediately with new offer.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
+
+  AWAIT_READY(statusRunning1);
+  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers->size());
+
+  ContainerID containerId1 = *(containers->begin());
+
+  Future<ResourceStatistics> usage = containerizer->usage(containerId1);
+  AWAIT_READY(usage);
+
+  // There should not be any memory statistics.
+  EXPECT_FALSE(usage->has_mem_total_bytes());
+
+  slave.get()->terminate();
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Set up this to speed up the recovery of the agent.
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  // Start an agent using a containerizer with the memory isolation.
+  flags.isolation = "cgroups/cpu,cgroups/mem";
+
+  containerizer.reset();
+
+  create = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+
+  // Wait for the executor to re-register.
+  AWAIT_READY(reregisterExecutorMessage);
+
+  // Ensure the agent considers itself recovered.
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::resume();
+
+  // Wait until agent recovery is complete.
+  AWAIT_READY(__recover);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2->size());
+
+  // The first container should not report memory statistics.
+  usage = containerizer->usage(containerId1);
+  AWAIT_READY(usage);
+
+  EXPECT_FALSE(usage->has_mem_total_bytes());
+
+  // Start a new container which will start reporting memory statistics.
+  TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
+
+  Future<TaskStatus> statusRunning2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(statusRunning2);
+  EXPECT_EQ(TASK_RUNNING, statusRunning2.get().state());
+
+  containers = containerizer->containers();
+
+  AWAIT_READY(containers);
+  EXPECT_EQ(2u, containers.get().size());
+  EXPECT_TRUE(containers.get().contains(containerId1));
+
+  ContainerID containerId2;
+  foreach (const ContainerID containerId, containers.get()) {
+    if (containerId != containerId1) {
+      containerId2 = containerId;
+    }
+  }
+
+  usage = containerizer->usage(containerId2);
+  AWAIT_READY(usage);
+
+  EXPECT_TRUE(usage->has_mem_total_bytes());
 
   driver.stop();
   driver.join();
