@@ -331,9 +331,10 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
-  MockExecutor exec(executorId);
-  TestContainerizer containerizer(&exec);
+  TestContainerizer containerizer(executorId, executor);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
@@ -351,10 +352,6 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  Future<Nothing> statusUpdate;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureSatisfy(&statusUpdate));
-
   driver.start();
 
   AWAIT_READY(frameworkId);
@@ -362,18 +359,16 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
 
   ASSERT_EQ(1u, offers.get().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  Future<v1::executor::Mesos*> executorLib;
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(FutureArg<0>(&executorLib));
 
   TaskInfo taskInfo = createTask(offers.get()[0], "", executorId);
   driver.launchTasks(offers.get()[0].id(), {taskInfo});
 
-  // Wait until status update is received on the scheduler
-  // before sending an executor subscribe request.
-  AWAIT_READY(statusUpdate);
+  // Wait for the executor to be launched before sending
+  // an executor subscribe request.
+  AWAIT_READY(executorLib);
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
   Call call;
@@ -413,9 +408,10 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
-  MockExecutor exec(executorId);
-  TestContainerizer containerizer(&exec);
+  TestContainerizer containerizer(executorId, executor);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
@@ -433,10 +429,6 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  Future<Nothing> statusUpdate;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureSatisfy(&statusUpdate));
-
   driver.start();
 
   AWAIT_READY(frameworkId);
@@ -444,18 +436,16 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 
   ASSERT_EQ(1u, offers.get().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
-
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  Future<v1::executor::Mesos*> executorLib;
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(FutureArg<0>(&executorLib));
 
   TaskInfo taskInfo = createTask(offers.get()[0], "", executorId);
   driver.launchTasks(offers.get()[0].id(), {taskInfo});
 
-  // Wait until status update is received on the scheduler before sending
+  // Wait for the executor to be launched before sending
   // an executor subscribe request.
-  AWAIT_READY(statusUpdate);
+  AWAIT_READY(executorLib);
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
   Call call;
