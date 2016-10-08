@@ -3082,6 +3082,26 @@ void Slave::subscribe(
         CHECK_SOME(os::touch(path));
       }
 
+      // Here, we kill the executor if it no longer has any task or task group
+      // to run (e.g., framework sent a `killTask()`). This is a workaround for
+      // those executors (e.g., command executor, default executor) that do not
+      // have a proper self terminating logic when they haven't received the
+      // task or task group within a timeout.
+      if (state != RECOVERING &&
+          executor->queuedTasks.empty() &&
+          executor->queuedTaskGroups.empty()) {
+        CHECK(executor->launchedTasks.empty())
+            << " Newly registered executor '" << executor->id
+            << "' has launched tasks";
+
+        LOG(WARNING) << "Shutting down the executor " << *executor
+                     << " because it has no tasks to run";
+
+        _shutdownExecutor(framework, executor);
+
+        return;
+      }
+
       // Tell executor it's registered and give it any queued tasks
       // or task groups.
       executor::Event event;
