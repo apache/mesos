@@ -40,7 +40,7 @@ layout: documentation
 - [Mesos Executor HTTP API](https://docs.google.com/document/d/1dFmTrSZXCo5zj8H8SkJ4HT-V0z2YYnEZVV8Fd_-AupM/edit)
 - [APM in Mesos](https://docs.google.com/document/d/1EfBESIeqJvj_hVGz_oIVHDnJiQtFASKwrtAIQgL0x0k/edit#heading=h.pldb4jdil4u1)
 - [Libprocess Firewall Proposal](https://docs.google.com/document/d/1JSJTJMJ6ZXLkCSmvOIabTLrjtqqr0E-u99Rx2BHR1hs/edit)
-- [Mesos Image Provisioning Design](https://docs.google.com/a/twitter.com/document/d/1Fx5TS0LytV7u5MZExQS0-g-gScX2yKCKQg9UPFzhp6U/edit?usp=sharing)
+- [Mesos Image Provisioning Design](https://docs.google.com/document/d/1oUpJNjJ0l51fxaYut21mKPwJUiAcAdgbdF7SAdAW2PA)
 - [Design Doc: Task Info for Service Discovery](https://docs.google.com/document/d/1tpnjfHsa5Joka23CqgGppqnK0jODcElBvTFUBBO-A38/edit)
 - [Docker Containerizer Update](https://docs.google.com/a/mesosphere.io/document/d/1_1oLHXg_aHj_fYCzsjYwox9xvIYNAKIeVjO5BFxsUGI/edit#)
 - [Dynamic Reservation](https://docs.google.com/document/d/1e3j69pfBgtc8xM00DhcuiMl6ImkEB5na0TzOMyzrg8A/edit?usp=sharing)
