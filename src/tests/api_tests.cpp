@@ -1650,7 +1650,12 @@ TEST_P(MasterAPITest, Subscribe)
   AWAIT_READY(event);
 
   ASSERT_EQ(v1::master::Event::TASK_UPDATED, event.get().get().type());
-  ASSERT_EQ(v1::TASK_RUNNING, event.get().get().task_updated().state());
+  ASSERT_EQ(v1::TASK_RUNNING,
+            event.get().get().task_updated().state());
+  ASSERT_EQ(v1::TASK_RUNNING,
+            event.get().get().task_updated().status().state());
+  ASSERT_EQ(internal::evolve(task.task_id()),
+            event.get().get().task_updated().status().task_id());
 
   event = decoder.read();
 

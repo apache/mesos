@@ -7541,6 +7541,10 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     latestState = update.latest_state();
   }
 
+  // Indicated whether we should send a notification to all subscribers if the
+  // task transitioned to a new state.
+  bool sendSubscribersUpdate = false;
+
   // Set 'terminated' to true if this is the first time the task
   // transitioned to terminal state. Also set the latest state.
   bool terminated;
@@ -7551,12 +7555,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // If the task has already transitioned to a terminal state,
     // do not update its state.
     if (!protobuf::isTerminalState(task->state())) {
-      // Send a notification to all subscribers if the task transitioned
-      // to a new state.
-      if (!subscribers.subscribed.empty() &&
-          latestState.get() != task->state()) {
-        subscribers.send(protobuf::master::event::createTaskUpdated(
-            *task, latestState.get()));
+      if (latestState.get() != task->state()) {
+        sendSubscribersUpdate = true;
       }
 
       task->set_state(latestState.get());
@@ -7569,11 +7569,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // its state. Note that we are being defensive here because this should not
     // happen unless there is a bug in the master code.
     if (!protobuf::isTerminalState(task->state())) {
-      // Send a notification to all subscribers if the task transitioned
-      // to a new state.
-      if (!subscribers.subscribed.empty() && task->state() != status.state()) {
-        subscribers.send(protobuf::master::event::createTaskUpdated(
-            *task, status.state()));
+      if (task->state() != status.state()) {
+        sendSubscribersUpdate = true;
       }
 
       task->set_state(status.state());
@@ -7594,6 +7591,11 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // killed by OOM killer after 400 tasks have finished.
   // MESOS-1746.
   task->mutable_statuses(task->statuses_size() - 1)->clear_data();
+
+  if (sendSubscribersUpdate && !subscribers.subscribed.empty()) {
+    subscribers.send(protobuf::master::event::createTaskUpdated(
+        *task, task->state(), status));
+  }
 
   LOG(INFO) << "Updating the state of task " << task->task_id()
             << " of framework " << task->framework_id()

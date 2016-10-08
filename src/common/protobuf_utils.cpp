@@ -463,21 +463,18 @@ mesos::maintenance::Schedule createSchedule(
 namespace master {
 namespace event {
 
-mesos::master::Event createTaskUpdated(const Task& task, const TaskState& state)
+mesos::master::Event createTaskUpdated(
+    const Task& task,
+    const TaskState& state,
+    const TaskStatus& status)
 {
   mesos::master::Event event;
   event.set_type(mesos::master::Event::TASK_UPDATED);
 
   mesos::master::Event::TaskUpdated* taskUpdated = event.mutable_task_updated();
 
-  taskUpdated->mutable_task_id()->CopyFrom(task.task_id());
   taskUpdated->mutable_framework_id()->CopyFrom(task.framework_id());
-  taskUpdated->mutable_slave_id()->CopyFrom(task.slave_id());
-
-  if (task.has_executor_id()) {
-    taskUpdated->mutable_executor_id()->CopyFrom(task.executor_id());
-  }
-
+  taskUpdated->mutable_status()->CopyFrom(status);
   taskUpdated->set_state(state);
 
   return event;
