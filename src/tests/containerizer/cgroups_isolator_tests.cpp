@@ -24,7 +24,6 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
-
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp"
 
 #include "tests/mesos.hpp"
@@ -43,7 +42,6 @@ using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_CLS_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::DEFAULT_EXECUTOR_CPUS;
-using mesos::internal::slave::EXECUTOR_REREGISTER_TIMEOUT;
 
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
@@ -55,7 +53,6 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
-using process::Clock;
 using process::Future;
 using process::Owned;
 using process::Queue;
@@ -80,7 +77,8 @@ TEST_SCRIPT(ContainerizerTest,
             "balloon_framework_test.sh")
 
 
-class CgroupsIsolatorTest : public MesosTest {};
+class CgroupsIsolatorTest
+  : public ContainerizerTest<MesosContainerizer> {};
 
 
 // This test starts the agent with cgroups isolation and launches a
@@ -271,6 +269,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
       &sched,
       frameworkInfo,
@@ -371,6 +370,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
       &sched,
       DEFAULT_FRAMEWORK_INFO,
@@ -471,6 +471,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
+
   MesosSchedulerDriver driver(
       &sched,
       DEFAULT_FRAMEWORK_INFO,
@@ -973,6 +974,12 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
 
+  // TODO(jieyu): This is necessary because currently, we don't have a
+  // way to kill and wait for the perf process to finish, and cgroups
+  // cleanup function does not yet support killing processes without a
+  // freezer cgroup.
+  flags.agent_subsystems = None();
+
   Fetcher fetcher;
 
   Try<MesosContainerizer*> create =
@@ -1215,10 +1222,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  // Set up this to speed up the recovery of the agent.
-  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
-    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
-
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Start an agent using a containerizer with the memory isolation.
@@ -1233,15 +1236,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
 
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
-
-  Clock::pause();
-
-  // Wait for the executor to re-register.
-  AWAIT_READY(reregisterExecutorMessage);
-
-  // Ensure the agent considers itself recovered.
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
   // Wait until agent recovery is complete.
   AWAIT_READY(__recover);
@@ -1383,10 +1377,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  // Set up this to speed up the recovery of the agent.
-  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
-    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
-
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // Start an agent using a containerizer without the memory isolation.
@@ -1401,15 +1391,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
 
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
-
-  Clock::pause();
-
-  // Wait for the executor to re-register.
-  AWAIT_READY(reregisterExecutorMessage);
-
-  // Ensure the agent considers itself recovered.
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
   // Wait until agent recovery is complete.
   AWAIT_READY(__recover);
@@ -1459,32 +1440,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
 
   driver.stop();
   driver.join();
-
-  slave.get()->terminate();
-
-  __recover = FUTURE_DISPATCH(_, &Slave::__recover);
-
-  // Restart an agent using a containerizer with the memory isolation to
-  // clean up the orphan cgroups.
-  flags.isolation = "cgroups/mem";
-
-  containerizer.reset();
-
-  create = MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(create);
-
-  containerizer.reset(create.get());
-
-  slave = StartSlave(detector.get(), containerizer.get(), flags);
-  ASSERT_SOME(slave);
-
-  Clock::pause();
-  Clock::settle();
-  // Ensure the agent considers itself recovered.
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
-
-  AWAIT_READY(__recover);
 }
 
 } // namespace tests {
