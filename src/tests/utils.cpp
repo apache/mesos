@@ -45,6 +45,9 @@ JSON::Object Metrics()
 {
   process::UPID upid("metrics", process::address());
 
+  // TODO(neilc): This request might timeout if the current value of a
+  // metric cannot be determined. In tests, a common cause for this is
+  // MESOS-6231 when multiple scheduler drivers are in use.
   process::Future<process::http::Response> response =
     process::http::get(upid, "snapshot");
 
