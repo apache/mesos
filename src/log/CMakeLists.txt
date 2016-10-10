@@ -39,4 +39,4 @@ target_link_libraries(${MESOS_LOG_TARGET} ${MESOS_TARGET})
 ####################################################################
 add_dependencies(${MESOS_LOG_TARGET} ${MESOS_TARGET})
 
-endif (NOT WIND32)
+endif (NOT WIN32)
