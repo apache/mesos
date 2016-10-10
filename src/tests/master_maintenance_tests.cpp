@@ -74,7 +74,6 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
-using process::Queue;
 using process::Time;
 
 using process::http::BadRequest;
@@ -147,38 +146,7 @@ public:
   // Default unavailability.  Used when the test does not care
   // about the value of the unavailability.
   Unavailability unavailability;
-
-protected:
-  // Helper class for using EXPECT_CALL since the Mesos scheduler API
-  // is callback based.
-  class Callbacks
-  {
-  public:
-    MOCK_METHOD0(connected, void());
-    MOCK_METHOD0(disconnected, void());
-    MOCK_METHOD1(received, void(const std::queue<Event>&));
-  };
 };
-
-
-// Enqueues all received events into a libprocess queue.
-// TODO(jmlvanre): Factor this common code out of tests into V1
-// helper.
-ACTION_P(Enqueue, queue)
-{
-  std::queue<Event> events = arg0;
-  while (!events.empty()) {
-    // Note that we currently drop HEARTBEATs because most of these tests
-    // are not designed to deal with heartbeats.
-    // TODO(vinod): Implement DROP_HTTP_CALLS that can filter heartbeats.
-    if (events.front().type() == Event::HEARTBEAT) {
-      VLOG(1) << "Ignoring HEARTBEAT event";
-    } else {
-      queue->put(events.front());
-    }
-    events.pop();
-  }
-}
 
 
 // Posts valid and invalid schedules to the maintenance schedule endpoint.
