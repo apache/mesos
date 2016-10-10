@@ -191,7 +191,7 @@ class CppLinter(LinterBase):
                    os.path.join('3rdparty', 'libprocess'),
                    os.path.join('3rdparty', 'stout')]
 
-    exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md)'
+    exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md|\.virtualenv)'
 
     source_files = '\.(cpp|hpp|cc|h)$'
 
@@ -243,7 +243,72 @@ class CppLinter(LinterBase):
         return p.returncode
 
 
+class PyLinter(LinterBase):
+    linter_type = 'Python'
+
+    source_dirs = ['src/cli_new']
+
+    exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.virtualenv)'
+
+    source_files = '\.(py)$'
+
+    comment_prefix = '#'
+
+    def __check_virtualenv(self):
+        cli_dir = os.path.abspath(self.source_dirs[0])
+
+        if not os.path.isdir(os.path.join(cli_dir, '.virtualenv')):
+            print 'Virtualenv not detected... Building'
+
+            p = subprocess.Popen(
+                [os.path.join(cli_dir, 'bootstrap')],
+                stdout=subprocess.PIPE)
+
+            output = ''
+            for line in p.stdout:
+                output += line
+
+            p.wait()
+
+            if p.returncode != 0:
+                sys.stderr.write(output)
+                sys.exit(1);
+
+    def run_lint(self, source_paths):
+        '''
+        Runs pylint over given files.
+
+        https://google.github.io/styleguide/pyguide.html
+        '''
+
+        cli_dir = os.path.abspath(self.source_dirs[0])
+        source_files = ' '.join(source_paths)
+
+        self.__check_virtualenv()
+
+        p = subprocess.Popen(
+            ['. {virtualenv_dir}/bin/activate; \
+             PYTHONPATH={lib_dir}:{bin_dir} pylint --rcfile={config} --ignore={ignore} {files}'.\
+             format(virtualenv_dir=os.path.join(cli_dir, '.virtualenv'),
+                    lib_dir=os.path.join(cli_dir,'lib'),
+                    bin_dir=os.path.join(cli_dir,'bin'),
+                    config=os.path.join(cli_dir, 'pylint.config'),
+                    ignore=os.path.join(cli_dir, 'bin', 'mesos'),
+                    files=source_files)],
+            shell=True, stdout=subprocess.PIPE)
+
+        num_errors = 0
+        for line in p.stdout:
+            if not line.startswith('*'):
+                num_errors += 1
+            sys.stderr.write(line)
+
+        return num_errors
+
+
 if __name__ == '__main__':
     cpp_linter = CppLinter()
     cpp_errors = cpp_linter.main(sys.argv[1:])
-    sys.exit(cpp_errors)
+    py_linter = PyLinter()
+    py_errors = py_linter.main(sys.argv[1:])
+    sys.exit(cpp_errors + py_errors)
