@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# This bash completion script works by invoking the mesos command itself with a
+# "magic" subcommand called "__autocomplete__" and then forwarding all of the
+# arguments to it. The mesos command takes care of parsing the arguments and
+# returning the list of valid completions for the current word.
+_mesos() {
+    local cur cmd args rets
+    local option words
+    local OIFS
+
+    cur="${COMP_WORDS[${COMP_CWORD}]}"
+    cmd="${COMP_WORDS[0]}"
+    args=(${COMP_WORDS[@]:1})
+
+    # The __autocomplete__ command will return two lines of text (the first
+    # being the completion mode (default, nospace, etc.) and the second being a
+    # space-separated list of completion words). To handle this, we temporarily
+    # change the shell separator to '\n' instead of ' ' in order to interpret
+    # the results as exactly two values.
+    OIFS=${IFS}
+    IFS=$'\n'
+    rets=($(${cmd} __autocomplete__ "${cur}" ${args[*]}))
+    IFS=${OIFS}
+
+    option="${rets[0]}"
+    words="${rets[1]}"
+
+    # Reset the completion mode to be whatever value was returned by
+    # the __autocomplete__ command.
+    complete -o ${option} -F _mesos mesos
+
+    # Build the array of completion words.
+    COMPREPLY=( $(compgen -W "${words}" -- ${cur}) )
+
+    # If there are no completion words, then reset the completion to "nospace"
+    # mode so that hitting tab will not produce a space after the current word.
+    # This step is necessary since the mode might have been changed above.
+    if [ "${#COMPREPLY[@]}" = "0" ]; then
+        complete -o nospace -F _mesos mesos
+        COMPREPLY=()
+    fi
+
+    return 0
+}
+complete -F _mesos mesos

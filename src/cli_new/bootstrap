@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+# This script sets up a Python virtualenv for the Mesos CLI.
+# This creates a new virtualenv, installs the necessary Python
+# dependencies inside the virtualenv, and enables bash auto
+# completion for the Mesos CLI.
+
+set -e
+trap "exit 1" INT
+
+CURRDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+: ${VIRTUALENV_NAME:="mesos-cli"}
+: ${VIRTUALENV_DIRECTORY:="${CURRDIR}/.virtualenv"}
+
+: ${PYTHON:="$(which python)"}
+: ${VIRTUALENV:="$(which virtualenv)"}
+
+OLD_PYTHONPATH="${PYTHONPATH}"
+PYTHONPATH=""
+
+# If we already have a virtual environment activated,
+# bail out and advise the user to deactivate.
+OLD_VIRTUAL_ENV="${VIRTUAL_ENV}"
+if [ "${OLD_VIRTUAL_ENV}" != "" ]; then
+  echo "Please deactivate your current virtual environment in order to continue!"
+  echo "source deactivate"
+  exit 1
+fi
+
+# Verify that python and virtualenv are installed.
+if [ "${PYTHON}" = "" ] || [ "${VIRTUALENV}" = "" ]; then
+  echo "You must have python and virtualenv installed in order to continue..."
+  exit 1
+fi
+
+PYTHON_MAJOR=$(${PYTHON} -c 'import sys; print(sys.version_info[0])')
+PYTHON_MINOR=$(${PYTHON} -c 'import sys; print(sys.version_info[1])')
+
+if [ "${PYTHON_MAJOR}" != "2" ] || [ "${PYTHON_MINOR}" -lt "6" ]; then
+  echo "You must be running python 2.6 or 2.7 in order to continue."
+  echo "Consider running as 'PYTHON=python2 ./bootstrap' or similar."
+  exit 1
+fi
+
+# Set up a virtual environment for the CLI.
+${PYTHON} ${VIRTUALENV} --python=${PYTHON} \
+                        --clear \
+                        --no-site-packages \
+                        --prompt="(${VIRTUALENV_NAME}) " \
+                        ${VIRTUALENV_DIRECTORY} || true
+
+source ${VIRTUALENV_DIRECTORY}/bin/activate
+SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+echo ${SITE_PACKAGES}
+echo "${CURRDIR}/lib" > ${SITE_PACKAGES}/_virtualenv_path_extensions.pth
+pip install --upgrade pip
+pip install -r ${CURRDIR}/pip-requirements.txt
+deactivate
+
+# Add custom postactivate / predeactivate scripts to add / remove
+# the bin directory of this project to the current path in the
+# virtual environment (as well as setup bash auto completion).
+cat > ${VIRTUALENV_DIRECTORY}/bin/postactivate << EOF
+#!/usr/bin/env bash
+PROJECT_BIN="${CURRDIR}/bin"
+PATH="\${PROJECT_BIN}:\${PATH}"
+PYTHONPATH=""
+
+EOF
+cat ${CURRDIR}/mesos.bash_completion >> ${VIRTUALENV_DIRECTORY}/bin/postactivate
+
+cat > ${VIRTUALENV_DIRECTORY}/bin/predeactivate << EOF
+#!/usr/bin/env bash
+PROJECT_BIN="${CURDRDIR}/bin"
+PATH=\${PATH/":\${PROJECT_BIN}"/}
+PATH=\${PATH/"\${PROJECT_BIN}:"/}
+PYTHONPATH="${OLD_PYTHONPATH}"
+
+complete -r mesos
+EOF
+
+if [ "${VIRTUALENV_DIRECTORY}" = "${CURRDIR}/.virtualenv" ]; then
+  # Print some info about the sucess of the installation.
+  echo ""
+  echo "Setup complete!"
+  echo ""
+  echo "To begin working, simply activate your virtual"
+  echo "environment and deactivate it when you are done."
+  echo ""
+  echo "    $ source activate"
+  echo "    $ mesos <command> [<args>...]"
+  echo "    $ source deactivate"
+  echo ""
+fi
