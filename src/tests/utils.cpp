@@ -110,7 +110,7 @@ string getTestHelperDir()
   string path = path::join(tests::flags.build_dir, "src");
 
   if (!os::exists(path) && searchInstallationDirectory) {
-    return TESTLIBEXECDIR;
+    path = TESTLIBEXECDIR;
   }
 
   return path;
@@ -132,7 +132,7 @@ string getSbinDir()
   string path = path::join(tests::flags.build_dir, "src");
 
   if (!os::exists(path) && searchInstallationDirectory) {
-    return SBINDIR;
+    path = SBINDIR;
   }
 
   return path;
