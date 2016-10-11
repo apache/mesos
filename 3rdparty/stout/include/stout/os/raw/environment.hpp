@@ -13,6 +13,14 @@
 #ifndef __STOUT_OS_RAW_ENVIRONMENT_HPP__
 #define __STOUT_OS_RAW_ENVIRONMENT_HPP__
 
+#include <string.h>
+
+#include <string>
+
+#include <stout/foreach.hpp>
+#include <stout/json.hpp>
+#include <stout/stringify.hpp>
+
 #ifdef __APPLE__
 #include <crt_externs.h> // For _NSGetEnviron().
 #elif !defined(__WINDOWS__)
@@ -72,6 +80,94 @@ inline char*** environmentp()
   return &environ;
 #endif
 }
+
+
+// Represents the environment variable list expected by 'exec'
+// routines. The environment variable list is an array of pointers
+// that point to null-terminated strings. The array of pointers must
+// be terminated by a nullptr. To use this abstraction, see the
+// following example:
+//
+//   map<string, string> environment = {
+//     {"key1", "value1"},
+//     {"key2", "value2"}
+//   };
+//   os::raw::Envp envp(environment);
+//   execle("/bin/sh", "sh", "-c", "echo hello", envp);
+class Envp
+{
+public:
+  Envp(Envp&& that)
+    : envp(that.envp),
+      size(that.size)
+  {
+    that.envp = nullptr;
+    that.size = 0;
+  }
+
+  template <typename Map>
+  explicit Envp(const Map& map)
+  {
+    size = map.size();
+
+    // NOTE: We add 1 to the size for a `nullptr` terminator.
+    envp = new char*[size + 1];
+    size_t index = 0;
+
+    for (auto it = map.begin(); it != map.end(); ++it) {
+      std::string entry = stringify(it->first) + "=" + stringify(it->second);
+      envp[index] = new char[entry.size() + 1];
+      ::memcpy(envp[index], entry.c_str(), entry.size() + 1);
+      ++index;
+    }
+
+    envp[index] = nullptr;
+  }
+
+  explicit Envp(const JSON::Object& object)
+  {
+    size = object.values.size();
+
+    // NOTE: We add 1 to the size for a `nullptr` terminator.
+    envp = new char*[size + 1];
+    size_t index = 0;
+
+    foreachpair (const std::string& key,
+                 const JSON::Value& value,
+                 object.values) {
+      std::string entry = key + "=" + value.as<JSON::String>().value;
+      envp[index] = new char[entry.size() + 1];
+      ::memcpy(envp[index], entry.c_str(), entry.size() + 1);
+      ++index;
+    }
+
+    envp[index] = nullptr;
+  }
+
+  ~Envp()
+  {
+    if (envp == nullptr) {
+      return;
+    }
+
+    for (size_t i = 0; i < size; i++) {
+      delete[] envp[i];
+    }
+    delete[] envp;
+  }
+
+  operator char**()
+  {
+    return envp;
+  }
+
+private:
+  Envp(const Envp&) = delete;
+  Envp& operator=(const Envp&) = delete;
+
+  char **envp;
+  size_t size;
+};
 
 } // namespace raw {
 } // namespace os {
