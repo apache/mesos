@@ -1371,6 +1371,15 @@ shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
 </tr>
 <tr>
   <td>
+    --max_completed_executors_per_framework
+  </td>
+  <td>
+Maximum number of completed executors per framework to store
+in memory. (default: 150)
+  </td>
+</tr>
+<tr>
+  <td>
     --executor_shutdown_grace_period=VALUE
   </td>
   <td>

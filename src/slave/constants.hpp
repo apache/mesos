@@ -67,8 +67,9 @@ constexpr double GC_DISK_HEADROOM = 0.1;
 // Maximum number of completed frameworks to store in memory.
 constexpr size_t MAX_COMPLETED_FRAMEWORKS = 50;
 
-// Maximum number of completed executors per framework to store in memory.
-constexpr size_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
+// Default maximum number of completed executors per framework
+// to store in memory.
+constexpr size_t DEFAULT_MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
 
 // Maximum number of completed tasks per executor to store in memory.
 constexpr size_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;

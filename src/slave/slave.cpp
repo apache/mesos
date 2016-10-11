@@ -1590,7 +1590,12 @@ void Slave::run(
       frameworkPid = pid;
     }
 
-    framework = new Framework(this, frameworkInfo, frameworkPid);
+    framework = new Framework(
+        this,
+        flags,
+        frameworkInfo,
+        frameworkPid);
+
     frameworks[frameworkId] = framework;
     if (frameworkInfo.checkpoint()) {
       framework->checkpointFramework();
@@ -5402,7 +5407,9 @@ void Slave::recoverFramework(const FrameworkState& state)
     pid = None();
   }
 
-  Framework* framework = new Framework(this, frameworkInfo, pid);
+  Framework* framework = new Framework(
+      this, flags, frameworkInfo, pid);
+
   frameworks[framework->id()] = framework;
 
   if (recheckpoint) {
@@ -6067,13 +6074,14 @@ double Slave::_resources_revocable_percent(const string& name)
 
 Framework::Framework(
     Slave* _slave,
+    const Flags& slaveFlags,
     const FrameworkInfo& _info,
     const Option<UPID>& _pid)
   : state(RUNNING),
     slave(_slave),
     info(_info),
     pid(_pid),
-    completedExecutors(MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK) {}
+    completedExecutors(slaveFlags.max_completed_executors_per_framework) {}
 
 
 void Framework::checkpointFramework() const

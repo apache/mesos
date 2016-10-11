@@ -362,6 +362,12 @@ mesos::internal::slave::Flags::Flags()
       "state as possible is recovered.\n",
       true);
 
+  add(&Flags::max_completed_executors_per_framework,
+      "max_completed_executors_per_framework",
+      "Maximum number of completed executors per framework to store\n"
+      "in memory.\n",
+      DEFAULT_MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK);
+
 #ifdef __linux__
   add(&Flags::cgroups_hierarchy,
       "cgroups_hierarchy",

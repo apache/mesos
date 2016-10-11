@@ -78,6 +78,8 @@ using mesos::internal::protobuf::createLabel;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using mesos::slave::ContainerTermination;
+
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Mesos;
 
@@ -5369,6 +5371,161 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
 
   EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
+}
+
+
+// Test the max_completed_executors_per_framework flag.
+TEST_F(SlaveTest, MaxCompletedExecutorsPerFrameworkFlag)
+{
+  Clock::pause();
+
+  // We verify that the proper amount of history is maintained
+  // by launching a single framework with exactly 2 executors. We
+  // do this when setting `max_completed_executors_per_framework`
+  // to 0, 1, and 2. This covers the cases of maintaining no
+  // history, some history less than the total number of executors
+  // launched, and history equal to the total number of executors
+  // launched.
+  const size_t totalExecutorsPerFramework = 2;
+  const size_t maxExecutorsPerFrameworkArray[] = {0, 1, 2};
+
+  foreach (const size_t maxExecutorsPerFramework,
+           maxExecutorsPerFrameworkArray) {
+    master::Flags masterFlags = MesosTest::CreateMasterFlags();
+    Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+    ASSERT_SOME(master);
+
+    hashmap<ExecutorID, Executor*> executorMap;
+    vector<Owned<MockExecutor>> executors;
+
+    vector<ExecutorInfo> executorInfos;
+
+    for (size_t i = 0; i < totalExecutorsPerFramework; i++) {
+      ExecutorInfo executorInfo = createExecutorInfo(stringify(i), "exit 1");
+
+      executorInfos.push_back(executorInfo);
+
+      Owned<MockExecutor> executor =
+        Owned<MockExecutor>(new MockExecutor(executorInfo.executor_id()));
+
+      executorMap.put(executorInfo.executor_id(), executor.get());
+      executors.push_back(executor);
+    }
+
+    TestContainerizer containerizer(executorMap);
+
+    slave::Flags agentFlags = CreateSlaveFlags();
+    agentFlags.max_completed_executors_per_framework = maxExecutorsPerFramework;
+
+    Owned<MasterDetector> detector = master.get()->createDetector();
+    Try<Owned<cluster::Slave>> agent =
+      StartSlave(detector.get(), &containerizer, agentFlags);
+
+    ASSERT_SOME(agent);
+
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+    Future<Nothing> schedRegistered;
+    EXPECT_CALL(sched, registered(_, _, _))
+      .WillOnce(FutureSatisfy(&schedRegistered));
+
+    process::Queue<Offer> offers;
+    EXPECT_CALL(sched, resourceOffers(_, _))
+      .WillRepeatedly(EnqueueOffers(&offers));
+
+    driver.start();
+
+    AWAIT_READY(schedRegistered);
+
+    for (size_t i = 0; i < totalExecutorsPerFramework; i++) {
+      Future<Offer> offer = offers.get();
+      AWAIT_READY(offer);
+
+      TaskInfo task;
+      task.set_name("");
+      task.mutable_task_id()->set_value(stringify(i));
+      task.mutable_slave_id()->MergeFrom(offer->slave_id());
+      task.mutable_resources()->MergeFrom(offer->resources());
+      task.mutable_executor()->MergeFrom(executorInfos[i]);
+
+      EXPECT_CALL(*executors[i], registered(_, _, _, _))
+        .Times(1);
+
+      // Make sure the task passes through its `TASK_FINISHED`
+      // state properly. We force this state change through
+      // the launchTask() callback on our MockExecutor.
+      Future<TaskStatus> statusFinished;
+
+      EXPECT_CALL(*executors[i], launchTask(_, _))
+        .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+
+      EXPECT_CALL(sched, statusUpdate(_, _))
+        .WillOnce(FutureArg<1>(&statusFinished));
+
+      driver.launchTasks(offer->id(), {task});
+
+      AWAIT_READY(statusFinished);
+      EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+      EXPECT_CALL(*executors[i], shutdown(_)).Times(AtMost(1));
+
+      // Advance the clock to trigger a batch allocation.
+      Clock::advance(masterFlags.allocation_interval);
+    }
+
+    // Destroy all of the containers to complete the executors.
+    Future<hashset<ContainerID>> containerIds = containerizer.containers();
+    AWAIT_READY(containerIds);
+
+    foreach (const ContainerID& containerId, containerIds.get()) {
+      Future<Nothing> executorLost;
+      EXPECT_CALL(sched, executorLost(_, _, _, _))
+        .WillOnce(FutureSatisfy(&executorLost));
+
+      AWAIT_READY(containerizer.destroy(containerId));
+      AWAIT_READY(executorLost);
+    }
+
+    // Ensure the agent processes the executor terminations.
+    Clock::settle();
+
+    // At this point the agent would have considered the framework
+    // completed since it no longer has active executors.
+
+    Future<Response> response = process::http::get(
+      agent.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+    JSON::Object state = parse.get();
+
+    Result<JSON::Array> completedFrameworks =
+      state.values["completed_frameworks"].as<JSON::Array>();
+
+    // There should be only 1 framework.
+    ASSERT_EQ(1u, completedFrameworks->values.size());
+
+    JSON::Object completedFramework =
+      completedFrameworks->values[0].as<JSON::Object>();
+
+    Result<JSON::Array> completedExecutorsPerFramework =
+        completedFramework.values["completed_executors"].as<JSON::Array>();
+
+    // The number of completed executors in the completed framework
+    // should match the limit.
+    EXPECT_EQ(maxExecutorsPerFramework,
+              completedExecutorsPerFramework->values.size());
+
+    driver.stop();
+    driver.join();
+  }
 }
 
 } // namespace tests {
