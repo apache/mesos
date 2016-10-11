@@ -31,9 +31,6 @@
 
 namespace os {
 
-// Import `::execvp` into `os::` namespace.
-using ::execvp;
-
 namespace Shell {
 
 // Canonical constants used as platform-dependent args to `exec`
@@ -183,6 +180,12 @@ template<typename... T>
 inline int execlp(const char* file, T... t)
 {
   return ::execlp(file, t...);
+}
+
+
+inline int execvp(const char* file, char* const argv[])
+{
+  return ::execvp(file, argv);
 }
 
 } // namespace os {
