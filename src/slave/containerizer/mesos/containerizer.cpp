@@ -1189,7 +1189,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
 Future<bool> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
-    map<string, string> environment,
+    const map<string, string>& _environment,
     const SlaveID& slaveId,
     bool checkpoint)
 {
@@ -1205,6 +1205,11 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   CHECK_EQ(container->state, PREPARING);
 
+  JSON::Object environment;
+  foreachpair (const string& key, const string& value, _environment) {
+    environment.values[key] = value;
+  }
+
   // TODO(jieyu): Consider moving this to 'executorEnvironment' and
   // consolidating with docker containerizer.
   //
@@ -1212,7 +1217,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   // filesystem for itself, we still set 'MESOS_SANDBOX' according to
   // the root filesystem of the task (if specified). Command executor
   // itself does not use this environment variable.
-  environment["MESOS_SANDBOX"] = container->config.has_rootfs()
+  environment.values["MESOS_SANDBOX"] = container->config.has_rootfs()
     ? flags.sandbox_directory
     : container->config.directory();
 
@@ -1248,15 +1253,15 @@ Future<bool> MesosContainerizerProcess::_launch(
         const string& name = variable.name();
         const string& value = variable.value();
 
-        if (environment.count(name) > 0) {
+        if (environment.values.count(name) > 0) {
           VLOG(1) << "Overwriting environment variable '"
                   << name << "', original: '"
-                  << environment[name] << "', new: '"
+                  << environment.values[name] << "', new: '"
                   << value << "', for container "
                   << containerId;
         }
 
-        environment[name] = value;
+        environment.values[name] = value;
       }
     }
 
@@ -1331,15 +1336,15 @@ Future<bool> MesosContainerizerProcess::_launch(
     const string& name = variable.name();
     const string& value = variable.value();
 
-    if (environment.count(name) > 0) {
+    if (environment.values.count(name) > 0) {
       VLOG(1) << "Overwriting environment variable '"
               << name << "', original: '"
-              << environment[name] << "', new: '"
+              << environment.values[name] << "', new: '"
               << value << "', for container "
               << containerId;
     }
 
-    environment[name] = value;
+    environment.values[name] = value;
   }
 
   return logger->prepare(
@@ -1371,6 +1376,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     MesosContainerizerLaunch::Flags launchFlags;
 
     launchFlags.command = JSON::protobuf(launchCommand.get());
+    launchFlags.environment = environment;
 
     if (rootfs.isNone()) {
       // NOTE: If the executor shares the host filesystem, we should
@@ -1458,7 +1464,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         (local ? Subprocess::FD(STDERR_FILENO)
                : Subprocess::IO(subprocessInfo.err)),
         &launchFlags,
-        environment,
+        None(),
         namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
     if (forked.isError()) {
