@@ -17,6 +17,8 @@
 #ifndef __MESOS_CONTAINERIZER_LAUNCH_HPP__
 #define __MESOS_CONTAINERIZER_LAUNCH_HPP__
 
+#include <string>
+
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/subcommand.hpp>
@@ -37,6 +39,7 @@ public:
     Flags();
 
     Option<JSON::Object> command;
+    Option<JSON::Object> environment;
     Option<std::string> working_directory;
 #ifndef __WINDOWS__
     Option<std::string> runtime_directory;

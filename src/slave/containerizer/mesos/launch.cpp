@@ -71,6 +71,10 @@ MesosContainerizerLaunch::Flags::Flags()
       "command",
       "The command to execute.");
 
+  add(&environment,
+      "environment",
+      "The environment variables for the command.");
+
   add(&working_directory,
       "working_directory",
       "The working directory for the command. It has to be an absolute path \n"
@@ -605,8 +609,21 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  // Relay the environment variables.
-  // TODO(jieyu): Consider using a clean environment.
+  // Prepare the executable and the argument list for the child.
+  string executable(command->shell()
+    ? os::Shell::name
+    : command->value().c_str());
+
+  os::raw::Argv argv(command->shell()
+    ? vector<string>({os::Shell::arg0, os::Shell::arg1, command->value()})
+    : vector<string>(command->arguments().begin(), command->arguments().end()));
+
+  // Prepare the environment for the child. If 'environment' is not
+  // specified, inherit the environment of the current process.
+  Option<os::raw::Envp> envp;
+  if (flags.environment.isSome()) {
+    envp = os::raw::Envp(flags.environment.get());
+  }
 
 #ifndef __WINDOWS__
   // If we have `containerStatusFd` set, then we need to fork-exec the
@@ -682,17 +699,10 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-  if (command->shell()) {
-    // Execute the command using shell.
-    os::execlp(os::Shell::name,
-               os::Shell::arg0,
-               os::Shell::arg1,
-               command->value().c_str(),
-               (char*) nullptr);
+  if (envp.isSome()) {
+    os::execvpe(executable.c_str(), argv, envp.get());
   } else {
-    // Use execvp to launch the command.
-    os::execvp(command->value().c_str(),
-               os::raw::Argv(command->arguments()));
+    os::execvp(executable.c_str(), argv);
   }
 
   // If we get here, the execle call failed.
