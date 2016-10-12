@@ -9,6 +9,10 @@ This release contains the following new features:
     hence a task must listen on all interfaces. On Linux, For BRIDGE and USER
     modes, docker executor enters the task's network namespace.
 
+  * [MESOS-3421] - **Experimental** Support sharing of resources across
+    containers. Currently persistent volumes are the only resources allowed to
+    be shared.
+
   * [MESOS-3567] - **Experimental** support for TCP health checks. Executors
     may now use the updated `HealthCheck` protobuf to implement TCP health
     checks. Both default executors (command and docker) connect to `127.0.0.1`,
