@@ -55,13 +55,6 @@ public:
   SandboxContainerLoggerProcess()
     : ProcessBase(process::ID::generate("sandbox-logger")) {}
 
-  Future<Nothing> recover(
-      const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory)
-  {
-    return Nothing();
-  }
-
   process::Future<ContainerLogger::SubprocessInfo> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory)
@@ -93,18 +86,6 @@ SandboxContainerLogger::~SandboxContainerLogger()
 Try<Nothing> SandboxContainerLogger::initialize()
 {
   return Nothing();
-}
-
-
-Future<Nothing> SandboxContainerLogger::recover(
-    const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory)
-{
-  return dispatch(
-      process.get(),
-      &SandboxContainerLoggerProcess::recover,
-      executorInfo,
-      sandboxDirectory);
 }
 
 

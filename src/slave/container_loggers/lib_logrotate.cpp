@@ -68,14 +68,6 @@ class LogrotateContainerLoggerProcess :
 public:
   LogrotateContainerLoggerProcess(const Flags& _flags) : flags(_flags) {}
 
-  Future<Nothing> recover(
-      const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory)
-  {
-    // No state to recover.
-    return Nothing();
-  }
-
   // Spawns two subprocesses that read from their stdin and write to
   // "stdout" and "stderr" files in the sandbox.  The subprocesses will rotate
   // the files according to the configured maximum size and number of files.
@@ -280,16 +272,6 @@ Try<Nothing> LogrotateContainerLogger::initialize()
   return Nothing();
 }
 
-Future<Nothing> LogrotateContainerLogger::recover(
-    const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory)
-{
-  return dispatch(
-      process.get(),
-      &LogrotateContainerLoggerProcess::recover,
-      executorInfo,
-      sandboxDirectory);
-}
 
 Future<SubprocessInfo> LogrotateContainerLogger::prepare(
     const ExecutorInfo& executorInfo,

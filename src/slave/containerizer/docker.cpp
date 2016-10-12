@@ -885,17 +885,6 @@ Future<Nothing> DockerContainerizerProcess::_recover(
             containerId);
 
         container->directory = sandboxDirectory;
-
-        // Pass recovered containers to the container logger.
-        // NOTE: The current implementation of the container logger only
-        // outputs a warning and does not have any other consequences.
-        // See `ContainerLogger::recover` for more information.
-        logger->recover(executorInfo, sandboxDirectory)
-          .onFailed(defer(self(), [executorInfo](const string& message) {
-            LOG(WARNING) << "Container logger failed to recover executor '"
-                         << executorInfo.executor_id() << "': "
-                         << message;
-          }));
       }
     }
   }
