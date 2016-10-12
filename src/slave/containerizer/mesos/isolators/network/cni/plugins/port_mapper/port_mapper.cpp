@@ -20,6 +20,7 @@
 #include "slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp"
 
 using std::string;
+using std::vector;
 
 using process::Future;
 using process::Owned;
@@ -89,6 +90,29 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
         "Failed to get the required field 'chain': " +
         (chain.isError() ? chain.error() : "Not found"),
         ERROR_BAD_ARGS));
+  }
+
+  vector<string> excludeDevices;
+
+  Result<JSON::Array> _excludeDevices =
+    cniConfig->find<JSON::Array>("excludeDevices");
+
+  if (_excludeDevices.isError()) {
+    return Error(spec::error(
+        "Failed to parse field 'excludeDevices': " +
+        _excludeDevices.error(),
+        ERROR_BAD_ARGS));
+  } else if (_excludeDevices.isSome()) {
+    foreach (const JSON::Value& value, _excludeDevices->values) {
+      if (!value.is<JSON::String>()) {
+        return Error(spec::error(
+            "Failed to parse 'excludeDevices' list. "
+            "The excluded device needs to be a string",
+            ERROR_BAD_ARGS));
+      }
+
+      excludeDevices.push_back(value.as<JSON::String>().value);
+    }
   }
 
   // While the 'args' field is optional in the CNI spec it is critical
@@ -175,7 +199,9 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
           cniPath.get(),
           networkInfo.get(),
           delegatePlugin->value,
-          delegateConfig.get()));
+          delegateConfig.get(),
+          chain->value,
+          excludeDevices));
 }
 
 

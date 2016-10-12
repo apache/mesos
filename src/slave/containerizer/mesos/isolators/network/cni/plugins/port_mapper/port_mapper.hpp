@@ -97,7 +97,9 @@ private:
       const std::string& _cniPath,          // Paths to search for CNI plugins.
       const mesos::NetworkInfo& _networkInfo,
       const std::string& _delegatePlugin,
-      const JSON::Object& _delegateConfig)
+      const JSON::Object& _delegateConfig,
+      const std::string& _chain,
+      const std::vector<std::string>& _excludeDevices)
     : cniCommand(_cniCommand),
       cniContainerId(_cniContainerId),
       cniNetNs(_cniNetNs),
@@ -106,7 +108,9 @@ private:
       cniPath(_cniPath),
       networkInfo(_networkInfo),
       delegatePlugin(_delegatePlugin),
-      delegateConfig(_delegateConfig) {};
+      delegateConfig(_delegateConfig),
+      chain(_chain),
+      excludeDevices(_excludeDevices){};
 
   const std::string cniCommand;
   const Option<std::string> cniContainerId;
@@ -114,9 +118,23 @@ private:
   const std::string cniIfName;
   const Option<std::string> cniArgs;
   const std::string cniPath;
+
   const mesos::NetworkInfo networkInfo;
+
   const std::string delegatePlugin;
   const JSON::Object delegateConfig;
+
+  // The iptable chain to which the DNAT rules need to be added. We
+  // need a separate chain, so that we can group the DNAT rules
+  // specific to this CNI network under this chain. It makes it easier
+  // for the operator to analyze the ownership of these rules if they
+  // are grouped under a chain that the operator is aware is used by
+  // the CNI plugin.
+  const std::string chain;
+
+  // List of ingress devices that should be excluded from the DNAT
+  // rules.
+  const std::vector<std::string> excludeDevices;
 };
 
 } // namespace cni {
