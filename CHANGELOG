@@ -25,6 +25,8 @@ Deprecations:
 
   * [MESOS-5955] - Health check binary "mesos-health-check" is removed.
 
+  * [MESOS-6371] - Remove the 'recover()' interface in 'ContainerLogger'.
+
 Additional API Changes:
   * [MESOS-6220] - HTTP handler failures should result in 500 rather than
     503 responses. This means that when using the master or agent endpoints,
