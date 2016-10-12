@@ -3975,6 +3975,12 @@ void Master::_accept(
           const Resources& offered = offer->resources();
           foreach (const Resource& volume, operation.destroy().volumes()) {
             if (offered.contains(volume)) {
+              allocator->recoverResources(
+                  offer->framework_id(),
+                  offer->slave_id(),
+                  offer->resources(),
+                  None());
+
               removeOffer(offer, true);
             }
           }
