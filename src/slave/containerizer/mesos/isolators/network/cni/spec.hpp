@@ -32,6 +32,11 @@ namespace spec {
 constexpr char CNI_VERSION[] = "0.3.0";
 
 
+// CNI commands.
+constexpr char CNI_CMD_ADD[] = "ADD";
+constexpr char CNI_CMD_DEL[] = "DEL";
+
+
 // Well-known CNI error codes:
 // https://github.com/containernetworking/cni/blob/master/SPEC.md#well-known-error-codes
 constexpr uint32_t CNI_ERROR_INCOMPATIBLE_VERSION = 1;
