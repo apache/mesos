@@ -253,6 +253,9 @@ AC_ARG_ENABLE([zlib],
                            will be far less responsive; not recommended]),
             [enable_zlib=no], [enable_zlib=yes])
 
+AC_ARG_ENABLE([parallel_test_execution],
+              AS_HELP_STRING([--enable-parallel-test-execution],
+                             [execute tests in parallel where possible]))
 
 ###############################################################################
 # Optional packages.
@@ -544,7 +547,7 @@ esac
 
 
 ###############################################################################
-# Miscellaneous flags/library/tool checks
+# Miscellaneous flags/library/tool checks.
 ###############################################################################
 
 AC_ARG_VAR([JAVA_HOME], [location of Java Development Kit (JDK)])
@@ -558,6 +561,8 @@ AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+
+AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 
 # Check for pthreads (uses m4/ax_pthread.m4).
 AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
@@ -604,6 +609,17 @@ AS_IF([test "x$enable_install_module_dependencies" = "xyes"],
 AM_CONDITIONAL([INSTALL_TESTS], [test x"$enable_tests_install" = "xyes"])
 AS_IF([test x"$enable_tests_install" = "xyes"],
       [AC_DEFINE([MESOS_INSTALL_TESTS], [1])])
+
+# If we use our own test runner to parallelize gtests we can run
+# everything but ROOT tests in parallel.
+# We here set up `TEST_DRIVER` to contain an unexpanded automake
+# variable name; this allows us to reuse the test runner to run bundled
+# 3rdparty checks. The special quoting ensures that this containing a
+# space is not expanded by autoconf.
+# TODO(bbannier): Make this more readible by using autoconf/m4 magic.
+AS_IF([test "x$enable_parallel_test_execution" = "xyes"],
+      [AC_SUBST([TEST_DRIVER],
+       '${abs_top_srcdir}/support/mesos-gtest-runner.py'[' --sequential='*ROOT_*'']]))
 
 # Check for libunwind, and link it in if present.
 if test "x$OS_NAME" = "xfreebsd"; then
