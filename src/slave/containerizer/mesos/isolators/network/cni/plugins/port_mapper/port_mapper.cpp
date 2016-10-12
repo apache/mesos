@@ -166,13 +166,13 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
 
   // The port-mapper should always be used in conjunction with another
   // 'delegate' CNI plugin.
-  Result<JSON::Object> delegateConfig =
+  Result<JSON::Object> _delegateConfig =
     cniConfig->find<JSON::Object>("delegate");
 
-  if (!delegateConfig.isSome()) {
+  if (!_delegateConfig.isSome()) {
     return PluginError(
         "Failed to get the required field 'delegate'" +
-        (delegateConfig.isError() ? delegateConfig.error() : "Not found"),
+        (_delegateConfig.isError() ? _delegateConfig.error() : "Not found"),
         ERROR_BAD_ARGS);
   }
 
@@ -181,7 +181,7 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
 
   // Make sure the 'delegate' plugin exists.
   Result<JSON::String> delegatePlugin =
-    delegateConfig->find<JSON::String>("type");
+    _delegateConfig->find<JSON::String>("type");
 
   if (!delegatePlugin.isSome()) {
     return PluginError(
@@ -197,6 +197,11 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
         ERROR_BAD_ARGS);
   }
 
+  // Add the 'name' and 'args' field to the 'delegate' config.
+  JSON::Object delegateConfig(_delegateConfig.get());
+  delegateConfig.values["name"] = name.get();
+  delegateConfig.values["args"] = args.get();
+
   return Owned<PortMapper>(
       new PortMapper(
           cniCommand.get(),
@@ -207,7 +212,7 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
           cniPath.get(),
           networkInfo.get(),
           delegatePlugin->value,
-          delegateConfig.get(),
+          delegateConfig,
           chain->value,
           excludeDevices));
 }
