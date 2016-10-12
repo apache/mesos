@@ -34,6 +34,7 @@ using std::string;
 using process::Owned;
 
 using mesos::internal::slave::cni::PortMapper;
+using mesos::internal::slave::cni::spec::PluginError;
 
 
 constexpr int STDIN_READ_LENGTH = 1000;
@@ -60,19 +61,13 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // If the `PortMapper` returns an error it will already be a JSON
-  // formatted string of type `spec::Error` so we don't need to format
-  // it again. Reason we rely on the `PortMapper` to return a JSON
-  // formatted `spec::Error` is that the error codes for `spec::Error`
-  // might vary, depending on the cause of error, and the context of
-  // the error is only visible to the `PortMapper` object.
-  Try<Owned<PortMapper>> portMapper = PortMapper::create(config);
+  Try<Owned<PortMapper>, PluginError> portMapper = PortMapper::create(config);
   if (portMapper.isError()) {
     cout << portMapper.error() << endl;
     return EXIT_FAILURE;
   }
 
-  Try<string> result = portMapper.get()->execute();
+  Try<string, PluginError> result = portMapper.get()->execute();
   if (result.isError()) {
     cout << result.error() << endl;
     return EXIT_FAILURE;

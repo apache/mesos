@@ -17,6 +17,12 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
+#include <process/collect.hpp>
+#include <process/dispatch.hpp>
+#include <process/io.hpp>
+#include <process/subprocess.hpp>
+
+#include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp"
 
 using std::string;
@@ -27,18 +33,20 @@ using process::Owned;
 
 using mesos::NetworkInfo;
 
+using mesos::internal::slave::cni::spec::PluginError;
+
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace cni {
 
-Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
+Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
 {
   Option<string> cniCommand = os::getenv("CNI_COMMAND");
   if (cniCommand.isNone()) {
-    return Error(spec::error(
+    return PluginError(
         "Unable to find environment variable 'CNI_COMMAND'",
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // 'CNI_CONTAINERID' is optional.
@@ -46,16 +54,16 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
 
   Option<string> cniNetNs = os::getenv("CNI_NETNS");
   if (cniNetNs.isNone()) {
-    return Error(spec::error(
+    return PluginError(
         "Unable to find environment variable 'CNI_NETNS'",
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   Option<string> cniIfName = os::getenv("CNI_IFNAME");
   if (cniIfName.isNone()) {
-    return Error(spec::error(
+    return PluginError(
         "Unable to find environment variable 'CNI_IFNAME'",
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // 'CNI_ARGS' is optional.
@@ -63,33 +71,33 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
 
   Option<string> cniPath = os::getenv("CNI_PATH");
   if (cniPath.isNone()) {
-    return Error(spec::error(
+    return PluginError(
         "Unable to find environment variable 'CNI_PATH'",
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // Verify the CNI config for this plugin.
   Try<JSON::Object> cniConfig = JSON::parse<JSON::Object>(_cniConfig);
   if (cniConfig.isError()) {
-    return Error(spec::error(cniConfig.error(), ERROR_BAD_ARGS));
+    return PluginError(cniConfig.error(), ERROR_BAD_ARGS);
   }
 
   // TODO(jieyu): Validate 'cniVersion' and 'type'.
 
   Result<JSON::String> name = cniConfig->find<JSON::String>("name");
   if (!name.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the required field 'name': " +
         (name.isError() ? name.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   Result<JSON::String> chain = cniConfig->find<JSON::String>("chain");
   if (!chain.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the required field 'chain': " +
         (chain.isError() ? chain.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   vector<string> excludeDevices;
@@ -98,17 +106,17 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
     cniConfig->find<JSON::Array>("excludeDevices");
 
   if (_excludeDevices.isError()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to parse field 'excludeDevices': " +
         _excludeDevices.error(),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   } else if (_excludeDevices.isSome()) {
     foreach (const JSON::Value& value, _excludeDevices->values) {
       if (!value.is<JSON::String>()) {
-        return Error(spec::error(
+        return PluginError(
             "Failed to parse 'excludeDevices' list. "
             "The excluded device needs to be a string",
-            ERROR_BAD_ARGS));
+            ERROR_BAD_ARGS);
       }
 
       excludeDevices.push_back(value.as<JSON::String>().value);
@@ -120,10 +128,10 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
   // framework might have requested for this container.
   Result<JSON::Object> args = cniConfig->find<JSON::Object>("args");
   if (!args.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the required field 'args': " +
         (args.isError() ? args.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // NOTE: We can't directly use `find` to check for 'network_info'
@@ -133,27 +141,27 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
   // 'network_info'.
   Result<JSON::Object> mesos = args->at<JSON::Object>("org.apache.mesos");
   if (!mesos.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the field 'args{org.apache.mesos}': " +
         (mesos.isError() ? mesos.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   Result<JSON::Object> _networkInfo = mesos->find<JSON::Object>("network_info");
   if (!_networkInfo.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the field 'args{org.apache.mesos}{network_info}': " +
         (_networkInfo.isError() ? _networkInfo.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   Try<NetworkInfo> networkInfo =
     ::protobuf::parse<NetworkInfo>(_networkInfo.get());
 
   if (networkInfo.isError()) {
-    return Error(spec::error(
+    return PluginError(
         "Unable to parse `NetworkInfo`: " + networkInfo.error(),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // The port-mapper should always be used in conjunction with another
@@ -162,10 +170,10 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
     cniConfig->find<JSON::Object>("delegate");
 
   if (!delegateConfig.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the required field 'delegate'" +
         (delegateConfig.isError() ? delegateConfig.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   // TODO(jieyu): Validate that 'cniVersion' and 'name' exist in
@@ -176,17 +184,17 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
     delegateConfig->find<JSON::String>("type");
 
   if (!delegatePlugin.isSome()) {
-    return Error(spec::error(
+    return PluginError(
         "Failed to get the delegate plugin 'type'" +
         (delegatePlugin.isError() ? delegatePlugin.error() : "Not found"),
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   if (os::which(delegatePlugin->value, cniPath.get()).isNone()) {
-    return Error(spec::error(
+    return PluginError(
         "Could not find the delegate plugin '" + delegatePlugin->value +
         "' in '" + cniPath.get() + "'",
-        ERROR_BAD_ARGS));
+        ERROR_BAD_ARGS);
   }
 
   return Owned<PortMapper>(
@@ -205,7 +213,7 @@ Try<Owned<PortMapper>> PortMapper::create(const string& _cniConfig)
 }
 
 
-Try<string> PortMapper::execute()
+Try<string, PluginError> PortMapper::execute()
 {
   return "OK";
 }

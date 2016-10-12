@@ -65,7 +65,8 @@ public:
   //
   // In case of an error returns a JSON formatted string of type
   // `spec::Error` as the error message for the `Try`.
-  static Try<process::Owned<PortMapper>> create(const std::string& cniConfig);
+  static Try<process::Owned<PortMapper>, spec::PluginError> create(
+      const std::string& cniConfig);
 
   // Executes the CNI plugin specified in 'delegate'. On successful
   // execution of the 'delegate' plugin will install port-forwarding
@@ -74,7 +75,7 @@ public:
   // 'delegate' plugin. In case of an error will return a JSON string
   // representation of `spec::Error` as the error message for the
   // `Try`.
-  Try<std::string> execute();
+  Try<std::string, spec::PluginError> execute();
 
   virtual ~PortMapper() {};
 
