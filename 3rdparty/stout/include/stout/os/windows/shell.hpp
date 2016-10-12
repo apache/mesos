@@ -149,6 +149,20 @@ inline int execvp(const char* file, char* const argv[])
 }
 
 
+// On Windows, the `_spawnvpe` call creates a new process.
+// In order to emulate the semantics of `execvpe`, we spawn with `_P_WAIT`,
+// which forces the parent process to block on the child. When the child exits,
+// the exit code is propagated back through the parent via `exit()`.
+//
+// The returned value from `_spawnvpe` represents child exit code when
+// `_P_WAIT` is used.
+inline int execvpe(const char* file, char* const argv[], char* const envp[])
+{
+  exit(static_cast<int>(::_spawnvpe(_P_WAIT, file, argv, envp)));
+  return 0;
+}
+
+
 // Concatenates multiple command-line arguments and escapes the values.
 // If `arg` is not specified (or takes the value `0`), the function will
 // scan `argv` until a `nullptr` is encountered.

@@ -374,12 +374,6 @@ inline std::string hstrerror(int err)
 }
 
 
-// This function is a portable version of execvpe ('p' means searching
-// executable from PATH and 'e' means setting environments). We add
-// this function because it is not available on all systems.
-inline int execvpe(const char* file, char** argv, char** envp) = delete;
-
-
 inline Try<Nothing> chown(
     uid_t uid,
     gid_t gid,
