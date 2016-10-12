@@ -188,7 +188,7 @@ BUILT_SOURCES = $(BUNDLED_DEPS)
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
-	./stout-tests
+	$(TEST_DRIVER) ./stout-tests
 
 tests: $(BUNDLED_DEPS)
 	$(MAKE) $(AM_MAKEFLAGS) stout-tests

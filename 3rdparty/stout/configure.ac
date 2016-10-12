@@ -156,8 +156,9 @@ AC_ARG_WITH([svn],
 
 
 ###############################################################################
-# Miscellaneous flags/library/tool checks
+# Miscellaneous flags/library/tool checks.
 ###############################################################################
+AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 
 # Check for pthreads (uses m4/ax_pthread.m4).
 AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
