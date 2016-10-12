@@ -67,12 +67,13 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  Try<string, PluginError> result = portMapper.get()->execute();
+  Try<Option<string>, PluginError> result = portMapper.get()->execute();
   if (result.isError()) {
     cout << result.error() << endl;
     return EXIT_FAILURE;
+  } else if (result->isSome()) {
+    cout << result->get() << endl;
   }
 
-  cout << result.get() << endl;
   return EXIT_SUCCESS;
 }

@@ -68,25 +68,31 @@ public:
   static Try<process::Owned<PortMapper>, spec::PluginError> create(
       const std::string& cniConfig);
 
-  // Executes the CNI plugin specified in 'delegate'. On successful
-  // execution of the 'delegate' plugin will install port-forwarding
-  // rules, if any, that are specified in `NetworkInfo`. On success
-  // will return a JSON string seen in the successful execution of the
-  // 'delegate' plugin. In case of an error will return a JSON string
-  // representation of `spec::Error` as the error message for the
-  // `Try`.
-  Try<std::string, spec::PluginError> execute();
+  // Executes the CNI plugin specified in 'delegate'. When
+  // `cniCommand` is set to `spec::CNI_CMD_ADD` successful execution
+  // of the 'delegate' plugin will install port-forwarding rules, if
+  // any, that are specified in `NetworkInfo`. On success will return
+  // a JSON string seen in the successful execution of the 'delegate'
+  // plugin. When `cniCommand` is set to `spec::CNI_CMD_DEL`
+  // successful execution of the delegate plugin will return `None`.
+  Try<Option<std::string>, spec::PluginError> execute();
 
   virtual ~PortMapper() {};
 
 protected:
   // Used to invoke the plugin specified in 'delegate'. The possible
-  // values for `command` are ADD or DEL. The `command` is used in
+  // values for `command` are `spec::CNI_CMD_ADD` or
+  // `spec::CNI_CMD_DEL`. The `command` is used in
   // setting the CNI_COMMAND environment variable before invoking the
   // 'delegate' plugin.
   //
+  // When `command` is set to `spec::CNI_CMD_ADD` returns a
+  // `spec::NetworkInfo` on successful execution of the 'delegate'
+  // plugin. When command is set to `spec::CNI_CMD_DEL` returns `None`
+  // on successful execution of the plugin.
+  //
   // NOTE: Defining `delegate` as a virtual method so that we can mock it.
-  virtual Try<spec::NetworkInfo> delegate(const std::string& command);
+  virtual Result<spec::NetworkInfo> delegate(const std::string& command);
 
 private:
   PortMapper(

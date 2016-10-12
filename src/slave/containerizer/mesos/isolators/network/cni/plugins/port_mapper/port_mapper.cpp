@@ -218,15 +218,15 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
 }
 
 
-Try<string, PluginError> PortMapper::execute()
+Try<Option<string>, PluginError> PortMapper::execute()
 {
-  return "OK";
+  return None();
 }
 
 
-Try<spec::NetworkInfo> PortMapper::delegate(const string& command)
+Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
 {
-  return spec::NetworkInfo();
+  return None();
 }
 
 } // namespace cni {
