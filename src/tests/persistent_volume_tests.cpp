@@ -1116,7 +1116,11 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   // Advance the clock until the allocator allocates
   // the recovered resources.
+  Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
+
+  // Resume the clock so the terminating task and executor can be reaped.
+  Clock::resume();
 
   AWAIT_READY(offers1);
 
