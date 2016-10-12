@@ -2346,7 +2346,7 @@ uninstall-hook:
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
-	./mesos-tests
+	$(TEST_DRIVER) ./mesos-tests
 
 if INSTALL_TESTS
 # If we enabled test installation, we can run the tests from the
