@@ -61,7 +61,14 @@ void Metrics::add(const string& client)
   Gauge gauge(
       path::join(prefix, client, "/shares/", "/dominant"),
       defer(context, [this, client]() {
-        return sorter->calculateShare(client);
+        // The client may have been removed if the dispatch
+        // occurs after the client is removed but before the
+        // metric is removed.
+        if (sorter->contains(client)) {
+          return sorter->calculateShare(client);
+        }
+
+        return 0.0;
       }));
 
   dominantShares.put(client, gauge);
