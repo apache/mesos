@@ -397,6 +397,19 @@ protected:
         containerId; })
 
 
+inline mesos::Environment createEnvironment(
+    const hashmap<std::string, std::string>& map)
+{
+  mesos::Environment environment;
+  foreachpair (const std::string& key, const std::string& value, map) {
+    mesos::Environment::Variable* variable = environment.add_variables();
+    variable->set_name(key);
+    variable->set_value(value);
+  }
+  return environment;
+}
+
+
 inline ExecutorInfo createExecutorInfo(
     const std::string& executorId,
     const std::string& command,

@@ -1433,6 +1433,99 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
   ASSERT_NONE(nestedWait.get());
 }
 
+
+// This test verifies that agent environment variables are not leaked
+// to the nested container, and the environment variables specified in
+// the command for the nested container will be honored.
+TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Environment)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+      directory.get(),
+      None(),
+      state.id,
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(UUID::random().toString());
+
+  // Construct a command that verifies that agent environment
+  // variables are not leaked to the nested container.
+  ostringstream script;
+  script << "#!/bin/sh\n";
+
+  foreachkey (const string& key, os::environment()) {
+    script << "test -z \"$" << key << "\"\n";
+  }
+
+  mesos::Environment environment = createEnvironment(
+      {{"NESTED_MESOS_CONTAINERIZER_TEST", "ENVIRONMENT"}});
+
+  script << "test $NESTED_MESOS_CONTAINERIZER_TEST = ENVIRONMENT\n";
+
+  CommandInfo command = createCommandInfo(script.str());
+  command.mutable_environment()->CopyFrom(environment);
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      command,
+      None(),
+      None(),
+      state.id);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(
+      nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
