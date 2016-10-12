@@ -1024,8 +1024,8 @@ struct Framework
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
 
-  // Up to maxCompletedExecutorsPerFramework completed executors.
   boost::circular_buffer<process::Owned<Executor>> completedExecutors;
+
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator=(const Framework&); // No assigning.
