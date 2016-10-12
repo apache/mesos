@@ -1333,8 +1333,27 @@ Future<bool> MesosContainerizerProcess::_launch(
     environment.values[name] = value;
   }
 
+  // Determine the 'ExecutorInfo' for the logger. If launching a
+  // top level executor container, use the 'ExecutorInfo' from
+  // 'ContainerConfig'. If launching a nested container, use the
+  // 'ExecutorInfo' from its top level parent container.
+  ExecutorInfo executorInfo;
+  if (container->config.has_executor_info()) {
+    // The top level executor container case. The 'ExecutorInfo'
+    // will always be set in 'ContainerConfig'.
+    executorInfo = container->config.executor_info();
+  } else {
+    // The nested container case. Use the 'ExecutorInfo' from its root
+    // parent container.
+    CHECK(containerId.has_parent());
+    const ContainerID& rootContainerId = getRootContainerId(containerId);
+    CHECK(containers_.contains(rootContainerId));
+    CHECK(containers_[rootContainerId]->config.has_executor_info());
+    executorInfo = containers_[rootContainerId]->config.executor_info();
+  }
+
   return logger->prepare(
-      container->config.executor_info(),
+      executorInfo,
       container->config.directory())
     .then(defer(
         self(),
