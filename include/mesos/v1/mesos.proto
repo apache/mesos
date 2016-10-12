@@ -541,11 +541,7 @@ message ExecutorInfo {
     //
     // 1) `command` must not be set when using a default executor.
     //
-    // 2) If "cpu" or "mem" resources are not set, default values of 0.1 cpu
-    //    and 32 MB memory will be used; schedulers should account for these
-    //    resources when accepting offers.
-    //
-    // 3) Default executor only accepts a *single* `LAUNCH` or `LAUNCH_GROUP`
+    // 2) Default executor only accepts a *single* `LAUNCH` or `LAUNCH_GROUP`
     //    offer operation.
     DEFAULT = 1;
 
