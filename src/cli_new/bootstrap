@@ -29,9 +29,20 @@ if [ "${OLD_VIRTUAL_ENV}" != "" ]; then
 fi
 
 # Verify that python and virtualenv are installed.
-if [ "${PYTHON}" = "" ] || [ "${VIRTUALENV}" = "" ]; then
-  echo "You must have python and virtualenv installed in order to continue..."
+if [ "${PYTHON}" = "" ]; then
+  echo "You must have python installed in order to continue..."
   exit 1
+fi
+
+if [ "${VIRTUALENV}" = "" ]; then
+  # Search for a locally installed virtualenv.
+  # See https://docs.python.org/2/library/site.html#site.USER_SITE for details.
+  VIRTUALENV=$(${PYTHON} -c "import site; print site.USER_SITE")/virtualenv.py
+
+  if [ ! -f "${VIRTUALENV}" ]; then
+    echo "You must have virtualenv installed in order to continue..."
+    exit 1
+  fi
 fi
 
 PYTHON_MAJOR=$(${PYTHON} -c 'import sys; print(sys.version_info[0])')
