@@ -118,7 +118,7 @@ void DRFSorter::remove(const string& name)
 
 void DRFSorter::activate(const string& name)
 {
-  CHECK(allocations.contains(name));
+  CHECK(contains(name));
 
   set<Client, DRFComparator>::iterator it = find(name);
   if (it == clients.end()) {
