@@ -1961,8 +1961,6 @@ Future<Response> Slave::Http::launchNestedContainer(
   }
 #endif
 
-  // TODO(gilbert): The sandbox directory and user are incorrect,
-  // Please update it.
   Future<bool> launched = slave->containerizer->launch(
       containerId,
       call.launch_nested_container().command(),
