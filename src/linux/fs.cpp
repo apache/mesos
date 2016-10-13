@@ -137,7 +137,10 @@ Try<MountInfoTable> MountInfoTable::read(
     vector<MountInfoTable::Entry> sortedEntries;
 
     std::function<void(int)> sortFrom = [&](int parentId) {
-      CHECK(!visitedParents.contains(parentId));
+      CHECK(!visitedParents.contains(parentId))
+        << "Cycle found in mount table hierarchy at entry"
+        << " '" << stringify(parentId) << "': " << std::endl << lines.get();
+
       visitedParents.insert(parentId);
 
       foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
