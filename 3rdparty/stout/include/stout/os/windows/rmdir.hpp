@@ -21,6 +21,7 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/realpath.hpp>
+#include <stout/os/rm.hpp>
 #include <stout/os/stat.hpp>
 
 #include <stout/windows/error.hpp>
@@ -29,11 +30,25 @@
 namespace os {
 namespace internal {
 
-// Recursive version of `RemoveDirectory`. NOTE: unlike `rmdir`, this requires
-// Windows-formatted paths, and therefore should be in the `internal` namespace.
+// Recursive version of `RemoveDirectory`. Two things are notable about this
+// implementation:
+//
+// 1. Unlike `rmdir`, this requires Windows-formatted paths, and therefore
+//    should be in the `internal` namespace.
+// 2. To match the semantics of the POSIX implementation, this function
+//    implements the semantics of `rm -r`, rather than `rmdir`. In particular,
+//    if `path` points at a file, this function will delete it, while a call to
+//    `rmdir` will not.
 inline Try<Nothing> recursive_remove_directory(
     const std::string& path, bool removeRoot, bool continueOnError)
 {
+  // NOTE: Special case required to match the semantics of POSIX. See comment
+  // above. As below, this also handles symlinks correctly, i.e., given a path
+  // to a symlink, we delete the symlink rather than the target.
+  if (os::stat::isfile(path)) {
+    return os::rm(path);
+  }
+
   // Appending a slash here if the path doesn't already have one simplifies
   // path join logic later, because (unlike Unix) Windows doesn't like double
   // slashes in paths.
@@ -79,7 +94,7 @@ inline Try<Nothing> recursive_remove_directory(
     // Delete current path, whether it's a directory, file, or symlink.
     if (is_directory) {
       Try<Nothing> removed = recursive_remove_directory(
-          current_absolute_path, removeRoot, continueOnError);
+          current_absolute_path, true, continueOnError);
 
       if (removed.isError()) {
         if (continueOnError) {

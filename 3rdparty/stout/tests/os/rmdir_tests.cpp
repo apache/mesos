@@ -94,6 +94,65 @@ TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryRelativePath)
 }
 
 
+// Tests behavior of `rmdir` when path points at a file instead of a directory.
+TEST_F(RmdirTest, RemoveFile)
+{
+  const string tmpdir = os::getcwd();
+  hashset<string> expectedRootListing = hashset<string>::EMPTY;
+  hashset<string> expectedSubListing = hashset<string>::EMPTY;
+
+  // Directory is initially empty.
+  EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
+
+  // Successfully make directory using absolute path, and then `touch` a file
+  // in that folder.
+  const string newDirectoryName = "newDirectory";
+  const string newDirectoryAbsolutePath = path::join(tmpdir, newDirectoryName);
+  const string newFileName = "newFile";
+  const string newFileAbsolutePath = path::join(
+      newDirectoryAbsolutePath,
+      newFileName);
+
+  expectedRootListing.insert(newDirectoryName);
+  expectedSubListing.insert(newFileName);
+
+  EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
+  EXPECT_SOME(os::touch(newFileAbsolutePath));
+  EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
+  EXPECT_EQ(expectedSubListing, listfiles(newDirectoryAbsolutePath));
+
+  // Successful recursive remove with `removeRoot` set to `true` (using the
+  // semantics of `rm -r`).
+  EXPECT_SOME(os::rmdir(newFileAbsolutePath));
+  EXPECT_TRUE(os::exists(newDirectoryAbsolutePath));
+  ASSERT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
+
+  // Add file to directory again.
+  EXPECT_SOME(os::touch(newFileAbsolutePath));
+
+  // Successful recursive remove with `removeRoot` set to `false` (using the
+  // semantics of `rm -r`).
+  EXPECT_SOME(os::rmdir(newFileAbsolutePath, true, false));
+  EXPECT_TRUE(os::exists(newDirectoryAbsolutePath));
+  ASSERT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
+
+  // Add file to directory again.
+  EXPECT_SOME(os::touch(newFileAbsolutePath));
+
+  // Error on non-recursive remove with `removeRoot` set to `true` (using the
+  // semantics of `rmdir`).
+  EXPECT_ERROR(os::rmdir(newFileAbsolutePath, false, true));
+  EXPECT_TRUE(os::exists(newDirectoryAbsolutePath));
+  EXPECT_TRUE(os::exists(newFileAbsolutePath));
+
+  // Error on non-recursive remove with `removeRoot` set to `false` (using the
+  // semantics of `rmdir`).
+  EXPECT_ERROR(os::rmdir(newFileAbsolutePath, false, false));
+  EXPECT_TRUE(os::exists(newDirectoryAbsolutePath));
+  EXPECT_TRUE(os::exists(newFileAbsolutePath));
+}
+
+
 TEST_F(RmdirTest, RemoveRecursiveByDefault)
 {
   const string tmpdir = os::getcwd();
