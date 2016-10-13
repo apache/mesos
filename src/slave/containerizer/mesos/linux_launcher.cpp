@@ -432,7 +432,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
   // But since both have to happen or the child will terminate the
   // ordering is immaterial.
 
-  // Hook to extend the life of the child (and all of it's
+  // Hook to extend the life of the child (and all of its
   // descendants) using a systemd slice.
   if (systemdHierarchy.isSome()) {
     parentHooks.emplace_back(Subprocess::ParentHook([](pid_t child) {

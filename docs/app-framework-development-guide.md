@@ -329,7 +329,7 @@ Declared in `MESOS_HOME/include/mesos/executor.hpp`
 /*
  * Invoked once the executor driver has been able to successfully
  * connect with Mesos. In particular, a scheduler can pass some
- * data to it's executors through the `FrameworkInfo.ExecutorInfo`'s
+ * data to its executors through the `FrameworkInfo.ExecutorInfo`'s
  * data field.
  */
 virtual void registered(
@@ -375,7 +375,7 @@ virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
 virtual void frameworkMessage(ExecutorDriver* driver, const std::string& data);
 
 /*
- * Invoked when the executor should terminate all of it's currently
+ * Invoked when the executor should terminate all of its currently
  * running tasks. Note that after a Mesos has determined that an
  * executor has terminated any tasks that the executor did not send
  * terminal status updates for (e.g., TASK_KILLED, TASK_FINISHED,

@@ -39,7 +39,7 @@ public interface Executor {
   /**
    * Invoked once the executor driver has been able to successfully
    * connect with Mesos. In particular, a scheduler can pass some
-   * data to it's executors through the {@link ExecutorInfo#getData()}
+   * data to its executors through the {@link ExecutorInfo#getData()}
    * field.
    *
    * @param driver        The executor driver that was registered and connected
@@ -123,7 +123,7 @@ public interface Executor {
   void frameworkMessage(ExecutorDriver driver, byte[] data);
 
   /**
-   * Invoked when the executor should terminate all of it's currently
+   * Invoked when the executor should terminate all of its currently
    * running tasks. Note that after Mesos has determined that an
    * executor has terminated any tasks that the executor did not send
    * terminal status updates for (e.g. TASK_KILLED, TASK_FINISHED,

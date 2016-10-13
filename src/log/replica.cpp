@@ -391,7 +391,7 @@ void ReplicaProcess::promise(const UPID& from, const PromiseRequest& request)
 
     // If the position has been truncated, tell the proposer that it's
     // a learned no-op. This can happen when a replica has missed some
-    // truncates and it's proposer tries to fill some truncated
+    // truncates and its proposer tries to fill some truncated
     // positions on election. A learned no-op is safe since the
     // proposer should eventually learn that this position was
     // actually truncated. The action must be _learned_ so that the

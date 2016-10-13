@@ -600,7 +600,7 @@ Result<Group::Membership> GroupProcess::doJoin(
   CHECK_EQ(state, READY);
 
   // Create a new ephemeral node to represent a new member and use the
-  // the specified data as it's contents.
+  // the specified data as its contents.
   string result;
 
   int code = zk->create(

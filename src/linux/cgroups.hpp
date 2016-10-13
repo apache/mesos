@@ -313,7 +313,7 @@ Try<Nothing> assign(
     pid_t pid);
 
 
-// Isolate a given process specified by it's 'pid' to a given cgroup
+// Isolate a given process specified by its 'pid' to a given cgroup
 // by both creating the cgroup (recursively) if it doesn't exist and
 // then assigning the process to that cgroup.
 //

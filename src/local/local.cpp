@@ -310,7 +310,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       }
 
       // We don't bother keeping around the pointer to this anonymous
-      // module, when we exit that will effectively free it's memory.
+      // module, when we exit that will effectively free its memory.
       //
       // TODO(benh): We might want to add explicit finalization (and
       // maybe explicit initialization too) in order to let the module

@@ -2198,7 +2198,7 @@ void MesosContainerizerProcess::______destroy(
   }
 
   // Now that we are done destroying the container we need to cleanup
-  // it's runtime directory. There are two cases to consider:
+  // its runtime directory. There are two cases to consider:
   //
   // (1) We are a nested container:
   //     In this case we should defer deletion of the runtime directory

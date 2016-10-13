@@ -192,7 +192,7 @@ public:
 ~~~
 
 > NOTE The QoS Controller must not block `corrections()`. Back the QoS
-> Controller with it's own libprocess actor instead.
+> Controller with its own libprocess actor instead.
 
 The QoS Controller informs the agent that particular corrective actions need to
 be made. Each corrective action contains information about executor or task and

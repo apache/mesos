@@ -981,7 +981,7 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
 
 // This test ensures that frameworks that have the same share get an
 // equal number of allocations over time (rather than the same
-// framework getting all the allocations because it's name is
+// framework getting all the allocations because its name is
 // lexicographically ordered first).
 TEST_F(HierarchicalAllocatorTest, SameShareFairness)
 {
@@ -3688,7 +3688,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   cout << "Added " << frameworkCount << " frameworks"
        << " in " << watch.elapsed() << endl;
 
-  // Each agent has a portion of it's resources allocated to a single
+  // Each agent has a portion of its resources allocated to a single
   // framework. We round-robin through the frameworks when allocating.
   const Resources allocation = Resources::parse(
       "cpus:1;mem:128;disk:1024;"
@@ -3801,7 +3801,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   const Resources agentResources = Resources::parse(
       "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
 
-  // Each agent has a portion of it's resources allocated to a single
+  // Each agent has a portion of its resources allocated to a single
   // framework. We round-robin through the frameworks when allocating.
   Resources allocation = Resources::parse("cpus:16;mem:2014;disk:1024").get();
 
@@ -4110,7 +4110,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
   const Resources agentResources = Resources::parse(
       "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
 
-  // Each agent has a portion of it's resources allocated to a single
+  // Each agent has a portion of its resources allocated to a single
   // framework. We round-robin through the frameworks when allocating.
   Resources allocation = Resources::parse("cpus:16;mem:1024;disk:1024").get();
 
