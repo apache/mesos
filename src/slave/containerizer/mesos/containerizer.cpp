@@ -14,10 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __WINDOWS__
-#include <sys/wait.h>
-#endif // __WINDOWS__
-
 #include <set>
 
 #include <mesos/module/isolator.hpp>
@@ -43,6 +39,8 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
+
+#include <stout/os/wait.hpp>
 
 #include "common/protobuf_utils.hpp"
 
