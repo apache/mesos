@@ -126,7 +126,7 @@ Try<MountInfoTable> MountInfoTable::read(
       if (entry.target == "/") {
         rootParentId = entry.parent;
       }
-      parentToChildren[entry.parent].push_back(std::move(entry));
+      parentToChildren[entry.parent].push_back(entry);
     }
 
     // Walk the hashmap and construct a list of entries sorted
@@ -144,8 +144,7 @@ Try<MountInfoTable> MountInfoTable::read(
       visitedParents.insert(parentId);
 
       foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
-        int newParentId = entry.id;
-        sortedEntries.push_back(std::move(entry));
+        sortedEntries.push_back(entry);
 
         // It is legal to have a `MountInfoTable` entry whose
         // `entry.id` is the same as its `entry.parent`. This can
@@ -153,8 +152,8 @@ Try<MountInfoTable> MountInfoTable::read(
         // and then keeps the original `/` in RAM. To avoid cycles
         // when walking the mount hierarchy, we only recurse into our
         // children if this case is not satisfied.
-        if (parentId != newParentId) {
-          sortFrom(newParentId);
+        if (parentId != entry.id) {
+          sortFrom(entry.id);
         }
       }
     };
