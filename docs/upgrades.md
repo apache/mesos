@@ -213,7 +213,7 @@ We categorize the changes as follows:
 
 <a name="1-1-x-allocator-updateallocation"></a>
 
-* Mesos 1.1 adds an `offeredResources` argument to the `updateAllocation` method. It is used to indicate the resources that the operations passed to `updateAllocation` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (paticularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
+* Mesos 1.1 adds an `offeredResources` argument to the `Allocator::updateAllocation()` method. It is used to indicate the resources that the operations passed to `updateAllocation()` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (paticularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
