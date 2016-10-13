@@ -102,6 +102,7 @@ nobase_include_HEADERS =			\
   stout/os/sysctl.hpp				\
   stout/os/touch.hpp				\
   stout/os/utime.hpp				\
+  stout/os/wait.hpp				\
   stout/os/write.hpp				\
   stout/os/posix/bootid.hpp			\
   stout/os/posix/chown.hpp			\
