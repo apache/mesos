@@ -86,24 +86,13 @@ Try<bool> supported(const string& fsname)
   return false;
 }
 
-
 Try<MountInfoTable> MountInfoTable::read(
-    const Option<pid_t>& pid,
+    const string& lines,
     bool hierarchicalSort)
 {
   MountInfoTable table;
 
-  const string path = path::join(
-      "/proc",
-      (pid.isSome() ? stringify(pid.get()) : "self"),
-      "mountinfo");
-
-  Try<string> lines = os::read(path);
-  if (lines.isError()) {
-    return Error("Failed to read mountinfo file: " + lines.error());
-  }
-
-  foreach (const string& line, strings::tokenize(lines.get(), "\n")) {
+  foreach (const string& line, strings::tokenize(lines, "\n")) {
     Try<Entry> parse = MountInfoTable::Entry::parse(line);
     if (parse.isError()) {
       return Error("Failed to parse entry '" + line + "': " + parse.error());
@@ -140,7 +129,7 @@ Try<MountInfoTable> MountInfoTable::read(
     std::function<void(int)> sortFrom = [&](int parentId) {
       CHECK(!visitedParents.contains(parentId))
         << "Cycle found in mount table hierarchy at entry"
-        << " '" << stringify(parentId) << "': " << std::endl << lines.get();
+        << " '" << stringify(parentId) << "': " << std::endl << lines;
 
       visitedParents.insert(parentId);
 
@@ -169,6 +158,24 @@ Try<MountInfoTable> MountInfoTable::read(
   }
 
   return table;
+}
+
+
+Try<MountInfoTable> MountInfoTable::read(
+    const Option<pid_t>& pid,
+    bool hierarchicalSort)
+{
+  const string path = path::join(
+      "/proc",
+      (pid.isSome() ? stringify(pid.get()) : "self"),
+      "mountinfo");
+
+  Try<string> lines = os::read(path);
+  if (lines.isError()) {
+    return Error("Failed to read mountinfo file: " + lines.error());
+  }
+
+  return MountInfoTable::read(lines.get(), hierarchicalSort);
 }
 
 

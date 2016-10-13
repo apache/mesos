@@ -222,6 +222,23 @@ struct MountInfoTable {
       const Option<pid_t>& pid = None(),
       bool hierarchicalSort = true);
 
+  // Read a mountinfo table from a string.
+  // @param   lines   The contents of a mountinfo table represented as
+  //                  a string. Different entries in the string are
+  //                  separated by a newline.
+  // @param   hierarchicalSort
+  //                  A boolean indicating whether the entries in the
+  //                  mountinfo table should be sorted according to
+  //                  their parent / child relationship (as opposed to
+  //                  the temporal ordering of when they were
+  //                  mounted). The two orderings may differ (for
+  //                  example) if a filesystem is remounted after some
+  //                  of its children have been mounted.
+  // @return  An instance of MountInfoTable if success.
+  static Try<MountInfoTable> read(
+      const std::string& lines,
+      bool hierarchicalSort = true);
+
   // TODO(jieyu): Introduce 'find' methods to find entries that match
   // the given conditions (e.g., target, root, devno, etc.).
 
