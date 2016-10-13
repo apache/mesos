@@ -2676,7 +2676,7 @@ bool ProcessManager::deliver(
   // the receiver using the sender if necessary to preserve the
   // happens-before relationship between the sender and receiver. Note
   // that the assumption is that the sender remains valid for at least
-  // the duration of this routine (so that we can look up it's current
+  // the duration of this routine (so that we can look up its current
   // time).
   if (Clock::paused()) {
     Clock::update(
@@ -2955,13 +2955,13 @@ void ProcessManager::link(
   if (to.address != __address__) {
     socket_manager->link(process, to, remote);
   } else {
-    // Since the pid is local we want to get a reference to it's
+    // Since the pid is local we want to get a reference to its
     // underlying process so that while we are invoking the link
     // manager we don't miss sending a possible ExitedEvent.
     if (ProcessReference _ = use(to)) {
       socket_manager->link(process, to, remote);
     } else {
-      // Since the pid isn't valid it's process must have already died
+      // Since the pid isn't valid its process must have already died
       // (or hasn't been spawned yet) so send a process exit message.
       process->enqueue(new ExitedEvent(to));
     }
@@ -3124,7 +3124,7 @@ void ProcessManager::enqueue(ProcessBase* process)
     return;
   }
 
-  // TODO(benh): Check and see if this process has it's own thread. If
+  // TODO(benh): Check and see if this process has its own thread. If
   // it does, push it on that threads runq, and wake up that thread if
   // it's not running. Otherwise, check and see which thread this
   // process was last running on, and put it on that threads runq.
@@ -3552,7 +3552,7 @@ void ProcessBase::visit(const HttpEvent& event)
 
     // TODO(benh): Use "text/plain" for assets that don't have an
     // extension or we don't have a mapping for? It might be better to
-    // just let the browser guess (or do it's own default).
+    // just let the browser guess (or do its own default).
 
     event.response->associate(response);
 
