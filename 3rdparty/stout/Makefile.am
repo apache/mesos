@@ -27,6 +27,8 @@ endif
 # the header files during installation.
 SUBDIRS = $(MAYBE_3RDPARTY) . include
 
+PHONY_TARGETS =
+
 include ../versions.am
 
 BOOST = $(BUNDLED_DIR)/boost-$(BOOST_VERSION)
@@ -193,6 +195,8 @@ check-local: tests
 tests: $(BUNDLED_DEPS)
 	$(MAKE) $(AM_MAKEFLAGS) stout-tests
 
+PHONY_TARGETS += tests
+
 all-local: Makefile
 
 EXTRA_DIST = $(stout_tests_SOURCES)
@@ -213,3 +217,5 @@ dist-hook:
 if !STANDALONE_STOUT
 	cp -r $(srcdir)/3rdparty $(distdir)/
 endif
+
+.PHONY: $(PHONY_TARGETS)
