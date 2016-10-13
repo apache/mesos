@@ -51,6 +51,7 @@ layout: documentation
 * [Quota](quota.md) for how to configure Mesos to provide guaranteed resource allocations for use by a role.
 * [Reservation](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
 * [Replicated Log](replicated-log-internals.md) for information on the Mesos replicated log.
+* [Shared Resources](shared-resources.md) for how to allow tasks to set persistent volumes as shared.
 
 ## APIs
 * [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
