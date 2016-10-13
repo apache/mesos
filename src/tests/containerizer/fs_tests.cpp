@@ -18,8 +18,6 @@
 
 #include <gmock/gmock.h>
 
-#include <set>
-
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
@@ -170,15 +168,15 @@ TEST_F(FsTest, MountInfoTableReadSorted)
   Try<MountInfoTable> table = MountInfoTable::read();
   ASSERT_SOME(table);
 
-  set<int> ids;
+  hashset<int> ids;
 
   // Verify that all parent entries appear *before* their children.
   foreach (const MountInfoTable::Entry& entry, table->entries) {
     if (entry.target != "/") {
-      ASSERT_TRUE(ids.count(entry.parent) == 1);
+      ASSERT_TRUE(ids.contains(entry.parent));
     }
 
-    ASSERT_TRUE(ids.count(entry.id) == 0);
+    ASSERT_FALSE(ids.contains(entry.id));
 
     ids.insert(entry.id);
   }
