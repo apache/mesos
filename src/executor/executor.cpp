@@ -478,10 +478,7 @@ protected:
       // Backoff and reconnect only if framework checkpointing is enabled.
       backoff();
     } else {
-      Event event;
-      event.set_type(Event::SHUTDOWN);
-
-      receive(event, true);
+      shutdown();
     }
   }
 
@@ -721,11 +718,19 @@ protected:
     }
 
     if (event.type() == Event::SHUTDOWN) {
-      shutdown();
+      _shutdown();
     }
   }
 
   void shutdown()
+  {
+    Event event;
+    event.set_type(Event::SHUTDOWN);
+
+    receive(event, true);
+  }
+
+  void _shutdown()
   {
     if (!local) {
       spawn(new ShutdownProcess(shutdownGracePeriod), true);
