@@ -307,7 +307,7 @@ check-local: tests
 	$(TEST_DRIVER) ./libprocess-tests
 
 tests: all $(BUNDLED_DEPS)
-	$(MAKE) $(AM_MAKEFLAGS) libprocess-tests benchmarks
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
