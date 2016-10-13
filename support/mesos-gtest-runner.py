@@ -245,7 +245,10 @@ if __name__ == '__main__':
                     print(result[1], file=sys.stdout)
 
         if NFAILED > 0:
-            print(Bcolors.colorize('\n[FAIL]', Bcolors.FAIL, Bcolors.BOLD),
+            print(Bcolors.colorize(
+                '\n[FAIL]: {nfailed} shards have failed tests'.format(
+                    nfailed=NFAILED),
+                Bcolors.FAIL, Bcolors.BOLD),
                   file=sys.stderr)
         else:
             print(Bcolors.colorize('\n[PASS]', Bcolors.OKGREEN, Bcolors.BOLD))
