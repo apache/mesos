@@ -16,7 +16,7 @@
 #ifdef __WINDOWS__
 // TODO(klueska): Move all `WAIT` related functions out of
 // `windows.hpp` and into this file.
-#include <windows.hpp>
+#include <stout/windows.hpp>
 #else
 #include <sys/wait.h>
 #endif // __WINDOWS__
