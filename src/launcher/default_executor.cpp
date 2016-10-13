@@ -683,8 +683,6 @@ protected:
       return;
     }
 
-    CHECK_EQ(SUBSCRIBED, state);
-
     LOG(INFO) << "Shutting down";
 
     shuttingDown = true;
@@ -693,6 +691,18 @@ protected:
       __shutdown();
       return;
     }
+
+    // It is possible that the executor library injected the shutdown event
+    // upon a disconnection with the agent for non-checkpointed
+    // frameworks or after recovery timeout for checkpointed frameworks.
+    // This could also happen when the executor is connected but the agent
+    // asked it to shutdown because it didn't subscribe in time.
+    if (state == CONNECTED || state == DISCONNECTED) {
+      __shutdown();
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
 
     process::http::connect(agent)
       .onAny(defer(self(), &Self::_shutdown, lambda::_1));
