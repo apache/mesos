@@ -147,7 +147,16 @@ Try<MountInfoTable> MountInfoTable::read(
       foreach (const MountInfoTable::Entry& entry, parentToChildren[parentId]) {
         int newParentId = entry.id;
         sortedEntries.push_back(std::move(entry));
-        sortFrom(newParentId);
+
+        // It is legal to have a `MountInfoTable` entry whose
+        // `entry.id` is the same as its `entry.parent`. This can
+        // happen (for example), if a system boots from the network
+        // and then keeps the original `/` in RAM. To avoid cycles
+        // when walking the mount hierarchy, we only recurse into our
+        // children if this case is not satisfied.
+        if (parentId != newParentId) {
+          sortFrom(newParentId);
+        }
       }
     };
 
