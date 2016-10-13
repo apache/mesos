@@ -565,7 +565,7 @@ Converts arbitrary types into strings by attempting to use an overloaded `std::o
 
 *Requires pthreads.*
 
-You can give every thread it's own copy of some data using the `ThreadLocal` abstraction:
+You can give every thread its own copy of some data using the `ThreadLocal` abstraction:
 
 ~~~{.cpp}
     ThreadLocal<std::string> local;

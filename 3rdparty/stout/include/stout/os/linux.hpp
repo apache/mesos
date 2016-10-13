@@ -92,7 +92,7 @@ inline pid_t clone(
   // (1) Failed to clone.
   //
   // (2) CLONE_VM is not set implying ::clone will create a process
-  //     which runs in it's own copy of the memory space of the
+  //     which runs in its own copy of the memory space of the
   //     calling process. If CLONE_VM is set ::clone will create a
   //     thread which runs in the same memory space with the calling
   //     process, in which case we don't want to call delete!

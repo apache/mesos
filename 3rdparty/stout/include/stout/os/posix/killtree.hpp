@@ -195,7 +195,7 @@ inline Try<std::list<ProcessTree>> killtree(
   }
 
   // There is a concern that even though some process is stopped,
-  // sending a signal to any of it's children may cause a SIGCLD to
+  // sending a signal to any of its children may cause a SIGCLD to
   // be delivered to it which wakes it up (or any other signal maybe
   // delivered). However, from the Open Group standards on "Signal
   // Concepts":
