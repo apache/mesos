@@ -22,6 +22,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/hashset.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -178,6 +179,40 @@ TEST_F(FsTest, MountInfoTableReadSorted)
     }
 
     ASSERT_TRUE(ids.count(entry.id) == 0);
+
+    ids.insert(entry.id);
+  }
+}
+
+
+TEST_F(FsTest, MountInfoTableReadSortedParentOfSelf)
+{
+  // Construct a mount info table with a few entries out of order as
+  // well as a few having themselves as parents.
+  string lines =
+    "1 1 0:00 / / rw shared:6 - sysfs sysfs rw\n"
+    "6 5 0:00 / /6 rw shared:6 - sysfs sysfs rw\n"
+    "7 6 0:00 / /7 rw shared:6 - sysfs sysfs rw\n"
+    "8 8 0:00 / /8 rw shared:6 - sysfs sysfs rw\n"
+    "9 8 0:00 / /9 rw shared:6 - sysfs sysfs rw\n"
+    "2 1 0:00 / /2 rw shared:6 - sysfs sysfs rw\n"
+    "3 2 0:00 / /3 rw shared:6 - sysfs sysfs rw\n"
+    "4 3 0:00 / /4 rw shared:6 - sysfs sysfs rw\n"
+    "5 4 0:00 / /5 rw shared:6 - sysfs sysfs rw\n";
+
+  // Examine the calling process's mountinfo table.
+  Try<MountInfoTable> table = MountInfoTable::read(lines);
+  ASSERT_SOME(table);
+
+  hashset<int> ids;
+
+  // Verify that all parent entries appear *before* their children.
+  foreach (const MountInfoTable::Entry& entry, table->entries) {
+    if (entry.target != "/") {
+      ASSERT_TRUE(ids.contains(entry.parent));
+    }
+
+    ASSERT_FALSE(ids.contains(entry.id));
 
     ids.insert(entry.id);
   }
