@@ -55,6 +55,9 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>R <a href="#1-1-x-container-logger-interface">Container Logger recovery method</a></li>
     </ul>
+    <ul style="padding-left:10px;">
+      <li>C <a href="#1-1-x-allocator-updateallocation">Allocator updateAllocation method</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
   </td>
@@ -207,6 +210,10 @@ We categorize the changes as follows:
 <a name="1-1-x-container-logger-interface"></a>
 
 * Mesos 1.1 removes the `ContainerLogger`'s `recover()` method.  The `ContainerLogger` had an incomplete interface for a stateful implementation.  This removes the incomplete parts to avoid adding tech debt in the containerizer.  Please see [MESOS-6371](https://issues.apache.org/jira/browse/MESOS-6371) for more information.
+
+<a name="1-1-x-allocator-updateallocation"></a>
+
+* Mesos 1.1 adds an `offeredResources` argument to the `updateAllocation` method. It is used to indicate the resources that the operations passed to `updateAllocation` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (paticularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
