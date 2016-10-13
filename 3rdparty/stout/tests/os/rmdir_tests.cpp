@@ -54,15 +54,15 @@ class RmdirTest : public TemporaryDirectoryTest {};
 TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryAbsolutePath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
-  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 
   // Successfully make directory using absolute path.
   const string newDirectoryName = "newDirectory";
   const string newDirectoryAbsolutePath = path::join(tmpdir, newDirectoryName);
-  expectedListing.insert(newDirectoryName);
+  const hashset<string> expectedListing = { newDirectoryName };
+
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
   EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryAbsolutePath));
@@ -76,14 +76,14 @@ TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryAbsolutePath)
 TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryRelativePath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
-  EXPECT_EQ(expectedListing, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 
   // Successfully make directory using relative path.
   const string newDirectoryName = "newDirectory";
-  expectedListing.insert(newDirectoryName);
+  const hashset<string> expectedListing = { newDirectoryName };
+
   EXPECT_SOME(os::mkdir(newDirectoryName));
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
   EXPECT_EQ(hashset<string>::EMPTY, listfiles(newDirectoryName));
@@ -98,11 +98,9 @@ TEST_F(RmdirTest, TrivialRemoveEmptyDirectoryRelativePath)
 TEST_F(RmdirTest, RemoveFile)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedRootListing = hashset<string>::EMPTY;
-  hashset<string> expectedSubListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
-  EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 
   // Successfully make directory using absolute path, and then `touch` a file
   // in that folder.
@@ -113,8 +111,8 @@ TEST_F(RmdirTest, RemoveFile)
       newDirectoryAbsolutePath,
       newFileName);
 
-  expectedRootListing.insert(newDirectoryName);
-  expectedSubListing.insert(newFileName);
+  const hashset<string> expectedRootListing = { newDirectoryName };
+  const hashset<string> expectedSubListing = { newFileName };
 
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_SOME(os::touch(newFileAbsolutePath));
@@ -156,11 +154,9 @@ TEST_F(RmdirTest, RemoveFile)
 TEST_F(RmdirTest, RemoveRecursiveByDefault)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedRootListing = hashset<string>::EMPTY;
-  hashset<string> expectedSubListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
-  EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 
   // Successfully make directory using absolute path, and then `touch` a file
   // in that folder.
@@ -171,8 +167,8 @@ TEST_F(RmdirTest, RemoveRecursiveByDefault)
       newDirectoryAbsolutePath,
       newFileName);
 
-  expectedRootListing.insert(newDirectoryName);
-  expectedSubListing.insert(newFileName);
+  const hashset<string> expectedRootListing = { newDirectoryName };
+  const hashset<string> expectedSubListing = { newFileName };
 
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_SOME(os::touch(newFileAbsolutePath));
@@ -203,16 +199,15 @@ TEST_F(RmdirTest, TrivialFailToRemoveInvalidPath)
 TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 {
   const string tmpdir = os::getcwd();
-  hashset<string> expectedRootListing = hashset<string>::EMPTY;
 
   // Directory is initially empty.
-  EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
+  EXPECT_EQ(hashset<string>::EMPTY, listfiles(tmpdir));
 
   // Successfully make directory using absolute path.
   const string newDirectoryName = "newDirectory";
   const string newDirectoryAbsolutePath = path::join(tmpdir, newDirectoryName);
 
-  expectedRootListing.insert(newDirectoryName);
+  const hashset<string> expectedRootListing = { newDirectoryName };
 
   EXPECT_SOME(os::mkdir(newDirectoryAbsolutePath));
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
