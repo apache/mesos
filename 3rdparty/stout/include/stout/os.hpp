@@ -63,6 +63,7 @@
 #include <stout/os/su.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/utime.hpp>
+#include <stout/os/wait.hpp>
 
 #include <stout/os/raw/argv.hpp>
 #include <stout/os/raw/environment.hpp>
