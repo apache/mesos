@@ -22,8 +22,6 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
-#include <stout/os/raw/argv.hpp>
-
 #include "launcher/posix/executor.hpp"
 
 #ifdef __linux__
@@ -93,6 +91,21 @@ pid_t launchTaskPosix(
     launchFlags.working_directory = workingDirectory.isSome()
       ? workingDirectory
       : sandboxDirectory;
+
+    // TODO(jieyu): If the task has a rootfs, the executor itself will
+    // be running as root. Its sandbox is owned by root as well. In
+    // order for the task to be able to access to its sandbox, we need
+    // to make sure the owner of the sandbox is 'user'. However, this
+    // is still a workaround. The owner of the files downloaded by the
+    // fetcher is still not correct (i.e., root).
+    if (user.isSome()) {
+      // NOTE: We only chown the sandbox directory (non-recursively).
+      Try<Nothing> chown = os::chown(user.get(), os::getcwd(), false);
+      if (chown.isError()) {
+        ABORT("Failed to chown sandbox to user " +
+              user.get() + ": " + chown.error());
+      }
+    }
   }
 
   launchFlags.rootfs = rootfs;
