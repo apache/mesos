@@ -718,11 +718,10 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::network_cni_plugins_dir,
       "network_cni_plugins_dir",
-      "Directory path of the CNI plugin binaries. The `network/cni`\n"
-      "isolator will find CNI plugins under this directory so that\n"
+      "A search path for CNI plugin binaries. The `network/cni`\n"
+      "isolator will find CNI plugins under these set of directories so that\n"
       "it can execute the plugins to add/delete container from the CNI\n"
-      "networks. It is the operator's responsibility to install the CNI\n"
-      "plugin binaries in the specified directory.");
+      "networks.");
 
   add(&Flags::network_cni_config_dir,
       "network_cni_config_dir",

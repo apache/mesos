@@ -98,30 +98,13 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     return Error("Missing required '--network_cni_config_dir' flag");
   }
 
-  if (!os::exists(flags.network_cni_plugins_dir.get())) {
-    return Error(
-        "The CNI plugin directory '" +
-        flags.network_cni_plugins_dir.get() + "' does not exist");
-  }
-
   if (!os::exists(flags.network_cni_config_dir.get())) {
     return Error(
         "The CNI network configuration directory '" +
         flags.network_cni_config_dir.get() + "' does not exist");
   }
 
-  Try<list<string>> entries = os::ls(flags.network_cni_plugins_dir.get());
-  if (entries.isError()) {
-    return Error(
-        "Unable to list the CNI plugin directory '" +
-        flags.network_cni_plugins_dir.get() + "': " + entries.error());
-  } else if (entries.get().size() == 0) {
-    return Error(
-        "The CNI plugin directory '" +
-        flags.network_cni_plugins_dir.get() + "' is empty");
-  }
-
-  entries = os::ls(flags.network_cni_config_dir.get());
+  Try<list<string>> entries = os::ls(flags.network_cni_config_dir.get());
   if (entries.isError()) {
     return Error(
         "Unable to list the CNI network configuration directory '" +
@@ -159,47 +142,28 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     }
 
     const string& type = networkConfig.type();
-    string pluginPath = path::join(flags.network_cni_plugins_dir.get(), type);
-    if (!os::exists(pluginPath)) {
-      return Error(
-          "Failed to find CNI plugin '" + pluginPath +
-          "' used by CNI network configuration file '" + path + "'");
-    }
 
-    Try<os::Permissions> permissions = os::permissions(pluginPath);
-    if (permissions.isError()) {
+    Option<string> plugin = os::which(
+        type,
+        flags.network_cni_plugins_dir.get());
+
+    if (plugin.isNone()) {
       return Error(
-          "Failed to stat CNI plugin '" + pluginPath + "': " +
-          permissions.error());
-    } else if (!permissions.get().owner.x &&
-               !permissions.get().group.x &&
-               !permissions.get().others.x) {
-      return Error(
-          "The CNI plugin '" + pluginPath + "' used by CNI network"
-          " configuration file '" + path + "' is not executable");
+          "Failed to find CNI plugin '" + type +
+          "' used by CNI network configuration file '" + path + "'");
     }
 
     if (networkConfig.has_ipam()) {
       const string& ipamType = networkConfig.ipam().type();
 
-      pluginPath = path::join(flags.network_cni_plugins_dir.get(), ipamType);
-      if (!os::exists(pluginPath)) {
-        return Error(
-            "Failed to find CNI IPAM plugin '" + pluginPath +
-            "' used by CNI network configuration file '" + path + "'");
-      }
+      Option<string> ipam = os::which(
+          ipamType,
+          flags.network_cni_plugins_dir.get());
 
-      permissions = os::permissions(pluginPath);
-      if (permissions.isError()) {
+      if (ipam.isNone()) {
         return Error(
-            "Failed to stat CNI IPAM plugin '" + pluginPath + "': " +
-            permissions.error());
-      } else if (!permissions.get().owner.x &&
-                 !permissions.get().group.x &&
-                 !permissions.get().others.x) {
-        return Error(
-            "The CNI IPAM plugin '" + pluginPath + "' used by CNI network"
-            " configuration file '" + path + "' is not executable");
+            "Failed to find CNI IPAM plugin '" + ipamType +
+            "' used by CNI network configuration file '" + path + "'");
       }
     }
 
@@ -333,22 +297,12 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  Result<string> pluginDir = os::realpath(flags.network_cni_plugins_dir.get());
-  if (!pluginDir.isSome()) {
-    return Error(
-        "Failed to determine canonical path of CNI plugin directory '" +
-        flags.network_cni_plugins_dir.get() + "': " +
-        (pluginDir.isError()
-          ? pluginDir.error()
-          : "No such file or directory"));
-  }
-
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new NetworkCniIsolatorProcess(
           flags,
           networkConfigs,
           rootDir.get(),
-          pluginDir.get())));
+          flags.network_cni_plugins_dir.get())));
 }
 
 
@@ -1172,16 +1126,28 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   }
 
   // Invoke the CNI plugin.
-  const string& plugin = networkConfig.config.type();
+  //
+  // NOTE: We want to execute only the plugin found in the `pluginDir`
+  // path specified by the operator.
+  Option<string> plugin = os::which(
+      networkConfig.config.type(),
+      pluginDir.get());
 
-  VLOG(1) << "Invoking CNI plugin '" << plugin
+  if (plugin.isNone()) {
+    return Failure(
+        "Unable to find the plugin " + networkConfig.config.type() +
+        " required to attach " + stringify(containerId) +
+        " to network '" + networkName + "'");
+  }
+
+  VLOG(1) << "Invoking CNI plugin '" << plugin.get()
           << "' with network configuration '" << stringify(networkConfigJson)
           << "' to attach container " << containerId << " to network '"
           << networkName << "'";
 
   Try<Subprocess> s = subprocess(
-      path::join(pluginDir.get(), plugin),
-      {plugin},
+      plugin.get(),
+      {networkConfig.config.type()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
@@ -1190,7 +1156,8 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
 
   if (s.isError()) {
     return Failure(
-        "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
+        "Failed to execute the CNI plugin '" +
+        plugin.get() + "': " + s.error());
   }
 
   return await(s->status(), io::read(s->out().get()))
@@ -1199,7 +1166,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         &NetworkCniIsolatorProcess::_attach,
         containerId,
         networkName,
-        plugin,
+        plugin.get(),
         lambda::_1));
 }
 
@@ -1483,17 +1450,31 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
       containerId.value(),
       networkName);
 
-  // Invoke the CNI plugin.
-  const string& plugin = networkConfigs[networkName].config.type();
+  const NetworkConfigInfo& networkConfig = networkConfigs[networkName];
 
-  VLOG(1) << "Invoking CNI plugin '" << plugin
+  // Invoke the CNI plugin.
+  //
+  // NOTE: We want to execute only the plugin found in the `pluginDir`
+  // path specified by the operator.
+  Option<string> plugin = os::which(
+      networkConfig.config.type(),
+      pluginDir.get());
+
+  if (plugin.isNone()) {
+    return Failure(
+        "Unable to find the plugin " + networkConfig.config.type() +
+        " required to detach " + stringify(containerId) +
+        " to network '" + networkName + "'");
+  }
+
+  VLOG(1) << "Invoking CNI plugin '" << plugin.get()
           << "' with network configuration '" << networkConfigPath
           << "' to detach container " << containerId << " from network '"
           << networkName << "'";
 
   Try<Subprocess> s = subprocess(
-      path::join(pluginDir.get(), plugin),
-      {plugin},
+      plugin.get(),
+      {networkConfig.config.type()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PATH("/dev/null"),
@@ -1502,7 +1483,8 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
 
   if (s.isError()) {
     return Failure(
-        "Failed to execute the CNI plugin '" + plugin + "': " + s.error());
+        "Failed to execute the CNI plugin '" + plugin.get() +
+        "': " + s.error());
   }
 
   return await(s->status(), io::read(s->out().get()))
@@ -1511,7 +1493,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
         &NetworkCniIsolatorProcess::_detach,
         containerId,
         networkName,
-        plugin,
+        plugin.get(),
         lambda::_1));
 }
 
