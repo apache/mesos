@@ -250,7 +250,7 @@ public:
         "      \"docker_volume\":\n"
         "        {\n"
         "          \"driver\": \"volume_driver\",\n"
-        "          \"docker_options\":\n"
+        "          \"driver_options\":\n"
         "            {\"parameter\":[\n"
         "              {\n"
         "                \"key\": \"key\",\n"
