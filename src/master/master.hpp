@@ -911,7 +911,7 @@ private:
 
   void accept(
       Framework* framework,
-      const scheduler::Call::Accept& accept);
+      scheduler::Call::Accept accept);
 
   void _accept(
       const FrameworkID& frameworkId,

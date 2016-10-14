@@ -1011,8 +1011,8 @@ Option<Error> validateTask(
 
   // Now do `TaskGroup` specific validation.
 
-  if (task.has_executor()) {
-    return Error("'TaskInfo.executor' must not be set");
+  if (!task.has_executor()) {
+    return Error("'TaskInfo.executor' must be set");
   }
 
   if (task.has_container()) {
@@ -1085,6 +1085,17 @@ Option<Error> validateExecutor(
   if (executor.has_container() &&
       executor.container().type() == ContainerInfo::DOCKER) {
     return Error("Docker ContainerInfo is not supported on the executor");
+  }
+
+  // Validate the `ExecutorInfo` in all tasks are same.
+
+  foreach (const TaskInfo& task, taskGroup.tasks()) {
+    if (task.has_executor() && task.executor() != executor) {
+      return Error(
+          "The `ExecutorInfo` of "
+          "task '" + stringify(task.task_id()) + "' is different from "
+          "executor '" + stringify(executor.executor_id()) + "'");
+    }
   }
 
   const Resources& executorResources = executor.resources();

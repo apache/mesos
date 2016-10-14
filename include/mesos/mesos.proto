@@ -1436,8 +1436,9 @@ message TaskInfo {
  * allow the group to be launched "atomically".
  *
  * NOTES:
- * 1) `TaskInfo.executor` must not be set.
- * 2) `NetworkInfo` must not be set inside task's `ContainerInfo`.
+ * 1) `NetworkInfo` must not be set inside task's `ContainerInfo`.
+ * 2) `TaskInfo.executor` doesn't need to set. If set, it should match
+ *    `LaunchGroup.executor`.
  */
 message TaskGroupInfo {
   repeated TaskInfo tasks = 1;

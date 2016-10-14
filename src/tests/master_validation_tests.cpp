@@ -2105,9 +2105,9 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
 }
 
 
-// Ensures that a task in a task group with an executor
+// Ensures that a task in a task group with a different executor
 // is rejected during `TaskGroupInfo` validation.
-TEST_F(TaskGroupValidationTest, TaskUsesExecutor)
+TEST_F(TaskGroupValidationTest, TaskUsesDifferentExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2116,9 +2116,12 @@ TEST_F(TaskGroupValidationTest, TaskUsesExecutor)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("Test_Framework");
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -2137,23 +2140,25 @@ TEST_F(TaskGroupValidationTest, TaskUsesExecutor)
   Resources resources = Resources::parse("cpus:1;mem:512;disk:32").get();
 
   ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
   executor.set_type(ExecutorInfo::CUSTOM);
   executor.mutable_resources()->CopyFrom(resources);
 
-  // Create an invalid task that has executor.
+  // Create an invalid task that has a different executor.
   TaskInfo task1;
   task1.set_name("1");
   task1.mutable_task_id()->set_value("1");
   task1.mutable_slave_id()->MergeFrom(offer.slave_id());
   task1.mutable_resources()->MergeFrom(resources);
   task1.mutable_executor()->MergeFrom(executor);
+  task1.mutable_executor()->set_type(ExecutorInfo::DEFAULT);
 
   // Create a valid task.
   TaskInfo task2;
   task2.set_name("2");
   task2.mutable_task_id()->set_value("2");
   task2.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task1.mutable_resources()->MergeFrom(resources);
+  task2.mutable_resources()->MergeFrom(resources);
 
   TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(task1);
@@ -2180,8 +2185,9 @@ TEST_F(TaskGroupValidationTest, TaskUsesExecutor)
   EXPECT_EQ(task1.task_id(), task1Status->task_id());
   EXPECT_EQ(TASK_ERROR, task1Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
-  EXPECT_EQ("Task '1' is invalid: 'TaskInfo.executor' must not be set",
-            task1Status->message());
+  EXPECT_EQ(
+      "The `ExecutorInfo` of task '1' is different from executor 'default'",
+      task1Status->message());
 
   AWAIT_READY(task2Status);
   EXPECT_EQ(task2.task_id(), task2Status->task_id());
