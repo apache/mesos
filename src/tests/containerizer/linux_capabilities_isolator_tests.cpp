@@ -260,26 +260,26 @@ INSTANTIATE_TEST_CASE_P(
     TestParam,
     LinuxCapabilitiesIsolatorTest,
     ::testing::Values(
-        // Dropped all capabilities, thus ping will fail.
-        TestParam(set<Capability>(), None(), false, false),
-        TestParam(set<Capability>(), None(), true, false),
+        // Dropped all relevant capabilities, thus ping will fail.
+        TestParam(set<Capability>({DAC_READ_SEARCH}), None(), false, false),
+        TestParam(set<Capability>({DAC_READ_SEARCH}), None(), true, false),
         TestParam(
-            set<Capability>(),
+            set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             false,
             false),
         TestParam(
-            set<Capability>(),
+            set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             true,
             false),
         TestParam(
-            set<Capability>(),
+            set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             false,
             false),
         TestParam(
-            set<Capability>(),
+            set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             true,
             false),
