@@ -619,7 +619,7 @@ TEST_F(SubprocessTest, Default)
 #endif // __WINDOWS__
 
 
-struct Flags : public flags::FlagsBase
+struct Flags : public virtual flags::FlagsBase
 {
   Flags()
   {
