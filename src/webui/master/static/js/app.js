@@ -40,7 +40,9 @@
         //
         //     https://github.com/angular/angular.js/issues/1838
         .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse',
-          {template: ' ', controller: 'AgentExecutorRerouterCtrl'})
+          {template: ' ', controller: 'AgentTaskAndExecutorRerouterCtrl'})
+        .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/tasks/:task_id/browse',
+          {template: ' ', controller: 'AgentTaskAndExecutorRerouterCtrl'})
         .when('/agents/:agent_id/browse',
           {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
 

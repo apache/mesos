@@ -84,7 +84,7 @@
             </span>
           </td>
           <td>
-            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/tasks/{{task.id}}/browse">
               Sandbox
             </a>
             <span class="text-muted" data-ng-show="!agents[task.slave_id]">
@@ -129,7 +129,7 @@
             </span>
           </td>
           <td>
-            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/browse">
+            <a data-ng-show="agents[task.slave_id]" href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}/tasks/{{task.id}}/browse">
               Sandbox
             </a>
             <span class="text-muted" data-ng-show="!agents[task.slave_id]">

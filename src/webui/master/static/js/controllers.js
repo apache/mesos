@@ -49,6 +49,21 @@
     }
   }
 
+  // Set the task sandbox directory for use by the WebUI.
+  function setTaskSandbox(executor) {
+    _.each(
+        [executor.tasks, executor.queued_tasks, executor.completed_tasks],
+        function(tasks) {
+      _.each(tasks, function(task) {
+        if (executor.type === 'DEFAULT') {
+          task.directory = executor.directory + '/tasks/' + task.id;
+        } else {
+          task.directory = executor.directory;
+        };
+      });
+    });
+  }
+
 
   // Update the outermost scope with the new state.
   function updateState($scope, $timeout, state) {
@@ -705,6 +720,8 @@
             return;
           }
 
+          setTaskSandbox($scope.executor);
+
           $('#agent').show();
         })
         .error(function (reason) {
@@ -722,15 +739,17 @@
   }]);
 
 
-  // Reroutes a request like
-  // '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse'
-  // to the executor's sandbox. This requires a second request because the
-  // directory to browse is known by the agent but not by the master. Request
-  // the directory from the agent, and then redirect to it.
+  // Reroutes requests like:
+  //   * '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/browse'
+  //   * '/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/tasks/:task_id/browse'
+  // to the sandbox directory of the executor or the task respectively. This
+  // requires a second request because the directory to browse is known by the
+  // agent but not by the master. Request the directory from the agent, and then
+  // redirect to it.
   //
   // TODO(ssorallen): Add `executor.directory` to the master's state endpoint
   // output so this controller of rerouting is no longer necessary.
-  mesosApp.controller('AgentExecutorRerouterCtrl',
+  mesosApp.controller('AgentTaskAndExecutorRerouterCtrl',
       function($alert, $http, $location, $routeParams, $scope, $window) {
 
     function goBack(flashMessageOrOptions) {
@@ -809,10 +828,37 @@
           );
         }
 
+        var sandboxDirectory = executor.directory;
+
+        // Continue to navigate to the task's sandbox if the task id is
+        // specified in route parameters.
+        if ($routeParams.task_id) {
+          setTaskSandbox(executor);
+
+          function matchTask(task) {
+            return $routeParams.task_id === task.id;
+          }
+
+          var task =
+            _.find(executor.tasks, matchTask) ||
+            _.find(executor.queued_tasks, matchTask) ||
+            _.find(executor.completed_tasks, matchTask);
+
+          if (!task) {
+            return goBack(
+              "Task with ID '" + $routeParams.task_id +
+                "' does not exist on agent with ID '" + $routeParams.agent_id +
+                "'."
+            );
+          }
+
+          sandboxDirectory = task.directory;
+        }
+
         // Navigate to a path like '/agents/:id/browse?path=%2Ftmp%2F', the
         // recognized "browse" endpoint for an agent.
         $location.path('/agents/' + $routeParams.agent_id + '/browse')
-          .search({path: executor.directory})
+          .search({path: sandboxDirectory})
           .replace();
       })
       .error(function(response) {
