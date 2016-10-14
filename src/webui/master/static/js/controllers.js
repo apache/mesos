@@ -240,13 +240,6 @@
     return true; // Continue polling.
   }
 
-  // Add a filter to convert small float number to decimal string
-  mesosApp.filter('decimalFloat', function() {
-    return function(num) {
-      return num ? parseFloat(num.toFixed(4)).toString() : num;
-    }
-  });
-
   // Update the outermost scope with the metrics/snapshot endpoint.
   function updateMetrics($scope, $timeout, data) {
     var metrics = JSON.parse(data);

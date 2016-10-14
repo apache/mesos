@@ -118,6 +118,12 @@
         }
       };
     })
+    // A filter that uses to convert small float number to decimal string.
+    .filter('decimalFloat', function() {
+      return function(num) {
+        return num ? parseFloat(num.toFixed(4)).toString() : num;
+      }
+    })
     .filter('dataSize', function() {
       var BYTES_PER_KB = Math.pow(2, 10);
       var BYTES_PER_MB = Math.pow(2, 20);
