@@ -29,7 +29,7 @@ using std::vector;
 class TestSubcommand : public Subcommand
 {
 public:
-  struct Flags : public flags::FlagsBase
+  struct Flags : public virtual flags::FlagsBase
   {
     Flags()
     {
