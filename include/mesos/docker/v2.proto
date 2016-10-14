@@ -47,20 +47,22 @@ message ImageManifest {
 
   message Signature {
 
-    //JOSE (A JSON Web Signature).
+    // The JSON Web Signature. For more detail please see:
+    // http://self-issued.info/docs/draft-ietf-jose-json-web-signature.html
     message Header {
 
-      //JSON Web Key.
+      // The JSON Web Key. For more detail please see:
+      // https://tools.ietf.org/html/rfc7517 for more
       message Jwk {
-        required string crv = 1;
-        required string kid = 2;
-        required string kty = 3;
-        required string x = 4;
-        required string y = 5;
+        optional string crv = 1;    // The cryptographic curve.
+        optional string kid = 2;    // The key ID. OPTIONAL.
+        required string kty = 3;    // The key type. MUST be present in a JWK.
+        optional string x = 4;      // The base64url-encoded x coordinate.
+        optional string y = 5;      // The base64url-encoded y coordinate.
       }
 
-      optional Jwk jwk = 1;
-      required string alg = 2;
+      optional Jwk jwk = 1;         // The JSON Web Key. OPTIONAL.
+      required string alg = 2;      // The algorithm. MUST be present.
     }
 
     required Header header = 1;
