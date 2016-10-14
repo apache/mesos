@@ -67,16 +67,16 @@ msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:stout_tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM TODO(josephw): Uncomment this after fixing the tests on Windows.
-REM "3rdparty/stout/tests/Debug/stout_tests.exe"
-REM if %errorlevel% neq 0 exit /b %errorlevel%
+"3rdparty/stout/tests/Debug/stout_tests.exe"
+if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build and run the libprocess tests.
 msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:process_tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM TODO(josephw): Uncomment this after fixing the tests on Windows.
-REM "3rdparty/libprocess/src/tests/Debug/process_tests.exe"
-REM if %errorlevel% neq 0 exit /b %errorlevel%
+"3rdparty/libprocess/src/tests/Debug/process_tests.exe"
+if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build everything else.
 msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m
