@@ -153,6 +153,10 @@ struct ExecutorWriter
       writer->field("labels", executor_->info.labels());
     }
 
+    if (executor_->info.has_type()) {
+      writer->field("type", ExecutorInfo::Type_Name(executor_->info.type()));
+    }
+
     writer->field("tasks", [this](JSON::ArrayWriter* writer) {
       foreach (Task* task, executor_->launchedTasks.values()) {
         if (!approveViewTask(taskApprover_, *task, framework_->info)) {

@@ -25,6 +25,7 @@
 #include <mesos/v1/executor.hpp>
 #include <mesos/v1/scheduler.hpp>
 
+#include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/hashset.hpp>
@@ -39,6 +40,9 @@ using mesos::v1::scheduler::Mesos;
 
 using process::Future;
 using process::Owned;
+
+using process::http::OK;
+using process::http::Response;
 
 using std::pair;
 using std::set;
@@ -181,6 +185,25 @@ TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
           executorInfo.executor_id()),
       "tasks",
       taskInfo.task_id().value())));
+
+  // Verify that the executor's type is exposed in the agent's state
+  // endpoint.
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+  JSON::Object state = parse.get();
+
+  EXPECT_SOME_EQ(
+      JSON::String(ExecutorInfo::Type_Name(executorInfo.type())),
+      state.find<JSON::String>("frameworks[0].executors[0].type"));
 }
 
 

@@ -530,6 +530,10 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
   if (executorInfo.has_labels()) {
     writer->field("labels", executorInfo.labels());
   }
+
+  if (executorInfo.has_type()) {
+    writer->field("type", ExecutorInfo::Type_Name(executorInfo.type()));
+  }
 }
 
 
