@@ -1424,6 +1424,104 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.join();
 }
 
+
+// Tests that the task fails when it attempts to write to a persistent volume
+// mounted as read-only. Note that although we use a shared persistent volume,
+// the behavior is same for non-shared persistent volume.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_WriteAccessSharedPersistentVolumeReadOnlyMode)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpus:2;mem:128;disk(role1):128";
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  // We create a shared volume which shall be used by the task to
+  // write to that volume.
+  Resource volume = createPersistentVolume(
+      Megabytes(4),
+      "role1",
+      "id1",
+      "volume_path",
+      None(),
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  // The task uses the shared volume as read-only.
+  Resource roVolume = volume;
+  roVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RO);
+
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:64;disk(role1):1").get() + roVolume;
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      taskResources,
+      "echo hello > volume_path/file");
+
+  // The task fails to write to the volume since the task's resources
+  // intends to use the volume as read-only.
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFailed;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  driver.acceptOffers(
+      {offers.get()[0].id()},
+      {CREATE(volume),
+       LAUNCH({task})});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(task.task_id(), statusFailed->task_id());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

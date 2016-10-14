@@ -421,9 +421,6 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
       if (!resource.disk().has_volume()) {
         return Error("Expecting 'volume' to be set for persistent volume");
       }
-      if (resource.disk().volume().mode() == Volume::RO) {
-        return Error("Read-only persistent volume not supported");
-      }
       if (resource.disk().volume().has_host_path()) {
         return Error("Expecting 'host_path' to be unset for persistent volume");
       }
@@ -500,6 +497,10 @@ Option<Error> validatePersistentVolume(
       return Error("Resource " + stringify(volume) + " does not have DiskInfo");
     } else if (!volume.disk().has_persistence()) {
       return Error("'persistence' is not set in DiskInfo");
+    } else if (!volume.disk().has_volume()) {
+      return Error("Expecting 'volume' to be set for persistent volume");
+    } else if (volume.disk().volume().mode() == Volume::RO) {
+      return Error("Read-only persistent volume not supported");
     }
   }
 

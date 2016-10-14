@@ -150,6 +150,16 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
     }
   }
 
+  // Get user and group info for this task based on the task's sandbox.
+  struct stat s;
+  if (::stat(info->directory.c_str(), &s) < 0) {
+    return Failure("Failed to get ownership for '" + info->directory +
+                   "': " + os::strerror(errno));
+  }
+
+  const uid_t uid = s.st_uid;
+  const gid_t gid = s.st_gid;
+
   // We then link additional persistent volumes.
   foreach (const Resource& resource, resources.persistentVolumes()) {
     // This is enforced by the master.
@@ -171,41 +181,40 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
 
     string original = paths::getPersistentVolumePath(flags.work_dir, resource);
 
-    // Set the ownership of the persistent volume to match that of the
-    // sandbox directory.
-    //
-    // NOTE: Currently, persistent volumes in Mesos are exclusive,
-    // meaning that if a persistent volume is used by one task or
-    // executor, it cannot be concurrently used by other task or
-    // executor. But if we allow multiple executors to use same
-    // persistent volume at the same time in the future, the ownership
-    // of the persistent volume may conflict here.
-    //
-    // TODO(haosdent): Consider letting the frameworks specify the
-    // user/group of the persistent volumes.
-    struct stat s;
-    if (::stat(info->directory.c_str(), &s) < 0) {
-      return Failure("Failed to get ownership for '" + info->directory + "': " +
-                     os::strerror(errno));
+    bool isVolumeInUse = false;
+
+    foreachvalue (const Owned<Info>& info, infos) {
+      if (info->resources.contains(resource)) {
+        isVolumeInUse = true;
+        break;
+      }
     }
 
-    // TODO(hausdorff): (MESOS-5461) Persistent volumes maintain the invariant
-    // that they are used by one task at a time. This is currently enforced by
-    // `os::chown`. Windows does not support `os::chown`, we will need to
-    // revisit this later.
+    // Set the ownership of the persistent volume to match that of the sandbox
+    // directory if the volume is not already in use. If the volume is
+    // currently in use by other containers, tasks in this container may fail
+    // to read from or write to the persistent volume due to incompatible
+    // ownership and file system permissions.
+    if (!isVolumeInUse) {
+      // TODO(hausdorff): (MESOS-5461) Persistent volumes maintain the invariant
+      // that they are used by one task at a time. This is currently enforced by
+      // `os::chown`. Windows does not support `os::chown`, we will need to
+      // revisit this later.
 #ifndef __WINDOWS__
-    LOG(INFO) << "Changing the ownership of the persistent volume at '"
-              << original << "' with uid " << s.st_uid
-              << " and gid " << s.st_gid;
+      LOG(INFO) << "Changing the ownership of the persistent volume at '"
+                << original << "' with uid " << uid << " and gid " << gid;
 
-    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, original, false);
-    if (chown.isError()) {
-      return Failure(
-          "Failed to change the ownership of the persistent volume at '" +
-          original + "' with uid " + stringify(s.st_uid) +
-          " and gid " + stringify(s.st_gid) + ": " + chown.error());
-    }
+      Try<Nothing> chown = os::chown(uid, gid, original, false);
+
+      if (chown.isError()) {
+        return Failure(
+            "Failed to change the ownership of the persistent volume at '" +
+            original + "' with uid " + stringify(uid) +
+            " and gid " + stringify(gid) + ": " + chown.error());
+      }
 #endif
+    }
+
     string link = path::join(info->directory, containerPath);
 
     if (os::exists(link)) {
@@ -241,6 +250,13 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
       LOG(INFO) << "Adding symlink from '" << original << "' to '"
                 << link << "' for persistent volume " << resource
                 << " of container " << containerId;
+
+      // NOTE: We cannot enforce read-only access given the symlink without
+      // changing the source so we just log a warning here.
+      if (resource.disk().volume().mode() == Volume::RO) {
+        LOG(WARNING) << "Allowing read-write access to read-only volume '"
+                     << original << "' of container " << containerId;
+      }
 
       Try<Nothing> symlink = ::fs::symlink(original, link);
       if (symlink.isError()) {

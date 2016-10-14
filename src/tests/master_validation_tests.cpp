@@ -153,15 +153,6 @@ TEST_F(ResourceValidationTest, PersistentVolumeWithoutVolumeInfo)
 }
 
 
-TEST_F(ResourceValidationTest, ReadOnlyPersistentVolume)
-{
-  Resource volume = Resources::parse("disk", "128", "role1").get();
-  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1", Volume::RO));
-
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
-}
-
-
 TEST_F(ResourceValidationTest, PersistentVolumeWithHostPath)
 {
   Resource volume = Resources::parse("disk", "128", "role1").get();
@@ -496,6 +487,18 @@ TEST_F(CreateOperationValidationTest, NonMatchingPrincipal)
 
     EXPECT_SOME(operation::validate(create, Resources(), "principal"));
   }
+}
+
+
+TEST_F(CreateOperationValidationTest, ReadOnlyPersistentVolume)
+{
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1", Volume::RO));
+
+  Offer::Operation::Create create;
+  create.add_volumes()->CopyFrom(volume);
+
+  EXPECT_SOME(operation::validate(create, Resources(), None()));
 }
 
 
