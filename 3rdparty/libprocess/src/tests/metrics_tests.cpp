@@ -136,7 +136,8 @@ TEST_F(MetricsTest, Counter)
 }
 
 
-TEST_F(MetricsTest, Gauge)
+// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(MetricsTest, Gauge)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -201,7 +202,8 @@ TEST_F(MetricsTest, Statistics)
 }
 
 
-TEST_F(MetricsTest, Snapshot)
+// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(MetricsTest, Snapshot)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -273,7 +275,8 @@ TEST_F(MetricsTest, Snapshot)
 }
 
 
-TEST_F(MetricsTest, SnapshotTimeout)
+// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(MetricsTest, SnapshotTimeout)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -507,7 +510,8 @@ TEST_F(MetricsTest, AsyncTimer)
 
 // Tests that the `/metrics/snapshot` endpoint rejects unauthenticated requests
 // when HTTP authentication is enabled.
-TEST_F(MetricsTest, SnapshotAuthenticationEnabled)
+// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(MetricsTest, SnapshotAuthenticationEnabled)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

@@ -26,7 +26,9 @@ using process::Clock;
 using process::Future;
 using process::RateLimiter;
 
-TEST(LimiterTest, Acquire)
+
+// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_TEMP_DISABLED_ON_WINDOWS(LimiterTest, Acquire)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -56,7 +58,8 @@ TEST(LimiterTest, Acquire)
 // In this test 4 permits are given, but the 2nd permit's acquire
 // is immediately discarded. So, 1st, 3rd and 4th permits should
 // be acquired according to the rate limit.
-TEST(LimiterTest, DiscardMiddle)
+// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_TEMP_DISABLED_ON_WINDOWS(LimiterTest, DiscardMiddle)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -94,7 +97,8 @@ TEST(LimiterTest, DiscardMiddle)
 // In this test 2 permits are initially given, but the 2nd permit's
 // future is immediately discarded. Then the 3rd permit is given. So,
 // 1st and 3rd permits should be acquired according to the rate limit.
-TEST(LimiterTest, DiscardLast)
+// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
+TEST_TEMP_DISABLED_ON_WINDOWS(LimiterTest, DiscardLast)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

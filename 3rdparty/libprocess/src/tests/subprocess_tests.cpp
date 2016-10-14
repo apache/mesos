@@ -264,7 +264,7 @@ TEST_F(SubprocessTest, Status)
   AWAIT_EXPECT_WEXITSTATUS_EQ(1, s.get().status());
 
   // SIGTERM.
-  s = subprocess("sleep 60");
+  s = subprocess(SLEEP_COMMAND(60));
 
   ASSERT_SOME(s);
 
@@ -281,7 +281,7 @@ TEST_F(SubprocessTest, Status)
   AWAIT_EXPECT_WTERMSIG_EQ(SIGTERM, s.get().status());
 
   // SIGKILL.
-  s = subprocess("sleep 60");
+  s = subprocess(SLEEP_COMMAND(60));
 
   ASSERT_SOME(s);
 

@@ -55,7 +55,7 @@ TEST(ReapTest, NonChildProcess)
   //  -+- child (exit 0)
   //  -+- grandchild sleep 10
   Try<ProcessTree> tree = Fork(None(),
-                               Fork(Exec("sleep 10")),
+                               Fork(Exec(SLEEP_COMMAND(10))),
                                Exec("exit 0"))();
   ASSERT_SOME(tree);
   ASSERT_EQ(1u, tree.get().children.size());
