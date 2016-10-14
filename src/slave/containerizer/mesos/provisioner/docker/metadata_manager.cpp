@@ -223,8 +223,10 @@ Future<Nothing> MetadataManagerProcess::recover()
     vector<string> missingLayerIds;
 
     foreach (const string& layerId, image.layer_ids()) {
-      const string rootfsPath =
-        paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId);
+      const string rootfsPath = paths::getImageLayerRootfsPath(
+          flags.docker_store_dir,
+          layerId,
+          flags.image_provisioner_backend);
 
       if (!os::exists(rootfsPath)) {
         missingLayerIds.push_back(layerId);

@@ -78,11 +78,13 @@ public:
     // Verify contents of the image in store directory.
     const string layerPath1 = paths::getImageLayerRootfsPath(
         flags.docker_store_dir,
-        "123");
+        "123",
+        flags.image_provisioner_backend);
 
     const string layerPath2 = paths::getImageLayerRootfsPath(
         flags.docker_store_dir,
-        "456");
+        "456",
+        flags.image_provisioner_backend);
 
     EXPECT_TRUE(os::exists(layerPath1));
     EXPECT_TRUE(os::exists(layerPath2));

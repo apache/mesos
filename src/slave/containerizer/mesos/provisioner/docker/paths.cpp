@@ -56,15 +56,22 @@ string getImageLayerManifestPath(const string& storeDir, const string& layerId)
 }
 
 
-string getImageLayerRootfsPath(const string& layerPath)
+string getImageLayerRootfsPath(const string& layerPath, const string& backend)
 {
+  if (backend == "overlay") {
+    return path::join(layerPath, "rootfs." + backend);
+  }
+
   return path::join(layerPath, "rootfs");
 }
 
 
-string getImageLayerRootfsPath(const string& storeDir, const string& layerId)
+string getImageLayerRootfsPath(
+    const string& storeDir,
+    const string& layerId,
+    const string& backend)
 {
-  return getImageLayerRootfsPath(getImageLayerPath(storeDir, layerId));
+  return getImageLayerRootfsPath(getImageLayerPath(storeDir, layerId), backend);
 }
 
 

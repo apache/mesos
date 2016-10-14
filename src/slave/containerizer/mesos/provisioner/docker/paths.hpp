@@ -64,12 +64,14 @@ std::string getImageLayerManifestPath(
 
 
 std::string getImageLayerRootfsPath(
-    const std::string& layerPath);
+    const std::string& layerPath,
+    const std::string& backend);
 
 
 std::string getImageLayerRootfsPath(
     const std::string& storeDir,
-    const std::string& layerId);
+    const std::string& layerId,
+    const std::string& backend);
 
 
 std::string getImageLayerTarPath(

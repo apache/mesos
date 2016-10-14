@@ -61,6 +61,7 @@ class RegistryPullerProcess : public Process<RegistryPullerProcess>
 public:
   RegistryPullerProcess(
       const string& _storeDir,
+      const string& _backend,
       const http::URL& _defaultRegistryUrl,
       const Shared<uri::Fetcher>& _fetcher);
 
@@ -88,6 +89,7 @@ private:
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
 
   const string storeDir;
+  const string backend;
 
   // If the user does not specify the registry url in the image
   // reference, this registry url will be used as the default.
@@ -114,6 +116,7 @@ Try<Owned<Puller>> RegistryPuller::create(
   Owned<RegistryPullerProcess> process(
       new RegistryPullerProcess(
           flags.docker_store_dir,
+          flags.image_provisioner_backend,
           defaultRegistryUrl.get(),
           fetcher));
 
@@ -149,10 +152,12 @@ Future<vector<string>> RegistryPuller::pull(
 
 RegistryPullerProcess::RegistryPullerProcess(
     const string& _storeDir,
+    const string& _backend,
     const http::URL& _defaultRegistryUrl,
     const Shared<uri::Fetcher>& _fetcher)
   : ProcessBase(process::ID::generate("docker-provisioner-registry-puller")),
     storeDir(_storeDir),
+    backend(_backend),
     defaultRegistryUrl(_defaultRegistryUrl),
     fetcher(_fetcher) {}
 
@@ -294,13 +299,14 @@ Future<vector<string>> RegistryPullerProcess::__pull(
     layerIds.insert(layerIds.begin(), v1.id());
 
     // Skip if the layer is already in the store.
-    if (os::exists(paths::getImageLayerPath(storeDir, v1.id()))) {
+    if (os::exists(
+        paths::getImageLayerRootfsPath(storeDir, v1.id(), backend))) {
       continue;
     }
 
     const string layerPath = path::join(directory, v1.id());
     const string tar = path::join(directory, blobSum);
-    const string rootfs = paths::getImageLayerRootfsPath(layerPath);
+    const string rootfs = paths::getImageLayerRootfsPath(layerPath, backend);
     const string json = paths::getImageLayerManifestPath(layerPath);
 
     VLOG(1) << "Extracting layer tar ball '" << tar
@@ -360,7 +366,8 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
 
     // Check if the layer is in the store or not. If yes, skip the
     // unnecessary fetching.
-    if (os::exists(paths::getImageLayerPath(storeDir, v1.id()))) {
+    if (os::exists(
+        paths::getImageLayerRootfsPath(storeDir, v1.id(), backend))) {
       continue;
     }
 

@@ -51,9 +51,10 @@ namespace docker {
 class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
-  LocalPullerProcess(const string& _archivesDir)
+  LocalPullerProcess(const string& _archivesDir, const string& _backend)
     : ProcessBase(process::ID::generate("docker-provisioner-local-puller")),
-      archivesDir(_archivesDir) {}
+      archivesDir(_archivesDir),
+      backend(_backend){}
 
   ~LocalPullerProcess() {}
 
@@ -79,6 +80,7 @@ private:
       const string& layerId);
 
   const string archivesDir;
+  const string backend;
 };
 
 
@@ -92,8 +94,9 @@ Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
   VLOG(1) << "Creating local puller with docker registry '"
           << flags.docker_registry << "'";
 
-  Owned<LocalPullerProcess> process(
-      new LocalPullerProcess(flags.docker_registry));
+  Owned<LocalPullerProcess> process(new LocalPullerProcess(
+      flags.docker_registry,
+      flags.image_provisioner_backend));
 
   return Owned<Puller>(new LocalPuller(process));
 }
@@ -287,7 +290,7 @@ Future<Nothing> LocalPullerProcess::extractLayer(
 {
   const string layerPath = path::join(directory, layerId);
   const string tar = paths::getImageLayerTarPath(layerPath);
-  const string rootfs = paths::getImageLayerRootfsPath(layerPath);
+  const string rootfs = paths::getImageLayerRootfsPath(layerPath, backend);
 
   VLOG(1) << "Extracting layer tar ball '" << tar
           << " to rootfs '" << rootfs << "'";

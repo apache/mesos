@@ -259,8 +259,10 @@ Future<ImageInfo> StoreProcess::__get(const Image& image)
 
   vector<string> layerPaths;
   foreach (const string& layerId, image.layer_ids()) {
-    layerPaths.push_back(
-        paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId));
+    layerPaths.push_back(paths::getImageLayerRootfsPath(
+        flags.docker_store_dir,
+        layerId,
+        flags.image_provisioner_backend));
   }
 
   // Read the manifest from the last layer because all runtime config
@@ -313,29 +315,50 @@ Future<Nothing> StoreProcess::moveLayer(
     return Nothing();
   }
 
-  const string target = paths::getImageLayerPath(
+  const string targetRootfs = paths::getImageLayerRootfsPath(
       flags.docker_store_dir,
-      layerId);
+      layerId,
+      flags.image_provisioner_backend);
 
   // NOTE: Since the layer id is supposed to be unique. If the layer
   // already exists in the store, we'll skip the moving since they are
   // expected to be the same.
-  if (os::exists(target)) {
+  if (os::exists(targetRootfs)) {
     return Nothing();
   }
 
-  Try<Nothing> mkdir = os::mkdir(target);
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create directory in store for layer '" +
-        layerId + "': " + mkdir.error());
-  }
+  const string target = paths::getImageLayerPath(
+      flags.docker_store_dir,
+      layerId);
 
-  Try<Nothing> rename = os::rename(source, target);
-  if (rename.isError()) {
-    return Failure(
-        "Failed to move layer from '" + source +
-        "' to '" + target + "': " + rename.error());
+  if (!os::exists(target)) {
+    // This is the case that we pull the layer for the first time.
+    Try<Nothing> mkdir = os::mkdir(target);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create directory in store for layer '" +
+          layerId + "': " + mkdir.error());
+    }
+
+    Try<Nothing> rename = os::rename(source, target);
+    if (rename.isError()) {
+      return Failure(
+          "Failed to move layer from '" + source +
+          "' to '" + target + "': " + rename.error());
+    }
+  } else {
+    // This is the case where the layer has already been pulled with a
+    // different backend.
+    const string sourceRootfs = paths::getImageLayerRootfsPath(
+        source,
+        flags.image_provisioner_backend);
+
+    Try<Nothing> rename = os::rename(sourceRootfs, targetRootfs);
+    if (rename.isError()) {
+      return Failure(
+          "Failed to move rootfs from '" + sourceRootfs +
+          "' to '" + targetRootfs + "': " + rename.error());
+    }
   }
 
   return Nothing();
