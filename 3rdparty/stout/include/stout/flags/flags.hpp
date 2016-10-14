@@ -17,8 +17,6 @@
 #include <map>
 #include <ostream>
 #include <string>
-#include <tuple>
-#include <type_traits>
 #include <typeinfo> // For typeid.
 #include <vector>
 
@@ -400,24 +398,6 @@ private:
   // Maps flag's alias to flag's name.
   std::map<std::string, std::string> aliases;
 };
-
-
-template <typename... FlagsTypes>
-class Flags : public virtual FlagsTypes...
-{
-  // Construct tuple types of sizeof...(FlagsTypes) compile-time bools to check
-  // non-recursively that all FlagsTypes derive from FlagsBase; as a helper we
-  // use is_object<FlagTypes> to construct sizeof...(FlagTypes) true types for
-  // the RHS (is_object<T> is a true type for anything one would inherit from).
-  static_assert(
-    std::is_same<
-      std::tuple<typename std::is_base_of<FlagsBase, FlagsTypes>::type...>,
-      std::tuple<typename std::is_object<FlagsTypes>::type...>>::value,
-    "Can only instantiate Flags with FlagsBase types.");
-};
-
-template <>
-class Flags<> : public virtual FlagsBase {};
 
 
 template <typename T1, typename T2, typename F>

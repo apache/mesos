@@ -55,7 +55,9 @@
 // You can also compose flags provided that each has used "virtual
 // inheritance":
 //  -------------------------------------------------------------
-// Flags<MyFlags1, MyFlags2> flags;
+// class MyFlags : public virtual MyFlags1, public virtual MyFlags2 {};
+//
+// MyFlags flags;
 // flags.add(...); // Any other flags you want to throw in there.
 // flags.load(values);
 // flags.flag_from_myflags1 ...

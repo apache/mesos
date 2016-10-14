@@ -33,7 +33,6 @@
 #include <stout/tests/utils.hpp>
 
 using flags::Flag;
-using flags::Flags;
 using flags::FlagsBase;
 using flags::Warnings;
 
@@ -112,7 +111,7 @@ TEST(FlagsTest, Load)
 
 TEST(FlagsTest, Add)
 {
-  Flags<TestFlags> flags;
+  TestFlags flags;
 
   Option<string> name6;
 
@@ -879,7 +878,7 @@ TEST(FlagsTest, OptionalMessage)
 
 TEST(FlagsTest, Duration)
 {
-  Flags<TestFlags> flags;
+  TestFlags flags;
 
   Duration name6;
 
@@ -909,7 +908,7 @@ TEST(FlagsTest, Duration)
 
 TEST(FlagsTest, JSON)
 {
-  Flags<TestFlags> flags;
+  TestFlags flags;
 
   Option<JSON::Object> json;
 
@@ -944,7 +943,7 @@ class FlagsFileTest : public TemporaryDirectoryTest {};
 // assumes filesystems are rooted at '/'. See MESOS-5937.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 {
-  Flags<TestFlags> flags;
+  TestFlags flags;
 
   Option<JSON::Object> json;
 
@@ -979,7 +978,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 
 TEST_F(FlagsFileTest, FilePrefix)
 {
-  Flags<TestFlags> flags;
+  TestFlags flags;
 
   Option<string> something;
 
