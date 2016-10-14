@@ -236,10 +236,13 @@ message FrameworkInfo {
   // frameworks typically set this to a large value (e.g., 1 week).
   optional double failover_timeout = 4 [default = 0.0];
 
-  // If set, framework pid, executor pids and status updates are
-  // checkpointed to disk by the agents. Checkpointing allows a
-  // restarted agent to reconnect with old executors and recover
-  // status updates, at the cost of disk I/O.
+  // If set, agents running tasks started by this framework will write
+  // the framework pid, executor pids and status updates to disk. If
+  // the agent exits (e.g., due to a crash or as part of upgrading
+  // Mesos), this checkpointed data allows the restarted agent to
+  // reconnect to executors that were started by the old instance of
+  // the agent. Enabling checkpointing improves fault tolerance, at
+  // the cost of a (usually small) increase in disk I/O.
   optional bool checkpoint = 5 [default = false];
 
   // Used to group frameworks for allocation decisions, depending on
