@@ -34,7 +34,7 @@ class MesosContainerizerLaunch : public Subcommand
 public:
   static const std::string NAME;
 
-  struct Flags : public flags::FlagsBase
+  struct Flags : public virtual flags::FlagsBase
   {
     Flags();
 

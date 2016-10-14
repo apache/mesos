@@ -31,7 +31,7 @@ namespace mesos {
 namespace internal {
 namespace scheduler {
 
-class Flags : public logging::Flags
+class Flags : public virtual logging::Flags
 {
 public:
   Flags()

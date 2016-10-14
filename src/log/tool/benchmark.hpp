@@ -32,7 +32,7 @@ namespace tool {
 class Benchmark : public Tool
 {
 public:
-  class Flags : public logging::Flags
+  class Flags : public virtual logging::Flags
   {
   public:
     Flags();

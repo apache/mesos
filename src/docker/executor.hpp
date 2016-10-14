@@ -32,7 +32,7 @@ namespace mesos {
 namespace internal {
 namespace docker {
 
-struct Flags : public mesos::internal::logging::Flags
+struct Flags : public virtual mesos::internal::logging::Flags
 {
   Flags() {
     add(&container,

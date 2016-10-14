@@ -224,7 +224,7 @@ private:
 };
 
 
-class Flags : public mesos::internal::logging::Flags
+class Flags : public virtual mesos::internal::logging::Flags
 {
 public:
   Flags()

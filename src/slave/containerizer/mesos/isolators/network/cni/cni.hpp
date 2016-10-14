@@ -195,7 +195,7 @@ class NetworkCniIsolatorSetup : public Subcommand
 public:
   static const char* NAME;
 
-  struct Flags : public flags::FlagsBase
+  struct Flags : public virtual flags::FlagsBase
   {
     Flags();
 

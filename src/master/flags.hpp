@@ -37,7 +37,7 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-class Flags : public logging::Flags
+class Flags : public virtual logging::Flags
 {
 public:
   Flags();

@@ -37,7 +37,7 @@ public:
   static const std::string NAME;
   static const std::string MAKE_RSLAVE;
 
-  struct Flags : public flags::FlagsBase
+  struct Flags : public virtual flags::FlagsBase
   {
     Flags();
 

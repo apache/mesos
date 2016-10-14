@@ -460,7 +460,7 @@ private:
 };
 
 
-class Flags : public flags::FlagsBase
+class Flags : public virtual flags::FlagsBase
 {
 public:
   Flags()

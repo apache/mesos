@@ -86,7 +86,7 @@ using process::Owned;
 using process::UPID;
 
 
-class Flags : public flags::FlagsBase
+class Flags : public virtual flags::FlagsBase
 {
 public:
   Flags()

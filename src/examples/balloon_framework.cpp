@@ -58,7 +58,7 @@ const double CPUS_PER_TASK = 0.1;
 const double CPUS_PER_EXECUTOR = 0.1;
 const int32_t MEM_PER_EXECUTOR = 64;
 
-class Flags : public flags::FlagsBase
+class Flags : public virtual flags::FlagsBase
 {
 public:
   Flags()

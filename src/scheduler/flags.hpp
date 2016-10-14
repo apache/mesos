@@ -25,7 +25,7 @@ namespace mesos {
 namespace v1 {
 namespace scheduler {
 
-class Flags : public mesos::internal::local::Flags
+class Flags : public virtual mesos::internal::local::Flags
 {
 public:
   Flags()

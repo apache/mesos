@@ -57,7 +57,7 @@ const int MEMORY_PER_TASK = 16;
 const Bytes DISK_PER_TASK = Megabytes(5);
 
 
-class Flags : public flags::FlagsBase
+class Flags : public virtual flags::FlagsBase
 {
 public:
   Flags()

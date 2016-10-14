@@ -103,7 +103,7 @@ struct LoggerFlags : public virtual flags::FlagsBase
 };
 
 
-struct Flags : public LoggerFlags
+struct Flags : public virtual LoggerFlags
 {
   Flags()
   {
