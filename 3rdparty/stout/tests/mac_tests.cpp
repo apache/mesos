@@ -30,7 +30,9 @@ using std::string;
 using std::vector;
 
 
-TEST(NetTest, Mac)
+// TODO(hausdorff): Look into enabling this test on Windows. Currently `links`
+// is not implemented on Windows. See MESOS-5938.
+TEST_TEMP_DISABLED_ON_WINDOWS(NetTest, Mac)
 {
   Try<set<string>> links = net::links();
   ASSERT_SOME(links);

@@ -20,14 +20,18 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef __WINDOWS__
 #include <arpa/inet.h>
+#endif // __WINDOWS__
 
 #ifdef __linux__
 #include <linux/if.h>
 #include <linux/if_packet.h>
 #endif
 
+#ifndef __WINDOWS__
 #include <net/ethernet.h>
+#endif // __WINDOWS__
 
 #ifdef __APPLE__
 #include <net/if.h>
@@ -35,7 +39,9 @@
 #include <net/if_types.h>
 #endif
 
+#ifndef __WINDOWS__
 #include <sys/socket.h>
+#endif // __WINDOWS__
 #include <sys/types.h>
 
 #include <iostream>

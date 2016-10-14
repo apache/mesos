@@ -253,8 +253,8 @@ TEST_F(ProcessTest, Pstree)
 
   tree =
     Fork(None(),                   // Child.
-      Fork(Exec("sleep 10")),   // Grandchild.
-      Exec("sleep 10"))();
+      Fork(Exec(SLEEP_COMMAND(10))),   // Grandchild.
+      Exec(SLEEP_COMMAND(10)))();
 
   ASSERT_SOME(tree);
 

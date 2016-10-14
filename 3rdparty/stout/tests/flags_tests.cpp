@@ -28,6 +28,8 @@
 #include <stout/some.hpp>
 #include <stout/utils.hpp>
 
+#include <stout/os/write.hpp>
+
 #include <stout/tests/utils.hpp>
 
 using flags::Flag;
@@ -226,7 +228,10 @@ TEST(FlagsTest, Flags)
 }
 
 
-TEST(FlagsTest, LoadFromEnvironment)
+// TODO(hausdorff): Enable this test on Windows. Currently setting an
+// environment variable to the blank string will cause the environment variable
+// to be deleted on Windows. See MESOS-5880.
+TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, LoadFromEnvironment)
 {
   TestFlags flags;
 
@@ -509,7 +514,9 @@ TEST(FlagsTest, DeprecationWarning)
 }
 
 
-TEST(FlagsTest, DuplicatesFromEnvironment)
+// TODO(hausdorff): Enable this test on Windows. Currently `flags::parse`
+// assumes filesystems are rooted at '/'. See MESOS-5937.
+TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
 {
   TestFlags flags;
 
@@ -609,7 +616,7 @@ TEST(FlagsTest, Errors)
 {
   TestFlags flags;
 
-  int argc = 2;
+  const int argc = 2;
   char* argv[argc];
 
   argv[0] = (char*) "/path/to/program";
@@ -701,7 +708,7 @@ TEST(FlagsTest, MissingRequiredFlag)
       "required_flag",
       "This flag is required and has no default value.");
 
-  int argc = 2;
+  const int argc = 2;
   char* argv[argc];
 
   argv[0] = (char*) "/path/to/program";
@@ -933,7 +940,9 @@ TEST(FlagsTest, JSON)
 class FlagsFileTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(FlagsFileTest, JSONFile)
+// TODO(hausdorff): Enable this test on Windows. Currently `flags::parse`
+// assumes filesystems are rooted at '/'. See MESOS-5937.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 {
   Flags<TestFlags> flags;
 

@@ -234,7 +234,8 @@ TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 // `mknod` will implement the functionality expressed in this test, and as the
 // need for these capabilities arise elsewhere in the codebase, we should
 // rethink abstractions we need here, and subsequently, what this test should
-// look like.
+// look like. This is `#ifdef`'d rather than `DISABLED_` because `rdev` doesn't
+// exist on Windows.
 TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 {
   // mknod requires root permission.
@@ -272,9 +273,12 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 #endif // __WINDOWS__
 
 
+// TODO(hausdorff): Look into enabling this test on Windows. Currently it is
+// not possible to create a symlink on Windows unless the target exists. See
+// MESOS-5881.
 // This test verifies that `rmdir` can remove a directory with a
 // symlink that has no target.
-TEST_F(RmdirTest, RemoveDirectoryWithNoTargetSymbolicLink)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, RemoveDirectoryNoTargetSymbolicLink)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
