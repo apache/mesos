@@ -312,7 +312,7 @@ void reinitialize()
                    << "LIBPROCESS_SSL_" << key;
     }
   }
-  environments.insert(environment_ssl.begin(), environment_ssl.begin());
+  environments.insert(environment_ssl.begin(), environment_ssl.end());
 
   Try<flags::Warnings> load = ssl_flags->load(environments);
   if (load.isError()) {
