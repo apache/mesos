@@ -28,6 +28,11 @@ This release contains the following new features:
     hence a task must listen on all interfaces. On Linux, For BRIDGE and USER
     modes, docker executor enters the task's network namespace.
 
+  * [MESOS-5275] - **Experimental** support for linux capabilities. Frameworks
+    or operators now have fine-grained control over the capabilities that a
+    container may have. This allows a container to run as root, but not have all
+    the privileges associated with the root user (e.g., CAP_SYS_ADMIN).
+
 Deprecations:
   * The following metrics are deprecated and will be removed in Mesos 1.4:
     master/slave_shutdowns_scheduled, master/slave_shutdowns_canceled, and
