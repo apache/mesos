@@ -41,6 +41,12 @@ Deprecations:
   * [MESOS-6371] - Remove the 'recover()' interface in 'ContainerLogger'.
 
 Additional API Changes:
+  * [MESOS-6204] - A new agent flag called `--runtime_dir`. Unlike
+    `--work_dir` which persists data across reboots, `--runtime_dir` is designed
+    to checkpoint state that should persist across agent restarts, but not
+    across reboots. By default this flag is set to `/var/run/mesos` when run as
+    root and `os::temp/mesos/runtime/` when run as non-root.
+
   * [MESOS-6220] - HTTP handler failures should result in 500 rather than
     503 responses. This means that when using the master or agent endpoints,
     failures will now result in a `500 Internal Server Error` rather than a
