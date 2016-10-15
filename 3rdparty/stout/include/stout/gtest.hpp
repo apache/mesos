@@ -200,10 +200,16 @@ template <typename T1, typename T2>
 #endif // __WINDOWS__
 
 
+// NOTE: On Windows, the closest equivalent to `sleep` is `timeout`.
+// Unfortunately, `timeout` requires an interactive terminal, otherwise
+// it errors out immediately. Instead, we use `ping` against localhost
+// with a count.  On Windows, `ping` waits one second between pings.
+// Additionally, because `ping` requires a count greater than 0,
+// we simply `exit 0` if the sleep is too short.
 #ifndef __WINDOWS__
 #define SLEEP_COMMAND(x) "sleep " #x
 #else
-#define SLEEP_COMMAND(x) "timeout " #x
+#define SLEEP_COMMAND(x) (x > 0 ? "ping 127.0.0.1 -n " #x : "cmd /C exit 0")
 #endif // __WINDOWS__
 
 
