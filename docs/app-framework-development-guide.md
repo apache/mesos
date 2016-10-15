@@ -314,6 +314,47 @@ Note that the agent will derive an `ExecutorInfo` from the `TaskInfo` and
 additionally copy fields (e.g., `Labels`) from `TaskInfo` into the new
 `ExecutorInfo`. This `ExecutorInfo` is only visible on the agent.
 
+
+### Using the Mesos Default Executor
+
+Since Mesos 1.1, a new built-in default executor (**experimental**) is available that
+can execute a group of tasks. Just like the command executor the tasks can be shell
+commands or Docker containers.
+
+The current semantics of the default executor are as folows:
+
+-- Tasks are launched as nested containers underneath the executor container.
+
+-- Task containers and executor container share resources like cpu, memory,
+   network and volumes.
+
+-- There is no resource isolation between different tasks within an executor.
+   Tasks' resources are added to the executor container.
+
+-- If any of the tasks exits with a non-zero exit code, all the tasks in the task group
+   are killed and the executor shuts down.
+
+-- Multiple task groups are not supported.
+
+
+Once the default executor is considered **stable**, the command executor will be deprecated in favor of it.
+
+Any scheduler can make use of the Mesos default executor by setting `ExecutorInfo.type`
+to `DEFAULT` when launching a group of tasks using the `LAUNCH_GROUP` offer operation.
+If `DEFAULT` executor is explicitly specified when using `LAUNCH` offer operation, command
+executor is used instead of the default executor. This might change in the future when the default
+executor gets support for handling `LAUNCH` operation.
+
+
+~~~{.proto}
+message ExecutorInfo {
+  ...
+    optional Type type = 15;
+  ...
+}
+~~~
+
+
 ### Creating a custom Framework Executor
 
 If your framework has special requirements, you might want to provide your own

@@ -260,6 +260,44 @@ LAUNCH Event (JSON)
 }
 ```
 
+### LAUNCH_GROUP
+
+This **experimental** event was added in 1.1.0.
+
+Sent by the agent whenever it needs to assign a new task group to the executor. The executor is required to send `UPDATE` messages back to the agent indicating the success or failure of each of the tasks in the group.
+
+The executor must maintain a list of unacknowledged tasks (see `LAUNCH` section above).
+
+```
+LAUNCH_GROUP Event (JSON)
+
+<event-length>
+{
+  "type": "LAUNCH_GROUP",
+  "launch_group": {
+    "task_group" : {
+      "tasks" : [
+        "task": {
+          "name": "dummy-task",
+          "task_id": {
+            "value": "d40f3f3e-bbe3-44af-a230-4cb1eae72f67"
+          },
+          "agent_id": {
+            "value": "f1c9cdc5-195e-41a7-a0d7-adaa9af07f81"
+          },
+          "command": {
+            "value": "sleep",
+            "arguments": [
+              "100"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ### KILL
 
 The `KILL` event is sent whenever the scheduler needs to stop execution of a specific task. The executor is required to send a terminal update (e.g., `TASK_FINISHED`, `TASK_KILLED` or `TASK_FAILED`) back to the agent once it has stopped/killed the task. Mesos will mark the task resources as freed once the terminal update is received.
