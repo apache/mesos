@@ -21,6 +21,7 @@ All Issues:
     * [MESOS-6269] - CNI isolator doesn't activate loopback interface.
     * [MESOS-6274] - Agent should not allow HTTP based executors to subscribe before containerizer recovery is done.
     * [MESOS-6324] - CNI should not use `ifconfig` in executors `pre_exec_command`.
+    * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
 
 
 Release Notes - Mesos - Version 1.0.1
