@@ -15,10 +15,13 @@ and Scala.
 
 ## Create your Framework Scheduler
 
-You can write a framework scheduler in C++, Java/Scala, or Python. Your
-framework scheduler should inherit from the `Scheduler` class (see API below).
-Your scheduler should create a SchedulerDriver (which will mediate communication
-between your scheduler and the Mesos master) and then call
+If you are writing a scheduler against Mesos 1.0 or newer, it is recommended
+to use the new [HTTP API](scheduler-http-api) to talk to Mesos.
+
+If your framework needs to talk to Mesos 0.28.0 or older, you can write the
+scheduler in C++, Java/Scala, or Python. Your framework scheduler should inherit
+from the `Scheduler` class (see API below). Your scheduler should create a SchedulerDriver
+(which will mediate communication between your scheduler and the Mesos master) and then call
 `SchedulerDriver.run()`.
 
 ### Scheduler API
@@ -317,9 +320,13 @@ If your framework has special requirements, you might want to provide your own
 Executor implementation. For example, you may not want a 1:1 relationship
 between tasks and processes.
 
-Your framework executor must inherit from the Executor class. It must override
-the launchTask() method. You can use the $MESOS_HOME environment variable inside
-of your executor to determine where Mesos is running from.
+If you are writing an executor against Mesos 1.0 or newer, it is recommended
+to use the new [HTTP API](executor-http-api) to talk to Mesos.
+
+If writing against Mesos 0.28.0 or older, your framework executor must inherit
+from the Executor class. It must override the launchTask() method. You can use
+the $MESOS_HOME environment variable inside of your executor to determine where
+Mesos is running from.
 
 #### Executor API
 
