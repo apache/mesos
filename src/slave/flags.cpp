@@ -208,7 +208,16 @@ mesos::internal::slave::Flags::Flags()
       "is stored by an agent that it needs to persist across crashes (but\n"
       "not across reboots). This directory will be cleared on reboot.\n"
       "(Example: `/var/run/mesos`)",
-      DEFAULT_RUNTIME_DIRECTORY);
+      []() -> string {
+        Result<string> user = os::user();
+        CHECK_SOME(user);
+
+        if (user.get() == "root") {
+            return DEFAULT_ROOT_RUNTIME_DIRECTORY;
+        } else {
+            return path::join(os::temp(), "mesos", "runtime");
+        }
+      }());
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
       "launcher_dir",

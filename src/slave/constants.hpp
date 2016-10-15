@@ -141,7 +141,7 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 // Default path of the agent runtime directory. This is where runtime
 // data is stored by an agent that it needs to persist across crashes
 // (but not across reboots). This directory will be cleared on reboot.
-constexpr char DEFAULT_RUNTIME_DIRECTORY[] = "/var/run/mesos";
+constexpr char DEFAULT_ROOT_RUNTIME_DIRECTORY[] = "/var/run/mesos";
 
 // Name of the executable for default executor.
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
