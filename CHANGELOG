@@ -1,15 +1,11 @@
 Release Notes - Mesos - Version 1.1.0 (WIP)
---------------------------------------------
+-------------------------------------------
 This release contains the following new features:
 
   * [MESOS-2449] - **Experimental** support for launching a group of tasks
     via a new `LAUNCH_GROUP` Offer operation. Mesos will guarantee that either
     all tasks or none of the tasks in the group are delivered to the executor.
     Executors receive the task group via a new `LAUNCH_GROUP` event.
-
-  * [MESOS-6077] - **Experimental** A new default executor is introduced which
-    frameworks can use to launch task groups as nested containers. All the
-    nested containers share resources likes cpu, memory, network and volumes.
 
   * [MESOS-2533] - **Experimental** support for HTTP and HTTPS health checks.
     Executors may now use the updated `HealthCheck` protobuf to implement
@@ -32,6 +28,10 @@ This release contains the following new features:
     or operators now have fine-grained control over the capabilities that a
     container may have. This allows a container to run as root, but not have all
     the privileges associated with the root user (e.g., CAP_SYS_ADMIN).
+
+  * [MESOS-6077] - **Experimental** A new default executor is introduced which
+    frameworks can use to launch task groups as nested containers. All the
+    nested containers share resources likes cpu, memory, network and volumes.
 
 Deprecations:
   * The following metrics are deprecated and will be removed in Mesos 1.4:
