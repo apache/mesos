@@ -45,7 +45,23 @@ class FlagsBase
 {
 public:
   FlagsBase() { add(&help, "help", "Prints this help message", false); }
-  virtual ~FlagsBase() {}
+  virtual ~FlagsBase() = default;
+
+  // Explicitly disable rvalue constructors and assignment operators
+  // since we plan for this class to be used in virtual inheritance
+  // scenarios. Here e.g., constructing from an rvalue will be
+  // problematic since we can potentially have multiple lineages
+  // leading to the same base class, and could then potentially use a
+  // moved from base object.
+  // All of the following functions would be implicitly generated for
+  // C++14, but in C++11 only the versions taking lvalue references
+  // should be. GCC seems to create all of these even in C++11 mode so
+  // we need to explicitly disable them.
+  FlagsBase(const FlagsBase&) = default;
+  FlagsBase(FlagsBase&&) = delete;
+  FlagsBase& operator=(const FlagsBase&) = default;
+  FlagsBase& operator=(FlagsBase&&) = delete;
+
 
   // Load any flags from the environment given the variable prefix,
   // i.e., given prefix 'STOUT_' will load a flag named 'foo' via
