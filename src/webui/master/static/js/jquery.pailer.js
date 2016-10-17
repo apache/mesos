@@ -133,12 +133,17 @@
         this_.element.html('');
         setTimeout(function() { this_.tail(); }, 0);
       })
-      .error(function() {
-        this_.indicate('(FAILED TO INITIALIZE ... RETRYING)');
-        setTimeout(function() {
-          this_.indicate('');
-          this_.initialize();
-        }, 1000);
+      .error(function(response, msg, code) {
+        if ([401, 403].indexOf(response.status) > -1) {
+          // Unauthorized user.
+          this_.indicate('YOU ARE UNAUTHORIZED TO ACCESS THIS CONTENT');
+        } else {
+          this_.indicate('(FAILED TO INITIALIZE ... RETRYING)');
+          setTimeout(function() {
+            this_.indicate('');
+            this_.initialize();
+          }, 1000);
+        }
       });
   };
 
