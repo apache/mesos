@@ -75,25 +75,34 @@ Subsystem::Subsystem(
     hierarchy(_hierarchy) {}
 
 
-Future<Nothing> Subsystem::recover(const ContainerID& containerId)
+Future<Nothing> Subsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return Nothing();
 }
 
 
-Future<Nothing> Subsystem::prepare(const ContainerID& containerId)
+Future<Nothing> Subsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return Nothing();
 }
 
 
-Future<Nothing> Subsystem::isolate(const ContainerID& containerId, pid_t pid)
+Future<Nothing> Subsystem::isolate(
+    const ContainerID& containerId,
+    const string& cgroup,
+    pid_t pid)
 {
   return Nothing();
 }
 
 
-Future<ContainerLimitation> Subsystem::watch(const ContainerID& containerId)
+Future<ContainerLimitation> Subsystem::watch(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return Future<ContainerLimitation>();
 }
@@ -101,25 +110,32 @@ Future<ContainerLimitation> Subsystem::watch(const ContainerID& containerId)
 
 Future<Nothing> Subsystem::update(
     const ContainerID& containerId,
+    const string& cgroup,
     const Resources& resources)
 {
   return Nothing();
 }
 
 
-Future<ResourceStatistics> Subsystem::usage(const ContainerID& containerId)
+Future<ResourceStatistics> Subsystem::usage(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return ResourceStatistics();
 }
 
 
-Future<ContainerStatus> Subsystem::status(const ContainerID& containerId)
+Future<ContainerStatus> Subsystem::status(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return ContainerStatus();
 }
 
 
-Future<Nothing> Subsystem::cleanup(const ContainerID& containerId)
+Future<Nothing> Subsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   return Nothing();
 }

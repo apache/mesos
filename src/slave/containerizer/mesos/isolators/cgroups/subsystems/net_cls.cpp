@@ -308,16 +308,16 @@ NetClsSubsystem::NetClsSubsystem(
 }
 
 
-Future<Nothing> NetClsSubsystem::recover(const ContainerID& containerId)
+Future<Nothing> NetClsSubsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been recovered");
   }
 
   // Read the net_cls handle.
-  Result<NetClsHandle> handle = recoverHandle(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  Result<NetClsHandle> handle = recoverHandle(hierarchy, cgroup);
 
   if (handle.isError()) {
     return Failure(
@@ -334,7 +334,9 @@ Future<Nothing> NetClsSubsystem::recover(const ContainerID& containerId)
 }
 
 
-Future<Nothing> NetClsSubsystem::prepare(const ContainerID& containerId)
+Future<Nothing> NetClsSubsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");
@@ -361,6 +363,7 @@ Future<Nothing> NetClsSubsystem::prepare(const ContainerID& containerId)
 
 Future<Nothing> NetClsSubsystem::isolate(
     const ContainerID& containerId,
+    const string& cgroup,
     pid_t pid)
 {
   if (!infos.contains(containerId)) {
@@ -376,7 +379,7 @@ Future<Nothing> NetClsSubsystem::isolate(
   if (info->handle.isSome()) {
     Try<Nothing> write = cgroups::net_cls::classid(
         hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
+        cgroup,
         info->handle->get());
 
     if (write.isError()) {
@@ -390,7 +393,9 @@ Future<Nothing> NetClsSubsystem::isolate(
 }
 
 
-Future<ContainerStatus> NetClsSubsystem::status(const ContainerID& containerId)
+Future<ContainerStatus> NetClsSubsystem::status(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -416,7 +421,9 @@ Future<ContainerStatus> NetClsSubsystem::status(const ContainerID& containerId)
 }
 
 
-Future<Nothing> NetClsSubsystem::cleanup(const ContainerID& containerId)
+Future<Nothing> NetClsSubsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup subsystem '" << name() << "' "

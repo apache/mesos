@@ -67,6 +67,7 @@ CpuSubsystem::CpuSubsystem(
 
 Future<Nothing> CpuSubsystem::update(
     const ContainerID& containerId,
+    const std::string& cgroup,
     const Resources& resources)
 {
   if (resources.cpus().isNone()) {
@@ -91,10 +92,7 @@ Future<Nothing> CpuSubsystem::update(
         MIN_CPU_SHARES);
   }
 
-  Try<Nothing> write = cgroups::cpu::shares(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
-      shares);
+  Try<Nothing> write = cgroups::cpu::shares(hierarchy, cgroup, shares);
 
   if (write.isError()) {
     return Failure("Failed to update 'cpu.shares': " + write.error());
@@ -106,10 +104,7 @@ Future<Nothing> CpuSubsystem::update(
 
   // Set cfs quota if enabled.
   if (flags.cgroups_enable_cfs) {
-    write = cgroups::cpu::cfs_period_us(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
-        CPU_CFS_PERIOD);
+    write = cgroups::cpu::cfs_period_us(hierarchy, cgroup, CPU_CFS_PERIOD);
 
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_period_us': " + write.error());
@@ -117,10 +112,7 @@ Future<Nothing> CpuSubsystem::update(
 
     Duration quota = std::max(CPU_CFS_PERIOD * cpus, MIN_CPU_CFS_QUOTA);
 
-    write = cgroups::cpu::cfs_quota_us(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
-        quota);
+    write = cgroups::cpu::cfs_quota_us(hierarchy, cgroup, quota);
 
     if (write.isError()) {
       return Failure("Failed to update 'cpu.cfs_quota_us': " + write.error());
@@ -136,7 +128,9 @@ Future<Nothing> CpuSubsystem::update(
 }
 
 
-Future<ResourceStatistics> CpuSubsystem::usage(const ContainerID& containerId)
+Future<ResourceStatistics> CpuSubsystem::usage(
+    const ContainerID& containerId,
+    const std::string& cgroup)
 {
   ResourceStatistics result;
 
@@ -144,7 +138,7 @@ Future<ResourceStatistics> CpuSubsystem::usage(const ContainerID& containerId)
   if (flags.cgroups_enable_cfs) {
     Try<hashmap<string, uint64_t>> stat = cgroups::stat(
         hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
+        cgroup,
         "cpu.stat");
 
     if (stat.isError()) {

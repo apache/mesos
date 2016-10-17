@@ -51,10 +51,12 @@ public:
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
+      const std::string& cgroup,
       const Resources& resources);
 
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 private:
   CpuSubsystem(const Flags& flags, const std::string& hierarchy);

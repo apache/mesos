@@ -74,7 +74,9 @@ DevicesSubsystem::DevicesSubsystem(
     Subsystem(_flags, _hierarchy) {}
 
 
-Future<Nothing> DevicesSubsystem::recover(const ContainerID& containerId)
+Future<Nothing> DevicesSubsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (containerIds.contains(containerId)) {
     return Failure(
@@ -88,7 +90,9 @@ Future<Nothing> DevicesSubsystem::recover(const ContainerID& containerId)
 }
 
 
-Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
+Future<Nothing> DevicesSubsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (containerIds.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");
@@ -117,10 +121,7 @@ Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
   all.access.write = true;
   all.access.mknod = true;
 
-  Try<Nothing> deny = cgroups::devices::deny(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
-      all);
+  Try<Nothing> deny = cgroups::devices::deny(hierarchy, cgroup, all);
 
   if (deny.isError()) {
     return Failure("Failed to deny all devices: " + deny.error());
@@ -133,7 +134,8 @@ Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
     CHECK_SOME(entry);
 
     Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy, path::join(flags.cgroups_root, containerId.value()),
+        hierarchy,
+        cgroup,
         entry.get());
 
     if (allow.isError()) {
@@ -148,7 +150,9 @@ Future<Nothing> DevicesSubsystem::prepare(const ContainerID& containerId)
 }
 
 
-Future<Nothing> DevicesSubsystem::cleanup(const ContainerID& containerId)
+Future<Nothing> DevicesSubsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!containerIds.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup subsystem '" << name() << "' "

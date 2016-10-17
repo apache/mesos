@@ -55,14 +55,21 @@ public:
     return CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
   }
 
-  virtual process::Future<Nothing> prepare(const ContainerID& containerId);
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> recover(const ContainerID& containerId);
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 protected:
   virtual void initialize();
@@ -75,7 +82,8 @@ private:
 
   struct Info
   {
-    Info()
+    Info(const std::string& _cgroup)
+      : cgroup(_cgroup)
     {
       // Ensure the initial statistics include the required fields.
       // Note the duration is set to zero to indicate no sampling has
@@ -85,6 +93,7 @@ private:
       statistics.set_duration(Seconds(0).secs());
     }
 
+    const std::string cgroup;
     PerfStatistics statistics;
   };
 

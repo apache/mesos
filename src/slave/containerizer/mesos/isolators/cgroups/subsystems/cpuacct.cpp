@@ -47,7 +47,8 @@ CpuacctSubsystem::CpuacctSubsystem(
 
 
 Future<ResourceStatistics> CpuacctSubsystem::usage(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   ResourceStatistics result;
 
@@ -64,9 +65,7 @@ Future<ResourceStatistics> CpuacctSubsystem::usage(
   // performance bottleneck, some kind of rate limiting mechanism
   // needs to be employed.
   if (flags.cgroups_cpu_enable_pids_and_tids_count) {
-    Try<set<pid_t>> pids = cgroups::processes(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()));
+    Try<set<pid_t>> pids = cgroups::processes(hierarchy, cgroup);
 
     if (pids.isError()) {
       return Failure("Failed to get number of processes: " + pids.error());
@@ -74,9 +73,7 @@ Future<ResourceStatistics> CpuacctSubsystem::usage(
 
     result.set_processes(pids.get().size());
 
-    Try<set<pid_t>> tids = cgroups::threads(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()));
+    Try<set<pid_t>> tids = cgroups::threads(hierarchy, cgroup);
 
     if (tids.isError()) {
       return Failure("Failed to get number of threads: " + tids.error());
@@ -93,7 +90,7 @@ Future<ResourceStatistics> CpuacctSubsystem::usage(
   // Add the cpuacct.stat information.
   Try<hashmap<string, uint64_t>> stat = cgroups::stat(
       hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
+      cgroup,
       "cpuacct.stat");
 
   if (stat.isError()) {

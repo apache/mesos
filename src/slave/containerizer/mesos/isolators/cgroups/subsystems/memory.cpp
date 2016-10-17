@@ -115,7 +115,9 @@ MemorySubsystem::MemorySubsystem(
     Subsystem(_flags, _hierarchy) {}
 
 
-Future<Nothing> MemorySubsystem::recover(const ContainerID& containerId)
+Future<Nothing> MemorySubsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been recovered");
@@ -123,14 +125,16 @@ Future<Nothing> MemorySubsystem::recover(const ContainerID& containerId)
 
   infos.put(containerId, Owned<Info>(new Info));
 
-  oomListen(containerId);
-  pressureListen(containerId);
+  oomListen(containerId, cgroup);
+  pressureListen(containerId, cgroup);
 
   return Nothing();
 }
 
 
-Future<Nothing> MemorySubsystem::prepare(const ContainerID& containerId)
+Future<Nothing> MemorySubsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");
@@ -138,15 +142,16 @@ Future<Nothing> MemorySubsystem::prepare(const ContainerID& containerId)
 
   infos.put(containerId, Owned<Info>(new Info));
 
-  oomListen(containerId);
-  pressureListen(containerId);
+  oomListen(containerId, cgroup);
+  pressureListen(containerId, cgroup);
 
   return Nothing();
 }
 
 
 Future<ContainerLimitation> MemorySubsystem::watch(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -160,6 +165,7 @@ Future<ContainerLimitation> MemorySubsystem::watch(
 
 Future<Nothing> MemorySubsystem::update(
     const ContainerID& containerId,
+    const string& cgroup,
     const Resources& resources)
 {
   if (!infos.contains(containerId)) {
@@ -181,7 +187,7 @@ Future<Nothing> MemorySubsystem::update(
   // Always set the soft limit.
   Try<Nothing> write = cgroups::memory::soft_limit_in_bytes(
       hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
+      cgroup,
       limit);
 
   if (write.isError()) {
@@ -194,9 +200,7 @@ Future<Nothing> MemorySubsystem::update(
             << limit << " for container " << containerId;
 
   // Read the existing limit.
-  Try<Bytes> currentLimit = cgroups::memory::limit_in_bytes(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  Try<Bytes> currentLimit = cgroups::memory::limit_in_bytes(hierarchy, cgroup);
 
   // NOTE: If `flags.cgroups_limit_swap` is (has been) used then both
   // 'limit_in_bytes' and 'memsw.limit_in_bytes' will always be set to
@@ -235,7 +239,7 @@ Future<Nothing> MemorySubsystem::update(
     // memsw.limit_in_bytes if `cgroups_limit_swap` is true.
     Try<Nothing> write = cgroups::memory::limit_in_bytes(
         hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
+        cgroup,
         limit);
 
     if (write.isError()) {
@@ -250,7 +254,7 @@ Future<Nothing> MemorySubsystem::update(
     if (flags.cgroups_limit_swap) {
       Try<bool> write = cgroups::memory::memsw_limit_in_bytes(
           hierarchy,
-          path::join(flags.cgroups_root, containerId.value()),
+          cgroup,
           limit);
 
       if (write.isError()) {
@@ -269,7 +273,8 @@ Future<Nothing> MemorySubsystem::update(
 
 
 Future<ResourceStatistics> MemorySubsystem::usage(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -284,9 +289,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
   // The rss from memory.stat is wrong in two dimensions:
   //   1. It does not include child cgroups.
   //   2. It does not include any file backed pages.
-  Try<Bytes> usage = cgroups::memory::usage_in_bytes(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  Try<Bytes> usage = cgroups::memory::usage_in_bytes(hierarchy, cgroup);
 
   if (usage.isError()) {
     return Failure("Failed to parse 'memory.usage_in_bytes': " + usage.error());
@@ -295,9 +298,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
   result.set_mem_total_bytes(usage.get().bytes());
 
   if (flags.cgroups_limit_swap) {
-    Try<Bytes> usage = cgroups::memory::memsw_usage_in_bytes(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()));
+    Try<Bytes> usage = cgroups::memory::memsw_usage_in_bytes(hierarchy, cgroup);
 
     if (usage.isError()) {
       return Failure(
@@ -311,7 +312,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
   // structure, e.g, cgroups::memory::stat.
   Try<hashmap<string, uint64_t>> stat = cgroups::stat(
       hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
+      cgroup,
       "memory.stat");
 
   if (stat.isError()) {
@@ -408,7 +409,9 @@ Future<ResourceStatistics> MemorySubsystem::_usage(
 }
 
 
-Future<Nothing> MemorySubsystem::cleanup(const ContainerID& containerId)
+Future<Nothing> MemorySubsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup subsystem '" << name() << "' "
@@ -427,15 +430,15 @@ Future<Nothing> MemorySubsystem::cleanup(const ContainerID& containerId)
 }
 
 
-void MemorySubsystem::oomListen(const ContainerID& containerId)
+void MemorySubsystem::oomListen(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   CHECK(infos.contains(containerId));
 
   const Owned<Info>& info = infos[containerId];
 
-  info->oomNotifier = cgroups::memory::oom::listen(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  info->oomNotifier = cgroups::memory::oom::listen(hierarchy, cgroup);
 
   // If the listening fails immediately, something very wrong
   // happened. Therefore, we report a fatal error here.
@@ -452,12 +455,14 @@ void MemorySubsystem::oomListen(const ContainerID& containerId)
       defer(PID<MemorySubsystem>(this),
             &MemorySubsystem::oomWaited,
             containerId,
+            cgroup,
             lambda::_1));
 }
 
 
 void MemorySubsystem::oomWaited(
     const ContainerID& containerId,
+    const string& cgroup,
     const Future<Nothing>& future)
 {
   if (future.isDiscarded()) {
@@ -491,9 +496,7 @@ void MemorySubsystem::oomWaited(
   // NOTE: If 'flags.cgroups_limit_swap' is (has been) used, then both
   // 'limit_in_bytes' and 'memsw.limit_in_bytes' will always be set to
   // the same value.
-  Try<Bytes> limit = cgroups::memory::limit_in_bytes(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  Try<Bytes> limit = cgroups::memory::limit_in_bytes(hierarchy, cgroup);
 
   if (limit.isError()) {
     LOG(ERROR) << "Failed to read 'memory.limit_in_bytes': " << limit.error();
@@ -502,9 +505,7 @@ void MemorySubsystem::oomWaited(
   }
 
   // Output the maximum memory usage.
-  Try<Bytes> usage = cgroups::memory::max_usage_in_bytes(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()));
+  Try<Bytes> usage = cgroups::memory::max_usage_in_bytes(hierarchy, cgroup);
 
   if (usage.isError()) {
     LOG(ERROR) << "Failed to read 'memory.max_usage_in_bytes': "
@@ -516,10 +517,7 @@ void MemorySubsystem::oomWaited(
   // Output 'memory.stat' of the cgroup to help with debugging.
   // NOTE: With kernel OOM-killer enabled these stats may not reflect
   // memory state at time of OOM.
-  Try<string> read = cgroups::read(
-      hierarchy,
-      path::join(flags.cgroups_root, containerId.value()),
-      "memory.stat");
+  Try<string> read = cgroups::read(hierarchy, cgroup, "memory.stat");
 
   if (read.isError()) {
     LOG(ERROR) << "Failed to read 'memory.stat': " << read.error();
@@ -545,15 +543,14 @@ void MemorySubsystem::oomWaited(
 }
 
 
-void MemorySubsystem::pressureListen(const ContainerID& containerId)
+void MemorySubsystem::pressureListen(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   CHECK(infos.contains(containerId));
 
   foreach (const Level& level, levels()) {
-    Try<Owned<Counter>> counter = Counter::create(
-        hierarchy,
-        path::join(flags.cgroups_root, containerId.value()),
-        level);
+    Try<Owned<Counter>> counter = Counter::create(hierarchy, cgroup, level);
 
     if (counter.isError()) {
       LOG(ERROR) << "Failed to listen on '" << level << "' memory pressure "

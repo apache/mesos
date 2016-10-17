@@ -144,18 +144,26 @@ public:
     return CGROUP_SUBSYSTEM_NET_CLS_NAME;
   }
 
-  virtual process::Future<Nothing> recover(const ContainerID& containerId);
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> prepare(const ContainerID& containerId);
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
+      const std::string& cgroup,
       pid_t pid);
 
   virtual process::Future<ContainerStatus> status(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 private:
   NetClsSubsystem(

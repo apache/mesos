@@ -55,21 +55,30 @@ public:
     return CGROUP_SUBSYSTEM_MEMORY_NAME;
   }
 
-  virtual process::Future<Nothing> prepare(const ContainerID& containerId);
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> recover(const ContainerID& containerId);
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
+      const std::string& cgroup,
       const Resources& resources);
 
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 private:
   struct Info
@@ -94,16 +103,21 @@ private:
 
   // Start listening on OOM events. This function will create an
   // eventfd and start polling on it.
-  void oomListen(const ContainerID& containerId);
+  void oomListen(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   // This function is invoked when the polling on eventfd has a
   // result.
   void oomWaited(
       const ContainerID& containerId,
+      const std::string& cgroup,
       const process::Future<Nothing>& future);
 
   // Start listening on memory pressure events.
-  void pressureListen(const ContainerID& containerId);
+  void pressureListen(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   // Stores cgroups associated information for container.
   hashmap<ContainerID, process::Owned<Info>> infos;

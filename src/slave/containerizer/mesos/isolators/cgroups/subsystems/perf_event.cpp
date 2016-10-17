@@ -93,32 +93,37 @@ void PerfEventSubsystem::initialize()
 }
 
 
-Future<Nothing> PerfEventSubsystem::recover(const ContainerID& containerId)
+Future<Nothing> PerfEventSubsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been recovered");
   }
 
-  infos.put(containerId, Owned<Info>(new Info));
+  infos.put(containerId, Owned<Info>(new Info(cgroup)));
 
   return Nothing();
 }
 
 
-Future<Nothing> PerfEventSubsystem::prepare(const ContainerID& containerId)
+Future<Nothing> PerfEventSubsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (infos.contains(containerId)) {
     return Failure("The subsystem '" + name() + "' has already been prepared");
   }
 
-  infos.put(containerId, Owned<Info>(new Info));
+  infos.put(containerId, Owned<Info>(new Info(cgroup)));
 
   return Nothing();
 }
 
 
 Future<ResourceStatistics> PerfEventSubsystem::usage(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -133,7 +138,9 @@ Future<ResourceStatistics> PerfEventSubsystem::usage(
 }
 
 
-Future<Nothing> PerfEventSubsystem::cleanup(const ContainerID& containerId)
+Future<Nothing> PerfEventSubsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
 {
   if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup subsystem '" << name() << "' "
@@ -155,8 +162,8 @@ void PerfEventSubsystem::sample()
   // fail if the cgroup is destroyed before running perf.
   set<string> cgroups;
 
-  foreachkey (const ContainerID& containerId, infos) {
-    cgroups.insert(path::join(flags.cgroups_root, containerId.value()));
+  foreachvalue (const Owned<Info>& info, infos) {
+    cgroups.insert(info->cgroup);
   }
 
   // The discard timeout includes an allowance of twice the
@@ -194,12 +201,9 @@ void PerfEventSubsystem::_sample(
   } else {
     // Store the latest statistics, note that cgroups added in the
     // interim will be picked up by the next sample.
-    foreachpair (const ContainerID& containerId,
-                 const Owned<Info>& info,
-                 infos) {
-      string cgroup = path::join(flags.cgroups_root, containerId.value());
-      if (statistics->contains(cgroup)) {
-        info->statistics = statistics->get(cgroup).get();
+    foreachvalue (const Owned<Info>& info, infos) {
+      if (statistics->contains(info->cgroup)) {
+        info->statistics = statistics->get(info->cgroup).get();
       }
     }
   }

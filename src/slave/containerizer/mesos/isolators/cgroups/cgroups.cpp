@@ -329,7 +329,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
 
     foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
       recoveredSubsystems.insert(subsystem->name());
-      recovers.push_back(subsystem->recover(containerId));
+      recovers.push_back(subsystem->recover(containerId, cgroup));
     }
   }
 
@@ -429,7 +429,9 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
 
     foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
       infos[containerId]->subsystems.insert(subsystem->name());
-      prepares.push_back(subsystem->prepare(containerId));
+      prepares.push_back(subsystem->prepare(
+          containerId,
+          infos[containerId]->cgroup));
     }
 
     // Chown the cgroup so the executor can create nested cgroups. Do
@@ -567,7 +569,10 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
 
   list<Future<Nothing>> isolates;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
-    isolates.push_back(subsystem->isolate(containerId, pid));
+    isolates.push_back(subsystem->isolate(
+        containerId,
+        infos[containerId]->cgroup,
+        pid));
   }
 
   return await(isolates)
@@ -616,7 +621,7 @@ Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
 
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
-      subsystem->watch(containerId)
+      subsystem->watch(containerId, infos[containerId]->cgroup)
         .onAny(defer(
             PID<CgroupsIsolatorProcess>(this),
             &CgroupsIsolatorProcess::_watch,
@@ -658,7 +663,10 @@ Future<Nothing> CgroupsIsolatorProcess::update(
   list<Future<Nothing>> updates;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
-      updates.push_back(subsystem->update(containerId, resources));
+      updates.push_back(subsystem->update(
+          containerId,
+          infos[containerId]->cgroup,
+          resources));
     }
   }
 
@@ -706,7 +714,9 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
   list<Future<ResourceStatistics>> usages;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
-      usages.push_back(subsystem->usage(containerId));
+      usages.push_back(subsystem->usage(
+          containerId,
+          infos[containerId]->cgroup));
     }
   }
 
@@ -744,7 +754,9 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
   list<Future<ContainerStatus>> statuses;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
-      statuses.push_back(subsystem->status(containerId));
+      statuses.push_back(subsystem->status(
+          containerId,
+          infos[containerId]->cgroup));
     }
   }
 
@@ -785,7 +797,9 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
   list<Future<Nothing>> cleanups;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
-      cleanups.push_back(subsystem->cleanup(containerId));
+      cleanups.push_back(subsystem->cleanup(
+          containerId,
+          infos[containerId]->cgroup));
     }
   }
 

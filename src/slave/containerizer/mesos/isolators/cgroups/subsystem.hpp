@@ -69,49 +69,61 @@ public:
    * Recover the cgroups subsystem for the associated container.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return Nothing or an error if `recover` fails.
    */
-  virtual process::Future<Nothing> recover(const ContainerID& containerId);
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   /**
    * Prepare the cgroups subsystem for the associated container.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return Nothing or an error if `prepare` fails.
    */
-  virtual process::Future<Nothing> prepare(const ContainerID& containerId);
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   /**
    * Isolate the associated container to cgroups subsystem.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @param pid The process id of container.
    * @return Nothing or an error if `isolate` fails.
    */
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
+      const std::string& cgroup,
       pid_t pid);
 
   /**
    * Watch the container and report if any resource constraint impacts it.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return The resource limitation that impacts the container or an
    *     error if `watch` fails.
    */
   virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   /**
    * Update resources allocated to the associated container in this
    * cgroups subsystem.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @param resources The resources need to update.
    * @return Nothing or an error if `update` fails.
    */
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
+      const std::string& cgroup,
       const Resources& resources);
 
   /**
@@ -119,21 +131,25 @@ public:
    * associated container.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return The resource usage statistics or an error if gather statistics
    *     fails.
    */
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   /**
    * Get the run-time status of cgroups subsystem specific properties
    * associated with the container.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return The container status or an error if get fails.
    */
   virtual process::Future<ContainerStatus> status(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
   /**
    * Clean up the cgroups subsystem for the associated container. It
@@ -144,9 +160,12 @@ public:
    * container is unknown to the subsystem.
    *
    * @param containerId The target containerId.
+   * @param cgroup The target cgroup.
    * @return Nothing or an error if `cleanup` fails.
    */
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 protected:
   Subsystem(const Flags& _flags, const std::string& _hierarchy);

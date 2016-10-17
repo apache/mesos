@@ -50,9 +50,17 @@ public:
     return CGROUP_SUBSYSTEM_DEVICES_NAME;
   }
 
-  virtual process::Future<Nothing> prepare(const ContainerID& containerId);
-  virtual process::Future<Nothing> recover(const ContainerID& containerId);
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId);
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 private:
   DevicesSubsystem(const Flags& flags, const std::string& hierarchy);

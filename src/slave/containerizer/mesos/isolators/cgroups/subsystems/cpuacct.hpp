@@ -50,7 +50,8 @@ public:
   }
 
   virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const std::string& cgroup);
 
 private:
   CpuacctSubsystem(const Flags& flags, const std::string& hierarchy);
