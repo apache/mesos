@@ -30,10 +30,6 @@
 
 #include "slave/constants.hpp"
 
-#ifdef __linux__
-#include "slave/containerizer/mesos/linux_launcher.hpp"
-#endif // __linux__
-
 using std::string;
 
 mesos::internal::slave::Flags::Flags()
@@ -109,15 +105,7 @@ mesos::internal::slave::Flags::Flags()
       "`linux` or `posix`. The Linux launcher is required for cgroups\n"
       "isolation and for any isolators that require Linux namespaces such as\n"
       "network, pid, etc. If unspecified, the agent will choose the Linux\n"
-      "launcher if it's running as root on Linux.",
-#ifdef __linux__
-      LinuxLauncher::available() ? "linux" : "posix"
-#elif __WINDOWS__
-      "windows"
-#else
-      "posix"
-#endif // __linux__
-      );
+      "launcher if it's running as root on Linux.");
 
   add(&Flags::image_providers,
       "image_providers",
