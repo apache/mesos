@@ -407,9 +407,13 @@
             $timeout(pollMetrics, $scope.delay);
           }
         })
-        .error(function() {
+        .error(function(message, code) {
           if ($scope.isErrorModalOpen === false) {
-            popupErrorModal();
+            // If return code is 401 or 403 the user is unauthorized to reach
+            // the endpoint, which is not a connection error.
+            if ([401, 403].indexOf(code) < 0) {
+              popupErrorModal();
+            }
           }
         });
     };
