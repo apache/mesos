@@ -29,6 +29,20 @@ This release contains the following new features:
     container may have. This allows a container to run as root, but not have all
     the privileges associated with the root user (e.g., CAP_SYS_ADMIN).
 
+  * [MESOS-5344] -- **Experimental** support for partition-aware Mesos
+    frameworks. In previous Mesos releases, when an agent is partitioned from
+    the master and then reregisters with the cluster, all tasks running on the
+    agent are terminated and the agent is shutdown. In Mesos 1.1, partitioned
+    agents will no longer be shutdown when they reregister with the master. By
+    default, tasks running on such agents will still be killed (for backward
+    compatibility); however, frameworks can opt-in to the new PARTITION_AWARE
+    capability. If they do this, their tasks will not be killed when a partition
+    is healed. This allows frameworks to define their own policies for how to
+    handle partitioned tasks. Enabling the PARTITION_AWARE capability also
+    introduces a new set of task states: TASK_UNREACHABLE, TASK_DROPPED,
+    TASK_GONE, TASK_GONE_BY_OPERATOR, and TASK_UNKNOWN. These new states are
+    intended to eventually replace the TASK_LOST state.
+
   * [MESOS-6077] - **Experimental** A new default executor is introduced which
     frameworks can use to launch task groups as nested containers. All the
     nested containers share resources likes cpu, memory, network and volumes.
