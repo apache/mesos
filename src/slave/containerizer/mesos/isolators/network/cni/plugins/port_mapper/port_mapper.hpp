@@ -43,6 +43,9 @@ public:
   // NOTE: Plugin specific erros should use Values of 100+.
   static constexpr int ERROR_READ_FAILURE = 100; // Fail to read from stdin.
   static constexpr int ERROR_BAD_ARGS = 101;     // Miss or invalid arguments.
+  static constexpr int ERROR_DELEGATE_FAILURE = 102;
+  static constexpr int ERROR_PORTMAP_FAILURE = 103;
+  static constexpr int ERROR_UNSUPPORTED_COMMAND = 104;
 
   // Takes in a JSON formatted string, validates that the following
   // fields are present:
@@ -97,7 +100,7 @@ protected:
 private:
   PortMapper(
       const std::string& _cniCommand,       // ADD, DEL or VERSION.
-      const Option<std::string>& _cniContainerId, // Container ID.
+      const std::string& _cniContainerId, // Container ID.
       const std::string& _cniNetNs,         // Path to network namespace file.
       const std::string& _cniIfName,        // Interface name to set up.
       const Option<std::string>& _cniArgs,  // Extra arguments.
@@ -119,8 +122,26 @@ private:
       chain(_chain),
       excludeDevices(_excludeDevices){};
 
+  // Returns a tag that will be appended to every DNAT rule in the
+  // iptables associated with this container. Currently the tag is of
+  // the form: 'container_id: <CNI_CONTAINERID>'.
+  std::string getIptablesRuleTag();
+
+  std::string getIptablesRule(
+      const net::IP& ip,
+      const mesos::NetworkInfo::PortMapping& portMapping);
+
+  Try<Nothing> addPortMapping(
+      const net::IP& ip,
+      const mesos::NetworkInfo::PortMapping& portMapping);
+
+  Try<Nothing> delPortMapping();
+
+  Try<std::string, spec::PluginError> handleAddCommand();
+  Try<Nothing, spec::PluginError> handleDelCommand();
+
   const std::string cniCommand;
-  const Option<std::string> cniContainerId;
+  const std::string cniContainerId;
   const std::string cniNetNs;
   const std::string cniIfName;
   const Option<std::string> cniArgs;

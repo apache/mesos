@@ -22,10 +22,10 @@
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
 
-#include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp"
 
 namespace io = process::io;
+namespace spec = mesos::internal::slave::cni::spec;
 
 using std::cerr;
 using std::endl;
@@ -57,8 +57,17 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
         ERROR_BAD_ARGS);
   }
 
-  // 'CNI_CONTAINERID' is optional.
+  // NOTE: While CNI spec allows 'CNI_CONTAINERID' to be optional, the
+  // plugin uses the 'CNI_CONTAINERID' to tag iptable rules so that
+  // we can delete the rules without IP address information (which
+  // will not be available during DEL). Hence, making this
+  // variable required.
   Option<string> cniContainerId = os::getenv("CNI_CONTAINERID");
+  if (cniContainerId.isNone()) {
+    return PluginError(
+        "Unable to find environment variable 'CNI_CONTAINERID'",
+        ERROR_BAD_ARGS);
+  }
 
   Option<string> cniNetNs = os::getenv("CNI_NETNS");
   if (cniNetNs.isNone()) {
@@ -217,7 +226,7 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
   return Owned<PortMapper>(
       new PortMapper(
           cniCommand.get(),
-          cniContainerId,
+          cniContainerId.get(),
           cniNetNs.get(),
           cniIfName.get(),
           cniArgs,
@@ -230,9 +239,254 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
 }
 
 
+string PortMapper::getIptablesRuleTag()
+{
+  return "container_id: " + cniContainerId;
+}
+
+
+string PortMapper::getIptablesRule(
+    const net::IP& ip,
+    const mesos::NetworkInfo::PortMapping& portMapping)
+{
+  string devices;
+
+  // Get list of devices to exclude.
+  if (!excludeDevices.empty()) {
+    foreach (const string& device, excludeDevices) {
+      devices = "! -i " + device + " ";
+    }
+  }
+
+  const string protocol = portMapping.has_protocol()
+    ? strings::lower(portMapping.protocol())
+    : "tcp";
+
+  // Iptables DNAT rule representing a specific port-mapping.
+  return strings::format(
+      " %s %s -p %s -m %s"
+      " --dport %d -j DNAT --to-destination %s:%d"
+      " -m comment --comment \"%s\"",
+      chain,
+      devices,
+      protocol,
+      protocol,
+      portMapping.host_port(),
+      stringify(ip),
+      portMapping.container_port(),
+      getIptablesRuleTag()).get();
+}
+
+
+Try<Nothing> PortMapper::addPortMapping(
+    const net::IP& ip,
+    const mesos::NetworkInfo::PortMapping& portMapping)
+{
+  Try<string> iptablesRule = getIptablesRule(ip, portMapping);
+  if (iptablesRule.isError()) {
+    return Error(iptablesRule.error());
+  }
+
+  // Run the following iptables script to install the DNAT rule under
+  // the specified chain.
+  string script = strings::format(
+      R"~(
+      #!/bin/sh
+      exec 1>&2
+      set -x
+
+      # NOTE: We need iptables 1.4.20 and higher for the commands to
+      # work. We use the '-w' flag with the iptables command to ensure
+      # that iptables command are executed atomically. This flag is
+      # available starting iptables 1.4.20.
+      #
+      # Check if the `chain` exists in the iptable. If it does not
+      # exist go ahead and install the chain in the iptables NAT
+      # table.
+      iptables -w -t nat --list %s
+      if [ $? -ne 0 ]; then
+        # NOTE: When we create the chain, there is a possibility of a
+        # race due to which a container launch can fail. This can
+        # happen specifically when two containers are launched with
+        # port-mapping with the same iptables chain and the chain does
+        # not exist. In this scenario, there might be a race for the
+        # chain creation with only one of the containers succeeding.
+        # iptables, unfortunately, does not allow locks to be acquired
+        # outside the iptables process and hence there is no way to
+        # avoid this race. This event itself should be quite rare
+        # since it can happen only when the chain is created the first
+        # time and two commands for creation of the chain are executed
+        # simultaneously.
+        (iptables -w -t nat -N %s || exit 1)
+
+        # Once the chain has been installed add a rule in the PREROUTING
+        # chain to jump to this chain for any packets that are
+        # destined to a local address.
+        (iptables -w -t nat -A PREROUTING \
+        -m addrtype --dst-type LOCAL -j %s || exit 1)
+
+        # For locally generated packets we need a rule in the OUTPUT
+        # chain as well, since locally generated packets directly hit
+        # the output CHAIN, bypassing PREROUTING.
+        (iptables -w -t nat -A OUTPUT \
+        ! -d 127.0.0.0/8 -m addrtype \
+        --dst-type LOCAL -j %s || exit 1)
+      fi
+
+      # Within the `chain` go ahead and install the DNAT rule, if it
+      # does not exist.
+      (iptables -w -t nat -C %s || iptables -t nat -A %s))~",
+      chain,
+      chain,
+      chain,
+      chain,
+      iptablesRule.get(),
+      iptablesRule.get()).get();
+
+  if (os::system(script) != 0) {
+    return ErrnoError("Failed to add DNAT rule with tag");
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> PortMapper::delPortMapping()
+{
+  string script = strings::format(
+      R"~(
+      #!/bin/sh
+      exec 1>&2
+      set -x
+
+      # The iptables command searches for the DNAT rules with tag
+      # "container_id: <CNI_CONTAINERID>", and if it exists goes ahead
+      # and deletes it.
+      iptables -w -t nat -S %s | sed "/%s/ s/-A/iptables -w -t nat -D/e")~",
+      chain,
+      getIptablesRuleTag()).get();
+
+  // NOTE: Ideally we should be cleaning up the iptables chain in case
+  // this is the last rule in the chain. However, this is a bit tricky
+  // since when we try deleting the chain another incarnation of the
+  // `mesos-cni-port-mapper` plugin might be injecting rules into the
+  // same chain causing a race. Further, there is no way to ascertain
+  // the failure due to this race, and returning a failure in this
+  // scenario would (erroneously) fail the deletion of the container.
+  // We therefore leave it to the operator to delete the iptables
+  // chain once he deems it safe to remove the chain.
+  if (os::system(script) != 0) {
+    return ErrnoError("Unable to delete DNAT rules");
+  }
+
+  return Nothing();
+}
+
+
+Try<string, PluginError> PortMapper::handleAddCommand()
+{
+  Result<spec::NetworkInfo> delegateResult = delegate(cniCommand);
+  if (delegateResult.isError()) {
+    return PluginError(
+        "Could not execute the delegate plugin '" +
+        delegatePlugin + "' for ADD command: " + delegateResult.error(),
+        ERROR_DELEGATE_FAILURE);
+  }
+
+  cerr << "Delegate CNI plugin '" << delegatePlugin
+       << "' executed successfully for ADD command: "
+       << JSON::protobuf(delegateResult.get()) << endl;
+
+  // We support only IPv4.
+  if (!delegateResult->has_ip4()) {
+    return PluginError(
+        "Delegate CNI plugin '" + delegatePlugin +
+        "' did not return an IPv4 address",
+        ERROR_DELEGATE_FAILURE);
+  }
+
+  // The IP from `delegateResult->ip4().ip()` is in CIDR notation. We
+  // need to strip out the netmask.
+  Try<net::IPNetwork> ip = net::IPNetwork::parse(
+      delegateResult->ip4().ip(),
+      AF_INET);
+
+  if (ip.isError()) {
+    return PluginError(
+        "Could not parse IPv4 address return by delegate CNI plugin '" +
+        delegatePlugin + "': " + ip.error(),
+        ERROR_DELEGATE_FAILURE);
+  }
+
+  // Walk through each of the port-mappings and install a
+  // D-NAT rule for the port-map.
+  foreach (const NetworkInfo::PortMapping& portMapping,
+           networkInfo.port_mappings()) {
+    Try<Nothing> result = addPortMapping(ip->address(), portMapping);
+    if (result.isError()) {
+      return PluginError(result.error(), ERROR_PORTMAP_FAILURE);
+    }
+  }
+
+  return stringify(JSON::protobuf(delegateResult.get()));
+}
+
+
+Try<Nothing, PluginError> PortMapper::handleDelCommand()
+{
+  // In case of `spec::CNI_CMD_DEL` we want to first delete the
+  // iptables DNAT rules and then invoke the delegate plugin with the
+  // DEL command. Reason being that if the delegate plugin is invoked
+  // before the iptables DNAT rules are removed, the IP address
+  // associated with the current container might be re-allocated to a
+  // new container, which might start receiving traffic hitting these
+  // DNAT rules.
+  Try<Nothing> result = delPortMapping();
+  if (result.isError()) {
+    return PluginError(
+        "Unable to remove iptables DNAT rules: " + result.error(),
+        ERROR_PORTMAP_FAILURE);
+  }
+
+  cerr << "Launching delegate CNI plugin '" << delegatePlugin
+       << "' with DEL command" << endl;
+
+  Result<spec::NetworkInfo> delegateResult = delegate(spec::CNI_CMD_DEL);
+  if (delegateResult.isError()) {
+    return PluginError(
+        "Could not execute the delegate plugin '" +
+        delegatePlugin + "' for DEL command: " + delegateResult.error(),
+        ERROR_DELEGATE_FAILURE);
+  }
+
+  cerr << "Successfully removed iptables DNAT rule and detached container "
+       << "using CNI delegate plugin '" << delegatePlugin << "'" << endl;
+
+  return Nothing();
+}
+
+
 Try<Option<string>, PluginError> PortMapper::execute()
 {
-  return None();
+  if (cniCommand == spec::CNI_CMD_ADD) {
+    Try<string, PluginError> result = handleAddCommand();
+    if (result.isError()) {
+      return result.error();
+    }
+
+    return result.get();
+  } else if (cniCommand == spec::CNI_CMD_DEL) {
+    Try<Nothing, PluginError> result = handleDelCommand();
+    if (result.isError()) {
+      return result.error();
+    }
+
+    return None();
+  }
+
+  return PluginError(
+      "Unsupported command: " + cniCommand,
+      ERROR_UNSUPPORTED_COMMAND);
 }
 
 
@@ -244,10 +498,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
   environment["CNI_IFNAME"] = cniIfName;
   environment["CNI_NETNS"] = cniNetNs;
   environment["CNI_PATH"] = cniPath;
-
-  if (cniContainerId.isSome()) {
-    environment["CNI_CONTAINERID"] = cniContainerId.get();
-  }
+  environment["CNI_CONTAINERID"] = cniContainerId;
 
   if (cniArgs.isSome()) {
     environment["CNI_ARGS"] = cniArgs.get();
@@ -289,7 +540,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
 
   if (s.isError()) {
     return Error(
-        "Failed to exec the '" + delegatePlugin +
+        "Failed to exec the delegate CNI plugin '" + delegatePlugin +
         "' subprocess: " + s.error());
   }
 
@@ -351,7 +602,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
     return Error(
         "The delegate CNI plugin '" + delegatePlugin +
         "' return status " + stringify(status->get()) +
-        ". Could not attach container: " + output.get());
+        ". Could not attach/detach container: " + output.get());
   }
 
   if (command == spec::CNI_CMD_ADD) {
