@@ -24,7 +24,7 @@ This endpoint requires authentication iff HTTP authentication is
 enabled.
 
 ### AUTHORIZATION ###
-Browsing files requires that the request principal is 
+Browsing files requires that the request principal is
 authorized to do so for the target virtual file path.
 
 Authorizers may categorize different virtual paths into
