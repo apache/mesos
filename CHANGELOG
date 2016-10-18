@@ -1,5 +1,5 @@
-Release Notes - Mesos - Version 1.1.0 (WIP)
--------------------------------------------
+Release Notes - Mesos - Version 1.1.0
+-------------------------------------
 This release contains the following new features:
 
   * [MESOS-2449] - **Experimental** support for launching a group of tasks
@@ -88,6 +88,278 @@ Additional API Changes:
   * [MESOS-6241] - New API calls (LAUNCH_NESTED_CONTAINER,
     KILL_NESTED_CONTAINER and WAIT_NESTED_CONTAINER) have been added to the
     v1 Agent API to manage nested containers within an executor container.
+
+All Issues:
+
+** Bug
+  * [MESOS-1653] - HealthCheckTest.GracePeriod is flaky.
+  * [MESOS-2346] - Docker tasks exiting normally, but returning TASK_FAILED.
+  * [MESOS-3471] - Disable perf test when perf version is not support.
+  * [MESOS-3760] - Remove fragile sleep() from ProcessManager::settle().
+  * [MESOS-3959] - Executor page of mesos ui does not show slave hostname.
+  * [MESOS-4070] - numify() handles negative numbers inconsistently.
+  * [MESOS-4638] - versioning preprocessor macros.
+  * [MESOS-4668] - Agent's /state endpoint does not include full reservation information.
+  * [MESOS-4948] - Move maintenance tests to use the new scheduler library interface.
+  * [MESOS-5276] - HTTPCommandExecutor should terminate after it receives an ACK from the agent.
+  * [MESOS-5290] - WebUI shows the active task is launched 46 years ago.
+  * [MESOS-5320] - SSL related error messages can be misguiding or incomplete.
+  * [MESOS-5448] - Persistent volume deletion on the agent should survive slave restart.
+  * [MESOS-5481] - PerfFilter disable Registrar_BENCHMARK test cases incorrectly.
+  * [MESOS-5613] - mesos-local fails to start if MESOS_WORK_DIR isn't set.
+  * [MESOS-5701] - Add benchmark for sorter performance.
+  * [MESOS-5752] - ROOT_GarbageCollectorUndeletableFilesTest.BusyMountPoint is flaky.
+  * [MESOS-5759] - ProcessRemoteLinkTest.RemoteUseStaleLink and RemoteStaleLinkRelink are flaky.
+  * [MESOS-5812] - MasterAPITest.Subscribe is flaky.
+  * [MESOS-5846] - AgentAPITest.GetState is flaky.
+  * [MESOS-5852] - CMake build needs to generate protobufs before building libmesos.
+  * [MESOS-5860] - MasterAPITest.GetTasks is flaky.
+  * [MESOS-5864] - Document MESOS_SANDBOX executor env variable.
+  * [MESOS-5867] - Operator ReadFile API read file bugs.
+  * [MESOS-5869] - Disable resources validation for `+=` and `-=`.
+  * [MESOS-5875] - Scalar resource output operator doesn't print full significant digits.
+  * [MESOS-5878] - Strict/RegistrarTest.UpdateQuota/0 is flaky.
+  * [MESOS-5888] - SlaveAuthorizerTest/ViewFlags is flaky.
+  * [MESOS-5891] - /help endpoint does not set Content-Type to HTML.
+  * [MESOS-5907] - ExamplesTest.DiskFullFramework fails on Arch.
+  * [MESOS-5909] - Stout "OsTest.User" test can fail on some systems.
+  * [MESOS-5917] - All actors should have a distinguishable ID.
+  * [MESOS-5919] - Improve performance for `Resources.contains` and `Resources.filter`.
+  * [MESOS-5921] - `validate` is a bit heavy to check negative scalar resource.
+  * [MESOS-5922] - mesos-agent --help exit status is 1.
+  * [MESOS-5928] - Agent's '--version' flag doesn't work.
+  * [MESOS-5930] - Orphan tasks can show up as running after they have finished.
+  * [MESOS-5942] - Windows implementation of `os::rmdir` is not compliant with POSIX version.
+  * [MESOS-5958] - Reviewbot failing due to python files not being cleaned up after distclean.
+  * [MESOS-5972] - SharedResourcesTest failing.
+  * [MESOS-5979] - elfio-3.1.patch is actually not applied.
+  * [MESOS-5981] - task failed in windows Server 2012 client, test-framwork example.
+  * [MESOS-5985] - Fix broken link in `networking.md`.
+  * [MESOS-5996] - Windows mesos-containerizer crashes.
+  * [MESOS-6000] - Overlayfs backend cannot support the image with numerous layers.
+  * [MESOS-6005] - Support docker registry running non-https on localhost:<non-80-port>.
+  * [MESOS-6013] - Use readdir instead of readdir_r.
+  * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w ﻿⁠sendExecutorTerminatedStatusUpdate()﻿⁠ and ﻿⁠_statusUpdate()﻿⁠.
+  * [MESOS-6031] - Collect throttle related metrics for DockerContainerizer.
+  * [MESOS-6041] - Stream ID mismatch should print out expected and received stream ID.
+  * [MESOS-6049] - XFS disk isolator doesn't handle old containers correctly.
+  * [MESOS-6052] - Unable to launch containers on CNI networks on CoreOS.
+  * [MESOS-6057] - docker isolator does not overwrite Dockerfile ENV.
+  * [MESOS-6059] - Allow clean up unknown container during the clean up phase of the container.
+  * [MESOS-6069] - Misspelled TASK_KILLED in mesos slave.
+  * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
+  * [MESOS-6085] - Agent's /state endpoint does not include total resources.
+  * [MESOS-6087] - Add master tests for TaskGroup.
+  * [MESOS-6100] - Make fails compiling 1.0.1.
+  * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
+  * [MESOS-6110] - Deprecate using health checks without setting the type.
+  * [MESOS-6118] - Agent would crash with docker container tasks due to host mount table read.
+  * [MESOS-6122] - Mesos slave throws systemd errors even when passed a flag to disable systemd.
+  * [MESOS-6131] - Improved performance for resource flatten.
+  * [MESOS-6141] - Some tests do not properly set 'flags.launcher' with the correct value.
+  * [MESOS-6144] - Validate that TaskGroup executor and tasks do not use DOCKER ContainerInfo.
+  * [MESOS-6145] - Isolator namespaces/pid is leaking mounts.
+  * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
+  * [MESOS-6153] - Resource leak in slave.cpp.
+  * [MESOS-6154] - Clean up queued tasks if a task group is killed before launch.
+  * [MESOS-6157] - ContainerInfo is not validated.
+  * [MESOS-6159] - Remove stout's Set type.
+  * [MESOS-6167] - CgroupsIsolatorTest.ROOT_CGROUPS_RevocableCpu is flaky.
+  * [MESOS-6170] - Health check grace period covers failures happening after first success.
+  * [MESOS-6173] - Authentication in v2 protobuf should not be `required`.
+  * [MESOS-6176] - CpuIsolatorTest.ROOT_SystemCpuUsage is flaky.
+  * [MESOS-6181] - The logic for BadACLNoPrincipal and BadACLDropCreateAndDestroy is not correct.
+  * [MESOS-6207] - Python bindings fail to build with custom SVN installation path.
+  * [MESOS-6208] - Containers that use the Mesos containerizer but don't want to provision a container image fail to validate.
+  * [MESOS-6210] - Master redirect with suffix gets in redirect loop.
+  * [MESOS-6216] - LibeventSSLSocketImpl::create is not safe to call concurrently with os::getenv.
+  * [MESOS-6217] - PAGE_SIZE was not declared in PPC64LE.
+  * [MESOS-6226] - Master crashes while transitioning tasks to 'TASK_UNREACHABLE'.
+  * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
+  * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
+  * [MESOS-6245] - Driver based schedulers performing explicit acknowledgements cannot acknowledge updates from HTTP based executors.
+  * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
+  * [MESOS-6248] - mesos-slave cannot start , Assertion `isError()' failed.
+  * [MESOS-6257] - Resources not recovered after rescinding an offer on DESTROY on shared volumes.
+  * [MESOS-6259] - CNI isolator should not `CHECK` for `resolv.conf` under `rootContainerDir`.
+  * [MESOS-6260] - Composing containerizer needs to properly handle nested container launch.
+  * [MESOS-6262] - Default executor should kill all other tasks in a task group if any task exits with a non-zero exit status.
+  * [MESOS-6263] - Mesos containerizer should figure out the correct sandbox directory for nested launch.
+  * [MESOS-6269] - CNI isolator doesn't activate loopback interface.
+  * [MESOS-6270] - Agent crashes when trying to recover pods.
+  * [MESOS-6274] - Agent should not allow HTTP executors to re-subscribe before containerizer recovery is done.
+  * [MESOS-6283] - Fix the Web UI allowing access to the task sandbox for nested containers.
+  * [MESOS-6289] - Pass the 'user' into nested container launch.
+  * [MESOS-6290] - Support nested containers for logger in Mesos Containerizer.
+  * [MESOS-6295] - Excessive logging on agent when oversubscription modules are attached.
+  * [MESOS-6300] - A destroyed nested container is not reflected in the parent container's children map.
+  * [MESOS-6301] - Recursive destroy in MesosContainerizer is problematic.
+  * [MESOS-6302] - Agent recovery can fail after nested containers are launched.
+  * [MESOS-6308] - CHECK failure in DRF sorter.
+  * [MESOS-6317] - Race in master/allocator when updating oversubscribed resources of an agent.
+  * [MESOS-6319] - ContentType/AgentAPITest.NestedContainerLaunch/1 is flaky.
+  * [MESOS-6321] - CHECK failure in HierarchicalAllocatorTest.NoDoubleAccounting.
+  * [MESOS-6322] - Agent fails to kill empty parent container.
+  * [MESOS-6323] - 'mesos-containerizer launch' should inherit agent environment variables.
+  * [MESOS-6324] - CNI should not use `ifconfig` in executors `pre_exec_command`.
+  * [MESOS-6363] - Default executor should not crash with a failed assertion if it notices a disconnection from the agent for non checkpointed frameworks.
+  * [MESOS-6370] - The executor library does not invoke the shutdown callback upon recovery timeout.
+  * [MESOS-6386] - "Reached unreachable statement" in LinuxCapabilitiesIsolatorTest.
+  * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
+  * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
+
+** Documentation
+  * [MESOS-5221] - Add Documentation for Nvidia GPU support.
+  * [MESOS-5808] - Elasticsearch misspelled on homepage.
+  * [MESOS-6028] - mesos-execute has a typo in volume help.
+  * [MESOS-6103] - Mesos version is not uptodate in getting-started page.
+  * [MESOS-6343] - Documentation Error: Default Executor does not implicitly construct resources.
+
+** Epic
+  * [MESOS-2449] - Support group of tasks (Pod) constructs and API in Mesos.
+  * [MESOS-3421] - Support sharing of resources across task instances.
+  * [MESOS-4312] - Porting Mesos on Power (ppc64le).
+  * [MESOS-4791] - Operator API v1.
+  * [MESOS-5344] - Partition-aware Mesos frameworks.
+
+** Improvement
+  * [MESOS-2533] - Support HTTP checks in Mesos.
+  * [MESOS-3567] - Support TCP checks in Mesos.
+  * [MESOS-4049] - Allow user to control behavior of partitioned agents/tasks.
+  * [MESOS-4155] - Speed up ExamplesTest.*.
+  * [MESOS-4172] - GarbageCollectorIntegrationTest.Restart is slow.
+  * [MESOS-4324] - Allow access to shared persistent volumes as read only or read write by tasks.
+  * [MESOS-4325] - Offer shareable resources to frameworks only if it is opted in.
+  * [MESOS-4431] - Support sharing of persistent volumes via shared resources.
+  * [MESOS-4663] - Speed up ExamplesTest.PersistentVolumeFramework.
+  * [MESOS-4694] - DRFAllocator takes very long to allocate resources with a large number of frameworks.
+  * [MESOS-4892] - Support arithmetic operations for shared resources with consumer counts.
+  * [MESOS-5038] - Added a any mechanism for futures.
+  * [MESOS-5070] - Introduce more flexible subprocess interface for child options.
+  * [MESOS-5425] - Consider using IntervalSet for Port range resource math.
+  * [MESOS-5464] - The max number of completed executors for a mesos slave should be configurable.
+  * [MESOS-5565] - Add logging when Offer::Operation::Launch message has no tasks.
+  * [MESOS-5716] - Document docker private registry with authentication support in Unified Containerizer.
+  * [MESOS-5732] - MasterAPITest.UnreserveResources is slow.
+  * [MESOS-5756] - Cmake build system needs to regenerate protobufs when they are updated.
+  * [MESOS-5790] - Ensure all examples in Scheduler HTTP API docs are valid JSON.
+  * [MESOS-5822] - Add a build script for the Windows CI.
+  * [MESOS-5870] - Fix the large preview logo in Slack.
+  * [MESOS-5901] - Make the command executor unversioned.
+  * [MESOS-5936] - Operator SUBSCRIBE api should provdide more task metadata than just state changes.
+  * [MESOS-5944] - Remove `O_SYNC` from StatusUpdateManager logs.
+  * [MESOS-5949] - Allow frameworks to learn the time when an agent became unreachable.
+  * [MESOS-5951] - Remove "strict registry" code.
+  * [MESOS-5954] - Docker executor does not use HealthChecker library.
+  * [MESOS-5955] - The "mesos-health-check" binary is not used anymore.
+  * [MESOS-5961] - HTTP and TCP health checks should support docker executor and bridged mode.
+  * [MESOS-5965] - Implement garbage collection for unreachable agent lists in registry.
+  * [MESOS-5978] - Improve run time for arithmetic operators for Resources.
+  * [MESOS-5983] - Number of libprocess worker threads is not configurable for log-rotation module.
+  * [MESOS-6006] - Abstract mesos-style.py to allow future linters to be added more easily.
+  * [MESOS-6008] - Add the infrastructure for a new python-based CLI.
+  * [MESOS-6025] - Validate health check protobuf in the master.
+  * [MESOS-6037] - Offer::Operation.type should be optional.
+  * [MESOS-6039] - Update elfio to version 3.2.
+  * [MESOS-6050] - Add an agent flag for 'runtime_dir'.
+  * [MESOS-6051] - Add functions to the 'Launcher' abstraction to aid in checkpointing the exit status of containers.
+  * [MESOS-6060] - Add MOUNT or PATH disk type in logging resources.
+  * [MESOS-6063] - Track recovered and prepared subsystems for a container.
+  * [MESOS-6065] - Support provisioning image volumes in an isolator.
+  * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
+  * [MESOS-6080] - Expose metrics in scheduler library.
+  * [MESOS-6088] - Update launch helper to checkpoint exit status of launched process.
+  * [MESOS-6090] - Change master to always update registry before in-memory state.
+  * [MESOS-6096] - Update mesos-execute to support launching task groups.
+  * [MESOS-6098] - Frameworks UI shows metrics for used resources plus offers.
+  * [MESOS-6140] - Add a parallel test runner.
+  * [MESOS-6218] - Avoided to concat cgroup internally in subsystems.
+  * [MESOS-6220] - HTTP handler failures should result in 500 response rather than 503 response.
+  * [MESOS-6242] - Expose unknown container case on Containerizer::wait.
+  * [MESOS-6243] - Expose failures and unknown container cases from Containerizer::destroy.
+  * [MESOS-6282] - CNI isolator should print plugin's stderr.
+  * [MESOS-6299] - Master doesn't remove task from pending when it is invalid.
+  * [MESOS-6310] - Remove or define non-POSIX function.
+  * [MESOS-6371] - Remove the 'recover()' interface in 'ContainerLogger'.
+
+** Task
+  * [MESOS-3370] - Deprecate the external containerizer.
+  * [MESOS-4390] - Shared Volumes Design Doc.
+  * [MESOS-5039] - Add Subsystem abstraction for cgroups unified isolator.
+  * [MESOS-5040] - Add cgroups_subsystems flag for cgroups unified isolator.
+  * [MESOS-5041] - Add cgroups unified isolator.
+  * [MESOS-5042] - Add cpu subsystem support in cgroups unified isolator.
+  * [MESOS-5043] - Add cpuacct subsystem support in cgroups unified isolator.
+  * [MESOS-5045] - Add memory subsystem support in cgroups unified isolator.
+  * [MESOS-5046] - Add net_cls subsystem support in cgroups unified isolator.
+  * [MESOS-5047] - Add perf_event subsystem support in cgroups unified isolator.
+  * [MESOS-5051] - Create helpers for manipulating Linux capabilities.
+  * [MESOS-5144] - Cleanup memory leaks in libprocess finalize().
+  * [MESOS-5228] - Add tests for Capability API.
+  * [MESOS-5232] - Add capability information to ContainerInfo protobuf message.
+  * [MESOS-5275] - Add capabilities support for unified containerizer.
+  * [MESOS-5488] - Implement READ_FILE Call in v1 master API.
+  * [MESOS-5515] - Implement READ_FILE Call in v1 agent API.
+  * [MESOS-5516] - Implement GET_STATE Call in v1 agent API.
+  * [MESOS-5651] - Add devices subsystem support in cgroups unified isolator.
+  * [MESOS-5652] - Enable cgroups unified isolator.
+  * [MESOS-5788] - Consider adding a Java Scheduler Shim/Adapter for the new/old API.
+  * [MESOS-5809] - Implement GET_FRAMEWORKS Call in v1 agent API.
+  * [MESOS-5810] - Implement GET_EXECUTORS Call in v1 agent API.
+  * [MESOS-5811] - Implement GET_TASKS Call in v1 agent API.
+  * [MESOS-5855] - Create a 'Disk (not) full' example framework.
+  * [MESOS-5970] - Remove HTTP_PARSER_VERSION_MAJOR < 2 code in decoder.
+  * [MESOS-5973] - Remove CgroupsCpushareIsolator.
+  * [MESOS-5974] - Remove CgroupsMemIsolator.
+  * [MESOS-5975] - Remove CgroupsPerfEventIsolator.
+  * [MESOS-5976] - Remove CgroupsNetClsIsolator.
+  * [MESOS-5977] - Remove CgroupsDevicesIsolator.
+  * [MESOS-5987] - Update health check protobuf for HTTP and TCP health check.
+  * [MESOS-6017] - Introduce `PortMapping` protobuf.
+  * [MESOS-6020] - Remove `slavePid` from the Containerizer::launch API.
+  * [MESOS-6021] - Consolidate two `Containerizer::launch` methods into one.
+  * [MESOS-6023] - Create a binary for the port-mapper plugin.
+  * [MESOS-6036] - Define the Framework API protobufs required for TaskGroups.
+  * [MESOS-6042] - Validate TaskGroup launch in the master.
+  * [MESOS-6043] - Add interface for launching nested containers in Containerizer.
+  * [MESOS-6045] - Implement LAUNCH_GROUP operation in master.
+  * [MESOS-6067] - Support provisioner to be nested aware for Mesos Pods.
+  * [MESOS-6068] - Refactor MesosContainerizer::launch to prepare for nesting support.
+  * [MESOS-6070] - Renamed containerizer::Termination to ContainerTermination.
+  * [MESOS-6071] - Validate that an explicitly specified DEFAULT executor has disk resources.
+  * [MESOS-6073] - Update the streaming function for ContainerID to be nesting aware.
+  * [MESOS-6076] - Implement RunTaskGroup handler on the agent.
+  * [MESOS-6077] - Implement a basic default pod executor.
+  * [MESOS-6102] - Add event for agent added in master operator API.
+  * [MESOS-6130] - Make the disk usage isolator nesting-aware.
+  * [MESOS-6150] - Introduce the new isolator recover interface for nested container support.
+  * [MESOS-6151] - Populate `CommandInfo` correctly for default executors.
+  * [MESOS-6156] - Make the `network/cni` isolator nesting aware.
+  * [MESOS-6160] - Add protobuf definition for a Volume::Source that specifies a path from parent contianer's sandbox.
+  * [MESOS-6186] - Make the generic `cgroups` isolator nesting aware.
+  * [MESOS-6188] - Make the `gpu/nvidia` isolator nesting aware.
+  * [MESOS-6189] - Add a virtual method to Isolator to indicate if it supports nesting.
+  * [MESOS-6190] - Make the docker/runtime isolator nesting aware.
+  * [MESOS-6191] - Make the filesystem/linux isolator nesting aware.
+  * [MESOS-6192] - Make the appc/runtime isolator nesting aware.
+  * [MESOS-6194] - Make the disk/du isolator nesting aware.
+  * [MESOS-6199] - Make the volume/image isolator nesting aware.
+  * [MESOS-6204] - Introduce a "runtime" directory owned by the containerizer for checkpointing container information.
+  * [MESOS-6227] - Update the default executor to launch/wait/destroy child containers.
+  * [MESOS-6230] - Add support for health checks to the default executor.
+  * [MESOS-6235] - Add 'argv' variant of 'os::system'.
+  * [MESOS-6241] - Add agent::Call / agent::Response API for managing nested containers.
+  * [MESOS-6258] - Add `volume/sandbox_path` isolator to support Volume::Source::SANDBOX_PATH.
+  * [MESOS-6265] - Adjust cgroups layout for nested containers.
+  * [MESOS-6272] - Allow WebUI/other tools to access the task sandbox for a nested container.
+  * [MESOS-6284] - MesosContainerizer should skip non-nesting aware isolators for nested container.
+  * [MESOS-6287] - MesosContainer should allow 'wait' on terminated nested container.
+  * [MESOS-6312] - Update CHANGELOG to mention addition of agent '--runtime_dir' flag.
+  * [MESOS-6344] - Allow `network/cni` isolator to take a search path for CNI plugins instead of single directory.
+  * [MESOS-6408] - Changelog for `mesos-cni-port-mapper` to 1.1.0.
+
+** Wish
+  * [MESOS-5929] - Total cluster resources on master Mesos UI should have better spacing.
 
 
 Release Notes - Mesos - Version 1.0.2
