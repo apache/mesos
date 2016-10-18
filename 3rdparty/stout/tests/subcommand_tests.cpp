@@ -33,14 +33,14 @@ public:
   {
     Flags()
     {
-      add(&b, "b", "bool");
-      add(&i, "i", "int");
-      add(&s, "s", "string");
-      add(&s2, "s2", "string with single quote");
-      add(&s3, "s3", "string with double quote");
-      add(&d, "d", "Duration");
-      add(&y, "y", "Bytes");
-      add(&j, "j", "JSON::Object");
+      add(&Flags::b, "b", "bool");
+      add(&Flags::i, "i", "int");
+      add(&Flags::s, "s", "string");
+      add(&Flags::s2, "s2", "string with single quote");
+      add(&Flags::s3, "s3", "string with double quote");
+      add(&Flags::d, "d", "Duration");
+      add(&Flags::y, "y", "Bytes");
+      add(&Flags::j, "j", "JSON::Object");
     }
 
     void populate()

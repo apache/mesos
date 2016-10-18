@@ -384,7 +384,7 @@ String formatting is provided via `strings::format`. The `strings::format` funct
 One frustration with existing command line flags libraries was the burden they put on writing tests that attempted to have many different instantiations of the flags. For example, running two instances of the same component within a test where each instance was started with different command line flags. To solve this, we provide a command line flags abstraction called `Flags` (in the `flags` namespace) that you can extend to define your own flags:
 
 ~~~{.cpp}
-    struct MyFlags : flags::Flags
+    struct MyFlags : virtual flags::Flags // Use `virtual` for composition!
     {
       MyFlags()
       {
@@ -394,7 +394,7 @@ One frustration with existing command line flags libraries was the burden they p
             "Some information about foo",
             DEFAULT_VALUE_FOR_FOO);
 
-        // A flag with out a default value,
+        // A flag without a default value,
         // defined below with an `Option`.
         add(&MyFlags::bar,
             "bar",

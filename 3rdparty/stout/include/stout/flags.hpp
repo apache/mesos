@@ -21,14 +21,14 @@
 // class MyFlags : public virtual FlagsBase // Use 'virtual' for composition!
 // {
 // public:
-//   Flags()
+//   MyFlags()
 //   {
-//     add(&debug,
+//     add(&MyFlags::debug,
 //         "debug",
 //         "Help string for debug",
 //         false);
 //
-//     add(&name,
+//     add(&MyFlags::name,
 //         "name",
 //         "Help string for name");
 //   }

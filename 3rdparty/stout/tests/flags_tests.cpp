@@ -48,31 +48,31 @@ using utils::arraySize;
 class EmptyFlags : public virtual FlagsBase {};
 
 
-class TestFlags : public virtual FlagsBase
+class TestFlagsBase : public virtual FlagsBase
 {
 public:
-  TestFlags()
+  TestFlagsBase()
   {
-    add(&TestFlags::name1,
+    add(&TestFlagsBase::name1,
         "name1",
         "Set name1",
         "ben folds");
 
-    add(&TestFlags::name2,
+    add(&TestFlagsBase::name2,
         "name2",
         "Set name2",
         42);
 
-    add(&TestFlags::name3,
+    add(&TestFlagsBase::name3,
         "name3",
         "Set name3",
         false);
 
-    add(&TestFlags::name4,
+    add(&TestFlagsBase::name4,
         "name4",
         "Set name4");
 
-    add(&TestFlags::name5,
+    add(&TestFlagsBase::name5,
         "name5",
         "Set name5");
   }
@@ -87,7 +87,7 @@ public:
 
 TEST(FlagsTest, Load)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const map<string, Option<string>> values = {
     {"name1", Some("billy joel")},
@@ -111,101 +111,100 @@ TEST(FlagsTest, Load)
 
 TEST(FlagsTest, Add)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::name1, "name1", "Also set name1");
+      add(&TestFlags::name2, "name2", "Also set name2", true);
+      add(&TestFlags::name3, "name3", "Also set name3");
+      add(&TestFlags::name4, "name4", "Also set name4");
+    }
+
+    Option<string> name1;
+    bool name2;
+    Option<string> name3;
+    Option<string> name4;
+  };
+
   TestFlags flags;
 
-  Option<string> name6;
-
-  flags.add(&name6,
-            "name6",
-            "Also set name6");
-
-  bool name7;
-
-  flags.add(&name7,
-            "name7",
-            "Also set name7",
-            true);
-
-  Option<string> name8;
-
-  flags.add(&name8,
-            "name8",
-            "Also set name8");
-
-  Option<string> name9;
-
-  flags.add(&name9,
-            "name9",
-            "Also set name9");
-
   const map<string, Option<string>> values = {
-    {"name6", Some("ben folds")},
-    {"no-name7", None()},
-    {"name9", Some("")}
+    {"name1", Some("ben folds")},
+    {"no-name2", None()},
+    {"name4", Some("")}
   };
 
   flags.load(values);
 
-  ASSERT_SOME(name6);
-  EXPECT_EQ("ben folds", name6.get());
+  ASSERT_SOME(flags.name1);
+  EXPECT_EQ("ben folds", flags.name1.get());
 
-  EXPECT_FALSE(name7);
+  EXPECT_FALSE(flags.name2);
 
-  EXPECT_NONE(name8);
+  EXPECT_NONE(flags.name3);
 
-  ASSERT_SOME(name9);
-  EXPECT_EQ("", name9.get());
+  ASSERT_SOME(flags.name4);
+  EXPECT_EQ("", flags.name4.get());
 }
 
 
 TEST(FlagsTest, Alias)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(
+        &TestFlags::name1,
+        "name1",
+        Some("alias1"),
+        "Also set name1");
+
+      add(&TestFlags::name2,
+        "name2",
+        Some("alias2"),
+        "Also set name2",
+        true);
+
+      add(
+        &TestFlags::name3,
+        "name3",
+        Some("alias3"),
+        "Also set name3",
+        "value8");
+    }
+
+    Option<string> name1;
+    bool name2;
+    string name3;
+  };
+
   TestFlags flags;
-
-  Option<string> name6;
-
-  flags.add(&name6,
-            "name6",
-            Some("alias6"),
-            "Also set name6");
-
-  bool name7;
-
-  flags.add(&name7,
-            "name7",
-            Some("alias7"),
-            "Also set name7",
-            true);
-
-  string name8;
-
-  flags.add(&name8,
-            "name8",
-            Some("alias8"),
-            "Also set name8",
-            "value8");
 
   // Load with alias names.
   const map<string, Option<string>> values = {
-     {"alias6", Some("foo")},
-     {"no-alias7", None()},
-     {"alias8", Some("bar")}
+     {"alias1", Some("foo")},
+     {"no-alias2", None()},
+     {"alias3", Some("bar")}
   };
 
   flags.load(values);
 
-  ASSERT_SOME(name6);
-  EXPECT_EQ("foo", name6.get());
+  ASSERT_SOME(flags.name1);
+  EXPECT_EQ("foo", flags.name1.get());
 
-  EXPECT_FALSE(name7);
+  EXPECT_FALSE(flags.name2);
 
-  EXPECT_EQ("bar", name8);
+  EXPECT_EQ("bar", flags.name3);
 }
 
 
 TEST(FlagsTest, Flags)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const map<string, Option<string>> values = {
     {"name1", Some("billy joel")},
@@ -232,7 +231,7 @@ TEST(FlagsTest, Flags)
 // to be deleted on Windows. See MESOS-5880.
 TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, LoadFromEnvironment)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   os::setenv("FLAGSTEST_name1", "billy joel");
   os::setenv("FLAGSTEST_name2", "43");
@@ -262,7 +261,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, LoadFromEnvironment)
 
 TEST(FlagsTest, LoadFromCommandLine)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const char* argv[] = {
     "/path/to/program",
@@ -289,7 +288,7 @@ TEST(FlagsTest, LoadFromCommandLine)
 
 TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const char* argv[] = {
     "/path/to/program",
@@ -321,7 +320,7 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
 
 TEST(FlagsTest, LoadFromCommandLineWithDashDash)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const char* argv[] = {
     "/path/to/program",
@@ -351,7 +350,7 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
 
 TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   char* argv[] = {
     (char*)"/path/to/program",
@@ -396,26 +395,22 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
 
 TEST(FlagsTest, Stringification)
 {
+  class TestFlags : public virtual TestFlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::name6, "name6", "Also set name6", Milliseconds(42));
+      add(&TestFlags::name7, "name7", "Optional name7");
+      add(&TestFlags::name8, "name8", "Optional name8");
+    }
+
+    Duration name6;
+    Option<bool> name7;
+    Option<bool> name8;
+  };
+
   TestFlags flags;
-
-  Duration name6;
-
-  flags.add(&name6,
-            "name6",
-            "Also set name6",
-            Milliseconds(42));
-
-  Option<bool> name7;
-
-  flags.add(&name7,
-            "name7",
-            "Optional name7");
-
-  Option<bool> name8;
-
-  flags.add(&name8,
-            "name8",
-            "Optional name8");
 
   const map<string, Option<string>> values = {
     {"name2", Some("43")},
@@ -456,35 +451,43 @@ TEST(FlagsTest, Stringification)
 
 TEST(FlagsTest, EffectiveName)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+       add(
+         &TestFlags::name1,
+         "name1",
+         Some("alias1"),
+         "Also set name1");
+
+       add(
+         &TestFlags::name2,
+         "name2",
+         Some("alias2"),
+         "Also set name2",
+         "value7");
+    }
+
+    Option<string> name1;
+    string name2;
+  };
+
   TestFlags flags;
 
-  Option<string> name6;
-
-  flags.add(&name6,
-            "name6",
-            Some("alias6"),
-            "Also set name6");
-
-  string name7;
-
-  flags.add(&name7,
-            "name7",
-            Some("alias7"),
-            "Also set name7",
-            "value7");
-
-  // Only load "name6" flag explicitly.
+  // Only load "name1" flag explicitly.
   const map<string, Option<string>> values = {
-    {"alias6", Some("value6")}
+    {"alias1", Some("value6")}
   };
 
   flags.load(values);
 
   foreachvalue (const Flag& flag, flags) {
-    if (flag.name == "name6") {
-      EXPECT_EQ("alias6", flag.effective_name().value);
-    } else if (flag.name == "name7") {
-      EXPECT_EQ("name7", flag.effective_name().value);
+    if (flag.name == "name1") {
+      EXPECT_EQ("alias1", flag.effective_name().value);
+    } else if (flag.name == "name2") {
+      EXPECT_EQ("name2", flag.effective_name().value);
     }
   }
 }
@@ -492,24 +495,32 @@ TEST(FlagsTest, EffectiveName)
 
 TEST(FlagsTest, DeprecationWarning)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(
+        &TestFlags::name,
+        "name",
+        flags::DeprecatedName("alias"),
+        "Also set name");
+    }
+
+    Option<string> name;
+  };
+
   TestFlags flags;
 
-  Option<string> name6;
-
-  flags.add(&name6,
-            "name6",
-            flags::DeprecatedName("alias6"),
-            "Also set name6");
-
   const map<string, Option<string>> values = {
-    {"alias6", Some("value6")}
+    {"alias", Some("value6")}
   };
 
   Try<Warnings> load = flags.load(values);
   ASSERT_SOME(load);
 
   EXPECT_EQ(1u, load->warnings.size());
-  EXPECT_EQ("Loaded deprecated flag 'alias6'", load->warnings[0].message);
+  EXPECT_EQ("Loaded deprecated flag 'alias'", load->warnings[0].message);
 }
 
 
@@ -517,7 +528,7 @@ TEST(FlagsTest, DeprecationWarning)
 // assumes filesystems are rooted at '/'. See MESOS-5937.
 TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   os::setenv("FLAGSTEST_name1", "ben folds");
   os::setenv("FLAGSTEST_name2", "50");
@@ -537,7 +548,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
   EXPECT_EQ(flags.name2, 50);
 
   {
-    flags = TestFlags();
+    flags = TestFlagsBase();
     std::map<std::string, std::string> values;
     values["name1"] = "billy joel";
 
@@ -551,7 +562,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
   }
 
   {
-    flags = TestFlags();
+    flags = TestFlagsBase();
     std::map<std::string, Option<std::string>> values;
     values["name1"] = "billy joel";
     values["name2"] = "51";
@@ -573,7 +584,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
 
 TEST(FlagsTest, DuplicatesFromCommandLine)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   const char* argv[] = {
     "/path/to/program",
@@ -590,19 +601,23 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
 
 TEST(FlagsTest, AliasDuplicateFromCommandLine)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::name, "name", Some("alias"), "Also set name");
+    }
+
+    Option<string> name;
+  };
+
   TestFlags flags;
-
-  Option<string> name6;
-
-  flags.add(&name6,
-            "name6",
-            Some("alias6"),
-            "Also set name6");
 
   const char* argv[] = {
     "/path/to/program",
-    "--name6=billy joel",
-    "--alias6=ben folds"
+    "--name=billy joel",
+    "--alias=ben folds"
   };
 
   // Loading the same flag with the name and alias should be an error.
@@ -613,6 +628,14 @@ TEST(FlagsTest, AliasDuplicateFromCommandLine)
 
 TEST(FlagsTest, Errors)
 {
+  class TestFlags : public virtual TestFlagsBase
+  {
+  public:
+    TestFlags() { add(&TestFlags::name6, "name6", "Also set name6"); }
+
+    Option<int> name6;
+  };
+
   TestFlags flags;
 
   const int argc = 2;
@@ -680,9 +703,6 @@ TEST(FlagsTest, Errors)
   EXPECT_EQ("Failed to load non-boolean flag 'name2' "
             "via 'no-name2'", load.error());
 
-  Option<int> name6;
-  flags.add(&name6, "name6", "Also set name6");
-
   // Now test a non-boolean flag using empty string value.
   argv[1] = (char*) "--name6=";
 
@@ -698,14 +718,22 @@ TEST(FlagsTest, Errors)
 // result in an error.
 TEST(FlagsTest, MissingRequiredFlag)
 {
-  TestFlags flags;
+  class TestFlags : public virtual TestFlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(
+        &TestFlags::requiredFlag,
+        "required_flag",
+        "This flag is required and has no default value.");
+    }
 
-  // A required flag which must be set and has no default value.
-  string requiredFlag;
-  flags.add(
-      &requiredFlag,
-      "required_flag",
-      "This flag is required and has no default value.");
+    // A required flag which must be set and has no default value.
+    string requiredFlag;
+  };
+
+  TestFlags flags;
 
   const int argc = 2;
   char* argv[argc];
@@ -730,7 +758,7 @@ TEST(FlagsTest, Validate)
   public:
     ValidatingTestFlags()
     {
-      add(&duration,
+      add(&ValidatingTestFlags::duration,
           "duration",
           "Duration to test validation",
           Seconds(10),
@@ -761,30 +789,22 @@ TEST(FlagsTest, Validate)
 
 TEST(FlagsTest, Usage)
 {
+  class TestFlags : public virtual TestFlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::name6, "z6", Some("a6"), "Also set name6");
+      add(&TestFlags::name7, "z7", Some("a7"), "Also set name7", true);
+      add(&TestFlags::name8, "z8", Some("a8"), "Also set name8", "value8");
+    }
+
+    Option<string> name6;
+    bool name7;
+    string name8;
+  };
+
   TestFlags flags;
-
-  Option<string> name6;
-
-  flags.add(&name6,
-            "z6",
-            Some("a6"),
-            "Also set name6");
-
-  bool name7;
-
-  flags.add(&name7,
-            "z7",
-            Some("a7"),
-            "Also set name7",
-            true);
-
-  string name8;
-
-  flags.add(&name8,
-            "z8",
-            Some("a8"),
-            "Also set name8",
-            "value8");
 
   EXPECT_EQ(
       "Usage:  [options]\n"
@@ -804,7 +824,7 @@ TEST(FlagsTest, Usage)
 
 TEST(FlagsTest, UsageMessage)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
   flags.setUsageMessage("This is a test");
 
   EXPECT_EQ(
@@ -853,7 +873,7 @@ TEST(FlagsTest, ProgramName)
 
 TEST(FlagsTest, OptionalMessage)
 {
-  TestFlags flags;
+  TestFlagsBase flags;
 
   EXPECT_EQ(
       "Good news: this test passed!\n"
@@ -872,43 +892,45 @@ TEST(FlagsTest, OptionalMessage)
 
 TEST(FlagsTest, Duration)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::name1, "name1", "Amount of time", Milliseconds(100));
+      add(&TestFlags::name2, "name2", "Also some amount of time");
+    }
+
+    Duration name1;
+    Option<Duration> name2;
+  };
+
   TestFlags flags;
 
-  Duration name6;
-
-  flags.add(&name6,
-            "name6",
-            "Amount of time",
-            Milliseconds(100));
-
-  Option<Duration> name7;
-
-  flags.add(&name7,
-            "name7",
-            "Also some amount of time");
-
   const map<string, Option<string>> values = {
-    {"name6", Some("2mins")},
-    {"name7", Some("3hrs")}
+    {"name1", Some("2mins")},
+    {"name2", Some("3hrs")}
   };
 
   ASSERT_SOME(flags.load(values));
 
-  EXPECT_EQ(Minutes(2), name6);
+  EXPECT_EQ(Minutes(2), flags.name1);
 
-  EXPECT_SOME_EQ(Hours(3), name7);
+  EXPECT_SOME_EQ(Hours(3), flags.name2);
 }
 
 
 TEST(FlagsTest, JSON)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags() { add(&TestFlags::json, "json", "JSON string"); }
+
+    Option<JSON::Object> json;
+  };
+
   TestFlags flags;
-
-  Option<JSON::Object> json;
-
-  flags.add(&json,
-            "json",
-            "JSON string");
 
   JSON::Object object;
 
@@ -926,7 +948,7 @@ TEST(FlagsTest, JSON)
 
   ASSERT_SOME(flags.load(values));
 
-  ASSERT_SOME_EQ(object, json);
+  ASSERT_SOME_EQ(object, flags.json);
 }
 
 
@@ -937,13 +959,15 @@ class FlagsFileTest : public TemporaryDirectoryTest {};
 // assumes filesystems are rooted at '/'. See MESOS-5937.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags() { add(&TestFlags::json, "json", "JSON string"); }
+
+    Option<JSON::Object> json;
+  };
+
   TestFlags flags;
-
-  Option<JSON::Object> json;
-
-  flags.add(&json,
-            "json",
-            "JSON string");
 
   JSON::Object object;
 
@@ -966,19 +990,24 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 
   ASSERT_SOME(flags.load(values));
 
-  ASSERT_SOME_EQ(object, json);
+  ASSERT_SOME_EQ(object, flags.json);
 }
 
 
 TEST_F(FlagsFileTest, FilePrefix)
 {
+  class TestFlags : public virtual FlagsBase
+  {
+  public:
+    TestFlags()
+    {
+      add(&TestFlags::something, "something", "arg to be loaded from file");
+    }
+
+    Option<string> something;
+  };
+
   TestFlags flags;
-
-  Option<string> something;
-
-  flags.add(&something,
-            "something",
-            "arg to be loaded from file");
 
   // Write the JSON to a file.
   const string file = path::join(os::getcwd(), "file");
@@ -990,5 +1019,5 @@ TEST_F(FlagsFileTest, FilePrefix)
 
   ASSERT_SOME(flags.load(values));
 
-  ASSERT_SOME_EQ("testing", something);
+  ASSERT_SOME_EQ("testing", flags.something);
 }

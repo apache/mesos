@@ -44,7 +44,11 @@ namespace flags {
 class FlagsBase
 {
 public:
-  FlagsBase() { add(&help, "help", "Prints this help message", false); }
+  FlagsBase()
+  {
+    add(&FlagsBase::help, "help", "Prints this help message", false);
+  }
+
   virtual ~FlagsBase() = default;
 
   // Explicitly disable rvalue constructors and assignment operators
@@ -61,7 +65,6 @@ public:
   FlagsBase(FlagsBase&&) = delete;
   FlagsBase& operator=(const FlagsBase&) = default;
   FlagsBase& operator=(FlagsBase&&) = delete;
-
 
   // Load any flags from the environment given the variable prefix,
   // i.e., given prefix 'STOUT_' will load a flag named 'foo' via
