@@ -1223,7 +1223,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   if (parse.isError()) {
     return Failure(
         "Failed to parse the output of the CNI plugin '" +
-        plugin + "' :" + parse.error());
+        plugin + "': " + parse.error());
   }
 
   if (parse.get().has_ip4()) {
@@ -1480,8 +1480,6 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
           << "' to detach container " << containerId << " from network '"
           << networkName << "'";
 
-  // NOTE: For 'DEL' the CNI plugin is not expected to return any
-  // result, hence setting the STDOUT to /dev/null.
   Try<Subprocess> s = subprocess(
       plugin.get(),
       {networkConfig.config.type()},
