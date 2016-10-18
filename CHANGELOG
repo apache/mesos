@@ -6,22 +6,27 @@ All Issues:
 ** Bug
     * [MESOS-5613] - mesos-local fails to start if MESOS_WORK_DIR isn't set.
     * [MESOS-6013] - Use readdir instead of readdir_r.
-    * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts.
-    * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
-    * [MESOS-6122] - Mesos slave throws systemd errors even when passed a flag to disable systemd.
+    * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w ﻿⁠sendExecutorTerminatedStatusUpdate()﻿⁠ and ﻿⁠_statusUpdate()﻿⁠
+    * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts
+    * [MESOS-6100] - Make fails compiling 1.0.1 
     * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
+    * [MESOS-6118] - Agent would crash with docker container tasks due to host mount table read.
+    * [MESOS-6122] - Mesos slave throws systemd errors even when passed a flag to disable systemd
     * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
-    * [MESOS-6235] - Add 'os::spawn', 'argv' variant of 'os::system'.
-    * [MESOS-6245] - Driver based schedulers using explicit acknowledgements cannot acknowledge updates from HTTP based executors.
-    * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
-    * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
-    * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
-    * [MESOS-6299] - Master doesn't remove task from pending when it is invalid.
-    * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w sendExecutorTerminatedStatusUpdate() and _statusUpdate().
-    * [MESOS-6269] - CNI isolator doesn't activate loopback interface.
-    * [MESOS-6274] - Agent should not allow HTTP based executors to subscribe before containerizer recovery is done.
-    * [MESOS-6324] - CNI should not use `ifconfig` in executors `pre_exec_command`.
+    * [MESOS-6216] - LibeventSSLSocketImpl::create is not safe to call concurrently with os::getenv
+    * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters
+    * [MESOS-6234] - Potential socket leak during Zookeeper network changes
+    * [MESOS-6245] - Driver based schedulers performing explicit acknowledgements cannot acknowledge updates from HTTP based executors.
+    * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails
+    * [MESOS-6269] - CNI isolator doesn't activate loopback interface
+    * [MESOS-6274] - Agent should not allow HTTP executors to re-subscribe before containerizer recovery is done.
+    * [MESOS-6324] - CNI should not use `ifconfig` in executors `pre_exec_command`
     * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
+    * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
+
+** Improvement
+    * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
+    * [MESOS-6299] - Master doesn't remove task from pending when it is invalid
 
 
 Release Notes - Mesos - Version 1.0.1
