@@ -285,3 +285,7 @@ This is described in a [separate document](docker-volume.md).
 ### The `network/cni` Isolator
 
 This is described in a [separate document](cni.md).
+
+### The `linux/capabilities` Isolator
+
+This is described in a [separate document](linux_capabilities.md).

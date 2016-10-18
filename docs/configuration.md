@@ -996,6 +996,22 @@ cgroup.
 </tr>
 <tr>
   <td>
+    --allowed_capabilities=VALUE
+  </td>
+  <td>
+The value needs to be a JSON-formatted string of Linux capabilities
+that the agent should allow. Note that if no Linux capabilities
+isolation is enabled (<code>linux/capabilities</code> is not present
+in the arguments to <code>--isolation</code>), this flags is ignored.
+<p/>
+Example:
+<pre><code>{
+"capabilities": [NET_RAW, MKNOD]
+}</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --appc_simple_discovery_uri_prefix=VALUE
   </td>
   <td>
