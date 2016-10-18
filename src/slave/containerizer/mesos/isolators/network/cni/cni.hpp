@@ -151,6 +151,7 @@ private:
       const std::string& plugin,
       const std::tuple<
           process::Future<Option<int>>,
+          process::Future<std::string>,
           process::Future<std::string>>& t);
 
   process::Future<Nothing> detach(
@@ -163,6 +164,7 @@ private:
       const std::string& plugin,
       const std::tuple<
           process::Future<Option<int>>,
+          process::Future<std::string>,
           process::Future<std::string>>& t);
 
   process::Future<Nothing> _cleanup(

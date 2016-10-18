@@ -1150,7 +1150,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       {networkConfig.config.type()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
       nullptr,
       environment);
 
@@ -1160,7 +1160,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         plugin.get() + "': " + s.error());
   }
 
-  return await(s->status(), io::read(s->out().get()))
+  return await(s->status(), io::read(s->out().get()), io::read(s->err().get()))
     .then(defer(
         PID<NetworkCniIsolatorProcess>(this),
         &NetworkCniIsolatorProcess::_attach,
@@ -1175,7 +1175,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
     const ContainerID& containerId,
     const string& networkName,
     const string& plugin,
-    const tuple<Future<Option<int>>, Future<string>>& t)
+    const tuple<Future<Option<int>>, Future<string>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
@@ -1204,10 +1204,18 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   }
 
   if (status.get() != 0) {
+    Future<string> error = std::get<2>(t);
+    if (!error.isReady()) {
+      return Failure(
+          "Failed to read stderr from the CNI plugin '" +
+          plugin + "' subprocess: " +
+          (error.isFailed() ? error.failure() : "discarded"));
+    }
+
     return Failure(
         "The CNI plugin '" + plugin + "' failed to attach container " +
-        containerId.value() + " to CNI network '" + networkName +
-        "': " + output.get());
+        stringify(containerId) + " to CNI network '" + networkName +
+        "': stdout='" + output.get() + "', stderr='" + error.get() + "'");
   }
 
   // Parse the output of CNI plugin.
@@ -1215,7 +1223,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   if (parse.isError()) {
     return Failure(
         "Failed to parse the output of the CNI plugin '" +
-        plugin + "': " + parse.error());
+        plugin + "' :" + parse.error());
   }
 
   if (parse.get().has_ip4()) {
@@ -1472,12 +1480,14 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
           << "' to detach container " << containerId << " from network '"
           << networkName << "'";
 
+  // NOTE: For 'DEL' the CNI plugin is not expected to return any
+  // result, hence setting the STDOUT to /dev/null.
   Try<Subprocess> s = subprocess(
       plugin.get(),
       {networkConfig.config.type()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
       nullptr,
       environment);
 
@@ -1487,7 +1497,10 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
         "': " + s.error());
   }
 
-  return await(s->status(), io::read(s->out().get()))
+  return await(
+      s->status(),
+      io::read(s->out().get()),
+      io::read(s->err().get()))
     .then(defer(
         PID<NetworkCniIsolatorProcess>(this),
         &NetworkCniIsolatorProcess::_detach,
@@ -1502,7 +1515,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
     const ContainerID& containerId,
     const string& networkName,
     const string& plugin,
-    const tuple<Future<Option<int>>, Future<string>>& t)
+    const tuple<Future<Option<int>>, Future<string>, Future<string>>& t)
 {
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
@@ -1537,8 +1550,6 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
     return Nothing();
   }
 
-  // CNI plugin will print result (in case of success) or error (in
-  // case of failure) to stdout.
   Future<string> output = std::get<1>(t);
   if (!output.isReady()) {
     return Failure(
@@ -1547,9 +1558,18 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
         (output.isFailed() ? output.failure() : "discarded"));
   }
 
+  Future<string> error = std::get<2>(t);
+  if (!error.isReady()) {
+    return Failure(
+        "Failed to read stderr from the CNI plugin '" +
+        plugin + "' subprocess: " +
+        (error.isFailed() ? error.failure() : "discarded"));
+  }
+
   return Failure(
-      "The CNI plugin '" + plugin + "' failed to detach container "
-      "from network '" + networkName + "': " + output.get());
+      "The CNI plugin '" + plugin + "' failed to detach container " +
+      stringify(containerId) + " from CNI network '" + networkName +
+      "': stdout='" + output.get() + "', stderr='" + error.get() + "'");
 }
 
 
