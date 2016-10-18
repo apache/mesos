@@ -82,24 +82,36 @@ namespace tests {
 //   'success'    True if the task should finish normally.
 struct TestParam
 {
+  enum Result
+  {
+    FAILURE = 0,
+    SUCCESS = 1
+  };
+
+  enum UseImage
+  {
+    WITHOUT_IMAGE = 0,
+    WITH_IMAGE = 1
+  };
+
   TestParam(
       const Option<set<Capability>>& _requested,
       const Option<set<Capability>>& _allowed,
-      bool _image,
-      bool _success)
+      UseImage _useImage,
+      Result _result)
     : requested(_requested.isSome()
         ? convert(_requested.get())
         : Option<CapabilityInfo>::none()),
       allowed(_allowed.isSome()
         ? convert(_allowed.get())
         : Option<CapabilityInfo>::none()),
-      image(_image),
-      success(_success) {}
+      useImage(_useImage),
+      result(_result) {}
 
   const Option<CapabilityInfo> requested;
   const Option<CapabilityInfo> allowed;
-  const bool image;
-  const bool success;
+  const UseImage useImage;
+  const Result result;
 };
 
 
@@ -117,8 +129,22 @@ ostream& operator<<(ostream& stream, const TestParam& param)
     stream << "allowed='none', ";
   }
 
-  stream << "image='" << (param.image ? "true" : "false") << "', ";
-  stream << "success='" << (param.success ? "true" : "false") << "'";
+  switch (param.useImage) {
+    case TestParam::WITHOUT_IMAGE:
+      stream << "use_image=false, ";
+      break;
+    case TestParam::WITH_IMAGE:
+      stream << "use_image=true, ";
+      break;
+  }
+
+  switch (param.result) {
+    case TestParam::FAILURE:
+      stream << "result=failure'";
+      break;
+    case TestParam::SUCCESS:
+      stream << "result=success'";
+  }
 
   return stream;
 }
@@ -158,7 +184,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
   flags.isolation = "linux/capabilities";
   flags.allowed_capabilities = param.allowed;
 
-  if (param.image) {
+  if (param.useImage == TestParam::WITH_IMAGE) {
     const string registry = path::join(sandbox.get(), "registry");
     AWAIT_READY(DockerArchive::create(registry, "test_image"));
 
@@ -219,7 +245,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
     capabilities->CopyFrom(param.requested.get());
   }
 
-  if (param.image) {
+  if (param.useImage == TestParam::WITH_IMAGE) {
     ContainerInfo* container = task.mutable_container();
     container->set_type(ContainerInfo::MESOS);
 
@@ -241,7 +267,14 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
 
     TaskState state = status->state();
     if (protobuf::isTerminalState(state)) {
-      EXPECT_EQ((param.success ? TASK_FINISHED : TASK_FAILED), state);
+      switch (param.result) {
+        case TestParam::SUCCESS:
+          EXPECT_EQ(TASK_FINISHED, state);
+          break;
+        case TestParam::FAILURE:
+          EXPECT_EQ(TASK_FAILED, state);
+          break;
+      }
       break;
     }
   }
@@ -261,86 +294,94 @@ INSTANTIATE_TEST_CASE_P(
     LinuxCapabilitiesIsolatorTest,
     ::testing::Values(
         // Dropped all relevant capabilities, thus ping will fail.
-        TestParam(set<Capability>({DAC_READ_SEARCH}), None(), false, false),
-        TestParam(set<Capability>({DAC_READ_SEARCH}), None(), true, false),
+        TestParam(
+            set<Capability>(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            false,
-            false),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            true,
-            false),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
-            false,
-            false),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
-            true,
-            false),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
 
         // Allowed capabilities do not contain that ping needs, thus
         // ping will fail.
         TestParam(
             None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
-            false,
-            false),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
-            true,
-            false),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
 
         // Requested capabilities are not allowed, task will fail.
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
             set<Capability>({CHOWN}),
-            false,
-            false),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
             set<Capability>({CHOWN}),
-            true,
-            false),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
 
         // Dropped all capabilities but those that ping needs, thus
         // ping will finish normally.
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
-            false,
-            true),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
-            true,
-            true),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
         TestParam(
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            false,
-            true),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
         TestParam(
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            true,
-            true),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            false,
-            true),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            true,
-            true)));
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS)));
 
 
 // TODO(bbannier): Add test cases for running the container as non-root.
