@@ -244,6 +244,11 @@ inline bool operator<(const TaskID& left, const TaskID& right)
 }
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const CapabilityInfo& capabilityInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const ContainerID& containerId);
 
 

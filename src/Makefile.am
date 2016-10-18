@@ -1020,6 +1020,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/schemes/hdfs.hpp							\
   uri/schemes/http.hpp							\
   usage/usage.hpp							\
+  v1/parse.hpp								\
   version/version.hpp							\
   watcher/whitelist_watcher.hpp
 

@@ -16,6 +16,8 @@
 
 #include <ostream>
 
+#include <stout/protobuf.hpp>
+
 #include <mesos/v1/attributes.hpp>
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/resources.hpp>
@@ -380,6 +382,13 @@ bool operator!=(const TaskStatus& left, const TaskStatus& right)
 {
   return !(left == right);
 }
+
+
+ostream& operator<<(ostream& stream, const CapabilityInfo& capabilityInfo)
+{
+  return stream << JSON::protobuf(capabilityInfo);
+}
+
 
 ostream& operator<<(ostream& stream, const ContainerID& containerId)
 {
