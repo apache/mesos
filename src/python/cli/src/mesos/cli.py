@@ -51,7 +51,7 @@ def resolve(master):
         raise Exception('Failed to execute \'mesos-resolve %s\':\n%s'
                         % (master, process.stderr.read()))
 
-    result = process.stdout.read()
+    result = process.stdout.read().strip()
     process.stdout.close()
     process.stderr.close()
     return result
