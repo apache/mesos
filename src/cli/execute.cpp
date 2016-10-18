@@ -46,6 +46,8 @@
 
 #include "internal/devolve.hpp"
 
+#include "common/parse.hpp"
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -58,6 +60,7 @@ using google::protobuf::RepeatedPtrField;
 using mesos::internal::devolve;
 
 using mesos::v1::AgentID;
+using mesos::v1::CapabilityInfo;
 using mesos::v1::CommandInfo;
 using mesos::v1::ContainerInfo;
 using mesos::v1::Credential;
@@ -209,6 +212,18 @@ public:
         "Containerizer to be used (i.e., docker, mesos).",
         "mesos");
 
+    add(&Flags::capabilities,
+        "capabilities",
+        "JSON representation of system capabilities needed to execute \n"
+        "the command.\n"
+        "Example:\n"
+        "{\n"
+        "   \"capabilities\": [\n"
+        "       \"NET_RAW\",\n"
+        "       \"SYS_ADMIN\"\n"
+        "     ]\n"
+        "}");
+
     add(&Flags::role,
         "role",
         "Role to use when registering.",
@@ -282,6 +297,7 @@ public:
   Option<std::set<string>> framework_capabilities;
   Option<JSON::Array> volumes;
   string containerizer;
+  Option<CapabilityInfo> capabilities;
   string role;
   Option<Duration> kill_after;
   Option<string> networks;
@@ -651,7 +667,8 @@ static Result<ContainerInfo> getContainerInfo(
     const Option<vector<Volume>>& volumes,
     const Option<string>& networks,
     const Option<string>& appcImage,
-    const Option<string>& dockerImage)
+    const Option<string>& dockerImage,
+    const Option<CapabilityInfo>& capabilities)
 {
   if (containerizer.empty()) {
     return None();
@@ -667,7 +684,9 @@ static Result<ContainerInfo> getContainerInfo(
 
   // Mesos containerizer supports 'appc' and 'docker' images.
   if (containerizer == "mesos") {
-    if (dockerImage.isNone() && appcImage.isNone() &&
+    if (appcImage.isNone() &&
+        capabilities.isNone() &&
+        dockerImage.isNone() &&
         (networks.isNone() || networks->empty()) &&
         (volumes.isNone() || volumes->empty())) {
       return None();
@@ -710,6 +729,13 @@ static Result<ContainerInfo> getContainerInfo(
                strings::tokenize(networks.get(), ",")) {
         containerInfo.add_network_infos()->set_name(network);
       }
+    }
+
+    if (capabilities.isSome()) {
+      containerInfo
+        .mutable_linux_info()
+        ->mutable_capability_info()
+        ->CopyFrom(capabilities.get());
     }
 
     return containerInfo;
@@ -893,7 +919,7 @@ int main(int argc, char** argv)
   }
 
   // We set the TASK_KILLING_STATE capability by default.
-  vector<FrameworkInfo::Capability::Type> capabilities =
+  vector<FrameworkInfo::Capability::Type> frameworkCapabilities =
     { FrameworkInfo::Capability::TASK_KILLING_STATE };
 
   if (flags.framework_capabilities.isSome()) {
@@ -914,7 +940,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
       }
 
-      capabilities.push_back(type);
+      frameworkCapabilities.push_back(type);
     }
   }
 
@@ -944,7 +970,8 @@ int main(int argc, char** argv)
   frameworkInfo.set_name("mesos-execute instance");
   frameworkInfo.set_role(flags.role);
   frameworkInfo.set_checkpoint(flags.checkpoint);
-  foreach (const FrameworkInfo::Capability::Type& capability, capabilities) {
+  foreach (const FrameworkInfo::Capability::Type& capability,
+           frameworkCapabilities) {
     frameworkInfo.add_capabilities()->set_type(capability);
   }
 
@@ -1012,7 +1039,8 @@ int main(int argc, char** argv)
         volumes,
         flags.networks,
         appcImage,
-        dockerImage);
+        dockerImage,
+        flags.capabilities);
 
     if (containerInfo.isError()){
       EXIT(EXIT_FAILURE) << containerInfo.error();
