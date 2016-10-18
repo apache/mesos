@@ -4994,8 +4994,8 @@ TEST_F(MasterTest, RecoverResourcesOrphanedTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -5011,7 +5011,7 @@ TEST_F(MasterTest, RecoverResourcesOrphanedTask)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -5031,7 +5031,7 @@ TEST_F(MasterTest, RecoverResourcesOrphanedTask)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -5046,13 +5046,13 @@ TEST_F(MasterTest, RecoverResourcesOrphanedTask)
   v1::executor::Mesos* execMesos = nullptr;
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _))
     .WillOnce(SaveArg<0>(&execMesos));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;

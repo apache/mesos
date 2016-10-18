@@ -65,6 +65,8 @@ using namespace mesos::internal::protobuf;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR;
+
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
@@ -716,7 +718,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   AWAIT_READY(reregistrationMessage);
 
   // Trigger the re-registration retry instantly to avoid blocking the test.
-  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
 
@@ -770,7 +772,7 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   // Trigger the re-registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(registered); // Ensures registered message is received.
 
@@ -1706,7 +1708,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   // Trigger the registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(internal::slave::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(resourceOffers);
 

@@ -75,7 +75,7 @@ TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -101,7 +101,7 @@ TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -215,7 +215,7 @@ TEST_P(DefaultExecutorTest, ROOT_KillTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -241,7 +241,7 @@ TEST_P(DefaultExecutorTest, ROOT_KillTask)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -399,7 +399,7 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -424,7 +424,7 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -572,7 +572,7 @@ TEST_P(DefaultExecutorTest, ROOT_TaskUsesExecutor)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -598,7 +598,7 @@ TEST_P(DefaultExecutorTest, ROOT_TaskUsesExecutor)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);

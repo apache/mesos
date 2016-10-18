@@ -61,7 +61,7 @@ public:
   // unique across FrameworkIDs, which is not the case.
   TestContainerizer(
       const ExecutorID& executorId,
-      const std::shared_ptr<MockV1HTTPExecutor>& executor);
+      const std::shared_ptr<v1::MockHTTPExecutor>& executor);
 
   TestContainerizer(const hashmap<ExecutorID, Executor*>& executors);
 
@@ -176,8 +176,8 @@ private:
 
     // HTTP executors. Note that `mesos::v1::executor::Mesos`
     // requires that we provide it a shared pointer to the executor.
-    std::shared_ptr<MockV1HTTPExecutor> v1ExecutorMock;
-    process::Owned<executor::TestV1Mesos> v1Library;
+    std::shared_ptr<v1::MockHTTPExecutor> v1ExecutorMock;
+    process::Owned<v1::executor::TestMesos> v1Library;
   };
 
   // TODO(bmahler): The test containerizer currently assumes that

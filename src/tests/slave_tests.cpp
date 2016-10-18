@@ -3330,8 +3330,8 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -3353,7 +3353,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -3374,7 +3374,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -4780,8 +4780,8 @@ TEST_F(SlaveTest, RunTaskGroup)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -4802,7 +4802,7 @@ TEST_F(SlaveTest, RunTaskGroup)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -4822,7 +4822,7 @@ TEST_F(SlaveTest, RunTaskGroup)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -4838,7 +4838,7 @@ TEST_F(SlaveTest, RunTaskGroup)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
@@ -4904,8 +4904,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -4927,7 +4927,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -4948,7 +4948,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -5095,8 +5095,8 @@ TEST_F(SlaveTest, DefaultExecutorCommandInfo)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -5120,7 +5120,7 @@ TEST_F(SlaveTest, DefaultExecutorCommandInfo)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -5208,8 +5208,8 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -5230,7 +5230,7 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -5251,7 +5251,7 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }

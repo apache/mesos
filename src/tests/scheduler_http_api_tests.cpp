@@ -228,7 +228,7 @@ TEST_P(SchedulerHttpApiTest, UnsupportedContentMediaType)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   const string unknownMediaType = "application/unknown-media-type";
 
@@ -255,7 +255,7 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
@@ -322,7 +322,7 @@ TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  v1::FrameworkInfo framework = DEFAULT_V1_FRAMEWORK_INFO;
+  v1::FrameworkInfo framework = v1::DEFAULT_FRAMEWORK_INFO;
   // Set invalid role.
   framework.set_role("/test/test1");
   subscribe->mutable_framework_info()->CopyFrom(framework);
@@ -372,7 +372,7 @@ TEST_P(SchedulerHttpApiTest, SubscribeWithStreamId)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
@@ -403,7 +403,7 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetry)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
@@ -485,7 +485,7 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
   MockScheduler sched;
@@ -572,7 +572,7 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   Call call;
   call.set_type(Call::SUBSCRIBE);
@@ -655,7 +655,7 @@ TEST_P(SchedulerHttpApiTest, NotAcceptable)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   Future<Response> response = process::http::streaming::post(
       master.get()->pid,
@@ -685,7 +685,7 @@ TEST_P(SchedulerHttpApiTest, NoAcceptHeader)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   Future<Response> response = process::http::streaming::post(
       master.get()->pid,
@@ -712,7 +712,7 @@ TEST_P(SchedulerHttpApiTest, DefaultAccept)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
@@ -765,7 +765,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWithoutStreamId)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     Future<Response> response = process::http::streaming::post(
         master.get()->pid,
@@ -838,7 +838,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     Future<Response> response = process::http::streaming::post(
         master.get()->pid,
@@ -879,7 +879,7 @@ TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     // Set the framework ID in the subscribe call.
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -957,7 +957,7 @@ TEST_P(SchedulerHttpApiTest, MalformedUUID)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     Future<Response> response = process::http::streaming::post(
         master.get()->pid,

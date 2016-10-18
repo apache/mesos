@@ -99,7 +99,7 @@ namespace tests {
 JSON::Array createMachineList(std::initializer_list<MachineID> _ids)
 {
   RepeatedPtrField<MachineID> ids =
-    internal::protobuf::maintenance::createMachineList(_ids);
+    mesos::internal::protobuf::maintenance::createMachineList(_ids);
 
   return JSON::protobuf(ids);
 }
@@ -353,14 +353,14 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -381,7 +381,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1101,14 +1101,14 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   ASSERT_EQ(0, statuses.get().draining_machines(0).statuses().size());
 
   // Now start a framework.
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -1133,7 +1133,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1435,14 +1435,14 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Now start a framework.
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -1471,7 +1471,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }

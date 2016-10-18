@@ -530,7 +530,7 @@ TYPED_TEST(SlaveRecoveryTest, ROOT_CGROUPS_ReconnectDefaultExecutor)
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   // Disable AuthN on the agent.
   slave::Flags flags = this->CreateSlaveFlags();
@@ -569,7 +569,7 @@ TYPED_TEST(SlaveRecoveryTest, ROOT_CGROUPS_ReconnectDefaultExecutor)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);

@@ -331,7 +331,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -408,7 +408,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -729,8 +729,8 @@ TEST_F(ExecutorHttpApiTest, SubscribeBeforeContainerizerRecovery)
   // since the agent hasn't finished recovering the containerizer.
 
   Call call;
-  call.mutable_framework_id()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO.id());
-  call.mutable_executor_id()->CopyFrom(DEFAULT_V1_EXECUTOR_ID);
+  call.mutable_framework_id()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO.id());
+  call.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
 
   call.set_type(Call::SUBSCRIBE);
 

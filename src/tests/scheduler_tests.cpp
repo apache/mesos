@@ -112,7 +112,7 @@ TEST_P(SchedulerTest, Subscribe)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -120,7 +120,7 @@ TEST_P(SchedulerTest, Subscribe)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -135,7 +135,7 @@ TEST_P(SchedulerTest, Subscribe)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -154,7 +154,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -163,7 +163,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -179,7 +179,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -188,14 +188,14 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   v1::FrameworkID frameworkId = subscribed.get().framework_id();
 
-  auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler2 = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected2;
   EXPECT_CALL(*scheduler2, connected(_))
     .WillOnce(FutureSatisfy(&connected2));
 
   // Failover to another scheduler instance.
-  scheduler::TestV1Mesos mesos2(master.get()->pid, contentType, scheduler2);
+  scheduler::v1::TestMesos mesos2(master.get()->pid, contentType, scheduler2);
 
   AWAIT_READY(connected2);
 
@@ -221,7 +221,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
     subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
 
     mesos2.send(call);
@@ -241,7 +241,7 @@ TEST_P(SchedulerTest, MasterFailover)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
   auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
 
   Future<Nothing> connected;
@@ -251,7 +251,7 @@ TEST_P(SchedulerTest, MasterFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, contentType, scheduler, detector);
 
   AWAIT_READY(connected);
@@ -268,7 +268,7 @@ TEST_P(SchedulerTest, MasterFailover)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -306,7 +306,7 @@ TEST_P(SchedulerTest, MasterFailover)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
     subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
 
     mesos.send(call);
@@ -325,7 +325,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -333,7 +333,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -348,7 +348,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -384,8 +384,8 @@ TEST_P(SchedulerTest, TaskRunning)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -400,7 +400,7 @@ TEST_P(SchedulerTest, TaskRunning)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -420,7 +420,7 @@ TEST_P(SchedulerTest, TaskRunning)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -433,12 +433,12 @@ TEST_P(SchedulerTest, TaskRunning)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;
@@ -462,7 +462,7 @@ TEST_P(SchedulerTest, TaskRunning)
       offers->offers(0).agent_id());
   taskInfo.mutable_resources()->CopyFrom(
       offers->offers(0).resources());
-  taskInfo.mutable_executor()->CopyFrom(DEFAULT_V1_EXECUTOR_INFO);
+  taskInfo.mutable_executor()->CopyFrom(v1::DEFAULT_EXECUTOR_INFO);
 
   // TODO(benh): Enable just running a task with a command in the tests:
   //   taskInfo.mutable_command()->set_value("sleep 10");
@@ -509,7 +509,7 @@ TEST_P(SchedulerTest, TaskGroupRunning)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -521,7 +521,7 @@ TEST_P(SchedulerTest, TaskGroupRunning)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -541,7 +541,7 @@ TEST_P(SchedulerTest, TaskGroupRunning)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -627,8 +627,8 @@ TEST_P(SchedulerTest, ReconcileTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -643,7 +643,7 @@ TEST_P(SchedulerTest, ReconcileTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -663,7 +663,7 @@ TEST_P(SchedulerTest, ReconcileTask)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -676,12 +676,12 @@ TEST_P(SchedulerTest, ReconcileTask)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;
@@ -752,8 +752,8 @@ TEST_P(SchedulerTest, KillTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -768,7 +768,7 @@ TEST_P(SchedulerTest, KillTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -788,7 +788,7 @@ TEST_P(SchedulerTest, KillTask)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -801,12 +801,12 @@ TEST_P(SchedulerTest, KillTask)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;
@@ -862,7 +862,7 @@ TEST_P(SchedulerTest, KillTask)
     .WillOnce(FutureArg<1>(&update2));
 
   EXPECT_CALL(*executor, kill(_, _))
-    .WillOnce(executor::SendUpdateFromTaskID(
+    .WillOnce(v1::executor::SendUpdateFromTaskID(
         frameworkId, evolve(executorId), v1::TASK_KILLED));
 
   {
@@ -894,8 +894,8 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -910,7 +910,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -931,7 +931,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -944,12 +944,12 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_FINISHED));
 
   Future<Nothing> acknowledged;
@@ -999,7 +999,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
     call.set_type(Call::SHUTDOWN);
 
     Call::Shutdown* shutdown = call.mutable_shutdown();
-    shutdown->mutable_executor_id()->CopyFrom(DEFAULT_V1_EXECUTOR_ID);
+    shutdown->mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
     shutdown->mutable_agent_id()->CopyFrom(offer.agent_id());
 
     mesos.send(call);
@@ -1019,8 +1019,8 @@ TEST_P(SchedulerTest, Teardown)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -1036,7 +1036,7 @@ TEST_P(SchedulerTest, Teardown)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1056,7 +1056,7 @@ TEST_P(SchedulerTest, Teardown)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1069,12 +1069,12 @@ TEST_P(SchedulerTest, Teardown)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;
@@ -1142,7 +1142,7 @@ TEST_P(SchedulerTest, Decline)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1150,7 +1150,7 @@ TEST_P(SchedulerTest, Decline)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1170,7 +1170,7 @@ TEST_P(SchedulerTest, Decline)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1231,7 +1231,7 @@ TEST_P(SchedulerTest, Revive)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1239,7 +1239,7 @@ TEST_P(SchedulerTest, Revive)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1259,7 +1259,7 @@ TEST_P(SchedulerTest, Revive)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1326,7 +1326,7 @@ TEST_P(SchedulerTest, Suppress)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1334,7 +1334,7 @@ TEST_P(SchedulerTest, Suppress)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1354,7 +1354,7 @@ TEST_P(SchedulerTest, Suppress)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1434,8 +1434,8 @@ TEST_P(SchedulerTest, Message)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
-  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
@@ -1450,7 +1450,7 @@ TEST_P(SchedulerTest, Message)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1470,7 +1470,7 @@ TEST_P(SchedulerTest, Message)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1483,12 +1483,12 @@ TEST_P(SchedulerTest, Message)
   EXPECT_NE(0, offers->offers().size());
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
-    .WillOnce(executor::SendUpdateFromTask(
+    .WillOnce(v1::executor::SendUpdateFromTask(
         frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   Future<Nothing> acknowledged;
@@ -1535,7 +1535,7 @@ TEST_P(SchedulerTest, Message)
 
     Call::Message* message = call.mutable_message();
     message->mutable_agent_id()->CopyFrom(offer.agent_id());
-    message->mutable_executor_id()->CopyFrom(DEFAULT_V1_EXECUTOR_ID);
+    message->mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
     message->set_data("hello world");
 
     mesos.send(call);
@@ -1557,7 +1557,7 @@ TEST_P(SchedulerTest, Request)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1565,7 +1565,7 @@ TEST_P(SchedulerTest, Request)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(master.get()->pid, contentType, scheduler);
+  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -1581,7 +1581,7 @@ TEST_P(SchedulerTest, Request)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }
@@ -1616,7 +1616,7 @@ TEST_P(SchedulerTest, SchedulerReconnect)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
   auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
 
   Future<Nothing> connected;
@@ -1625,7 +1625,7 @@ TEST_P(SchedulerTest, SchedulerReconnect)
 
   ContentType contentType = GetParam();
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, contentType, scheduler, detector);
 
   AWAIT_READY(connected);
@@ -1695,13 +1695,13 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerLibrary)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::TestV1Mesos mesos(
+  scheduler::v1::TestMesos mesos(
       master.get()->pid, ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
@@ -1718,7 +1718,7 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerLibrary)
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
 
     mesos.send(call);
   }

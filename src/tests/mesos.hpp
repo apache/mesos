@@ -27,6 +27,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <mesos/v1/executor.hpp>
+#include <mesos/v1/resources.hpp>
 #include <mesos/v1/scheduler.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
@@ -64,6 +65,8 @@
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/master.hpp"
+
+#include "sched/constants.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/slave.hpp"
@@ -330,135 +333,238 @@ protected:
 
 #endif // MESOS_HAS_JAVA
 
+namespace v1 {
+
+// Alias existing `mesos::v1` namespaces so that we can easily write
+// `v1::` in tests.
+//
+// TODO(jmlvanre): Remove these aliases once we clean up the `tests`
+// namespace hierarchy.
+namespace agent = mesos::v1::agent;
+namespace maintenance = mesos::v1::maintenance;
+namespace master = mesos::v1::master;
+namespace quota = mesos::v1::quota;
+namespace scheduler = mesos::v1::scheduler;
+
+using mesos::v1::TASK_STAGING;
+using mesos::v1::TASK_STARTING;
+using mesos::v1::TASK_RUNNING;
+using mesos::v1::TASK_KILLING;
+using mesos::v1::TASK_FINISHED;
+using mesos::v1::TASK_FAILED;
+using mesos::v1::TASK_KILLED;
+using mesos::v1::TASK_ERROR;
+using mesos::v1::TASK_LOST;
+using mesos::v1::TASK_DROPPED;
+using mesos::v1::TASK_UNREACHABLE;
+using mesos::v1::TASK_GONE;
+using mesos::v1::TASK_GONE_BY_OPERATOR;
+using mesos::v1::TASK_UNKNOWN;
+
+using mesos::v1::AgentID;
+using mesos::v1::ContainerID;
+using mesos::v1::ExecutorID;
+using mesos::v1::ExecutorInfo;
+using mesos::v1::Filters;
+using mesos::v1::FrameworkID;
+using mesos::v1::FrameworkInfo;
+using mesos::v1::InverseOffer;
+using mesos::v1::MachineID;
+using mesos::v1::Metric;
+using mesos::v1::Offer;
+using mesos::v1::Resource;
+using mesos::v1::Resources;
+using mesos::v1::TaskID;
+using mesos::v1::TaskInfo;
+using mesos::v1::TaskGroupInfo;
+using mesos::v1::TaskState;
+using mesos::v1::TaskStatus;
+using mesos::v1::WeightInfo;
+
+} // namespace v1 {
+
+namespace common {
+template <typename TExecutorInfo>
+struct DefaultExecutorInfo
+{
+  static TExecutorInfo create()
+  {
+    TExecutorInfo executor;
+    executor.mutable_executor_id()->set_value("default");
+    executor.mutable_command()->set_value("exit 1");
+    return executor;
+  }
+};
+
+
+template <typename TCredential>
+struct DefaultCredential
+{
+  static TCredential create()
+  {
+    TCredential credential;
+    credential.set_principal("test-principal");
+    credential.set_secret("test-secret");
+    return credential;
+  }
+};
+
+
+// TODO(jmlvanre): consider factoring this out.
+template <typename TCredential>
+struct DefaultCredential2
+{
+  static TCredential create()
+  {
+    TCredential credential;
+    credential.set_principal("test-principal-2");
+    credential.set_secret("test-secret-2");
+    return credential;
+  }
+};
+
+
+template <typename TFrameworkInfo, typename TCredential>
+struct DefaultFrameworkInfo
+{
+  static TFrameworkInfo create()
+  {
+    TFrameworkInfo framework;
+    framework.set_name("default");
+    framework.set_user(os::user().get());
+    framework.set_principal(
+        DefaultCredential<TCredential>::create().principal());
+
+    return framework;
+  }
+};
+
+
+template <typename TExecutorInfo, typename TExecutorID>
+struct DefaultExecutorID
+{
+  static TExecutorID create()
+  {
+    return DefaultExecutorInfo<TExecutorInfo>::create().executor_id();
+  }
+};
+
+} // namespace common {
+
+// TODO(jmlvanre): Remove `inline` once we have adjusted all tests to
+// distinguish between `internal` and `v1`.
+inline namespace internal {
+using DefaultExecutorInfo = common::DefaultExecutorInfo<ExecutorInfo>;
+using DefaultCredential = common::DefaultCredential<Credential>;
+using DefaultCredential2 = common::DefaultCredential2<Credential>;
+using DefaultFrameworkInfo =
+  common::DefaultFrameworkInfo<FrameworkInfo, Credential>;
+using DefaultExecutorID = common::DefaultExecutorID<ExecutorInfo, ExecutorID>;
+}  // namespace internal {
+
+
+namespace v1 {
+using DefaultExecutorInfo =
+  common::DefaultExecutorInfo<mesos::v1::ExecutorInfo>;
+using DefaultCredential = common::DefaultCredential<mesos::v1::Credential>;
+using DefaultCredential2 = common::DefaultCredential2<mesos::v1::Credential>;
+using DefaultFrameworkInfo =
+  common::DefaultFrameworkInfo<mesos::v1::FrameworkInfo, mesos::v1::Credential>;
+using DefaultExecutorID =
+  common::DefaultExecutorID<mesos::v1::ExecutorInfo, mesos::v1::ExecutorID>;
+}  // namespace v1 {
+
 
 // Macros to get/create (default) ExecutorInfos and FrameworkInfos.
-#define DEFAULT_EXECUTOR_INFO                                           \
-      ({ ExecutorInfo executor;                                         \
-        executor.mutable_executor_id()->set_value("default");           \
-        executor.mutable_command()->set_value("exit 1");                \
-        executor; })
+#define DEFAULT_EXECUTOR_INFO DefaultExecutorInfo::create()
 
 
-#define DEFAULT_V1_EXECUTOR_INFO                                        \
-     ({ v1::ExecutorInfo executor;                                      \
-        executor.mutable_executor_id()->set_value("default");           \
-        executor.mutable_command()->set_value("exit 1");                \
-        executor; })
+#define DEFAULT_CREDENTIAL DefaultCredential::create()
+#define DEFAULT_CREDENTIAL_2 DefaultCredential2::create()
 
 
-#define DEFAULT_CREDENTIAL                                             \
-     ({ Credential credential;                                         \
-        credential.set_principal("test-principal");                    \
-        credential.set_secret("test-secret");                          \
-        credential; })
+#define DEFAULT_FRAMEWORK_INFO DefaultFrameworkInfo::create()
 
 
-#define DEFAULT_CREDENTIAL_2                                           \
-     ({ Credential credential;                                         \
-        credential.set_principal("test-principal-2");                  \
-        credential.set_secret("test-secret-2");                        \
-        credential; })
+#define DEFAULT_EXECUTOR_ID DefaultExecutorID::create()
 
 
-#define DEFAULT_V1_CREDENTIAL                                          \
-     ({ v1::Credential credential;                                     \
-        credential.set_principal("test-principal");                    \
-        credential.set_secret("test-secret");                          \
-        credential; })
-
-
-#define DEFAULT_FRAMEWORK_INFO                                          \
-     ({ FrameworkInfo framework;                                        \
-        framework.set_name("default");                                  \
-        framework.set_user(os::user().get());                           \
-        framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
-        framework; })
-
-
-#define DEFAULT_V1_FRAMEWORK_INFO                                       \
-     ({ v1::FrameworkInfo framework;                                    \
-        framework.set_name("default");                                  \
-        framework.set_user(os::user().get());                           \
-        framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
-        framework; })
-
-
-#define DEFAULT_EXECUTOR_ID           \
-      DEFAULT_EXECUTOR_INFO.executor_id()
-
-
-#define DEFAULT_V1_EXECUTOR_ID         \
-      DEFAULT_V1_EXECUTOR_INFO.executor_id()
-
-
-inline mesos::Environment createEnvironment(
-    const hashmap<std::string, std::string>& map)
-{
-  mesos::Environment environment;
-  foreachpair (const std::string& key, const std::string& value, map) {
-    mesos::Environment::Variable* variable = environment.add_variables();
-    variable->set_name(key);
-    variable->set_value(value);
-  }
-  return environment;
-}
-
-
-inline ExecutorInfo createExecutorInfo(
+// We factor out all common behavior and templatize it so that we can
+// can call it from both `v1::` and `internal::`.
+namespace common {
+template <typename TExecutorInfo, typename TResources, typename TCommandInfo>
+inline TExecutorInfo createExecutorInfo(
     const std::string& executorId,
-    const std::string& command,
+    const TCommandInfo& command,
     const Option<std::string>& resources = None())
 {
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value(executorId);
-  executor.mutable_command()->set_value(command);
-  if (resources.isSome()) {
-    executor.mutable_resources()->CopyFrom(
-        Resources::parse(resources.get()).get());
-  }
-  return executor;
-}
-
-
-inline ExecutorInfo createExecutorInfo(
-    const std::string& executorId,
-    const CommandInfo& command,
-    const Option<std::string>& resources = None())
-{
-  ExecutorInfo executor;
+  TExecutorInfo executor;
   executor.mutable_executor_id()->set_value(executorId);
   executor.mutable_command()->CopyFrom(command);
   if (resources.isSome()) {
     executor.mutable_resources()->CopyFrom(
-        Resources::parse(resources.get()).get());
+        TResources::parse(resources.get()).get());
   }
   return executor;
 }
 
 
-inline CommandInfo createCommandInfo(const std::string& command)
+template <typename TExecutorInfo, typename TResources>
+inline TExecutorInfo createExecutorInfo(
+    const std::string& executorId,
+    const std::string& command,
+    const Option<std::string>& resources = None())
 {
-  CommandInfo commandInfo;
+  TExecutorInfo executor;
+  executor.mutable_executor_id()->set_value(executorId);
+  executor.mutable_command()->set_value(command);
+  if (resources.isSome()) {
+    executor.mutable_resources()->CopyFrom(
+        TResources::parse(resources.get()).get());
+  }
+  return executor;
+}
+
+
+template <typename TExecutorInfo, typename TResources>
+inline TExecutorInfo createExecutorInfo(
+    const std::string& executorId,
+    const char* command,
+    const Option<std::string>& resources = None())
+{
+  return createExecutorInfo<TExecutorInfo, TResources>(
+      executorId,
+      std::string(command),
+      resources);
+}
+
+
+template <typename TCommandInfo>
+inline TCommandInfo createCommandInfo(const std::string& command)
+{
+  TCommandInfo commandInfo;
   commandInfo.set_value(command);
   return commandInfo;
 }
 
 
-inline Image createDockerImage(const std::string& imageName)
+template <typename TImage>
+inline TImage createDockerImage(const std::string& imageName)
 {
-  Image image;
-  image.set_type(Image::DOCKER);
+  TImage image;
+  image.set_type(TImage::DOCKER);
   image.mutable_docker()->set_name(imageName);
   return image;
 }
 
 
-inline Volume createVolumeFromHostPath(
+template <typename TVolume>
+inline TVolume createVolumeFromHostPath(
     const std::string& containerPath,
     const std::string& hostPath,
-    const Volume::Mode& mode)
+    const typename TVolume::Mode& mode)
 {
-  Volume volume;
+  TVolume volume;
   volume.set_container_path(containerPath);
   volume.set_host_path(hostPath);
   volume.set_mode(mode);
@@ -466,32 +572,34 @@ inline Volume createVolumeFromHostPath(
 }
 
 
-inline Volume createVolumeFromDockerImage(
+template <typename TVolume, typename TImage>
+inline TVolume createVolumeFromDockerImage(
     const std::string& containerPath,
     const std::string& imageName,
-    const Volume::Mode& mode)
+    const typename TVolume::Mode& mode)
 {
-  Volume volume;
+  TVolume volume;
   volume.set_container_path(containerPath);
   volume.set_mode(mode);
-  volume.mutable_image()->CopyFrom(createDockerImage(imageName));
+  volume.mutable_image()->CopyFrom(createDockerImage<TImage>(imageName));
   return volume;
 }
 
 
-inline ContainerInfo createContainerInfo(
+template <typename TContainerInfo, typename TVolume, typename TImage>
+inline TContainerInfo createContainerInfo(
     const Option<std::string> imageName = None(),
-    const vector<Volume>& volumes = {})
+    const vector<TVolume>& volumes = {})
 {
-  ContainerInfo info;
-  info.set_type(ContainerInfo::MESOS);
+  TContainerInfo info;
+  info.set_type(TContainerInfo::MESOS);
 
   if (imageName.isSome()) {
-    Image* image = info.mutable_mesos()->mutable_image();
-    image->CopyFrom(createDockerImage(imageName.get()));
+    TImage* image = info.mutable_mesos()->mutable_image();
+    image->CopyFrom(createDockerImage<TImage>(imageName.get()));
   }
 
-  foreach (const Volume& volume, volumes) {
+  foreach (const TVolume& volume, volumes) {
     info.add_volumes()->CopyFrom(volume);
   }
 
@@ -499,23 +607,43 @@ inline ContainerInfo createContainerInfo(
 }
 
 
+inline void setAgentID(TaskInfo* task, const SlaveID& slaveId)
+{
+  task->mutable_slave_id()->CopyFrom(slaveId);
+}
+inline void setAgentID(
+    mesos::v1::TaskInfo* task,
+    const mesos::v1::AgentID& agentId)
+{
+  task->mutable_agent_id()->CopyFrom(agentId);
+}
+
+
 // TODO(bmahler): Refactor this to make the distinction between
 // command tasks and executor tasks clearer.
-inline TaskInfo createTask(
-    const SlaveID& slaveId,
-    const Resources& resources,
-    const CommandInfo& command,
-    const Option<mesos::ExecutorID>& executorId = None(),
+template <
+    typename TTaskInfo,
+    typename TExecutorID,
+    typename TSlaveID,
+    typename TResources,
+    typename TExecutorInfo,
+    typename TCommandInfo,
+    typename TOffer>
+inline TTaskInfo createTask(
+    const TSlaveID& slaveId,
+    const TResources& resources,
+    const TCommandInfo& command,
+    const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
     const std::string& id = UUID::random().toString())
 {
-  TaskInfo task;
+  TTaskInfo task;
   task.set_name(name);
   task.mutable_task_id()->set_value(id);
-  task.mutable_slave_id()->CopyFrom(slaveId);
+  setAgentID(&task, slaveId);
   task.mutable_resources()->CopyFrom(resources);
   if (executorId.isSome()) {
-    ExecutorInfo executor;
+    TExecutorInfo executor;
     executor.mutable_executor_id()->CopyFrom(executorId.get());
     executor.mutable_command()->CopyFrom(command);
     task.mutable_executor()->CopyFrom(executor);
@@ -527,46 +655,77 @@ inline TaskInfo createTask(
 }
 
 
-inline TaskInfo createTask(
-    const SlaveID& slaveId,
-    const Resources& resources,
+template <
+    typename TTaskInfo,
+    typename TExecutorID,
+    typename TSlaveID,
+    typename TResources,
+    typename TExecutorInfo,
+    typename TCommandInfo,
+    typename TOffer>
+inline TTaskInfo createTask(
+    const TSlaveID& slaveId,
+    const TResources& resources,
     const std::string& command,
-    const Option<mesos::ExecutorID>& executorId = None(),
+    const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
     const std::string& id = UUID::random().toString())
 {
-  return createTask(
-      slaveId,
-      resources,
-      createCommandInfo(command),
-      executorId,
-      name,
-      id);
+  return createTask<
+      TTaskInfo,
+      TExecutorID,
+      TSlaveID,
+      TResources,
+      TExecutorInfo,
+      TCommandInfo,
+      TOffer>(
+          slaveId,
+          resources,
+          createCommandInfo<TCommandInfo>(command),
+          executorId,
+          name,
+          id);
 }
 
 
-inline TaskInfo createTask(
-    const Offer& offer,
+template <
+    typename TTaskInfo,
+    typename TExecutorID,
+    typename TSlaveID,
+    typename TResources,
+    typename TExecutorInfo,
+    typename TCommandInfo,
+    typename TOffer>
+inline TTaskInfo createTask(
+    const TOffer& offer,
     const std::string& command,
-    const Option<mesos::ExecutorID>& executorId = None(),
+    const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
     const std::string& id = UUID::random().toString())
 {
-  return createTask(
-      offer.slave_id(),
-      offer.resources(),
-      command,
-      executorId,
-      name,
-      id);
+  return createTask<
+      TTaskInfo,
+      TExecutorID,
+      TSlaveID,
+      TResources,
+      TExecutorInfo,
+      TCommandInfo,
+      TOffer>(
+          offer.slave_id(),
+          offer.resources(),
+          command,
+          executorId,
+          name,
+          id);
 }
 
 
-inline Resource::ReservationInfo createReservationInfo(
+template <typename TResource, typename TLabels>
+inline typename TResource::ReservationInfo createReservationInfo(
     const Option<std::string>& principal = None(),
-    const Option<Labels>& labels = None())
+    const Option<TLabels>& labels = None())
 {
-  Resource::ReservationInfo info;
+  typename TResource::ReservationInfo info;
 
   if (principal.isSome()) {
     info.set_principal(principal.get());
@@ -580,13 +739,14 @@ inline Resource::ReservationInfo createReservationInfo(
 }
 
 
-inline Resource createReservedResource(
+template <typename TResource, typename TResources>
+inline TResource createReservedResource(
     const std::string& name,
     const std::string& value,
     const std::string& role,
-    const Option<Resource::ReservationInfo>& reservation)
+    const Option<typename TResource::ReservationInfo>& reservation)
 {
-  Resource resource = Resources::parse(name, value, role).get();
+  TResource resource = TResources::parse(name, value, role).get();
 
   if (reservation.isSome()) {
     resource.mutable_reservation()->CopyFrom(reservation.get());
@@ -599,15 +759,16 @@ inline Resource createReservedResource(
 // NOTE: We only set the volume in DiskInfo if 'containerPath' is set.
 // If volume mode is not specified, Volume::RW will be used (assuming
 // 'containerPath' is set).
-inline Resource::DiskInfo createDiskInfo(
+template <typename TResource, typename TVolume>
+inline typename TResource::DiskInfo createDiskInfo(
     const Option<std::string>& persistenceId,
     const Option<std::string>& containerPath,
-    const Option<Volume::Mode>& mode = None(),
+    const Option<typename TVolume::Mode>& mode = None(),
     const Option<std::string>& hostPath = None(),
-    const Option<Resource::DiskInfo::Source>& source = None(),
+    const Option<typename TResource::DiskInfo::Source>& source = None(),
     const Option<std::string>& principal = None())
 {
-  Resource::DiskInfo info;
+  typename TResource::DiskInfo info;
 
   if (persistenceId.isSome()) {
     info.mutable_persistence()->set_id(persistenceId.get());
@@ -618,9 +779,9 @@ inline Resource::DiskInfo createDiskInfo(
   }
 
   if (containerPath.isSome()) {
-    Volume volume;
+    TVolume volume;
     volume.set_container_path(containerPath.get());
-    volume.set_mode(mode.isSome() ? mode.get() : Volume::RW);
+    volume.set_mode(mode.isSome() ? mode.get() : TVolume::RW);
 
     if (hostPath.isSome()) {
       volume.set_host_path(hostPath.get());
@@ -638,11 +799,13 @@ inline Resource::DiskInfo createDiskInfo(
 
 
 // Helper for creating a disk source with type `PATH`.
-inline Resource::DiskInfo::Source createDiskSourcePath(const std::string& root)
+template <typename TResource>
+inline typename TResource::DiskInfo::Source createDiskSourcePath(
+    const std::string& root)
 {
-  Resource::DiskInfo::Source source;
+  typename TResource::DiskInfo::Source source;
 
-  source.set_type(Resource::DiskInfo::Source::PATH);
+  source.set_type(TResource::DiskInfo::Source::PATH);
   source.mutable_path()->set_root(root);
 
   return source;
@@ -650,11 +813,13 @@ inline Resource::DiskInfo::Source createDiskSourcePath(const std::string& root)
 
 
 // Helper for creating a disk source with type `MOUNT`.
-inline Resource::DiskInfo::Source createDiskSourceMount(const std::string& root)
+template <typename TResource>
+inline typename TResource::DiskInfo::Source createDiskSourceMount(
+    const std::string& root)
 {
-  Resource::DiskInfo::Source source;
+  typename TResource::DiskInfo::Source source;
 
-  source.set_type(Resource::DiskInfo::Source::MOUNT);
+  source.set_type(TResource::DiskInfo::Source::MOUNT);
   source.mutable_mount()->set_root(root);
 
   return source;
@@ -662,19 +827,25 @@ inline Resource::DiskInfo::Source createDiskSourceMount(const std::string& root)
 
 
 // Helper for creating a disk resource.
-inline Resource createDiskResource(
+template <typename TResource, typename TVolume>
+inline TResource createDiskResource(
     const std::string& value,
     const std::string& role,
     const Option<std::string>& persistenceID,
     const Option<std::string>& containerPath,
-    const Option<Resource::DiskInfo::Source>& source = None(),
+    const Option<typename TResource::DiskInfo::Source>& source = None(),
     bool isShared = false)
 {
-  Resource resource = Resources::parse("disk", value, role).get();
+  TResource resource = Resources::parse("disk", value, role).get();
 
   if (persistenceID.isSome() || containerPath.isSome() || source.isSome()) {
     resource.mutable_disk()->CopyFrom(
-        createDiskInfo(persistenceID, containerPath, None(), None(), source));
+        createDiskInfo<TResource, TVolume>(
+            persistenceID,
+            containerPath,
+            None(),
+            None(),
+            source));
 
     if (isShared) {
       resource.mutable_shared();
@@ -687,23 +858,24 @@ inline Resource createDiskResource(
 
 // Note that `reservationPrincipal` should be specified if and only if
 // the volume uses dynamically reserved resources.
-inline Resource createPersistentVolume(
+template <typename TResource, typename TVolume>
+inline TResource createPersistentVolume(
     const Bytes& size,
     const std::string& role,
     const std::string& persistenceId,
     const std::string& containerPath,
     const Option<std::string>& reservationPrincipal = None(),
-    const Option<Resource::DiskInfo::Source>& source = None(),
+    const Option<typename TResource::DiskInfo::Source>& source = None(),
     const Option<std::string>& creatorPrincipal = None(),
     bool isShared = false)
 {
-  Resource volume = Resources::parse(
+  TResource volume = Resources::parse(
       "disk",
       stringify(size.megabytes()),
       role).get();
 
   volume.mutable_disk()->CopyFrom(
-      createDiskInfo(
+      createDiskInfo<TResource, TVolume>(
           persistenceId,
           containerPath,
           None(),
@@ -725,21 +897,22 @@ inline Resource createPersistentVolume(
 
 // Note that `reservationPrincipal` should be specified if and only if
 // the volume uses dynamically reserved resources.
-inline Resource createPersistentVolume(
-    Resource volume,
+template <typename TResource, typename TVolume>
+inline TResource createPersistentVolume(
+    TResource volume,
     const std::string& persistenceId,
     const std::string& containerPath,
     const Option<std::string>& reservationPrincipal = None(),
     const Option<std::string>& creatorPrincipal = None(),
     bool isShared = false)
 {
-  Option<Resource::DiskInfo::Source> source = None();
+  Option<typename TResource::DiskInfo::Source> source = None();
   if (volume.has_disk() && volume.disk().has_source()) {
     source = volume.disk().source();
   }
 
   volume.mutable_disk()->CopyFrom(
-      createDiskInfo(
+      createDiskInfo<TResource, TVolume>(
           persistenceId,
           containerPath,
           None(),
@@ -759,8 +932,9 @@ inline Resource createPersistentVolume(
 }
 
 
+template <typename TCredential>
 inline process::http::Headers createBasicAuthHeaders(
-    const Credential& credential)
+    const TCredential& credential)
 {
   return process::http::Headers{{
       "Authorization",
@@ -771,16 +945,17 @@ inline process::http::Headers createBasicAuthHeaders(
 
 
 // Create WeightInfos from the specified weights flag.
-inline google::protobuf::RepeatedPtrField<WeightInfo> createWeightInfos(
+template <typename TWeightInfo>
+inline google::protobuf::RepeatedPtrField<TWeightInfo> createWeightInfos(
     const std::string& weightsFlag)
 {
-  google::protobuf::RepeatedPtrField<WeightInfo> infos;
+  google::protobuf::RepeatedPtrField<TWeightInfo> infos;
   std::vector<std::string> tokens = strings::tokenize(weightsFlag, ",");
   foreach (const std::string& token, tokens) {
     std::vector<std::string> pair = strings::tokenize(token, "=");
     EXPECT_EQ(2u, pair.size());
     double weight = atof(pair[1].c_str());
-    WeightInfo weightInfo;
+    TWeightInfo weightInfo;
     weightInfo.set_role(pair[0]);
     weightInfo.set_weight(weight);
     infos.Add()->CopyFrom(weightInfo);
@@ -791,12 +966,13 @@ inline google::protobuf::RepeatedPtrField<WeightInfo> createWeightInfos(
 
 
 // Convert WeightInfos protobuf to weights hashmap.
+template <typename TWeightInfo>
 inline hashmap<std::string, double> convertToHashmap(
-    const google::protobuf::RepeatedPtrField<WeightInfo> weightInfos)
+    const google::protobuf::RepeatedPtrField<TWeightInfo> weightInfos)
 {
   hashmap<std::string, double> weights;
 
-  foreach (const WeightInfo& weightInfo, weightInfos) {
+  foreach (const TWeightInfo& weightInfo, weightInfos) {
     weights[weightInfo.role()] = weightInfo.weight();
   }
 
@@ -805,48 +981,53 @@ inline hashmap<std::string, double> convertToHashmap(
 
 
 // Helpers for creating offer operations.
-inline Offer::Operation RESERVE(const Resources& resources)
+template <typename TResources, typename TOffer>
+inline typename TOffer::Operation RESERVE(const TResources& resources)
 {
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::RESERVE);
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
   return operation;
 }
 
 
-inline Offer::Operation UNRESERVE(const Resources& resources)
+template <typename TResources, typename TOffer>
+inline typename TOffer::Operation UNRESERVE(const TResources& resources)
 {
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::UNRESERVE);
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
   return operation;
 }
 
 
-inline Offer::Operation CREATE(const Resources& volumes)
+template <typename TResources, typename TOffer>
+inline typename TOffer::Operation CREATE(const TResources& volumes)
 {
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::CREATE);
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::CREATE);
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
   return operation;
 }
 
 
-inline Offer::Operation DESTROY(const Resources& volumes)
+template <typename TResources, typename TOffer>
+inline typename TOffer::Operation DESTROY(const TResources& volumes)
 {
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::DESTROY);
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::DESTROY);
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
   return operation;
 }
 
 
-inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
+template <typename TOffer, typename TTaskInfo>
+inline typename TOffer::Operation LAUNCH(const std::vector<TTaskInfo>& tasks)
 {
-  Offer::Operation operation;
-  operation.set_type(Offer::Operation::LAUNCH);
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::LAUNCH);
 
-  foreach (const TaskInfo& task, tasks) {
+  foreach (const TTaskInfo& task, tasks) {
     operation.mutable_launch()->add_task_infos()->CopyFrom(task);
   }
 
@@ -854,14 +1035,414 @@ inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
 }
 
 
-inline Parameters parameterize(const ACLs& acls)
+template <typename TParameters, typename TParameter>
+inline TParameters parameterize(const ACLs& acls)
 {
-  Parameters parameters;
-  Parameter* parameter = parameters.add_parameter();
+  TParameters parameters;
+  TParameter* parameter = parameters.add_parameter();
   parameter->set_key("acls");
   parameter->set_value(std::string(jsonify(JSON::Protobuf(acls))));
 
   return parameters;
+}
+} // namespace common {
+
+
+// TODO(jmlvanre): Remove `inline` once we have adjusted all tests to
+// distinguish between `internal` and `v1`.
+inline namespace internal {
+template <typename... Args>
+inline ExecutorInfo createExecutorInfo(Args&&... args)
+{
+  return common::createExecutorInfo<ExecutorInfo, Resources>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline CommandInfo createCommandInfo(Args&&... args)
+{
+  return common::createCommandInfo<CommandInfo>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Image createDockerImage(Args&&... args)
+{
+  return common::createDockerImage<Image>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Volume createVolumeFromHostPath(Args&&... args)
+{
+  return common::createVolumeFromHostPath<Volume>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Volume createVolumeFromDockerImage(Args&&... args)
+{
+  return common::createVolumeFromDockerImage<Volume, Image>(
+      std::forward<Args>(args)...);
+}
+
+
+// We specify the argument to allow brace initialized construction.
+inline ContainerInfo createContainerInfo(
+    const Option<std::string> imageName = None(),
+    const vector<Volume>& volumes = {})
+{
+  return common::createContainerInfo<ContainerInfo, Volume, Image>(
+      imageName,
+      volumes);
+}
+
+
+template <typename... Args>
+inline TaskInfo createTask(Args&&... args)
+{
+  return common::createTask<
+      TaskInfo,
+      ExecutorID,
+      SlaveID,
+      Resources,
+      ExecutorInfo,
+      CommandInfo,
+      Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource::ReservationInfo createReservationInfo(Args&&... args)
+{
+  return common::createReservationInfo<Resource, Labels>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource createReservedResource(Args&&... args)
+{
+  return common::createReservedResource<Resource, Resources>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource::DiskInfo createDiskInfo(Args&&... args)
+{
+  return common::createDiskInfo<Resource, Volume>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource::DiskInfo::Source createDiskSourcePath(Args&&... args)
+{
+  return common::createDiskSourcePath<Resource>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource::DiskInfo::Source createDiskSourceMount(Args&&... args)
+{
+  return common::createDiskSourceMount<Resource>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource createDiskResource(Args&&... args)
+{
+  return common::createDiskResource<Resource, Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Resource createPersistentVolume(Args&&... args)
+{
+  return common::createPersistentVolume<Resource, Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline process::http::Headers createBasicAuthHeaders(Args&&... args)
+{
+  return common::createBasicAuthHeaders<Credential>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline google::protobuf::RepeatedPtrField<WeightInfo> createWeightInfos(
+    Args&&... args)
+{
+  return common::createWeightInfos<WeightInfo>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline hashmap<std::string, double> convertToHashmap(Args&&... args)
+{
+  return common::convertToHashmap<WeightInfo>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation RESERVE(Args&&... args)
+{
+  return common::RESERVE<Resources, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation UNRESERVE(Args&&... args)
+{
+  return common::UNRESERVE<Resources, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation CREATE(Args&&... args)
+{
+  return common::CREATE<Resources, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation DESTROY(Args&&... args)
+{
+  return common::DESTROY<Resources, Offer>(std::forward<Args>(args)...);
+}
+
+
+// We specify the argument to allow brace initialized construction.
+inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
+{
+  return common::LAUNCH<Offer, TaskInfo>(tasks);
+}
+
+
+template <typename... Args>
+inline Parameters parameterize(Args&&... args)
+{
+  return common::parameterize<Parameters, Parameter>(
+      std::forward<Args>(args)...);
+}
+} // namespace internal {
+
+
+namespace v1 {
+template <typename... Args>
+inline mesos::v1::ExecutorInfo createExecutorInfo(Args&&... args)
+{
+  return common::createExecutorInfo<
+      mesos::v1::ExecutorInfo,
+      mesos::v1::Resources>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::CommandInfo createCommandInfo(Args&&... args)
+{
+  return common::createCommandInfo<mesos::v1::CommandInfo>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Image createDockerImage(Args&&... args)
+{
+  return common::createDockerImage<mesos::v1::Image>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Volume createVolumeFromHostPath(Args&&... args)
+{
+  return common::createVolumeFromHostPath<mesos::v1::Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Volume createVolumeFromDockerImage(Args&&... args)
+{
+  return common::createVolumeFromDockerImage<
+      mesos::v1::Volume, mesos::v1::Image>(std::forward<Args>(args)...);
+}
+
+
+// We specify the argument to allow brace initialized construction.
+inline mesos::v1::ContainerInfo createContainerInfo(
+    const Option<std::string> imageName = None(),
+    const vector<mesos::v1::Volume>& volumes = {})
+{
+  return common::createContainerInfo<
+      mesos::v1::ContainerInfo, mesos::v1::Volume, mesos::v1::Image>(
+          imageName, volumes);
+}
+
+
+template <typename... Args>
+inline mesos::v1::TaskInfo createTask(Args&&... args)
+{
+  return common::createTask<
+      mesos::v1::TaskInfo,
+      mesos::v1::ExecutorID,
+      mesos::v1::AgentID,
+      mesos::v1::Resources,
+      mesos::v1::ExecutorInfo,
+      mesos::v1::CommandInfo,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource::ReservationInfo createReservationInfo(
+    Args&&... args)
+{
+  return common::createReservationInfo<mesos::v1::Resource, mesos::v1::Labels>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource createReservedResource(Args&&... args)
+{
+  return common::createReservedResource<
+      mesos::v1::Resource, mesos::v1::Resources>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource::DiskInfo createDiskInfo(Args&&... args)
+{
+  return common::createDiskInfo<mesos::v1::Resource, mesos::v1::Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource::DiskInfo::Source createDiskSourcePath(
+    Args&&... args)
+{
+  return common::createDiskSourcePath<mesos::v1::Resource>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource::DiskInfo::Source createDiskSourceMount(
+    Args&&... args)
+{
+  return common::createDiskSourceMount<mesos::v1::Resource>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource createDiskResource(Args&&... args)
+{
+  return common::createDiskResource<mesos::v1::Resource, mesos::v1::Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Resource createPersistentVolume(Args&&... args)
+{
+  return common::createPersistentVolume<mesos::v1::Resource, mesos::v1::Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline process::http::Headers createBasicAuthHeaders(Args&&... args)
+{
+  return common::createBasicAuthHeaders<mesos::v1::Credential>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline google::protobuf::RepeatedPtrField<
+    mesos::v1::WeightInfo> createWeightInfos(Args&&... args)
+{
+  return common::createWeightInfos<mesos::v1::WeightInfo>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline hashmap<std::string, double> convertToHashmap(Args&&... args)
+{
+  return common::convertToHashmap<mesos::v1::WeightInfo>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation RESERVE(Args&&... args)
+{
+  return common::RESERVE<mesos::v1::Resources, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation UNRESERVE(Args&&... args)
+{
+  return common::UNRESERVE<mesos::v1::Resources, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation CREATE(Args&&... args)
+{
+  return common::CREATE<mesos::v1::Resources, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation DESTROY(Args&&... args)
+{
+  return common::DESTROY<mesos::v1::Resources, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+// We specify the argument to allow brace initialized construction.
+inline mesos::v1::Offer::Operation LAUNCH(
+    const std::vector<mesos::v1::TaskInfo>& tasks)
+{
+  return common::LAUNCH<mesos::v1::Offer, mesos::v1::TaskInfo>(tasks);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Parameters parameterize(Args&&... args)
+{
+  return common::parameterize<mesos::v1::Parameters, mesos::v1::Parameter>(
+      std::forward<Args>(args)...);
+}
+} // namespace v1 {
+
+
+inline mesos::Environment createEnvironment(
+    const hashmap<std::string, std::string>& map)
+{
+  mesos::Environment environment;
+  foreachpair (const std::string& key, const std::string& value, map) {
+    mesos::Environment::Variable* variable = environment.add_variables();
+    variable->set_name(key);
+    variable->set_value(value);
+  }
+  return environment;
 }
 
 
@@ -1010,10 +1591,10 @@ public:
       mesos::master::detector::MasterDetector* _detector)
     : MesosSchedulerDriver(
           scheduler,
-          DEFAULT_FRAMEWORK_INFO,
+          internal::DEFAULT_FRAMEWORK_INFO,
           "",
           true,
-          DEFAULT_CREDENTIAL)
+          internal::DEFAULT_CREDENTIAL)
   {
     // No-op destructor as _detector lives on the stack.
     detector =
@@ -1031,7 +1612,7 @@ public:
           framework,
           "",
           implicitAcknowledgements,
-          DEFAULT_CREDENTIAL)
+          internal::DEFAULT_CREDENTIAL)
   {
     // No-op destructor as _detector lives on the stack.
     detector =
@@ -1150,7 +1731,7 @@ public:
           lambda::bind(&TestMesos<Mesos, Event>::events,
                        this,
                        lambda::_1),
-          DEFAULT_V1_CREDENTIAL,
+          v1::DEFAULT_CREDENTIAL,
           detector),
       scheduler(_scheduler) {}
 
@@ -1190,16 +1771,23 @@ private:
   std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
 };
 
+namespace v1 {
 
-using TestV1Mesos =
+using TestMesos =
   TestMesos<mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
+
+} // namespace v1 {
 
 } // namespace scheduler {
 
 
-using MockV1HTTPScheduler =
-  scheduler::MockHTTPScheduler<
+namespace v1 {
+
+using MockHTTPScheduler =
+  tests::scheduler::MockHTTPScheduler<
     mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
+
+} // namespace v1 {
 
 
 namespace executor {
@@ -1299,19 +1887,32 @@ private:
   std::shared_ptr<MockHTTPExecutor<Mesos, Event>> executor;
 };
 
+} // namespace executor {
 
-using TestV1Mesos =
-  TestMesos<mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
+
+namespace v1 {
+namespace executor {
+
+// Alias existing `mesos::v1::executor` classes so that we can easily
+// write `v1::executor::` in tests.
+using Call = mesos::v1::executor::Call;
+using Event = mesos::v1::executor::Event;
+using Mesos = mesos::v1::executor::Mesos;
+
+using TestMesos =
+  ::mesos::internal::tests::executor::TestMesos<
+      mesos::v1::executor::Mesos,
+      mesos::v1::executor::Event>;
 
 
 // TODO(anand): Move these actions to the `v1::executor` namespace.
 ACTION_P2(SendSubscribe, frameworkId, executorId)
 {
-  v1::executor::Call call;
+  mesos::v1::executor::Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
   call.mutable_executor_id()->CopyFrom(executorId);
 
-  call.set_type(v1::executor::Call::SUBSCRIBE);
+  call.set_type(mesos::v1::executor::Call::SUBSCRIBE);
 
   call.mutable_subscribe();
 
@@ -1321,18 +1922,18 @@ ACTION_P2(SendSubscribe, frameworkId, executorId)
 
 ACTION_P3(SendUpdateFromTask, frameworkId, executorId, state)
 {
-  v1::TaskStatus status;
+  mesos::v1::TaskStatus status;
   status.mutable_task_id()->CopyFrom(arg1.task().task_id());
   status.mutable_executor_id()->CopyFrom(executorId);
   status.set_state(state);
-  status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
+  status.set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
   status.set_uuid(UUID::random().toBytes());
 
-  v1::executor::Call call;
+  mesos::v1::executor::Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
   call.mutable_executor_id()->CopyFrom(executorId);
 
-  call.set_type(v1::executor::Call::UPDATE);
+  call.set_type(mesos::v1::executor::Call::UPDATE);
 
   call.mutable_update()->mutable_status()->CopyFrom(status);
 
@@ -1342,18 +1943,18 @@ ACTION_P3(SendUpdateFromTask, frameworkId, executorId, state)
 
 ACTION_P3(SendUpdateFromTaskID, frameworkId, executorId, state)
 {
-  v1::TaskStatus status;
+  mesos::v1::TaskStatus status;
   status.mutable_task_id()->CopyFrom(arg1.task_id());
   status.mutable_executor_id()->CopyFrom(executorId);
   status.set_state(state);
-  status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
+  status.set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
   status.set_uuid(UUID::random().toBytes());
 
-  v1::executor::Call call;
+  mesos::v1::executor::Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
   call.mutable_executor_id()->CopyFrom(executorId);
 
-  call.set_type(v1::executor::Call::UPDATE);
+  call.set_type(mesos::v1::executor::Call::UPDATE);
 
   call.mutable_update()->mutable_status()->CopyFrom(status);
 
@@ -1363,9 +1964,12 @@ ACTION_P3(SendUpdateFromTaskID, frameworkId, executorId, state)
 } // namespace executor {
 
 
-using MockV1HTTPExecutor =
-  executor::MockHTTPExecutor<
+using MockHTTPExecutor =
+  tests::executor::MockHTTPExecutor<
     mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
+
+
+} // namespace v1 {
 
 
 // Definition of a mock FetcherProcess to be used in tests with gmock.

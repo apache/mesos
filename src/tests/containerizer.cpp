@@ -42,7 +42,7 @@ namespace tests {
 
 TestContainerizer::TestContainerizer(
     const ExecutorID& executorId,
-    const shared_ptr<MockV1HTTPExecutor>& executor)
+    const shared_ptr<v1::MockHTTPExecutor>& executor)
 {
   executors[executorId] = Owned<ExecutorData>(new ExecutorData());
   executors.at(executorId)->v1ExecutorMock = executor;
@@ -177,9 +177,9 @@ Future<bool> TestContainerizer::_launch(
           new MesosExecutorDriver(executorData->executor));
       executorData->driver->start();
     } else {
-      shared_ptr<MockV1HTTPExecutor> executor = executorData->v1ExecutorMock;
-      executorData->v1Library = Owned<executor::TestV1Mesos>(
-        new executor::TestV1Mesos(ContentType::PROTOBUF, executor));
+      shared_ptr<v1::MockHTTPExecutor> executor = executorData->v1ExecutorMock;
+      executorData->v1Library = Owned<v1::executor::TestMesos>(
+        new v1::executor::TestMesos(ContentType::PROTOBUF, executor));
     }
 
     os::unsetenv("MESOS_LOCAL");
