@@ -381,7 +381,7 @@ class Flags : public virtual logging::Flags
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "The master to connect to. May be one of:\n"
         "  master@addr:port (The PID of the master)\n"
@@ -389,22 +389,22 @@ public:
         "  zk://username:password@host1:port1,host2:port2,.../path\n"
         "  file://path/to/file (where file contains one of the above)");
 
-    add(&role,
+    add(&Flags::role,
         "role",
         "Role to use when registering",
         "test");
 
-    add(&principal,
+    add(&Flags::principal,
         "principal",
         "The principal used to identify this framework",
         "test");
 
-    add(&num_shards,
+    add(&Flags::num_shards,
         "num_shards",
         "The number of shards the framework will run.",
         3);
 
-    add(&tasks_per_shard,
+    add(&Flags::tasks_per_shard,
         "tasks_per_shard",
         "The number of tasks should be launched per shard.",
         2);

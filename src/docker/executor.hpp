@@ -35,41 +35,41 @@ namespace docker {
 struct Flags : public virtual mesos::internal::logging::Flags
 {
   Flags() {
-    add(&container,
+    add(&Flags::container,
         "container",
         "The name of the docker container to run.");
 
-    add(&docker,
+    add(&Flags::docker,
         "docker",
         "The path to the docker executable.");
 
-    add(&docker_socket,
+    add(&Flags::docker_socket,
         "docker_socket",
         "The UNIX socket path to be used by docker CLI for accessing docker\n"
         "daemon.");
 
-    add(&sandbox_directory,
+    add(&Flags::sandbox_directory,
         "sandbox_directory",
         "The path to the container sandbox holding stdout and stderr files\n"
         "into which docker container logs will be redirected.");
 
-    add(&mapped_directory,
+    add(&Flags::mapped_directory,
         "mapped_directory",
         "The sandbox directory path that is mapped in the docker container.");
 
     // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
-    add(&stop_timeout,
+    add(&Flags::stop_timeout,
         "stop_timeout",
         "The duration for docker to wait after stopping a running container\n"
         "before it kills that container. This flag is deprecated; use task's\n"
         "kill policy instead.");
 
-    add(&launcher_dir,
+    add(&Flags::launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries. Mesos would find fetcher,\n"
         "containerizer and executor binary files under this directory.");
 
-    add(&task_environment,
+    add(&Flags::task_environment,
         "task_environment",
         "A JSON map of environment variables and values that should\n"
         "be passed into the task launched by this executor.");

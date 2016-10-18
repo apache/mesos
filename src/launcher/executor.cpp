@@ -821,35 +821,35 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&rootfs,
+    add(&Flags::rootfs,
         "rootfs",
         "The path to the root filesystem for the task");
 
     // The following flags are only applicable when a rootfs is
     // provisioned for this command.
-    add(&sandbox_directory,
+    add(&Flags::sandbox_directory,
         "sandbox_directory",
         "The absolute path for the directory in the container where the\n"
         "sandbox is mapped to");
 
-    add(&working_directory,
+    add(&Flags::working_directory,
         "working_directory",
         "The working directory for the task in the container.");
 
-    add(&user,
+    add(&Flags::user,
         "user",
         "The user that the task should be running as.");
 
-    add(&task_command,
+    add(&Flags::task_command,
         "task_command",
         "If specified, this is the overrided command for launching the\n"
         "task (instead of the command from TaskInfo).");
 
-    add(&capabilities,
+    add(&Flags::capabilities,
         "capabilities",
         "Capabilities the command can use.");
 
-    add(&launcher_dir,
+    add(&Flags::launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries.",
         PKGLIBEXECDIR);

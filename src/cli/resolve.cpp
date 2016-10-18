@@ -41,23 +41,30 @@ using std::endl;
 using std::string;
 
 
-int main(int argc, char** argv)
+class Flags : public virtual flags::FlagsBase
 {
-  flags::FlagsBase flags;
-  flags.setUsageMessage("Usage: " + Path(argv[0]).basename() + " <master>");
+public:
+  Flags()
+  {
+    add(&Flags::timeout,
+        "timeout",
+        "How long to wait to resolve master",
+        Seconds(5));
+
+    add(&Flags::verbose, "verbose", "Be verbose", false);
+  }
 
   Duration timeout;
-  flags.add(&timeout,
-            "timeout",
-            "How long to wait to resolve master",
-            Seconds(5));
 
   // TODO(marco): `verbose` is also a great candidate for FlagsBase.
   bool verbose;
-  flags.add(&verbose,
-            "verbose",
-            "Be verbose",
-            false);
+};
+
+
+int main(int argc, char** argv)
+{
+  Flags flags;
+  flags.setUsageMessage("Usage: " + Path(argv[0]).basename() + " <master>");
 
   // Load flags from environment and command line, and remove
   // them from argv.
@@ -95,9 +102,9 @@ int main(int argc, char** argv)
 
   Future<Option<MasterInfo>> masterInfo = detector.get()->detect();
 
-  if (!masterInfo.await(timeout)) {
+  if (!masterInfo.await(flags.timeout)) {
     cerr << "Failed to detect master from '" << master
-         << "' within " << timeout << endl;
+         << "' within " << flags.timeout << endl;
     return -1;
   } else {
     CHECK(!masterInfo.isDiscarded());

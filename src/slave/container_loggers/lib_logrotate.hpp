@@ -47,14 +47,14 @@ struct LoggerFlags : public virtual flags::FlagsBase
 {
   LoggerFlags()
   {
-    add(&max_stdout_size,
+    add(&LoggerFlags::max_stdout_size,
         "max_stdout_size",
         "Maximum size, in bytes, of a single stdout log file.\n"
         "Defaults to 10 MB.  Must be at least 1 (memory) page.",
         Megabytes(10),
         &LoggerFlags::validateSize);
 
-    add(&logrotate_stdout_options,
+    add(&LoggerFlags::logrotate_stdout_options,
         "logrotate_stdout_options",
         "Additional config options to pass into 'logrotate' for stdout.\n"
         "This string will be inserted into a 'logrotate' configuration file.\n"
@@ -65,14 +65,14 @@ struct LoggerFlags : public virtual flags::FlagsBase
         "  }\n"
         "NOTE: The 'size' option will be overriden by this module.");
 
-    add(&max_stderr_size,
+    add(&LoggerFlags::max_stderr_size,
         "max_stderr_size",
         "Maximum size, in bytes, of a single stderr log file.\n"
         "Defaults to 10 MB.  Must be at least 1 (memory) page.",
         Megabytes(10),
         &LoggerFlags::validateSize);
 
-    add(&logrotate_stderr_options,
+    add(&LoggerFlags::logrotate_stderr_options,
         "logrotate_stderr_options",
         "Additional config options to pass into 'logrotate' for stderr.\n"
         "This string will be inserted into a 'logrotate' configuration file.\n"
@@ -107,7 +107,7 @@ struct Flags : public virtual LoggerFlags
 {
   Flags()
   {
-    add(&environment_variable_prefix,
+    add(&Flags::environment_variable_prefix,
         "environment_variable_prefix",
         "Prefix for environment variables meant to modify the behavior of\n"
         "the logrotate logger for the specific executor being launched.\n"
@@ -121,7 +121,7 @@ struct Flags : public virtual LoggerFlags
         "via module parameters.",
         "CONTAINER_LOGGER_");
 
-    add(&launcher_dir,
+    add(&Flags::launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries.  The logrotate container logger\n"
         "will find the '" + mesos::internal::logger::rotate::NAME + "'\n"
@@ -138,7 +138,7 @@ struct Flags : public virtual LoggerFlags
           return None();
         });
 
-    add(&logrotate_path,
+    add(&Flags::logrotate_path,
         "logrotate_path",
         "If specified, the logrotate container logger will use the specified\n"
         "'logrotate' instead of the system's 'logrotate'.",
@@ -157,7 +157,7 @@ struct Flags : public virtual LoggerFlags
           return None();
         });
 
-    add(&libprocess_num_worker_threads,
+    add(&Flags::libprocess_num_worker_threads,
         "libprocess_num_worker_threads",
         "Number of Libprocess worker threads.\n"
         "Defaults to 8.  Must be at least 1.",

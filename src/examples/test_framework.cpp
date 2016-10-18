@@ -191,6 +191,20 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 }
 
 
+class Flags : public mesos::internal::logging::Flags
+{
+public:
+  Flags()
+  {
+    add(&Flags::role, "role", "Role to use when registering", "*");
+    add(&Flags::master, "master", "ip:port of master to connect");
+  }
+
+  string role;
+  Option<string> master;
+};
+
+
 int main(int argc, char** argv)
 {
   // Find this executable's directory to locate executor.
@@ -204,18 +218,7 @@ int main(int argc, char** argv)
         "test-executor");
   }
 
-  mesos::internal::logging::Flags flags;
-
-  string role;
-  flags.add(&role,
-            "role",
-            "Role to use when registering",
-            "*");
-
-  Option<string> master;
-  flags.add(&master,
-            "master",
-            "ip:port of master to connect");
+  Flags flags;
 
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
 
@@ -223,7 +226,7 @@ int main(int argc, char** argv)
     cerr << load.error() << endl;
     usage(argv[0], flags);
     exit(EXIT_FAILURE);
-  } else if (master.isNone()) {
+  } else if (flags.master.isNone()) {
     cerr << "Missing --master" << endl;
     usage(argv[0], flags);
     exit(EXIT_FAILURE);
@@ -245,7 +248,7 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Test Framework (C++)");
-  framework.set_role(role);
+  framework.set_role(flags.role);
 
   value = os::getenv("MESOS_CHECKPOINT");
   if (value.isSome()) {
@@ -261,7 +264,7 @@ int main(int argc, char** argv)
   }
 
   MesosSchedulerDriver* driver;
-  TestScheduler scheduler(implicitAcknowledgements, executor, role);
+  TestScheduler scheduler(implicitAcknowledgements, executor, flags.role);
 
   if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
@@ -288,7 +291,7 @@ int main(int argc, char** argv)
     driver = new MesosSchedulerDriver(
         &scheduler,
         framework,
-        master.get(),
+        flags.master.get(),
         implicitAcknowledgements,
         credential);
   } else {
@@ -297,7 +300,7 @@ int main(int argc, char** argv)
     driver = new MesosSchedulerDriver(
         &scheduler,
         framework,
-        master.get(),
+        flags.master.get(),
         implicitAcknowledgements);
   }
 

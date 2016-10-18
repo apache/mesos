@@ -40,11 +40,11 @@ const string MesosContainerizerMount::MAKE_RSLAVE = "make-rslave";
 
 MesosContainerizerMount::Flags::Flags()
 {
-  add(&operation,
+  add(&Flags::operation,
       "operation",
       "The mount operation to apply.");
 
-  add(&path,
+  add(&Flags::path,
       "path",
       "The path to apply mount operation to.");
 }

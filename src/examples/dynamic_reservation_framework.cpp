@@ -323,7 +323,7 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "The master to connect to. May be one of:\n"
         "  master@addr:port (The PID of the master)\n"
@@ -331,16 +331,16 @@ public:
         "  zk://username:password@host1:port1,host2:port2,.../path\n"
         "  file://path/to/file (where file contains one of the above)");
 
-    add(&role,
+    add(&Flags::role,
         "role",
         "Role to use when registering");
 
-    add(&principal,
+    add(&Flags::principal,
         "principal",
         "The principal used to identify this framework",
         "test");
 
-    add(&command,
+    add(&Flags::command,
         "command",
         "The command to run for each task.",
         "echo hello");

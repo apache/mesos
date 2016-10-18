@@ -120,6 +120,62 @@ using std::string;
 using std::vector;
 
 
+class Flags : public virtual master::Flags
+{
+public:
+  Flags()
+  {
+    add(&Flags::ip,
+        "ip",
+        "IP address to listen on. This cannot be used in conjunction\n"
+        "with `--ip_discovery_command`.");
+
+    add(&Flags::port, "port", "Port to listen on.", MasterInfo().port());
+
+    add(&Flags::advertise_ip,
+        "advertise_ip",
+        "IP address advertised to reach this Mesos master.\n"
+        "The master does not bind using this IP address.\n"
+        "However, this IP address may be used to access this master.");
+
+    add(&Flags::advertise_port,
+        "advertise_port",
+        "Port advertised to reach Mesos master (along with\n"
+        "`advertise_ip`). The master does not bind to this port.\n"
+        "However, this port (along with `advertise_ip`) may be used to\n"
+        "access this master.");
+
+    add(&Flags::zk,
+        "zk",
+        "ZooKeeper URL (used for leader election amongst masters)\n"
+        "May be one of:\n"
+        "  `zk://host1:port1,host2:port2,.../path`\n"
+        "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
+        "  `file:///path/to/file` (where file contains one of the above)\n"
+        "NOTE: Not required if master is run in standalone mode (non-HA).");
+
+    add(&Flags::ip_discovery_command,
+        "ip_discovery_command",
+        "Optional IP discovery binary: if set, it is expected to emit\n"
+        "the IP address which the master will try to bind to.\n"
+        "Cannot be used in conjunction with `--ip`.");
+    }
+
+    // The following flags are executable specific (e.g., since we only
+    // have one instance of libprocess per execution, we only want to
+    // advertise the IP and port option once, here).
+
+    Option<string> ip;
+    uint16_t port;
+    Option<string> advertise_ip;
+    Option<string> advertise_port;
+    Option<string> zk;
+
+    // Optional IP discover script that will set the Master IP.
+    // If set, its output is expected to be a valid parseable IP string.
+    Option<string> ip_discovery_command;
+};
+
 
 int main(int argc, char** argv)
 {
@@ -149,56 +205,7 @@ int main(int argc, char** argv)
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  master::Flags flags;
-
-  // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want to
-  // advertise the IP and port option once, here).
-  Option<string> ip;
-  flags.add(&ip,
-            "ip",
-            "IP address to listen on. This cannot be used in conjunction\n"
-            "with `--ip_discovery_command`.");
-
-  uint16_t port;
-  flags.add(&port,
-            "port",
-            "Port to listen on.",
-            MasterInfo().port());
-
-  Option<string> advertise_ip;
-  flags.add(&advertise_ip,
-            "advertise_ip",
-            "IP address advertised to reach this Mesos master.\n"
-            "The master does not bind using this IP address.\n"
-            "However, this IP address may be used to access this master.");
-
-  Option<string> advertise_port;
-  flags.add(&advertise_port,
-            "advertise_port",
-            "Port advertised to reach Mesos master (along with\n"
-            "`advertise_ip`). The master does not bind to this port.\n"
-            "However, this port (along with `advertise_ip`) may be used to\n"
-            "access this master.");
-
-  Option<string> zk;
-  flags.add(&zk,
-            "zk",
-            "ZooKeeper URL (used for leader election amongst masters)\n"
-            "May be one of:\n"
-            "  `zk://host1:port1,host2:port2,.../path`\n"
-            "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
-            "  `file:///path/to/file` (where file contains one of the above)\n"
-            "NOTE: Not required if master is run in standalone mode (non-HA).");
-
-  // Optional IP discover script that will set the Master IP.
-  // If set, its output is expected to be a valid parseable IP string.
-  Option<string> ip_discovery_command;
-  flags.add(&ip_discovery_command,
-            "ip_discovery_command",
-            "Optional IP discovery binary: if set, it is expected to emit\n"
-            "the IP address which the master will try to bind to.\n"
-            "Cannot be used in conjunction with `--ip`.");
+  ::Flags flags;
 
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
@@ -217,34 +224,34 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (ip_discovery_command.isSome() && ip.isSome()) {
+  if (flags.ip_discovery_command.isSome() && flags.ip.isSome()) {
     EXIT(EXIT_FAILURE) << flags.usage(
         "Only one of `--ip` or `--ip_discovery_command` should be specified");
   }
 
-  if (ip_discovery_command.isSome()) {
-    Try<string> ipAddress = os::shell(ip_discovery_command.get());
+  if (flags.ip_discovery_command.isSome()) {
+    Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
     if (ipAddress.isError()) {
       EXIT(EXIT_FAILURE) << ipAddress.error();
     }
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
-  } else if (ip.isSome()) {
-    os::setenv("LIBPROCESS_IP", ip.get());
+  } else if (flags.ip.isSome()) {
+    os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
 
-  os::setenv("LIBPROCESS_PORT", stringify(port));
+  os::setenv("LIBPROCESS_PORT", stringify(flags.port));
 
-  if (advertise_ip.isSome()) {
-    os::setenv("LIBPROCESS_ADVERTISE_IP", advertise_ip.get());
+  if (flags.advertise_ip.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_IP", flags.advertise_ip.get());
   }
 
-  if (advertise_port.isSome()) {
-    os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
+  if (flags.advertise_port.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_PORT", flags.advertise_port.get());
   }
 
-  if (zk.isNone()) {
+  if (flags.zk.isNone()) {
     if (flags.master_contender.isSome() ^ flags.master_detector.isSome()) {
       EXIT(EXIT_FAILURE)
         << flags.usage("Both --master_contender and --master_detector should "
@@ -390,7 +397,7 @@ int main(int argc, char** argv)
         << "': " << mkdir.error();
     }
 
-    if (zk.isSome()) {
+    if (flags.zk.isSome()) {
       // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
         EXIT(EXIT_FAILURE)
@@ -398,7 +405,7 @@ int main(int argc, char** argv)
           << " registry when using ZooKeeper";
       }
 
-      Try<zookeeper::URL> url = zookeeper::URL::parse(zk.get());
+      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk.get());
       if (url.isError()) {
         EXIT(EXIT_FAILURE) << "Error parsing ZooKeeper URL: " << url.error();
       }
@@ -439,7 +446,7 @@ int main(int argc, char** argv)
   MasterDetector* detector;
 
   Try<MasterContender*> contender_ = MasterContender::create(
-      zk, flags.master_contender);
+      flags.zk, flags.master_contender);
 
   if (contender_.isError()) {
     EXIT(EXIT_FAILURE)
@@ -449,7 +456,7 @@ int main(int argc, char** argv)
   contender = contender_.get();
 
   Try<MasterDetector*> detector_ = MasterDetector::create(
-      zk, flags.master_detector);
+      flags.zk, flags.master_detector);
 
   if (detector_.isError()) {
     EXIT(EXIT_FAILURE)
@@ -551,7 +558,7 @@ int main(int argc, char** argv)
       slaveRemovalLimiter,
       flags);
 
-  if (zk.isNone() && flags.master_detector.isNone()) {
+  if (flags.zk.isNone() && flags.master_detector.isNone()) {
     // It means we are using the standalone detector so we need to
     // appoint this Master as the leader.
     dynamic_cast<StandaloneMasterDetector*>(detector)->appoint(master->info());

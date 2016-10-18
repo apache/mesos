@@ -229,7 +229,7 @@ class Flags : public virtual mesos::internal::logging::Flags
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "Required. The master to connect to. May be one of:\n"
         "  master@addr:port (The PID of the master)\n"

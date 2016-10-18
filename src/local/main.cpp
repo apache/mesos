@@ -45,6 +45,24 @@ using std::endl;
 using std::string;
 
 
+class Flags : public virtual local::Flags
+{
+public:
+  Flags()
+  {
+    add(&Flags::port, "port", "Port to listen on", 5050);
+    add(&Flags::ip, "ip", "IP address to listen on");
+  }
+
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the port and ip option once, here).
+
+  uint16_t port;
+  Option<string> ip;
+};
+
+
 int main(int argc, char **argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -53,20 +71,11 @@ int main(int argc, char **argv)
   // order to pass those flags on to the master. Alternatively, add a
   // way to load flags and ignore unknowns in order to load
   // master::flags, then slave::Flags, then local::Flags.
-  local::Flags flags;
+  Flags flags;
 
   flags.setUsageMessage(
       "Usage: " + Path(argv[0]).basename() + " [...]\n\n" +
       "Launches an in-memory cluster within a single process.");
-
-  // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want to
-  // advertise the port and ip option once, here).
-  uint16_t port;
-  flags.add(&port, "port", "Port to listen on", 5050);
-
-  Option<string> ip;
-  flags.add(&ip, "ip", "IP address to listen on");
 
   // Load flags from environment and command line but allow unknown
   // flags since we might have some master/slave flags as well.
@@ -83,10 +92,10 @@ int main(int argc, char **argv)
   }
 
   // Initialize libprocess.
-  os::setenv("LIBPROCESS_PORT", stringify(port));
+  os::setenv("LIBPROCESS_PORT", stringify(flags.port));
 
-  if (ip.isSome()) {
-    os::setenv("LIBPROCESS_IP", ip.get());
+  if (flags.ip.isSome()) {
+    os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
 
   process::initialize("master");

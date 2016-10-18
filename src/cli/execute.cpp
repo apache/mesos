@@ -91,11 +91,11 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "Mesos master (e.g., IP:PORT).");
 
-    add(&task_group,
+    add(&Flags::task_group,
         "task_group",
         "The value could be a JSON-formatted string of `TaskGroupInfo` or a\n"
         "file path containing the JSON-formatted `TaskGroupInfo`. Path must\n"
@@ -135,11 +135,11 @@ public:
         "     ]\n"
         "}");
 
-    add(&name,
+    add(&Flags::name,
         "name",
         "Name for the command.");
 
-    add(&shell,
+    add(&Flags::shell,
         "shell",
         "Determine the command is a shell or not. If not, 'command' will be\n"
         "treated as executable value and arguments (TODO).",
@@ -147,11 +147,11 @@ public:
 
     // TODO(alexr): Once MESOS-4882 lands, elaborate on what `command` can
     // mean: an executable, a shell command, an entrypoint for a container.
-    add(&command,
+    add(&Flags::command,
         "command",
         "Command to launch.");
 
-    add(&environment,
+    add(&Flags::environment,
         "env",
         "Shell command environment variables.\n"
         "The value could be a JSON formatted string of environment variables\n"
@@ -159,80 +159,80 @@ public:
         "formatted environment variables. Path should be of the form\n"
         "'file:///path/to/file'.");
 
-    add(&resources,
+    add(&Flags::resources,
         "resources",
         "Resources for the command.",
         "cpus:1;mem:128");
 
-    add(&hadoop,
+    add(&Flags::hadoop,
         "hadoop",
         "Path to 'hadoop' script (used for copying packages).",
         "hadoop");
 
-    add(&hdfs,
+    add(&Flags::hdfs,
         "hdfs",
         "The ip:port of the NameNode service.",
         "localhost:9000");
 
-    add(&package,
+    add(&Flags::package,
         "package",
         "Package to upload into HDFS and copy into command's\n"
         "working directory (requires 'hadoop', see --hadoop).");
 
-    add(&overwrite,
+    add(&Flags::overwrite,
         "overwrite",
         "Overwrite the package in HDFS if it already exists.",
         false);
 
-    add(&checkpoint,
+    add(&Flags::checkpoint,
         "checkpoint",
         "Enable checkpointing for the framework.",
         false);
 
-    add(&appc_image,
+    add(&Flags::appc_image,
         "appc_image",
         "Appc image name that follows the Appc spec\n"
         "(e.g., ubuntu, example.com/reduce-worker).");
 
-    add(&docker_image,
+    add(&Flags::docker_image,
         "docker_image",
         "Docker image that follows the Docker CLI naming <image>:<tag>\n"
         "(i.e., ubuntu, busybox:latest).");
 
-    add(&framework_capabilities,
+    add(&Flags::framework_capabilities,
         "framework_capabilities",
         "Comma separated list of optional framework capabilities to enable.\n"
         "(the only valid value is currently 'GPU_RESOURCES')");
 
-    add(&containerizer,
+    add(&Flags::containerizer,
         "containerizer",
         "Containerizer to be used (i.e., docker, mesos).",
         "mesos");
 
-    add(&role,
+    add(&Flags::role,
         "role",
         "Role to use when registering.",
         "*");
 
-    add(&kill_after,
+    add(&Flags::kill_after,
         "kill_after",
         "Specifies a delay after which the task is killed\n"
         "(e.g., 10secs, 2mins, etc).");
 
-    add(&networks,
+    add(&Flags::networks,
         "networks",
         "Comma-separated list of networks that the container will join,\n"
         "e.g., `net1,net2`.");
 
-    add(&principal,
+    add(&Flags::principal,
         "principal",
         "The principal to use for framework authentication.");
 
-    add(&secret,
+    add(&Flags::secret,
         "secret",
         "The secret to use for framework authentication.");
 
-    add(&volumes,
+    add(&Flags::volumes,
         "volumes",
         "The value could be a JSON-formatted string of volumes or a\n"
         "file path containing the JSON-formatted volumes. Path must\n"

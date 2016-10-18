@@ -465,7 +465,7 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "Master to connect to.",
         [](const Option<string>& value) -> Option<Error> {
@@ -476,31 +476,31 @@ public:
           return None();
         });
 
-    add(&build_dir,
+    add(&Flags::build_dir,
         "build_dir",
         "The build directory of Mesos. If set, the framework will assume\n"
         "that the executor, framework, and agent(s) all live on the same\n"
         "machine.");
 
-    add(&executor_uri,
+    add(&Flags::executor_uri,
         "executor_uri",
         "URI the fetcher should use to get the executor.");
 
-    add(&executor_command,
+    add(&Flags::executor_command,
         "executor_command",
         "The command that should be used to start the executor.\n"
         "This will override the value set by `--build_dir`.");
 
-    add(&checkpoint,
+    add(&Flags::checkpoint,
         "checkpoint",
         "Whether this framework should be checkpointed.",
         false);
 
-    add(&principal,
+    add(&Flags::principal,
         "principal",
         "The principal to use for framework authentication.");
 
-    add(&secret,
+    add(&Flags::secret,
         "secret",
         "The secret to use for framework authentication.");
   }

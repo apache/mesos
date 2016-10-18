@@ -1578,27 +1578,27 @@ const char* NetworkCniIsolatorSetup::NAME = "network-cni-setup";
 
 NetworkCniIsolatorSetup::Flags::Flags()
 {
-  add(&pid, "pid", "PID of the container");
+  add(&Flags::pid, "pid", "PID of the container");
 
-  add(&hostname, "hostname", "Hostname of the container");
+  add(&Flags::hostname, "hostname", "Hostname of the container");
 
-  add(&rootfs,
+  add(&Flags::rootfs,
       "rootfs",
       "Path to rootfs for the container on the host-file system");
 
-  add(&etc_hosts_path,
+  add(&Flags::etc_hosts_path,
       "etc_hosts_path",
       "Path in the host file system for 'hosts' file");
 
-  add(&etc_hostname_path,
+  add(&Flags::etc_hostname_path,
       "etc_hostname_path",
       "Path in the host file system for 'hostname' file");
 
-  add(&etc_resolv_conf,
+  add(&Flags::etc_resolv_conf,
       "etc_resolv_conf",
       "Path in the host file system for 'resolv.conf'");
 
-  add(&bind_host_files,
+  add(&Flags::bind_host_files,
       "bind_host_files",
       "Bind mount the container's network files to the network files "
       "present on host filesystem",

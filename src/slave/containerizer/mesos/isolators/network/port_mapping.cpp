@@ -394,25 +394,25 @@ const char* PortMappingUpdate::NAME = "update";
 
 PortMappingUpdate::Flags::Flags()
 {
-  add(&eth0_name,
+  add(&Flags::eth0_name,
       "eth0_name",
       "The name of the public network interface (e.g., eth0)");
 
-  add(&lo_name,
+  add(&Flags::lo_name,
       "lo_name",
       "The name of the loopback network interface (e.g., lo)");
 
-  add(&pid,
+  add(&Flags::pid,
       "pid",
       "The pid of the process whose namespaces we will enter");
 
-  add(&ports_to_add,
+  add(&Flags::ports_to_add,
       "ports_to_add",
       "A collection of port ranges (formatted as a JSON object)\n"
       "for which to add IP filters. E.g.,\n"
       "--ports_to_add={\"range\":[{\"begin\":4,\"end\":8}]}");
 
-  add(&ports_to_remove,
+  add(&Flags::ports_to_remove,
       "ports_to_remove",
       "A collection of port ranges (formatted as a JSON object)\n"
       "for which to remove IP filters. E.g.,\n"
@@ -658,26 +658,26 @@ const char* PortMappingStatistics::NAME = "statistics";
 
 PortMappingStatistics::Flags::Flags()
 {
-  add(&eth0_name,
+  add(&Flags::eth0_name,
       "eth0_name",
       "The name of the public network interface (e.g., eth0)");
 
-  add(&pid,
+  add(&Flags::pid,
       "pid",
       "The pid of the process whose namespaces we will enter");
 
-  add(&enable_socket_statistics_summary,
+  add(&Flags::enable_socket_statistics_summary,
       "enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for this container\n",
       false);
 
-  add(&enable_socket_statistics_details,
+  add(&Flags::enable_socket_statistics_details,
       "enable_socket_statistics_details",
       "Whether to collect socket statistics details (e.g., TCP RTT)\n"
       "for this container.",
       false);
 
-  add(&enable_snmp_statistics,
+  add(&Flags::enable_snmp_statistics,
       "enable_snmp_statistics",
       "Whether to collect SNMP statistics details (e.g., TCPRetransSegs)\n"
       "for this container.",

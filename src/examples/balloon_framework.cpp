@@ -63,11 +63,11 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "Master to connect to.");
 
-    add(&task_memory_usage_limit,
+    add(&Flags::task_memory_usage_limit,
         "task_memory_usage_limit",
         None(),
         "Maximum size, in bytes, of the task's memory usage.\n"
@@ -83,33 +83,33 @@ public:
           return None();
         });
 
-    add(&task_memory,
+    add(&Flags::task_memory,
         "task_memory",
         "How much memory the framework will require per task.\n"
         "If not specified, the task(s) will use all available memory in\n"
         "applicable offers.");
 
-    add(&build_dir,
+    add(&Flags::build_dir,
         "build_dir",
         "The build directory of Mesos. If set, the framework will assume\n"
         "that the executor, framework, and agent(s) all live on the same\n"
         "machine.");
 
-    add(&executor_uri,
+    add(&Flags::executor_uri,
         "executor_uri",
         "URI the fetcher should use to get the executor.");
 
-    add(&executor_command,
+    add(&Flags::executor_command,
         "executor_command",
         "The command that should be used to start the executor.\n"
         "This will override the value set by `--build_dir`.");
 
-    add(&checkpoint,
+    add(&Flags::checkpoint,
         "checkpoint",
         "Whether this framework should be checkpointed.\n",
         false);
 
-    add(&long_running,
+    add(&Flags::long_running,
         "long_running",
         "Whether this framework should launch tasks repeatedly\n"
         "or exit after finishing a single task.",

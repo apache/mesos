@@ -31,7 +31,7 @@ const char ActiveUserTestHelper::NAME[] = "ActiveUser";
 
 ActiveUserTestHelper::Flags::Flags()
 {
-  add(&user,
+  add(&Flags::user,
       "user",
       "The expected user name.");
 }

@@ -94,6 +94,63 @@ using std::string;
 using std::vector;
 
 
+class Flags : public slave::Flags
+{
+public:
+  Flags()
+  {
+    add(&Flags::ip,
+        "ip",
+        "IP address to listen on. This cannot be used in conjunction\n"
+        "with `--ip_discovery_command`.");
+
+    add(&Flags::port, "port", "Port to listen on.", SlaveInfo().port());
+
+    add(&Flags::advertise_ip,
+        "advertise_ip",
+        "IP address advertised to reach this Mesos slave.\n"
+        "The slave does not bind to this IP address.\n"
+        "However, this IP address may be used to access this slave.");
+
+    add(&Flags::advertise_port,
+        "advertise_port",
+        "Port advertised to reach this Mesos slave (along with\n"
+        "`advertise_ip`). The slave does not bind to this port.\n"
+        "However, this port (along with `advertise_ip`) may be used to\n"
+        "access this slave.");
+
+    add(&Flags::master,
+        "master",
+        "May be one of:\n"
+        "  `host:port`\n"
+        "  `zk://host1:port1,host2:port2,.../path`\n"
+        "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
+        "  `file:///path/to/file` (where file contains one of the above)");
+
+
+    add(&Flags::ip_discovery_command,
+        "ip_discovery_command",
+        "Optional IP discovery binary: if set, it is expected to emit\n"
+        "the IP address which the slave will try to bind to.\n"
+        "Cannot be used in conjunction with `--ip`.");
+  }
+
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the IP and port option once, here).
+
+  Option<string> ip;
+  uint16_t port;
+  Option<string> advertise_ip;
+  Option<string> advertise_port;
+  Option<string> master;
+
+  // Optional IP discover script that will set the slave's IP.
+  // If set, its output is expected to be a valid parseable IP string.
+  Option<string> ip_discovery_command;
+};
+
+
 int main(int argc, char** argv)
 {
   // The order of initialization is as follows:
@@ -129,56 +186,7 @@ int main(int argc, char** argv)
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  slave::Flags flags;
-
-  // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want to
-  // advertise the IP and port option once, here).
-  Option<string> ip;
-  flags.add(&ip,
-            "ip",
-            "IP address to listen on. This cannot be used in conjunction\n"
-            "with `--ip_discovery_command`.");
-
-  uint16_t port;
-  flags.add(&port,
-            "port",
-            "Port to listen on.",
-            SlaveInfo().port());
-
-  Option<string> advertise_ip;
-  flags.add(&advertise_ip,
-            "advertise_ip",
-            "IP address advertised to reach this Mesos agent.\n"
-            "The agent does not bind to this IP address.\n"
-            "However, this IP address may be used to access this agent.");
-
-  Option<string> advertise_port;
-  flags.add(&advertise_port,
-            "advertise_port",
-            "Port advertised to reach this Mesos agent (along with\n"
-            "`advertise_ip`). The agent does not bind to this port.\n"
-            "However, this port (along with `advertise_ip`) may be used to\n"
-            "access this agent.");
-
-  Option<string> master;
-  flags.add(&master,
-            "master",
-            "May be one of:\n"
-            "  `host:port`\n"
-            "  `zk://host1:port1,host2:port2,.../path`\n"
-            "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
-            "  `file:///path/to/file` (where file contains one of the above)");
-
-
-  // Optional IP discover script that will set the slave's IP.
-  // If set, its output is expected to be a valid parseable IP string.
-  Option<string> ip_discovery_command;
-  flags.add(&ip_discovery_command,
-            "ip_discovery_command",
-            "Optional IP discovery binary: if set, it is expected to emit\n"
-            "the IP address which the agent will try to bind to.\n"
-            "Cannot be used in conjunction with `--ip`.");
+  ::Flags flags;
 
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
@@ -199,44 +207,44 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (master.isNone() && flags.master_detector.isNone()) {
+  if (flags.master.isNone() && flags.master_detector.isNone()) {
     cerr << flags.usage("Missing required option `--master` or "
                         "`--master_detector`.") << endl;
     return EXIT_FAILURE;
   }
 
-  if (master.isSome() && flags.master_detector.isSome()) {
+  if (flags.master.isSome() && flags.master_detector.isSome()) {
     cerr << flags.usage("Only one of --master or --master_detector options "
                         "should be specified.");
     return EXIT_FAILURE;
   }
 
   // Initialize libprocess.
-  if (ip_discovery_command.isSome() && ip.isSome()) {
+  if (flags.ip_discovery_command.isSome() && flags.ip.isSome()) {
     EXIT(EXIT_FAILURE) << flags.usage(
         "Only one of `--ip` or `--ip_discovery_command` should be specified");
   }
 
-  if (ip_discovery_command.isSome()) {
-    Try<string> ipAddress = os::shell(ip_discovery_command.get());
+  if (flags.ip_discovery_command.isSome()) {
+    Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
     if (ipAddress.isError()) {
       EXIT(EXIT_FAILURE) << ipAddress.error();
     }
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
-  } else if (ip.isSome()) {
-    os::setenv("LIBPROCESS_IP", ip.get());
+  } else if (flags.ip.isSome()) {
+    os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
 
-  os::setenv("LIBPROCESS_PORT", stringify(port));
+  os::setenv("LIBPROCESS_PORT", stringify(flags.port));
 
-  if (advertise_ip.isSome()) {
-    os::setenv("LIBPROCESS_ADVERTISE_IP", advertise_ip.get());
+  if (flags.advertise_ip.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_IP", flags.advertise_ip.get());
   }
 
-  if (advertise_port.isSome()) {
-    os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
+  if (flags.advertise_port.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_PORT", flags.advertise_port.get());
   }
 
   // Log build information.
@@ -365,7 +373,7 @@ int main(int argc, char** argv)
   }
 
   Try<MasterDetector*> detector_ = MasterDetector::create(
-      master, flags.master_detector);
+      flags.master, flags.master_detector);
 
   if (detector_.isError()) {
     EXIT(EXIT_FAILURE)

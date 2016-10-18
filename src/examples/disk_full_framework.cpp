@@ -62,17 +62,17 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
-    add(&master,
+    add(&Flags::master,
         "master",
         "Master to connect to.");
 
-    add(&run_once,
+    add(&Flags::run_once,
         "run_once",
         "Whether this framework should exit after running a single task.\n"
         "By default framework will keep running tasks forever.\n",
         false);
 
-    add(&pre_sleep_duration,
+    add(&Flags::pre_sleep_duration,
         "pre_sleep_duration",
         "Duration of sleep before the task starts to consume the disk. The\n"
         "purpose of this is to allow an operator to control the frequency at\n"
@@ -81,7 +81,7 @@ public:
         "disk usage.\n",
         Seconds(600));
 
-    add(&post_sleep_duration,
+    add(&Flags::post_sleep_duration,
         "post_sleep_duration",
         "Duration of sleep after the task consumed the disk. The purpose\n"
         "of this is to allow an operator to control how long it takes for\n"
@@ -90,7 +90,7 @@ public:
         "duration.\n",
         Seconds(600));
 
-    add(&disk_use_limit,
+    add(&Flags::disk_use_limit,
         "disk_use_limit",
         "The amount of disk (rounded to the nearest KB) the task should\n"
         "consume. The task requests 5MB of disk, so if the limit is set\n"
