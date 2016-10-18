@@ -53,6 +53,14 @@ This release contains the following new features:
     frameworks can use to launch task groups as nested containers. All the
     nested containers share resources likes cpu, memory, network and volumes.
 
+  * [MESOS-6014] - **Experimental** A new port-mapper CNI plugin, the
+    `mesos-cni-port-mapper` has been introduced. For Mesos containers, with the
+    CNI port-mapper plugin, users can now expose container ports through host
+    ports using DNAT. This is especially useful when Mesos containers are
+    attached to isolated CNI networks such as private bridge networks, and the
+    services running in the container needs to be exposed outside these
+    isolated networks.
+
 Deprecations:
   * The following metrics are deprecated and will be removed in Mesos 1.4:
     master/slave_shutdowns_scheduled, master/slave_shutdowns_canceled, and
