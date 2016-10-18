@@ -34,6 +34,8 @@
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using process::UPID;
 
 namespace mesos {
@@ -81,6 +83,12 @@ v1::AgentID evolve(const SlaveID& slaveId)
 v1::AgentInfo evolve(const SlaveInfo& slaveInfo)
 {
   return evolve<v1::AgentInfo>(slaveInfo);
+}
+
+
+v1::MachineID evolve(const MachineID& machineId)
+{
+  return evolve<v1::MachineID>(machineId);
 }
 
 
@@ -174,6 +182,13 @@ v1::Resource evolve(const Resource& resource)
 }
 
 
+v1::Resources evolve(const Resources& resources)
+{
+  return evolve<v1::Resource>(
+      static_cast<const RepeatedPtrField<Resource>&>(resources));
+}
+
+
 v1::agent::Call evolve(const mesos::agent::Call& call)
 {
   return evolve<v1::agent::Call>(call);
@@ -183,6 +198,18 @@ v1::agent::Call evolve(const mesos::agent::Call& call)
 v1::agent::Response evolve(const mesos::agent::Response& response)
 {
   return evolve<v1::agent::Response>(response);
+}
+
+
+v1::maintenance::ClusterStatus evolve(const maintenance::ClusterStatus& status)
+{
+  return evolve<v1::maintenance::ClusterStatus>(status);
+}
+
+
+v1::maintenance::Schedule evolve(const maintenance::Schedule& schedule)
+{
+  return evolve<v1::maintenance::Schedule>(schedule);
 }
 
 

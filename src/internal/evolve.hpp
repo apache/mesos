@@ -34,6 +34,7 @@
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
 
 #include <mesos/v1/agent/agent.hpp>
 
@@ -56,6 +57,7 @@ namespace internal {
 // Helpers for evolving types between versions. Please add as necessary!
 v1::AgentID evolve(const SlaveID& slaveId);
 v1::AgentInfo evolve(const SlaveInfo& slaveInfo);
+v1::MachineID evolve(const MachineID& machineId);
 v1::FrameworkID evolve(const FrameworkID& frameworkId);
 v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo);
 v1::KillPolicy evolve(const KillPolicy& killPolicy);
@@ -71,9 +73,14 @@ v1::Task evolve(const Task& task);
 v1::MasterInfo evolve(const MasterInfo& masterInfo);
 v1::FileInfo evolve(const FileInfo& fileInfo);
 v1::Resource evolve(const Resource& resource);
+v1::Resources evolve(const Resources& resources);
 
 v1::agent::Call evolve(const mesos::agent::Call& call);
 v1::agent::Response evolve(const mesos::agent::Response& response);
+
+v1::maintenance::ClusterStatus evolve(
+    const maintenance::ClusterStatus& cluster);
+v1::maintenance::Schedule evolve(const maintenance::Schedule& schedule);
 
 v1::master::Response evolve(const mesos::master::Response& response);
 

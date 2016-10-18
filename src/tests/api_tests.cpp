@@ -40,6 +40,7 @@
 #include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
 
+#include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
 #include "master/detector/standalone.hpp"
@@ -52,12 +53,13 @@
 
 #include "tests/containerizer/mock_containerizer.hpp"
 
-using google::protobuf::RepeatedPtrField;
-
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::slave::ContainerTermination;
+
+using mesos::internal::devolve;
+using mesos::internal::evolve;
 
 using mesos::internal::recordio::Reader;
 
@@ -122,32 +124,6 @@ public:
         }
         return deserialize<v1::master::Response>(contentType, response.body);
       });
-  }
-
-  // Helper for evolving a type by serializing/parsing when the types
-  // have not changed across versions.
-  template <typename T>
-  static T evolve(const google::protobuf::Message& message)
-  {
-    T t;
-
-    string data;
-
-    // NOTE: We need to use 'SerializePartialToString' instead of
-    // 'SerializeToString' because some required fields might not be set
-    // and we don't want an exception to get thrown.
-    CHECK(message.SerializePartialToString(&data))
-      << "Failed to serialize " << message.GetTypeName()
-      << " while evolving to " << t.GetTypeName();
-
-    // NOTE: We need to use 'ParsePartialFromString' instead of
-    // 'ParsePartialFromString' because some required fields might not
-    // be set and we don't want an exception to get thrown.
-    CHECK(t.ParsePartialFromString(data))
-      << "Failed to parse " << t.GetTypeName()
-      << " while evolving from " << message.GetTypeName();
-
-    return t;
   }
 };
 
@@ -417,13 +393,13 @@ TEST_P(MasterAPITest, GetExecutors)
   ASSERT_EQ(v1::master::Response::GET_EXECUTORS, v1Response.get().type());
   ASSERT_EQ(1, v1Response.get().get_executors().executors_size());
 
-  ASSERT_EQ(evolve<v1::AgentID>(slaveId),
+  ASSERT_EQ(evolve(slaveId),
             v1Response.get().get_executors().executors(0).agent_id());
 
   v1::ExecutorInfo executorInfo =
     v1Response.get().get_executors().executors(0).executor_info();
 
-  ASSERT_EQ(evolve<v1::ExecutorID>(exec.id), executorInfo.executor_id());
+  ASSERT_EQ(evolve(exec.id), executorInfo.executor_id());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -835,7 +811,7 @@ TEST_P(MasterAPITest, ListFiles)
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::master::Response::LIST_FILES, v1Response.get().type());
   ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
-  ASSERT_EQ(internal::evolve(file),
+  ASSERT_EQ(evolve(file),
             v1Response.get().list_files().file_infos(2));
 }
 
@@ -1007,12 +983,8 @@ TEST_P(MasterAPITest, ReserveResources)
   v1::master::Call::ReserveResources* reserveResources =
     v1Call.mutable_reserve_resources();
 
-  reserveResources->mutable_agent_id()->CopyFrom(
-    internal::evolve(slaveId.get()));
-
-  reserveResources->mutable_resources()->CopyFrom(
-    internal::evolve<v1::Resource>(
-      static_cast<const RepeatedPtrField<Resource>&>(dynamicallyReserved)));
+  reserveResources->mutable_agent_id()->CopyFrom(evolve(slaveId.get()));
+  reserveResources->mutable_resources()->CopyFrom(evolve(dynamicallyReserved));
 
   ContentType contentType = GetParam();
 
@@ -1075,12 +1047,8 @@ TEST_P(MasterAPITest, UnreserveResources)
   v1::master::Call::ReserveResources* reserveResources =
     v1Call.mutable_reserve_resources();
 
-  reserveResources->mutable_agent_id()->CopyFrom(
-    internal::evolve(slaveId.get()));
-
-  reserveResources->mutable_resources()->CopyFrom(
-    internal::evolve<v1::Resource>(
-      static_cast<const RepeatedPtrField<Resource>&>(dynamicallyReserved)));
+  reserveResources->mutable_agent_id()->CopyFrom(evolve(slaveId.get()));
+  reserveResources->mutable_resources()->CopyFrom(evolve(dynamicallyReserved));
 
   ContentType contentType = GetParam();
 
@@ -1124,12 +1092,10 @@ TEST_P(MasterAPITest, UnreserveResources)
   v1::master::Call::UnreserveResources* unreserveResources =
     v1Call.mutable_unreserve_resources();
 
-  unreserveResources->mutable_agent_id()->CopyFrom(
-    internal::evolve(slaveId.get()));
+  unreserveResources->mutable_agent_id()->CopyFrom(evolve(slaveId.get()));
 
   unreserveResources->mutable_resources()->CopyFrom(
-    internal::evolve<v1::Resource>(
-      static_cast<const RepeatedPtrField<Resource>&>(dynamicallyReserved)));
+      evolve(dynamicallyReserved));
 
   Future<Response> unreserveResponse = process::http::post(
     master.get()->pid,
@@ -1173,8 +1139,7 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
   // Try to schedule maintenance on an unscheduled machine.
   maintenance::Schedule schedule = createSchedule(
       {createWindow({machine1, machine2}, createUnavailability(Clock::now()))});
-  v1::maintenance::Schedule v1Schedule =
-    evolve<v1::maintenance::Schedule>(schedule);
+  v1::maintenance::Schedule v1Schedule = evolve(schedule);
 
   v1::master::Call v1UpdateScheduleCall;
   v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
@@ -1240,8 +1205,7 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
   // Try to schedule maintenance on an unscheduled machine.
   maintenance::Schedule schedule = createSchedule(
       {createWindow({machine1, machine2}, createUnavailability(Clock::now()))});
-  v1::maintenance::Schedule v1Schedule =
-    evolve<v1::maintenance::Schedule>(schedule);
+  v1::maintenance::Schedule v1Schedule = evolve(schedule);
 
   v1::master::Call v1UpdateScheduleCall;
   v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
@@ -1313,8 +1277,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
       createWindow({machine1, machine2}, unavailability),
       createWindow({machine3}, unavailability)
   });
-  v1::maintenance::Schedule v1Schedule =
-    evolve<v1::maintenance::Schedule>(schedule);
+  v1::maintenance::Schedule v1Schedule = evolve(schedule);
 
   v1::master::Call v1UpdateScheduleCall;
   v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
@@ -1342,7 +1305,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
   v1StartMaintenanceCall.set_type(v1::master::Call::START_MAINTENANCE);
   v1::master::Call_StartMaintenance* startMaintenance =
     v1StartMaintenanceCall.mutable_start_maintenance();
-  startMaintenance->add_machines()->CopyFrom(evolve<v1::MachineID>(machine3));
+  startMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
   Future<Nothing> v1StartMaintenanceResponse = process::http::post(
       master.get()->pid,
@@ -1364,7 +1327,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
   v1StopMaintenanceCall.set_type(v1::master::Call::STOP_MAINTENANCE);
   v1::master::Call_StopMaintenance* stopMaintenance =
     v1StopMaintenanceCall.mutable_stop_maintenance();
-  stopMaintenance->add_machines()->CopyFrom(evolve<v1::MachineID>(machine3));
+  stopMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
   Future<Nothing> v1StopMaintenanceResponse = process::http::post(
       master.get()->pid,
@@ -1477,7 +1440,7 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
       event.get().get().agent_added().agent();
 
     ASSERT_EQ("host", agent.agent_info().hostname());
-    ASSERT_EQ(evolve<v1::AgentID>(agentID), agent.agent_info().id());
+    ASSERT_EQ(evolve(agentID), agent.agent_info().id());
     ASSERT_EQ(slave.get()->pid, agent.pid());
     ASSERT_EQ(MESOS_VERSION, agent.version());
     ASSERT_EQ(4, agent.total_resources_size());
@@ -1492,8 +1455,7 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
 
   {
     ASSERT_EQ(v1::master::Event::AGENT_REMOVED, event.get().get().type());
-    ASSERT_EQ(evolve<v1::AgentID>(agentID),
-              event.get().get().agent_removed().agent_id());
+    ASSERT_EQ(evolve(agentID), event.get().get().agent_removed().agent_id());
   }
 }
 
@@ -1602,21 +1564,20 @@ TEST_P(MasterAPITest, Subscribe)
 
   const v1::Offer& offer = offers->offers(0);
 
-  TaskInfo task = createTask(internal::devolve(offer), "", executorId);
+  TaskInfo task = createTask(devolve(offer), "", executorId);
 
   Future<Nothing> update;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(FutureSatisfy(&update));
 
   EXPECT_CALL(*executor, connected(_))
-    .WillOnce(executor::SendSubscribe(
-        frameworkId, internal::evolve(executorId)));
+    .WillOnce(executor::SendSubscribe(frameworkId, evolve(executorId)));
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
   EXPECT_CALL(*executor, launch(_, _))
     .WillOnce(executor::SendUpdateFromTask(
-        frameworkId, internal::evolve(executorId), v1::TASK_RUNNING));
+        frameworkId, evolve(executorId), v1::TASK_RUNNING));
 
   EXPECT_CALL(*executor, acknowledged(_, _));
 
@@ -1632,8 +1593,7 @@ TEST_P(MasterAPITest, Subscribe)
     v1::Offer::Operation* operation = accept->add_operations();
     operation->set_type(v1::Offer::Operation::LAUNCH);
 
-    operation->mutable_launch()->add_task_infos()->CopyFrom(
-        internal::evolve(task));
+    operation->mutable_launch()->add_task_infos()->CopyFrom(evolve(task));
 
     mesos.send(call);
   }
@@ -1642,7 +1602,7 @@ TEST_P(MasterAPITest, Subscribe)
   AWAIT_READY(update);
 
   ASSERT_EQ(v1::master::Event::TASK_ADDED, event.get().get().type());
-  ASSERT_EQ(internal::evolve(task.task_id()),
+  ASSERT_EQ(evolve(task.task_id()),
             event.get().get().task_added().task().task_id());
 
   event = decoder.read();
@@ -1654,7 +1614,7 @@ TEST_P(MasterAPITest, Subscribe)
             event.get().get().task_updated().state());
   ASSERT_EQ(v1::TASK_RUNNING,
             event.get().get().task_updated().status().state());
-  ASSERT_EQ(internal::evolve(task.task_id()),
+  ASSERT_EQ(evolve(task.task_id()),
             event.get().get().task_updated().status().task_id());
 
   event = decoder.read();
@@ -1909,8 +1869,8 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
       None(),
       DEFAULT_CREDENTIAL.principal());
 
-  createVolumes->add_volumes()->CopyFrom(evolve<v1::Resource>(volume));
-  createVolumes->mutable_agent_id()->CopyFrom(evolve<v1::AgentID>(slaveId));
+  createVolumes->add_volumes()->CopyFrom(evolve(volume));
+  createVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
 
   ContentType contentType = GetParam();
 
@@ -1987,8 +1947,8 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   v1::master::Call_DestroyVolumes* destroyVolumes =
     v1DestroyVolumesCall.mutable_destroy_volumes();
 
-  destroyVolumes->mutable_agent_id()->CopyFrom(evolve<v1::AgentID>(slaveId));
-  destroyVolumes->add_volumes()->CopyFrom(evolve<v1::Resource>(volume));
+  destroyVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
+  destroyVolumes->add_volumes()->CopyFrom(evolve(volume));
 
   Future<Nothing> v1DestroyVolumesResponse = process::http::post(
       master.get()->pid,
@@ -2535,8 +2495,7 @@ TEST_P(AgentAPITest, ListFiles)
   ASSERT_TRUE(v1Response.get().IsInitialized());
   ASSERT_EQ(v1::agent::Response::LIST_FILES, v1Response.get().type());
   ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
-  ASSERT_EQ(internal::evolve(file),
-            v1Response.get().list_files().file_infos(2));
+  ASSERT_EQ(evolve(file), v1Response.get().list_files().file_infos(2));
 }
 
 

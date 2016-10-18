@@ -27,6 +27,12 @@
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 
+#include <mesos/resources.hpp>
+
+#include <mesos/v1/resources.hpp>
+
+#include "internal/evolve.hpp"
+
 #include "master/master.hpp"
 
 #include "tests/mesos.hpp"
@@ -43,6 +49,8 @@ using std::string;
 using std::vector;
 
 using google::protobuf::RepeatedPtrField;
+
+using mesos::internal::evolve;
 
 using mesos::internal::protobuf::createLabel;
 
@@ -2514,6 +2522,17 @@ TEST(ResourcesTest, Count)
   Resource cpus = Resources::parse("cpus", "1", "*").get();
   EXPECT_EQ(1u, Resources(cpus).count(cpus));
   EXPECT_EQ(0u, (Resources(cpus) + cpus).count(cpus));
+}
+
+
+TEST(ResourcesTest, Evolve)
+{
+  string resourcesString = "cpus(role1):2;mem(role1):10;cpus:4;mem:20";
+  Resources resources = Resources::parse(resourcesString).get();
+
+  v1::Resources evolved = evolve(resources);
+
+  EXPECT_EQ(v1::Resources::parse(resourcesString).get(), evolved);
 }
 
 
