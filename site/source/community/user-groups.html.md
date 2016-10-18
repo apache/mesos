@@ -30,11 +30,14 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 * [Bangalore](http://www.meetup.com/Bangalore-Mesos-User-Group/)
 * [Pune](http://www.meetup.com/Pune-Mesos-Users-Group/)
 
+### Netherlands
+* [Amsterdam](http://www.meetup.com/Mesos-Amsterdam/)
+
 ### Poland
 * [Warsaw](http://www.meetup.com/Warsaw-Mesos-User-Group/)
 
-### Netherlands
-* [Amsterdam](http://www.meetup.com/Mesos-Amsterdam/)
+### Spain
+* [Seville](http://www.meetup.com/es-ES/Grupo-de-usuarios-Apache-Mesos-en-Sevilla/)
 
 ### United Kingdom
 * [London](http://www.meetup.com/London-Mesos-User-Group/)
