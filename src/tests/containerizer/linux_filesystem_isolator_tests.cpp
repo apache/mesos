@@ -1427,7 +1427,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
 // Tests that the task fails when it attempts to write to a persistent volume
 // mounted as read-only. Note that although we use a shared persistent volume,
-// the behavior is same for non-shared persistent volume.
+// the behavior is the same for non-shared persistent volumes.
 TEST_F(LinuxFilesystemIsolatorMesosTest,
        ROOT_WriteAccessSharedPersistentVolumeReadOnlyMode)
 {
