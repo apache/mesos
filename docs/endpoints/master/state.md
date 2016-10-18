@@ -19,6 +19,8 @@ Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
 This endpoint shows information about the frameworks, tasks,
 executors and agents running in the cluster as a JSON object.
+The information shown might be filtered based on the user
+accessing the endpoint.
 
 Example (**Note**: this is not exhaustive):
 
@@ -50,7 +52,7 @@ Example (**Note**: this is not exhaustive):
          "work_dir" : "/var/lib/mesos",
          "http_authenticators" : "basic",
          "authorizers" : "local",
-         "slave_reregister_timeout" : "10mins",
+         "agent_reregister_timeout" : "10mins",
          "logging_level" : "INFO",
          "help" : "false",
          "root_submissions" : "true",
@@ -75,7 +77,7 @@ Example (**Note**: this is not exhaustive):
          "authenticate_http" : "false",
          "port" : "5050",
          "zk_session_timeout" : "10secs",
-         "recovery_slave_removal_limit" : "100%",
+         "recovery_agent_removal_limit" : "100%",
          "webui_dir" : "/path/to/mesos/build/../src/webui",
          "cluster" : "mycluster",
          "leader" : "master@127.0.0.1:5050",
@@ -94,3 +96,9 @@ Example (**Note**: this is not exhaustive):
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+This endpoint might be filtered based on the user accessing it.
+For example a user might only see the subset of frameworks,
+tasks, and executors they are allowed to view.
+See the authorization documentation for details.
