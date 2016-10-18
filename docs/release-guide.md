@@ -61,14 +61,18 @@ This guide describes the process of doing an official release of Mesos.
     > NOTE: You should move all **Unresolved** tickets marked with `Fix Version`
       or `Target Version` as the release version to the next release version.
 
-    > PROTIP: Use a JIRA dashboard [(example)](https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12326227)
+    > PROTIP: Use a JIRA dashboard [(example)](https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12329720)
       to track the progress of targeted issues as the release date approaches.
 
     > PROTIP: Use `bulk edit` option in JIRA to move the tickets and make sure to
-      **uncheck** the option that emails everyone about the move.
+      **uncheck** the option that emails everyone about the move to avoid spamming.
 
-2. Update and commit the `CHANGELOG` for the release. For major releases we like to call
-   out any major features, API changes, or deprecations.
+2. Checkout the correct branch for the release. For regular releases this is the "master" branch. For
+   patch releases this would be the corresponding release branch (e.g., 1.0.x).
+
+3. Update and commit the `CHANGELOG` for the release. For regular releases we like to call
+   out any major features, API changes, or deprecations at the top of the CHANGELOG. For patch releases
+   update the CHANGELOG on master branch and then cherry pick onto the release branch.
 
     > NOTE: You should use JIRA to generate the CHANGELOG for you. Click on the release
       version in [JIRA](https://issues.apache.org/jira/browse/MESOS#selectedTab=com.atlassian.jira.plugin.system.project%3Aversions-panel) and click
@@ -79,20 +83,21 @@ This guide describes the process of doing an official release of Mesos.
       `Target Version` set but not `Fix Version`. Also check for any Unresolved
       or `Duplicate`/`Invalid` tickets that incorrectly set the `Fix Version`.
 
-3. If not already done, update and commit `configure.ac` and `CMakeLists.txt` for the release.
+4. Ensure version in `configure.ac` and `CMakeLists.txt` is correctly set for the release.
 
-4. Run `support/generate-endpoint-help.py` and commit any resulting changes.
+5. Run `make && support/generate-endpoint-help.py` and commit any resulting changes.
 
-5. Update and commit `docs/configuration.md` to reflect the current state of
-   the master, agent, and configure flags.
+6. Update and commit `docs/configuration.md` to reflect the current state of
+   the master, agent, and configure flags. If this is a patch release, update it on master branch
+   and then cherry pick onto the release branch.
 
-6. Update and commit `docs/upgrades.md` with instructions about how to upgrade
-   a live cluster from the previous release version to this release version.
+7. If this is a regular release, update and commit `docs/upgrades.md` with instructions about
+   how to upgrade a live cluster from the previous release version to this release version.
 
-7. If this is a major release, please ensure that user documentation has been
+8. If this is a regular release, please ensure that user documentation has been
    added for any new features.
 
-8. Make sure that for any updates of the API, specifically the scheduler API, the public mesos protobuf definitions are part of both, `include/mesos` as well as `include/mesos/v1`. NOTE: This might actually demand code updates if any omissions were identified.
+9. Make sure that for any updates of the API, specifically the scheduler API, the public mesos protobuf definitions are part of both, `include/mesos` as well as `include/mesos/v1`. NOTE: This might actually demand code updates if any omissions were identified.
 
 ## Tagging the release candidate
 
@@ -122,10 +127,13 @@ This guide describes the process of doing an official release of Mesos.
     > NOTE: gnu-sed (Linux) requires `-i''` instead of the `-i ''` (space-separated) that default OSX uses.
       You may need to modify your local copy of tag.sh for it to complete successfully.
 
-5. It is not uncommon to release multiple release candidates, with increasing release candidate
-   version, if there are bugs found.
+5. If this is a regular release, create a new release branch (<major>.<minor>.x) from this tag.
 
-6. Update to the *next* Mesos version in `configure.ac`: change `AC_INIT([mesos], [X.Y.Z]))`, as well as in `CMakeLists.txt`: change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`, `set(MESOS_PATCH_VERSION Z)` and then commit.
+		$ git checkout -b X.Y.x
+
+	Now, update master branch to the *next*  minor version in `configure.ac`: change `AC_INIT([mesos], [X.Y.Z]))`,
+	as well as in `CMakeLists.txt`: change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`, `set(MESOS_PATCH_VERSION Z)` and then commit.
+
 
 ## Voting the release candidate
 
@@ -149,10 +157,10 @@ This guide describes the process of doing an official release of Mesos.
 
 2. When all known issues are resolved, update the CHANGELOG with the newly fixed JIRAs.
 
-3. Once all patches are committed to master, cherry-pick them on top of the previous release candidate tag.
-   This is the same process used for point releases (e.g. 0.22.1) as well.
+3. Once all patches are committed to master, cherry-pick them on to the corresponding release branch.
+   This is the same process used for patch releases (e.g., 1.0.2) as well.
 
-        $ git checkout X.Y.Z-rcR
+        $ git checkout X.Y.x
         $ git cherry-pick abcdefgh...
 
 4. Now go back up to the "Tagging the release candidate" section and repeat.
@@ -171,9 +179,9 @@ This guide describes the process of doing an official release of Mesos.
 
     > NOTE: Make sure you fill the email template with the names of binding voters.
 
-## Updating the wiki
+4. Update the version in configure.ac and CMakeLists.txt in the **release** branch to the **next** patch version.
 
-Update the wiki entry, [Mesos Release Planning](https://cwiki.apache.org/confluence/display/MESOS/Mesos+Release+Planning).
+
 
 ## Updating the website
 
@@ -200,7 +208,8 @@ Per the guidelines [when to archive](http://www.apache.org/dev/release.html#when
 
 ## Release the version on JIRA
 
-1. Find the released Mesos version on https://issues.apache.org/jira/plugins/servlet/project-config/MESOS/versions, and "release" it (click on "settings" --> "Release") with the correct release date.
+1. Find the released Mesos version on https://issues.apache.org/jira/plugins/servlet/project-config/MESOS/versions, and "release" it (click on "settings" --> "Release") with the correct release date. Also, make sure to add the names of
+the release managers in "Description" section.
 
 
 ## Update external tooling
