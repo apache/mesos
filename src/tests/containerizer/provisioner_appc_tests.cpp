@@ -37,6 +37,7 @@
 
 #include "slave/paths.hpp"
 
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
@@ -63,6 +64,8 @@ using process::Process;
 using testing::_;
 using testing::Return;
 
+using mesos::internal::slave::BIND_BACKEND;
+using mesos::internal::slave::COPY_BACKEND;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Provisioner;
 using mesos::internal::slave::appc::Store;
@@ -284,7 +287,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   slave::Flags flags;
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.image_provisioner_backend = "bind";
+  flags.image_provisioner_backend = BIND_BACKEND;
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -348,7 +351,7 @@ TEST_F(ProvisionerAppcTest, ROOT_ProvisionNestedContainer)
   slave::Flags flags;
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.image_provisioner_backend = "bind";
+  flags.image_provisioner_backend = BIND_BACKEND;
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -418,7 +421,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   slave::Flags flags;
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.image_provisioner_backend = "copy";
+  flags.image_provisioner_backend = COPY_BACKEND;
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -489,7 +492,7 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainer)
   slave::Flags flags;
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.image_provisioner_backend = "copy";
+  flags.image_provisioner_backend = COPY_BACKEND;
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -558,7 +561,7 @@ TEST_F(ProvisionerAppcTest, RecoverNestedContainerNoParentImage)
   slave::Flags flags;
   flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.image_provisioner_backend = "copy";
+  flags.image_provisioner_backend = COPY_BACKEND;
   flags.work_dir = path::join(sandbox.get(), "work_dir");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);

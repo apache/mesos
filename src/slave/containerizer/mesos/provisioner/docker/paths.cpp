@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 
 #include <stout/path.hpp>
@@ -58,7 +60,7 @@ string getImageLayerManifestPath(const string& storeDir, const string& layerId)
 
 string getImageLayerRootfsPath(const string& layerPath, const string& backend)
 {
-  if (backend == "overlay") {
+  if (backend == OVERLAY_BACKEND) {
     return path::join(layerPath, "rootfs." + backend);
   }
 

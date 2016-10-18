@@ -967,6 +967,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/volume/sandbox_path.hpp		\
   slave/containerizer/mesos/isolators/windows.hpp			\
   slave/containerizer/mesos/provisioner/backend.hpp			\
+  slave/containerizer/mesos/provisioner/constants.hpp			\
   slave/containerizer/mesos/provisioner/paths.hpp			\
   slave/containerizer/mesos/provisioner/provisioner.hpp			\
   slave/containerizer/mesos/provisioner/store.hpp			\

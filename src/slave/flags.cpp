@@ -34,6 +34,8 @@
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #endif // __linux__
 
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
+
 using std::string;
 
 mesos::internal::slave::Flags::Flags()
@@ -128,7 +130,7 @@ mesos::internal::slave::Flags::Flags()
       "image_provisioner_backend",
       "Strategy for provisioning container rootfs from images,\n"
       "e.g., `aufs`, `bind`, `copy`, `overlay`.",
-      "copy");
+      COPY_BACKEND);
 
   add(&Flags::appc_simple_discovery_uri_prefix,
       "appc_simple_discovery_uri_prefix",
