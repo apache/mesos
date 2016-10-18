@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Weights
 layout: documentation
 ---
 
