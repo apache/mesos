@@ -142,12 +142,6 @@ template <v1::master::Response::Type T>
 v1::master::Response evolve(const JSON::Object& object);
 
 
-// Helper functions that evolve old style internal messages to a
-// v1::master::Response.
-v1::master::Response evolve(const maintenance::ClusterStatus& status);
-v1::master::Response evolve(const maintenance::Schedule& schedule);
-
-
 // Declaration of helper functions for evolving JSON objects used in agent's
 // REST endpoints pre v1 API.
 template <v1::agent::Response::Type T>

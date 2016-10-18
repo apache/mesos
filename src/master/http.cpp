@@ -4007,7 +4007,12 @@ Future<Response> Master::Http::getMaintenanceSchedule(
 {
   CHECK_EQ(mesos::master::Call::GET_MAINTENANCE_SCHEDULE, call.type());
 
-  return OK(serialize(contentType, evolve(_getMaintenanceSchedule())),
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_MAINTENANCE_SCHEDULE);
+  response.mutable_get_maintenance_schedule()->mutable_schedule()->CopyFrom(
+      _getMaintenanceSchedule());
+
+  return OK(serialize(contentType, evolve(response)),
             stringify(contentType));
 }
 
@@ -4408,7 +4413,12 @@ Future<Response> Master::Http::getMaintenanceStatus(
   return _getMaintenanceStatus()
     .then([contentType](const mesos::maintenance::ClusterStatus& status)
           -> Response {
-      return OK(serialize(contentType, evolve(status)),
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_MAINTENANCE_STATUS);
+      response.mutable_get_maintenance_status()->mutable_status()
+        ->CopyFrom(status);
+
+      return OK(serialize(contentType, evolve(response)),
                 stringify(contentType));
     });
 }
