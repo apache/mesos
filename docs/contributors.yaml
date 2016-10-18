@@ -385,6 +385,16 @@
     - zhangqxa@cn.ibm.com
   jira_user: qianzhang
   reviewboard_user: qianzhang
+  
+- name: Ronald Petty
+  affiliations:
+    - {organization: RX-M}
+    - {organization: Minimum Distance}
+  emails:
+    - ronald.petty@rx-m.com
+    - ronald.petty@minimumdistance.com
+  jira_user: ronald.petty
+  reviewboard_user: ronald.petty
 
 - name: Till Toenshoff
   affiliations:
