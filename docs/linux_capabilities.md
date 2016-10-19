@@ -49,5 +49,3 @@ If an empty list of capabilities is given the Mesos task will drop all
 capabilities; if the optional `capability_info` field is not set the
 container will be able to acquire the capabilities of the Mesos task's
 user.
-
-Tasks
