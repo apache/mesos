@@ -5318,10 +5318,9 @@ void Master::reregisterSlave(
     // Update slave's version after re-registering successfully.
     slave->version = version;
 
-    // Reconcile tasks between master and the slave.
-    // NOTE: This sends the re-registered message, including tasks
-    // that need to be reconciled by the slave.
-    reconcile(slave, executorInfos, tasks);
+    // Reconcile tasks between master and slave, and send the
+    // `SlaveReregisteredMessage`.
+    reconcileKnownSlave(slave, executorInfos, tasks);
 
     // If this is a disconnected slave, add it back to the allocator.
     // This is done after reconciliation to ensure the allocator's
@@ -6767,10 +6766,7 @@ void Master::authenticationTimeout(Future<Option<string>> future)
 }
 
 
-// NOTE: This function is only called when the slave re-registers
-// with a master that already knows about it (i.e., not a failed
-// over master).
-void Master::reconcile(
+void Master::reconcileKnownSlave(
     Slave* slave,
     const vector<ExecutorInfo>& executors,
     const vector<Task>& tasks)

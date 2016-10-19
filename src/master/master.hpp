@@ -640,9 +640,10 @@ protected:
       Framework* framework,
       const std::vector<TaskStatus>& statuses);
 
-  // Handles a known re-registering slave by reconciling the master's
-  // view of the slave's tasks and executors.
-  void reconcile(
+  // When a slave that is known to the master re-registers, we need to
+  // reconcile the master's view of the slave's tasks and executors.
+  // This function also sends the `ReregisterSlaveMessage`.
+  void reconcileKnownSlave(
       Slave* slave,
       const std::vector<ExecutorInfo>& executors,
       const std::vector<Task>& tasks);
