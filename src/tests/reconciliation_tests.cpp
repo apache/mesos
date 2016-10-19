@@ -230,8 +230,8 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
 
 // This test verifies that reconciliation of a task that belongs to an
-// unknown slave results in TASK_LOST, even if the framework has
-// enabled the PARTITION_AWARE capability.
+// unknown slave results in TASK_UNKNOWN if the framework has enabled
+// the PARTITION_AWARE capability.
 TEST_F(ReconciliationTest, UnknownSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -266,9 +266,9 @@ TEST_F(ReconciliationTest, UnknownSlave)
 
   driver.reconcileTasks({status});
 
-  // Framework should receive TASK_LOST because the slave is unknown.
+  // Framework should receive TASK_UNKNOWN because the slave is unknown.
   AWAIT_READY(update);
-  EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, update.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
   EXPECT_FALSE(update.get().has_unreachable_time());
 
@@ -278,7 +278,8 @@ TEST_F(ReconciliationTest, UnknownSlave)
 
 
 // This test verifies that reconciliation of an unknown task that
-// belongs to a known slave results in TASK_LOST.
+// belongs to a known slave results in TASK_LOST if the framework is
+// not partition-aware.
 TEST_F(ReconciliationTest, UnknownTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -326,6 +327,68 @@ TEST_F(ReconciliationTest, UnknownTask)
   // Framework should receive TASK_LOST for an unknown task.
   AWAIT_READY(update);
   EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  EXPECT_FALSE(update.get().has_unreachable_time());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that reconciliation of an unknown task that
+// belongs to a known slave results in TASK_UNKNOWN if the framework
+// is partition-aware.
+TEST_F(ReconciliationTest, UnknownTaskPartitionAware)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to register and get the slave id.
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver.start();
+
+  // Wait until the framework is registered.
+  AWAIT_READY(frameworkId);
+
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  // Create a task status with a random task id.
+  TaskStatus status;
+  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  driver.reconcileTasks({status});
+
+  // Framework should receive TASK_UNKNOWN for an unknown task.
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_UNKNOWN, update.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
   EXPECT_FALSE(update.get().has_unreachable_time());
 

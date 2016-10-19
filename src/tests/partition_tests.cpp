@@ -1603,7 +1603,7 @@ TEST_F(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
   EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
 
@@ -1746,7 +1746,7 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
   EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
 
@@ -1965,7 +1965,7 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate3.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate3.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
   EXPECT_FALSE(reconcileUpdate3.get().has_unreachable_time());
 
@@ -2004,7 +2004,7 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status5});
 
   AWAIT_READY(reconcileUpdate5);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate5.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate5.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5.get().reason());
   EXPECT_FALSE(reconcileUpdate5.get().has_unreachable_time());
 
@@ -2022,7 +2022,7 @@ TEST_F(PartitionTest, RegistryGcByAge)
 // configure GC to only keep a single agent. Concurrently with GC
 // running, we arrange for one of those agents to reregister with the
 // master.
-TEST_F(PartitionTest, RegistryGcRace2)
+TEST_F(PartitionTest, RegistryGcRace)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_max_agent_count = 1;
@@ -2251,7 +2251,7 @@ TEST_F(PartitionTest, RegistryGcRace2)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
   EXPECT_FALSE(reconcileUpdate1.get().has_unreachable_time());
 
@@ -2267,7 +2267,7 @@ TEST_F(PartitionTest, RegistryGcRace2)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate2.get().state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
   EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
 

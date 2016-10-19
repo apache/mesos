@@ -6248,17 +6248,13 @@ void Master::_reconcileTasks(
   // Explicit reconciliation occurs for the following cases:
   //   (1) Task is known, but pending: TASK_STAGING.
   //   (2) Task is known: send the latest state.
-  //   (3) Task is unknown, slave is registered: TASK_LOST.
+  //   (3) Task is unknown, slave is registered: TASK_UNKNOWN.
   //   (4) Task is unknown, slave is transitioning: no-op.
   //   (5) Task is unknown, slave is unreachable: TASK_UNREACHABLE.
-  //   (6) Task is unknown, slave is unknown: TASK_LOST.
+  //   (6) Task is unknown, slave is unknown: TASK_UNKNOWN.
   //
-  // When using a non-strict registry, case (6) may result in
-  // a TASK_LOST for a task that may later be non-terminal. This
-  // is better than no reply at all because the framework can take
-  // action for TASK_LOST. Later, if the task is running, the
-  // framework can discover it with implicit reconciliation and will
-  // be able to kill it.
+  // For cases (3), (5), and (6), TASK_LOST is sent instead if the
+  // framework has not opted-in to the PARTITION_AWARE capability.
   foreach (const TaskStatus& status, statuses) {
     Option<SlaveID> slaveId = None();
     if (status.has_slave_id()) {
@@ -6304,12 +6300,20 @@ void Master::_reconcileTasks(
           None(),
           protobuf::getTaskContainerStatus(*task));
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
-      // (3) Task is unknown, slave is registered: TASK_LOST.
+      // (3) Task is unknown, slave is registered: TASK_UNKNOWN. If
+      // the framework does not have the PARTITION_AWARE capability,
+      // send TASK_LOST for backward compatibility.
+      TaskState taskState = TASK_UNKNOWN;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId.get(),
           status.task_id(),
-          TASK_LOST,
+          taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
           "Reconciliation: Task is unknown to the agent",
@@ -6347,12 +6351,20 @@ void Master::_reconcileTasks(
           None(),
           unreachableTime);
     } else {
-      // (6) Task is unknown, slave is unknown: TASK_LOST.
+      // (6) Task is unknown, slave is unknown: TASK_UNKNOWN. If the
+      // framework does not have the PARTITION_AWARE capability, send
+      // TASK_LOST for backward compatibility.
+      TaskState taskState = TASK_UNKNOWN;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId,
           status.task_id(),
-          TASK_LOST,
+          taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
           "Reconciliation: Task is unknown",
