@@ -2854,16 +2854,16 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  // Cause the slave to shutdown gracefully by sending it SIGUSR1.
-  // This should result in the slave sending `UnregisterSlaveMessage`
-  // to the master.
+  // Cause the slave to shutdown gracefully. This should result in
+  // the slave sending `UnregisterSlaveMessage` to the master.
   Future<UnregisterSlaveMessage> unregisterSlaveMessage =
     FUTURE_PROTOBUF(
         UnregisterSlaveMessage(),
         slave.get()->pid,
         master.get()->pid);
 
-  kill(getpid(), SIGUSR1);
+  slave.get()->shutdown();
+  slave->reset();
 
   AWAIT_READY(unregisterSlaveMessage);
   AWAIT_READY(slaveLost);
@@ -2966,10 +2966,10 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
       dynamic_cast<master::MarkSlaveUnreachable*>(
           markUnreachable.get().get()));
 
-  // Cause the slave to shutdown gracefully by sending it SIGUSR1.
-  // This should result in the slave sending `UnregisterSlaveMessage`
-  // to the master. Normally, the master would then remove the slave
-  // from the registry, but since the slave is already being marked
+  // Cause the slave to shutdown gracefully.  This should result in
+  // the slave sending `UnregisterSlaveMessage` to the master.
+  // Normally, the master would then remove the slave from the
+  // registry, but since the slave is already being marked
   // unreachable, the master should ignore the unregister message.
   Future<UnregisterSlaveMessage> unregisterSlaveMessage =
     FUTURE_PROTOBUF(
@@ -2980,7 +2980,8 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
   EXPECT_CALL(*master.get()->registrar.get(), apply(_))
     .Times(0);
 
-  kill(getpid(), SIGUSR1);
+  slave.get()->shutdown();
+  slave->reset();
 
   AWAIT_READY(unregisterSlaveMessage);
 
