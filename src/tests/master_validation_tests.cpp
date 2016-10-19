@@ -718,7 +718,7 @@ TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -1826,7 +1826,7 @@ TEST_F(TaskGroupValidationTest, ExecutorUsesDockerContainerInfo)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -1916,7 +1916,7 @@ TEST_F(TaskGroupValidationTest, ExecutorWithoutFrameworkId)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();

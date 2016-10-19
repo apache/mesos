@@ -233,7 +233,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -343,7 +343,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTaskGroup)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -426,7 +426,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -556,7 +556,7 @@ TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -659,7 +659,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
@@ -765,7 +765,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
 
   driver.reconcileTasks({});
 
-  // We pause the clock here to ensure any updates sent by the master
+  // We settle the clock here to ensure any updates sent by the master
   // are received. There shouldn't be any updates in this case.
   Clock::pause();
   Clock::settle();
