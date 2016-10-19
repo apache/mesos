@@ -605,13 +605,16 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
   ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
   const string user = "nobody";
 
   ExecutorInfo executor = createExecutorInfo("executor", "exit 0");
   executor.mutable_command()->set_user(user);
 
   Future<bool> launch = containerizer->launch(
-      DEFAULT_CONTAINER_ID,
+      containerId,
       None(),
       executor,
       sandbox,
@@ -639,7 +642,7 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
 
   // Wait on the container.
   Future<Option<ContainerTermination>> wait =
-    containerizer->wait(DEFAULT_CONTAINER_ID);
+    containerizer->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the executor exited correctly.

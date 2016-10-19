@@ -391,12 +391,6 @@ protected:
       DEFAULT_V1_EXECUTOR_INFO.executor_id()
 
 
-#define DEFAULT_CONTAINER_ID                                          \
-     ({ ContainerID containerId;                                      \
-        containerId.set_value("container");                           \
-        containerId; })
-
-
 inline mesos::Environment createEnvironment(
     const hashmap<std::string, std::string>& map)
 {
