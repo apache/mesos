@@ -376,9 +376,10 @@ TEST_F(ReconciliationTest, UnknownKillTask)
 }
 
 
-// This test verifies that reconciliation of a task that belongs to a
-// slave that is in a transitional state doesn't result in an update.
-TEST_F(ReconciliationTest, SlaveInTransition)
+// This test verifies that explicit reconciliation does not return any
+// results for tasks running on an agent that has been recovered from
+// the registry after master failover but has not yet reregistered.
+TEST_F(ReconciliationTest, RecoveredAgent)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -398,14 +399,20 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   AWAIT_READY(slaveRegisteredMessage);
   const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
+  // Stop the master.
+  master->reset();
+
+  // Stop the slave.
+  slave.get()->terminate();
+  slave->reset();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
-
-  // Stop the slave and master (a bit later).
-  master->reset();
-  slave.get()->terminate();
-  slave->reset();
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -414,13 +421,98 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return()); // Ignore offers.
 
-  // Framework should not receive any update.
+  // Framework should not receive any task status updates.
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
+
+  driver.start();
+
+  // Wait for the framework to register.
+  AWAIT_READY(frameworkId);
+
+  // Do reconciliation before the agent has attempted to reregister.
+  // This should not yield any results.
+  Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
+
+  // Reconcile for a random task ID on the slave.
+  TaskStatus status;
+  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  driver.reconcileTasks({status});
+
+  // Make sure the master received the reconcile call.
+  AWAIT_READY(reconcileCall);
+
+  // The Clock::settle() will ensure that framework would receive
+  // a status update if it is sent by the master. In this test it
+  // shouldn't receive any.
+  Clock::pause();
+  Clock::settle();
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that explicit reconciliation does not return any
+// results for tasks running on an agent that has been recovered from
+// the registry after master failover, where the agent has started the
+// reregistration process but has not completed it yet.
+TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to register and get the slave id.
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  // Stop the master.
+  master->reset();
+
+  // Stop the slave.
+  slave.get()->terminate();
+  slave->reset();
 
   // Restart the master.
   master = StartMaster(masterFlags);
   ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  // Framework should not receive any task status updates.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.start();
+
+  // Wait for the framework to register.
+  AWAIT_READY(frameworkId);
 
   // Intercept the first registrar operation that is attempted; this
   // should be the registry operation that reregisters the slave.
@@ -429,11 +521,6 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   EXPECT_CALL(*master.get()->registrar.get(), apply(_))
     .WillOnce(DoAll(FutureArg<0>(&reregister),
                     Return(promise.future())));
-
-  driver.start();
-
-  // Wait for the framework to register.
-  AWAIT_READY(frameworkId);
 
   // Restart the slave.
   detector = master.get()->createDetector();
@@ -449,9 +536,7 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
 
-  Clock::pause();
-
-  // Create a task status with a random task id.
+  // Reconcile for a random task ID on the slave.
   TaskStatus status;
   status.mutable_task_id()->set_value(UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
@@ -462,10 +547,97 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   // Make sure the master received the reconcile call.
   AWAIT_READY(reconcileCall);
 
-  // The Clock::settle() will ensure that framework would receive
-  // a status update if it is sent by the master. In this test it
+  // The Clock::settle() will ensure that the framework receives a
+  // status update if it is sent by the master. In this test it
   // shouldn't receive any.
+  Clock::pause();
   Clock::settle();
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that when an agent has started but not finished
+// the unregistration process, explicit reconciliation indicates that
+// the agent is still registered.
+TEST_F(ReconciliationTest, RemovalInProgress)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to register and get the slave id.
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  Future<UnregisterSlaveMessage> unregisterSlaveMessage =
+    FUTURE_PROTOBUF(
+        UnregisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
+
+  // Intercept the next registrar operation; this should be the
+  // registry operation that unregisters the slave.
+  Future<Owned<master::Operation>> unregister;
+  Future<Nothing> unregisterStarted;
+  Promise<bool> promise; // Never satisfied.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&unregister),
+                    Return(promise.future())));
+
+  // Cause the slave to shutdown gracefully.
+  slave.get()->shutdown();
+  slave->reset();
+
+  AWAIT_READY(unregisterSlaveMessage);
+
+  AWAIT_READY(unregister);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::RemoveSlave*>(unregister.get().get()));
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver.start();
+
+  // Wait for the framework to register.
+  AWAIT_READY(frameworkId);
+
+  Future<TaskStatus> update;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  // Reconcile for a random task ID on the slave.
+  TaskStatus status;
+  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(update);
+  EXPECT_EQ(TASK_LOST, update.get().state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
+  EXPECT_FALSE(update.get().has_unreachable_time());
 
   driver.stop();
   driver.join();

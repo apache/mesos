@@ -1829,8 +1829,12 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
   // Remove the slaves in a rate limited manner, similar to how the
   // SlaveObserver removes slaves.
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
-    // The slave is removed from 'recovered' when it re-registers.
-    if (!slaves.recovered.contains(slave.info().id())) {
+    // The slave is removed from `recovered` when it completes the
+    // re-registration process. If the slave is in `reregistering`, it
+    // has started but not yet finished re-registering. In either
+    // case, we don't want to try to remove it.
+    if (!slaves.recovered.contains(slave.info().id()) ||
+        slaves.reregistering.contains(slave.info().id())) {
       continue;
     }
 
@@ -1859,11 +1863,22 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 
 Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
 {
-  // The slave is removed from 'recovered' when it re-registers.
+  // The slave might have reregistered while we were waiting to
+  // acquire the rate limit.
   if (!slaves.recovered.contains(slave.info().id())) {
     LOG(INFO) << "Canceling transition of agent "
               << slave.info().id() << " (" << slave.info().hostname() << ")"
               << " to unreachable because it re-registered";
+
+    ++metrics->slave_unreachable_canceled;
+    return Nothing();
+  }
+
+  // The slave might be in the process of reregistering.
+  if (slaves.reregistering.contains(slave.info().id())) {
+    LOG(INFO) << "Canceling transition of agent "
+              << slave.info().id() << " (" << slave.info().hostname() << ")"
+              << " to unreachable because it is re-registering";
 
     ++metrics->slave_unreachable_canceled;
     return Nothing();
@@ -1875,8 +1890,6 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
                << " after master failover; marking it unreachable";
 
   ++metrics->slave_unreachable_completed;
-
-  slaves.recovered.erase(slave.info().id());
 
   TimeInfo unreachableTime = protobuf::getCurrentTime();
 
@@ -1899,6 +1912,9 @@ void Master::_markUnreachableAfterFailover(
 {
   CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
   slaves.markingUnreachable.erase(slaveInfo.id());
+
+  CHECK(slaves.recovered.contains(slaveInfo.id()));
+  slaves.recovered.erase(slaveInfo.id());
 
   if (registrarResult.isFailed()) {
     LOG(FATAL) << "Failed to mark agent " << slaveInfo.id()
@@ -5233,6 +5249,8 @@ void Master::reregisterSlave(
   Slave* slave = slaves.registered.get(slaveInfo.id());
 
   if (slave != nullptr) {
+    CHECK(!slaves.recovered.contains(slaveInfo.id()));
+
     slave->reregisteredTime = Clock::now();
 
     // NOTE: This handles the case where a slave tries to
@@ -5302,10 +5320,6 @@ void Master::reregisterSlave(
     return;
   }
 
-  // Ensure we don't remove the slave for not re-registering after
-  // we've recovered it from the registry.
-  slaves.recovered.erase(slaveInfo.id());
-
   // If we're already re-registering this slave, then no need to ask
   // the registrar again.
   if (slaves.reregistering.contains(slaveInfo.id())) {
@@ -5367,6 +5381,11 @@ void Master::_reregisterSlave(
   CHECK(readmit.get());
 
   // Re-admission succeeded.
+
+  // Ensure we don't remove the slave for not re-registering after
+  // we've recovered it from the registry.
+  slaves.recovered.erase(slaveInfo.id());
+
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(pid.address.ip));

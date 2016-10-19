@@ -2222,6 +2222,72 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
 }
 
 
+// This test checks that the master behaves correctly when a slave is
+// in the process of reregistering after master failover when the
+// agent failover timeout expires.
+TEST_F(MasterTest, RecoveredSlaveReregisterThenUnreachableRace)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Stop the slave while the master is down.
+  master->reset();
+  slave.get()->terminate();
+  slave->reset();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start the slave, which will cause it to reregister. Intercept the
+  // next registry operation, which we expect to be slave reregistration.
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, master.get()->pid);
+
+  Future<Owned<master::Operation>> reregister;
+  Promise<bool> reregisterContinue;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&reregister),
+                    Return(reregisterContinue.future())));
+
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  AWAIT_READY(reregister);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveReachable*>(
+          reregister.get().get()));
+
+  // Advance the clock to cause the agent reregister timeout to
+  // expire. Because slave reregistration has already started, we do
+  // NOT expect the master to mark the slave unreachable. Hence we
+  // don't expect to see any registry operations.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  Clock::pause();
+  Clock::advance(masterFlags.agent_reregister_timeout);
+  Clock::settle();
+}
+
+
 #ifdef MESOS_HAS_JAVA
 
 class MasterZooKeeperTest : public MesosZooKeeperTest {};

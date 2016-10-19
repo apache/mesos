@@ -1616,9 +1616,10 @@ private:
     // registry to re-register with the master.
     Option<process::Timer> recoveredTimer;
 
-    // Slaves that have been recovered from the registrar but have yet
-    // to re-register. We use `recoveredTimer` above to ensure we
-    // remove these slaves if they do not re-register.
+    // Slaves that have been recovered from the registrar after master
+    // failover. Slaves are removed from this collection when they
+    // either re-register with the master or are marked unreachable
+    // because they do not re-register before `recoveredTimer` fires.
     hashset<SlaveID> recovered;
 
     // Slaves that are in the process of registering.
@@ -1726,13 +1727,9 @@ private:
     bool transitioning(const Option<SlaveID>& slaveId)
     {
       if (slaveId.isSome()) {
-        return recovered.contains(slaveId.get()) ||
-               reregistering.contains(slaveId.get()) ||
-               removing.contains(slaveId.get());
+        return recovered.contains(slaveId.get());
       } else {
-        return !recovered.empty() ||
-               !reregistering.empty() ||
-               !removing.empty();
+        return !recovered.empty();
       }
     }
   } slaves;
