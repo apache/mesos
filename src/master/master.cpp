@@ -6813,9 +6813,9 @@ void Master::reconcileKnownSlave(
                      << " unknown to the agent " << *slave
                      << " during re-registration : reconciling with the agent";
 
-        // NOTE: Currently the slave doesn't look at the task state
-        // when it reconciles the task state; we include the correct
-        // state for correctness and consistency.
+        // NOTE: The slave doesn't look at the task state when it
+        // reconciles the task. We send the master's view of the
+        // current task state since it might be useful in the future.
         const TaskState& state = task->has_status_update_state()
             ? task->status_update_state()
             : task->state();
