@@ -1300,8 +1300,15 @@ protected:
     if (!connected) {
       VLOG(1) << "Ignoring accept offers message as master is disconnected";
 
-      // NOTE: Reply to the framework with TASK_LOST messages for each
-      // task launch. See details from notes in launchTasks.
+      // Reply to the framework with TASK_DROPPED messages for each
+      // task launch. If the framework is not partition-aware, we send
+      // TASK_LOST instead. See details from notes in `launchTasks`.
+      TaskState newTaskState = TASK_DROPPED;
+      if (!protobuf::frameworkHasCapability(
+              framework, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        newTaskState = TASK_LOST;
+      }
+
       foreach (const Offer::Operation& operation, operations) {
         if (operation.type() != Offer::Operation::LAUNCH) {
           continue;
@@ -1312,7 +1319,7 @@ protected:
               framework.id(),
               None(),
               task.task_id(),
-              TASK_LOST,
+              newTaskState,
               TaskStatus::SOURCE_MASTER,
               None(),
               "Master disconnected",
