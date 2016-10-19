@@ -1410,7 +1410,7 @@ message TaskInfo {
   optional HealthCheck health_check = 8;
 
   // A kill policy for the task. Implemented for executor-less
-  // command-based and docker tasks. For tasks that specify other
+  // command-based and docker tasks. For tasks that specify an
   // executor, it is the executor's responsibility to implement
   // the kill policy.
   optional KillPolicy kill_policy = 12;
