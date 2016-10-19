@@ -337,6 +337,12 @@
   jira_user: magedm
   reviewboard_user: magedm
 
+- name: Manuwela Kanade
+  emails:
+    - manuwelak@gmail.com
+  jira_user: ManuwelaKanade-GSLab
+  reviewboard_user: ManuwelaKanade-GSLab
+
 - name: Mao Geng
   affiliations:
     - {organization: Pinterest}
