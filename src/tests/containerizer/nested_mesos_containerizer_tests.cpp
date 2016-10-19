@@ -1526,6 +1526,89 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Environment)
   EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 }
 
+
+TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedThreeLevels)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID level1ContainerId;
+  level1ContainerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<bool> launch = containerizer->launch(
+      level1ContainerId,
+      None(),
+      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+      directory.get(),
+      None(),
+      state.id,
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  ContainerID level2ContainerId;
+  level2ContainerId.mutable_parent()->CopyFrom(level1ContainerId);
+  level2ContainerId.set_value(UUID::random().toString());
+
+  launch = containerizer->launch(
+      level2ContainerId,
+      createCommandInfo("sleep 1000"),
+      None(),
+      None(),
+      state.id);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  ContainerID level3ContainerId;
+  level3ContainerId.mutable_parent()->CopyFrom(level2ContainerId);
+  level3ContainerId.set_value(UUID::random().toString());
+
+  launch = containerizer->launch(
+      level3ContainerId,
+      createCommandInfo("exit 42"),
+      None(),
+      None(),
+      state.id);
+
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(level3ContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, wait.get()->status());
+
+  wait = containerizer->wait(level1ContainerId);
+
+  containerizer->destroy(level1ContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
