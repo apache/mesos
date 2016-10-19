@@ -3498,7 +3498,9 @@ void Master::accept(
     }
   }
 
-  // If invalid, send TASK_LOST for the launch attempts.
+  // If invalid, send TASK_DROPPED for the launch attempts. If the
+  // framework is not partition-aware, send TASK_LOST instead.
+  //
   // TODO(jieyu): Consider adding a 'drop' overload for ACCEPT call to
   // consistently handle message dropping. It would be ideal if the
   // 'drop' overload can handle both resource recovery and lost task
@@ -3506,6 +3508,12 @@ void Master::accept(
   if (error.isSome()) {
     LOG(WARNING) << "ACCEPT call used invalid offers '" << accept.offer_ids()
                  << "': " << error.get().message;
+
+    TaskState newTaskState = TASK_DROPPED;
+    if (!protobuf::frameworkHasCapability(
+            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      newTaskState = TASK_LOST;
+    }
 
     foreach (const Offer::Operation& operation, accept.operations()) {
       if (operation.type() != Offer::Operation::LAUNCH &&
@@ -3527,16 +3535,21 @@ void Master::accept(
             framework->id(),
             task.slave_id(),
             task.task_id(),
-            TASK_LOST,
+            newTaskState,
             TaskStatus::SOURCE_MASTER,
             None(),
             "Task launched with invalid offers: " + error.get().message,
             TaskStatus::REASON_INVALID_OFFERS);
 
-        metrics->tasks_lost++;
+        if (protobuf::frameworkHasCapability(
+                framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+          metrics->tasks_dropped++;
+        } else {
+          metrics->tasks_lost++;
+        }
 
         metrics->incrementTasksStates(
-            TASK_LOST,
+            newTaskState,
             TaskStatus::SOURCE_MASTER,
             TaskStatus::REASON_INVALID_OFFERS);
 
@@ -3702,6 +3715,12 @@ void Master::_accept(
   Slave* slave = slaves.registered.get(slaveId);
 
   if (slave == nullptr || !slave->connected) {
+    TaskState newTaskState = TASK_DROPPED;
+    if (!protobuf::frameworkHasCapability(
+            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      newTaskState = TASK_LOST;
+    }
+
     foreach (const Offer::Operation& operation, accept.operations()) {
       if (operation.type() != Offer::Operation::LAUNCH &&
           operation.type() != Offer::Operation::LAUNCH_GROUP) {
@@ -3734,16 +3753,21 @@ void Master::_accept(
             framework->id(),
             task.slave_id(),
             task.task_id(),
-            TASK_LOST,
+            newTaskState,
             TaskStatus::SOURCE_MASTER,
             None(),
             slave == nullptr ? "Agent removed" : "Agent disconnected",
             reason);
 
-        metrics->tasks_lost++;
+        if (protobuf::frameworkHasCapability(
+                framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+          metrics->tasks_dropped++;
+        } else {
+          metrics->tasks_lost++;
+        }
 
         metrics->incrementTasksStates(
-            TASK_LOST,
+            newTaskState,
             TaskStatus::SOURCE_MASTER,
             reason);
 

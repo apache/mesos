@@ -1488,8 +1488,10 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 }
 
 
-// Test ensures offers for launchTasks cannot span multiple slaves.
-TEST_F(MasterTest, LaunchAcrossSlavesTest)
+// This test ensures that the offers provided to a single launchTasks
+// call cannot span multiple slaves. A non-partition-aware framework
+// should receive TASK_LOST.
+TEST_F(MasterTest, LaunchAcrossSlavesLost)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1580,12 +1582,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 
   // Check metrics.
   JSON::Object stats = Metrics();
-  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(0u, stats.values["master/tasks_dropped"]);
   EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(
-      1u,
-      stats.values.count(
-          "master/task_lost/source_master/reason_invalid_offers"));
   EXPECT_EQ(
       1u,
       stats.values["master/task_lost/source_master/reason_invalid_offers"]);
@@ -1595,9 +1593,123 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 }
 
 
-// Test ensures that an offer cannot appear more than once in offers
-// for launchTasks.
-TEST_F(MasterTest, LaunchDuplicateOfferTest)
+// This test ensures that the offers provided to a single launchTasks
+// call cannot span multiple slaves. A partition-aware framework
+// should receive TASK_DROPPED.
+TEST_F(MasterTest, LaunchAcrossSlavesDropped)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  // See LaunchCombinedOfferTest() for resource size motivation.
+  Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  Resources twoSlaves = fullSlave + fullSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(detector.get(), &containerizer, flags);
+  ASSERT_SOME(slave1);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  Resources resources1(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources1.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources1.mem().get());
+
+  // Test that offers cannot span multiple slaves.
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Create new Flags as we require another work_dir for checkpoints.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = Option<string>(stringify(fullSlave));
+
+  Try<Owned<cluster::Slave>> slave2 =
+    StartSlave(detector.get(), &containerizer, flags2);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+  Resources resources2(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources2.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources2.mem().get());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(twoSlaves);
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers1.get()[0].id());
+  combinedOffers.push_back(offers2.get()[0].id());
+
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
+  driver.launchTasks(combinedOffers, {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_DROPPED, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+
+  // The resources of the invalid offers should be recovered.
+  AWAIT_READY(recoverResources);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count("master/tasks_dropped"));
+  EXPECT_EQ(1u, stats.values["master/tasks_dropped"]);
+  EXPECT_EQ(
+      1u,
+      stats.values.count(
+          "master/task_dropped/source_master/reason_invalid_offers"));
+  EXPECT_EQ(
+      1u,
+      stats.values["master/task_dropped/source_master/reason_invalid_offers"]);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that an offer cannot appear more than once in the
+// offers provided to a single launchTasks call. A non-partition-aware
+// framework should receive TASK_LOST.
+TEST_F(MasterTest, LaunchDuplicateOfferLost)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1671,15 +1783,103 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 
   // Check metrics.
   JSON::Object stats = Metrics();
-  EXPECT_EQ(1u, stats.values.count("master/tasks_lost"));
+  EXPECT_EQ(0u, stats.values["master/tasks_dropped"]);
   EXPECT_EQ(1u, stats.values["master/tasks_lost"]);
   EXPECT_EQ(
       1u,
-      stats.values.count(
-          "master/task_lost/source_master/reason_invalid_offers"));
+      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that an offer cannot appear more than once in the
+// offers provided to a single launchTasks call. A partition-aware
+// framework should receive TASK_DROPPED.
+TEST_F(MasterTest, LaunchDuplicateOfferDropped)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  // See LaunchCombinedOfferTest() for resource size motivation.
+  Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Test that same offers cannot be used more than once.
+  // Kill 2nd task and get offer for full slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  Resources resources(offers.get()[0].resources());
+  EXPECT_EQ(2, resources.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources.mem().get());
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers.get()[0].id());
+  combinedOffers.push_back(offers.get()[0].id());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(fullSlave);
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  Future<TaskStatus> status;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
+  driver.launchTasks(combinedOffers, {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_DROPPED, status.get().state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+
+  // The resources of the invalid offers should be recovered.
+  AWAIT_READY(recoverResources);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(0u, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(1u, stats.values["master/tasks_dropped"]);
   EXPECT_EQ(
       1u,
-      stats.values["master/task_lost/source_master/reason_invalid_offers"]);
+      stats.values["master/task_dropped/source_master/reason_invalid_offers"]);
 
   driver.stop();
   driver.join();
