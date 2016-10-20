@@ -45,18 +45,18 @@ namespace mesos {
 namespace internal {
 
 // Helpers for devolving types between versions. Please add as necessary!
-SlaveID devolve(const v1::AgentID& agentId);
-SlaveInfo devolve(const v1::AgentInfo& agentInfo);
+CommandInfo devolve(const v1::CommandInfo& command);
+Credential devolve(const v1::Credential& credential);
+ExecutorID devolve(const v1::ExecutorID& executorId);
 FrameworkID devolve(const v1::FrameworkID& frameworkId);
 FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
-ExecutorID devolve(const v1::ExecutorID& executorId);
 HealthCheck devolve(const v1::HealthCheck& check);
-Offer devolve(const v1::Offer& offer);
 InverseOffer devolve(const v1::InverseOffer& inverseOffer);
-Credential devolve(const v1::Credential& credential);
+Offer devolve(const v1::Offer& offer);
+SlaveID devolve(const v1::AgentID& agentId);
+SlaveInfo devolve(const v1::AgentInfo& agentInfo);
 TaskID devolve(const v1::TaskID& taskId);
 TaskStatus devolve(const v1::TaskStatus& status);
-CommandInfo devolve(const v1::CommandInfo& command);
 
 scheduler::Call devolve(const v1::scheduler::Call& call);
 scheduler::Event devolve(const v1::scheduler::Event& event);

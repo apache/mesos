@@ -48,6 +48,54 @@ static T devolve(const google::protobuf::Message& message)
 }
 
 
+CommandInfo devolve(const v1::CommandInfo& command)
+{
+  return devolve<CommandInfo>(command);
+}
+
+
+Credential devolve(const v1::Credential& credential)
+{
+  return devolve<Credential>(credential);
+}
+
+
+ExecutorID devolve(const v1::ExecutorID& executorId)
+{
+  return devolve<ExecutorID>(executorId);
+}
+
+
+FrameworkID devolve(const v1::FrameworkID& frameworkId)
+{
+  return devolve<FrameworkID>(frameworkId);
+}
+
+
+FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo)
+{
+  return devolve<FrameworkInfo>(frameworkInfo);
+}
+
+
+HealthCheck devolve(const v1::HealthCheck& check)
+{
+  return devolve<HealthCheck>(check);
+}
+
+
+InverseOffer devolve(const v1::InverseOffer& inverseOffer)
+{
+  return devolve<InverseOffer>(inverseOffer);
+}
+
+
+Offer devolve(const v1::Offer& offer)
+{
+  return devolve<Offer>(offer);
+}
+
+
 SlaveID devolve(const v1::AgentID& agentId)
 {
   // NOTE: Not using 'devolve<v1::AgentID, SlaveID>(agentId)' since
@@ -73,48 +121,6 @@ SlaveInfo devolve(const v1::AgentInfo& agentInfo)
 }
 
 
-FrameworkID devolve(const v1::FrameworkID& frameworkId)
-{
-  return devolve<FrameworkID>(frameworkId);
-}
-
-
-FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo)
-{
-  return devolve<FrameworkInfo>(frameworkInfo);
-}
-
-
-ExecutorID devolve(const v1::ExecutorID& executorId)
-{
-  return devolve<ExecutorID>(executorId);
-}
-
-
-HealthCheck devolve(const v1::HealthCheck& check)
-{
-  return devolve<HealthCheck>(check);
-}
-
-
-Offer devolve(const v1::Offer& offer)
-{
-  return devolve<Offer>(offer);
-}
-
-
-InverseOffer devolve(const v1::InverseOffer& inverseOffer)
-{
-  return devolve<InverseOffer>(inverseOffer);
-}
-
-
-Credential devolve(const v1::Credential& credential)
-{
-  return devolve<Credential>(credential);
-}
-
-
 TaskID devolve(const v1::TaskID& taskId)
 {
   return devolve<TaskID>(taskId);
@@ -124,12 +130,6 @@ TaskID devolve(const v1::TaskID& taskId)
 TaskStatus devolve(const v1::TaskStatus& status)
 {
   return devolve<TaskStatus>(status);
-}
-
-
-CommandInfo devolve(const v1::CommandInfo& command)
-{
-  return devolve<CommandInfo>(command);
 }
 
 

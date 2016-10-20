@@ -57,23 +57,23 @@ namespace internal {
 // Helpers for evolving types between versions. Please add as necessary!
 v1::AgentID evolve(const SlaveID& slaveId);
 v1::AgentInfo evolve(const SlaveInfo& slaveInfo);
-v1::MachineID evolve(const MachineID& machineId);
-v1::FrameworkID evolve(const FrameworkID& frameworkId);
-v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo);
-v1::KillPolicy evolve(const KillPolicy& killPolicy);
 v1::ExecutorID evolve(const ExecutorID& executorId);
 v1::ExecutorInfo evolve(const ExecutorInfo& executorInfo);
-v1::Offer evolve(const Offer& offer);
+v1::FileInfo evolve(const FileInfo& fileInfo);
+v1::FrameworkID evolve(const FrameworkID& frameworkId);
+v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo);
 v1::InverseOffer evolve(const InverseOffer& inverseOffer);
+v1::KillPolicy evolve(const KillPolicy& killPolicy);
+v1::MachineID evolve(const MachineID& machineId);
+v1::MasterInfo evolve(const MasterInfo& masterInfo);
+v1::Offer evolve(const Offer& offer);
 v1::OfferID evolve(const OfferID& offerId);
+v1::Resource evolve(const Resource& resource);
+v1::Resources evolve(const Resources& resources);
+v1::Task evolve(const Task& task);
 v1::TaskID evolve(const TaskID& taskId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
-v1::Task evolve(const Task& task);
-v1::MasterInfo evolve(const MasterInfo& masterInfo);
-v1::FileInfo evolve(const FileInfo& fileInfo);
-v1::Resource evolve(const Resource& resource);
-v1::Resources evolve(const Resources& resources);
 
 v1::agent::Call evolve(const mesos::agent::Call& call);
 v1::agent::Response evolve(const mesos::agent::Response& response);
@@ -107,17 +107,17 @@ v1::scheduler::Event evolve(const scheduler::Event& event);
 
 // Helper functions that evolve old style internal messages to a
 // v1::scheduler::Event.
-v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message);
-v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message);
-v1::scheduler::Event evolve(const ResourceOffersMessage& message);
-v1::scheduler::Event evolve(const InverseOffersMessage& message);
-v1::scheduler::Event evolve(const RescindResourceOfferMessage& message);
-v1::scheduler::Event evolve(const RescindInverseOfferMessage& message);
-v1::scheduler::Event evolve(const StatusUpdateMessage& message);
-v1::scheduler::Event evolve(const LostSlaveMessage& message);
 v1::scheduler::Event evolve(const ExitedExecutorMessage& message);
 v1::scheduler::Event evolve(const ExecutorToFrameworkMessage& message);
 v1::scheduler::Event evolve(const FrameworkErrorMessage& message);
+v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message);
+v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message);
+v1::scheduler::Event evolve(const InverseOffersMessage& message);
+v1::scheduler::Event evolve(const LostSlaveMessage& message);
+v1::scheduler::Event evolve(const ResourceOffersMessage& message);
+v1::scheduler::Event evolve(const RescindInverseOfferMessage& message);
+v1::scheduler::Event evolve(const RescindResourceOfferMessage& message);
+v1::scheduler::Event evolve(const StatusUpdateMessage& message);
 
 v1::executor::Call evolve(const executor::Call& call);
 v1::executor::Event evolve(const executor::Event& event);
@@ -129,8 +129,8 @@ v1::executor::Event evolve(const ExecutorRegisteredMessage& message);
 v1::executor::Event evolve(const FrameworkToExecutorMessage& message);
 v1::executor::Event evolve(const KillTaskMessage& message);
 v1::executor::Event evolve(const RunTaskMessage& message);
-v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
 v1::executor::Event evolve(const ShutdownExecutorMessage& message);
+v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
 
 
 v1::master::Event evolve(const mesos::master::Event& event);
