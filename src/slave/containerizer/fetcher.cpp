@@ -366,20 +366,6 @@ Future<Nothing> FetcherProcess::fetch(
     cacheDirectory = path::join(cacheDirectory, commandUser.get());
   }
 
-// `os::chown` is not supported on Windows.
-#ifndef __WINDOWS__
-  if (commandUser.isSome()) {
-    // First assure that we are working for a valid user.
-    // TODO(bernd-mesos): This should be asynchronous.
-    Try<Nothing> chown = os::chown(commandUser.get(), sandboxDirectory);
-    if (chown.isError()) {
-      return Failure("Failed to chown directory: " + sandboxDirectory +
-                     " to user: " + commandUser.get() +
-                     " with error: " + chown.error());
-    }
-  }
-#endif // __WINDOWS__
-
   // For each URI we determine if we should use the cache and if so we
   // try and either get the cache entry or create a cache entry. If
   // we're getting the cache entry then we might need to wait for that
@@ -742,8 +728,10 @@ Future<Nothing> FetcherProcess::run(
   // instead of Subprocess::FD(). The reason this can't easily be done
   // today is because we not only need to open the files but also
   // chown them.
+  const string stdoutPath = path::join(info.sandbox_directory(), "stdout");
+
   Try<int> out = os::open(
-      path::join(info.sandbox_directory(), "stdout"),
+      stdoutPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -751,9 +739,9 @@ Future<Nothing> FetcherProcess::run(
     return Failure("Failed to create 'stdout' file: " + out.error());
   }
 
-  string _stderr = path::join(info.sandbox_directory(), "stderr");
+  string stderrPath = path::join(info.sandbox_directory(), "stderr");
   Try<int> err = os::open(
-      _stderr,
+      stderrPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -766,16 +754,37 @@ Future<Nothing> FetcherProcess::run(
 // here is conditionally compiled out on Windows.
 #ifndef __WINDOWS__
   if (user.isSome()) {
-    // This is a recursive chown that both checks if we have a valid user
-    // and also chowns the files we just opened.
-    Try<Nothing> chown = os::chown(user.get(), sandboxDirectory, true);
-    if (chown.isError()) {
+    // TODO(megha.sharma): Fetcher should not create seperate stdout/stderr
+    // files but rather use FDs prepared by the container logger.
+    // See MESOS-6271 for more details.
+    Try<Nothing> chownOut = os::chown(
+        user.get(),
+        stdoutPath,
+        false);
+
+    if (chownOut.isError()) {
       os::close(out.get());
       os::close(err.get());
+      return Failure(
+          "Failed to chown '" +
+          stdoutPath +
+          "' to user '" + user.get() + "' : " +
+          chownOut.error());
+    }
 
-      return Failure("Failed to chown directory: '" + sandboxDirectory +
-                     "' to user '" + user.get() +
-                     "' with error: " + chown.error());
+    Try<Nothing> chownErr = os::chown(
+        user.get(),
+        stderrPath,
+        false);
+
+    if (chownErr.isError()) {
+      os::close(out.get());
+      os::close(err.get());
+      return Failure(
+          "Failed to chown '" +
+          stderrPath +
+          "' to user '" + user.get() + "' : " +
+          chownErr.error());
     }
   }
 #endif // __WINDOWS__
@@ -857,7 +866,7 @@ Future<Nothing> FetcherProcess::run(
     .onFailed(defer(self(), [=](const string&) {
       // To aid debugging what went wrong when attempting to fetch, grab the
       // fetcher's local log output from the sandbox and log it here.
-      Try<string> text = os::read(_stderr);
+      Try<string> text = os::read(stderrPath);
       if (text.isSome()) {
         LOG(WARNING) << "Begin fetcher log (stderr in sandbox) for container "
                      << containerId << " from running command: " << command

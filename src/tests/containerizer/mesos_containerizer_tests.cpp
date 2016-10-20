@@ -588,6 +588,66 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 }
 
 
+// This test verified that the stdout and stderr files in the task's sandbox
+// are owned by the task user.
+TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
+{
+  string sandbox = os::getcwd(); // We're inside a temporary sandbox.
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  const string user = "nobody";
+
+  ExecutorInfo executor = createExecutorInfo("executor", "exit 0");
+  executor.mutable_command()->set_user(user);
+
+  Future<bool> launch = containerizer->launch(
+      DEFAULT_CONTAINER_ID,
+      None(),
+      executor,
+      sandbox,
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  Result<uid_t> uid = os::getuid(user);
+  ASSERT_SOME(uid);
+
+  // Verify that stdout is owned by the task user.
+  struct stat s;
+  std::string stdoutPath = path::join(sandbox, "stdout");
+  EXPECT_EQ(0, ::stat(stdoutPath.c_str(), &s));
+  EXPECT_EQ(uid.get(), s.st_uid);
+
+  // Verify that stderr is owned by the task user.
+  std::string stderrPath = path::join(sandbox, "stderr");
+  EXPECT_EQ(0, ::stat(stderrPath.c_str(), &s));
+  EXPECT_EQ(uid.get(), s.st_uid);
+
+  // Wait on the container.
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(DEFAULT_CONTAINER_ID);
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
+}
+
+
 class MesosContainerizerDestroyTest : public MesosTest {};
 
 
