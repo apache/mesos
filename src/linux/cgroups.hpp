@@ -212,19 +212,14 @@ Try<bool> exists(const std::string& hierarchy, const std::string& cgroup);
 
 
 // Return all the cgroups under the given cgroup of a given hierarchy. By
-// default, it returns all the child cgroups under the given hierarchy. This
-// function will return error if the given hierarchy is not mounted or the
-// cgroup does not exist. We use a post-order walk here to ease the removal of
-// cgroups.
+// default, it returns all the cgroups under the given hierarchy. This function
+// will return error if the given hierarchy is not mounted or the cgroup does
+// not exist. We use a post-order walk here to ease the removal of cgroups.
 // @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   recursive   Whether to recursively retrive descendants under the
-//                      children of `cgroup`.
 // @return  A vector of cgroup names.
 Try<std::vector<std::string>> get(
     const std::string& hierarchy,
-    const std::string& cgroup = "/",
-    bool recursive = false);
+    const std::string& cgroup = "/");
 
 
 // Send the specified signal to all process in a cgroup.

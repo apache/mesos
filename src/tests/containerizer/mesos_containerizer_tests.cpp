@@ -592,7 +592,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 // are owned by the task user.
 TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
 {
-  const string sandbox = os::getcwd(); // We're inside a temporary sandbox.
+  string sandbox = os::getcwd(); // We're inside a temporary sandbox.
 
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();

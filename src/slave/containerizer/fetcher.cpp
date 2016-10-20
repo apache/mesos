@@ -766,8 +766,10 @@ Future<Nothing> FetcherProcess::run(
       os::close(out.get());
       os::close(err.get());
       return Failure(
-          "Failed to chown '" + stdoutPath + "' to user '" + user.get() +
-          "' : " + chownOut.error());
+          "Failed to chown '" +
+          stdoutPath +
+          "' to user '" + user.get() + "' : " +
+          chownOut.error());
     }
 
     Try<Nothing> chownErr = os::chown(
@@ -779,8 +781,10 @@ Future<Nothing> FetcherProcess::run(
       os::close(out.get());
       os::close(err.get());
       return Failure(
-          "Failed to chown '" + stderrPath + "' to user '" + user.get() +
-          "' : " + chownErr.error());
+          "Failed to chown '" +
+          stderrPath +
+          "' to user '" + user.get() + "' : " +
+          chownErr.error());
     }
   }
 #endif // __WINDOWS__

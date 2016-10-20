@@ -166,12 +166,12 @@ protected:
           << "-------------------------------------------------------------";
       }
 
-      Try<vector<string>> cgroups = cgroups::get(hierarchy, "/", true);
+      Try<vector<string>> cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
         // Remove any cgroups that start with TEST_CGROUPS_ROOT.
-        if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+        if (cgroup == TEST_CGROUPS_ROOT) {
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
         }
       }
@@ -184,12 +184,12 @@ protected:
     foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 
-      Try<vector<string>> cgroups = cgroups::get(hierarchy, "/", true);
+      Try<vector<string>> cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
         // Remove any cgroups that start with TEST_CGROUPS_ROOT.
-        if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+        if (cgroup == TEST_CGROUPS_ROOT) {
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
         }
       }
@@ -377,81 +377,23 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_CreateRemove)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_RecursiveGet)
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
 {
   string hierarchy = path::join(baseHierarchy, "cpu");
 
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test3/mesos_test4", true));
-  ASSERT_SOME(
-      cgroups::create(hierarchy, "mesos_test5/mesos_test6/mesos_test7", true));
-
-  Try<vector<string>> cgroups = cgroups::get(hierarchy, "/", true);
-  ASSERT_SOME(cgroups);
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test1"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test2"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test3"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test5"));
-
-  // Verifies the nested cgroups exist.
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test3/mesos_test4"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test5/mesos_test6"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(),
-                 cgroups->end(),
-                 "mesos_test5/mesos_test6/mesos_test7"));
-}
-
-
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NonresursiveGet)
-{
-  string hierarchy = path::join(baseHierarchy, "cpu");
-
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
-  ASSERT_SOME(cgroups::create(hierarchy, "mesos_test3/mesos_test4", true));
-  ASSERT_SOME(
-      cgroups::create(hierarchy, "mesos_test5/mesos_test6/mesos_test7", true));
 
   Try<vector<string>> cgroups = cgroups::get(hierarchy);
   ASSERT_SOME(cgroups);
 
   EXPECT_NE(cgroups->end(),
+            find(cgroups->begin(), cgroups->end(), "mesos_test2"));
+  EXPECT_NE(cgroups->end(),
             find(cgroups->begin(), cgroups->end(), "mesos_test1"));
 
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test2"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test3"));
-
-  EXPECT_NE(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test5"));
-
-  // Verifies the nested cgroups do not exist.
-  EXPECT_EQ(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test3/mesos_test4"));
-
-  EXPECT_EQ(cgroups->end(),
-            find(cgroups->begin(), cgroups->end(), "mesos_test5/mesos_test6"));
-
-  EXPECT_EQ(cgroups->end(),
-            find(cgroups->begin(),
-                 cgroups->end(),
-                 "mesos_test5/mesos_test6/mesos_test7"));
+  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
+  ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
 }
 
 
