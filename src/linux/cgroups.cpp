@@ -1630,14 +1630,25 @@ private:
       terminate(self());
       return;
     } else if (future.isFailed()) {
-      promise.fail(future.failure());
+      // If the `cgroup` still exists in the hierarchy, treat this as
+      // an error; otherwise, treat this as a success since the `cgroup`
+      // has actually been cleaned up.
+      if (os::exists(path::join(hierarchy, cgroup))) {
+        promise.fail(future.failure());
+      } else {
+        promise.set(Nothing());
+      }
+
       terminate(self());
       return;
     }
 
     // Verify the cgroup is now empty.
     Try<set<pid_t>> processes = cgroups::processes(hierarchy, cgroup);
-    if (processes.isError() || !processes.get().empty()) {
+
+    // If the `cgroup` is already removed, treat this as a success.
+    if ((processes.isError() || !processes.get().empty()) &&
+        os::exists(path::join(hierarchy, cgroup))) {
       promise.fail("Failed to kill all processes in cgroup: " +
                    (processes.isError() ? processes.error()
                                         : "processes remain"));
@@ -1718,10 +1729,15 @@ private:
     foreach (const string& cgroup, cgroups) {
       Try<Nothing> remove = internal::remove(hierarchy, cgroup);
       if (remove.isError()) {
-        promise.fail(
-            "Failed to remove cgroup '" + cgroup + "': " + remove.error());
-        terminate(self());
-        return;
+        // If the `cgroup` still exists in the hierarchy, treat this as
+        // an error; otherwise, treat this as a success since the `cgroup`
+        // has actually been cleaned up.
+        if (os::exists(path::join(hierarchy, cgroup))) {
+          promise.fail(
+              "Failed to remove cgroup '" + cgroup + "': " + remove.error());
+          terminate(self());
+          return;
+        }
       }
     }
 
@@ -1771,7 +1787,12 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
     foreach (const string& cgroup, candidates) {
       Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
       if (remove.isError()) {
-        return Failure(remove.error());
+        // If the `cgroup` still exists in the hierarchy, treat this as
+        // an error; otherwise, treat this as a success since the `cgroup`
+        // has actually been cleaned up.
+        if (os::exists(path::join(hierarchy, cgroup))) {
+          return Failure(remove.error());
+        }
       }
     }
   }
