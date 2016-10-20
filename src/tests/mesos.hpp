@@ -384,18 +384,6 @@ using mesos::v1::WeightInfo;
 } // namespace v1 {
 
 namespace common {
-template <typename TExecutorInfo>
-struct DefaultExecutorInfo
-{
-  static TExecutorInfo create()
-  {
-    TExecutorInfo executor;
-    executor.mutable_executor_id()->set_value("default");
-    executor.mutable_command()->set_value("exit 1");
-    return executor;
-  }
-};
-
 
 template <typename TCredential>
 struct DefaultCredential
@@ -439,54 +427,24 @@ struct DefaultFrameworkInfo
   }
 };
 
-
-template <typename TExecutorInfo, typename TExecutorID>
-struct DefaultExecutorID
-{
-  static TExecutorID create()
-  {
-    return DefaultExecutorInfo<TExecutorInfo>::create().executor_id();
-  }
-};
-
 } // namespace common {
 
 // TODO(jmlvanre): Remove `inline` once we have adjusted all tests to
 // distinguish between `internal` and `v1`.
 inline namespace internal {
-using DefaultExecutorInfo = common::DefaultExecutorInfo<ExecutorInfo>;
 using DefaultCredential = common::DefaultCredential<Credential>;
 using DefaultCredential2 = common::DefaultCredential2<Credential>;
 using DefaultFrameworkInfo =
   common::DefaultFrameworkInfo<FrameworkInfo, Credential>;
-using DefaultExecutorID = common::DefaultExecutorID<ExecutorInfo, ExecutorID>;
 }  // namespace internal {
 
 
 namespace v1 {
-using DefaultExecutorInfo =
-  common::DefaultExecutorInfo<mesos::v1::ExecutorInfo>;
 using DefaultCredential = common::DefaultCredential<mesos::v1::Credential>;
 using DefaultCredential2 = common::DefaultCredential2<mesos::v1::Credential>;
 using DefaultFrameworkInfo =
   common::DefaultFrameworkInfo<mesos::v1::FrameworkInfo, mesos::v1::Credential>;
-using DefaultExecutorID =
-  common::DefaultExecutorID<mesos::v1::ExecutorInfo, mesos::v1::ExecutorID>;
 }  // namespace v1 {
-
-
-// Macros to get/create (default) ExecutorInfos and FrameworkInfos.
-#define DEFAULT_EXECUTOR_INFO DefaultExecutorInfo::create()
-
-
-#define DEFAULT_CREDENTIAL DefaultCredential::create()
-#define DEFAULT_CREDENTIAL_2 DefaultCredential2::create()
-
-
-#define DEFAULT_FRAMEWORK_INFO DefaultFrameworkInfo::create()
-
-
-#define DEFAULT_EXECUTOR_ID DefaultExecutorID::create()
 
 
 // We factor out all common behavior and templatize it so that we can
@@ -1444,6 +1402,20 @@ inline mesos::Environment createEnvironment(
   }
   return environment;
 }
+
+
+// Macros to get/create (default) ExecutorInfos and FrameworkInfos.
+#define DEFAULT_EXECUTOR_INFO createExecutorInfo("default", "exit 1")
+
+
+#define DEFAULT_CREDENTIAL DefaultCredential::create()
+#define DEFAULT_CREDENTIAL_2 DefaultCredential2::create()
+
+
+#define DEFAULT_FRAMEWORK_INFO DefaultFrameworkInfo::create()
+
+
+#define DEFAULT_EXECUTOR_ID DEFAULT_EXECUTOR_INFO.executor_id()
 
 
 // Definition of a mock Scheduler to be used in tests with gmock.
