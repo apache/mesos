@@ -866,7 +866,7 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 // MesosContainerizer would fail the launch.
 //
 // TODO(jieyu): Move this test to the mesos containerizer tests.
-TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
+TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -929,7 +929,7 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
       task,
       executor,
       sandbox.get(),
-      "test",
+      "nobody",
       slaveID,
       map<string, string>(),
       false);

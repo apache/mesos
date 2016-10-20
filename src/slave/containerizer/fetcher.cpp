@@ -254,10 +254,6 @@ Future<Nothing> Fetcher::fetch(
     const SlaveID& slaveId,
     const Flags& flags)
 {
-  if (commandInfo.uris().size() == 0) {
-    return Nothing();
-  }
-
   return dispatch(process.get(),
                   &FetcherProcess::fetch,
                   containerId,
@@ -783,6 +779,11 @@ Future<Nothing> FetcherProcess::run(
     }
   }
 #endif // __WINDOWS__
+
+  // Return early if there are no URIs to fetch.
+  if (info.items_size() == 0) {
+      return Nothing();
+  }
 
   string fetcherPath = path::join(flags.launcher_dir, "mesos-fetcher");
   Result<string> realpath = os::realpath(fetcherPath);
