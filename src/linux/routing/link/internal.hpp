@@ -151,6 +151,7 @@ inline Try<bool> set(const std::string& _link, unsigned int flags)
     }
   }
 
+  os::close(fd);
   return true;
 }
 
