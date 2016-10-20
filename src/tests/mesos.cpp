@@ -702,7 +702,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
         // persisted that match our TEST_CGROUPS_ROOT (because
         // otherwise our tests will fail when we try and clean them up
         // later).
-        Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
+        Try<std::vector<string>> cgroups = cgroups::get(hierarchy, "/", true);
         ASSERT_SOME(cgroups);
 
         foreach (const string& cgroup, cgroups.get()) {
@@ -736,7 +736,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
     foreach (const string& subsystem, subsystems) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 
-      Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
+      Try<std::vector<string>> cgroups = cgroups::get(hierarchy, "/", true);
       ASSERT_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {

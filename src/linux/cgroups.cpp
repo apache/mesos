@@ -872,7 +872,10 @@ Try<bool> exists(const string& hierarchy, const string& cgroup)
 }
 
 
-Try<vector<string>> get(const string& hierarchy, const string& cgroup)
+Try<vector<string>> get(
+    const string& hierarchy,
+    const string& cgroup,
+    bool recursive)
 {
   Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
@@ -907,15 +910,21 @@ Try<vector<string>> get(const string& hierarchy, const string& cgroup)
 
   vector<string> cgroups;
 
+  // Use post-order walk here. fts_level is the depth of the traversal,
+  // numbered from -1 to N, where the file/dir was found. fts_info
+  // includes flags for the current node. FTS_DP indicates a directory
+  // being visited in postorder.
   FTSENT* node;
   while ((node = fts_read(tree)) != nullptr) {
-    // Use post-order walk here. fts_level is the depth of the traversal,
-    // numbered from -1 to N, where the file/dir was found. The traversal root
-    // itself is numbered 0. fts_info includes flags for the current node.
-    // FTS_DP indicates a directory being visited in postorder.
-    if (node->fts_level > 0 && node->fts_info & FTS_DP) {
+    // Skip traversing at the children level if not recursive.
+    if (!recursive && node->fts_level > FTS_ROOTLEVEL) {
+      fts_set(tree, node, FTS_SKIP);
+    }
+
+    if (node->fts_level > FTS_ROOTLEVEL && node->fts_info & FTS_DP) {
       string path =
         strings::trim(node->fts_path + hierarchyAbsPath.get().length(), "/");
+
       cgroups.push_back(path);
     }
   }
@@ -1734,7 +1743,7 @@ private:
 Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 {
   // Construct the vector of cgroups to destroy.
-  Try<vector<string>> cgroups = cgroups::get(hierarchy, cgroup);
+  Try<vector<string>> cgroups = cgroups::get(hierarchy, cgroup, true);
   if (cgroups.isError()) {
     return Failure(
         "Failed to get nested cgroups: " + cgroups.error());
