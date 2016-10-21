@@ -6811,7 +6811,7 @@ void Master::reconcileKnownSlave(
         LOG(WARNING) << "Task " << task->task_id()
                      << " of framework " << task->framework_id()
                      << " unknown to the agent " << *slave
-                     << " during re-registration : reconciling with the agent";
+                     << " during re-registration: reconciling with the agent";
 
         // NOTE: The slave doesn't look at the task state when it
         // reconciles the task. We send the master's view of the
