@@ -6804,6 +6804,7 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
       case TASK_FAILED:   ++slave->metrics.tasks_failed;   break;
       case TASK_KILLED:   ++slave->metrics.tasks_killed;   break;
       case TASK_LOST:     ++slave->metrics.tasks_lost;     break;
+      case TASK_GONE:     ++slave->metrics.tasks_gone;     break;
       default:
         LOG(ERROR) << "Unexpected terminal task state " << status.state();
         break;

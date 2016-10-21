@@ -64,6 +64,8 @@ Metrics::Metrics(const Slave& slave)
         "slave/tasks_killed"),
     tasks_lost(
         "slave/tasks_lost"),
+    tasks_gone(
+        "slave/tasks_gone"),
     executors_registering(
         "slave/executors_registering",
         defer(slave, &Slave::_executors_registering)),
@@ -107,6 +109,7 @@ Metrics::Metrics(const Slave& slave)
   process::metrics::add(tasks_failed);
   process::metrics::add(tasks_killed);
   process::metrics::add(tasks_lost);
+  process::metrics::add(tasks_gone);
 
   process::metrics::add(executors_registering);
   process::metrics::add(executors_running);
@@ -193,6 +196,7 @@ Metrics::~Metrics()
   process::metrics::remove(tasks_failed);
   process::metrics::remove(tasks_killed);
   process::metrics::remove(tasks_lost);
+  process::metrics::remove(tasks_gone);
 
   process::metrics::remove(executors_registering);
   process::metrics::remove(executors_running);

@@ -50,6 +50,7 @@ struct Metrics
   process::metrics::Counter tasks_failed;
   process::metrics::Counter tasks_killed;
   process::metrics::Counter tasks_lost;
+  process::metrics::Counter tasks_gone;
 
   process::metrics::Gauge executors_registering;
   process::metrics::Gauge executors_running;
