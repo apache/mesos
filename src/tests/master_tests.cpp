@@ -2369,7 +2369,7 @@ TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
-    .WillRepeatedly(FutureSatisfy(&slaveLost));
+    .WillOnce(FutureSatisfy(&slaveLost));
 
   driver.start();
 
