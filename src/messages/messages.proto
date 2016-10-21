@@ -371,16 +371,31 @@ message LostSlaveMessage {
 
 
 /**
- * Allows the scheduler to query the status for non-terminal tasks.
- * This causes the master to send back the latest task status for
- * each task in `statuses`, if possible. Tasks that are no longer
- * known will result in a `TASK_LOST` update. If `statuses` is empty,
- * then the master will send the latest status for each task
- * currently known.
+ * This message is used in two situations:
+ *
+ *   (a) schedulers can query masters about the master's view of the
+ *       state of one or more tasks. If the `statuses` field is empty
+ *       ("implicit reconciliation"), the master will respond with
+ *       status updates for all of the non-terminal tasks it knows
+ *       about.
+ *
+ *   (b) the master can query an agent about the agent's view of the
+ *       state of one or more tasks.
+ *
+ * In both cases, the response to this message is returned via zero or
+ * more status update messages with the `reason` field set to
+ * `REASON_RECONCILIATION`.
  */
 message ReconcileTasksMessage {
   required FrameworkID framework_id = 1;
   repeated TaskStatus statuses = 2; // Should be non-terminal only.
+
+  // Should only be set for reconciliation requests sent to agents by
+  // the master (case (b) above). This is necessary because the agent
+  // might not know anything about the framework, and the correct
+  // response to the reconciliation request might depend on the
+  // framework's capabilities (e.g., PARTITION_AWARE).
+  optional FrameworkInfo framework = 3;
 }
 
 

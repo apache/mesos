@@ -6804,7 +6804,6 @@ void Master::reconcileKnownSlave(
 
   foreachkey (const FrameworkID& frameworkId, slave->tasks) {
     ReconcileTasksMessage reconcile;
-    reconcile.mutable_framework_id()->CopyFrom(frameworkId);
 
     foreachvalue (Task* task, slave->tasks[frameworkId]) {
       if (!slaveTasks.contains(task->framework_id(), task->task_id())) {
@@ -6832,6 +6831,20 @@ void Master::reconcileKnownSlave(
     }
 
     if (reconcile.statuses_size() > 0) {
+      // NOTE: This function is only invoked when a slave reregisters
+      // with a master that previously knew about the slave and has
+      // not marked it unreachable. If the master has any tasks for
+      // the agent that are not known to the agent itself, it MUST
+      // have the FrameworkInfo for those tasks. This is because if a
+      // master has a task that the agent doesn't know about, the
+      // framework must have reregistered with this master since the
+      // last master failover.
+      Framework* framework = getFramework(frameworkId);
+      CHECK_NOTNULL(framework);
+
+      reconcile.mutable_framework_id()->CopyFrom(frameworkId);
+      reconcile.mutable_framework()->CopyFrom(framework->info);
+
       reregistered.add_reconciliations()->CopyFrom(reconcile);
     }
   }
