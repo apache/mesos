@@ -293,10 +293,14 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
 
   StandaloneMasterDetector detector;
 
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<Owned<cluster::Slave>> agent =
     this->StartSlave(&detector, authorizer.get());
 
   ASSERT_SOME(agent);
+
+  AWAIT_READY(recover);
 
   // Ensure that the slave has finished recovery.
   Clock::pause();
@@ -392,8 +396,17 @@ TEST_P(SlaveEndpointTest, AuthorizedRequest)
 
   MockAuthorizer mockAuthorizer;
 
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
   ASSERT_SOME(agent);
+
+  AWAIT_READY(recover);
+
+  // Ensure that the slave has finished recovery.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   Future<authorization::Request> request;
   EXPECT_CALL(mockAuthorizer, authorized(_))
@@ -433,8 +446,17 @@ TEST_P(SlaveEndpointTest, UnauthorizedRequest)
 
   MockAuthorizer mockAuthorizer;
 
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
   ASSERT_SOME(agent);
+
+  AWAIT_READY(recover);
+
+  // Ensure that the slave has finished recovery.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   EXPECT_CALL(mockAuthorizer, authorized(_))
     .WillOnce(Return(false));
@@ -458,8 +480,17 @@ TEST_P(SlaveEndpointTest, NoAuthorizer)
 
   StandaloneMasterDetector detector;
 
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<Owned<cluster::Slave>> agent = StartSlave(&detector, CreateSlaveFlags());
   ASSERT_SOME(agent);
+
+  AWAIT_READY(recover);
+
+  // Ensure that the slave has finished recovery.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   Future<Response> response = http::get(
       agent.get()->pid,
