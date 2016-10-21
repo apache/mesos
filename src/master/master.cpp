@@ -1887,6 +1887,7 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
     .onAny(defer(self(),
                  &Self::_markUnreachableAfterFailover,
                  slave.info(),
+                 unreachableTime,
                  lambda::_1));
 
   return Nothing();
@@ -1895,6 +1896,7 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
 
 void Master::_markUnreachableAfterFailover(
     const SlaveInfo& slaveInfo,
+    const TimeInfo& unreachableTime,
     const Future<bool>& registrarResult)
 {
   CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
@@ -1919,6 +1921,8 @@ void Master::_markUnreachableAfterFailover(
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
   ++metrics->recovery_slave_removals;
+
+  slaves.unreachable[slaveInfo.id()] = unreachableTime;
 
   sendSlaveLost(slaveInfo);
 }

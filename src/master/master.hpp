@@ -691,6 +691,7 @@ protected:
 
   void _markUnreachableAfterFailover(
       const SlaveInfo& slaveInfo,
+      const TimeInfo& unreachableTime,
       const process::Future<bool>& registrarResult);
 
   void sendSlaveLost(const SlaveInfo& slaveInfo);
