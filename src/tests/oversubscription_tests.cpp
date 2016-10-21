@@ -943,9 +943,9 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
 }
 
 
-// This test verifies that a QoS controller can kill a running task
-// and that a TASK_LOST with REASON_EXECUTOR_PREEMPTED is sent to the
-// framework.
+// This test verifies that a QoS controller can kill a running task,
+// and that this results in sending a TASK_LOST status update with
+// REASON_EXECUTOR_PREEMPTED if the framework is not partition-aware.
 TEST_F(OversubscriptionTest, QoSCorrectionKill)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1033,12 +1033,124 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
 
   // Verify task status is TASK_LOST.
   AWAIT_READY(status2);
-  ASSERT_EQ(TASK_LOST, status2->state());
-  ASSERT_EQ(TaskStatus::REASON_CONTAINER_PREEMPTED, status2->reason());
+  EXPECT_EQ(TASK_LOST, status2->state());
+  EXPECT_EQ(TaskStatus::REASON_CONTAINER_PREEMPTED, status2->reason());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status2->source());
 
-  // Verify that slave incremented counter for preempted executors.
+  // Verify that slave incremented metrics appropriately.
   snapshot = Metrics();
   EXPECT_EQ(1u, snapshot.values["slave/executors_preempted"]);
+  EXPECT_EQ(1u, snapshot.values["slave/tasks_lost"]);
+  EXPECT_EQ(0u, snapshot.values["slave/tasks_gone"]);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a QoS controller can kill a running task,
+// and that this results in sending a TASK_GONE status update with
+// REASON_EXECUTOR_PREEMPTED if the framework is partition-aware.
+TEST_F(OversubscriptionTest, QoSCorrectionKillPartitionAware)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockQoSController controller;
+
+  Queue<list<mesos::slave::QoSCorrection>> corrections;
+
+  EXPECT_CALL(controller, corrections())
+    .WillRepeatedly(InvokeWithoutArgs(
+        &corrections,
+        &Queue<list<mesos::slave::QoSCorrection>>::get));
+
+  Future<lambda::function<Future<ResourceUsage>()>> usageCallback;
+
+  // Catching callback which is passed to the QoS Controller.
+  EXPECT_CALL(controller, initialize(_))
+    .WillOnce(DoAll(FutureArg<0>(&usageCallback), Return(Nothing())));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &controller, CreateSlaveFlags());
+  ASSERT_SOME(slave);
+
+  // Verify presence and initial value of counter for preempted
+  // executors.
+  JSON::Object snapshot = Metrics();
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_preempted"));
+  EXPECT_EQ(0u, snapshot.values["slave/executors_preempted"]);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 10");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(usageCallback);
+
+  Future<ResourceUsage> usage = usageCallback.get()();
+  AWAIT_READY(usage);
+
+  // Expecting the same statistics as these returned by mocked containerizer.
+  ASSERT_EQ(1, usage.get().executors_size());
+
+  const ResourceUsage::Executor& executor = usage.get().executors(0);
+  // Carry out kill correction.
+  QoSCorrection killCorrection;
+
+  QoSCorrection::Kill* kill = killCorrection.mutable_kill();
+  kill->mutable_framework_id()->CopyFrom(frameworkId.get());
+  kill->mutable_executor_id()->CopyFrom(executor.executor_info().executor_id());
+  kill->mutable_container_id()->CopyFrom(executor.container_id());
+
+  corrections.put({killCorrection});
+
+  // Verify task status is TASK_GONE.
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_GONE, status2->state());
+  EXPECT_EQ(TaskStatus::REASON_CONTAINER_PREEMPTED, status2->reason());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status2->source());
+
+  // Verify that slave incremented metrics appropriately.
+  snapshot = Metrics();
+  EXPECT_EQ(1u, snapshot.values["slave/executors_preempted"]);
+  EXPECT_EQ(1u, snapshot.values["slave/tasks_gone"]);
+  EXPECT_EQ(0u, snapshot.values["slave/tasks_lost"]);
 
   driver.stop();
   driver.join();

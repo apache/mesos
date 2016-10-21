@@ -2111,8 +2111,20 @@ void Slave::__run(
 
     Executor* executor = getExecutor(frameworkId, executorId);
     if (executor != nullptr) {
+      Framework* framework = getFramework(frameworkId);
+      CHECK_NOTNULL(framework);
+
+      // Send TASK_GONE because the task was started but has now
+      // been terminated. If the framework is not partition-aware,
+      // we send TASK_LOST instead for backward compatibility.
+      mesos::TaskState taskState = TASK_GONE;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
       ContainerTermination termination;
-      termination.set_state(TASK_LOST);
+      termination.set_state(taskState);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
           "Failed to update resources for container: " +
@@ -3624,8 +3636,20 @@ void Slave::_reregisterExecutor(
 
     Executor* executor = getExecutor(frameworkId, executorId);
     if (executor != nullptr) {
+      Framework* framework = getFramework(frameworkId);
+      CHECK_NOTNULL(framework);
+
+      // Send TASK_GONE because the task was started but has now
+      // been terminated. If the framework is not partition-aware,
+      // we send TASK_LOST instead for backward compatibility.
+      mesos::TaskState taskState = TASK_GONE;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
       ContainerTermination termination;
-      termination.set_state(TASK_LOST);
+      termination.set_state(taskState);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
           "Failed to update resources for container: " +
@@ -3667,8 +3691,18 @@ void Slave::reregisterExecutorTimeout()
 
           executor->state = Executor::TERMINATING;
 
+          // Send TASK_GONE because the task was started but has now
+          // been terminated. If the framework is not partition-aware,
+          // we send TASK_LOST instead for backward compatibility.
+          mesos::TaskState taskState = TASK_GONE;
+          if (!protobuf::frameworkHasCapability(
+                  framework->info,
+                  FrameworkInfo::Capability::PARTITION_AWARE)) {
+            taskState = TASK_LOST;
+          }
+
           ContainerTermination termination;
-          termination.set_state(TASK_LOST);
+          termination.set_state(taskState);
           termination.add_reasons(
               TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT);
           termination.set_message(
@@ -3982,8 +4016,20 @@ void Slave::__statusUpdate(
 
     Executor* executor = getExecutor(update.framework_id(), executorId);
     if (executor != nullptr) {
+      Framework* framework = getFramework(update.framework_id());
+      CHECK_NOTNULL(framework);
+
+      // Send TASK_GONE because the task was started but has now
+      // been terminated. If the framework is not partition-aware,
+      // we send TASK_LOST instead for backward compatibility.
+      mesos::TaskState taskState = TASK_GONE;
+      if (!protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
       ContainerTermination termination;
-      termination.set_state(TASK_LOST);
+      termination.set_state(taskState);
       termination.add_reasons(TaskStatus::REASON_CONTAINER_UPDATE_FAILED);
       termination.set_message(
           "Failed to update resources for container: " +
@@ -4644,10 +4690,10 @@ void Slave::executorTerminated(
 
       executor->state = Executor::TERMINATED;
 
-      // Transition all live tasks to TASK_LOST/TASK_FAILED.
+      // Transition all live tasks to TASK_GONE/TASK_FAILED.
       // If the containerizer killed the executor (e.g., due to OOM event)
       // or if this is a command executor, we send TASK_FAILED status updates
-      // instead of TASK_LOST.
+      // instead of TASK_GONE.
       // NOTE: We don't send updates if the framework is terminating
       // because we don't want the status update manager to keep retrying
       // these updates since it won't receive ACKs from the scheduler.  Also,
@@ -5698,8 +5744,18 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
           // (MESOS-2875).
           executor->state = Executor::TERMINATING;
 
+          // Send TASK_GONE because the task was started but has now
+          // been terminated. If the framework is not partition-aware,
+          // we send TASK_LOST instead for backward compatibility.
+          mesos::TaskState taskState = TASK_GONE;
+          if (!protobuf::frameworkHasCapability(
+                  framework->info,
+                  FrameworkInfo::Capability::PARTITION_AWARE)) {
+            taskState = TASK_LOST;
+          }
+
           ContainerTermination termination;
-          termination.set_state(TASK_LOST);
+          termination.set_state(taskState);
           termination.add_reasons(TaskStatus::REASON_CONTAINER_PREEMPTED);
           termination.set_message("Container preempted by QoS correction");
 
