@@ -5979,7 +5979,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
 
 void Master::_markUnreachable(
     Slave* slave,
-    TimeInfo unreachableTime,
+    const TimeInfo& unreachableTime,
     const Future<bool>& registrarResult)
 {
   CHECK_NOTNULL(slave);
@@ -6327,7 +6327,7 @@ void Master::_reconcileTasks(
       // does not have the PARTITION_AWARE capability, send TASK_LOST
       // for backward compatibility. In either case, the status update
       // also includes the time when the slave was marked unreachable.
-      TimeInfo unreachableTime = slaves.unreachable[slaveId.get()];
+      const TimeInfo& unreachableTime = slaves.unreachable[slaveId.get()];
 
       TaskState taskState = TASK_UNREACHABLE;
       if (!protobuf::frameworkHasCapability(
