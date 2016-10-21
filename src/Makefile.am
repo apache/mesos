@@ -997,6 +997,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/mock_slave.hpp							\
   tests/mock_registrar.hpp						\
   tests/module.hpp							\
+  tests/resources_utils.hpp						\
   tests/script.hpp							\
   tests/utils.hpp							\
   tests/zookeeper.hpp							\
@@ -1928,6 +1929,7 @@ check_PROGRAMS += test-helper
 test_helper_SOURCES =						\
   tests/active_user_test_helper.cpp				\
   tests/flags.cpp						\
+  tests/resources_utils.cpp					\
   tests/test_helper_main.cpp					\
   tests/utils.cpp						\
   tests/containerizer/memory_test_helper.cpp
@@ -2132,6 +2134,7 @@ mesos_tests_SOURCES =						\
   tests/reservation_tests.cpp					\
   tests/resource_offers_tests.cpp				\
   tests/resources_tests.cpp					\
+  tests/resources_utils.cpp					\
   tests/role_tests.cpp						\
   tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
