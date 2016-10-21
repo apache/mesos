@@ -1535,10 +1535,12 @@ enum TaskState {
   // may or may not still be running.
   TASK_UNREACHABLE = 10;
 
-  // The task was running on an agent that has been shutdown (e.g.,
-  // the agent become partitioned, rebooted, and then reconnected to
-  // the master; any tasks running before the reboot will transition
-  // from UNREACHABLE to GONE). The task is no longer running.
+  // The task is no longer running. This can occur if the agent has
+  // been terminated along with all of its tasks (e.g., the host that
+  // was running the agent was rebooted). It might also occur if the
+  // task was terminated due to an agent or containerizer error, or if
+  // the task was preempted by the QoS controller in an
+  // oversubscription scenario.
   TASK_GONE = 11;    // TERMINAL.
 
   // The task was running on an agent that the master cannot contact;
