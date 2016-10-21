@@ -391,6 +391,7 @@ All Issues:
     * [MESOS-6324] - CNI should not use `ifconfig` in executors `pre_exec_command`
     * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
     * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
+    * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON 
 
 ** Improvement
     * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
