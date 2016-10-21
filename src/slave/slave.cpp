@@ -1269,21 +1269,8 @@ void Slave::reregistered(
       const TaskID& taskId = status.task_id();
 
       bool known = false;
-
-      // Try to locate the task.
       if (framework != nullptr) {
-        foreachkey (const ExecutorID& executorId, framework->pending) {
-          if (framework->pending[executorId].contains(taskId)) {
-            known = true;
-          }
-        }
-        foreachvalue (Executor* executor, framework->executors) {
-          if (executor->queuedTasks.contains(taskId) ||
-              executor->launchedTasks.contains(taskId) ||
-              executor->terminatedTasks.contains(taskId)) {
-            known = true;
-          }
-        }
+        known = framework->hasTask(taskId);
       }
 
       // Send a terminal status update for each task that is known to

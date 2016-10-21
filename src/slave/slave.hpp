@@ -1004,9 +1004,9 @@ struct Framework
     TERMINATING,  // Framework is shutting down in the cluster.
   } state;
 
-  // We store the pointer to 'Slave' to get access to its methods
-  // variables. One could imagine 'Framework' as being an inner class
-  // of the 'Slave' class.
+  // We store the pointer to 'Slave' to get access to its methods and
+  // variables. One could imagine 'Framework' being an inner class of
+  // the 'Slave' class.
   Slave* slave;
 
   const FrameworkInfo info;
@@ -1025,6 +1025,25 @@ struct Framework
   hashmap<ExecutorID, Executor*> executors;
 
   boost::circular_buffer<process::Owned<Executor>> completedExecutors;
+
+  bool hasTask(const TaskID& taskId)
+  {
+    foreachkey (const ExecutorID& executorId, pending) {
+      if (pending[executorId].contains(taskId)) {
+        return true;
+      }
+    }
+
+    foreachvalue (Executor* executor, executors) {
+      if (executor->queuedTasks.contains(taskId) ||
+          executor->launchedTasks.contains(taskId) ||
+          executor->terminatedTasks.contains(taskId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
 private:
   Framework(const Framework&);              // No copying.
