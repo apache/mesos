@@ -3064,7 +3064,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
 // This ensures that reconciliation properly deals with tasks
 // present in the master and missing from the slave. Notably:
-//   1. The tasks are sent to LOST.
+//   1. The tasks are sent to DROPPED.
 //   2. The task resources are recovered.
 // TODO(bmahler): Ensure the executor resources are recovered by
 // using an explicit executor.
@@ -3095,9 +3095,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   MockScheduler sched;
 
-  // Enable checkpointing for the framework.
+  // Enable checkpointing and partition-awareness for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
 
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
@@ -3204,10 +3206,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Wait for TASK_LOST update.
+  // Wait for TASK_DROPPED update.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_DROPPED, status.get().state());
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
 

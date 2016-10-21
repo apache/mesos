@@ -1286,19 +1286,40 @@ void Slave::reregistered(
         }
       }
 
-      // We only need to send a TASK_LOST update when the task is
-      // unknown (so that the master removes it). Otherwise, the
-      // master correctly holds the task and will receive updates.
+      // Send a terminal status update for each task that is known to
+      // the master but not known to the agent. This ensures that the
+      // master will cleanup any state associated with the task, which
+      // is not running. We send TASK_DROPPED to partition-aware
+      // frameworks; frameworks that are not partition-aware are sent
+      // TASK_LOST for backward compatibility.
+      //
+      // If the task is known to the agent, we don't need to send a
+      // status update to the master: because the master already knows
+      // about the task, any subsequent status updates will be
+      // propagated correctly.
       if (!known) {
+        // NOTE: The `framework` field of the `ReconcileTasksMessage`
+        // is only set by masters running Mesos 1.1.0 or later. If the
+        // field is unset, we assume the framework is not partition-aware.
+        mesos::TaskState taskState = TASK_LOST;
+
+        if (reconcile.has_framework() &&
+            protobuf::frameworkHasCapability(
+                reconcile.framework(),
+                FrameworkInfo::Capability::PARTITION_AWARE)) {
+          taskState = TASK_DROPPED;
+        }
+
         LOG(WARNING) << "Agent reconciling task " << taskId
                      << " of framework " << reconcile.framework_id()
-                     << " in state TASK_LOST: task unknown to the agent";
+                     << " in state " << taskState
+                     << ": task unknown to the agent";
 
         const StatusUpdate update = protobuf::createStatusUpdate(
             reconcile.framework_id(),
             info.id(),
             taskId,
-            TASK_LOST,
+            taskState,
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
             "Reconciliation: task unknown to the agent",

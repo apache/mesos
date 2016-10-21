@@ -478,9 +478,9 @@ message SlaveRegisteredMessage {
 message SlaveReregisteredMessage {
   required SlaveID slave_id = 1;
 
-  // Contains a list of non-terminal tasks that the master believes to
-  // be running on the agent.  The agent should respond `TASK_LOST` to
-  // any tasks that are unknown, so the master knows to remove those.
+  // Contains a list of non-terminal tasks that the master believes are
+  // running on the agent.  The agent should respond `TASK_DROPPED` to any
+  // tasks that are unknown, so the master knows to remove them.
   repeated ReconcileTasksMessage reconciliations = 2;
 
   optional MasterSlaveConnection connection = 3;
