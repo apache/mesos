@@ -167,6 +167,10 @@ message ContainerLaunchInfo {
   // (Linux only) The capabilities requested for the container.
   // The capabilities are set while launching the container.
   optional CapabilityInfo capabilities = 7;
+
+  // (POSIX only) The rlimits requested for the container.
+  // The rlimits are set while launching the container.
+  optional RLimitInfo rlimits = 8;
 }
 
 

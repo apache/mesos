@@ -2178,6 +2178,9 @@ message ContainerInfo {
 
   // Linux specific information for the container.
   optional LinuxInfo linux_info = 8;
+
+  // (POSIX only) rlimits of the container.
+  optional RLimitInfo rlimit_info = 9;
 }
 
 

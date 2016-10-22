@@ -64,6 +64,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
 #include "slave/containerizer/mesos/isolators/posix.hpp"
 #include "slave/containerizer/mesos/isolators/posix/disk.hpp"
+#include "slave/containerizer/mesos/isolators/posix/rlimit.hpp"
 #include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
@@ -281,6 +282,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifndef __WINDOWS__
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
+    {"posix/rlimits", &PosixRlimitIsolatorProcess::create},
 
     // "posix/disk" is deprecated in favor of the name "disk/du".
     {"posix/disk", &PosixDiskIsolatorProcess::create},
@@ -1218,6 +1220,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   Option<string> workingDirectory;
   JSON::Array preExecCommands;
   Option<CapabilityInfo> capabilities;
+  Option<RLimitInfo> rlimits;
 
   // TODO(jieyu): We should use Option here. If no namespace is
   // required, we should pass None() to 'launcher->fork'.
@@ -1287,6 +1290,15 @@ Future<bool> MesosContainerizerProcess::_launch(
             "At most one capabilities set can be returned from isolators");
       } else {
         capabilities = launchInfo->capabilities();
+      }
+    }
+
+    if (launchInfo->has_rlimits()) {
+      if (rlimits.isSome()) {
+        return Failure(
+            "At most one rlimit set can be returned from isolators");
+      } else {
+        rlimits = launchInfo->rlimits();
       }
     }
   }
@@ -1424,6 +1436,11 @@ Future<bool> MesosContainerizerProcess::_launch(
     if (container->config.has_user()) {
       launchFlags.user = container->config.user();
     }
+
+    // TODO(bbannier): For the case where the user requested
+    // rlimits, but no rlimits isolation was configured for
+    // the agent, the master should reject the task.
+    launchFlags.rlimits = rlimits;
 #endif // __WINDOWS__
 
 #ifndef __WINDOWS__
