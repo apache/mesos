@@ -2753,25 +2753,25 @@ TEST(SharedResourcesTest, Filter)
 }
 
 
-struct Parameter
+struct ScalarArithmeticParameter
 {
   Resources resources;
   size_t totalOperations;
 };
 
 
-class Resources_BENCHMARK_Test
+class Resources_Scalar_Arithmetic_BENCHMARK_Test
   : public ::testing::Test,
-    public ::testing::WithParamInterface<Parameter>
+    public ::testing::WithParamInterface<ScalarArithmeticParameter>
 {
 public:
   // Returns the 'Resources' parameters to run the benchmarks against.
-  static vector<Parameter> parameters()
+  static vector<ScalarArithmeticParameter> parameters()
   {
-    vector<Parameter> parameters_;
+    vector<ScalarArithmeticParameter> parameters_;
 
     // Test a typical vector of scalars.
-    Parameter scalars;
+    ScalarArithmeticParameter scalars;
     scalars.resources =
       Resources::parse("cpus:1;gpus:1;mem:128;disk:256").get();
     scalars.totalOperations = 50000;
@@ -2789,7 +2789,7 @@ public:
 
     // Test a large amount of unique reservations. This can
     // occur when aggregating across agents in a cluster.
-    Parameter reservations;
+    ScalarArithmeticParameter reservations;
     for (int i = 0; i < 1000; ++i) {
       Label label;
       label.set_key("key_" + stringify(i));
@@ -2816,7 +2816,9 @@ public:
       ports += stringify(portBegin) + "-" + stringify(portBegin+1);
     }
 
-    Parameter ranges;
+    // TODO(gyliu513): Move the ports resources benchmark test
+    // to a separate test class.
+    ScalarArithmeticParameter ranges;
     ranges.resources = Resources::parse("ports:[" + ports + "]").get();
     ranges.totalOperations = 1000;
 
@@ -2825,7 +2827,7 @@ public:
     Resource disk = createDiskResource(
         "256", "test", "persistentId", "/volume", None(), true);
 
-    Parameter shared;
+    ScalarArithmeticParameter shared;
     shared.resources = Resources::parse("cpus:1;mem:128").get() + disk;
     shared.totalOperations = 50000;
 
@@ -2843,9 +2845,10 @@ public:
 // 'Resources' object to apply operations to, and the number
 // of times to run the operation.
 INSTANTIATE_TEST_CASE_P(
-    ResourcesOperators,
-    Resources_BENCHMARK_Test,
-    ::testing::ValuesIn(Resources_BENCHMARK_Test::parameters()));
+    ResourcesScalarArithmeticOperators,
+    Resources_Scalar_Arithmetic_BENCHMARK_Test,
+    ::testing::ValuesIn(
+        Resources_Scalar_Arithmetic_BENCHMARK_Test::parameters()));
 
 
 static string abbreviate(string s, size_t max)
@@ -2860,7 +2863,7 @@ static string abbreviate(string s, size_t max)
 }
 
 
-TEST_P(Resources_BENCHMARK_Test, Arithmetic)
+TEST_P(Resources_Scalar_Arithmetic_BENCHMARK_Test, Arithmetic)
 {
   const Resources& resources = GetParam().resources;
   size_t totalOperations = GetParam().totalOperations;
