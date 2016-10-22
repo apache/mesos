@@ -45,6 +45,7 @@ public:
     Option<std::string> runtime_directory;
     Option<std::string> rootfs;
     Option<std::string> user;
+    Option<RLimitInfo> rlimits;
 #endif // __WINDOWS__
     Option<int> pipe_read;
     Option<int> pipe_write;
