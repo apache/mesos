@@ -175,6 +175,17 @@ inline Try<mesos::CapabilityInfo> parse(const std::string& value)
 }
 
 
+template <>
+inline Try<mesos::RLimitInfo> parse(const std::string& value)
+{
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  return protobuf::parse<mesos::RLimitInfo>(json.get());
+}
+
 } // namespace flags {
 
 #endif // __COMMON_PARSE_HPP__

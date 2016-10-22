@@ -37,6 +37,18 @@ inline Try<mesos::v1::CapabilityInfo> parse(const std::string& value)
 
 
 template <>
+inline Try<mesos::v1::RLimitInfo> parse(const std::string& value)
+{
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  return protobuf::parse<mesos::v1::RLimitInfo>(json.get());
+}
+
+
+template <>
 inline Try<mesos::v1::TaskGroupInfo> parse(const std::string& value)
 {
   // Convert from string or file to JSON.

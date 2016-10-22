@@ -512,6 +512,12 @@ ostream& operator<<(ostream& stream, const RateLimits& limits)
 }
 
 
+ostream& operator<<(ostream& stream, const RLimitInfo& rlimitInfo)
+{
+  return stream << JSON::protobuf(rlimitInfo);
+}
+
+
 ostream& operator<<(ostream& stream, const SlaveID& slaveId)
 {
   return stream << slaveId.value();

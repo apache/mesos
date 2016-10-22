@@ -438,6 +438,12 @@ ostream& operator<<(ostream& stream, const RateLimits& limits)
 }
 
 
+ostream& operator<<(ostream& stream, const RLimitInfo& limits)
+{
+  return stream << JSON::protobuf(limits);
+}
+
+
 ostream& operator<<(ostream& stream, const AgentID& agentId)
 {
   return stream << agentId.value();

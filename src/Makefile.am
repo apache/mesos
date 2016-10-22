@@ -801,6 +801,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/detector/zookeeper.cpp						\
   messages/messages.cpp							\
   module/manager.cpp							\
+  posix/rlimit.cpp							\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   slave/constants.cpp							\
@@ -927,6 +928,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   messages/flags.hpp							\
   messages/messages.hpp							\
   module/manager.hpp							\
+  posix/rlimit.hpp							\
   sched/constants.hpp							\
   sched/flags.hpp							\
   scheduler/constants.hpp						\

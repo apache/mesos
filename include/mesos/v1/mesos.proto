@@ -2067,6 +2067,47 @@ message LinuxInfo {
 
 
 /**
+* Encapsulation for POSIX rlimits, see
+* http://pubs.opengroup.org/onlinepubs/009695399/functions/getrlimit.html.
+* Note that some types might only be defined for Linux.
+* We use a custom prefix to avoid conflict with existing system macros
+* (e.g., `RLIMIT_CPU` or `NOFILE`).
+*/
+message RLimitInfo {
+  message RLimit {
+    enum Type {
+      UNKNOWN = 0;
+      RLMT_AS = 1;
+      RLMT_CORE = 2;
+      RLMT_CPU = 3;
+      RLMT_DATA = 4;
+      RLMT_FSIZE = 5;
+      RLMT_LOCKS = 6;
+      RLMT_MEMLOCK = 7;
+      RLMT_MSGQUEUE = 8;
+      RLMT_NICE = 9;
+      RLMT_NOFILE = 10;
+      RLMT_NPROC = 11;
+      RLMT_RSS = 12;
+      RLMT_RTPRIO = 13;
+      RLMT_RTTIME = 14;
+      RLMT_SIGPENDING = 15;
+      RLMT_STACK = 16;
+    }
+    optional Type type = 1;
+
+    // Either both are set or both are not set.
+    // If both are not set, it represents unlimited.
+    // If both are set, we require `soft` <= `hard`.
+    optional uint64 hard = 2;
+    optional uint64 soft = 3;
+  }
+
+  repeated RLimit rlimits = 1;
+}
+
+
+/**
  * Describes a container configuration and allows extensible
  * configurations for different container implementations.
  */

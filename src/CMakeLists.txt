@@ -377,6 +377,10 @@ if (NOT WIN32)
     )
 endif (NOT WIN32)
 
+set(POSIX_SRC
+  posix/rlimit.cpp
+  )
+
 set(USAGE_SRC
   usage/usage.cpp
   )
@@ -440,6 +444,7 @@ if (NOT WIN32)
     ${HDFS_SRC}
     ${LOCAL_SRC}
     ${LOG_SRC}
+    ${POSIX_SRC}
     ${SCHED_SRC}
     ${SCHEDULER_SRC}
     ${STATE_SRC}
