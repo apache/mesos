@@ -14,28 +14,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __POSIX_RLIMIT_HPP__
-#define __POSIX_RLIMIT_HPP__
+#ifndef __POSIX_RLIMIT_ISOLATOR_HPP__
+#define __POSIX_RLIMIT_ISOLATOR_HPP__
 
-#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
-#include <mesos/mesos.hpp>
+#include "slave/flags.hpp"
+
+#include "slave/containerizer/mesos/isolator.hpp"
 
 namespace mesos {
 namespace internal {
-namespace rlimit {
+namespace slave {
 
-// Convert from Mesos RLimit types to system
-// resources (see e.g., `sys/resource.h`).
-Try<int> convert(RLimitInfo::RLimit::Type type);
+class PosixRLimitsIsolatorProcess : public MesosIsolatorProcess
+{
+public:
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig);
 
-// Set the given resource limit for the calling process.
-Try<Nothing> set(const RLimitInfo::RLimit& limit);
+private:
+  PosixRLimitsIsolatorProcess(const Flags& flags) {}
+};
 
-} // namespace rlimit {
+} // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __POSIX_RLIMIT_HPP__
+#endif  // __POSIX_RLIMIT_ISOLATOR_HPP__

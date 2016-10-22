@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "posix/rlimit.hpp"
-
 #include <sys/time.h>
 #include <sys/types.h>
 
@@ -28,9 +26,11 @@
 
 #include <stout/unreachable.hpp>
 
+#include "posix/rlimits.hpp"
+
 namespace mesos {
 namespace internal {
-namespace rlimit {
+namespace rlimits {
 
 Try<int> convert(RLimitInfo::RLimit::Type type)
 {
@@ -133,6 +133,6 @@ Try<Nothing> set(const RLimitInfo::RLimit& limit)
   return Nothing();
 }
 
-} // namespace rlimit {
+} // namespace rlimits {
 } // namespace internal {
 } // namespace mesos {

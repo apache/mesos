@@ -43,7 +43,7 @@
 #endif
 
 #ifndef __WINDOWS__
-#include "posix/rlimit.hpp"
+#include "posix/rlimits.hpp"
 #endif // __WINDOWS__
 
 #include "slave/containerizer/mesos/launch.hpp"
@@ -563,7 +563,7 @@ int MesosContainerizerLaunch::execute()
   // Setting resource limits for the process.
   if (flags.rlimits.isSome()) {
     foreach (const RLimitInfo::RLimit& limit, flags.rlimits->rlimits()) {
-      Try<Nothing> set = rlimit::set(limit);
+      Try<Nothing> set = rlimits::set(limit);
       if (set.isError()) {
         cerr << "Failed to set rlimit: " << set.error() << endl;
         exitWithStatus(EXIT_FAILURE);

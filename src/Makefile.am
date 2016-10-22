@@ -801,7 +801,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/detector/zookeeper.cpp						\
   messages/messages.cpp							\
   module/manager.cpp							\
-  posix/rlimit.cpp							\
+  posix/rlimits.cpp							\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   slave/constants.cpp							\
@@ -835,7 +835,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/network/cni/paths.cpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
   slave/containerizer/mesos/isolators/posix/disk.cpp			\
-  slave/containerizer/mesos/isolators/posix/rlimit.cpp			\
+  slave/containerizer/mesos/isolators/posix/rlimits.cpp			\
   slave/containerizer/mesos/isolators/volume/sandbox_path.cpp		\
   slave/containerizer/mesos/provisioner/backend.cpp			\
   slave/containerizer/mesos/provisioner/paths.cpp			\
@@ -929,7 +929,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   messages/flags.hpp							\
   messages/messages.hpp							\
   module/manager.hpp							\
-  posix/rlimit.hpp							\
+  posix/rlimits.hpp							\
   sched/constants.hpp							\
   sched/flags.hpp							\
   scheduler/constants.hpp						\
@@ -962,7 +962,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
   slave/containerizer/mesos/isolators/filesystem/windows.hpp		\
   slave/containerizer/mesos/isolators/posix/disk.hpp			\
-  slave/containerizer/mesos/isolators/posix/rlimit.hpp			\
+  slave/containerizer/mesos/isolators/posix/rlimits.hpp			\
   slave/containerizer/mesos/isolators/docker/volume/driver.hpp		\
   slave/containerizer/mesos/isolators/docker/volume/paths.hpp		\
   slave/containerizer/mesos/isolators/docker/volume/state.hpp		\

@@ -16,7 +16,7 @@
 
 #include <process/owned.hpp>
 
-#include "slave/containerizer/mesos/isolators/posix/rlimit.hpp"
+#include "slave/containerizer/mesos/isolators/posix/rlimits.hpp"
 
 using process::Owned;
 
@@ -29,7 +29,7 @@ namespace internal {
 namespace slave {
 
 process::Future<Option<ContainerLaunchInfo>>
-PosixRlimitIsolatorProcess::prepare(
+PosixRLimitsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
@@ -51,11 +51,11 @@ PosixRlimitIsolatorProcess::prepare(
 }
 
 
-Try<Isolator*> PosixRlimitIsolatorProcess::create(const Flags& flags)
+Try<Isolator*> PosixRLimitsIsolatorProcess::create(const Flags& flags)
 {
   return new MesosIsolator(
       process::Owned<MesosIsolatorProcess>(
-          new PosixRlimitIsolatorProcess(flags)));
+          new PosixRLimitsIsolatorProcess(flags)));
 }
 
 } // namespace slave {
