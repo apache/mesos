@@ -13,6 +13,7 @@
 #ifndef __STOUT_OS_STRERROR_HPP__
 #define __STOUT_OS_STRERROR_HPP__
 
+#include <errno.h>
 #include <string.h>
 
 #include <string>
