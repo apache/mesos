@@ -134,11 +134,6 @@ private:
       const Image& image,
       const ImageInfo& imageInfo);
 
-  process::Future<ProvisionInfo> __provision(
-      const std::string& rootfs,
-      const Image& image,
-      const ImageInfo& imageInfo);
-
   process::Future<bool> _destroy(const ContainerID& containerId);
 
   const Flags flags;
