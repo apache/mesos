@@ -275,6 +275,9 @@ std::ostream& operator<<(std::ostream& stream, const OfferID& offerId);
 std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
 
 
+std::ostream& operator<<(std::ostream& stream, const RLimitInfo& limits);
+
+
 std::ostream& operator<<(std::ostream& stream, const AgentID& agentId);
 
 
