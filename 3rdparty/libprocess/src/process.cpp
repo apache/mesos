@@ -301,6 +301,11 @@ public:
   SocketManager();
   ~SocketManager();
 
+  // Closes all managed sockets and clears any associated metadata.
+  // The `__s__` server socket must be closed and `ProcessManager`
+  // must be finalized before calling this.
+  void finalize();
+
   void accepted(const Socket& socket);
 
   void link(ProcessBase* process,
@@ -313,6 +318,11 @@ public:
   Option<int> get_persistent_socket(const UPID& to);
 
   PID<HttpProxy> proxy(const Socket& socket);
+
+  // Used to clean up the pointer to an `HttpProxy` in case the
+  // `HttpProxy` is killed outside the control of the `SocketManager`.
+  // This generally happens when `process::finalize` is called.
+  void unproxy(const Socket& socket);
 
   void send(Encoder* encoder, bool persist);
   void send(const Response& response,
@@ -400,6 +410,13 @@ public:
   explicit ProcessManager(const Option<string>& delegate);
   ~ProcessManager();
 
+  // Prevents any further processes from spawning and terminates all
+  // running processes. The special `gc` process will be terminated
+  // last. Then joins all processing threads and stops the event loop.
+  //
+  // This is a prerequisite for finalizing the `SocketManager`.
+  void finalize();
+
   // Initializes the processing threads and the event loop thread,
   // and returns the number of processing threads created.
   long init_threads();
@@ -420,7 +437,10 @@ public:
       Event* event,
       ProcessBase* sender = nullptr);
 
+  // TODO(josephw): Change the return type to a `Try<UPID>`. Currently,
+  // if this method fails, we return a default constructed `UPID`.
   UPID spawn(ProcessBase* process, bool manage);
+
   void resume(ProcessBase* process);
   void cleanup(ProcessBase* process);
 
@@ -470,6 +490,10 @@ private:
   // List of rules applied to all incoming HTTP requests.
   vector<Owned<firewall::FirewallRule>> firewallRules;
   std::recursive_mutex firewall_mutex;
+
+  // Whether the process manager is finalizing or not.
+  // If true, no further processes will be spawned.
+  std::atomic_bool finalizing;
 };
 
 
@@ -478,6 +502,15 @@ static const int LISTEN_BACKLOG = 500000;
 
 // Local server socket.
 static Socket* __s__ = nullptr;
+
+// This mutex is only used to prevent a race between the `on_accept`
+// callback loop and closing/deleting `__s__` in `process::finalize`.
+static std::mutex* socket_mutex = new std::mutex();
+
+// The future returned by the last call to `__s__->accept()`.
+// This is used in `process::finalize` to explicitly terminate the
+// `__s__` socket's callback loop.
+static Future<Socket> future_accept;
 
 // Local socket address.
 static Address __address__;
@@ -795,8 +828,13 @@ void on_accept(const Future<Socket>& socket)
           decoder));
   }
 
-  __s__->accept()
-    .onAny(lambda::bind(&on_accept, lambda::_1));
+  // NOTE: `__s__` may be cleaned up during `process::finalize`.
+  synchronized (socket_mutex) {
+    if (__s__ != nullptr) {
+      future_accept = __s__->accept()
+        .onAny(lambda::bind(&on_accept, lambda::_1));
+    }
+  }
 }
 
 } // namespace internal {
@@ -1002,7 +1040,7 @@ bool initialize(
   // invoke `accept()` and `spawn()` below.
   initialize_complete.store(true);
 
-  __s__->accept()
+  future_accept = __s__->accept()
     .onAny(lambda::bind(&internal::on_accept, lambda::_1));
 
   // TODO(benh): Make sure creating the garbage collector, logging
@@ -1079,30 +1117,65 @@ bool initialize(
 // initialization.
 void finalize()
 {
-  // The clock is only paused during tests.  Pausing may lead to infinite waits
-  // during clean up, so we make sure the clock is running normally.
+  // The clock is only paused during tests.  Pausing may lead to infinite
+  // waits during clean up, so we make sure the clock is running normally.
   Clock::resume();
 
-  // This will terminate any existing processes created via `spawn()`,
-  // like `gc`, `help`, `Logging()`, `Profiler()`, and `System()`.
-  // NOTE: This will also stop the event loop.
-
-  // TODO(arojas): The HTTP authentication logic in ProcessManager
-  // does not handle the case where the process_manager is deleted
-  // while authentication was in progress!!
-
+  // This will terminate the underlying process for the `Route`.
   delete processes_route;
   processes_route = nullptr;
+
+  // Terminate all running processes and prevent further processes from
+  // being spawned. This will also clean up any metadata for running
+  // processes held by the `SocketManager`. After this method returns,
+  // libprocess should be single-threaded.
+  process_manager->finalize();
+
+  // This clears any remaining timers. Because the event loop has been
+  // stopped, no timers will fire.
+  Clock::finalize();
+
+  // Close the server socket.
+  // This will prevent any further connections managed by the `SocketManager`.
+  synchronized (socket_mutex) {
+    // Explicitly terminate the callback loop used to accept incoming
+    // connections. This is necessary as the server socket ignores
+    // most errors, including when the server socket has been closed.
+    future_accept.discard();
+
+    delete __s__;
+    __s__ = nullptr;
+  }
+
+  // Clean up the socket manager.
+  // Terminating processes above will also clean up any links between
+  // processes (which may be expressed as open sockets) and the various
+  // `HttpProxy` processes managing incoming HTTP requests. We cannot
+  // delete the `SocketManager` yet, since the `ProcessManager` may
+  // potentially dereference it.
+  socket_manager->finalize();
+
+  // This is dereferenced inside `ProcessBase::visit(HttpEvent&)`.
+  // We can safely delete it since no further incoming HTTP connections
+  // can be made because the server socket has been destroyed. This must
+  // be deleted before the `ProcessManager` as it will indirectly
+  // dereference the `ProcessManager`.
+  delete authenticator_manager;
+  authenticator_manager = nullptr;
+
+  // At this point, there should be no running processes, no sockets,
+  // and a single remaining thread. We can safely remove the global
+  // `SocketManager` and `ProcessManager` pointers now.
+  delete socket_manager;
+  socket_manager = nullptr;
 
   delete process_manager;
   process_manager = nullptr;
 
-  // TODO(neilc): We currently don't cleanup or deallocate the
-  // socket_manager (MESOS-3910).
-
-  // The clock must be cleaned up after the `process_manager` as processes
-  // may otherwise add timers after cleaning up.
-  Clock::finalize();
+  // Clear the public address of the server socket.
+  // NOTE: This variable is necessary for process communication, so it
+  // cannot be cleared until after the `ProcessManager` is deleted.
+  __address__ = Address::LOCALHOST_ANY();
 }
 
 
@@ -1165,6 +1238,10 @@ HttpProxy::~HttpProxy()
     items.pop();
     delete item;
   }
+
+  // Just in case this process gets killed outside of `SocketManager::close`,
+  // remove the proxy from the socket.
+  socket_manager->unproxy(socket);
 }
 
 
@@ -1393,6 +1470,36 @@ SocketManager::SocketManager() {}
 
 
 SocketManager::~SocketManager() {}
+
+
+void SocketManager::finalize()
+{
+  // We require the `SocketManager` to be finalized after the server socket
+  // has been closed. This means that no further incoming sockets will be
+  // given to the `SocketManager` at this point.
+  CHECK(__s__ == nullptr);
+
+  // We require all processes to be terminated prior to finalizing the
+  // `SocketManager`. This simplifies the finalization logic as we do not
+  // have to worry about sockets or links being created during cleanup.
+  CHECK(gc == nullptr);
+
+  int socket = -1;
+  // Close each socket.
+  // Don't hold the lock since there is a dependency between `SocketManager`
+  // and `ProcessManager`, which may result in deadlock.  See comments in
+  // `SocketManager::close` for more details.
+  do {
+    synchronized (mutex) {
+      socket = !sockets.empty() ? sockets.begin()->first : -1;
+    }
+
+    if (socket >= 0) {
+      // This will also clean up any other state related to this socket.
+      close(socket);
+    }
+  } while (socket >= 0);
+}
 
 
 void SocketManager::accepted(const Socket& socket)
@@ -1712,6 +1819,20 @@ PID<HttpProxy> SocketManager::proxy(const Socket& socket)
   }
 
   return PID<HttpProxy>();
+}
+
+
+void SocketManager::unproxy(const Socket& socket)
+{
+  synchronized (mutex) {
+    auto proxy = proxies.find(socket);
+
+    // NOTE: We may have already removed this proxy if the associated
+    // `HttpProxy` was destructed via `SocketManager::close`.
+    if (proxy != proxies.end()) {
+      proxies.erase(proxy);
+    }
+  }
 }
 
 
@@ -2336,49 +2457,68 @@ void SocketManager::swap_implementing_socket(
 ProcessManager::ProcessManager(const Option<string>& _delegate)
   : delegate(_delegate),
     running(0),
-    joining_threads(false) {}
+    joining_threads(false),
+    finalizing(false) {}
 
 
-ProcessManager::~ProcessManager()
+ProcessManager::~ProcessManager() {}
+
+
+void ProcessManager::finalize()
 {
   CHECK(gc != nullptr);
+
+  // Prevent anymore processes from being spawned.
+  finalizing.store(true);
 
   // Terminate one process at a time. Events are deleted and the process
   // is erased from `processes` in ProcessManager::cleanup(). Don't hold
   // the lock or process the whole map as terminating one process might
   // trigger other terminations.
   //
-  // We skip the GC process here and instead terminate it below. This
-  // ensures that the GC process is running whenever we terminate any
-  // GC-managed process, which is necessary to ensure GC is performed.
+  // We skip the GC process in this loop and instead terminate it last.
+  // This ensures that the GC process is running whenever we terminate
+  // any GC-managed process, which is necessary to prevent leaking.
   while (true) {
-    ProcessBase* process = nullptr;
+    // NOTE: We terminate by `UPID` rather than `ProcessBase` as the
+    // process may terminate between the synchronized section below
+    // and the calls to `process:terminate` and `process::wait`.
+    // If the process has already terminated, further termination
+    // is a noop.
+    UPID pid;
 
     synchronized (processes_mutex) {
+      ProcessBase* process = nullptr;
+
       foreachvalue (ProcessBase* candidate, processes) {
         if (candidate == gc) {
           continue;
         }
+
         process = candidate;
+        pid = candidate->self();
+        break;
+      }
+
+      if (process == nullptr) {
         break;
       }
     }
 
-    if (process == nullptr) {
-      break;
-    }
-
     // Terminate this process but do not inject the message,
     // i.e. allow it to finish its work first.
-    process::terminate(process, false);
-    process::wait(process);
+    process::terminate(pid, false);
+    process::wait(pid);
   }
 
+  // Terminate `gc`.
   process::terminate(gc, false);
   process::wait(gc);
 
-  delete gc;
-  gc = nullptr;
+  synchronized (processes_mutex) {
+    delete gc;
+    gc = nullptr;
+  }
 
   // Send signal to all processing threads to stop running.
   joining_threads.store(true);
@@ -2709,6 +2849,20 @@ bool ProcessManager::deliver(
 UPID ProcessManager::spawn(ProcessBase* process, bool manage)
 {
   CHECK(process != nullptr);
+
+  // If the `ProcessManager` is cleaning itself up, no further processes
+  // may be spawned.
+  if (finalizing.load()) {
+    LOG(WARNING)
+      << "Attempted to spawn a process (" << process->self()
+      << ") after finalizing libprocess!";
+
+    if (manage) {
+      delete process;
+    }
+
+    return UPID();
+  }
 
   synchronized (processes_mutex) {
     if (processes.count(process->pid.id) > 0) {
