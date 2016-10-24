@@ -2186,15 +2186,9 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   ASSERT_SOME(master);
 
   // Step 2: Start a slave.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
   StandaloneMasterDetector slaveDetector(master.get()->pid);
   Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector);
   ASSERT_SOME(slave);
-
-  AWAIT_READY(slaveRegisteredMessage);
-  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
   // Step 3: Start a scheduler.
   StandaloneMasterDetector schedDetector(master.get()->pid);
@@ -2221,11 +2215,18 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&runningStatus));
 
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
   EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+
+  const SlaveID slaveId = runningStatus.get().slave_id();
+
+  AWAIT_READY(statusUpdateAck);
 
   // Step 4: Simulate master failover. We leave the slave without a
   // master so it does not attempt to re-register.
