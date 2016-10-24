@@ -29,16 +29,12 @@
 
 namespace process {
 namespace metrics {
-
-// Initializes the metrics library.
-void initialize(const Option<std::string>& authenticationRealm = None());
-
 namespace internal {
 
 class MetricsProcess : public Process<MetricsProcess>
 {
 public:
-  static MetricsProcess* instance();
+  static MetricsProcess* create(const Option<std::string>& authenticationRealm);
 
   Future<Nothing> add(Owned<Metric> metric);
 
@@ -83,13 +79,13 @@ private:
   // Used to rate limit the snapshot endpoint.
   Option<Owned<RateLimiter>> limiter;
 
-  // Needed for access to the private constructor.
-  friend void process::metrics::initialize(
-      const Option<std::string>& authenticationRealm);
-
   // The authentication realm that metrics HTTP endpoints are installed into.
   const Option<std::string> authenticationRealm;
 };
+
+
+// Global metrics process. Defined in process.cpp.
+extern PID<MetricsProcess> metrics;
 
 }  // namespace internal {
 
@@ -97,10 +93,13 @@ private:
 template <typename T>
 Future<Nothing> add(const T& metric)
 {
+  // The metrics process is instantiated in `process::initialize`.
+  process::initialize();
+
   // There is an explicit copy in this call to ensure we end up owning
   // the last copy of a Metric when we remove it.
   return dispatch(
-      internal::MetricsProcess::instance(),
+      internal::metrics,
       &internal::MetricsProcess::add,
       Owned<Metric>(new T(metric)));
 }
@@ -108,8 +107,11 @@ Future<Nothing> add(const T& metric)
 
 inline Future<Nothing> remove(const Metric& metric)
 {
+  // The metrics process is instantiated in `process::initialize`.
+  process::initialize();
+
   return dispatch(
-      internal::MetricsProcess::instance(),
+      internal::metrics,
       &internal::MetricsProcess::remove,
       metric.name());
 }
@@ -118,8 +120,11 @@ inline Future<Nothing> remove(const Metric& metric)
 inline Future<hashmap<std::string, double>> snapshot(
     const Option<Duration>& timeout)
 {
+  // The metrics process is instantiated in `process::initialize`.
+  process::initialize();
+
   return dispatch(
-      internal::MetricsProcess::instance(),
+      internal::metrics,
       &internal::MetricsProcess::snapshot,
       timeout);
 }

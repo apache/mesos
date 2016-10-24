@@ -29,8 +29,6 @@ namespace http = process::http;
 
 using process::Future;
 
-using process::metrics::internal::MetricsProcess;
-
 // MESOS-1433
 // This test is disabled as the Gauges that are used for these metrics
 // may return Failures. In this case we do not put the metric into the
@@ -41,7 +39,7 @@ using process::metrics::internal::MetricsProcess;
 TEST(SystemTest, DISABLED_Metrics)
 {
   Future<http::Response> response =
-    http::get(MetricsProcess::instance()->self(), "snapshot");
+    http::get(process::metrics::internal::metrics, "snapshot");
 
   AWAIT_READY(response);
 

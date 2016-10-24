@@ -545,6 +545,14 @@ THREAD_LOCAL ProcessBase* __process__ = nullptr;
 // Per thread executor pointer.
 THREAD_LOCAL Executor* _executor_ = nullptr;
 
+namespace metrics {
+namespace internal {
+
+PID<metrics::internal::MetricsProcess> metrics;
+
+} // namespace internal {
+} // namespace metrics {
+
 
 namespace http {
 
@@ -1079,8 +1087,10 @@ bool initialize(
   // Create global help process.
   help = spawn(new Help(delegate), true);
 
-  // Initialize the global metrics process.
-  metrics::initialize(readonlyAuthenticationRealm);
+  // Create the global metrics process.
+  metrics::internal::metrics = spawn(
+      metrics::internal::MetricsProcess::create(readonlyAuthenticationRealm),
+      true);
 
   // Create the global logging process.
   _logging = spawn(new Logging(readwriteAuthenticationRealm), true);
