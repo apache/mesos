@@ -582,12 +582,20 @@ namespace authorization {
 
 void setCallbacks(const AuthorizationCallbacks& callbacks)
 {
+  if (authorization_callbacks != nullptr) {
+    delete authorization_callbacks;
+  }
+
   authorization_callbacks = new AuthorizationCallbacks(callbacks);
 }
 
 
 void unsetCallbacks()
 {
+  if (authorization_callbacks != nullptr) {
+    delete authorization_callbacks;
+  }
+
   authorization_callbacks = nullptr;
 }
 
