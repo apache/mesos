@@ -286,6 +286,9 @@ string error_string(unsigned long code)
 // this function, it is not visible. This is the preferred behavior as
 // we do not want applications changing these settings while they are
 // running (this would be undefined behavior).
+// NOTE: This does not change the configuration of existing sockets, such
+// as the server socket spawned during libprocess initialization.
+// See `reinitialize` in `process.cpp`.
 void reinitialize()
 {
   // Wipe out and recreate the default flags.

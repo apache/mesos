@@ -489,6 +489,11 @@ private:
 };
 
 
+// Synchronization primitives for `initialize`.
+// See documentation in `initialize` for how they are used.
+static std::atomic_bool initialize_started(false);
+static std::atomic_bool initialize_complete(false);
+
 // Server socket listen backlog.
 static const int LISTEN_BACKLOG = 500000;
 
@@ -865,6 +870,32 @@ void install(vector<Owned<FirewallRule>>&& rules)
 
 } // namespace firewall {
 
+
+// Tests can declare this function and use it to re-configure libprocess
+// programmatically. Without explicitly declaring this function, it
+// is not visible. This is the preferred behavior as we do not want
+// applications changing these settings while they are
+// running (this would be undefined behavior).
+// NOTE: If the test is changing SSL-related configuration, the SSL library
+// must be reinitialized first.  See `reinitialize` in `openssl.cpp`.
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readwriteAuthenticationRealm,
+    const Option<string>& readonlyAuthenticationRealm)
+{
+  process::finalize();
+
+  // Reset the initialization synchronization primitives.
+  initialize_started.store(false);
+  initialize_complete.store(false);
+
+  process::initialize(
+      delegate,
+      readwriteAuthenticationRealm,
+      readonlyAuthenticationRealm);
+}
+
+
 bool initialize(
     const Option<string>& delegate,
     const Option<string>& readwriteAuthenticationRealm,
@@ -879,8 +910,6 @@ bool initialize(
   // frequently throughout the code base. Therefore we chose to use
   // atomics rather than `Once`, as the overhead of a mutex and
   // condition variable is excessive here.
-  static std::atomic_bool initialize_started(false);
-  static std::atomic_bool initialize_complete(false);
 
   // Try and do the initialization or wait for it to complete.
 
