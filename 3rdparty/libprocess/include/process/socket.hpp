@@ -77,7 +77,7 @@ public:
    *
    * @see process::network::Socket::Kind
    */
-  static const Kind& DEFAULT_KIND();
+  static Kind DEFAULT_KIND();
 
   /**
    * Returns the kind representing the underlying implementation

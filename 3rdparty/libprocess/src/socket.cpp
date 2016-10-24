@@ -102,16 +102,15 @@ Try<Socket> Socket::create(Kind kind, Option<int> s)
 }
 
 
-const Socket::Kind& Socket::DEFAULT_KIND()
+Socket::Kind Socket::DEFAULT_KIND()
 {
-  static const Kind DEFAULT =
+  // NOTE: Some tests may change the OpenSSL flags and reinitialize
+  // libprocess. In non-test code, the return value should be constant.
 #ifdef USE_SSL_SOCKET
-      network::openssl::flags().enabled ? Socket::SSL : Socket::POLL;
+      return network::openssl::flags().enabled ? Socket::SSL : Socket::POLL;
 #else
-      Socket::POLL;
+      return Socket::POLL;
 #endif
-
-  return DEFAULT;
 }
 
 
