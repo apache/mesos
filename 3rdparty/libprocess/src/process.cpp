@@ -188,7 +188,7 @@ class HttpProxy : public Process<HttpProxy>
 {
 public:
   explicit HttpProxy(const Socket& _socket);
-  virtual ~HttpProxy();
+  virtual ~HttpProxy() {};
 
   // Enqueues the response to be sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
@@ -200,7 +200,7 @@ public:
   void handle(const Future<Response>& future, const Request& request);
 
 protected:
-  void initialize() override;
+  void finalize() override;
 
 private:
   // Starts "waiting" on the next available future response.
@@ -233,15 +233,6 @@ private:
   queue<Item*> items;
 
   Option<http::Pipe::Reader> pipe; // Current pipe, if streaming.
-
-  // We sequence the authentication results exposed to the caller
-  // in order to satisfy HTTP pipelining.
-  //
-  // Note that this needs to be done explicitly here because
-  // the authentication router does expose ordered completion
-  // of its Futures (it doesn't have the knowledge of sockets
-  // necessary to do it in a per-connection manner).
-  Owned<Sequence> authentications;
 };
 
 
@@ -1214,7 +1205,7 @@ HttpProxy::HttpProxy(const Socket& _socket)
     socket(_socket) {}
 
 
-HttpProxy::~HttpProxy()
+void HttpProxy::finalize()
 {
   // Need to make sure response producers know not to continue to
   // create a response (streaming or otherwise).
@@ -1250,16 +1241,6 @@ HttpProxy::~HttpProxy()
   // Just in case this process gets killed outside of `SocketManager::close`,
   // remove the proxy from the socket.
   socket_manager->unproxy(socket);
-}
-
-
-void HttpProxy::initialize()
-{
-  // We have to construct the sequence outside of the HttpProxy
-  // constructor in order to prevent a deadlock between the
-  // SocketManager and the ProcessManager (see the comment in
-  // SocketManager::proxy).
-  authentications.reset(new Sequence("__authentications__"));
 }
 
 
@@ -2218,7 +2199,7 @@ Encoder* SocketManager::next(int s)
 
 void SocketManager::close(int s)
 {
-  HttpProxy* proxy = nullptr; // Non-null if needs to be terminated.
+  Option<UPID> proxy; // Some if an `HttpProxy` needs to be terminated.
 
   synchronized (mutex) {
     // This socket might not be active if it was already asked to get
@@ -2255,7 +2236,7 @@ void SocketManager::close(int s)
 
       // Clean up any proxy associated with this socket.
       if (proxies.count(s) > 0) {
-        proxy = proxies[s];
+        proxy = proxies.at(s)->self();
         proxies.erase(s);
       }
 
@@ -2288,8 +2269,8 @@ void SocketManager::close(int s)
 
   // We terminate the proxy outside the synchronized block to avoid
   // possible deadlock between the ProcessManager and SocketManager.
-  if (proxy != nullptr) {
-    terminate(proxy);
+  if (proxy.isSome()) {
+    terminate(proxy.get());
   }
 
   // Note that we don't actually:
