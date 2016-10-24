@@ -75,8 +75,6 @@ using process::Queue;
 
 using process::http::OK;
 
-using process::metrics::internal::MetricsProcess;
-
 using std::cout;
 using std::endl;
 using std::string;
@@ -356,7 +354,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
   AWAIT_READY(subscribed);
 
   Future<process::http::Response> response =
-    process::http::get(MetricsProcess::instance()->self(), "snapshot");
+    process::http::get(process::metrics::internal::metrics, "snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
