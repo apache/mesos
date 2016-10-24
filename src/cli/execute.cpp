@@ -73,6 +73,7 @@ using mesos::v1::Label;
 using mesos::v1::Labels;
 using mesos::v1::Offer;
 using mesos::v1::Resources;
+using mesos::v1::RLimitInfo;
 using mesos::v1::TaskGroupInfo;
 using mesos::v1::TaskID;
 using mesos::v1::TaskInfo;
@@ -224,6 +225,24 @@ public:
         "     ]\n"
         "}");
 
+    add(&Flags::rlimits,
+        "rlimits",
+        "JSON representation of resource limits for the command. For\n"
+        "example, the following sets the limit for CPU time to be one\n"
+        "second, and the size of created files to be unlimited:\n"
+        "{\n"
+        "  \"rlimits\": [\n"
+        "    {\n"
+        "      \"type\":\"RLMT_CPU\",\n"
+        "      \"soft\":\"1\",\n"
+        "      \"hard\":\"1\"\n"
+        "    },\n"
+        "    {\n"
+        "      \"type\":\"RLMT_FSIZE\"\n"
+        "    }\n"
+        "  ]\n"
+        "}");
+
     add(&Flags::role,
         "role",
         "Role to use when registering.",
@@ -298,6 +317,7 @@ public:
   Option<JSON::Array> volumes;
   string containerizer;
   Option<CapabilityInfo> capabilities;
+  Option<RLimitInfo> rlimits;
   string role;
   Option<Duration> kill_after;
   Option<string> networks;
@@ -668,7 +688,8 @@ static Result<ContainerInfo> getContainerInfo(
     const Option<string>& networks,
     const Option<string>& appcImage,
     const Option<string>& dockerImage,
-    const Option<CapabilityInfo>& capabilities)
+    const Option<CapabilityInfo>& capabilities,
+    const Option<RLimitInfo>& rlimits)
 {
   if (containerizer.empty()) {
     return None();
@@ -685,8 +706,9 @@ static Result<ContainerInfo> getContainerInfo(
   // Mesos containerizer supports 'appc' and 'docker' images.
   if (containerizer == "mesos") {
     if (appcImage.isNone() &&
-        capabilities.isNone() &&
         dockerImage.isNone() &&
+        capabilities.isNone() &&
+        rlimits.isNone() &&
         (networks.isNone() || networks->empty()) &&
         (volumes.isNone() || volumes->empty())) {
       return None();
@@ -736,6 +758,10 @@ static Result<ContainerInfo> getContainerInfo(
         .mutable_linux_info()
         ->mutable_capability_info()
         ->CopyFrom(capabilities.get());
+    }
+
+    if (rlimits.isSome()) {
+      containerInfo.mutable_rlimit_info()->CopyFrom(rlimits.get());
     }
 
     return containerInfo;
@@ -1040,7 +1066,8 @@ int main(int argc, char** argv)
         flags.networks,
         appcImage,
         dockerImage,
-        flags.capabilities);
+        flags.capabilities,
+        flags.rlimits);
 
     if (containerInfo.isError()){
       EXIT(EXIT_FAILURE) << containerInfo.error();
