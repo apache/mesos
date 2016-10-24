@@ -78,6 +78,7 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/profiler.hpp>
+#include <process/reap.hpp>
 #include <process/sequence.hpp>
 #include <process/socket.hpp>
 #include <process/statistics.hpp>
@@ -552,6 +553,12 @@ PID<metrics::internal::MetricsProcess> metrics;
 
 } // namespace internal {
 } // namespace metrics {
+
+namespace internal {
+
+PID<process::internal::ReaperProcess> reaper;
+
+} // namespace internal {
 
 
 namespace http {
@@ -1103,6 +1110,10 @@ bool initialize(
 
   // Create the global HTTP authentication router.
   authenticator_manager = new AuthenticatorManager();
+
+  // Create the global reaper process.
+  process::internal::reaper =
+    spawn(new process::internal::ReaperProcess(), true);
 
   // Initialize the mime types.
   mime::initialize();
