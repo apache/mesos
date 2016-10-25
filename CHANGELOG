@@ -361,6 +361,7 @@ All Issues:
   * [MESOS-6312] - Update CHANGELOG to mention addition of agent '--runtime_dir' flag.
   * [MESOS-6344] - Allow `network/cni` isolator to take a search path for CNI plugins instead of single directory.
   * [MESOS-6408] - Changelog for `mesos-cni-port-mapper` to 1.1.0.
+  * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect 
 
 ** Wish
   * [MESOS-5929] - Total cluster resources on master Mesos UI should have better spacing.
