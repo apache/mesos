@@ -1343,13 +1343,18 @@ Future<Response> Master::Http::frameworks(
 
         // Model all currently unregistered frameworks. This can happen
         // when a framework has yet to re-register after master failover.
+        // TODO(vinod): Need to filter these frameworks based on authorization!
+        // See TODO in `state()` for further details.
         writer->field("unregistered_frameworks", [this](
             JSON::ArrayWriter* writer) {
           // Find unregistered frameworks.
+          hashset<FrameworkID> frameworkIds;
           foreachvalue (const Slave* slave, master->slaves.registered) {
             foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-              if (!master->frameworks.registered.contains(frameworkId)) {
+              if (!master->frameworks.registered.contains(frameworkId) &&
+                  !frameworkIds.contains(frameworkId)) {
                 writer->element(frameworkId.value());
+                frameworkIds.insert(frameworkId);
               }
             }
           }
@@ -2743,10 +2748,13 @@ Future<Response> Master::Http::state(
         writer->field("unregistered_frameworks", [this](
             JSON::ArrayWriter* writer) {
           // Find unregistered frameworks.
+          hashset<FrameworkID> frameworkIds;
           foreachvalue (const Slave* slave, master->slaves.registered) {
             foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-              if (!master->frameworks.registered.contains(frameworkId)) {
+              if (!master->frameworks.registered.contains(frameworkId) &&
+                  !frameworkIds.contains(frameworkId)) {
                 writer->element(frameworkId.value());
+                frameworkIds.insert(frameworkId);
               }
             }
           }
