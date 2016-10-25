@@ -2753,8 +2753,8 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
 
 // This test ensures that when a master fails over, those tasks that
 // belong to some currently unregistered frameworks will appear in the
-// "orphan_tasks" field in the state endpoint. And those unregistered frameworks
-// will appear in the "unregistered_frameworks" field.
+// "orphan_tasks" field in the state endpoint. And those unregistered
+// frameworks will appear in the "unregistered_frameworks" field.
 TEST_F(MasterTest, OrphanTasks)
 {
   // Start a master.
@@ -2931,6 +2931,178 @@ TEST_F(MasterTest, OrphanTasks)
     .Times(AtMost(1));
 
   // Cleanup.
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a framework that has not yet re-registered after
+// a master failover doesn't show up multiple times in "unregistered_frameworks"
+// when quering "/state" or "/frameworks" endpoints. This is to catch
+// any regressions for MESOS-4973 and MESOS-6461.
+TEST_F(MasterTest, OrphanTasksMultipleAgents)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector slavesDetector(master.get()->pid);
+
+  MockExecutor exec1(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer1(&exec1);
+
+  // Start the first slave and launch a task.
+
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(&slavesDetector, &containerizer1);
+
+  ASSERT_SOME(slave1);
+
+  StandaloneMasterDetector schedDetector(master.get()->pid);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &schedDetector);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task1 =
+    createTask(offers1.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+
+  EXPECT_CALL(exec1, registered(_, _, _, _));
+
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1));
+
+  driver.launchTasks(offers1.get()[0].id(), {task1});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Start the second slave and launch a task.
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  MockExecutor exec2(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer2(&exec2);
+
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(
+    &slavesDetector, &containerizer2);
+
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  TaskInfo task2 =
+    createTask(offers2.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+
+  EXPECT_CALL(exec2, registered(_, _, _, _));
+
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Failover the master.
+  master->reset();
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected event to the slaves (but not the scheduler).
+  slavesDetector.appoint(master.get()->pid);
+
+  AWAIT_READY(slaveReregisteredMessage1);
+  AWAIT_READY(slaveReregisteredMessage2);
+
+  // Ensure that there are 2 orphan tasks and 1 unregistered framework
+  // in "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object state = parse.get();
+
+    JSON::Array frameworks =
+      state.values["frameworks"].as<JSON::Array>();
+    JSON::Array orphanTasks =
+      state.values["orphan_tasks"].as<JSON::Array>();
+    JSON::Array unregisteredFrameworks =
+      state.values["unregistered_frameworks"].as<JSON::Array>();
+
+    EXPECT_EQ(0u, frameworks.values.size());
+    EXPECT_EQ(2u, orphanTasks.values.size());
+    EXPECT_EQ(1u, unregisteredFrameworks.values.size());
+  }
+
+  // Ensure that there is 1 unregistered framework in "/frameworks" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "frameworks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Object state = parse.get();
+
+    JSON::Array unregisteredFrameworks =
+      state.values["unregistered_frameworks"].as<JSON::Array>();
+
+    EXPECT_EQ(1u, unregisteredFrameworks.values.size());
+  }
+
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 }
