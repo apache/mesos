@@ -323,12 +323,9 @@ will waste IO and space while the bind backend can only deal with one
 layer. The overlay backend allows containizer to utilize the
 filesystem to merge multiple filesystems into one efficiently.
 
-As the overlay backend request multiple lower layers support, the
-version of linux kernel should be greater than 4.0, refer
-[here](https://github.com/manjaro/manjaro-tools-iso-profiles/issues/40)
-for more detail.
-
-For more information of overlayfs, please refer to
+The overlay backend depends on support for multiple lower layers,
+which requires Linux kernel version 4.0 or later. For more information
+of overlayfs, please refer to
 [here](https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt).
 
 ### AUFS
