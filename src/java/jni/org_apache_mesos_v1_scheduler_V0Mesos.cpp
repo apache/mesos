@@ -150,9 +150,9 @@ public:
 
   virtual ~V0ToV1AdapterProcess() = default;
 
-  void registered(const FrameworkID& frameworkId);
+  void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo);
 
-  void reregistered();
+  void reregistered(const MasterInfo& masterInfo);
 
   void disconnected();
 
@@ -305,20 +305,22 @@ void V0ToV1Adapter::resourceOffers(
 void V0ToV1Adapter::registered(
     SchedulerDriver*,
     const FrameworkID &frameworkId,
-    const MasterInfo&)
+    const MasterInfo& masterInfo)
 {
   process::dispatch(
       process.get(),
       &V0ToV1AdapterProcess::registered,
-      frameworkId);
+      frameworkId,
+      masterInfo);
 }
 
 
 void V0ToV1Adapter::reregistered(
     SchedulerDriver*,
-    const MasterInfo&)
+    const MasterInfo& masterInfo)
 {
-  process::dispatch(process.get(), &V0ToV1AdapterProcess::reregistered);
+  process::dispatch(
+      process.get(), &V0ToV1AdapterProcess::reregistered, masterInfo);
 }
 
 
@@ -349,7 +351,9 @@ V0ToV1AdapterProcess::V0ToV1AdapterProcess(
 }
 
 
-void V0ToV1AdapterProcess::registered(const FrameworkID& _frameworkId)
+void V0ToV1AdapterProcess::registered(
+    const FrameworkID& _frameworkId,
+    const MasterInfo& masterInfo)
 {
   jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
@@ -394,8 +398,8 @@ void V0ToV1AdapterProcess::registered(const FrameworkID& _frameworkId)
     Event::Subscribed* subscribed = event.mutable_subscribed();
 
     subscribed->mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
-
     subscribed->set_heartbeat_interval_seconds(interval.secs());
+    subscribed->mutable_master_info()->CopyFrom(evolve(masterInfo));
 
     received(event);
   }
@@ -409,10 +413,10 @@ void V0ToV1AdapterProcess::registered(const FrameworkID& _frameworkId)
 }
 
 
-void V0ToV1AdapterProcess::reregistered()
+void V0ToV1AdapterProcess::reregistered(const MasterInfo& masterInfo)
 {
   CHECK_SOME(frameworkId);
-  registered(frameworkId.get());
+  registered(frameworkId.get(), masterInfo);
 }
 
 

@@ -92,7 +92,9 @@ public class V1TestFramework {
           frameworkId = event.getSubscribed().getFrameworkId();
           state = State.SUBSCRIBED;
 
-          System.out.println("Subscribed with ID " + frameworkId);
+          System.out.println(
+              "Subscribed with ID " + frameworkId + " to master " +
+              event.getSubscribed().getMasterInfo().getId());
           break;
         }
 
