@@ -207,6 +207,7 @@ All Issues:
   * [MESOS-6386] - "Reached unreachable statement" in LinuxCapabilitiesIsolatorTest.
   * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
   * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
+  * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot
 
 ** Documentation
   * [MESOS-5221] - Add Documentation for Nvidia GPU support.
