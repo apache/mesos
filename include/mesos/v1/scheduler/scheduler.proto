@@ -66,6 +66,9 @@ message Event {
     // This value will be set if the master is sending heartbeats. See
     // the comment above on 'HEARTBEAT' for more details.
     optional double heartbeat_interval_seconds = 2;
+
+    // Since Mesos 1.1.
+    optional MasterInfo master_info = 3;
   }
 
   // Received whenever there are new resources that are offered to the
