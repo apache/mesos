@@ -13,6 +13,7 @@ All Issues:
     * [MESOS-6118] - Agent would crash with docker container tasks due to host mount table read.
     * [MESOS-6122] - Mesos slave throws systemd errors even when passed a flag to disable systemd
     * [MESOS-6152] - Resource leak in libevent_ssl_socket.cpp.
+    * [MESOS-6212] - Validate the name format of mesos managed docker containers.
     * [MESOS-6216] - LibeventSSLSocketImpl::create is not safe to call concurrently with os::getenv
     * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters
     * [MESOS-6234] - Potential socket leak during Zookeeper network changes
