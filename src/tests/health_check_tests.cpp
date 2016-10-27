@@ -235,8 +235,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -284,7 +284,6 @@ TEST_F(HealthCheckTest, HealthyTask)
 
   // Send a task status to trigger explicit reconciliation.
   const TaskID taskId = statusHealth.get().task_id();
-  const SlaveID slaveId = statusHealth.get().slave_id();
   status.mutable_task_id()->CopyFrom(taskId);
 
   // State is not checked by reconciliation, but is required to be
@@ -330,10 +329,10 @@ TEST_F(HealthCheckTest, HealthyTask)
     EXPECT_SOME_TRUE(find);
   }
 
-  // Verify that task health is exposed in the slave's state endpoint.
+  // Verify that task health is exposed in the agent's state endpoint.
   {
     Future<http::Response> response = http::get(
-        slave.get()->pid,
+        agent.get()->pid,
         "state",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -367,15 +366,15 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
   ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "docker/runtime,filesystem/linux";
-  flags.image_providers = "docker";
-  flags.docker_registry = directory;
-  flags.docker_store_dir = path::join(os::getcwd(), "store");
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.isolation = "docker/runtime,filesystem/linux";
+  agentFlags.image_providers = "docker";
+  agentFlags.docker_registry = directory;
+  agentFlags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -447,10 +446,10 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
     EXPECT_SOME_TRUE(find);
   }
 
-  // Verify that task health is exposed in the slave's state endpoint.
+  // Verify that task health is exposed in the agent's state endpoint.
   {
     Future<http::Response> response = http::get(
-        slave.get()->pid,
+        agent.get()->pid,
         "state",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -489,25 +488,25 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  slave::Flags agentFlags = CreateSlaveFlags();
 
   Fetcher fetcher;
 
   Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
+    ContainerLogger::create(agentFlags.container_logger);
 
   ASSERT_SOME(logger);
 
   MockDockerContainerizer containerizer(
-      flags,
+      agentFlags,
       &fetcher,
       Owned<ContainerLogger>(logger.get()),
       docker);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer, flags);
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -571,8 +570,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 
-  slave.get()->terminate();
-  slave->reset();
+  agent.get()->terminate();
+  agent->reset();
 
   Future<std::list<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
@@ -593,8 +592,8 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -649,8 +648,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -728,10 +727,10 @@ TEST_F(HealthCheckTest, HealthStatusChange)
     EXPECT_SOME_TRUE(find);
   }
 
-  // Verify that task health is exposed in the slave's state endpoint.
+  // Verify that task health is exposed in the agent's state endpoint.
   {
     Future<http::Response> response = http::get(
-        slave.get()->pid,
+        agent.get()->pid,
         "state",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -769,11 +768,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
     EXPECT_SOME_FALSE(find);
   }
 
-  // Verify that the task health change is reflected in the slave's
+  // Verify that the task health change is reflected in the agent's
   // state endpoint.
   {
     Future<http::Response> response = http::get(
-        slave.get()->pid,
+        agent.get()->pid,
         "state",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -811,11 +810,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
     EXPECT_SOME_TRUE(find);
   }
 
-  // Verify through slave's state endpoint that the task is back to a
+  // Verify through agent's state endpoint that the task is back to a
   // healthy state.
   {
     Future<http::Response> response = http::get(
-        slave.get()->pid,
+        agent.get()->pid,
         "state",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -853,25 +852,25 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
+  slave::Flags agentFlags = CreateSlaveFlags();
 
   Fetcher fetcher;
 
   Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
+    ContainerLogger::create(agentFlags.container_logger);
 
   ASSERT_SOME(logger);
 
   MockDockerContainerizer containerizer(
-      flags,
+      agentFlags,
       &fetcher,
       Owned<ContainerLogger>(logger.get()),
       docker);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer, flags);
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -966,8 +965,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 
-  slave.get()->terminate();
-  slave->reset();
+  agent.get()->terminate();
+  agent->reset();
 
   Future<std::list<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
@@ -988,8 +987,8 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1065,8 +1064,8 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1119,8 +1118,8 @@ TEST_F(HealthCheckTest, GracePeriod)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1175,8 +1174,8 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
