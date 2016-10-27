@@ -241,8 +241,7 @@
   }
 
   // Update the outermost scope with the metrics/snapshot endpoint.
-  function updateMetrics($scope, $timeout, data) {
-    var metrics = JSON.parse(data);
+  function updateMetrics($scope, $timeout, metrics) {
     $scope.staging_tasks = metrics['master/tasks_staging'];
     $scope.starting_tasks = metrics['master/tasks_starting'];
     $scope.running_tasks = metrics['master/tasks_running'];
@@ -325,6 +324,18 @@
       if (!matched) $scope.navbarActiveTab = null;
     });
 
+    var leadingMasterURL = function(path) {
+      // Use current location as address in case we could not find the
+      // leading master.
+      var address = location.hostname + ':' + location.port;
+      if ($scope.state && $scope.state.leader_info) {
+          address = $scope.state.leader_info.hostname + ':' +
+                    $scope.state.leader_info.port;
+      }
+
+      return '//' + address + path;
+    }
+
     var popupErrorModal = function() {
       if ($scope.delay >= 128000) {
         $scope.delay = 2000;
@@ -384,7 +395,7 @@
       // the leading master automatically. This would cause a CORS error if we
       // use XMLHttpRequest here. To avoid the CORS error, we use JSONP as a
       // workaround. Please refer to MESOS-5911 for further details.
-      $http.jsonp('master/state?jsonp=JSON_CALLBACK')
+      $http.jsonp(leadingMasterURL('/master/state?jsonp=JSON_CALLBACK'))
         .success(function(response) {
           if (updateState($scope, $timeout, response)) {
             $scope.delay = updateInterval(_.size($scope.agents));
@@ -399,10 +410,9 @@
     };
 
     var pollMetrics = function() {
-      $http.get('metrics/snapshot',
-                {transformResponse: function(data) { return data; }})
-        .success(function(data) {
-          if (updateMetrics($scope, $timeout, data)) {
+      $http.jsonp(leadingMasterURL('/metrics/snapshot?jsonp=JSON_CALLBACK'))
+        .success(function(response) {
+          if (updateMetrics($scope, $timeout, response)) {
             $scope.delay = updateInterval(_.size($scope.agents));
             $timeout(pollMetrics, $scope.delay);
           }
