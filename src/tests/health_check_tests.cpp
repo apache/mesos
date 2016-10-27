@@ -474,10 +474,8 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 // docker executor.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 {
-  MockDocker* mockDocker =
-    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
-
-  Shared<Docker> docker(mockDocker);
+  Shared<Docker> docker(new MockDocker(
+      tests::flags.docker, tests::flags.docker_socket));
 
   Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
   ASSERT_SOME(validateResult)
@@ -840,10 +838,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 // Testing health status change reporting to scheduler for docker executor.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
-  MockDocker* mockDocker =
-    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
-
-  Shared<Docker> docker(mockDocker);
+  Shared<Docker> docker(new MockDocker(
+      tests::flags.docker, tests::flags.docker_socket));
 
   Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
   ASSERT_SOME(validateResult)
