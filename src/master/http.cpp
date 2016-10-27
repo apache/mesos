@@ -142,6 +142,15 @@ static void json(JSON::ObjectWriter* writer, const Offer& offer)
   writer->field("resources", Resources(offer.resources()));
 }
 
+
+static void json(JSON::ObjectWriter* writer, const MasterInfo& info)
+{
+  writer->field("id", info.id());
+  writer->field("pid", info.pid());
+  writer->field("port", info.port());
+  writer->field("hostname", info.hostname());
+}
+
 namespace internal {
 namespace master {
 
@@ -2618,8 +2627,15 @@ Future<Response> Master::Http::state(
         writer->field("activated_slaves", master->_slaves_active());
         writer->field("deactivated_slaves", master->_slaves_inactive());
 
+        // TODO(haosdent): Deprecated this in favor of `leader_info` below.
         if (master->leader.isSome()) {
           writer->field("leader", master->leader.get().pid());
+        }
+
+        if (master->leader.isSome()) {
+          writer->field("leader_info", [this](JSON::ObjectWriter* writer) {
+            json(writer, master->leader.get());
+          });
         }
 
         if (approveViewFlags(flagsApprover)) {
