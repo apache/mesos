@@ -36,6 +36,7 @@
 #include <stout/hashset.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/os.hpp>
+#include <stout/uuid.hpp>
 
 #include <stout/os/killtree.hpp>
 
@@ -96,6 +97,7 @@ const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
 Option<ContainerID> parse(const Docker::Container& container)
 {
   Option<string> name = None();
+  Option<ContainerID> containerId = None();
 
   if (strings::startsWith(container.name, DOCKER_NAME_PREFIX)) {
     name = strings::remove(
@@ -116,18 +118,26 @@ Option<ContainerID> parse(const Docker::Container& container)
     if (!strings::contains(name.get(), DOCKER_NAME_SEPERATOR)) {
       ContainerID id;
       id.set_value(name.get());
-      return id;
+      containerId = id;
+    } else {
+      vector<string> parts = strings::split(name.get(), DOCKER_NAME_SEPERATOR);
+      if (parts.size() == 2 || parts.size() == 3) {
+        ContainerID id;
+        id.set_value(parts[1]);
+        containerId = id;
+      }
     }
 
-    vector<string> parts = strings::split(name.get(), DOCKER_NAME_SEPERATOR);
-    if (parts.size() == 2 || parts.size() == 3) {
-      ContainerID id;
-      id.set_value(parts[1]);
-      return id;
+    // Check if id is a valid UUID.
+    if (containerId.isSome()) {
+      Try<UUID> uuid = UUID::fromString(containerId.get().value());
+      if (uuid.isError()) {
+        return None();
+      }
     }
   }
 
-  return None();
+  return containerId;
 }
 
 
