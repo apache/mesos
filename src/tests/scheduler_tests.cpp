@@ -142,6 +142,7 @@ TEST_P(SchedulerTest, Subscribe)
 
   ASSERT_EQ(master::DEFAULT_HEARTBEAT_INTERVAL.secs(),
             subscribed->heartbeat_interval_seconds());
+  ASSERT_EQ(evolve(master.get()->getMasterInfo()), subscribed->master_info());
 }
 
 

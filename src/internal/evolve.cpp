@@ -284,6 +284,8 @@ v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message)
   subscribed->set_heartbeat_interval_seconds(
       master::DEFAULT_HEARTBEAT_INTERVAL.secs());
 
+  subscribed->mutable_master_info()->CopyFrom(evolve(message.master_info()));
+
   return event;
 }
 
@@ -300,6 +302,8 @@ v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message)
   // to `evolve()`.
   subscribed->set_heartbeat_interval_seconds(
       master::DEFAULT_HEARTBEAT_INTERVAL.secs());
+
+  subscribed->mutable_master_info()->CopyFrom(evolve(message.master_info()));
 
   return event;
 }
