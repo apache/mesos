@@ -2462,12 +2462,17 @@ void Master::_subscribe(
 
     // Add active tasks and executors to the framework.
     foreachvalue (Slave* slave, slaves.registered) {
-      foreachvalue (Task* task, slave->tasks[framework->id()]) {
-        framework->addTask(task);
+      if (slave->tasks.contains(framework->id())) {
+        foreachvalue (Task* task, slave->tasks.at(framework->id())) {
+          framework->addTask(task);
+        }
       }
-      foreachvalue (const ExecutorInfo& executor,
-                    slave->executors[framework->id()]) {
-        framework->addExecutor(slave->id, executor);
+
+      if (slave->executors.contains(framework->id())) {
+        foreachvalue (const ExecutorInfo& executor,
+                      slave->executors.at(framework->id())) {
+          framework->addExecutor(slave->id, executor);
+        }
       }
     }
 
@@ -2800,12 +2805,17 @@ void Master::_subscribe(
 
     // Add active tasks and executors to the framework.
     foreachvalue (Slave* slave, slaves.registered) {
-      foreachvalue (Task* task, slave->tasks[framework->id()]) {
-        framework->addTask(task);
+      if (slave->tasks.contains(framework->id())) {
+        foreachvalue (Task* task, slave->tasks.at(framework->id())) {
+          framework->addTask(task);
+        }
       }
-      foreachvalue (const ExecutorInfo& executor,
-                    slave->executors[framework->id()]) {
-        framework->addExecutor(slave->id, executor);
+
+      if (slave->executors.contains(framework->id())) {
+        foreachvalue (const ExecutorInfo& executor,
+                      slave->executors.at(framework->id())) {
+          framework->addExecutor(slave->id, executor);
+        }
       }
     }
 
