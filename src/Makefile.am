@@ -995,6 +995,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/containerizer.hpp						\
   tests/environment.hpp							\
   tests/flags.hpp							\
+  tests/health_check_test_helper.hpp					\
   tests/limiter.hpp							\
   tests/mesos.hpp							\
   tests/mock_docker.hpp							\
@@ -1933,6 +1934,7 @@ check_PROGRAMS += test-helper
 test_helper_SOURCES =						\
   tests/active_user_test_helper.cpp				\
   tests/flags.cpp						\
+  tests/health_check_test_helper.cpp				\
   tests/resources_utils.cpp					\
   tests/test_helper_main.cpp					\
   tests/utils.cpp						\
@@ -2103,6 +2105,7 @@ mesos_tests_SOURCES =						\
   tests/gc_tests.cpp						\
   tests/hdfs_tests.cpp						\
   tests/health_check_tests.cpp					\
+  tests/health_check_test_helper.cpp				\
   tests/hierarchical_allocator_tests.cpp			\
   tests/hook_tests.cpp						\
   tests/http_authentication_tests.cpp				\

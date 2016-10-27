@@ -18,6 +18,7 @@
 #include <stout/subcommand.hpp>
 
 #include "tests/active_user_test_helper.hpp"
+#include "tests/health_check_test_helper.hpp"
 
 #include "tests/containerizer/memory_test_helper.hpp"
 #ifdef __linux__
@@ -26,6 +27,7 @@
 #endif
 
 using mesos::internal::tests::ActiveUserTestHelper;
+using mesos::internal::tests::HealthCheckTestHelper;
 using mesos::internal::tests::MemoryTestHelper;
 #ifdef __linux__
 using mesos::internal::tests::CapabilitiesTestHelper;
@@ -44,5 +46,6 @@ int main(int argc, char** argv)
       new SetnsTestHelper(),
 #endif
       new ActiveUserTestHelper(),
+      new HealthCheckTestHelper(),
       new MemoryTestHelper());
 }
