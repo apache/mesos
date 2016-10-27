@@ -60,6 +60,6 @@ TEST(UUIDTest, MalformedUUID)
   EXPECT_SOME(UUID::fromBytes(UUID::random().toBytes()));
   EXPECT_ERROR(UUID::fromBytes("malformed-uuid"));
   EXPECT_ERROR(UUID::fromBytes("invalidstringmsg"));
-
+  EXPECT_SOME(UUID::fromString(UUID::random().toString()));
   EXPECT_ERROR(UUID::fromString("malformed-uuid"));
 }
