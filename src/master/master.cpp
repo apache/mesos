@@ -5987,18 +5987,29 @@ void Master::_markUnreachable(
     // its FrameworkInfo will be in the `recovered` collection. Note that
     // if the master knows about a task, its FrameworkInfo must appear in
     // either the `registered` or `recovered` collections.
-    FrameworkInfo frameworkInfo;
+    //
+    // NOTE: If the framework is only running tasks on pre-1.0 agents
+    // and the framework hasn't yet re-registered, its FrameworkInfo
+    // will not appear in `recovered`. We can't accurately determine
+    // whether the framework is partition-aware; we assume it is NOT
+    // partition-aware, since using TASK_LOST ensures compatibility
+    // with the previous (and default) Mesos behavior.
+    Option<FrameworkInfo> frameworkInfo;
 
-    if (framework == nullptr) {
-      CHECK(frameworks.recovered.contains(frameworkId));
+    if (framework != nullptr) {
+      frameworkInfo = framework->info;
+    } else if (frameworks.recovered.contains(frameworkId)) {
       frameworkInfo = frameworks.recovered[frameworkId];
     } else {
-      frameworkInfo = framework->info;
+      LOG(WARNING) << "Unable to determine if framework " << frameworkId
+                   << " is partition-aware, because the cluster contains"
+                   << " agents running an old version of Mesos; upgrading"
+                   << " the agents to Mesos 1.0 or later is recommended";
     }
 
     TaskState newTaskState = TASK_UNREACHABLE;
-    if (!protobuf::frameworkHasCapability(
-            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+    if (frameworkInfo.isNone() || !protobuf::frameworkHasCapability(
+            frameworkInfo.get(), FrameworkInfo::Capability::PARTITION_AWARE)) {
       newTaskState = TASK_LOST;
     }
 
