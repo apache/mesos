@@ -1230,75 +1230,6 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
 }
 
 
-// Tests a healthy task via HTTP without specifying `type`. HTTP health
-// checks without `type` are allowed for backwards compatibility with the
-// v0 and v1 API.
-//
-// TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
-//
-// TODO(alexr): Enable this test once MESOS-6293 is resolved.
-TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
-{
-  master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
-  ASSERT_SOME(master);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
-  ASSERT_SOME(agent);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-
-  TaskInfo task = createTask(offers.get()[0], "sleep 120");
-
-  // To avoid external program dependencies, use the port of the master
-  // as HTTP health check target here.
-  HealthCheck healthCheck;
-  healthCheck.mutable_http()->set_port(master.get()->pid.address.port);
-  healthCheck.mutable_http()->set_path("/help");
-  healthCheck.set_delay_seconds(0);
-  healthCheck.set_interval_seconds(0);
-  healthCheck.set_grace_period_seconds(0);
-
-  task.mutable_health_check()->CopyFrom(healthCheck);
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusHealthy;
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusHealthy));
-
-  driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-
-  AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
-
-  driver.stop();
-  driver.join();
-}
-
-
 // Tests the transition from healthy to unhealthy within the grace period, to
 // make sure that failures within the grace period aren't ignored if they come
 // after a success.
@@ -1424,6 +1355,87 @@ TEST_F(HealthCheckTest, HealthyTaskViaHTTP)
   // launch the HTTP server to serve requests.
   HealthCheck healthCheck;
   healthCheck.set_type(HealthCheck::HTTP);
+  healthCheck.mutable_http()->set_port(testPort);
+  healthCheck.mutable_http()->set_path("/help");
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_interval_seconds(0);
+  healthCheck.set_grace_period_seconds(15);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().has_healthy());
+  EXPECT_TRUE(statusHealthy.get().healthy());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Tests a healthy task via HTTP without specifying `type`. HTTP health
+// checks without `type` are allowed for backwards compatibility with the
+// v0 and v1 API.
+//
+// NOTE: This test is almost identical to HealthyTaskViaHTTP
+// with the difference being the health check type is not set.
+//
+// TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
+TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const uint16_t testPort = 31001;
+
+  // Use `test-helper` to launch a simple HTTP
+  // server to respond to HTTP health checks.
+  const string command = strings::format(
+      "%s %s --ip=127.0.0.1 --port=%u",
+      getTestHelperPath("test-helper"),
+      HealthCheckTestHelper::NAME,
+      testPort).get();
+
+  TaskInfo task = createTask(offers.get()[0], command);
+
+  // Set `grace_period_seconds` here because it takes some time to
+  // launch the HTTP server to serve requests.
+  HealthCheck healthCheck;
   healthCheck.mutable_http()->set_port(testPort);
   healthCheck.mutable_http()->set_path("/help");
   healthCheck.set_delay_seconds(0);
