@@ -249,6 +249,15 @@
   jira_user: HarisCh
   reviewboard_user: HarisCh
 
+- name: Hubert Asamer
+  affiliations:
+    - {organization: DLR}
+  emails:
+    - hubert.asamer@dlr.de
+    - hubert.asamer@gmx.at
+  jira_user: asamerh4
+  reviewboard_user: asamerh4
+
 - name: Ian Downes
   affiliations:
     - {organization: Twitter}
