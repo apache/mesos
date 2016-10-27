@@ -1437,6 +1437,89 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 }
 
 
+// This test checks the docker containerizer doesn't recover containers
+// with malformed uuid.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
+{
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.docker_kill_orphans = true;
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  SlaveID slaveId;
+  slaveId.set_value("s1");
+  ContainerID containerId;
+  containerId.set_value("malformedUUID");
+
+  string container = containerName(slaveId, containerId);
+
+  // Clean up container if it still exists.
+  ASSERT_TRUE(docker->rm(container, true).await(Seconds(30)));
+
+  Resources resources = Resources::parse("cpus:1;mem:512").get();
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_value("sleep 1000");
+
+  Future<Option<int>> run =
+    docker->run(
+        containerInfo,
+        commandInfo,
+        container,
+        flags.work_dir,
+        flags.sandbox_directory,
+        resources);
+
+  ASSERT_TRUE(
+    exists(docker, slaveId, containerId, ContainerState::RUNNING));
+
+  SlaveState slaveState;
+  slaveState.id = slaveId;
+  FrameworkState frameworkState;
+
+  ExecutorID execId;
+  execId.set_value("e1");
+
+  ExecutorState execState;
+  ExecutorInfo execInfo;
+  execState.info = execInfo;
+
+  FrameworkID frameworkId;
+  frameworkState.executors.put(execId, execState);
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  Future<Nothing> recover = dockerContainerizer.recover(slaveState);
+  AWAIT_READY(recover);
+
+  // The container should still exist and should not get killed
+  // by containerizer recovery.
+  ASSERT_TRUE(exists(docker, slaveId, containerId));
+}
+
+
 #ifdef __linux__
 // This test verifies that we can launch a docker container with
 // persistent volume.
