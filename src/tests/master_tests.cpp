@@ -3510,12 +3510,19 @@ TEST_F(MasterTest, StateEndpoint)
   EXPECT_EQ(stringify(master.get()->pid), state.values["pid"]);
   EXPECT_EQ(flags.hostname.get(), state.values["hostname"]);
 
+  JSON::Object leader = state.values["leader_info"].as<JSON::Object>();
+
+  EXPECT_EQ(flags.hostname.get(), leader.values["hostname"]);
+  EXPECT_EQ(
+      master.get()->pid.address.port,
+      leader.values["port"].as<JSON::Number>().as<int>());
+
   EXPECT_EQ(0, state.values["activated_slaves"]);
   EXPECT_EQ(0, state.values["deactivated_slaves"]);
 
   EXPECT_EQ(flags.cluster.get(), state.values["cluster"]);
 
-  // TODO(bmahler): Test "leader", "log_dir", "external_log_file".
+  // TODO(bmahler): Test "log_dir", "external_log_file".
 
   // TODO(bmahler): Ensure this contains all the flags.
   ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
