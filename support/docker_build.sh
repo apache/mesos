@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-
-set -xe
-
+#
 # This is the script used by ASF Jenkins to build and check Mesos for
 # a given OS and compiler combination.
+#
+
+set -xe
 
 # Require the following environment variables to be set.
 : ${OS:?"Environment variable 'OS' must be set (e.g., OS=ubuntu:14.04)"}
@@ -11,34 +12,21 @@ set -xe
 : ${COMPILER:?"Environment variable 'COMPILER' must be set (e.g., COMPILER=gcc)"}
 : ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set (e.g., CONFIGURATION='--enable-libevent --enable-ssl')"}
 : ${ENVIRONMENT:?"Environment variable 'ENVIRONMENT' must be set (e.g., ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1')"}
-
-# Change to the root of Mesos repo for docker build context.
-MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
-cd "$MESOS_DIRECTORY"
-
-# TODO(vinod): Once ASF CI supports Docker 1.5 use a custom name for
-# Dockerfile to avoid overwriting Dockerfile (if it exists) at the root
-# of the repo.
-DOCKERFILE="Dockerfile"
-
-rm -f $DOCKERFILE # Just in case a stale one exists.
+: ${COMPILER_OPTS:="-j8"}
 
 # Helper function that appends instructions to docker file.
 function append_dockerfile {
    echo $1 >> $DOCKERFILE
 }
 
-
-# TODO(vinod): Add support for Fedora and Debian.
-case $OS in
-  centos*)
+# OS specific commands encapsulated in specific functions
+function append_centos_commands {
     # NOTE: Currently we only support CentOS7+ due to the
     # compiler versions needed to compile Mesos.
 
     append_dockerfile "FROM $OS"
 
     # Install dependencies.
-
     append_dockerfile "RUN yum install -y which"
     append_dockerfile "RUN yum groupinstall -y 'Development Tools'"
     append_dockerfile "RUN yum install -y epel-release" # Needed for clang.
@@ -47,8 +35,9 @@ case $OS in
 
     # Add an unprivileged user.
     append_dockerfile "RUN adduser mesos"
-   ;;
-  *ubuntu*)
+}
+
+function append_ubuntu_commands {
     # NOTE: Currently we only support Ubuntu13.10+ due to the
     # compiler versions needed to compile Mesos.
 
@@ -68,6 +57,63 @@ case $OS in
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
+}
+
+# Encapsulating common docker commands
+function append_common_commands {
+    # Set working directory.
+    append_dockerfile "WORKDIR mesos"
+    
+    # Copy Mesos source tree into the image.
+    append_dockerfile "COPY . /mesos/"
+    
+    # NOTE: We run all the tests as unprivileged 'mesos' user because
+    # we need to fix cgroups related tests to work inside Docker; certain
+    # tests (e.g., ContainerizerTest) enable cgroups isolation if the user
+    # is 'root'.
+    # TODO(vinod): Fix cgroups tests to work inside Docker.
+    append_dockerfile "RUN chown -R mesos /mesos"
+    append_dockerfile "USER mesos"
+    
+    # Generate xml reports to be displayed by jenkins xUnit plugin.
+    append_dockerfile "ENV GTEST_OUTPUT xml:report.xml"
+    
+    # Ensure `make distcheck` inherits configure flags.
+    append_dockerfile "ENV DISTCHECK_CONFIGURE_FLAGS $CONFIGURATION"
+    
+    # Set the environment for build.
+    append_dockerfile "ENV $ENVIRONMENT"
+}
+
+# Note currently the coverity build is only tested with ubuntu:14:04, autotools, and gcc.
+function append_coverty_commands {
+    # Download coverity tools, build using coverity wrapper and upload results.
+    append_dockerfile "ENV MESOS_VERSION $(grep "AC_INIT" configure.ac | sed 's/AC_INIT[(]\[mesos\], \[\(.*\)\][)]/\1/')"
+    append_dockerfile "RUN wget https://scan.coverity.com/download/linux64  --post-data \"token=$COVERITY_TOKEN&project=Mesos\" -O coverity_tool.tgz"
+    append_dockerfile "RUN tar xvf coverity_tool.tgz; mv cov-analysis-linux* cov-analysis"
+    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION &&  cov-analysis/bin/cov-build -dir cov-int make $COMPILER_OPTS && tar czcf mesos.tgz cov-int && tail cov-int/build-log.txt && curl --form \"token=$COVERITY_TOKEN\" --form \"email=dev@mesos.apache.org\"  --form \"file=@mesos.tgz\" --form \"version=$MESOS_VERSION\" --form \"description='Continious Coverity Build'\"   https://scan.coverity.com/builds?project=Mesos"
+}
+
+# main()
+
+# Change to the root of Mesos repo for docker build context.
+MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
+cd "$MESOS_DIRECTORY"
+
+# TODO(vinod): Once ASF CI supports Docker 1.5 use a custom name for
+# Dockerfile to avoid overwriting Dockerfile (if it exists) at the root
+# of the repo.
+DOCKERFILE="Dockerfile"
+
+rm -f $DOCKERFILE # Just in case a stale one exists.
+
+# TODO(vinod): Add support for Fedora and Debian.
+case $OS in
+  centos*)
+    append_centos_commands
+   ;;
+  *ubuntu*)
+    append_ubuntu_commands
     ;;
   *)
     echo "Unknown OS $OS"
@@ -98,45 +144,18 @@ case $COMPILER in
     ;;
 esac
 
-
-# Set working directory.
-append_dockerfile "WORKDIR mesos"
-
-# Copy Mesos source tree into the image.
-append_dockerfile "COPY . /mesos/"
-
-# NOTE: We run all the tests as unprivileged 'mesos' user because
-# we need to fix cgroups related tests to work inside Docker; certain
-# tests (e.g., ContainerizerTest) enable cgroups isolation if the user
-# is 'root'.
-# TODO(vinod): Fix cgroups tests to work inside Docker.
-append_dockerfile "RUN chown -R mesos /mesos"
-append_dockerfile "USER mesos"
-
-# Generate xml reports to be displayed by jenkins xUnit plugin.
-append_dockerfile "ENV GTEST_OUTPUT xml:report.xml"
-
-# Ensure `make distcheck` inherits configure flags.
-append_dockerfile "ENV DISTCHECK_CONFIGURE_FLAGS $CONFIGURATION"
-
-# Set the environment for build.
-append_dockerfile "ENV $ENVIRONMENT"
+append_common_commands
 
 # Perform coverity build if requested.
 if [ -n "$COVERITY_TOKEN" ]
  then
-   # Note currently the coverity build is only tested with ubuntu:14:04, autotools, and gcc.
-
-    # Download coverity tools, build using coverity wrapper and upload results.
-    append_dockerfile "ENV MESOS_VERSION $(grep "AC_INIT" configure.ac | sed 's/AC_INIT[(]\[mesos\], \[\(.*\)\][)]/\1/')"
-    append_dockerfile "RUN wget https://scan.coverity.com/download/linux64  --post-data \"token=$COVERITY_TOKEN&project=Mesos\" -O coverity_tool.tgz"
-    append_dockerfile "RUN tar xvf coverity_tool.tgz; mv cov-analysis-linux* cov-analysis"
-    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION &&  cov-analysis/bin/cov-build -dir cov-int make -j8 && tar czcf mesos.tgz cov-int && tail cov-int/build-log.txt && curl --form \"token=$COVERITY_TOKEN\" --form \"email=dev@mesos.apache.org\"  --form \"file=@mesos.tgz\" --form \"version=$MESOS_VERSION\" --form \"description='Continious Coverity Build'\"   https://scan.coverity.com/builds?project=Mesos"
+    append_coverty_commands
 else
     # Build and check Mesos.
     case $BUILDTOOL in
       autotools)
-	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck"
+	: ${AUTOTOOLS_TASK:="distcheck"}
+	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make $COMPILER_OPTS $AUTOTOOLS_TASK"
 	;;
       cmake)
 	# Transform autotools-like parameters to cmake-like.
@@ -162,7 +181,7 @@ else
 	# MESOS-5624: In source build is not yet supported.
 	# Also, we run `make` in addition to `make check` because the latter only
 	# compiles stout and libprocess sources and tests.
-	append_dockerfile "CMD ./bootstrap && mkdir build && cd build && cmake $CONFIGURATION .. && make -j8 check && make -j8"
+	append_dockerfile "CMD ./bootstrap && mkdir build && cd build && cmake $CONFIGURATION .. && make $COMPILER_OPTS check && make $COMPILER_OPTS"
 	;;
       *)
 	echo "Unknown build tool $BUILDTOOL"
