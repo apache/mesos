@@ -22,7 +22,7 @@ extern "C" {
 
 /*
  * Class:     org_apache_mesos_MesosNativeLibrary
- * Method:    version
+ * Method:    _version
  * Signature: ()Lorg/apache/mesos/MesosNativeLibrary$Version;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosNativeLibrary__1version
@@ -33,9 +33,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosNativeLibrary__1version
   jobject jversion = env->NewObject(
       clazz,
       _init_,
-      (jlong) MESOS_MAJOR_VERSION,
-      (jlong) MESOS_MINOR_VERSION,
-      (jlong) MESOS_PATCH_VERSION);
+      (jlong) MESOS_MAJOR_VERSION_NUM,
+      (jlong) MESOS_MINOR_VERSION_NUM,
+      (jlong) MESOS_PATCH_VERSION_NUM);
   return jversion;
 }
 
