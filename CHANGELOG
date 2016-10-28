@@ -214,6 +214,7 @@ All Issues:
   * [MESOS-6482] - Master check failure when marking an agent unreachable.
   * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
   * [MESOS-6497] - Java Scheduler Adapter does not surface MasterInfo.
+  * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
 
 ** Documentation
   * [MESOS-5221] - Add Documentation for Nvidia GPU support.
