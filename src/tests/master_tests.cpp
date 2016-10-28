@@ -91,6 +91,7 @@ using mesos::v1::scheduler::Event;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 using process::Promise;
@@ -3105,6 +3106,72 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that when a framework tears down with no tasks
+// still alive or pending acknowledgement, it doesn't show up in the
+// /state endpoint's "unregistered_frameworks" list. This is to catch
+// any regression to MESOS-4975.
+TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Wait until the master fully processes slave registration before
+  // connecting the framework. This is to reproduce the condition in
+  // MESOS-4975.
+  Future<Message> slaveRegisteredMessage = FUTURE_MESSAGE(
+      Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Give `frameworkInfo` a framework ID to simulate a failed-over
+  // framework (with no unacknowledged tasks). This is to reproduce
+  // the condition in MESOS-4975.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("framework1");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  // Wait until the master full processes framework registration
+  // before shutting it down.
+  AWAIT_READY(registered);
+
+  driver.stop();
+  driver.join();
+
+  // Ensure that there are no unregistered frameworks in "/state" endpoint.
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+
+  JSON::Array unregisteredFrameworks =
+    state.values["unregistered_frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(0u, unregisteredFrameworks.values.size());
 }
 
 
