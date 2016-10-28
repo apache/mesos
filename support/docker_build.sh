@@ -136,7 +136,7 @@ else
     # Build and check Mesos.
     case $BUILDTOOL in
       autotools)
-	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck"
+	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck 2>&1"
 	;;
       cmake)
 	# Transform autotools-like parameters to cmake-like.
