@@ -382,6 +382,7 @@ Release Notes - Mesos - Version 1.0.2
 
 All Issues:
 ** Bug
+    * [MESOS-4638] - Versioning preprocessor macros.
     * [MESOS-4973] - Duplicates in 'unregistered_frameworks' in /state
     * [MESOS-4975] - mesos::internal::master::Slave::tasks can grow unboundedly.
     * [MESOS-5613] - mesos-local fails to start if MESOS_WORK_DIR isn't set.
@@ -407,6 +408,7 @@ All Issues:
     * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
     * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
     * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
+    * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
 
 ** Improvement
     * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
