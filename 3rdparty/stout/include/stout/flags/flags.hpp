@@ -367,7 +367,7 @@ void FlagsBase::add(
 
   flag.load = [t1](FlagsBase* base, const std::string& value) -> Try<Nothing> {
     Flags* flags = dynamic_cast<Flags*>(base);
-    if (base != nullptr) {
+    if (flags != nullptr) {
       // NOTE: 'fetch' "retrieves" the value if necessary and then
       // invokes 'parse'. See 'fetch' for more details.
       Try<T1> t = fetch<T1>(value);
