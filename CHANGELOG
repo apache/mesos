@@ -53,6 +53,11 @@ This release contains the following new features:
     TASK_GONE, TASK_GONE_BY_OPERATOR, and TASK_UNKNOWN. These new states are
     intended to eventually replace the TASK_LOST state.
 
+  * [MESOS-5788] - **Experimental** support for Java scheduler adapter. This
+    adapter allows framework developers to toggle between the old/new API
+    (driver/scheduler library) implementations, thereby allowing them to easily
+    transition their frameworks to the new v1 Scheduler API.
+
   * [MESOS-6077] - **Experimental** A new default executor is introduced which
     frameworks can use to launch task groups as nested containers. All the
     nested containers share resources likes cpu, memory, network and volumes.
