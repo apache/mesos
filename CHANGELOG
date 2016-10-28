@@ -217,6 +217,7 @@ All Issues:
   * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
   * [MESOS-6482] - Master check failure when marking an agent unreachable.
   * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
+  * [MESOS-6497] - Java Scheduler Adapter does not surface MasterInfo
   * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
 
 ** Documentation
@@ -401,7 +402,6 @@ All Issues:
     * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
     * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON 
     * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot
-    * [MESOS-6497] - Java Scheduler Adapter does not surface MasterInfo
 
 ** Improvement
     * [MESOS-6075] - Avoid libprocess functions in `mesos-containerizer launch`.
