@@ -105,6 +105,7 @@ All Issues:
   * [MESOS-4638] - versioning preprocessor macros.
   * [MESOS-4668] - Agent's /state endpoint does not include full reservation information.
   * [MESOS-4948] - Move maintenance tests to use the new scheduler library interface.
+  * [MESOS-4975] - mesos::internal::master::Slave::tasks can grow unboundedly.
   * [MESOS-5276] - HTTPCommandExecutor should terminate after it receives an ACK from the agent.
   * [MESOS-5290] - WebUI shows the active task is launched 46 years ago.
   * [MESOS-5320] - SSL related error messages can be misguiding or incomplete.
@@ -214,6 +215,8 @@ All Issues:
   * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
   * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect.
   * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
+  * [MESOS-6482] - Master check failure when marking an agent unreachable.
+  * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
 
 ** Documentation
   * [MESOS-5221] - Add Documentation for Nvidia GPU support.
