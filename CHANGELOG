@@ -39,7 +39,7 @@ This release contains the following new features:
     container may have. This allows a container to run as root, but not have all
     the privileges associated with the root user (e.g., CAP_SYS_ADMIN).
 
-  * [MESOS-5344] -- **Experimental** support for partition-aware Mesos
+  * [MESOS-5344] - **Experimental** support for partition-aware Mesos
     frameworks. In previous Mesos releases, when an agent is partitioned from
     the master and then reregisters with the cluster, all tasks running on the
     agent are terminated and the agent is shutdown. In Mesos 1.1, partitioned
@@ -211,7 +211,8 @@ All Issues:
   * [MESOS-6386] - "Reached unreachable statement" in LinuxCapabilitiesIsolatorTest.
   * [MESOS-6391] - Command task's sandbox should not be owned by root if it uses container image.
   * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
-  * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot
+  * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect.
+  * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
 
 ** Documentation
   * [MESOS-5221] - Add Documentation for Nvidia GPU support.
@@ -362,14 +363,13 @@ All Issues:
   * [MESOS-6312] - Update CHANGELOG to mention addition of agent '--runtime_dir' flag.
   * [MESOS-6344] - Allow `network/cni` isolator to take a search path for CNI plugins instead of single directory.
   * [MESOS-6408] - Changelog for `mesos-cni-port-mapper` to 1.1.0.
-  * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect 
 
 ** Wish
   * [MESOS-5929] - Total cluster resources on master Mesos UI should have better spacing.
 
 
 Release Notes - Mesos - Version 1.0.2
---------------------------------------------
+-------------------------------------
 * This is a bug fix release.
 
 All Issues:
@@ -403,7 +403,7 @@ All Issues:
 
 
 Release Notes - Mesos - Version 1.0.1
---------------------------------------------
+-------------------------------------
 * This is a bug fix release.
 
 All Issues:
@@ -433,7 +433,7 @@ All Issues:
 
 
 Release Notes - Mesos - Version 1.0.0
---------------------------------------------
+-------------------------------------
 This release contains the following new features:
 
   * Scheduler and Executor v1 HTTP APIs are now considered stable.
