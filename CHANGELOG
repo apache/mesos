@@ -101,6 +101,7 @@ All Issues:
   * [MESOS-4638] - versioning preprocessor macros.
   * [MESOS-4668] - Agent's /state endpoint does not include full reservation information.
   * [MESOS-4948] - Move maintenance tests to use the new scheduler library interface.
+  * [MESOS-4973] - Duplicates in 'unregistered_frameworks' in /state
   * [MESOS-4975] - mesos::internal::master::Slave::tasks can grow unboundedly.
   * [MESOS-5276] - HTTPCommandExecutor should terminate after it receives an ACK from the agent.
   * [MESOS-5290] - WebUI shows the active task is launched 46 years ago.
@@ -211,6 +212,7 @@ All Issues:
   * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
   * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect.
   * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
+  * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
   * [MESOS-6482] - Master check failure when marking an agent unreachable.
   * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
   * [MESOS-6497] - Java Scheduler Adapter does not surface MasterInfo.
