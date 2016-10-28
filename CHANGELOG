@@ -143,7 +143,7 @@ All Issues:
   * [MESOS-6000] - Overlayfs backend cannot support the image with numerous layers.
   * [MESOS-6005] - Support docker registry running non-https on localhost:<non-80-port>.
   * [MESOS-6013] - Use readdir instead of readdir_r.
-  * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w ﻿⁠sendExecutorTerminatedStatusUpdate()﻿⁠ and ﻿⁠_statusUpdate()﻿⁠.
+  * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w sendExecutorTerminatedStatusUpdate() and _statusUpdate().
   * [MESOS-6031] - Collect throttle related metrics for DockerContainerizer.
   * [MESOS-6041] - Stream ID mismatch should print out expected and received stream ID.
   * [MESOS-6049] - XFS disk isolator doesn't handle old containers correctly.
@@ -376,7 +376,7 @@ All Issues:
 ** Bug
     * [MESOS-5613] - mesos-local fails to start if MESOS_WORK_DIR isn't set.
     * [MESOS-6013] - Use readdir instead of readdir_r.
-    * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w ﻿⁠sendExecutorTerminatedStatusUpdate()﻿⁠ and ﻿⁠_statusUpdate()﻿⁠
+    * [MESOS-6026] - Tasks mistakenly marked as FAILED due to race b/w sendExecutorTerminatedStatusUpdate() and _statusUpdate().
     * [MESOS-6074] - Master check failure if the metrics endpoint is polled soon after it starts
     * [MESOS-6100] - Make fails compiling 1.0.1 
     * [MESOS-6104] - Potential FD double close in libevent's implementation of `sendfile`.
