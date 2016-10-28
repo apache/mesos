@@ -6,6 +6,7 @@ layout: documentation
 # Nvidia GPU Support
 
 Mesos 1.0.0 added first-class support for Nvidia GPUs.
+The minimum required Nvidia driver version is `340.29`.
 
 ## Overview
 Getting up and running with GPU support in Mesos is fairly
@@ -248,6 +249,8 @@ install the corresponding user-level libraries and tools available as
 part of the Nvidia CUDA toolkit. Many jobs that use Nvidia GPUs rely
 on CUDA and not including it will severely limit the type of
 GPU-aware jobs you can run on Mesos.
+
+**Note:** The minimum supported version of CUDA is `6.5`.
 
 ### Installing the Required Tools
 
