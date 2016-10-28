@@ -3867,12 +3867,18 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, executorId, _, _))
+    .WillOnce(FutureSatisfy(&executorLost));
+
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
   AWAIT_READY(statusFailed);
   EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+
+  AWAIT_READY(executorLost);
 
   AWAIT_DISCARDED(inspect);
 
