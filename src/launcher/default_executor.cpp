@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include <list>
 #include <queue>
 #include <string>
@@ -34,6 +35,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/flags.hpp>
 #include <stout/fs.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
@@ -63,6 +65,9 @@ using process::http::Request;
 using process::http::Response;
 using process::http::URL;
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::list;
 using std::queue;
 using std::string;
@@ -78,7 +83,8 @@ public:
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const ::URL& _agent,
-      const string& _sandboxDirectory)
+      const string& _sandboxDirectory,
+      const string& _launcherDirectory)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       contentType(ContentType::PROTOBUF),
@@ -90,7 +96,8 @@ public:
       frameworkId(_frameworkId),
       executorId(_executorId),
       agent(_agent),
-      sandboxDirectory(_sandboxDirectory) {}
+      sandboxDirectory(_sandboxDirectory),
+      launcherDirectory(_launcherDirectory) {}
 
   virtual ~DefaultExecutor() = default;
 
@@ -981,6 +988,7 @@ private:
   Owned<Mesos> mesos;
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
+  const string launcherDirectory;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 
@@ -1009,13 +1017,42 @@ private:
 } // namespace mesos {
 
 
+class Flags : public virtual flags::FlagsBase
+{
+public:
+  Flags()
+  {
+    add(&Flags::launcher_dir,
+        "launcher_dir",
+        "Directory path of Mesos binaries.",
+        PKGLIBEXECDIR);
+  }
+
+  string launcher_dir;
+};
+
+
 int main(int argc, char** argv)
 {
+  Flags flags;
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
   string scheme = "http"; // Default scheme.
   ::URL agent;
   string sandboxDirectory;
+
+  // Load flags from command line.
+  Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
+
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
+  }
+
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
 
   Option<string> value = os::getenv("MESOS_FRAMEWORK_ID");
   if (value.isNone()) {
@@ -1063,7 +1100,8 @@ int main(int argc, char** argv)
           frameworkId,
           executorId,
           agent,
-          sandboxDirectory));
+          sandboxDirectory,
+          flags.launcher_dir));
 
   process::spawn(executor.get());
   process::wait(executor.get());

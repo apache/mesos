@@ -7054,6 +7054,7 @@ CommandInfo defaultExecutorCommandInfo(
     commandInfo.set_shell(false);
     commandInfo.set_value(path.get());
     commandInfo.add_arguments(MESOS_DEFAULT_EXECUTOR);
+    commandInfo.add_arguments("--launcher_dir=" + launcherDir);
   } else {
     commandInfo.set_shell(true);
     commandInfo.set_value(
