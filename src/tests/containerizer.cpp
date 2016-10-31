@@ -158,7 +158,7 @@ Future<bool> TestContainerizer::_launch(
       os::setenv(name, variable);
     }
 
-    // TODO(benh): Can this be removed and done exlusively in the
+    // TODO(benh): Can this be removed and done exclusively in the
     // 'executorEnvironment()' function? There are other places in the
     // code where we do this as well and it's likely we can do this once
     // in 'executorEnvironment()'.
