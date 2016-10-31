@@ -1068,10 +1068,18 @@ int main(int argc, char** argv)
   }
   executorId.set_value(value.get());
 
+#ifdef USE_SSL_SOCKET
+  // TODO(gkleiman): Update this once the deprecation cycle is over (see
+  // MESOS-6492).
   value = os::getenv("SSL_ENABLED");
+  if (value.isNone()) {
+    value = os::getenv("LIBPROCESS_SSL_ENABLED");
+  }
+
   if (value.isSome() && (value.get() == "1" || value.get() == "true")) {
     scheme = "https";
   }
+#endif
 
   value = os::getenv("MESOS_SLAVE_PID");
   if (value.isNone()) {

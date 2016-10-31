@@ -447,9 +447,13 @@ protected:
       string scheme = "http";
 
 #ifdef USE_SSL_SOCKET
-      Option<string> value;
+      // TODO(gkleiman): Update this once the deprecation cycle is over (see
+      // MESOS-6492).
+      Option<string> value = os::getenv("SSL_ENABLED");
+      if (value.isNone()) {
+        value = os::getenv("LIBPROCESS_SSL_ENABLED");
+      }
 
-      value = os::getenv("SSL_ENABLED");
       if (value.isSome() && (value.get() == "1" || value.get() == "true")) {
         scheme = "https";
       }
