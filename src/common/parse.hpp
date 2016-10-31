@@ -186,6 +186,36 @@ inline Try<mesos::RLimitInfo> parse(const std::string& value)
   return protobuf::parse<mesos::RLimitInfo>(json.get());
 }
 
+
+template <>
+inline Try<mesos::FrameworkID> parse(const std::string& value)
+{
+  mesos::FrameworkID frameworkId;
+  frameworkId.set_value(value);
+
+  return frameworkId;
+}
+
+
+template <>
+inline Try<mesos::ExecutorID> parse(const std::string& value)
+{
+  mesos::ExecutorID executorId;
+  executorId.set_value(value);
+
+  return executorId;
+}
+
+
+template <>
+inline Try<mesos::SlaveID> parse(const std::string& value)
+{
+  mesos::SlaveID slaveId;
+  slaveId.set_value(value);
+
+  return slaveId;
+}
+
 } // namespace flags {
 
 #endif // __COMMON_PARSE_HPP__
