@@ -3030,10 +3030,10 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
   EXPECT_EQ(TASK_RUNNING, status2.get().state());
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, slave1.get()->pid);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, slave2.get()->pid);
 
   // Failover the master.
   master->reset();
