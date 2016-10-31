@@ -78,7 +78,4 @@
 // TODO(benh): Provide a boolean which specifies whether or not to
 // abort on duplicates or load errors.
 
-// TODO(benh): Make prefix for environment variables configurable
-// (e.g., "MESOS_").
-
 #endif // __STOUT_FLAGS_HPP__
