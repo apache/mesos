@@ -87,19 +87,21 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers->size());
 
+  // The task attempts to use an infinite amount of CPU time.
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
       offers.get()[0].resources(),
-      "dd if=/dev/zero of=file bs=1024 count=8");
+      "while true; do true; done");
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
 
+  // Limit the process to use maximally 1 second of CPU time.
   RLimitInfo rlimitInfo;
   RLimitInfo::RLimit* cpuLimit = rlimitInfo.add_rlimits();
-  cpuLimit->set_type(RLimitInfo::RLimit::RLMT_FSIZE);
-  cpuLimit->set_soft(1024);
-  cpuLimit->set_hard(1024);
+  cpuLimit->set_type(RLimitInfo::RLimit::RLMT_CPU);
+  cpuLimit->set_soft(1);
+  cpuLimit->set_hard(1);
 
   container->mutable_rlimit_info()->CopyFrom(rlimitInfo);
 
