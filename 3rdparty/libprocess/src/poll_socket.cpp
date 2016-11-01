@@ -111,7 +111,7 @@ Future<Socket> PollSocketImpl::accept()
 
 namespace internal {
 
-Future<Nothing> connect(const Socket& socket)
+Future<Nothing> connect(const Socket& socket, const Address& to)
 {
   // Now check that a successful connection was made.
   int opt;
@@ -125,11 +125,23 @@ Future<Nothing> connect(const Socket& socket)
           SOL_SOCKET,
           SO_ERROR,
           reinterpret_cast<char*>(&opt),
-          &optlen) < 0 ||
-      opt != 0) {
-    // Connect failure.
-    VLOG(1) << "Socket error while connecting";
-    return Failure("Socket error while connecting");
+          &optlen) < 0) {
+    return Failure(
+        SocketError("Failed to get status of connection to " + stringify(to)));
+  }
+
+  if (opt != 0) {
+    // Make the error visible to the `SocketError` constructor by pushing
+    // it into the global per-thread error. MESOS-6520 which should
+    // allow us to pass the error code directly into `SocketError`.
+
+#ifdef __WINDOWS__
+    ::WSASetLastError(opt);
+#else
+    errno = opt;
+#endif
+
+    return Failure(SocketError("Failed to connect to " + stringify(to)));
   }
 
   return Nothing();
@@ -144,7 +156,7 @@ Future<Nothing> PollSocketImpl::connect(const Address& address)
   if (connect.isError()) {
     if (net::is_inprogress_error(connect.error().code)) {
       return io::poll(get(), io::WRITE)
-        .then(lambda::bind(&internal::connect, socket()));
+        .then(lambda::bind(&internal::connect, socket(), address));
     }
 
     return Failure(connect.error());
