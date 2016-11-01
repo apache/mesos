@@ -19,8 +19,14 @@
               tooltip-placement="right"></i>
           </span>
         </dd>
-        <dt>Server:</dt>
-        <dd>{{state.pid.split("@")[1]}}</dd>
+        <dt>Leader:</dt>
+        <dd>
+          <a ng-show="state.leader_info"
+             href="//{{state.leader_info.hostname}}:{{state.leader_info.port}}">
+            {{state.leader_info.hostname + ':' + state.leader_info.port}}
+          </a>
+          <span ng-show="!state.leader_info">(Unknown)</span>
+        </dd>
         <dt>Version:</dt>
         <dd>{{state.version}}</dd>
         <dt>Built:</dt>
