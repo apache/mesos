@@ -36,6 +36,7 @@ layout: documentation
 * [Tools](tools.md) for setting up and running a Mesos cluster.
 * [SSL](ssl.md) for enabling and enforcing SSL communication.
 * [Container Image](container-image.md) for supporting container images in Mesos containerizer.
+* [Windows Support](windows.md) for the state of Windows support in Mesos.
 
 ## Advanced Features
 
