@@ -7,7 +7,9 @@ layout: documentation
 
 Mesos 1.0.0 introduced experimental support for Windows.
 
+
 ## Building Mesos
+
 
 ### System Requirements
 
@@ -21,6 +23,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
    i.e. `git config core.autocrlf true`.
 5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
+
 
 ### Build Instructions
 
@@ -56,6 +59,7 @@ Following are the instructions for stock Windows 10 and Windows Server 2012 or n
     # master, using eiher an IP address or zookeeper information.
     $ mesos-agent.exe --master=<master> --work_dir=<work folder> --isolation=windows/cpu,filesystem/windows --launcher_dir=<repository>\build\src
 
+
 ## Known Limitations
 
 The current implementation is known to have the following limitations:
@@ -76,6 +80,7 @@ The current implementation is known to have the following limitations:
   Resource isolation will be provided via the `DockerContainerizer`
   (e.g. Windows Containers) in the future.
 * Most of the tests are not ported to Windows.
+
 
 ## Status
 
