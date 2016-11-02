@@ -1304,6 +1304,7 @@ All Issues:
   * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
   * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
   * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
+  * [MESOS-6527] - Memory leak in the libprocess request decoder.
 
 
 Release Notes - Mesos - Version 0.28.2
