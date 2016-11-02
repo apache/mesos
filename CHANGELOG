@@ -104,6 +104,17 @@ Additional API Changes:
     KILL_NESTED_CONTAINER and WAIT_NESTED_CONTAINER) have been added to the
     v1 Agent API to manage nested containers within an executor container.
 
+Unresolved Critical Issues:
+  * [MESOS-3794] - Master should not store arbitrarily sized data in ExecutorInfo.
+  * [MESOS-4642] - Mesos Agent Json API can dump binary data from log files out as invalid JSON.
+  * [MESOS-5396] - After failover, master does not remove agents with same UPID.
+  * [MESOS-5856] - Logrotate ContainerLogger module does not rotate logs when run as root with `--switch_user`.
+  * [MESOS-6142] - Frameworks may RESERVE for an arbitrary role.
+  * [MESOS-6327] - Large docker images causes container launch failures: Too many levels of symbolic links.
+  * [MESOS-6360] - The handling of whiteout files in provisioner is not correct.
+  * [MESOS-6419] - The 'master/teardown' endpoint should support tearing down 'unregistered_frameworks'.
+  * [MESOS-6432] - Roles with quota assigned can "game" the system to receive excessive resources.
+
 All Issues:
 
 ** Bug
