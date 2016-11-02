@@ -17,7 +17,9 @@
 
 #include <string>
 
+#include <stout/abort.hpp>
 #include <stout/error.hpp>
+#include <stout/os/strerror.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -26,8 +28,59 @@
 // TODO(bmahler): Provide streaming compression / decompression as well.
 namespace gzip {
 
+namespace internal {
+
 // We use a 16KB buffer with zlib compression / decompression.
 #define GZIP_BUFFER_SIZE 16384
+
+class GzipError : public Error
+{
+public:
+  GzipError(const std::string& message, const z_stream_s& stream, int _code)
+    : Error(message + ": " + GzipError::strerror(stream, _code)), code(_code) {}
+
+  GzipError(const std::string& message, int _code)
+    : Error(message + ": " + GzipError::strerror(_code)), code(_code) {}
+
+  GzipError(const z_stream_s& stream, int _code)
+    : Error(GzipError::strerror(stream, _code)), code(_code) {}
+
+  GzipError(int _code)
+    : Error(GzipError::strerror(_code)), code(_code) {}
+
+  const int code;
+
+private:
+  static std::string strerror(int code)
+  {
+    // We do not attempt to interpret the error codes since
+    // their meaning depends on which zlib call was made.
+    switch (code) {
+      case Z_OK:             return "Z_OK";           // Not an error.
+      case Z_STREAM_END:     return "Z_STREAM_END";   // Not an error.
+      case Z_NEED_DICT:      return "Z_NEED_DICT";    // Not an error.
+      case Z_ERRNO:          return "Z_ERRNO: " + os::strerror(errno);
+      case Z_STREAM_ERROR:   return "Z_STREAM_ERROR";
+      case Z_DATA_ERROR:     return "Z_DATA_ERROR";
+      case Z_MEM_ERROR:      return "Z_MEM_ERROR";
+      case Z_BUF_ERROR:      return "Z_BUF_ERROR";
+      case Z_VERSION_ERROR:  return "Z_VERSION_ERROR";
+      default:               return "Unknown error " + stringify(code);
+    }
+  }
+
+  static std::string strerror(const z_stream_s& stream, int code)
+  {
+    if (stream.msg == Z_NULL) {
+      return GzipError::strerror(code);
+    } else {
+      return GzipError::strerror(code) + ": " + stream.msg;
+    }
+  }
+};
+
+} // namespace internal {
+
 
 // Returns a gzip compressed version of the provided string.
 // The compression level should be within the range [-1, 9].
@@ -63,7 +116,8 @@ inline Try<std::string> compress(
       Z_DEFAULT_STRATEGY);
 
   if (code != Z_OK) {
-    return Error("Failed to initialize zlib: " + std::string(stream.msg));
+    Error error = internal::GzipError("Failed to deflateInit2", stream, code);
+    ABORT(error.message);
   }
 
   // Build up the compressed result.
@@ -75,8 +129,10 @@ inline Try<std::string> compress(
     code = deflate(&stream, stream.avail_in > 0 ? Z_NO_FLUSH : Z_FINISH);
 
     if (code != Z_OK && code != Z_STREAM_END) {
-      Error error(std::string(stream.msg));
-      deflateEnd(&stream);
+      Error error = internal::GzipError("Failed to deflate", stream, code);
+      if (deflateEnd(&stream) != Z_OK) {
+        ABORT("Failed to deflateEnd");
+      }
       return error;
     }
 
@@ -88,10 +144,10 @@ inline Try<std::string> compress(
     stream.avail_out = GZIP_BUFFER_SIZE;
   } while (code != Z_STREAM_END);
 
-  code = deflateEnd(&stream);
-  if (code != Z_OK) {
-    return Error("Failed to clean up zlib: " + std::string(stream.msg));
+  if (deflateEnd(&stream) != Z_OK) {
+    ABORT("Failed to deflateEnd");
   }
+
   return result;
 }
 
@@ -112,7 +168,8 @@ inline Try<std::string> decompress(const std::string& compressed)
       MAX_WBITS + 16); // Zlib magic for gzip compression / decompression.
 
   if (code != Z_OK) {
-    return Error("Failed to initialize zlib: " + std::string(stream.msg));
+    Error error = internal::GzipError("Failed to inflateInit2", stream, code);
+    ABORT(error.message);
   }
 
   // Build up the decompressed result.
@@ -124,8 +181,10 @@ inline Try<std::string> decompress(const std::string& compressed)
     code = inflate(&stream, stream.avail_in > 0 ? Z_NO_FLUSH : Z_FINISH);
 
     if (code != Z_OK && code != Z_STREAM_END) {
-      Error error(std::string(stream.msg));
-      inflateEnd(&stream);
+      Error error = internal::GzipError("Failed to inflate", stream, code);
+      if (inflateEnd(&stream) != Z_OK) {
+        ABORT("Failed to inflateEnd");
+      }
       return error;
     }
 
@@ -137,10 +196,10 @@ inline Try<std::string> decompress(const std::string& compressed)
     stream.avail_out = GZIP_BUFFER_SIZE;
   } while (code != Z_STREAM_END);
 
-  code = inflateEnd(&stream);
-  if (code != Z_OK) {
-    return Error("Failed to clean up zlib: " + std::string(stream.msg));
+  if (inflateEnd(&stream) != Z_OK) {
+    ABORT("Failed to inflateEnd");
   }
+
   return result;
 }
 
