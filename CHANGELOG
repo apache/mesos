@@ -27,6 +27,7 @@ All Issues:
   * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
   * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
   * [MESOS-6299] - Master doesn't remove task from pending when it is invalid
+  * [MESOS-6527] - Memory leak in the libprocess request decoder.
 
 
 Release Notes - Mesos - Version 0.28.2
@@ -42,7 +43,7 @@ All Issues:
   * [MESOS-5312] - Env `MESOS_SANDBOX` is not set properly for command tasks that changes rootfs.
   * [MESOS-4885] - Unzip should force overwrite.
   * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
-  * [MESOS-5380] - Killing a queued task can cause the corresponding command executor to never terminate. 
+  * [MESOS-5380] - Killing a queued task can cause the corresponding command executor to never terminate.
 
 ** Improvement
   * [MESOS-5307] - Sandbox mounts should not be in the host mount namespace.
