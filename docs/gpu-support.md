@@ -34,7 +34,7 @@ At the time of this writing, Nvidia GPU support is only available for
 tasks launched through the Mesos containerizer (i.e. no support exists
 for launching GPU capable tasks through the Docker containerizer).
 That said, the Mesos containerizer now supports running docker
-containers natively, so this limitation should not affect the vast
+images natively, so this limitation should not affect the vast
 majority of users.
 
 Moreover, we mimic the support provided by [nvidia-docker](
