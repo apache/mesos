@@ -60,6 +60,15 @@ public:
     parser.data = this;
   }
 
+  ~DataDecoder()
+  {
+    delete request;
+
+    foreach (http::Request* request, requests) {
+      delete request;
+    }
+  }
+
   std::deque<http::Request*> decode(const char* data, size_t length)
   {
     size_t parsed = http_parser_execute(&parser, &settings, data, length);
@@ -296,6 +305,15 @@ public:
     parser.data = this;
   }
 
+  ~ResponseDecoder()
+  {
+    delete response;
+
+    foreach (http::Response* response, responses) {
+      delete response;
+    }
+  }
+
   std::deque<http::Response*> decode(const char* data, size_t length)
   {
     size_t parsed = http_parser_execute(&parser, &settings, data, length);
@@ -505,6 +523,19 @@ public:
     http_parser_init(&parser, HTTP_RESPONSE);
 
     parser.data = this;
+  }
+
+  ~StreamingResponseDecoder()
+  {
+    delete response;
+
+    if (writer.isSome()) {
+      writer->fail("Decoder is being deleted");
+    }
+
+    foreach (http::Response* response, responses) {
+      delete response;
+    }
   }
 
   std::deque<http::Response*> decode(const char* data, size_t length)
