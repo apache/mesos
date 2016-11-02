@@ -453,7 +453,7 @@ void RegistrarProcess::update()
     slaveIDs.insert(slave.info().id());
   }
 
-  foreach (Owned<Operation> operation, operations) {
+  foreach (Owned<Operation>& operation, operations) {
     // No need to process the result of the operation.
     (*operation)(&registry, &slaveIDs);
   }
