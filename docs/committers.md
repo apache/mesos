@@ -243,6 +243,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td></td>
       <td>matei@apache.org</td>
     </tr>
+    <tr>
+      <td>+8</td>
+      <td>Qian Zhang</td>
+      <td>IBM</td>
+      <td></td>
+      <td>qianzhang@apache.org</td>
+    </tr>
   </tbody>
 </table>
 
