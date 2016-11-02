@@ -111,6 +111,23 @@ Unresolved Critical Issues:
   * [MESOS-6419] - The 'master/teardown' endpoint should support tearing down 'unregistered_frameworks'.
   * [MESOS-6432] - Roles with quota assigned can "game" the system to receive excessive resources.
 
+All Experimental Features:
+  * [MESOS-2449] - Support group of tasks (Pod) constructs and API in Mesos.
+  * [MESOS-2533] - Support HTTP checks in Mesos.
+  * [MESOS-3094] - Mesos on Windows.
+  * [MESOS-3421] - Support sharing of resources across task instances.
+  * [MESOS-3567] - Support TCP checks in Mesos.
+  * [MESOS-4312] - Porting Mesos on Power (ppc64le).
+  * [MESOS-4355] - Implement isolator for Docker volume.
+  * [MESOS-4641] - Support Container Network Interface (CNI).
+  * [MESOS-4791] - Operator API v1.
+  * [MESOS-4828] - XFS disk quota isolator.
+  * [MESOS-5275] - Add capabilities support for unified containerizer.
+  * [MESOS-5344] - Partition-aware Mesos frameworks.
+  * [MESOS-5788] - Added JAVA API adapter for seamless transition to new scheduler API.
+  * [MESOS-6014] - Added port mapping CNI plugin.
+  * [MESOS-6077] - Added a default (task group) executor.
+
 All Issues:
 
 ** Bug
