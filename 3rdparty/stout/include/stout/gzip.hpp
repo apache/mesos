@@ -25,13 +25,14 @@
 
 
 // Compression utilities.
-// TODO(bmahler): Provide streaming compression / decompression as well.
+// TODO(bmahler): Provide streaming compression as well.
 namespace gzip {
 
 namespace internal {
 
 // We use a 16KB buffer with zlib compression / decompression.
 #define GZIP_BUFFER_SIZE 16384
+
 
 class GzipError : public Error
 {
@@ -80,6 +81,89 @@ private:
 };
 
 } // namespace internal {
+
+
+// Provides the ability to incrementally decompress
+// a stream of compressed input data.
+class Decompressor
+{
+public:
+  Decompressor()
+    : _finished(false)
+  {
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+    stream.next_in = Z_NULL;
+    stream.avail_in = 0;
+
+    int code = inflateInit2(
+        &stream,
+        MAX_WBITS + 16); // Zlib magic for gzip compression / decompression.
+
+    if (code != Z_OK) {
+      Error error = internal::GzipError("Failed to inflateInit2", stream, code);
+      ABORT(error.message);
+    }
+  }
+
+  ~Decompressor()
+  {
+    if (inflateEnd(&stream) != Z_OK) {
+      ABORT("Failed to inflateEnd");
+    }
+  }
+
+  // Returns the next decompressed chunk of data,
+  // or an Error if decompression fails.
+  Try<std::string> decompress(const std::string& compressed)
+  {
+    stream.next_in =
+      const_cast<Bytef*>(reinterpret_cast<const Bytef*>(compressed.data()));
+    stream.avail_in = compressed.length();
+
+    // Build up the decompressed result.
+    Bytef buffer[GZIP_BUFFER_SIZE];
+    std::string result;
+
+    while (stream.avail_in > 0) {
+      stream.next_out = buffer;
+      stream.avail_out = GZIP_BUFFER_SIZE;
+
+      int code = inflate(&stream, Z_SYNC_FLUSH);
+
+      _finished = code == Z_STREAM_END;
+
+      if (code != Z_OK && !_finished) {
+        return internal::GzipError("Failed to inflate", stream, code);
+      }
+
+      if (_finished && stream.avail_in > 0) {
+        return Error("Stream finished with data unconsumed");
+      }
+
+      // Consume output and reset the buffer.
+      result.append(
+          reinterpret_cast<char*>(buffer),
+          GZIP_BUFFER_SIZE - stream.avail_out);
+      stream.next_out = buffer;
+      stream.avail_out = GZIP_BUFFER_SIZE;
+    }
+
+    return result;
+  }
+
+  // Returns whether the decompression stream is finished.
+  // If set to false, more input is expected.
+  bool finished() const
+  {
+    return _finished;
+  }
+
+private:
+  z_stream_s stream;
+  bool _finished;
+};
 
 
 // Returns a gzip compressed version of the provided string.
@@ -155,52 +239,15 @@ inline Try<std::string> compress(
 // Returns a gzip decompressed version of the provided string.
 inline Try<std::string> decompress(const std::string& compressed)
 {
-  z_stream_s stream;
-  stream.next_in =
-    const_cast<Bytef*>(reinterpret_cast<const Bytef*>(compressed.data()));
-  stream.avail_in = compressed.length();
-  stream.zalloc = Z_NULL;
-  stream.zfree = Z_NULL;
-  stream.opaque = Z_NULL;
+  Decompressor decompressor;
+  Try<std::string> decompressed = decompressor.decompress(compressed);
 
-  int code = inflateInit2(
-      &stream,
-      MAX_WBITS + 16); // Zlib magic for gzip compression / decompression.
-
-  if (code != Z_OK) {
-    Error error = internal::GzipError("Failed to inflateInit2", stream, code);
-    ABORT(error.message);
+  // Ensure that the decompression stream does not expect more input.
+  if (decompressed.isSome() && !decompressor.finished()) {
+    return Error("More input is expected");
   }
 
-  // Build up the decompressed result.
-  Bytef buffer[GZIP_BUFFER_SIZE];
-  std::string result = "";
-  do {
-    stream.next_out = buffer;
-    stream.avail_out = GZIP_BUFFER_SIZE;
-    code = inflate(&stream, stream.avail_in > 0 ? Z_NO_FLUSH : Z_FINISH);
-
-    if (code != Z_OK && code != Z_STREAM_END) {
-      Error error = internal::GzipError("Failed to inflate", stream, code);
-      if (inflateEnd(&stream) != Z_OK) {
-        ABORT("Failed to inflateEnd");
-      }
-      return error;
-    }
-
-    // Consume output and reset the buffer.
-    result.append(
-        reinterpret_cast<char*>(buffer),
-        GZIP_BUFFER_SIZE - stream.avail_out);
-    stream.next_out = buffer;
-    stream.avail_out = GZIP_BUFFER_SIZE;
-  } while (code != Z_STREAM_END);
-
-  if (inflateEnd(&stream) != Z_OK) {
-    ABORT("Failed to inflateEnd");
-  }
-
-  return result;
+  return decompressed;
 }
 
 } // namespace gzip {
