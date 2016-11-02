@@ -15,7 +15,7 @@ This release contains the following new features:
     Executors may now use the updated `HealthCheck` protobuf to implement
     HTTP(S) health checks. Both default executors (command and docker) leverage
     `curl` binary for sending HTTP(S) requests and connect to `127.0.0.1`,
-    hence a task must listen on all interfaces. On Linux, For BRIDGE and USER
+    hence a task must listen on all interfaces. On Linux, for BRIDGE and USER
     modes, docker executor enters the task's network namespace.
 
   * [MESOS-3421] - **Experimental** Support sharing of resources across
@@ -25,14 +25,12 @@ This release contains the following new features:
   * [MESOS-3567] - **Experimental** support for TCP health checks. Executors
     may now use the updated `HealthCheck` protobuf to implement TCP health
     checks. Both default executors (command and docker) connect to `127.0.0.1`,
-    hence a task must listen on all interfaces. On Linux, For BRIDGE and USER
+    hence a task must listen on all interfaces. On Linux, for BRIDGE and USER
     modes, docker executor enters the task's network namespace.
 
-  * [MESOS-4324] - Allow access to persistent volumes as read-only or read-write
-    by tasks. Mesos doesn't allow persistent volumes to be created as read-only
-    but in 1.1 it starts allow tasks to use the volumes as read-only. This is
-    mainly motivated by shared persistent volumes but applies to regular
-    persistent volumes as well.
+  * [MESOS-4324] - Allow tasks to access persistent volumes in either a
+    read-only or read-write manner. Using a volume in read-only mode can
+    simplify sharing that volume between multiple tasks on the same agent.
 
   * [MESOS-5275] - **Experimental** support for linux capabilities. Frameworks
     or operators now have fine-grained control over the capabilities that a
