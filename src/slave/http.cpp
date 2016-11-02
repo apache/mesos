@@ -414,6 +414,11 @@ Future<Response> Slave::Http::api(
 
     case agent::Call::KILL_NESTED_CONTAINER:
       return killNestedContainer(call, principal, acceptType);
+
+    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
+    case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
+    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
+      return NotImplemented();
   }
 
   UNREACHABLE();

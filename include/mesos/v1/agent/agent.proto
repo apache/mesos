@@ -32,7 +32,8 @@ message Call {
    // If a call of type `Call::FOO` requires additional parameters they can be
    // included in the corresponding `Call::Foo` message. Similarly, if a call
    // receives a synchronous response it will be returned as a `Response`
-   // message of type `Response::FOO`.
+   // message of type `Response::FOO`; see `Call::LaunchNestedContainerSession`
+   // and `Call::AttachContainerOutput` for exceptions.
   enum Type {
     UNKNOWN = 0;
 
@@ -58,6 +59,12 @@ message Call {
     LAUNCH_NESTED_CONTAINER = 14;  // See 'LaunchNestedContainer' below.
     WAIT_NESTED_CONTAINER = 15;    // See 'WaitNestedContainer' below.
     KILL_NESTED_CONTAINER = 16;    // See 'KillNestedContainer' below.
+
+    // See 'LaunchNestedContainerSession' below.
+    LAUNCH_NESTED_CONTAINER_SESSION = 17;
+
+    ATTACH_CONTAINER_INPUT = 18; // See 'AttachContainerInput' below.
+    ATTACH_CONTAINER_OUTPUT = 19; // see 'AttachContainerOutput' below.
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -115,6 +122,46 @@ message Call {
     required ContainerID container_id = 1;
   }
 
+  // Launches a nested container within an executor's tree of containers.
+  // The differences between this call and `LaunchNestedContainer` are:
+  // 1) The container's life-cycle is tied to the lifetime of the
+  //    connection used to make this call, i.e., if the connection ever
+  //    breaks, the container will be destroyed.
+  // 2) The nested container shares the same namespaces and cgroups as
+  //    its parent container.
+  // 3) Results in a streaming response of type `ProcessIO`. So the call
+  //    needs to be made on a persistent connection.
+  message LaunchNestedContainerSession {
+    required ContainerID container_id = 1;
+    optional CommandInfo command = 2;
+    optional ContainerInfo container = 3;
+  }
+
+  // Attaches the caller to the STDIN of the entry point of the container.
+  // Clients can use this to stream input data to a container.
+  // Note that this call needs to be made on a persistent connection by
+  // streaming a CONTAINER_ID message followed by one or more PROCESS_IO
+  // messages.
+  message AttachContainerInput {
+    enum Type {
+      UNKNOWN = 0;
+      CONTAINER_ID = 1;
+      PROCESS_IO = 2;
+    }
+
+    optional Type type = 1;
+    optional ContainerID container_id = 2;
+    optional ProcessIO process_io = 3;
+  }
+
+  // Attaches the caller to the STDOUT and STDERR of the entrypoint of
+  // the container. Clients can use this to stream output/error from the
+  // container. This call will result in a streaming response of `ProcessIO`;
+  // so this call needs to be made on a persistent connection.
+  message AttachContainerOutput {
+    required ContainerID container_id = 1;
+  }
+
   optional Type type = 1;
 
   optional GetMetrics get_metrics = 2;
@@ -124,6 +171,9 @@ message Call {
   optional LaunchNestedContainer launch_nested_container = 6;
   optional WaitNestedContainer wait_nested_container = 7;
   optional KillNestedContainer kill_nested_container = 8;
+  optional LaunchNestedContainerSession launch_nested_container_session = 9;
+  optional AttachContainerInput attach_container_input = 10;
+  optional AttachContainerOutput attach_container_output = 11;
 }
 
 
@@ -281,4 +331,47 @@ message Response {
   optional GetExecutors get_executors = 12;
   optional GetTasks get_tasks = 13;
   optional WaitNestedContainer wait_nested_container = 14;
+}
+
+
+/**
+ * Streaming response to `Call::LAUNCH_NESTED_CONTAINER_SESSION` and
+ * `Call::ATTACH_CONTAINER_OUTPUT`.
+ *
+ * This message is also used to stream request data for
+ * `Call::ATTACH_CONTAINER_INPUT`.
+ */
+message ProcessIO {
+  enum Type {
+    UNKNOWN = 0;
+    DATA = 1;
+    CONTROL = 2;
+  }
+
+  message Data {
+    enum Type {
+      UNKNOWN = 0;
+      STDIN = 1;
+      STDOUT = 2;
+      STDERR = 3;
+    }
+
+    optional Type type = 1;
+    optional bytes data = 2;
+  }
+
+
+  message Control {
+    enum Type {
+      UNKNOWN = 0;
+      TTY_INFO = 1;
+    }
+
+    optional Type type = 1;
+    optional TTYInfo tty_info = 2;
+  }
+
+  optional Type type = 1;
+  optional Data data = 2;
+  optional Control control = 3;
 }

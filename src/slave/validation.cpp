@@ -221,6 +221,11 @@ Option<Error> validate(
 
       return None();
     }
+
+    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
+    case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
+    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
+      return Error("Unsupported");
   }
 
   UNREACHABLE();
