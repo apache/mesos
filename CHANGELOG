@@ -226,6 +226,7 @@ All Issues:
   * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
   * [MESOS-6497] - Java Scheduler Adapter does not surface MasterInfo.
   * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
+  * [MESOS-6527] - Memory leak in the libprocess request decoder.
 
 ** Documentation
   * [MESOS-5221] - Add Documentation for Nvidia GPU support.
