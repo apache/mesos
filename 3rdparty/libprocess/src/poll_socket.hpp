@@ -30,7 +30,7 @@ public:
 
   // Implementation of the Socket::Impl interface.
   virtual Try<Nothing> listen(int backlog);
-  virtual Future<Socket> accept();
+  virtual Future<std::shared_ptr<Socket::Impl>> accept();
   virtual Future<Nothing> connect(const Address& address);
   virtual Future<size_t> recv(char* data, size_t size);
   virtual Future<size_t> send(const char* data, size_t size);

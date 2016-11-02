@@ -148,7 +148,7 @@ public:
      * TODO(josephw): MESOS-5729: Consider making the CLOEXEC option
      * configurable by the caller of the interface.
      */
-    virtual Future<Socket> accept() = 0;
+    virtual Future<std::shared_ptr<Impl>> accept() = 0;
 
     virtual Future<Nothing> connect(const Address& address) = 0;
     virtual Future<size_t> recv(char* data, size_t size) = 0;
@@ -296,7 +296,11 @@ public:
 
   Future<Socket> accept()
   {
-    return impl->accept();
+    return impl->accept()
+      // TODO(benh): Use && for `impl` here!
+      .then([](const std::shared_ptr<Impl>& impl) {
+        return Socket(impl);
+      });
   }
 
   Future<Nothing> connect(const Address& address)

@@ -50,7 +50,7 @@ Try<Nothing> PollSocketImpl::listen(int backlog)
 
 namespace internal {
 
-Future<Socket> accept(int fd)
+Future<int> accept(int fd)
 {
   Try<int> accepted = network::accept(fd);
   if (accepted.isError()) {
@@ -91,21 +91,24 @@ Future<Socket> accept(int fd)
       "Failed to turn off the Nagle algorithm: " + stringify(error));
   }
 
-  Try<Socket> socket = Socket::create(Socket::DEFAULT_KIND(), s);
-  if (socket.isError()) {
-    os::close(s);
-    return Failure("Failed to accept, create socket: " + socket.error());
-  }
-  return socket.get();
+  return s;
 }
 
 } // namespace internal {
 
 
-Future<Socket> PollSocketImpl::accept()
+Future<std::shared_ptr<Socket::Impl>> PollSocketImpl::accept()
 {
   return io::poll(get(), io::READ)
-    .then(lambda::bind(&internal::accept, get()));
+    .then(lambda::bind(&internal::accept, get()))
+    .then([](int s) -> Future<std::shared_ptr<Socket::Impl>> {
+      Try<std::shared_ptr<Socket::Impl>> impl = create(s);
+      if (impl.isError()) {
+        os::close(s);
+        return Failure("Failed to create socket: " + impl.error());
+      }
+      return impl.get();
+    });
 }
 
 
