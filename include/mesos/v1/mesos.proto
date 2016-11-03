@@ -2108,6 +2108,20 @@ message RLimitInfo {
 
 
 /**
+ * Describes the information about (pseudo) TTY that can
+ * be attached to a process running in a container.
+ */
+message TTYInfo {
+  message WindowSize {
+    required uint32 rows = 1;
+    required uint32 columns = 2;
+  }
+
+  optional WindowSize window_size = 1;
+}
+
+
+/**
  * Describes a container configuration and allows extensible
  * configurations for different container implementations.
  */
@@ -2180,6 +2194,9 @@ message ContainerInfo {
 
   // (POSIX only) rlimits of the container.
   optional RLimitInfo rlimit_info = 9;
+
+  // If specified a tty will be attached to the container entrypoint.
+  optional TTYInfo tty_info = 10;
 }
 
 
