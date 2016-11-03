@@ -272,6 +272,7 @@ All Issues:
   * [MESOS-4312] - Porting Mesos on Power (ppc64le).
   * [MESOS-4791] - Operator API v1.
   * [MESOS-5344] - Partition-aware Mesos frameworks.
+  * [MESOS-6014] - Added port mapping CNI plugin.
 
 ** Improvement
   * [MESOS-2533] - Support HTTP checks in Mesos.
@@ -354,7 +355,7 @@ All Issues:
   * [MESOS-5516] - Implement GET_STATE Call in v1 agent API.
   * [MESOS-5651] - Add devices subsystem support in cgroups unified isolator.
   * [MESOS-5652] - Enable cgroups unified isolator.
-  * [MESOS-5788] - Consider adding a Java Scheduler Shim/Adapter for the new/old API.
+  * [MESOS-5788] - Added JAVA API adapter for seamless transition to new scheduler API.
   * [MESOS-5809] - Implement GET_FRAMEWORKS Call in v1 agent API.
   * [MESOS-5810] - Implement GET_EXECUTORS Call in v1 agent API.
   * [MESOS-5811] - Implement GET_TASKS Call in v1 agent API.
@@ -380,7 +381,7 @@ All Issues:
   * [MESOS-6071] - Validate that an explicitly specified DEFAULT executor has disk resources.
   * [MESOS-6073] - Update the streaming function for ContainerID to be nesting aware.
   * [MESOS-6076] - Implement RunTaskGroup handler on the agent.
-  * [MESOS-6077] - Implement a basic default pod executor.
+  * [MESOS-6077] - Added a default (task group) executor.
   * [MESOS-6102] - Add event for agent added in master operator API.
   * [MESOS-6130] - Make the disk usage isolator nesting-aware.
   * [MESOS-6150] - Introduce the new isolator recover interface for nested container support.
