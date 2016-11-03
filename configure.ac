@@ -2218,3 +2218,11 @@ AC_SUBST(MESOS_PATCH_VERSION, m4_car(m4_shift2(major_minor_patch)))
 
 
 AC_OUTPUT
+
+AC_MSG_NOTICE([Build option summary:
+    CXX:        $CXX
+    CXXFLAGS:   $CXXFLAGS
+    CPPFLAGS:   $CPPFLAGS
+    LDFLAGS:    $LDFLAGS
+    LIBS:       $LIBS
+])
