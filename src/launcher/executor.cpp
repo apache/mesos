@@ -302,6 +302,12 @@ protected:
       const bool healthy,
       const bool initiateTaskKill)
   {
+    // This check prevents us from sending `TASK_RUNNING` updates
+    // after the task has been transitioned to `TASK_KILLING`.
+    if (killed) {
+      return;
+    }
+
     cout << "Received task health update, healthy: "
          << stringify(healthy) << endl;
 
