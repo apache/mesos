@@ -114,12 +114,14 @@ Future<std::shared_ptr<Socket::Impl>> PollSocketImpl::accept()
 
 namespace internal {
 
-Future<Nothing> connect(const Socket& socket, const Address& to)
+Future<Nothing> connect(
+    const std::shared_ptr<PollSocketImpl>& socket,
+    const Address& to)
 {
   // Now check that a successful connection was made.
   int opt;
   socklen_t optlen = sizeof(opt);
-  int s = socket.get();
+  int s = socket->get();
 
   // NOTE: We cast to `char*` here because the function prototypes on Windows
   // use `char*` instead of `void*`.
@@ -149,7 +151,7 @@ Future<Nothing> PollSocketImpl::connect(const Address& address)
   if (connect.isError()) {
     if (net::is_inprogress_error(connect.error().code)) {
       return io::poll(get(), io::WRITE)
-        .then(lambda::bind(&internal::connect, socket(), address));
+        .then(lambda::bind(&internal::connect, shared(this), address));
     }
 
     return Failure(connect.error());
@@ -167,12 +169,14 @@ Future<size_t> PollSocketImpl::recv(char* data, size_t size)
 
 namespace internal {
 
-Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
+Future<size_t> socket_send_data(
+    const std::shared_ptr<PollSocketImpl>& impl,
+    const char* data, size_t size)
 {
   CHECK(size > 0);
 
   while (true) {
-    ssize_t length = net::send(socket.get(), data, size, MSG_NOSIGNAL);
+    ssize_t length = net::send(impl->get(), data, size, MSG_NOSIGNAL);
 
 #ifdef __WINDOWS__
     int error = WSAGetLastError();
@@ -185,8 +189,8 @@ Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
       continue;
     } else if (length < 0 && net::is_retryable_error(error)) {
       // Might block, try again later.
-      return io::poll(socket.get(), io::WRITE)
-        .then(lambda::bind(&internal::socket_send_data, socket, data, size));
+      return io::poll(impl->get(), io::WRITE)
+        .then(lambda::bind(&internal::socket_send_data, impl, data, size));
     } else if (length <= 0) {
       // Socket error or closed.
       if (length < 0) {
@@ -207,7 +211,7 @@ Future<size_t> socket_send_data(Socket socket, const char* data, size_t size)
 
 
 Future<size_t> socket_send_file(
-    Socket socket,
+    const std::shared_ptr<PollSocketImpl>& impl,
     int fd,
     off_t offset,
     size_t size)
@@ -216,7 +220,7 @@ Future<size_t> socket_send_file(
 
   while (true) {
     Try<ssize_t, SocketError> length =
-      os::sendfile(socket.get(), fd, offset, size);
+      os::sendfile(impl->get(), fd, offset, size);
 
     if (length.isSome()) {
       CHECK(length.get() >= 0);
@@ -232,10 +236,10 @@ Future<size_t> socket_send_file(
       continue;
     } else if (net::is_retryable_error(length.error().code)) {
       // Might block, try again later.
-      return io::poll(socket.get(), io::WRITE)
+      return io::poll(impl->get(), io::WRITE)
         .then(lambda::bind(
             &internal::socket_send_file,
-            socket,
+            impl,
             fd,
             offset,
             size));
@@ -255,7 +259,7 @@ Future<size_t> PollSocketImpl::send(const char* data, size_t size)
   return io::poll(get(), io::WRITE)
     .then(lambda::bind(
         &internal::socket_send_data,
-        socket(),
+        shared(this),
         data,
         size));
 }
@@ -266,7 +270,7 @@ Future<size_t> PollSocketImpl::sendfile(int fd, off_t offset, size_t size)
   return io::poll(get(), io::WRITE)
     .then(lambda::bind(
         &internal::socket_send_file,
-        socket(),
+        shared(this),
         fd,
         offset,
         size));

@@ -143,7 +143,7 @@ Try<Address> Socket::Impl::bind(const Address& address)
 
 
 static Future<string> _recv(
-    Socket socket,
+    const std::shared_ptr<Socket::Impl>& impl,
     const Option<ssize_t>& size,
     Owned<string> buffer,
     size_t chunk,
@@ -165,9 +165,9 @@ static Future<string> _recv(
     // We've been asked to receive until EOF so keep receiving since
     // according to the 'length == 0' check above we haven't reached
     // EOF yet.
-    return socket.recv(data.get(), chunk)
+    return impl->recv(data.get(), chunk)
       .then(lambda::bind(&_recv,
-                         socket,
+                         impl,
                          size,
                          buffer,
                          chunk,
@@ -176,9 +176,9 @@ static Future<string> _recv(
   } else if (static_cast<string::size_type>(size.get()) > buffer->size()) {
     // We've been asked to receive a particular amount of data and we
     // haven't yet received that much data so keep receiving.
-    return socket.recv(data.get(), size.get() - buffer->size())
+    return impl->recv(data.get(), size.get() - buffer->size())
       .then(lambda::bind(&_recv,
-                         socket,
+                         impl,
                          size,
                          buffer,
                          chunk,
@@ -206,7 +206,7 @@ Future<string> Socket::Impl::recv(const Option<ssize_t>& size)
 
   return recv(data.get(), chunk)
     .then(lambda::bind(&_recv,
-                       socket(),
+                       shared_from_this(),
                        size,
                        buffer,
                        chunk,
@@ -216,7 +216,7 @@ Future<string> Socket::Impl::recv(const Option<ssize_t>& size)
 
 
 static Future<Nothing> _send(
-    Socket socket,
+    const std::shared_ptr<Socket::Impl>& impl,
     Owned<string> data,
     size_t index,
     size_t length)
@@ -230,8 +230,8 @@ static Future<Nothing> _send(
   }
 
   // Keep sending!
-  return socket.send(data->data() + index, data->size() - index)
-    .then(lambda::bind(&_send, socket, data, index, lambda::_1));
+  return impl->send(data->data() + index, data->size() - index)
+    .then(lambda::bind(&_send, impl, data, index, lambda::_1));
 }
 
 
@@ -240,7 +240,7 @@ Future<Nothing> Socket::Impl::send(const string& _data)
   Owned<string> data(new string(_data));
 
   return send(data->data(), data->size())
-    .then(lambda::bind(&_send, socket(), data, 0, lambda::_1));
+    .then(lambda::bind(&_send, shared_from_this(), data, 0, lambda::_1));
 }
 
 

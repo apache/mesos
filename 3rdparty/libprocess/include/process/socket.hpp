@@ -202,27 +202,6 @@ public:
 
     virtual Socket::Kind kind() const = 0;
 
-    /**
-     * Construct a new `Socket` from the given impl.
-     *
-     * This is a proxy function, as `Impl`s derived from this won't have
-     * access to the Socket::Socket(...) constructors.
-     */
-    // TODO(jmlvanre): These should be protected; however, gcc complains
-    // when using them from within a lambda of a derived class.
-    static Socket socket(std::shared_ptr<Impl>&& that)
-    {
-      return Socket(std::move(that));
-    }
-
-    /**
-     * @copydoc process::network::Socket::Impl::socket
-     */
-    static Socket socket(const std::shared_ptr<Impl>& that)
-    {
-      return Socket(that);
-    }
-
   protected:
     explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
 
@@ -238,11 +217,6 @@ public:
       s = -1;
       return released;
     }
-
-    /**
-     * Construct a `Socket` wrapper from this implementation.
-     */
-    Socket socket() { return Socket(shared_from_this()); }
 
     /**
      * Returns a `std::shared_ptr<T>` from this implementation.

@@ -45,7 +45,7 @@ public:
   virtual Future<size_t> send(const char* data, size_t size);
   virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);
   virtual Try<Nothing> listen(int backlog);
-  virtual Future<Socket> accept();
+  virtual Future<std::shared_ptr<Socket::Impl>> accept();
   virtual Socket::Kind kind() const { return Socket::SSL; }
 
   // This call is used to do the equivalent of shutting down the read
@@ -74,7 +74,7 @@ private:
         socket(_socket),
         ip(_ip) {}
     event* peek_event;
-    Promise<Socket> promise;
+    Promise<std::shared_ptr<Socket::Impl>> promise;
     evconnlistener* listener;
     int socket;
     Option<net::IP> ip;
@@ -175,7 +175,7 @@ private:
   // downgraded). The 'accept()' call returns sockets from this queue.
   // We wrap the socket in a 'Future' so that we can pass failures or
   // discards through.
-  Queue<Future<Socket>> accept_queue;
+  Queue<Future<std::shared_ptr<Socket::Impl>>> accept_queue;
 
   Option<std::string> peer_hostname;
   Option<net::IP> peer_ip;

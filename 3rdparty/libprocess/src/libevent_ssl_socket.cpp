@@ -31,6 +31,7 @@
 #include "libevent.hpp"
 #include "libevent_ssl_socket.hpp"
 #include "openssl.hpp"
+#include "poll_socket.hpp"
 
 // Locking:
 //
@@ -898,14 +899,15 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 }
 
 
-Future<Socket> LibeventSSLSocketImpl::accept()
+Future<std::shared_ptr<Socket::Impl>> LibeventSSLSocketImpl::accept()
 {
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()
-    .then([](const Future<Socket>& socket) -> Future<Socket> {
-      CHECK(!socket.isPending());
-      return socket;
+    .then([](const Future<std::shared_ptr<Socket::Impl>>& impl)
+      -> Future<std::shared_ptr<Socket::Impl>> {
+      CHECK(!impl.isPending());
+      return impl;
     });
 }
 
@@ -964,12 +966,12 @@ void LibeventSSLSocketImpl::peek_callback(
   if (ssl) {
     accept_SSL_callback(request);
   } else {
-    // Downgrade to a non-SSL socket.
-    Try<Socket> create = Socket::create(Socket::POLL, fd);
-    if (create.isError()) {
-      request->promise.fail(create.error());
+    // Downgrade to a non-SSL socket implementation.
+    Try<std::shared_ptr<Socket::Impl>> impl = PollSocketImpl::create(fd);
+    if (impl.isError()) {
+      request->promise.fail(impl.error());
     } else {
-      request->promise.set(create.get());
+      request->promise.set(impl.get());
     }
 
     delete request;
@@ -981,14 +983,14 @@ void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
 {
   CHECK(__in_event_loop__);
 
-  Queue<Future<Socket>> accept_queue_ = accept_queue;
+  Queue<Future<std::shared_ptr<Socket::Impl>>> accept_queue_ = accept_queue;
 
   // After the socket is accepted, it must complete the SSL
   // handshake (or be downgraded to a regular socket) before
   // we put it in the queue of connected sockets.
   request->promise.future()
-    .onAny([accept_queue_](Future<Socket> socket) mutable {
-      accept_queue_.put(socket);
+    .onAny([accept_queue_](Future<std::shared_ptr<Socket::Impl>> impl) mutable {
+      accept_queue_.put(impl);
     });
 
   // If we support downgrading the connection, first wait for this
@@ -1119,9 +1121,7 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
               &LibeventSSLSocketImpl::event_callback,
               CHECK_NOTNULL(impl->event_loop_handle));
 
-          Socket socket = Socket::Impl::socket(std::move(impl));
-
-          request->promise.set(socket);
+          request->promise.set(std::dynamic_pointer_cast<Socket::Impl>(impl));
         } else if (events & BEV_EVENT_ERROR) {
           std::ostringstream stream;
           if (EVUTIL_SOCKET_ERROR() != 0) {
