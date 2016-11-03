@@ -134,8 +134,10 @@ using process::http::authentication::AuthenticatorManager;
 
 using process::http::authorization::AuthorizationCallbacks;
 
-using process::network::Address;
-using process::network::Socket;
+using process::network::inet::Address;
+using process::network::inet::Socket;
+
+using process::network::internal::SocketImpl;
 
 using std::deque;
 using std::find;
@@ -371,7 +373,7 @@ public:
   void link(ProcessBase* process,
             const UPID& to,
             const ProcessBase::RemoteConnection remote,
-            const Socket::Kind& kind = Socket::DEFAULT_KIND());
+            const SocketImpl::Kind& kind = SocketImpl::DEFAULT_KIND());
 
   // Test-only method to fetch the file descriptor behind a
   // persistent socket.
@@ -389,7 +391,7 @@ public:
             const Request& request,
             const Socket& socket);
   void send(Message* message,
-            const Socket::Kind& kind = Socket::DEFAULT_KIND());
+            const SocketImpl::Kind& kind = SocketImpl::DEFAULT_KIND());
 
   Encoder* next(int s);
 
@@ -1683,7 +1685,7 @@ void SocketManager::link_connect(
       future.isFailed() &&
       network::openssl::flags().enabled &&
       network::openssl::flags().support_downgrade &&
-      socket.kind() == Socket::SSL;
+      socket.kind() == SocketImpl::Kind::SSL;
 
     Option<Socket> poll_socket = None();
 
@@ -1699,7 +1701,7 @@ void SocketManager::link_connect(
           return;
         }
 
-        Try<Socket> create = Socket::create(Socket::POLL);
+        Try<Socket> create = Socket::create(SocketImpl::Kind::POLL);
         if (create.isError()) {
           VLOG(1) << "Failed to link, create socket: " << create.error();
           socket_manager->close(socket);
@@ -1779,7 +1781,7 @@ void SocketManager::link(
     ProcessBase* process,
     const UPID& to,
     const ProcessBase::RemoteConnection remote,
-    const Socket::Kind& kind)
+    const SocketImpl::Kind& kind)
 {
   // TODO(benh): The semantics we want to support for link are such
   // that if there is nobody to link to (local or remote) then an
@@ -2101,7 +2103,7 @@ void SocketManager::send_connect(
       future.isFailed() &&
       network::openssl::flags().enabled &&
       network::openssl::flags().support_downgrade &&
-      socket.kind() == Socket::SSL;
+      socket.kind() == SocketImpl::Kind::SSL;
 
     Option<Socket> poll_socket = None();
 
@@ -2109,7 +2111,7 @@ void SocketManager::send_connect(
     // POLL socket.
     if (attempt_downgrade) {
       synchronized (mutex) {
-        Try<Socket> create = Socket::create(Socket::POLL);
+        Try<Socket> create = Socket::create(SocketImpl::Kind::POLL);
         if (create.isError()) {
           VLOG(1) << "Failed to link, create socket: " << create.error();
           socket_manager->close(socket);
@@ -2168,7 +2170,7 @@ void SocketManager::send_connect(
 }
 
 
-void SocketManager::send(Message* message, const Socket::Kind& kind)
+void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
 {
   CHECK(message != nullptr);
 

@@ -32,8 +32,10 @@
 namespace network = process::network;
 namespace openssl = network::openssl;
 
-using network::Address;
-using network::Socket;
+using network::inet::Address;
+using network::inet::Socket;
+
+using network::internal::SocketImpl;
 
 using process::Future;
 
@@ -131,8 +133,8 @@ TEST_F(SSLClientTest, client)
   // Create the socket based on the 'use_ssl' flag. We use this to
   // test whether a regular socket could connect to an SSL server
   // socket.
-  const Try<Socket> create =
-    Socket::create(flags.use_ssl ? Socket::SSL : Socket::POLL);
+  const Try<Socket> create = Socket::create(
+      flags.use_ssl ? SocketImpl::Kind::SSL : SocketImpl::Kind::POLL);
   ASSERT_SOME(create);
 
   Socket socket = create.get();

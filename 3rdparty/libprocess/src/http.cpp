@@ -66,8 +66,10 @@ using std::vector;
 using process::http::Request;
 using process::http::Response;
 
-using process::network::Address;
-using process::network::Socket;
+using process::network::inet::Address;
+using process::network::inet::Socket;
+
+using process::network::internal::SocketImpl;
 
 namespace process {
 namespace http {
@@ -1341,12 +1343,12 @@ Future<Connection> connect(const URL& url)
   Try<Socket> socket = [&url]() -> Try<Socket> {
     // Default to 'http' if no scheme was specified.
     if (url.scheme.isNone() || url.scheme == string("http")) {
-      return Socket::create(Socket::POLL);
+      return Socket::create(SocketImpl::Kind::POLL);
     }
 
     if (url.scheme == string("https")) {
 #ifdef USE_SSL_SOCKET
-      return Socket::create(Socket::SSL);
+      return Socket::create(SocketImpl::Kind::SSL);
 #else
       return Error("'https' scheme requires SSL enabled");
 #endif

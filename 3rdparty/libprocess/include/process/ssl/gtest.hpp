@@ -287,24 +287,25 @@ protected:
    *
    * @return Socket if successful otherwise an Error.
    */
-  Try<process::network::Socket> setup_server(
+  Try<process::network::inet::Socket> setup_server(
       const std::map<std::string, std::string>& environment)
   {
     set_environment_variables(environment);
 
-    const Try<process::network::Socket> create =
-      process::network::Socket::create(process::network::Socket::SSL);
+    const Try<process::network::inet::Socket> create =
+      process::network::inet::Socket::create(
+          process::network::internal::SocketImpl::Kind::SSL);
 
     if (create.isError()) {
       return Error(create.error());
     }
 
-    process::network::Socket server = create.get();
+    process::network::inet::Socket server = create.get();
 
     // We need to explicitly bind to INADDR_LOOPBACK so the
     // certificate we create in this test fixture can be verified.
-    Try<process::network::Address> bind =
-      server.bind(process::network::Address(net::IP(INADDR_LOOPBACK), 0));
+    Try<process::network::inet::Address> bind =
+      server.bind(process::network::inet::Address(net::IP(INADDR_LOOPBACK), 0));
 
     if (bind.isError()) {
       return Error(bind.error());
@@ -334,10 +335,10 @@ protected:
    */
   Try<process::Subprocess> launch_client(
       const std::map<std::string, std::string>& environment,
-      const process::network::Socket& server,
+      const process::network::inet::Socket& server,
       bool use_ssl_socket)
   {
-    const Try<process::network::Address> address = server.address();
+    const Try<process::network::inet::Address> address = server.address();
     if (address.isError()) {
       return Error(address.error());
     }

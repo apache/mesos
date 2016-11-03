@@ -46,13 +46,13 @@ struct UPID
   UPID(const char* id_, const net::IP& ip_, uint16_t port_)
     : id(id_), address(ip_, port_) {}
 
-  UPID(const char* id_, const network::Address& address_)
+  UPID(const char* id_, const network::inet::Address& address_)
     : id(id_), address(address_) {}
 
   UPID(const std::string& id_, const net::IP& ip_, uint16_t port_)
     : id(id_), address(ip_, port_) {}
 
-  UPID(const std::string& id_, const network::Address& address_)
+  UPID(const std::string& id_, const network::inet::Address& address_)
     : id(id_), address(address_) {}
 
   /*implicit*/ UPID(const char* s);
@@ -91,8 +91,9 @@ struct UPID
   {
     return !(*this == that);
   }
+
   std::string id;
-  network::Address address;
+  network::inet::Address address;
 };
 
 

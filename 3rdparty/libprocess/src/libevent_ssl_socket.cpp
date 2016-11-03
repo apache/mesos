@@ -78,8 +78,9 @@ static Synchronized<bufferevent> synchronize(bufferevent* bev)
 
 namespace process {
 namespace network {
+namespace internal {
 
-Try<std::shared_ptr<Socket::Impl>> LibeventSSLSocketImpl::create(int s)
+Try<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::create(int s)
 {
   openssl::initialize();
 
@@ -437,7 +438,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
 
 
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
-  : Socket::Impl(_s),
+  : SocketImpl(_s),
     bev(nullptr),
     listener(nullptr),
     recv_request(nullptr),
@@ -450,7 +451,7 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     int _s,
     bufferevent* _bev,
     Option<string>&& _peer_hostname)
-  : Socket::Impl(_s),
+  : SocketImpl(_s),
     bev(_bev),
     listener(nullptr),
     recv_request(nullptr),
@@ -899,13 +900,13 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 }
 
 
-Future<std::shared_ptr<Socket::Impl>> LibeventSSLSocketImpl::accept()
+Future<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::accept()
 {
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()
-    .then([](const Future<std::shared_ptr<Socket::Impl>>& impl)
-      -> Future<std::shared_ptr<Socket::Impl>> {
+    .then([](const Future<std::shared_ptr<SocketImpl>>& impl)
+      -> Future<std::shared_ptr<SocketImpl>> {
       CHECK(!impl.isPending());
       return impl;
     });
@@ -967,7 +968,7 @@ void LibeventSSLSocketImpl::peek_callback(
     accept_SSL_callback(request);
   } else {
     // Downgrade to a non-SSL socket implementation.
-    Try<std::shared_ptr<Socket::Impl>> impl = PollSocketImpl::create(fd);
+    Try<std::shared_ptr<SocketImpl>> impl = PollSocketImpl::create(fd);
     if (impl.isError()) {
       request->promise.fail(impl.error());
     } else {
@@ -983,13 +984,13 @@ void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
 {
   CHECK(__in_event_loop__);
 
-  Queue<Future<std::shared_ptr<Socket::Impl>>> accept_queue_ = accept_queue;
+  Queue<Future<std::shared_ptr<SocketImpl>>> accept_queue_ = accept_queue;
 
   // After the socket is accepted, it must complete the SSL
   // handshake (or be downgraded to a regular socket) before
   // we put it in the queue of connected sockets.
   request->promise.future()
-    .onAny([accept_queue_](Future<std::shared_ptr<Socket::Impl>> impl) mutable {
+    .onAny([accept_queue_](Future<std::shared_ptr<SocketImpl>> impl) mutable {
       accept_queue_.put(impl);
     });
 
@@ -1121,7 +1122,7 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
               &LibeventSSLSocketImpl::event_callback,
               CHECK_NOTNULL(impl->event_loop_handle));
 
-          request->promise.set(std::dynamic_pointer_cast<Socket::Impl>(impl));
+          request->promise.set(std::dynamic_pointer_cast<SocketImpl>(impl));
         } else if (events & BEV_EVENT_ERROR) {
           std::ostringstream stream;
           if (EVUTIL_SOCKET_ERROR() != 0) {
@@ -1158,5 +1159,6 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
       request);
 }
 
+} // namespace internal {
 } // namespace network {
 } // namespace process {

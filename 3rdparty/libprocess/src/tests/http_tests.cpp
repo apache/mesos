@@ -62,7 +62,7 @@ using process::Promise;
 
 using process::http::URL;
 
-using process::network::Socket;
+using process::network::inet::Socket;
 
 using std::string;
 using std::vector;

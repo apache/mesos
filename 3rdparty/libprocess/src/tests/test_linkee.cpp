@@ -30,8 +30,8 @@ using process::Message;
 using process::MessageEncoder;
 using process::UPID;
 
-using process::network::Address;
-using process::network::Socket;
+using process::network::inet::Address;
+using process::network::inet::Socket;
 
 
 static const int LISTEN_BACKLOG = 10;

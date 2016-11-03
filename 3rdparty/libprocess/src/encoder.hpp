@@ -46,7 +46,7 @@ public:
     FILE
   };
 
-  explicit Encoder(const network::Socket& _s) : s(_s) {}
+  explicit Encoder(const network::inet::Socket& _s) : s(_s) {}
   virtual ~Encoder() {}
 
   virtual Kind kind() const = 0;
@@ -55,20 +55,20 @@ public:
 
   virtual size_t remaining() const = 0;
 
-  network::Socket socket() const
+  network::inet::Socket socket() const
   {
     return s;
   }
 
 private:
-  const network::Socket s; // The socket this encoder is associated with.
+  const network::inet::Socket s; // The socket this encoder is associated with.
 };
 
 
 class DataEncoder : public Encoder
 {
 public:
-  DataEncoder(const network::Socket& s, const std::string& _data)
+  DataEncoder(const network::inet::Socket& s, const std::string& _data)
     : Encoder(s), data(_data), index(0) {}
 
   virtual ~DataEncoder() {}
@@ -107,7 +107,7 @@ private:
 class MessageEncoder : public DataEncoder
 {
 public:
-  MessageEncoder(const network::Socket& s, Message* _message)
+  MessageEncoder(const network::inet::Socket& s, Message* _message)
     : DataEncoder(s, encode(_message)), message(_message) {}
 
   virtual ~MessageEncoder()
@@ -162,7 +162,7 @@ class HttpResponseEncoder : public DataEncoder
 {
 public:
   HttpResponseEncoder(
-      const network::Socket& s,
+      const network::inet::Socket& s,
       const http::Response& response,
       const http::Request& request)
     : DataEncoder(s, encode(response, request)) {}
@@ -251,7 +251,7 @@ public:
 class FileEncoder : public Encoder
 {
 public:
-  FileEncoder(const network::Socket& s, int _fd, size_t _size)
+  FileEncoder(const network::inet::Socket& s, int _fd, size_t _size)
     : Encoder(s), fd(_fd), size(_size), index(0) {}
 
   virtual ~FileEncoder()

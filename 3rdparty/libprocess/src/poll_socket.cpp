@@ -32,8 +32,9 @@ using std::string;
 
 namespace process {
 namespace network {
+namespace internal {
 
-Try<std::shared_ptr<Socket::Impl>> PollSocketImpl::create(int s)
+Try<std::shared_ptr<SocketImpl>> PollSocketImpl::create(int s)
 {
   return std::make_shared<PollSocketImpl>(s);
 }
@@ -97,12 +98,12 @@ Future<int> accept(int fd)
 } // namespace internal {
 
 
-Future<std::shared_ptr<Socket::Impl>> PollSocketImpl::accept()
+Future<std::shared_ptr<SocketImpl>> PollSocketImpl::accept()
 {
   return io::poll(get(), io::READ)
     .then(lambda::bind(&internal::accept, get()))
-    .then([](int s) -> Future<std::shared_ptr<Socket::Impl>> {
-      Try<std::shared_ptr<Socket::Impl>> impl = create(s);
+    .then([](int s) -> Future<std::shared_ptr<SocketImpl>> {
+      Try<std::shared_ptr<SocketImpl>> impl = create(s);
       if (impl.isError()) {
         os::close(s);
         return Failure("Failed to create socket: " + impl.error());
@@ -276,5 +277,6 @@ Future<size_t> PollSocketImpl::sendfile(int fd, off_t offset, size_t size)
         size));
 }
 
+} // namespace internal {
 } // namespace network {
 } // namespace process {

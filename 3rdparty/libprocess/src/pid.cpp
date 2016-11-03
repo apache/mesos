@@ -101,7 +101,7 @@ istream& operator>>(istream& stream, UPID& pid)
 
   string id;
   string host;
-  network::Address address;
+  network::inet::Address address;
 
   size_t index = str.find('@');
 

@@ -49,8 +49,10 @@ namespace io = process::io;
 namespace network = process::network;
 namespace openssl = network::openssl;
 
-using network::Address;
-using network::Socket;
+using network::inet::Address;
+using network::inet::Socket;
+
+using network::internal::SocketImpl;
 
 using process::Clock;
 using process::Failure;
@@ -112,7 +114,7 @@ TEST(SSL, Disabled)
 {
   os::setenv("LIBPROCESS_SSL_ENABLED", "false");
   openssl::reinitialize();
-  EXPECT_ERROR(Socket::create(Socket::SSL));
+  EXPECT_ERROR(Socket::create(SocketImpl::Kind::SSL));
 }
 
 
@@ -130,10 +132,10 @@ TEST_P(SSLTest, BasicSameProcess)
 
   openssl::reinitialize();
 
-  const Try<Socket> server_create = Socket::create(Socket::SSL);
+  const Try<Socket> server_create = Socket::create(SocketImpl::Kind::SSL);
   ASSERT_SOME(server_create);
 
-  const Try<Socket> client_create = Socket::create(Socket::SSL);
+  const Try<Socket> client_create = Socket::create(SocketImpl::Kind::SSL);
   ASSERT_SOME(client_create);
 
   Socket server = server_create.get();
@@ -623,7 +625,7 @@ TEST_F(SSLTest, PeerAddress)
       {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
   ASSERT_SOME(server);
 
-  const Try<Socket> client_create = Socket::create(Socket::SSL);
+  const Try<Socket> client_create = Socket::create(SocketImpl::Kind::SSL);
   ASSERT_SOME(client_create);
 
   Socket client = client_create.get();
@@ -754,7 +756,7 @@ TEST_F(SSLTest, SilentSocket)
   // not complete the SSL handshake, nor be downgraded.
   // As a result, we expect that the server will not see
   // an accepted socket for this connection.
-  Try<Socket> connection = Socket::create(Socket::POLL);
+  Try<Socket> connection = Socket::create(SocketImpl::Kind::POLL);
   ASSERT_SOME(connection);
   connection->connect(server->address().get());
 

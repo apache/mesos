@@ -18,26 +18,27 @@
 
 namespace process {
 namespace network {
+namespace internal {
 
-class PollSocketImpl : public Socket::Impl
+class PollSocketImpl : public SocketImpl
 {
 public:
-  static Try<std::shared_ptr<Socket::Impl>> create(int s);
+  static Try<std::shared_ptr<SocketImpl>> create(int s);
 
-  PollSocketImpl(int s) : Socket::Impl(s) {}
+  PollSocketImpl(int s) : SocketImpl(s) {}
 
   virtual ~PollSocketImpl() {}
 
-  // Implementation of the Socket::Impl interface.
+  // Implementation of the SocketImpl interface.
   virtual Try<Nothing> listen(int backlog);
-  virtual Future<std::shared_ptr<Socket::Impl>> accept();
+  virtual Future<std::shared_ptr<SocketImpl>> accept();
   virtual Future<Nothing> connect(const Address& address);
   virtual Future<size_t> recv(char* data, size_t size);
   virtual Future<size_t> send(const char* data, size_t size);
   virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);
-
-  virtual Socket::Kind kind() const { return Socket::POLL; }
+  virtual Kind kind() const { return SocketImpl::Kind::POLL; }
 };
 
+} // namespace internal {
 } // namespace network {
 } // namespace process {

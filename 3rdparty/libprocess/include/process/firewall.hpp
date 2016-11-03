@@ -55,7 +55,7 @@ public:
    *     for failure. Otherwise an unset 'Option' object.
    */
   virtual Option<http::Response> apply(
-      const network::Socket& socket,
+      const network::inet::Socket& socket,
       const http::Request& request) = 0;
 };
 
@@ -75,7 +75,7 @@ public:
   virtual ~DisabledEndpointsFirewallRule() {}
 
   virtual Option<http::Response> apply(
-      const network::Socket&,
+      const network::inet::Socket&,
       const http::Request& request)
   {
     if (paths.contains(request.url.path)) {

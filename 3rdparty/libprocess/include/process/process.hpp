@@ -539,7 +539,7 @@ std::string absolutePath(const std::string& path);
 /**
  * Returns the socket address associated with this instance of the library.
  */
-network::Address address();
+network::inet::Address address();
 
 
 /**

@@ -144,6 +144,10 @@ inline std::ostream& operator<<(std::ostream& stream, const Address& address)
   return stream;
 }
 
+namespace inet {
+using Address = network::Address;
+} // namespace inet {
+
 } // namespace network {
 } // namespace process {
 
