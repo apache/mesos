@@ -29,6 +29,7 @@ All Issues:
     * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
     * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
     * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
+    * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
     * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
     * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
     * [MESOS-6527] - Memory leak in the libprocess request decoder.
