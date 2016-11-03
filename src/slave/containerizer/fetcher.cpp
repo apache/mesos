@@ -791,6 +791,8 @@ Future<Nothing> FetcherProcess::run(
 
   // Return early if there are no URIs to fetch.
   if (info.items_size() == 0) {
+      os::close(out.get());
+      os::close(err.get());
       return Nothing();
   }
 
