@@ -72,13 +72,13 @@ AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
                              [build against preinstalled dependencies instead
                              of bundled libraries]),
-              [enable_bundled=no], [enable_bundled=yes])
+              [], [enable_bundled=yes])
 
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
                              [enable debugging. If CFLAGS/CXXFLAGS are set, this
                               option won't change them default: no]),
-              [enable_debug=yes], [])
+              [], [enable_debug=no])
 
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],
@@ -89,13 +89,13 @@ AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
                               this option won't change them default: no]),
-              [enable_optimize=yes], [])
+              [], [enable_optimize=no])
 
 AC_ARG_ENABLE([static-unimplemented],
               AS_HELP_STRING([--enable-static-unimplemented],
                              [generate static assertion errors for unimplemented
                              functions default: no]),
-              [enable_static_unimplemented=yes], [])
+              [], [enable_static_unimplemented=no])
 
 
 ###############################################################################
