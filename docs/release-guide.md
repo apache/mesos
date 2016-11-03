@@ -70,9 +70,23 @@ This guide describes the process of doing an official release of Mesos.
 2. Checkout the correct branch for the release. For regular releases this is the "master" branch. For
    patch releases this would be the corresponding release branch (e.g., 1.0.x).
 
-3. Update and commit the `CHANGELOG` for the release. For regular releases we like to call
-   out any major features, API changes, or deprecations at the top of the CHANGELOG. For patch releases
-   update the CHANGELOG on master branch and then cherry pick onto the release branch.
+3. Update and commit the `CHANGELOG` for the release.
+
+   For regular releases:
+
+   * Make sure all new API changes, deprecations, major features, and features
+     graduating from experimental to stable are called out at the top of the
+     `CHANGELOG`.
+
+   * Ensure that the "Unresolved Critical Issues" section is populated
+     correctly. This JIRA query may be helpful:
+     `project = Mesos AND type = bug AND status != Resolved AND priority IN (blocker, critical)`
+
+   * Prepare a full list of experimental features. The easiest way to do this
+     is to take the list from the previous minor release, remove features that
+     have been declared stable, and those, that declared experimental in the
+     current release. Do not forget to mention features transitioning from
+     experimental to stable in this release at the top of the `CHANGELOG`.
 
     > NOTE: You should use JIRA to generate the CHANGELOG for you. Click on the release
       version in [JIRA](https://issues.apache.org/jira/browse/MESOS#selectedTab=com.atlassian.jira.plugin.system.project%3Aversions-panel) and click
@@ -82,6 +96,9 @@ This guide describes the process of doing an official release of Mesos.
       to that version. You should check for any Resolved tickets that have
       `Target Version` set but not `Fix Version`. Also check for any Unresolved
       or `Duplicate`/`Invalid` tickets that incorrectly set the `Fix Version`.
+
+   For patch releases update the `CHANGELOG` on master branch and then cherry
+   pick onto the release branch.
 
 4. Ensure version in `configure.ac` and `CMakeLists.txt` is correctly set for the release.
 
