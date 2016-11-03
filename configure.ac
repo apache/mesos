@@ -152,34 +152,34 @@ AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
                              [build against preinstalled dependencies instead
                               of bundled libraries]),
-              [enable_bundled=no], [enable_bundled=yes])
+              [], [enable_bundled=yes])
 
 AC_ARG_ENABLE([bundled-pip],
               AS_HELP_STRING([--disable-bundled-pip],
                              [excludes building and using the bundled pip
                               package in lieu of an installed version in
                               PYTHONPATH]),
-              [without_bundled_pip=yes], [])
+              [], [enable_bundled_pip=yes])
 
 AC_ARG_ENABLE([bundled-setuptools],
               AS_HELP_STRING([--disable-bundled-setuptools],
                              [excludes building and using the bundled setuptools
                               package in lieu of an installed version in
                               PYTHONPATH]),
-              [without_bundled_setuptools=yes], [])
+              [], [enable_bundled_setuptools=yes])
 
 AC_ARG_ENABLE([bundled-wheel],
               AS_HELP_STRING([--disable-bundled-wheel],
                              [excludes building and using the bundled wheel
                               package in lieu of an installed version in
                               PYTHONPATH]),
-              [without_bundled_wheel=yes], [])
+              [], [enable_bundled_wheel=yes])
 
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
                              [enable debugging. If CFLAGS/CXXFLAGS are set, this
-                              option won't change them default: no]),
-              [enable_debug=yes], [])
+                              option won't change them]),
+              [], [enable_debug=no])
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
@@ -188,25 +188,25 @@ AC_ARG_ENABLE([java],
 
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
-                             [use libevent instead of libev default: no]),
-              [enable_libevent=yes], [])
+                             [use libevent instead of libev]),
+              [], [enable_libevent=no])
 
 AC_ARG_ENABLE([install-module-dependencies],
               AS_HELP_STRING([--enable-install-module-dependencies],
                              [Install third-party bundled dependencies required
-                              for module development default: no]),
-              [enable_install_module_dependencies=yes], [])
+                              for module development]),
+              [], [enable_install_module_dependencies=no])
 
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
-                              this option won't change them default: no]),
-              [enable_optimize=yes], [])
+                              this option won't change them]),
+              [], [enable_optimize=no])
 
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
-                             [enable google perftools]),
-              [gperftools=yes])
+                             [enable Google perftools]),
+              [], [enable_perftools=no])
 
 AC_ARG_ENABLE([python],
               AS_HELP_STRING([--disable-python],
@@ -221,41 +221,39 @@ AC_ARG_ENABLE([python-dependency-install],
                              [when the python packages are installed during
                               make install, no external dependencies are
                               downloaded or installed]),
-              [without_python_deps=yes], [])
+              [], [enable_python_dependency_install=yes])
 
 AC_ARG_ENABLE([ssl],
               AS_HELP_STRING([--enable-ssl],
-                             [use ssl for libprocess communication
-                             default: no]),
-              [enable_ssl=yes], [])
+                             [use ssl for libprocess communication]),
+              [], [enable_ssl=no])
 
 AC_ARG_ENABLE([static-unimplemented],
               AS_HELP_STRING([--enable-static-unimplemented],
                              [generate static assertion errors for unimplemented
-                             functions default: no]),
-              [enable_static_unimplemented=yes], [])
+                             functions]),
+              [], [enable_static_unimplemented=no])
 
 AC_ARG_ENABLE([tests-install],
               AS_HELP_STRING([--enable-tests-install],
-                             [build and install tests and their helper tools
-                              default: no]),
+                             [build and install tests and their helper tools]),
               [], [enable_tests_install=no])
 
 AC_ARG_ENABLE([xfs-disk-isolator],
               AS_HELP_STRING([--enable-xfs-disk-isolator],
-                             [builds the XFS disk isolator
-                             default: no]),
+                             [builds the XFS disk isolator]),
               [], [enable_xfs_disk_isolator=no])
 
 AC_ARG_ENABLE([zlib],
             AS_HELP_STRING([--disable-zlib],
                            [disables zlib compression, which means the webui
                            will be far less responsive; not recommended]),
-            [enable_zlib=no], [enable_zlib=yes])
+            [], [enable_zlib=yes])
 
 AC_ARG_ENABLE([parallel_test_execution],
               AS_HELP_STRING([--enable-parallel-test-execution],
-                             [execute tests in parallel where possible]))
+                             [execute tests in parallel where possible]),
+            [], [enable_parallel_test_execution=no])
 
 ###############################################################################
 # Optional packages.
@@ -598,7 +596,7 @@ AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
-AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
+AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$enable_perftools" = "xyes"])
 
 AM_CONDITIONAL([INSTALL_MODULE_DEPENDENCIES],
                [test x"$enable_install_module_dependencies" = "xyes"])
@@ -1821,7 +1819,7 @@ fi
 if test -n "`echo $with_zookeeper`"; then
   CPPFLAGS="$CPPFLAGS -I${with_zookeeper}/include/zookeeper"
   LDFLAGS="$LDFLAGS -L${with_zookeeper}/lib"
-elif test "x$enable_bundled" = "xno"; then
+elif test "x$enable_bundled" != "xyes"; then
   CPPFLAGS="$CPPFLAGS -I/usr/include/zookeeper"
 fi
 
@@ -2083,7 +2081,7 @@ There are two possible workarounds for this issue:
 
   # Check if user has asked us to use a preinstalled setuptools, or if
   # they asked us to ignore all bundled libraries while compiling and linking.
-  if test "x$without_bundled_setuptools" = "xyes" || \
+  if test "x$enable_bundled_setuptools" != "xyes" || \
      test "x$enable_bundled" != "xyes"; then
 
     AC_PYTHON_MODULE([distutils], [no])
@@ -2118,7 +2116,7 @@ correct if you're already doing this.
 
   # Check if user has asked us to use a preinstalled pip, or if
   # they asked us to ignore all bundled libraries while compiling and linking.
-  if test "x$without_bundled_pip" = "xyes" || \
+  if test "x$enable_bundled_pip" != "xyes" || \
      test "x$enable_bundled" != "xyes"; then
 
     AC_PYTHON_MODULE([pip], [no])
@@ -2142,7 +2140,7 @@ correct if you're already doing this.
 
   # Check if user has asked us to use a preinstalled wheel, or if
   # they asked us to ignore all bundled libraries while compiling and linking.
-  if test "x$without_bundled_wheel" = "xyes" || \
+  if test "x$enable_bundled_wheel" != "xyes" || \
      test "x$enable_bundled" != "xyes"; then
 
     AC_PYTHON_MODULE([wheel], [no])
@@ -2176,8 +2174,8 @@ AM_CONDITIONAL([WITH_BUNDLED_PIP],
 AM_CONDITIONAL([WITH_BUNDLED_WHEEL],
     [test "x$with_bundled_wheel" = "xyes"])
 
-AM_CONDITIONAL([WITHOUT_PYTHON_DEPS],
-    [test "x$without_python_deps" = "xyes"])
+AM_CONDITIONAL([ENABLE_PYTHON_DEPENDENCY_INSTALL],
+    [test "x$enable_python_dependency_install" = "xyes"])
 
 
 ###############################################################################

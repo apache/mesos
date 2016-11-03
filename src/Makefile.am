@@ -1828,7 +1828,7 @@ python/dist/setup.cfg:
 # Makefile.am for an explanation of this variable.
 pipinstallargs=
 
-if WITHOUT_PYTHON_DEPS
+if !ENABLE_PYTHON_DEPENDENCY_INSTALL
 pipinstallargs += --no-deps
 endif
 
