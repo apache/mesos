@@ -1906,6 +1906,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
         return await(futures)
           .then([containerId](const list<Future<ContainerStatus>>& statuses) {
             ContainerStatus result;
+            result.mutable_container_id()->CopyFrom(containerId);
 
             foreach (const Future<ContainerStatus>& status, statuses) {
               if (status.isReady()) {

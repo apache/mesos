@@ -2207,6 +2207,8 @@ message ContainerInfo {
  * TaskStatus message.
  */
 message ContainerStatus {
+  optional ContainerID container_id = 4;
+
   // This field can be reliably used to identify the container IP address.
   repeated NetworkInfo network_infos = 1;
 
