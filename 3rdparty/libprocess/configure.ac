@@ -73,13 +73,13 @@ AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
                              [build against preinstalled dependencies instead
                              of bundled libraries]),
-              [enable_bundled=no], [enable_bundled=yes])
+              [], [enable_bundled=yes])
 
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
                              [enable debugging. If CFLAGS/CXXFLAGS are set, this
                               option won't change them default: no]),
-              [enable_debug=yes], [])
+              [], [enable_debug=no])
 
 AC_ARG_ENABLE([install],
               AS_HELP_STRING([--enable-install],
@@ -89,36 +89,36 @@ AC_ARG_ENABLE([install],
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
                              [use libevent instead of libev default: no]),
-              [enable_libevent=yes], [])
+              [], [enable_libevent=no])
 
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
                               this option won't change them default: no]),
-              [enable_optimize=yes], [])
+              [], [enable_optimize=no])
 
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
-                             [enable google perftools]),
-              [gperftools=yes], [])
+                             [enable Google perftools]),
+              [], [enable_perftools=no])
 
 AC_ARG_ENABLE([ssl],
               AS_HELP_STRING([--enable-ssl],
                              [use ssl for libprocess communication
                              default: no]),
-              [enable_ssl=yes], [])
+              [], [enable_ssl=no])
 
 AC_ARG_ENABLE([static-unimplemented],
               AS_HELP_STRING([--enable-static-unimplemented],
                              [generate static assertion errors for unimplemented
                              functions default: no]),
-              [enable_static_unimplemented=yes], [])
+              [], [enable_static_unimplemented=no])
 
 AC_ARG_ENABLE([zlib],
             AS_HELP_STRING([--disable-zlib],
                            [disables zlib compression, which means the webui
                            will be far less responsive; not recommended]),
-            [enable_zlib=no], [enable_zlib=yes])
+            [], [enable_zlib=yes])
 
 
 ###############################################################################
@@ -344,7 +344,7 @@ if test "x$enable_static_unimplemented" = "xyes"; then
   AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
 fi
 
-AM_CONDITIONAL([HAS_GPERFTOOLS], [test x"$gperftools" = "xyes"])
+AM_CONDITIONAL([HAS_GPERFTOOLS], [test x"$enable_perftools" = "xyes"])
 AM_COND_IF([HAS_GPERFTOOLS], AC_DEFINE([ENABLE_GPERFTOOLS], [1]))
 
 # Disable static libprocess by default.
