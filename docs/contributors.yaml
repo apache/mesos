@@ -590,6 +590,14 @@
   jira_user: yongtang
   reviewboard_user: yongtang
 
+- name: Yubo Li
+  affiliations:
+    - {organization: IBM}
+  emails:
+    - liyubobj@cn.ibm.com
+  jira_user: liyubobj
+  reviewboard_user: liyubobj
+
 - name: Zhitao Li
   affiliations:
     - {organization: Uber}
