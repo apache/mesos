@@ -3911,6 +3911,150 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_WaitUnknownContainer)
   EXPECT_NONE(wait.get());
 }
 
+
+// This test ensures that a task will transition straight from `TASK_KILLING` to
+// `TASK_KILLED`, even if the health check begins to fail during the kill policy
+// grace period.
+//
+// TODO(gkleiman): this test takes about 7 seconds to run, consider using mock
+// tasks and health checkers to speed it up.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
+{
+  Shared<Docker> docker(new MockDocker(
+      tests::flags.docker, tests::flags.docker_socket));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(agentFlags.container_logger);
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer containerizer(
+      agentFlags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(agent);
+
+  // Start the framework with the task killing capability.
+  FrameworkInfo::Capability capability;
+  capability.set_type(FrameworkInfo::Capability::TASK_KILLING_STATE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->CopyFrom(capability);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  const uint16_t testPort = 31001;
+
+  // Launch a HTTP server until SIGTERM is received, then sleep for
+  // 15 seconds to let the health check fail.
+  const string command = strings::format(
+      "trap \"sleep 15\" SIGTERM && nc -lk -p %u -e echo",
+      testPort).get();
+
+  TaskInfo task = createTask(offers->front(), command);
+
+  // The docker container runs in host network mode.
+  //
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+  containerInfo.mutable_docker()->set_image("alpine");
+  containerInfo.mutable_docker()->set_network(
+      ContainerInfo::DockerInfo::HOST);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // Set `grace_period_seconds` here because it takes some time to launch
+  // Netcat to serve requests.
+  HealthCheck healthCheck;
+  healthCheck.set_type(HealthCheck::TCP);
+  healthCheck.mutable_tcp()->set_port(testPort);
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_grace_period_seconds(15);
+  healthCheck.set_interval_seconds(0);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  // Set the kill policy grace period to 5 seconds.
+  KillPolicy killPolicy;
+  killPolicy.mutable_grace_period()->set_nanoseconds(Seconds(5).ns());
+
+  task.mutable_kill_policy()->CopyFrom(killPolicy);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&containerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusKilling;
+  Future<TaskStatus> statusKilled;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillOnce(FutureArg<1>(&statusKilling))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().has_healthy());
+  EXPECT_TRUE(statusHealthy.get().healthy());
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilling);
+  EXPECT_EQ(TASK_KILLING, statusKilling->state());
+  EXPECT_FALSE(statusKilling.get().has_healthy());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_FALSE(statusKilled.get().has_healthy());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
