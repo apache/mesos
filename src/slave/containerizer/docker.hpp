@@ -34,7 +34,7 @@
 
 #include "slave/containerizer/containerizer.hpp"
 
-#include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
+#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
 
 namespace mesos {
 namespace internal {
@@ -72,7 +72,8 @@ public:
       const Flags& flags,
       Fetcher* fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& logger,
-      process::Shared<Docker> docker);
+      process::Shared<Docker> docker,
+      const Option<NvidiaComponents>& nvidia = None());
 
   // This is only public for tests.
   DockerContainerizer(
@@ -121,11 +122,13 @@ public:
       const Flags& _flags,
       Fetcher* _fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& _logger,
-      process::Shared<Docker> _docker)
+      process::Shared<Docker> _docker,
+      const Option<NvidiaComponents>& _nvidia)
     : flags(_flags),
       fetcher(_fetcher),
       logger(_logger),
-      docker(_docker) {}
+      docker(_docker),
+      nvidia(_nvidia) {}
 
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
@@ -265,6 +268,8 @@ private:
   process::Owned<mesos::slave::ContainerLogger> logger;
 
   process::Shared<Docker> docker;
+
+  Option<NvidiaComponents> nvidia;
 
   struct Container
   {

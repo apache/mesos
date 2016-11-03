@@ -182,7 +182,8 @@ Try<DockerContainerizer*> DockerContainerizer::create(
       flags,
       fetcher,
       Owned<ContainerLogger>(logger.get()),
-      docker);
+      docker,
+      nvidia);
 }
 
 
@@ -198,12 +199,14 @@ DockerContainerizer::DockerContainerizer(
     const Flags& flags,
     Fetcher* fetcher,
     const Owned<ContainerLogger>& logger,
-    Shared<Docker> docker)
+    Shared<Docker> docker,
+    const Option<NvidiaComponents>& nvidia)
   : process(new DockerContainerizerProcess(
       flags,
       fetcher,
       logger,
-      docker))
+      docker,
+      nvidia))
 {
   spawn(process.get());
 }
@@ -1275,6 +1278,9 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
+
+  // TODO(Yubo): Check and allocate requested GPUs
+  // through `NvidiaGpuAllocator`.
 
   // Prepare environment variables for the executor.
   map<string, string> environment = container->environment;

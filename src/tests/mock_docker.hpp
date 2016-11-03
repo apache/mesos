@@ -37,8 +37,12 @@
 
 #include "slave/containerizer/docker.hpp"
 
+#include "slave/containerizer/mesos/isolators/gpu/components.hpp"
+
 using ::testing::_;
 using ::testing::Invoke;
+
+using mesos::internal::slave::NvidiaComponents;
 
 namespace mesos {
 namespace internal {
@@ -157,7 +161,8 @@ public:
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& logger,
-      process::Shared<Docker> docker);
+      process::Shared<Docker> docker,
+      const Option<NvidiaComponents>& nvidia = None());
 
   MockDockerContainerizer(
       const process::Owned<slave::DockerContainerizerProcess>& process);
@@ -237,7 +242,8 @@ public:
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& logger,
-      const process::Shared<Docker>& docker);
+      const process::Shared<Docker>& docker,
+      const Option<NvidiaComponents>& nvidia = None());
 
   virtual ~MockDockerContainerizerProcess();
 
