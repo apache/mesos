@@ -222,6 +222,7 @@ All Issues:
   * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
   * [MESOS-6445] - Reconciliation for unreachable agent after master failover is incorrect.
   * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
+  * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
   * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
   * [MESOS-6482] - Master check failure when marking an agent unreachable.
   * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable.
@@ -414,6 +415,7 @@ All Issues:
     * [MESOS-6393] - Deprecated SSL_ environment variables are non functional already.
     * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON.
     * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot.
+    * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
     * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
     * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
     * [MESOS-6527] - Memory leak in the libprocess request decoder.
@@ -1305,6 +1307,8 @@ All Issues:
   * [MESOS-6233] - Master CHECK fails during recovery while relinking to other masters.
   * [MESOS-6234] - Potential socket leak during Zookeeper network changes.
   * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
+  * [MESOS-6299] - Master doesn't remove task from pending when it is invalid.
+  * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
   * [MESOS-6527] - Memory leak in the libprocess request decoder.
 
 
