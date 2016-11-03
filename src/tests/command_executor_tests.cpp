@@ -214,6 +214,118 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 }
 
 
+// This test ensures that a task will transition straight from `TASK_KILLING` to
+// `TASK_KILLED`, even if the health check begins to fail during the kill policy
+// grace period.
+//
+// TODO(gkleiman): this test takes about 7 seconds to run, consider using mock
+// tasks and health checkers to speed it up.
+TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Start the framework with the task killing capability.
+  FrameworkInfo::Capability capability;
+  capability.set_type(FrameworkInfo::Capability::TASK_KILLING_STATE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->CopyFrom(capability);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Use "15" instead of SIGTERM to workaround a bug in ash's implementation of
+  // trap.
+  //
+  // TODO(gkleiman): Replace this fragile workaround with a test helper.
+  TaskInfo task = createTask(
+      offers->front(),
+      "trap \"sleep 15\" 15 && sleep 120");
+
+  // Create a health check that succeeds until a temporary file is removed.
+  Try<string> temporaryPath = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(temporaryPath);
+  const string tmpPath = temporaryPath.get();
+
+  HealthCheck healthCheck;
+  healthCheck.set_type(HealthCheck::COMMAND);
+  healthCheck.mutable_command()->set_value("ls " + tmpPath + " >/dev/null");
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_grace_period_seconds(0);
+  healthCheck.set_interval_seconds(0);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  // Set the kill policy grace period to 5 seconds.
+  KillPolicy killPolicy;
+  killPolicy.mutable_grace_period()->set_nanoseconds(Seconds(5).ns());
+
+  task.mutable_kill_policy()->CopyFrom(killPolicy);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusKilling;
+  Future<TaskStatus> statusKilled;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillOnce(FutureArg<1>(&statusKilling))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.launchTasks(offers->front().id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().has_healthy());
+  EXPECT_TRUE(statusHealthy.get().healthy());
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilling);
+  EXPECT_EQ(TASK_KILLING, statusKilling->state());
+  EXPECT_FALSE(statusKilling.get().has_healthy());
+
+  // Remove the temporary file, so that the health check fails.
+  os::rm(tmpPath);
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_FALSE(statusKilled.get().has_healthy());
+
+  driver.stop();
+  driver.join();
+}
+
+
 class HTTPCommandExecutorTest
   : public MesosTest {};
 
