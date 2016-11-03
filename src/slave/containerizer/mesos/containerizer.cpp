@@ -1875,29 +1875,6 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
 }
 
 
-Future<ContainerStatus> _status(
-    const ContainerID& containerId,
-    const list<Future<ContainerStatus>>& statuses)
-{
-  ContainerStatus result;
-
-  foreach (const Future<ContainerStatus>& status, statuses) {
-    if (status.isReady()) {
-      result.MergeFrom(status.get());
-    } else {
-      LOG(WARNING) << "Skipping status for container "
-                   << containerId << " because: "
-                   << (status.isFailed() ? status.failure()
-                                            : "discarded");
-    }
-  }
-
-  VLOG(2) << "Aggregating status for container " << containerId;
-
-  return result;
-}
-
-
 Future<ContainerStatus> MesosContainerizerProcess::status(
     const ContainerID& containerId)
 {
@@ -1927,7 +1904,24 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
   return containers_.at(containerId)->sequence.add<ContainerStatus>(
       [=]() -> Future<ContainerStatus> {
         return await(futures)
-          .then(lambda::bind(_status, containerId, lambda::_1));
+          .then([containerId](const list<Future<ContainerStatus>>& statuses) {
+            ContainerStatus result;
+
+            foreach (const Future<ContainerStatus>& status, statuses) {
+              if (status.isReady()) {
+                result.MergeFrom(status.get());
+              } else {
+                LOG(WARNING) << "Skipping status for container "
+                             << containerId << " because: "
+                             << (status.isFailed() ? status.failure()
+                                                   : "discarded");
+              }
+            }
+
+            VLOG(2) << "Aggregating status for container " << containerId;
+
+            return result;
+          });
       });
 }
 
