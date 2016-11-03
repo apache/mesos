@@ -19,6 +19,7 @@
 
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 
 #include <mesos/slave/container_logger.hpp>
@@ -224,6 +225,11 @@ private:
       bool killed,
       const process::Future<Option<int>>& status);
 
+  void ____destroy(
+      const ContainerID& containerId,
+      bool killed,
+      const process::Future<Option<int>>& status);
+
   process::Future<Nothing> destroyTimeout(
       const ContainerID& containerId,
       process::Future<Nothing> future);
@@ -249,6 +255,25 @@ private:
     const std::string& directory,
     const Resources& current,
     const Resources& updated);
+
+#ifdef __linux__
+  // Allocate GPU resources for a specified container.
+  process::Future<Nothing> allocateNvidiaGpus(
+      const ContainerID& containerId,
+      const size_t count);
+
+  process::Future<Nothing> _allocateNvidiaGpus(
+      const ContainerID& containerId,
+      const std::set<Gpu>& allocated);
+
+  // Deallocate GPU resources for a specified container.
+  process::Future<Nothing> deallocateNvidiaGpus(
+      const ContainerID& containerId);
+
+  process::Future<Nothing> _deallocateNvidiaGpus(
+      const ContainerID& containerId,
+      const std::set<Gpu>& deallocated);
+#endif // __linux__
 
   Try<ResourceStatistics> cgroupsStatistics(pid_t pid) const;
 
@@ -476,6 +501,11 @@ private:
     // container. This is stored so we can clean up the executor
     // on destroy.
     Option<pid_t> executorPid;
+
+#ifdef __linux__
+    // GPU resources allocated to the container.
+    std::set<Gpu> gpus;
+#endif // __linux__
 
     // Marks if this container launches an executor in a docker
     // container.

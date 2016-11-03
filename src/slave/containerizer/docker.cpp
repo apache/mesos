@@ -16,6 +16,7 @@
 
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -65,6 +66,7 @@ using namespace process;
 
 using std::list;
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -659,6 +661,77 @@ Try<Nothing> DockerContainerizerProcess::unmountPersistentVolumes(
 #endif // __linux__
   return Nothing();
 }
+
+
+#ifdef __linux__
+Future<Nothing> DockerContainerizerProcess::allocateNvidiaGpus(
+    const ContainerID& containerId,
+    const size_t count)
+{
+  if (!nvidia.isSome()) {
+    return Failure("Attempted to allocate GPUs"
+                   " without Nvidia libraries available");
+  }
+
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
+
+  return nvidia->allocator.allocate(count)
+    .then(defer(
+        self(),
+        &Self::_allocateNvidiaGpus,
+        containerId,
+        lambda::_1));
+}
+
+
+Future<Nothing> DockerContainerizerProcess::_allocateNvidiaGpus(
+    const ContainerID& containerId,
+    const set<Gpu>& allocated)
+{
+  if (!containers_.contains(containerId)) {
+    return nvidia->allocator.deallocate(allocated);
+  }
+
+  foreach (const Gpu& gpu, allocated) {
+    containers_.at(containerId)->gpus.insert(gpu);
+  }
+
+  return Nothing();
+}
+
+
+Future<Nothing> DockerContainerizerProcess::deallocateNvidiaGpus(
+    const ContainerID& containerId)
+{
+  if (!nvidia.isSome()) {
+    return Failure("Attempted to deallocate GPUs"
+                   " without Nvidia libraries available");
+  }
+
+  return nvidia->allocator.deallocate(containers_.at(containerId)->gpus)
+    .then(defer(
+        self(),
+        &Self::_deallocateNvidiaGpus,
+        containerId,
+        containers_.at(containerId)->gpus));
+}
+
+
+Future<Nothing> DockerContainerizerProcess::_deallocateNvidiaGpus(
+    const ContainerID& containerId,
+    const set<Gpu>& deallocated)
+{
+  if (containers_.contains(containerId)) {
+    foreach (const Gpu& gpu, deallocated) {
+      containers_.at(containerId)->gpus.erase(gpu);
+    }
+  }
+
+  return Nothing();
+}
+#endif // __linux__
 
 
 Try<Nothing> DockerContainerizerProcess::checkpoint(
@@ -1279,9 +1352,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
 
-  // TODO(Yubo): Check and allocate requested GPUs
-  // through `NvidiaGpuAllocator`.
-
   // Prepare environment variables for the executor.
   map<string, string> environment = container->environment;
 
@@ -1300,7 +1370,26 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   vector<string> argv;
   argv.push_back("mesos-docker-executor");
 
-  return logger->prepare(container->executor, container->directory)
+  Future<Nothing> allocateGpus = Nothing();
+
+#ifdef __linux__
+  Option<double> gpus = Resources(container->resources).gpus();
+
+  if (gpus.isSome() && gpus.get() > 0) {
+    // Make sure that the `gpus` resource is not fractional.
+    // We rely on scalar resources only have 3 digits of precision.
+    if (static_cast<long long>(gpus.get() * 1000.0) % 1000 != 0) {
+      return Failure("The 'gpus' resource must be an unsigned integer");
+    }
+
+    allocateGpus = allocateNvidiaGpus(containerId, gpus.get());
+  }
+#endif // __linux__
+
+  return allocateGpus
+    .then(defer(self(), [=]() {
+      return logger->prepare(container->executor, container->directory);
+    }))
     .then(defer(
         self(),
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
@@ -1445,6 +1534,8 @@ Future<Nothing> DockerContainerizerProcess::update(
 
   // TODO(tnachen): Support updating persistent volumes, which requires
   // Docker mount propagation support.
+
+  // TODO(gyliu): Support updating GPU resources.
 
   // Store the resources for usage().
   container->resources = _resources;
@@ -2063,9 +2154,19 @@ void DockerContainerizerProcess::__destroy(
     // running after we return! We either need to have a periodic
     // "garbage collector", or we need to retry the Docker::kill
     // indefinitely until it has been sucessful.
-    container->termination.fail(
-        "Failed to kill the Docker container: " +
-        (kill.isFailed() ? kill.failure() : "discarded future"));
+
+    string failure = "Failed to kill the Docker container: " +
+                     (kill.isFailed() ? kill.failure() : "discarded future");
+
+#ifdef __linux__
+    // TODO(gyliu): We will never de-allocate these GPUs,
+    // unless the agent is restarted!
+    if (!container->gpus.empty()) {
+      failure += ": " + stringify(container->gpus.size()) + " GPUs leaked";
+    }
+#endif // __linux__
+
+    container->termination.fail(failure);
 
     containers_.erase(containerId);
 
@@ -2106,6 +2207,25 @@ void DockerContainerizerProcess::___destroy(
                  << " container " << containerId << ": " << unmount.error();
   }
 
+  Future<Nothing> deallocateGpus = Nothing();
+
+#ifdef __linux__
+  // Deallocate GPU resources before we destroy container.
+  if (!containers_.at(containerId)->gpus.empty()) {
+    deallocateGpus = deallocateNvidiaGpus(containerId);
+  }
+#endif // __linux__
+
+  deallocateGpus
+    .onAny(defer(self(), &Self::____destroy, containerId, killed, status));
+}
+
+
+void DockerContainerizerProcess::____destroy(
+    const ContainerID& containerId,
+    bool killed,
+    const Future<Option<int>>& status)
+{
   Container* container = containers_.at(containerId);
 
   ContainerTermination termination;
