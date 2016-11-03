@@ -62,7 +62,9 @@ This guide describes the process of doing an official release of Mesos.
       or `Target Version` as the release version to the next release version.
 
     > PROTIP: Use a JIRA dashboard [(example)](https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12329720)
-      to track the progress of targeted issues as the release date approaches.
+      to track the progress of targeted issues as the release date approaches. This
+      JIRA filter may be useful (`<X.Y.Z>` is the release version):
+      `project = MESOS AND "Target Version/s" = <X.Y.Z> AND (fixVersion != <X.Y.Z> OR fixVersion = EMPTY)`
 
     > PROTIP: Use `bulk edit` option in JIRA to move the tickets and make sure to
       **uncheck** the option that emails everyone about the move to avoid spamming.
@@ -76,7 +78,9 @@ This guide describes the process of doing an official release of Mesos.
 
    * Make sure all new API changes, deprecations, major features, and features
      graduating from experimental to stable are called out at the top of the
-     `CHANGELOG`.
+     `CHANGELOG`. This JIRA query may be helpful in identifying some of these
+     (`<X.Y.Z>` is the release version):
+     `project = MESOS AND "Target Version/s" = <X.Y.Z> AND type = Epic`
 
    * Ensure that the "Unresolved Critical Issues" section is populated
      correctly. This JIRA query may be helpful:
