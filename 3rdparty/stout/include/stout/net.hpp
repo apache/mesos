@@ -198,32 +198,6 @@ inline struct addrinfo createAddrInfo(int socktype, int family, int flags)
 }
 
 
-// TODO(evelinad): Move this to Address.
-inline struct sockaddr_storage createSockaddrStorage(const IP& ip, int port)
-{
-  struct sockaddr_storage storage;
-  memset(&storage, 0, sizeof(storage));
-
-  switch (ip.family()) {
-    case AF_INET: {
-      struct sockaddr_in addr;
-      memset(&addr, 0, sizeof(addr));
-      addr.sin_family = AF_INET;
-      addr.sin_addr = ip.in().get();
-      addr.sin_port = htons(port);
-
-      memcpy(&storage, &addr, sizeof(addr));
-      break;
-    }
-    default: {
-      ABORT("Unsupported family type: " + stringify(ip.family()));
-    }
-  }
-
-  return storage;
-}
-
-
 inline Try<std::string> hostname()
 {
   char host[512];
@@ -252,9 +226,29 @@ inline Try<std::string> hostname()
 // Returns a Try of the hostname for the provided IP. If the hostname
 // cannot be resolved, then a string version of the IP address is
 // returned.
+//
+// TODO(benh): Merge with `net::hostname`.
 inline Try<std::string> getHostname(const IP& ip)
 {
-  struct sockaddr_storage storage = createSockaddrStorage(ip, 0);
+  struct sockaddr_storage storage;
+  memset(&storage, 0, sizeof(storage));
+
+  switch (ip.family()) {
+    case AF_INET: {
+      struct sockaddr_in addr;
+      memset(&addr, 0, sizeof(addr));
+      addr.sin_family = AF_INET;
+      addr.sin_addr = ip.in().get();
+      addr.sin_port = 0;
+
+      memcpy(&storage, &addr, sizeof(addr));
+      break;
+    }
+    default: {
+      ABORT("Unsupported family type: " + stringify(ip.family()));
+    }
+  }
+
   char hostname[MAXHOSTNAMELEN];
 
   int error = getnameinfo(
