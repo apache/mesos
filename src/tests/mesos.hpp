@@ -1464,6 +1464,24 @@ inline mesos::v1::Parameters parameterize(Args&&... args)
   return common::parameterize<mesos::v1::Parameters, mesos::v1::Parameter>(
       std::forward<Args>(args)...);
 }
+
+
+inline mesos::v1::scheduler::Call createCallAccept(
+    const mesos::v1::FrameworkID& frameworkId,
+    const mesos::v1::Offer& offer,
+    const mesos::v1::Offer::Operation& operation)
+{
+  mesos::v1::scheduler::Call call;
+  call.set_type(mesos::v1::scheduler::Call::ACCEPT);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  mesos::v1::scheduler::Call::Accept* accept = call.mutable_accept();
+  accept->add_offer_ids()->CopyFrom(offer.id());
+  accept->add_operations()->CopyFrom(operation);
+
+  return call;
+}
+
 } // namespace v1 {
 
 
