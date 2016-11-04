@@ -743,8 +743,11 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
 Future<ContainerStatus> CgroupsIsolatorProcess::status(
     const ContainerID& containerId)
 {
+  // TODO(jieyu): Currently, all nested containers share the same
+  // cgroup as their parent container. Revisit this once this is no
+  // long true.
   if (containerId.has_parent()) {
-    return Failure("Not supported for nested containers");
+    return status(containerId.parent());
   }
 
   if (!infos.contains(containerId)) {

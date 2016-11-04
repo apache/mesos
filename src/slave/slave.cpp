@@ -3896,7 +3896,19 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
   metrics.valid_status_updates++;
 
   // Before sending update, we need to retrieve the container status.
-  containerizer->status(executor->containerId)
+  //
+  // NOTE: If the executor sets the ContainerID inside the
+  // ContainerStatus, that indicates that the Task this status update
+  // is associated with is tied to that container (could be nested).
+  // Therefore, we need to get the status of that container, instead
+  // of the top level executor container.
+  ContainerID containerId = executor->containerId;
+  if (update.status().has_container_status() &&
+      update.status().container_status().has_container_id()) {
+    containerId = update.status().container_status().container_id();
+  }
+
+  containerizer->status(containerId)
     .onAny(defer(self(),
                  &Slave::_statusUpdate,
                  update,

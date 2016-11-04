@@ -1272,8 +1272,11 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
   // Hence, in order to obtain the IP address of this nested container
   // one should always look up the IP address of the root container of
   // the hierarchy to which this container belongs.
+  //
+  // TODO(jieyu): Revisit this once we allow nested containers to use
+  // different network namespaces than their parent container.
   if (containerId.has_parent()) {
-    return Failure("Not supported for nested containers");
+    return status(containerId.parent());
   }
 
   // TODO(jieyu): We don't create 'Info' struct for containers that want
