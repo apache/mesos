@@ -245,6 +245,10 @@ JSON::Object model(const ContainerStatus& status)
 {
   JSON::Object object;
 
+  if (status.has_container_id()) {
+    object.values["container_id"] = JSON::protobuf(status.container_id());
+  }
+
   if (status.network_infos().size() > 0) {
     JSON::Array array;
     array.values.reserve(status.network_infos().size()); // MESOS-2353.
@@ -509,6 +513,10 @@ void json(JSON::ObjectWriter* writer, const CommandInfo& command)
 
 static void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
 {
+  if (status.has_container_id()) {
+    writer->field("container_id", JSON::Protobuf(status.container_id()));
+  }
+
   if (status.network_infos().size() > 0) {
     writer->field("network_infos", status.network_infos());
   }
