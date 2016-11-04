@@ -22,7 +22,8 @@
 
 #include "tests/mesos.hpp"
 
-using namespace process;
+using process::Future;
+using process::Owned;
 
 using std::map;
 using std::shared_ptr;
@@ -348,7 +349,7 @@ TestContainerizer::TestContainerizer(
     const shared_ptr<v1::MockHTTPExecutor>& executor)
   : process(new TestContainerizerProcess(executorId, executor))
 {
-  spawn(process.get());
+  process::spawn(process.get());
   setup();
 }
 
@@ -357,7 +358,7 @@ TestContainerizer::TestContainerizer(
     const hashmap<ExecutorID, Executor*>& executors)
   : process(new TestContainerizerProcess(executors))
 {
-  spawn(process.get());
+  process::spawn(process.get());
   setup();
 }
 
@@ -367,7 +368,7 @@ TestContainerizer::TestContainerizer(
     Executor* executor)
   : process(new TestContainerizerProcess({{executorId, executor}}))
 {
-  spawn(process.get());
+  process::spawn(process.get());
   setup();
 }
 
@@ -375,7 +376,7 @@ TestContainerizer::TestContainerizer(
 TestContainerizer::TestContainerizer(MockExecutor* executor)
   : process(new TestContainerizerProcess({{executor->id, executor}}))
 {
-  spawn(process.get());
+  process::spawn(process.get());
   setup();
 }
 
@@ -383,14 +384,14 @@ TestContainerizer::TestContainerizer(MockExecutor* executor)
 TestContainerizer::TestContainerizer()
   : process(new TestContainerizerProcess())
 {
-  spawn(process.get());
+  process::spawn(process.get());
   setup();
 }
 
 
 TestContainerizer::~TestContainerizer()
 {
-  terminate(process.get());
+  process::terminate(process.get());
   process::wait(process.get());
 }
 
@@ -456,7 +457,7 @@ void TestContainerizer::setup()
 Future<Nothing> TestContainerizer::_recover(
     const Option<slave::state::SlaveState>& state)
 {
-  return dispatch(
+  return process::dispatch(
     process.get(),
     &TestContainerizerProcess::recover,
     state);
@@ -484,7 +485,7 @@ Future<bool> TestContainerizer::_launch(
       const map<string, string>&,
       bool) = &TestContainerizerProcess::launch;
 
-  return dispatch(
+  return process::dispatch(
       process.get(),
       launch,
       containerId,
@@ -513,7 +514,7 @@ Future<bool> TestContainerizer::_launch(
       const Option<string>&,
       const SlaveID&) = &TestContainerizerProcess::launch;
 
-  return dispatch(
+  return process::dispatch(
       process.get(),
       launch,
       containerId,
@@ -528,7 +529,7 @@ Future<Nothing> TestContainerizer::_update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return dispatch(
+  return process::dispatch(
       process.get(),
       &TestContainerizerProcess::update,
       containerId,
@@ -539,7 +540,7 @@ Future<Nothing> TestContainerizer::_update(
 Future<ResourceStatistics> TestContainerizer::_usage(
     const ContainerID& containerId)
 {
-  return dispatch(
+  return process::dispatch(
     process.get(),
     &TestContainerizerProcess::usage,
     containerId);
@@ -549,7 +550,7 @@ Future<ResourceStatistics> TestContainerizer::_usage(
 Future<ContainerStatus> TestContainerizer::_status(
     const ContainerID& containerId)
 {
-  return dispatch(
+  return process::dispatch(
       process.get(),
       &TestContainerizerProcess::status,
       containerId);
@@ -559,7 +560,7 @@ Future<ContainerStatus> TestContainerizer::_status(
 Future<Option<mesos::slave::ContainerTermination>> TestContainerizer::_wait(
     const ContainerID& containerId)
 {
-  return dispatch(
+  return process::dispatch(
       process.get(),
       &TestContainerizerProcess::wait,
       containerId);
@@ -573,7 +574,7 @@ Future<bool> TestContainerizer::_destroy(
   Future<bool> (TestContainerizerProcess::*destroy)(
       const ContainerID&) = &TestContainerizerProcess::destroy;
 
-  return dispatch(
+  return process::dispatch(
       process.get(),
       destroy,
       containerId);
@@ -589,7 +590,7 @@ Future<bool> TestContainerizer::destroy(
       const FrameworkID&,
       const ExecutorID&) = &TestContainerizerProcess::destroy;
 
-  return dispatch(
+  return process::dispatch(
       process.get(),
       destroy,
       frameworkId,
@@ -599,7 +600,7 @@ Future<bool> TestContainerizer::destroy(
 
 Future<hashset<ContainerID>> TestContainerizer::containers()
 {
-  return dispatch(
+  return process::dispatch(
       process.get(),
       &TestContainerizerProcess::containers);
 }
