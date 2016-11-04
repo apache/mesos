@@ -75,21 +75,31 @@ Future<int> accept(int fd)
     return Failure("Failed to accept, cloexec: " + cloexec.error());
   }
 
+  Try<Address> address = network::address(s);
+  if (address.isError()) {
+    LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to get address: "
+                                << address.error();
+    os::close(s);
+    return Failure("Failed to get address: " + address.error());
+  }
+
   // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
   // NOTE: We cast to `char*` here because the function prototypes on Windows
   // use `char*` instead of `void*`.
-  int on = 1;
-  if (::setsockopt(
-          s,
-          SOL_TCP,
-          TCP_NODELAY,
-          reinterpret_cast<const char*>(&on),
-          sizeof(on)) < 0) {
-    const string error = os::strerror(errno);
-    VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
-    os::close(s);
-    return Failure(
-      "Failed to turn off the Nagle algorithm: " + stringify(error));
+  if (address->family() == Address::Family::INET) {
+    int on = 1;
+    if (::setsockopt(
+            s,
+            SOL_TCP,
+            TCP_NODELAY,
+            reinterpret_cast<const char*>(&on),
+            sizeof(on)) < 0) {
+      const string error = os::strerror(errno);
+      VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
+      os::close(s);
+      return Failure(
+          "Failed to turn off the Nagle algorithm: " + stringify(error));
+    }
   }
 
   return s;

@@ -93,7 +93,7 @@ struct UPID
   }
 
   std::string id;
-  network::inet::Address address;
+  network::inet::Address address = network::inet::Address::ANY_ANY();
 };
 
 

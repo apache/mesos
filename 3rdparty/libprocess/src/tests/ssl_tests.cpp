@@ -48,6 +48,9 @@ namespace http = process::http;
 namespace io = process::io;
 namespace network = process::network;
 namespace openssl = network::openssl;
+#ifndef __WINDOWS__
+namespace unix = process::network::unix;
+#endif // __WINDOWS__
 
 using network::inet::Address;
 using network::inet::Socket;
@@ -132,50 +135,97 @@ TEST_P(SSLTest, BasicSameProcess)
 
   openssl::reinitialize();
 
-  const Try<Socket> server_create = Socket::create(SocketImpl::Kind::SSL);
-  ASSERT_SOME(server_create);
+  Try<Socket> server = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(server);
 
-  const Try<Socket> client_create = Socket::create(SocketImpl::Kind::SSL);
-  ASSERT_SOME(client_create);
+  Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
 
-  Socket server = server_create.get();
-  Socket client = client_create.get();
+  // We need to explicitly bind to the loopback address so the
+  // certificate we create in this test fixture can be verified.
+  ASSERT_SOME(server->bind(Address::LOOPBACK_ANY()));
+  ASSERT_SOME(server->listen(BACKLOG));
 
-  // We need to explicitly bind to INADDR_LOOPBACK so the certificate
-  // we create in this test fixture can be verified.
-  ASSERT_SOME(server.bind(Address(net::IP(INADDR_LOOPBACK), 0)));
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
 
-  const Try<Nothing> listen = server.listen(BACKLOG);
-  ASSERT_SOME(listen);
+  Future<Socket> accept = server->accept();
 
-  const Try<Address> server_address = server.address();
-  ASSERT_SOME(server_address);
-
-  const Future<Socket> _socket = server.accept();
-
-  const Future<Nothing> connect = client.connect(server_address.get());
+  AWAIT_ASSERT_READY(client->connect(address.get()));
 
   // Wait for the server to have accepted the client connection.
-  AWAIT_ASSERT_READY(_socket);
-  Socket socket = _socket.get(); // TODO(jmlvanre): Remove const copy.
+  AWAIT_ASSERT_READY(accept);
 
-  // Verify that the client also views the connection as established.
-  AWAIT_ASSERT_READY(connect);
+  Socket socket = accept.get();
 
   // Send a message from the client to the server.
   const string data = "Hello World!";
-  AWAIT_ASSERT_READY(client.send(data));
+  AWAIT_ASSERT_READY(client->send(data));
 
   // Verify the server received the message.
-  AWAIT_ASSERT_EQ(data, socket.recv());
+  AWAIT_ASSERT_EQ(data, socket.recv(data.size()));
 
   // Send the message back from the server to the client.
   AWAIT_ASSERT_READY(socket.send(data));
 
   // Verify the client received the message.
-  AWAIT_ASSERT_EQ(data, client.recv());
+  AWAIT_ASSERT_EQ(data, client->recv(data.size()));
 }
 
+
+#ifndef __WINDOWS__
+TEST_P(SSLTest, BasicSameProcessUnix)
+{
+  os::setenv("LIBPROCESS_SSL_ENABLED", "true");
+  os::setenv("LIBPROCESS_SSL_KEY_FILE", key_path().string());
+  os::setenv("LIBPROCESS_SSL_CERT_FILE", certificate_path().string());
+  // NOTE: we must set LIBPROCESS_SSL_REQUIRE_CERT to false because we
+  // don't have a hostname or IP to verify!
+  os::setenv("LIBPROCESS_SSL_REQUIRE_CERT", "false");
+  os::setenv("LIBPROCESS_SSL_CA_DIR", os::getcwd());
+  os::setenv("LIBPROCESS_SSL_CA_FILE", certificate_path().string());
+  os::setenv("LIBPROCESS_SSL_VERIFY_IPADD", GetParam());
+
+  openssl::reinitialize();
+
+  Try<unix::Socket> server = unix::Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(server);
+
+  Try<unix::Socket> client = unix::Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
+
+  // Use a path in the temporary directory so it gets cleaned up.
+  string path = path::join(sandbox.get(), "socket");
+
+  Try<unix::Address> address = unix::Address::create(path);
+  ASSERT_SOME(address);
+
+  ASSERT_SOME(server->bind(address.get()));
+  ASSERT_SOME(server->listen(BACKLOG));
+
+  Future<unix::Socket> accept = server->accept();
+
+  AWAIT_ASSERT_READY(client->connect(address.get()));
+
+  // Wait for the server to have accepted the client connection.
+  AWAIT_ASSERT_READY(accept);
+
+  unix::Socket socket = accept.get();
+
+  // Send a message from the client to the server.
+  const string data = "Hello World!";
+  AWAIT_ASSERT_READY(client->send(data));
+
+  // Verify the server received the message.
+  AWAIT_ASSERT_EQ(data, socket.recv(data.size()));
+
+  // Send the message back from the server to the client.
+  AWAIT_ASSERT_READY(socket.send(data));
+
+  // Verify the client received the message.
+  AWAIT_ASSERT_EQ(data, client->recv(data.size()));
+}
+#endif // __WINDOWS__
 
 // Test a basic back-and-forth communication using the 'ssl-client'
 // subprocess.

@@ -302,10 +302,10 @@ protected:
 
     process::network::inet::Socket server = create.get();
 
-    // We need to explicitly bind to INADDR_LOOPBACK so the
+    // We need to explicitly bind to the loopback address so the
     // certificate we create in this test fixture can be verified.
     Try<process::network::inet::Address> bind =
-      server.bind(process::network::inet::Address(net::IP(INADDR_LOOPBACK), 0));
+      server.bind(process::network::inet::Address::LOOPBACK_ANY());
 
     if (bind.isError()) {
       return Error(bind.error());

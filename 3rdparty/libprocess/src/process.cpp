@@ -580,7 +580,7 @@ static std::mutex* socket_mutex = new std::mutex();
 static Future<Socket> future_accept;
 
 // Local socket address.
-static Address __address__;
+static Address __address__ = Address::ANY_ANY();
 
 // Active SocketManager (eventually will probably be thread-local).
 static SocketManager* socket_manager = nullptr;
@@ -1072,7 +1072,7 @@ bool initialize(
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
   // Fill in the local IP and port for inter-libprocess communication.
-  __address__ = Address::LOCALHOST_ANY();
+  __address__ = Address::ANY_ANY();
 
   // Fetch and parse the libprocess environment variables.
   internal::Flags flags;
@@ -1310,7 +1310,7 @@ void finalize()
   // Clear the public address of the server socket.
   // NOTE: This variable is necessary for process communication, so it
   // cannot be cleared until after the `ProcessManager` is deleted.
-  __address__ = Address::LOCALHOST_ANY();
+  __address__ = Address::ANY_ANY();
 }
 
 

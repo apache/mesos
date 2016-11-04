@@ -47,18 +47,29 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int s, Kind kind)
 }
 
 
-Try<std::shared_ptr<SocketImpl>> SocketImpl::create(Kind kind)
+Try<std::shared_ptr<SocketImpl>> SocketImpl::create(
+    Address::Family family,
+    Kind kind)
 {
+  int domain = [=]() {
+    switch (family) {
+      case Address::Family::INET: return AF_INET;
+#ifndef __WINDOWS__
+      case Address::Family::UNIX: return AF_UNIX;
+#endif // __WINDOWS__
+    }
+  }();
+
   // Supported in Linux >= 2.6.27.
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
   Try<int> s =
-    network::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    network::socket(domain, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 
   if (s.isError()) {
     return Error("Failed to create socket: " + s.error());
   }
 #else
-  Try<int> s = network::socket(AF_INET, SOCK_STREAM, 0);
+  Try<int> s = network::socket(domain, SOCK_STREAM, 0);
   if (s.isError()) {
     return Error("Failed to create socket: " + s.error());
   }

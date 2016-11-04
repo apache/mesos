@@ -1315,7 +1315,7 @@ Future<Nothing> Connection::disconnected()
 Future<Connection> connect(const URL& url)
 {
   // TODO(bmahler): Move address resolution into the URL class?
-  Address address;
+  Address address = Address::ANY_ANY();
 
   if (url.ip.isNone() && url.domain.isNone()) {
     return Failure("Expected URL.ip or URL.domain to be set");

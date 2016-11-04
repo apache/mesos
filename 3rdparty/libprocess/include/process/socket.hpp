@@ -95,6 +95,7 @@ public:
    // TODO(josephw): MESOS-5729: Consider making the CLOEXEC option
    // configurable by the caller of the interface.
   static Try<std::shared_ptr<SocketImpl>> create(
+      Address::Family family,
       Kind kind = DEFAULT_KIND());
 
   virtual ~SocketImpl()
@@ -238,6 +239,10 @@ template <typename AddressType>
 class Socket
 {
 public:
+  static_assert(
+      std::is_convertible<AddressType, network::Address>::value,
+      "Requires type convertible to `network::Address`");
+
   /**
    * Returns an instance of a `Socket` using the specified kind of
    * implementation.
@@ -273,6 +278,24 @@ public:
   static Try<Socket> create(SocketImpl::Kind kind = SocketImpl::DEFAULT_KIND());
 
   /**
+   * Returns an instance of a `Socket` using the specified
+   * `Address::Family` to determine the address family to use. An
+   * optional implementation kind can be specified. The NONBLOCK and
+   * CLOEXEC options will be set on the underlying file descriptor for
+   * the socket.
+   *
+   * NOTE: this is only defined for `AddressType` of
+   * `network::Address`, all others are explicitly deleted.
+   *
+   * @param kind Optional. The desired `Socket` implementation.
+   *
+   * @return An instance of a `Socket`.
+   */
+  static Try<Socket> create(
+      Address::Family family,
+      SocketImpl::Kind kind = SocketImpl::DEFAULT_KIND());
+
+  /**
    * Returns the kind representing the underlying implementation
    * of the `Socket` instance.
    *
@@ -295,12 +318,12 @@ public:
 
   Try<AddressType> address() const
   {
-    return impl->address();
+    return convert<AddressType>(impl->address());
   }
 
   Try<AddressType> peer() const
   {
-    return impl->peer();
+    return convert<AddressType>(impl->peer());
   }
 
   int get() const
@@ -310,7 +333,7 @@ public:
 
   Try<AddressType> bind(const AddressType& address)
   {
-    return impl->bind(address);
+    return convert<AddressType>(impl->bind(address));
   }
 
   Try<Nothing> listen(int backlog)
@@ -388,10 +411,76 @@ private:
 using Socket = network::internal::Socket<network::Address>;
 
 namespace inet {
-
 using Socket = network::internal::Socket<inet::Address>;
-
 } // namespace inet {
+
+#ifndef __WINDOWS__
+namespace unix {
+using Socket = network::internal::Socket<unix::Address>;
+} // namespace unix {
+#endif // __WINDOWS__
+
+
+namespace internal {
+
+template <>
+Try<Socket<network::Address>> Socket<network::Address>::create(
+    SocketImpl::Kind kind) = delete;
+
+
+template <>
+inline Try<Socket<network::Address>> Socket<network::Address>::create(
+    Address::Family family,
+    SocketImpl::Kind kind)
+{
+  Try<std::shared_ptr<SocketImpl>> impl = SocketImpl::create(family, kind);
+  if (impl.isError()) {
+    return Error(impl.error());
+  }
+  return Socket(impl.get());
+}
+
+
+template <>
+inline Try<Socket<inet::Address>> Socket<inet::Address>::create(
+    SocketImpl::Kind kind)
+{
+  Try<std::shared_ptr<SocketImpl>> impl =
+    SocketImpl::create(Address::Family::INET, kind);
+  if (impl.isError()) {
+    return Error(impl.error());
+  }
+  return Socket(impl.get());
+}
+
+
+template <>
+Try<Socket<inet::Address>> Socket<inet::Address>::create(
+    Address::Family family,
+    SocketImpl::Kind kind) = delete;
+
+
+#ifndef __WINDOWS__
+template <>
+inline Try<Socket<unix::Address>> Socket<unix::Address>::create(
+    SocketImpl::Kind kind)
+{
+  Try<std::shared_ptr<SocketImpl>> impl =
+    SocketImpl::create(Address::Family::UNIX, kind);
+  if (impl.isError()) {
+    return Error(impl.error());
+  }
+  return Socket(impl.get());
+}
+
+
+template <>
+Try<Socket<unix::Address>> Socket<unix::Address>::create(
+    Address::Family family,
+    SocketImpl::Kind kind) = delete;
+#endif // __WINDOWS__
+
+} // namespace internal {
 } // namespace network {
 } // namespace process {
 

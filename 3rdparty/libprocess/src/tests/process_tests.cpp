@@ -1412,7 +1412,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Http2)
 
   Socket socket = create.get();
 
-  ASSERT_SOME(socket.bind(Address()));
+  ASSERT_SOME(socket.bind(Address::ANY_ANY()));
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.

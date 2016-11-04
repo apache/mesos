@@ -494,20 +494,24 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     return Failure("Failed to connect: bufferevent_openssl_socket_new");
   }
 
-  // Try and determine the 'peer_hostname' from the address we're
-  // connecting to in order to properly verify the certificate later.
-  const Try<string> hostname = address.hostname();
+  if (address.family() == Address::Family::INET) {
+    // Try and determine the 'peer_hostname' from the address we're
+    // connecting to in order to properly verify the certificate
+    // later.
+    const Try<string> hostname =
+      network::convert<inet::Address>(address)->hostname();
 
-  if (hostname.isError()) {
-    VLOG(2) << "Could not determine hostname of peer: " << hostname.error();
-  } else {
-    VLOG(2) << "Connecting to " << hostname.get();
-    peer_hostname = hostname.get();
+    if (hostname.isError()) {
+      VLOG(2) << "Could not determine hostname of peer: " << hostname.error();
+    } else {
+      VLOG(2) << "Connecting to " << hostname.get();
+      peer_hostname = hostname.get();
+    }
+
+    // Determine the 'peer_ip' from the address we're connecting to in
+    // order to properly verify the certificate later.
+    peer_ip = network::convert<inet::Address>(address)->ip;
   }
-
-  // Determine the 'peer_ip' from the address we're connecting to in
-  // order to properly verify the certificate later.
-  peer_ip = address.ip;
 
   // Optimistically construct a 'ConnectRequest' and future.
   Owned<ConnectRequest> request(new ConnectRequest());
@@ -533,8 +537,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
 
   run_in_event_loop(
       [self, address]() {
-        sockaddr_storage addr =
-          net::createSockaddrStorage(address.ip, address.port);
+        sockaddr_storage addr = address;
 
           // Assign the callbacks for the bufferevent. We do this
           // before the 'bufferevent_socket_connect()' call to avoid

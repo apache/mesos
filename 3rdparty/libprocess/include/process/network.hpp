@@ -30,10 +30,10 @@ using net::socket;
 // TODO(benh): Remove and defer to Socket::accept.
 inline Try<int> accept(int s)
 {
-  struct sockaddr_storage storage;
-  socklen_t storagelen = sizeof(storage);
+  sockaddr_storage storage;
+  socklen_t length = sizeof(storage);
 
-  int accepted = ::accept(s, (struct sockaddr*) &storage, &storagelen);
+  int accepted = ::accept(s, (sockaddr*) &storage, &length);
   if (accepted < 0) {
     return ErrnoError("Failed to accept");
   }
@@ -45,10 +45,9 @@ inline Try<int> accept(int s)
 // TODO(benh): Remove and defer to Socket::bind.
 inline Try<Nothing> bind(int s, const Address& address)
 {
-  struct sockaddr_storage storage =
-    net::createSockaddrStorage(address.ip, address.port);
+  sockaddr_storage storage = address;
 
-  if (net::bind(s, (struct sockaddr*) &storage, address.size()) < 0) {
+  if (net::bind(s, (sockaddr*) &storage, address.size()) < 0) {
     return ErrnoError("Failed to bind on " + stringify(address));
   }
 
@@ -59,10 +58,9 @@ inline Try<Nothing> bind(int s, const Address& address)
 // TODO(benh): Remove and defer to Socket::connect.
 inline Try<Nothing, SocketError> connect(int s, const Address& address)
 {
-  struct sockaddr_storage storage =
-    net::createSockaddrStorage(address.ip, address.port);
+  sockaddr_storage storage = address;
 
-  if (net::connect(s, (struct sockaddr*) &storage, address.size()) < 0) {
+  if (net::connect(s, (sockaddr*) &storage, address.size()) < 0) {
     return SocketError("Failed to connect to " + stringify(address));
   }
 
@@ -78,10 +76,10 @@ inline Try<Nothing, SocketError> connect(int s, const Address& address)
  */
 inline Try<Address> address(int s)
 {
-  struct sockaddr_storage storage;
-  socklen_t storagelen = sizeof(storage);
+  sockaddr_storage storage;
+  socklen_t length = sizeof(storage);
 
-  if (::getsockname(s, (struct sockaddr*) &storage, &storagelen) < 0) {
+  if (::getsockname(s, (sockaddr*) &storage, &length) < 0) {
     return ErrnoError("Failed to getsockname");
   }
 
@@ -97,10 +95,10 @@ inline Try<Address> address(int s)
  */
 inline Try<Address> peer(int s)
 {
-  struct sockaddr_storage storage;
-  socklen_t storagelen = sizeof(storage);
+  sockaddr_storage storage;
+  socklen_t length = sizeof(storage);
 
-  if (::getpeername(s, (struct sockaddr*) &storage, &storagelen) < 0) {
+  if (::getpeername(s, (sockaddr*) &storage, &length) < 0) {
     return ErrnoError("Failed to getpeername");
   }
 
