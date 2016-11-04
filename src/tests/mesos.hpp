@@ -453,44 +453,48 @@ namespace common {
 template <typename TExecutorInfo, typename TResources, typename TCommandInfo>
 inline TExecutorInfo createExecutorInfo(
     const std::string& executorId,
-    const TCommandInfo& command,
-    const Option<std::string>& resources = None())
+    const Option<TCommandInfo>& command = None(),
+    const Option<std::string>& resources = None(),
+    const Option<typename TExecutorInfo::Type>& type = None())
 {
   TExecutorInfo executor;
   executor.mutable_executor_id()->set_value(executorId);
-  executor.mutable_command()->CopyFrom(command);
+  if (command.isSome()) {
+    executor.mutable_command()->CopyFrom(command.get());
+  }
   if (resources.isSome()) {
     executor.mutable_resources()->CopyFrom(
         TResources::parse(resources.get()).get());
+  }
+  if (type.isSome()) {
+    executor.set_type(type.get());
   }
   return executor;
 }
 
 
-template <typename TExecutorInfo, typename TResources>
+template <typename TExecutorInfo, typename TResources, typename TCommandInfo>
 inline TExecutorInfo createExecutorInfo(
     const std::string& executorId,
     const std::string& command,
-    const Option<std::string>& resources = None())
+    const Option<std::string>& resources = None(),
+    const Option<typename TExecutorInfo::Type>& type = None())
 {
-  TExecutorInfo executor;
-  executor.mutable_executor_id()->set_value(executorId);
-  executor.mutable_command()->set_value(command);
-  if (resources.isSome()) {
-    executor.mutable_resources()->CopyFrom(
-        TResources::parse(resources.get()).get());
-  }
-  return executor;
+  TCommandInfo commandInfo;
+  commandInfo.set_value(command);
+  return createExecutorInfo<TExecutorInfo, TResources, TCommandInfo>(
+      executorId, commandInfo, resources, type);
 }
 
 
-template <typename TExecutorInfo, typename TResources>
+template <typename TExecutorInfo, typename TResources, typename TCommandInfo>
 inline TExecutorInfo createExecutorInfo(
     const std::string& executorId,
     const char* command,
-    const Option<std::string>& resources = None())
+    const Option<std::string>& resources = None(),
+    const Option<typename TExecutorInfo::Type>& type = None())
 {
-  return createExecutorInfo<TExecutorInfo, TResources>(
+  return createExecutorInfo<TExecutorInfo, TResources, TCommandInfo>(
       executorId,
       std::string(command),
       resources);
@@ -1031,8 +1035,10 @@ inline namespace internal {
 template <typename... Args>
 inline ExecutorInfo createExecutorInfo(Args&&... args)
 {
-  return common::createExecutorInfo<ExecutorInfo, Resources>(
-      std::forward<Args>(args)...);
+  return common::createExecutorInfo<
+      ExecutorInfo,
+      Resources,
+      CommandInfo>(std::forward<Args>(args)...);
 }
 
 
@@ -1225,7 +1231,8 @@ inline mesos::v1::ExecutorInfo createExecutorInfo(Args&&... args)
 {
   return common::createExecutorInfo<
       mesos::v1::ExecutorInfo,
-      mesos::v1::Resources>(std::forward<Args>(args)...);
+      mesos::v1::Resources,
+      mesos::v1::CommandInfo>(std::forward<Args>(args)...);
 }
 
 
