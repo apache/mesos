@@ -121,9 +121,6 @@ std::string getSandboxRootDir(const std::string& rootDir);
 std::string getProvisionerDir(const std::string& rootDir);
 
 
-std::string getArchiveDir(const std::string& rootDir);
-
-
 std::string getLatestSlavePath(const std::string& rootDir);
 
 

@@ -167,12 +167,6 @@ TEST_F(PathsTest, ProvisionerDir)
 }
 
 
-TEST_F(PathsTest, Archive)
-{
-  EXPECT_EQ(path::join(rootDir, "archive"), paths::getArchiveDir(rootDir));
-}
-
-
 TEST_F(PathsTest, BootId)
 {
   EXPECT_EQ(path::join(rootDir, "boot_id"), paths::getBootIdPath(rootDir));

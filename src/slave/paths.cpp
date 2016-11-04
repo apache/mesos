@@ -128,12 +128,6 @@ string getProvisionerDir(const string& rootDir)
 }
 
 
-string getArchiveDir(const string& rootDir)
-{
-  return path::join(rootDir, "archive");
-}
-
-
 string getBootIdPath(const string& rootDir)
 {
   return path::join(rootDir, BOOT_ID_FILE);
