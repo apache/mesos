@@ -65,13 +65,6 @@ Try<Jvm*> Jvm::create(
   }
 #endif
 
-  JavaVMOption* opts = new JavaVMOption[options.size()];
-  for (size_t i = 0; i < options.size(); i++) {
-    opts[i].optionString = const_cast<char*>(options[i].c_str());
-  }
-  vmArgs.nOptions = options.size();
-  vmArgs.options = opts;
-
   JavaVM* jvm = nullptr;
   JNIEnv* env = nullptr;
   Option<std::string> libJvmPath = os::getenv("JAVA_JVM_LIBRARY");
@@ -94,6 +87,16 @@ Try<Jvm*> Jvm::create(
     return Error(symbol.error());
   }
 
+  std::vector<JavaVMOption> opts(options.size());
+  for (size_t i = 0; i < options.size(); i++) {
+    opts[i].optionString = const_cast<char*>(options[i].c_str());
+  }
+
+  vmArgs.nOptions = opts.size();
+  if (!opts.empty()) {
+    vmArgs.options = &opts[0];
+  }
+
   // typedef function pointer to JNI.
   typedef jint (*fnptr_JNI_CreateJavaVM)(JavaVM**, void**, void*);
 
@@ -106,8 +109,6 @@ Try<Jvm*> Jvm::create(
     libJvm->close();
     return Error("Failed to create JVM!");
   }
-
-  delete[] opts;
 
   return instance = new Jvm(jvm, version, exceptions);
 }
