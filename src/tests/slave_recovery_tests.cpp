@@ -569,8 +569,10 @@ TYPED_TEST(SlaveRecoveryTest, ROOT_CGROUPS_ReconnectDefaultExecutor)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::v1::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
 
   AWAIT_READY(connected);
 

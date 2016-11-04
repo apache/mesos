@@ -1482,7 +1482,10 @@ TEST_P(MasterAPITest, Subscribe)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 

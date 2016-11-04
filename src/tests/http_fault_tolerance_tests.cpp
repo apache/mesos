@@ -111,8 +111,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
     EXPECT_CALL(*scheduler, connected(_))
       .WillOnce(FutureSatisfy(&connected));
 
-    scheduler::v1::TestMesos schedulerLibrary(
-        master.get()->pid, contentType, scheduler);
+    v1::scheduler::TestMesos schedulerLibrary(
+        master.get()->pid,
+        contentType,
+        scheduler);
 
     AWAIT_READY(connected);
 
@@ -168,8 +170,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
       .WillOnce(FutureSatisfy(&connected))
       .WillRepeatedly(Return()); // Ignore future invocations.
 
-    scheduler::v1::TestMesos schedulerLibrary(
-        master.get()->pid, contentType, scheduler);
+    v1::scheduler::TestMesos schedulerLibrary(
+        master.get()->pid,
+        contentType,
+        scheduler);
 
     AWAIT_READY(connected);
 
@@ -223,8 +227,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
       .WillOnce(FutureSatisfy(&connected))
       .WillRepeatedly(Return()); // Ignore future invocations.
 
-    scheduler::v1::TestMesos schedulerLibrary(
-        master.get()->pid, contentType, scheduler);
+    v1::scheduler::TestMesos schedulerLibrary(
+        master.get()->pid,
+        contentType,
+        scheduler);
 
     AWAIT_READY(connected);
 
@@ -287,8 +293,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
       .WillOnce(FutureSatisfy(&connected))
       .WillRepeatedly(Return()); // Ignore future invocations.
 
-    scheduler::v1::TestMesos schedulerLibrary(
-        master.get()->pid, contentType, scheduler);
+    v1::scheduler::TestMesos schedulerLibrary(
+        master.get()->pid,
+        contentType,
+        scheduler);
 
     AWAIT_READY(connected);
 
@@ -346,8 +354,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::v1::TestMesos schedulerLibrary(
-      master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos schedulerLibrary(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -434,8 +444,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
     .WillOnce(FutureSatisfy(&connected2));
 
   // Failover to another scheduler instance.
-  scheduler::v1::TestMesos schedulerLibrary2(
-      master.get()->pid, contentType, scheduler2);
+  v1::scheduler::TestMesos schedulerLibrary2(
+      master.get()->pid,
+      contentType,
+      scheduler2);
 
   AWAIT_READY(connected2);
 
@@ -523,8 +535,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::v1::TestMesos schedulerLibrary(
-      master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos schedulerLibrary(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -596,8 +610,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
     .WillOnce(FutureSatisfy(&connected2));
 
   // Failover to another scheduler instance.
-  scheduler::v1::TestMesos schedulerLibrary2(
-      master.get()->pid, contentType, scheduler2);
+  v1::scheduler::TestMesos schedulerLibrary2(
+      master.get()->pid,
+      contentType,
+      scheduler2);
 
   AWAIT_READY(connected2);
 
@@ -691,8 +707,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::v1::TestMesos schedulerLibrary(
-      master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos schedulerLibrary(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -762,8 +780,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
     .WillOnce(FutureSatisfy(&connected2));
 
   // Failover to another scheduler instance.
-  scheduler::v1::TestMesos schedulerLibrary2(
-      master.get()->pid, contentType, scheduler2);
+  v1::scheduler::TestMesos schedulerLibrary2(
+      master.get()->pid,
+      contentType,
+      scheduler2);
 
   AWAIT_READY(connected2);
 
@@ -856,8 +876,10 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::v1::TestMesos schedulerLibrary(
-      master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos schedulerLibrary(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 

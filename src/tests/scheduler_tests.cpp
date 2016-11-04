@@ -118,7 +118,10 @@ TEST_P(SchedulerTest, Subscribe)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -162,7 +165,10 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -194,7 +200,10 @@ TEST_P(SchedulerTest, SchedulerFailover)
     .WillOnce(FutureSatisfy(&connected2));
 
   // Failover to another scheduler instance.
-  scheduler::v1::TestMesos mesos2(master.get()->pid, contentType, scheduler2);
+  v1::scheduler::TestMesos mesos2(
+      master.get()->pid,
+      contentType,
+      scheduler2);
 
   AWAIT_READY(connected2);
 
@@ -250,8 +259,11 @@ TEST_P(SchedulerTest, MasterFailover)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(
-      master.get()->pid, contentType, scheduler, detector);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler,
+      detector);
 
   AWAIT_READY(connected);
 
@@ -332,7 +344,10 @@ TEST_P(SchedulerTest, MetricsEndpoint)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -399,7 +414,10 @@ TEST_P(SchedulerTest, TaskRunning)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -520,7 +538,10 @@ TEST_P(SchedulerTest, TaskGroupRunning)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -642,7 +663,10 @@ TEST_P(SchedulerTest, ReconcileTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -767,7 +791,10 @@ TEST_P(SchedulerTest, KillTask)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -909,7 +936,10 @@ TEST_P(SchedulerTest, ShutdownExecutor)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1035,7 +1065,10 @@ TEST_P(SchedulerTest, Teardown)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1149,7 +1182,10 @@ TEST_P(SchedulerTest, Decline)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1238,7 +1274,10 @@ TEST_P(SchedulerTest, Revive)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1333,7 +1372,10 @@ TEST_P(SchedulerTest, Suppress)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1449,7 +1491,10 @@ TEST_P(SchedulerTest, Message)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1564,7 +1609,10 @@ TEST_P(SchedulerTest, Request)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 
@@ -1624,8 +1672,11 @@ TEST_P(SchedulerTest, SchedulerReconnect)
 
   ContentType contentType = GetParam();
 
-  scheduler::v1::TestMesos mesos(
-      master.get()->pid, contentType, scheduler, detector);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler,
+      detector);
 
   AWAIT_READY(connected);
 
@@ -1700,8 +1751,10 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerLibrary)
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected));
 
-  scheduler::v1::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
 
   AWAIT_READY(connected);
 

@@ -5337,7 +5337,10 @@ TEST_F(MasterTest, RecoverResourcesOrphanedTask)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::v1::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
 
   AWAIT_READY(connected);
 

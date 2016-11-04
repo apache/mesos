@@ -344,7 +344,6 @@ namespace agent = mesos::v1::agent;
 namespace maintenance = mesos::v1::maintenance;
 namespace master = mesos::v1::master;
 namespace quota = mesos::v1::quota;
-namespace scheduler = mesos::v1::scheduler;
 
 using mesos::v1::TASK_STAGING;
 using mesos::v1::TASK_STARTING;
@@ -1689,6 +1688,7 @@ public:
   }
 };
 
+
 namespace scheduler {
 
 // A generic mock HTTP scheduler to be used in tests with gmock.
@@ -1820,21 +1820,50 @@ private:
   std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
 };
 
-namespace v1 {
-
-using TestMesos =
-  TestMesos<mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
-
-} // namespace v1 {
-
 } // namespace scheduler {
 
 
 namespace v1 {
+namespace scheduler {
 
-using MockHTTPScheduler =
-  tests::scheduler::MockHTTPScheduler<
-    mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
+using Call = mesos::v1::scheduler::Call;
+using Event = mesos::v1::scheduler::Event;
+using Mesos = mesos::v1::scheduler::Mesos;
+
+
+using TestMesos = tests::scheduler::TestMesos<
+    mesos::v1::scheduler::Mesos,
+    mesos::v1::scheduler::Event>;
+
+
+ACTION_P(SendSubscribe, frameworkInfo)
+{
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+  call.mutable_subscribe()->mutable_framework_info()->CopyFrom(frameworkInfo);
+  arg0->send(call);
+}
+
+
+ACTION_P3(SendAcknowledge, frameworkId, taskId, agentId)
+{
+  Call call;
+  call.set_type(Call::ACKNOWLEDGE);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+  acknowledge->mutable_task_id()->CopyFrom(taskId);
+  acknowledge->mutable_agent_id()->CopyFrom(agentId);
+  acknowledge->set_uuid(arg1.status().uuid());
+
+  arg0->send(call);
+}
+
+} // namespace scheduler {
+
+using MockHTTPScheduler = tests::scheduler::MockHTTPScheduler<
+    mesos::v1::scheduler::Mesos,
+    mesos::v1::scheduler::Event>;
 
 } // namespace v1 {
 
@@ -1948,10 +1977,10 @@ using Call = mesos::v1::executor::Call;
 using Event = mesos::v1::executor::Event;
 using Mesos = mesos::v1::executor::Mesos;
 
-using TestMesos =
-  ::mesos::internal::tests::executor::TestMesos<
-      mesos::v1::executor::Mesos,
-      mesos::v1::executor::Event>;
+
+using TestMesos = tests::executor::TestMesos<
+    mesos::v1::executor::Mesos,
+    mesos::v1::executor::Event>;
 
 
 // TODO(anand): Move these actions to the `v1::executor` namespace.
@@ -2012,11 +2041,9 @@ ACTION_P3(SendUpdateFromTaskID, frameworkId, executorId, state)
 
 } // namespace executor {
 
-
-using MockHTTPExecutor =
-  tests::executor::MockHTTPExecutor<
-    mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
-
+using MockHTTPExecutor = tests::executor::MockHTTPExecutor<
+    mesos::v1::executor::Mesos,
+    mesos::v1::executor::Event>;
 
 } // namespace v1 {
 
