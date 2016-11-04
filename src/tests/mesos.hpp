@@ -686,6 +686,17 @@ inline TTaskInfo createTask(
 }
 
 
+template <typename TTaskGroupInfo, typename TTaskInfo>
+inline TTaskGroupInfo createTaskGroupInfo(const std::vector<TTaskInfo>& tasks)
+{
+  TTaskGroupInfo taskGroup;
+  foreach (const TTaskInfo& task, tasks) {
+    taskGroup.add_tasks()->CopyFrom(task);
+  }
+  return taskGroup;
+}
+
+
 template <typename TResource, typename TLabels>
 inline typename TResource::ReservationInfo createReservationInfo(
     const Option<std::string>& principal = None(),
@@ -1081,6 +1092,13 @@ inline TaskInfo createTask(Args&&... args)
 }
 
 
+// We specify the argument to allow brace initialized construction.
+inline TaskGroupInfo createTaskGroupInfo(const std::vector<TaskInfo>& tasks)
+{
+  return common::createTaskGroupInfo<TaskGroupInfo, TaskInfo>(tasks);
+}
+
+
 template <typename... Args>
 inline Resource::ReservationInfo createReservationInfo(Args&&... args)
 {
@@ -1266,6 +1284,16 @@ inline mesos::v1::TaskInfo createTask(Args&&... args)
       mesos::v1::ExecutorInfo,
       mesos::v1::CommandInfo,
       mesos::v1::Offer>(std::forward<Args>(args)...);
+}
+
+
+// We specify the argument to allow brace initialized construction.
+inline mesos::v1::TaskGroupInfo createTaskGroupInfo(
+    const std::vector<mesos::v1::TaskInfo>& tasks)
+{
+  return common::createTaskGroupInfo<
+      mesos::v1::TaskGroupInfo,
+      mesos::v1::TaskInfo>(tasks);
 }
 
 
