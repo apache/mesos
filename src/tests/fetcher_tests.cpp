@@ -413,7 +413,7 @@ TEST_F(FetcherTest, OSNetUriTest)
 {
   Http http;
 
-  const network::Address& address = http.process->self().address;
+  const network::inet::Address& address = http.process->self().address;
 
   process::http::URL url(
       "http",
@@ -458,7 +458,7 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
 {
   Http http;
 
-  const network::Address& address = http.process->self().address;
+  const network::inet::Address& address = http.process->self().address;
 
   process::http::URL url(
       "http",

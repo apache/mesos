@@ -32,14 +32,13 @@
 
 #include "tests/flags.hpp"
 
+namespace http = process::http;
+namespace inet = process::network::inet;
+
 using std::string;
 
 using process::Future;
 using process::UPID;
-using process::address;
-
-namespace http = process::http;
-namespace network = process::network;
 
 namespace mesos {
 namespace internal {
@@ -53,7 +52,7 @@ const bool searchInstallationDirectory = false;
 
 JSON::Object Metrics()
 {
-  UPID upid("metrics", address());
+  UPID upid("metrics", process::address());
 
   // TODO(neilc): This request might timeout if the current value of a
   // metric cannot be determined. In tests, a common cause for this is
@@ -73,19 +72,19 @@ JSON::Object Metrics()
 Try<uint16_t> getFreePort()
 {
   // Bind to port=0 to obtain a random unused port.
-  Try<network::Socket> socket = network::Socket::create();
+  Try<inet::Socket> socket = inet::Socket::create();
 
   if (socket.isError()) {
     return Error(socket.error());
   }
 
-  Try<network::Address> result = socket->bind(network::Address());
+  Try<inet::Address> address = socket->bind(inet::Address::ANY_ANY());
 
-  if (result.isSome()) {
-    return result->port;
-  } else {
-    return Error(result.error());
+  if (address.isError()) {
+    return Error(address.error());
   }
+
+  return address->port;
 
   // No explicit cleanup of `socket` as we rely on the implementation
   // of `Socket` to close the socket on destruction.
