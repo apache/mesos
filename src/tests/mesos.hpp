@@ -498,10 +498,18 @@ inline TExecutorInfo createExecutorInfo(
 
 
 template <typename TCommandInfo>
-inline TCommandInfo createCommandInfo(const std::string& command)
+inline TCommandInfo createCommandInfo(
+    const std::string& value,
+    const std::vector<std::string>& arguments = {})
 {
   TCommandInfo commandInfo;
-  commandInfo.set_value(command);
+  commandInfo.set_value(value);
+  if (!arguments.empty()) {
+    commandInfo.set_shell(false);
+    foreach (const std::string& arg, arguments) {
+      commandInfo.add_arguments(arg);
+    }
+  }
   return commandInfo;
 }
 
@@ -1017,10 +1025,12 @@ inline ExecutorInfo createExecutorInfo(Args&&... args)
 }
 
 
-template <typename... Args>
-inline CommandInfo createCommandInfo(Args&&... args)
+// We specify the argument to allow brace initialized construction.
+inline CommandInfo createCommandInfo(
+    const std::string& value,
+    const std::vector<std::string>& arguments = {})
 {
-  return common::createCommandInfo<CommandInfo>(std::forward<Args>(args)...);
+  return common::createCommandInfo<CommandInfo>(value, arguments);
 }
 
 
@@ -1201,11 +1211,12 @@ inline mesos::v1::ExecutorInfo createExecutorInfo(Args&&... args)
 }
 
 
-template <typename... Args>
-inline mesos::v1::CommandInfo createCommandInfo(Args&&... args)
+// We specify the argument to allow brace initialized construction.
+inline mesos::v1::CommandInfo createCommandInfo(
+    const std::string& value,
+    const std::vector<std::string>& arguments = {})
 {
-  return common::createCommandInfo<mesos::v1::CommandInfo>(
-      std::forward<Args>(args)...);
+  return common::createCommandInfo<mesos::v1::CommandInfo>(value, arguments);
 }
 
 
