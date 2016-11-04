@@ -1526,8 +1526,8 @@ Option<Error> validate(
             frameworkInfo.get(),
             FrameworkInfo::Capability::SHARED_RESOURCES)) {
       return Error(
-          "Create volume operation for a shared volume '" + stringify(volume) +
-          "' being attempted by framework '" +
+          "Create volume operation for '" + stringify(volume) +
+          "' has been attempted by framework '" +
           stringify(frameworkInfo.get().id()) +
           "' with no SHARED_RESOURCES capability");
     }
