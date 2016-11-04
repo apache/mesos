@@ -1191,6 +1191,7 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   CHECK_EQ(container->state, PREPARING);
 
+  // The environment for the launched command.
   JSON::Object environment;
   foreachpair (const string& key, const string& value, _environment) {
     environment.values[key] = value;
@@ -1391,7 +1392,17 @@ Future<bool> MesosContainerizerProcess::_launch(
     MesosContainerizerLaunch::Flags launchFlags;
 
     launchFlags.command = JSON::protobuf(launchCommand.get());
-    launchFlags.environment = environment;
+
+    // The launch helper should inherit the agent's environment.
+    map<string, string> launchEnvironment = os::environment();
+
+    // Passing the command environment via an environment variable
+    // to the lauch helper instead of a flag due to the sensitivity
+    // of environment variables. Otherwise the command environment
+    // would have been visible through commands like `ps` which are
+    // not protected from unprivileged users on the host.
+    launchEnvironment["MESOS_CONTAINERIZER_ENVIRONMENT"] =
+      stringify(environment);
 
     if (rootfs.isNone()) {
       // NOTE: If the executor shares the host filesystem, we should
@@ -1484,7 +1495,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         (local ? Subprocess::FD(STDERR_FILENO)
                : Subprocess::IO(subprocessInfo.err)),
         &launchFlags,
-        None(),
+        launchEnvironment,
         namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
     if (forked.isError()) {

@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 
 #ifdef __linux__
   return Subcommand::dispatch(
-      None(),
+      "MESOS_CONTAINERIZER_",
       argc,
       argv,
       new MesosContainerizerLaunch(),
