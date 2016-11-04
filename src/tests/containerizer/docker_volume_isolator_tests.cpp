@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
 #include <vector>
 
 #include <mesos/mesos.hpp>
@@ -149,45 +150,54 @@ protected:
       const slave::Flags& flags,
       const Owned<DriverClient>& mockClient)
   {
-    Try<Isolator*> linuxIsolator =
+    Try<Isolator*> linuxIsolator_ =
       LinuxFilesystemIsolatorProcess::create(flags);
 
-    if (linuxIsolator.isError()) {
+    if (linuxIsolator_.isError()) {
       return Error(
           "Failed to create LinuxFilesystemIsolator: " +
-          linuxIsolator.error());
+          linuxIsolator_.error());
     }
 
-    Try<Isolator*> runtimeIsolator =
+    Owned<Isolator> linuxIsolator(linuxIsolator_.get());
+
+    Try<Isolator*> runtimeIsolator_ =
       DockerRuntimeIsolatorProcess::create(flags);
 
-    if (runtimeIsolator.isError()) {
+    if (runtimeIsolator_.isError()) {
       return Error(
           "Failed to create DockerRuntimeIsolator: " +
-          runtimeIsolator.error());
+          runtimeIsolator_.error());
     }
 
-    Try<Isolator*> volumeIsolator =
+    Owned<Isolator> runtimeIsolator(runtimeIsolator_.get());
+
+    Try<Isolator*> volumeIsolator_ =
       DockerVolumeIsolatorProcess::_create(flags, mockClient);
 
-    if (volumeIsolator.isError()) {
+    if (volumeIsolator_.isError()) {
       return Error(
           "Failed to create DockerVolumeIsolator: " +
-          volumeIsolator.error());
+          volumeIsolator_.error());
     }
 
-    Try<Launcher*> launcher = LinuxLauncher::create(flags);
-    if (launcher.isError()) {
-      return Error("Failed to create LinuxLauncher: " + launcher.error());
+    Owned<Isolator> volumeIsolator(volumeIsolator_.get());
+
+    Try<Launcher*> launcher_ = LinuxLauncher::create(flags);
+    if (launcher_.isError()) {
+      return Error("Failed to create LinuxLauncher: " + launcher_.error());
     }
 
-    // Create and initialize a new container logger.
-    Try<ContainerLogger*> logger =
+    Owned<Launcher> launcher(launcher_.get());
+
+    Try<ContainerLogger*> logger_ =
       ContainerLogger::create(flags.container_logger);
 
-    if (logger.isError()) {
-      return Error("Failed to create container logger: " + logger.error());
+    if (logger_.isError()) {
+      return Error("Failed to create container logger: " + logger_.error());
     }
+
+    Owned<ContainerLogger> logger(logger_.get());
 
     Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
     if (provisioner.isError()) {
@@ -199,12 +209,12 @@ protected:
             flags,
             false,
             &fetcher,
-            Owned<ContainerLogger>(logger.get()),
-            Owned<Launcher>(launcher.get()),
+            std::move(logger),
+            std::move(launcher),
             provisioner->share(),
-            {Owned<Isolator>(linuxIsolator.get()),
-             Owned<Isolator>(runtimeIsolator.get()),
-             Owned<Isolator>(volumeIsolator.get())}));
+            {std::move(linuxIsolator),
+             std::move(runtimeIsolator),
+             std::move(volumeIsolator)}));
   }
 
 private:
