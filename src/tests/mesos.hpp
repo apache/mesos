@@ -1016,6 +1016,19 @@ inline typename TOffer::Operation LAUNCH(const std::vector<TTaskInfo>& tasks)
 }
 
 
+template <typename TExecutorInfo, typename TTaskGroupInfo, typename TOffer>
+inline typename TOffer::Operation LAUNCH_GROUP(
+    const TExecutorInfo& executorInfo,
+    const TTaskGroupInfo& taskGroup)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::LAUNCH_GROUP);
+  operation.mutable_launch_group()->mutable_executor()->CopyFrom(executorInfo);
+  operation.mutable_launch_group()->mutable_task_group()->CopyFrom(taskGroup);
+  return operation;
+}
+
+
 template <typename TParameters, typename TParameter>
 inline TParameters parameterize(const ACLs& acls)
 {
@@ -1213,6 +1226,14 @@ inline Offer::Operation DESTROY(Args&&... args)
 inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
 {
   return common::LAUNCH<Offer, TaskInfo>(tasks);
+}
+
+
+template <typename... Args>
+inline Offer::Operation LAUNCH_GROUP(Args&&... args)
+{
+  return common::LAUNCH_GROUP<ExecutorInfo, TaskGroupInfo, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
@@ -1425,6 +1446,16 @@ inline mesos::v1::Offer::Operation LAUNCH(
     const std::vector<mesos::v1::TaskInfo>& tasks)
 {
   return common::LAUNCH<mesos::v1::Offer, mesos::v1::TaskInfo>(tasks);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation LAUNCH_GROUP(Args&&... args)
+{
+  return common::LAUNCH_GROUP<
+      mesos::v1::ExecutorInfo,
+      mesos::v1::TaskGroupInfo,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
