@@ -3975,7 +3975,10 @@ void Master::_accept(
 
         // Make sure this create operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.create(), slave->checkpointedResources, principal);
+            operation.create(),
+            slave->checkpointedResources,
+            principal,
+            framework->info);
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);

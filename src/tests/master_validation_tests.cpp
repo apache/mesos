@@ -502,6 +502,34 @@ TEST_F(CreateOperationValidationTest, ReadOnlyPersistentVolume)
 }
 
 
+TEST_F(CreateOperationValidationTest, SharedVolumeBasedOnCapability)
+{
+  Resource volume = createDiskResource(
+      "128", "role1", "1", "path1", None(), true); // Shared.
+
+  Offer::Operation::Create create;
+  create.add_volumes()->CopyFrom(volume);
+
+  // When no FrameworkInfo is specified, validation is not dependent
+  // on any framework.
+  EXPECT_NONE(operation::validate(create, Resources(), None()));
+
+  // When a FrameworkInfo with no SHARED_RESOURCES capability is
+  // specified, the validation should fail.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  EXPECT_SOME(operation::validate(create, Resources(), None(), frameworkInfo));
+
+  // When a FrameworkInfo with SHARED_RESOURCES capability is specified,
+  // the validation should succeed.
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  EXPECT_NONE(operation::validate(create, Resources(), None(), frameworkInfo));
+}
+
+
 // This test verifies that creating a persistent volume that is larger
 // than the offered disk resource results won't succeed.
 TEST_F(CreateOperationValidationTest, InsufficientDiskResource)

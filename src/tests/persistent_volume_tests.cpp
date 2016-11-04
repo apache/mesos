@@ -747,6 +747,8 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(

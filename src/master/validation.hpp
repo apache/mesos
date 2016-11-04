@@ -194,10 +194,14 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve);
 // Validates the CREATE operation. We need slave's checkpointed resources so
 // that we can validate persistence ID uniqueness, and we need the principal to
 // verify that it's equal to the one in `DiskInfo.Persistence.principal`.
+// We need the FrameworkInfo (unless the operation is requested by the
+// operator) to ensure shared volumes are created by frameworks with the
+// appropriate capability.
 Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources,
-    const Option<std::string>& principal);
+    const Option<std::string>& principal,
+    const Option<FrameworkInfo>& frameworkInfo = None());
 
 
 // Validates the DESTROY operation. We need slave's checkpointed

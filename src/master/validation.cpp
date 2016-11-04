@@ -1497,7 +1497,8 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve)
 Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources,
-    const Option<string>& principal)
+    const Option<string>& principal,
+    const Option<FrameworkInfo>& frameworkInfo)
 {
   Option<Error> error = resource::validate(create.volumes());
   if (error.isSome()) {
@@ -1516,9 +1517,23 @@ Option<Error> validate(
     return error;
   }
 
-  // Ensure that the provided principals match. If `principal` is `None`, then
-  // we allow `volume.disk().persistence().principal()` to take any value.
   foreach (const Resource& volume, create.volumes()) {
+    // If the volume being created is a shared persistent volume, we
+    // allow it only if the framework has opted in for SHARED_RESOURCES.
+    if (frameworkInfo.isSome() &&
+        volume.has_shared() &&
+        !protobuf::frameworkHasCapability(
+            frameworkInfo.get(),
+            FrameworkInfo::Capability::SHARED_RESOURCES)) {
+      return Error(
+          "Create volume operation for a shared volume '" + stringify(volume) +
+          "' being attempted by framework '" +
+          stringify(frameworkInfo.get().id()) +
+          "' with no SHARED_RESOURCES capability");
+    }
+
+    // Ensure that the provided principals match. If `principal` is `None`,
+    // we allow `volume.disk().persistence().principal()` to take any value.
     if (principal.isSome()) {
       if (!volume.disk().persistence().has_principal()) {
         return Error(
