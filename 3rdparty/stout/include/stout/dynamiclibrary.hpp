@@ -14,7 +14,7 @@
 #define __STOUT_DYNAMICLIBRARY_HPP__
 
 // For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
+// splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
 #include <stout/windows/dynamiclibrary.hpp>
 #else
