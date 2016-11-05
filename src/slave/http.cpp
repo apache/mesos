@@ -283,7 +283,9 @@ void Slave::Http::log(const Request& request)
   Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
 
   LOG(INFO) << "HTTP " << request.method << " for " << request.url.path
-            << " from " << request.client
+            << (request.client.isSome()
+                ? " from " + stringify(request.client.get())
+                : "")
             << (userAgent.isSome()
                 ? " with User-Agent='" + userAgent.get() + "'"
                 : "")
