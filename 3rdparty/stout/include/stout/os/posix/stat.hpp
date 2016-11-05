@@ -172,4 +172,4 @@ inline Try<ino_t> inode(const std::string& path)
 
 } // namespace os {
 
-#endif // __STOUT_OS_STAT_HPP__
+#endif // __STOUT_OS_POSIX_STAT_HPP__
