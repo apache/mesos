@@ -447,7 +447,7 @@ struct Request
 
   // For server requests, this contains the address of the client.
   // Note that this may correspond to a proxy or load balancer address.
-  network::inet::Address client;
+  Option<network::Address> client;
 
   // Clients can choose to provide the entire body at once
   // via BODY or can choose to stream the body over to the
