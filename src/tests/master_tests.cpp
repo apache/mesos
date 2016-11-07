@@ -3118,15 +3118,15 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
-
   // Wait until the master fully processes slave registration before
   // connecting the framework. This is to reproduce the condition in
   // MESOS-4975.
   Future<Message> slaveRegisteredMessage = FUTURE_MESSAGE(
       Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
 
@@ -3138,7 +3138,7 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -3146,7 +3146,7 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
 
   driver.start();
 
-  // Wait until the master full processes framework registration
+  // Wait until the master fully processes framework registration
   // before shutting it down.
   AWAIT_READY(registered);
 
@@ -3171,7 +3171,7 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
   JSON::Array unregisteredFrameworks =
     state.values["unregistered_frameworks"].as<JSON::Array>();
 
-  EXPECT_EQ(0u, unregisteredFrameworks.values.size());
+  EXPECT_TRUE(unregisteredFrameworks.values.empty());
 }
 
 
