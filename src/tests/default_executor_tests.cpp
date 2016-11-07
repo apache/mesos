@@ -63,14 +63,23 @@ class DefaultExecutorTest
 
 
 // These tests are parameterized by the containerizers enabled on the agent.
+//
+// TODO(gkleiman): The version of gtest currently used by Mesos doesn't support
+// passing `::testing::Values` a single value. Update these calls once we
+// upgrade to a newer version.
 INSTANTIATE_TEST_CASE_P(
-    Containterizers,
+    MesosContainerizer,
     DefaultExecutorTest,
-    ::testing::Values("mesos", "docker,mesos"));
+    ::testing::ValuesIn(vector<string>({"mesos"})));
+
+INSTANTIATE_TEST_CASE_P(
+    ROOT_DOCKER_DockerAndMesosContainerizers,
+    DefaultExecutorTest,
+    ::testing::ValuesIn(vector<string>({"docker,mesos"})));
 
 
 // This test verifies that the default executor can launch a task group.
-TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
+TEST_P(DefaultExecutorTest, TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -212,7 +221,7 @@ TEST_P(DefaultExecutorTest, ROOT_TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_P(DefaultExecutorTest, ROOT_KillTask)
+TEST_P(DefaultExecutorTest, KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -573,7 +582,7 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
 // Verifies that a task in a task group with an executor is accepted
 // during `TaskGroupInfo` validation.
-TEST_P(DefaultExecutorTest, ROOT_TaskUsesExecutor)
+TEST_P(DefaultExecutorTest, TaskUsesExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
