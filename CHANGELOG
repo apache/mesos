@@ -5,6 +5,7 @@ Release Notes - Mesos - Version 0.28.3
 All Issues:
 ** Bug
   * [MESOS-2043] - Framework auth fail with timeout error and never get authenticated
+  * [MESOS-4638] - Versioning preprocessor macros.
   * [MESOS-5073] - Mesos allocator leaks role sorter and quota role sorters.
   * [MESOS-5330] - Agent should backoff before connecting to the master.
   * [MESOS-5390] - v1 Executor Protos not included in maven jar
@@ -28,6 +29,7 @@ All Issues:
   * [MESOS-6246] - Libprocess links will not generate an ExitedEvent if the socket creation fails.
   * [MESOS-6299] - Master doesn't remove task from pending when it is invalid.
   * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
+  * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
   * [MESOS-6527] - Memory leak in the libprocess request decoder.
 
 
