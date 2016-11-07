@@ -77,7 +77,7 @@ public:
   // launching a new executor. A module implementing the hook creates
   // and returns a set of environment variables. These environment
   // variables then become part of the executor's environment.
-  // Ideally, a hook module will also look at the exiting environment
+  // Ideally, a hook module will also look at the existing environment
   // variables in executorInfo and extend the values as needed in case
   // of a conflict.
   virtual Result<Environment> slaveExecutorEnvironmentDecorator(
