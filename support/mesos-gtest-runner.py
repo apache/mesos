@@ -164,7 +164,9 @@ def parse_arguments():
             file=sys.stderr)
         sys.exit(1)
 
-    if os.environ.get('GTEST_FILTER'):
+    # Since empty strings are falsy, directly compare against `None`
+    # to preserve an empty string passed via `GTEST_FILTER`.
+    if os.environ.get('GTEST_FILTER') != None:
         options.parallel = '{env_filter}:-{sequential_filter}'\
                          .format(env_filter=os.environ['GTEST_FILTER'],
                                  sequential_filter=options.sequential)
