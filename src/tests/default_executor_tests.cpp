@@ -36,6 +36,7 @@
 using mesos::master::detector::MasterDetector;
 
 using mesos::v1::scheduler::Call;
+using mesos::v1::scheduler::Event;
 using mesos::v1::scheduler::Mesos;
 
 using process::Future;
@@ -48,6 +49,9 @@ using std::pair;
 using std::set;
 using std::string;
 
+using testing::_;
+using testing::DoAll;
+using testing::Return;
 using testing::WithParamInterface;
 
 namespace mesos {
@@ -691,6 +695,123 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   ASSERT_EQ(TASK_RUNNING, update->status().state());
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().has_timestamp());
+}
+
+
+// This test verifies that the container status for a task in a task
+// group is set properly. In other words, it is the status of the
+// container that corresponds to the task.
+TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+  flags.containerizers = GetParam();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(
+        v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO),
+        FutureSatisfy(&connected)));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  AWAIT_READY(subscribed);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  v1::TaskInfo task1 = v1::createTask(
+      offer.agent_id(),
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      v1::createCommandInfo("sleep 1000"));
+
+  v1::TaskInfo task2 = v1::createTask(
+      offer.agent_id(),
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      v1::createCommandInfo("sleep 1000"));
+
+  Future<Event::Update> updateRunning1;
+  Future<Event::Update> updateRunning2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&updateRunning1),
+        v1::scheduler::SendAcknowledge(
+            frameworkId,
+            offer.agent_id())))
+    .WillOnce(DoAll(
+        FutureArg<1>(&updateRunning2),
+        v1::scheduler::SendAcknowledge(
+            frameworkId,
+            offer.agent_id())));
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      v1::LAUNCH_GROUP(
+          executorInfo,
+          v1::createTaskGroupInfo({task1, task2}))));
+
+  AWAIT_READY(updateRunning1);
+  AWAIT_READY(updateRunning2);
+
+  ASSERT_EQ(TASK_RUNNING, updateRunning1->status().state());
+  ASSERT_EQ(TASK_RUNNING, updateRunning2->status().state());
+
+  ASSERT_TRUE(updateRunning1->status().has_container_status());
+  ASSERT_TRUE(updateRunning2->status().has_container_status());
+
+  v1::ContainerStatus status1 = updateRunning1->status().container_status();
+  v1::ContainerStatus status2 = updateRunning2->status().container_status();
+
+  ASSERT_TRUE(status1.has_container_id());
+  ASSERT_TRUE(status2.has_container_id());
+
+  EXPECT_TRUE(status1.container_id().has_parent());
+  EXPECT_TRUE(status2.container_id().has_parent());
+  EXPECT_NE(status1.container_id(), status2.container_id());
+  EXPECT_EQ(status1.container_id().parent(),
+            status2.container_id().parent());
 }
 
 } // namespace tests {

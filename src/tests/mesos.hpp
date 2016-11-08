@@ -362,6 +362,7 @@ using mesos::v1::TASK_UNKNOWN;
 
 using mesos::v1::AgentID;
 using mesos::v1::ContainerID;
+using mesos::v1::ContainerStatus;
 using mesos::v1::ExecutorID;
 using mesos::v1::ExecutorInfo;
 using mesos::v1::Filters;
