@@ -1863,14 +1863,14 @@ ACTION_P(SendSubscribe, frameworkInfo)
 }
 
 
-ACTION_P3(SendAcknowledge, frameworkId, taskId, agentId)
+ACTION_P2(SendAcknowledge, frameworkId, agentId)
 {
   Call call;
   call.set_type(Call::ACKNOWLEDGE);
   call.mutable_framework_id()->CopyFrom(frameworkId);
 
   Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-  acknowledge->mutable_task_id()->CopyFrom(taskId);
+  acknowledge->mutable_task_id()->CopyFrom(arg1.status().task_id());
   acknowledge->mutable_agent_id()->CopyFrom(agentId);
   acknowledge->set_uuid(arg1.status().uuid());
 
