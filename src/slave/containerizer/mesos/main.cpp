@@ -48,7 +48,7 @@ int main(int argc, char** argv)
       new NetworkCniIsolatorSetup());
 #else
   return Subcommand::dispatch(
-      None(),
+      "MESOS_CONTAINERIZER_",
       argc,
       argv,
       new MesosContainerizerLaunch(),
