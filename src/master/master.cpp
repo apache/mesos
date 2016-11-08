@@ -3862,7 +3862,7 @@ void Master::_accept(
 
         // Make sure this reserve operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.reserve(), principal);
+            operation.reserve(), principal, framework->info.role());
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);
