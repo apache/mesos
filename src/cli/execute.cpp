@@ -27,7 +27,6 @@
 #include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
-#include <process/pid.hpp>
 #include <process/protobuf.hpp>
 
 #include <stout/check.hpp>
@@ -87,7 +86,6 @@ using mesos::v1::scheduler::Mesos;
 
 using process::Future;
 using process::Owned;
-using process::UPID;
 
 
 class Flags : public virtual flags::FlagsBase
@@ -299,7 +297,7 @@ public:
         "]");
   }
 
-  Option<string> master;
+  string master;
   Option<string> name;
   Option<TaskGroupInfo> task_group;
   bool shell;
@@ -819,18 +817,6 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
-  if (flags.master.isNone()) {
-    cerr << flags.usage("Missing required option --master") << endl;
-    return EXIT_FAILURE;
-  }
-
-  UPID master("master@" + flags.master.get());
-  if (!master) {
-    cerr << flags.usage("Could not parse --master=" + flags.master.get())
-         << endl;
-    return EXIT_FAILURE;
-  }
-
   if (flags.task_group.isSome() &&
       (flags.name.isSome() ||
        flags.command.isSome() ||
@@ -1083,7 +1069,7 @@ int main(int argc, char** argv)
   Owned<CommandScheduler> scheduler(
       new CommandScheduler(
         frameworkInfo,
-        flags.master.get(),
+        flags.master,
         flags.kill_after,
         credential,
         taskInfo,
