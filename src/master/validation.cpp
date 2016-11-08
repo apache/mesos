@@ -1009,8 +1009,15 @@ namespace operation {
 
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const Option<string>& principal)
+    const Option<string>& principal,
+    const Option<string>& frameworkRole)
 {
+  if (frameworkRole.isSome() && frameworkRole.get() == "*") {
+    return Error(
+        "A reserve operation was attempted by a framework with role"
+        " '*', but frameworks with that role cannot reserve resources");
+  }
+
   Option<Error> error = resource::validate(reserve.resources());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
@@ -1026,17 +1033,24 @@ Option<Error> validate(
       if (!resource.reservation().has_principal()) {
         return Error(
             "A reserve operation was attempted by principal '" +
-            principal.get() + "', but there is a reserved resource in the "
-            "request with no principal set in `ReservationInfo`");
+            principal.get() + "', but there is a reserved resource in the"
+            " request with no principal set in `ReservationInfo`");
       }
 
       if (resource.reservation().principal() != principal.get()) {
         return Error(
             "A reserve operation was attempted by principal '" +
-            principal.get() + "', but there is a reserved resource in the "
-            "request with principal '" + resource.reservation().principal() +
+            principal.get() + "', but there is a reserved resource in the"
+            " request with principal '" + resource.reservation().principal() +
             "' set in `ReservationInfo`");
       }
+    }
+
+    if (frameworkRole.isSome() && resource.role() != frameworkRole.get()) {
+      return Error(
+          "A reserve operation was attempted for a resource with role"
+          " '" + resource.role() + "', but the framework can only reserve"
+          " resources with role '" + frameworkRole.get() + "'");
     }
 
     // NOTE: This check would be covered by 'contains' since there

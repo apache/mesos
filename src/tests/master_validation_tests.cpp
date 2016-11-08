@@ -194,22 +194,22 @@ TEST_F(ResourceValidationTest, RevocablePersistentVolume)
 class ReserveOperationValidationTest : public MesosTest {};
 
 
-// This test verifies that the 'role' specified in the resources of
-// the RESERVE operation needs to match the framework's 'role'.
+// This test verifies that validation fails if the reservation's role
+// doesn't match the framework's role.
 TEST_F(ReserveOperationValidationTest, MatchingRole)
 {
-  Resource resource = Resources::parse("cpus", "8", "role").get();
+  Resource resource = Resources::parse("cpus", "8", "resourceRole").get();
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
 
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_NONE(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "frameworkRole"));
 }
 
 
-// This test verifies that validation fails if the framework has a
-// "*" role even if the role matches.
+// This test verifies that validation fails if the framework role is
+// "*" even if the resource role matches.
 TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
 {
   // The role "*" matches, but is invalid since frameworks with
@@ -220,12 +220,12 @@ TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "*"));
 }
 
 
 // This test verifies that validation fails if the framework attempts
-// to reserve for the "*" role.
+// to reserve a resource with the role "*".
 TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
 {
   // Principal "principal" reserving for "*".
@@ -236,7 +236,7 @@ TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "frameworkRole"));
 }
 
 
@@ -250,7 +250,7 @@ TEST_F(ReserveOperationValidationTest, MatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_NONE(operation::validate(reserve, "principal"));
+  EXPECT_NONE(operation::validate(reserve, "principal", "role"));
 }
 
 
@@ -265,7 +265,7 @@ TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal1"));
+  EXPECT_SOME(operation::validate(reserve, "principal1", "role"));
 }
 
 
@@ -281,7 +281,7 @@ TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
 }
 
 
@@ -294,7 +294,7 @@ TEST_F(ReserveOperationValidationTest, StaticReservation)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(staticallyReserved);
 
-  EXPECT_SOME(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
 }
 
 
@@ -308,7 +308,7 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(reserved);
 
-  EXPECT_NONE(operation::validate(reserve, "principal"));
+  EXPECT_NONE(operation::validate(reserve, "principal", "role"));
 }
 
 
@@ -326,7 +326,7 @@ TEST_F(ReserveOperationValidationTest, PersistentVolumes)
   reserve.add_resources()->CopyFrom(reserved);
   reserve.add_resources()->CopyFrom(volume);
 
-  EXPECT_SOME(operation::validate(reserve, "principal"));
+  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
 }
 
 
