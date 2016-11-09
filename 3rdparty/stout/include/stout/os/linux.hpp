@@ -10,13 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STOUT_OS_POSIX_HPP__
-#define __STOUT_OS_POSIX_HPP__
+#ifndef __STOUT_OS_LINUX_HPP__
+#define __STOUT_OS_LINUX_HPP__
 
 // This file contains Linux-only OS utilities.
 #ifndef __linux__
 #error "stout/os/linux.hpp is only available on Linux systems."
-#endif
+#endif // __linux__
 
 #include <sys/types.h> // For pid_t.
 
@@ -187,4 +187,4 @@ inline Try<Memory> memory()
 
 } // namespace os {
 
-#endif // __STOUT_OS_POSIX_HPP__
+#endif // __STOUT_OS_LINUX_HPP__
