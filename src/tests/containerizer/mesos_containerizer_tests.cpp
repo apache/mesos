@@ -204,6 +204,8 @@ TEST_F(MesosContainerizerTest, Destroy)
 TEST_F(MesosContainerizerTest, StatusWithContainerID)
 {
   slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
 
   Fetcher fetcher;
 
