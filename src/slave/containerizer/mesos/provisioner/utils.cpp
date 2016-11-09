@@ -14,6 +14,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+#ifndef __WINDOWS__
+#include <fts.h>
+
+#include <sys/stat.h>
+#endif // __WINDOWS__
+
+#include <string>
+#include <string.h>
+
+#include <mesos/docker/spec.hpp>
+
+#include <stout/error.hpp>
+#include <stout/nothing.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/rm.hpp>
+#include <stout/os/strerror.hpp>
+#include <stout/os/xattr.hpp>
+
 #include "slave/containerizer/mesos/provisioner/utils.hpp"
 
 using std::string;

@@ -17,9 +17,10 @@
 #ifndef __MESOS_CONTAINERIZER_UTILS_HPP__
 #define __MESOS_CONTAINERIZER_UTILS_HPP__
 
-#include <stout/os.hpp>
+#include <string>
 
-#include <mesos/docker/spec.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
