@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_CONTAINERIZER_UTILS_HPP__
-#define __MESOS_CONTAINERIZER_UTILS_HPP__
+#ifndef __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
+#define __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
 
 #include <string>
 
@@ -34,4 +34,4 @@ Try<Nothing> convertWhiteouts(const std::string& directory);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_CONTAINERIZER_UTILS_HPP__
+#endif // __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
