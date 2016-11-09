@@ -131,6 +131,7 @@ Future<Nothing> CopyBackendProcess::_provision(
     string layer,
     const string& rootfs)
 {
+#ifndef __WINDOWS__
   // Traverse the layer to check if there is any whiteout files, if
   // yes, remove the corresponding files/directories from the rootfs.
   // Note: We assume all image types use AUFS whiteout format.
@@ -265,6 +266,10 @@ Future<Nothing> CopyBackendProcess::_provision(
 
       return Nothing();
     });
+#else
+  return Failure(
+      "Provisioning a rootfs from an image is not supported on Windows");
+#endif // __WINDOWS__
 }
 
 
