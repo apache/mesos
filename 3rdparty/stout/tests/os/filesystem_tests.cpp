@@ -439,6 +439,7 @@ TEST_F(FsTest, Close)
 }
 
 
+#if defined(__linux__) || defined(__APPLE__)
 TEST_F(FsTest, Xattr)
 {
   const string file = path::join(os::getcwd(), UUID::random().toString());
@@ -472,3 +473,4 @@ TEST_F(FsTest, Xattr)
   // Get the extended attribute again which should not exist.
   ASSERT_ERROR(os::getxattr(file, "user.mesos.test"));
 }
+#endif // __linux__ || __APPLE__
