@@ -769,7 +769,7 @@ All Issues:
     * [MESOS-4807] - IOTest.BufferedRead writes to the current directory
     * [MESOS-4810] - ProvisionerDockerPullerTest.ROOT_INTERNET_CURL_ShellCommand fails.
     * [MESOS-4827] - Destroy Docker container crashes Mesos slave
-    * [MESOS-4875] - overlayfs does not work when lauching tasks
+    * [MESOS-4875] - overlayfs does not work when launching tasks
     * [MESOS-4876] - bind backend does not work when launching tasks
     * [MESOS-4885] - Unzip should force overwrite
     * [MESOS-4901] - Build fails on some systems due to unportable use of time.h

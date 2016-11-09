@@ -1397,7 +1397,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     map<string, string> launchEnvironment = os::environment();
 
     // Passing the command environment via an environment variable
-    // to the lauch helper instead of a flag due to the sensitivity
+    // to the launch helper instead of a flag due to the sensitivity
     // of environment variables. Otherwise the command environment
     // would have been visible through commands like `ps` which are
     // not protected from unprivileged users on the host.
