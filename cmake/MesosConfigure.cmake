@@ -91,6 +91,40 @@ include(SlaveConfigure)
 ##################
 include(MasterConfigure)
 
+# DEFINE MESOS BUILD TARGETS.
+#############################
+set(
+  AGENT_TARGET mesos-agent
+  CACHE STRING "Target we use to refer to agent executable")
+
+set(
+  MESOS_CONTAINERIZER mesos-containerizer
+  CACHE STRING "Target for containerizer")
+
+set(
+  MESOS_DOCKER_EXECUTOR mesos-docker-executor
+  CACHE STRING "Target for docker executor")
+
+set(
+  MESOS_EXECUTOR mesos-executor
+  CACHE STRING "Target for command executor")
+
+set(
+  MESOS_FETCHER mesos-fetcher
+  CACHE STRING "Target for fetcher")
+
+set(
+  MESOS_MASTER mesos-master
+  CACHE STRING "Target for master")
+
+set(
+  MESOS_TCP_CONNECT mesos-tcp-connect
+  CACHE STRING "Target for tcp-connect")
+
+set(
+  MESOS_USAGE mesos-usage
+  CACHE STRING "Target for usage")
+
 # MESOS LIBRARY CONFIGURATION.
 ##############################
 set(MESOS_TARGET mesos-${MESOS_PACKAGE_VERSION})
