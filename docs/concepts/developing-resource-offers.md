@@ -1,0 +1,1 @@
+developing-resource-offers.md
