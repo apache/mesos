@@ -272,7 +272,7 @@ TEST_F(ReserveOperationValidationTest, FrameworkMissingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, None()));
+  EXPECT_SOME(operation::validate(reserve, None(), "role"));
 }
 
 
