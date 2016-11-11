@@ -50,6 +50,7 @@ public:
    * @param check The protobuf message definition of health check.
    * @param executor The executor UPID to which health check results will be
    *     reported.
+   * @param launcherDir A directory where Mesos helper binaries are located.
    * @param taskID The TaskID of the target task.
    * @param taskPid The target task's pid used to enter the specified
    *     namespaces.
