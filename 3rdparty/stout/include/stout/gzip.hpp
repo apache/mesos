@@ -107,6 +107,9 @@ public:
     }
   }
 
+  Decompressor(const Decompressor&) = delete;
+  Decompressor& operator=(const Decompressor&) = delete;
+
   ~Decompressor()
   {
     if (inflateEnd(&stream) != Z_OK) {
