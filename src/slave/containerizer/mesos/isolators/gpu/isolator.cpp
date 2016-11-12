@@ -53,6 +53,7 @@ using cgroups::devices::Entry;
 
 using docker::spec::v1::ImageManifest;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
@@ -283,13 +284,21 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
     const ContainerID& containerId,
     const mesos::slave::ContainerConfig& containerConfig)
 {
-  // If we are a nested container, we don't need to maintain an `Info()`
-  // struct about the container since we don't allocate GPUs to it
-  // directly (we only allocate GPUs to top-level containers, and they
-  // automatically get shared by nested containers).  However, we do
-  // still need to mount the necessary Nvidia libraries into the
-  // container. We call `_prepare()` directly to do this for us.
   if (containerId.has_parent()) {
+    // If we are a nested container in the `DEBUG` class, then we
+    // don't need to do anything special to prepare ourselves for GPU
+    // support. All Nvidia volumes will be inherited from our parent.
+    if (containerConfig.has_container_class() &&
+        containerConfig.container_class() == ContainerClass::DEBUG) {
+      return None();
+    }
+
+    // If we are a nested container in a different class, we don't
+    // need to maintain an `Info()` struct about the container (since
+    // we don't directly allocate any GPUs to it), but we do need to
+    // mount the necessary Nvidia libraries into the container (since
+    // we live in a different mount namespace than our parent). We
+    // directly call `_prepare()` to do this for us.
     return _prepare(containerConfig);
   }
 

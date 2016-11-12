@@ -1230,12 +1230,6 @@ Future<bool> MesosContainerizerProcess::_launch(
   Option<int> enterNamespaces = None();
   Option<int> cloneNamespaces = None();
 
-  // TODO(klueska): Remove the following once we update
-  // isolators to fill enterNamespaces for us.
-  if (containerId.has_parent()) {
-    enterNamespaces = CLONE_NEWUTS | CLONE_NEWNET | CLONE_NEWPID;
-  }
-
   CHECK_READY(container->launchInfos);
 
   foreach (const Option<ContainerLaunchInfo>& launchInfo,

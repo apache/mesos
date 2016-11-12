@@ -54,6 +54,7 @@ using process::Owned;
 using process::PID;
 using process::Subprocess;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
@@ -590,6 +591,8 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
   // * Cases where the containers don't need a new mount namespace:
   //    a) Containers (nested or stand alone) join the host network
   //       without an image.
+  //    b) Nested DEBUG containers join the same mount namespace as
+  //       their parent.
   // * Cases where the container needs a new mount namespace:
   //    a) Containers (nested or stand alone) join the host network
   //       with an image.
@@ -610,19 +613,40 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
       infos.put(containerId, info);
     }
 
-    // NOTE: No additional namespace needed. The container shares the
-    // same network and UTS namesapces with the host. If container has
-    // a rootfs, the filesystem/linux isolator will put the container
-    // in a new mount namespace.
+    // NOTE: No additional namespaces needed. The container shares the
+    // same network and UTS namespaces with the host. If the container
+    // has a rootfs, the filesystem/linux isolator will put the
+    // container in a new mount namespace. If the *parent* container
+    // has a rootfs, the filesystem/linux isolator will properly set
+    // the MNT namespace to enter. If the parent does not have a
+    // rootfs, it will join the host network and there are no
+    // namespaces it needs to enter.
     return None();
   } else {
     // This is the case where the container is joining a non-host
-    // network namespace.
-    if (containerConfig.has_rootfs()) {
-      Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
-      infos.put(containerId, info);
+    // network namespace. Non-DEBUG containers will need a new mount
+    // namespaces to bind mount their network files (/etc/hosts,
+    // /etc/hostname, /etc/resolv.conf) which will be different than
+    // those on the host file system.
+    //
+    // Unlike other isolators, we can't simply rely on the
+    // `filesystem/linux` isolator to give this container a new
+    // mount namespace (because we allow the `filesystem/posix`
+    // isolator to be used here). We must set the clone flags
+    // ourselves explicitly.
+
+    if (containerId.has_parent() &&
+        containerConfig.has_container_class() &&
+        containerConfig.container_class() == ContainerClass::DEBUG) {
+      // Nested DEBUG containers never need a new MOUNT namespace, so
+      // we don't mantain information about them in the `infos` map.
     } else {
-      infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
+      if (containerConfig.has_rootfs()) {
+        Owned<Info> info(new Info(containerNetworks, containerConfig.rootfs()));
+        infos.put(containerId, info);
+      } else {
+        infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
+      }
     }
 
     ContainerLaunchInfo launchInfo;
@@ -659,12 +683,14 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
       }
     } else {
       // This is a nested container. This shares the parent's network
-      // and UTS namespace. We still need to give this container a new
-      // mount namespace since its joining a non-host network and
-      // therefore we will need to bind mount its network files
-      // (/etc/hosts, /etc/hostname, /etc/resolv.conf) which will be
-      // different than those on the host file system.
-      launchInfo.set_clone_namespaces(CLONE_NEWNS);
+      // and UTS namespace. For non-DEBUG containers it also needs a
+      // new mount namespace.
+      launchInfo.set_enter_namespaces(CLONE_NEWNET | CLONE_NEWUTS);
+
+      if (!containerConfig.has_container_class() ||
+          containerConfig.container_class() != ContainerClass::DEBUG) {
+        launchInfo.set_clone_namespaces(CLONE_NEWNS);
+      }
     }
 
     return launchInfo;

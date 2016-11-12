@@ -58,6 +58,7 @@ using mesos::internal::slave::state::FrameworkState;
 using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
 
@@ -220,6 +221,122 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(42, wait.get()->status());
+
+  wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_LaunchNestedDebugCheckPidNamespace)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+      directory.get(),
+      None(),
+      state.id,
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(UUID::random().toString());
+
+  // Launch the nested container with the `ps | wc -l` command and
+  // launch the container without a `ContainerClass`.  With this
+  // default setting, we should request to clone a new PID namespace.
+  //
+  // We expect to see exactly 6 lines of output from `ps`.
+  //
+  // 1) The 'ps' header
+  // 2) The init process of the container (i.e. `mesos-containerizer`).
+  // 3) The executor of the container (i.e. `mesos-executor`).
+  // 4) `sh`
+  // 5) `wc -l`
+  // 6) `ps`
+  launch = containerizer->launch(
+      nestedContainerId,
+      createCommandInfo(
+          "PS_LINES=`ps | wc -l`;"
+          "if [ ${PS_LINES} -ne 6 ]; then"
+          "  exit ${PS_LINES};"
+          "fi;"),
+      None(),
+      None(),
+      state.id);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(
+      nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Relaunch the nested container with the `ps | wc -l` command and
+  // set the container class as `DEBUG`.  In this class, we don't
+  // clone a new PID namespace.
+  //
+  // We expect to see much more than 6 lines of output from `ps`.
+  launch = containerizer->launch(
+      nestedContainerId,
+      createCommandInfo(
+          "PS_LINES=`ps | wc -l`;"
+          "if [ ${PS_LINES} -le 6 ]; then"
+          "  exit ${PS_LINES};"
+          "fi;"),
+      None(),
+      None(),
+      state.id,
+      ContainerClass::DEBUG);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  wait = containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
   wait = containerizer->wait(containerId);
 

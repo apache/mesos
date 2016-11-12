@@ -43,6 +43,7 @@ using process::Owned;
 using process::PID;
 using process::Shared;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;
@@ -108,6 +109,11 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
 
     if (!volume.has_image()) {
       continue;
+    }
+
+    if (containerConfig.has_container_class() &&
+        containerConfig.container_class() == ContainerClass::DEBUG) {
+      return Failure("Image volume is not supported for DEBUG containers");
     }
 
     // Determine the target of the mount. The mount target

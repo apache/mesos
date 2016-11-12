@@ -416,6 +416,12 @@ Try<pid_t> LinuxLauncherProcess::fork(
     target = container->pid.get();
   }
 
+  // Ensure we didn't pass `enterNamespaces`
+  // if we aren't forking a nested contiainer.
+  if (!containerId.has_parent() && enterNamespaces.isSome()) {
+    return Error("Cannot enter parent namespaces for non-nested container");
+  }
+
   int enterFlags = enterNamespaces.isSome() ? enterNamespaces.get() : 0;
 
   int cloneFlags = cloneNamespaces.isSome() ? cloneNamespaces.get() : 0;

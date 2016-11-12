@@ -25,6 +25,7 @@
 using process::Future;
 using process::Owned;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;
@@ -84,6 +85,14 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     // If we are a nested container, then we want to enter our
     // parent's pid namespace before cloning a new one.
     launchInfo.set_enter_namespaces(CLONE_NEWPID);
+
+    // However, if we are a nested container in the `DEBUG` class,
+    // then we don't want to clone a new PID namespace at all, so we
+    // short cirucuit here.
+    if (containerConfig.has_container_class() &&
+        containerConfig.container_class() == ContainerClass::DEBUG) {
+      return launchInfo;
+    }
   }
 
   launchInfo.set_clone_namespaces(CLONE_NEWPID);

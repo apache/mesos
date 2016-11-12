@@ -53,6 +53,7 @@ using std::ostringstream;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerLaunchInfo;
@@ -307,6 +308,29 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
+  // If we are a nested container in the `DEBUG` class, then we only
+  // use this isolator to indicate that we should enter our parent's
+  // MOUNT namespace. We don't want to clone a new MOUNT namespace or
+  // run any new pre-exec commands in it. For now, we also don't
+  // support provisioning a new filesystem or setting a `rootfs` for
+  // the container. We also don't support mounting any volumes.
+  if (containerId.has_parent() &&
+      containerConfig.has_container_class() &&
+      containerConfig.container_class() == ContainerClass::DEBUG) {
+    if (containerConfig.has_rootfs()) {
+      return Failure("A 'rootfs' cannot be set for DEBUG containers");
+    }
+
+    if (containerConfig.has_container_info() &&
+        containerConfig.container_info().volumes().size() > 0) {
+      return Failure("Volumes not supported for DEBUG containers");
+    }
+
+    ContainerLaunchInfo launchInfo;
+    launchInfo.set_enter_namespaces(CLONE_NEWNS);
+    return launchInfo;
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
