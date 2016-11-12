@@ -88,7 +88,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
   // Turn on Nvidia GPU isolation.
   // Assume at least one GPU is available for isolation.
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "cgroups/devices,gpu/nvidia";
+  flags.isolation = "filesystem/linux,cgroups/devices,gpu/nvidia";
   flags.nvidia_gpu_devices = vector<unsigned int>({0u});
   flags.resources = "gpus:1";
 
@@ -300,7 +300,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_FractionalResources)
   // Turn on Nvidia GPU isolation.
   // Assume at least one GPU is available for isolation.
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "cgroups/devices,gpu/nvidia";
+  flags.isolation = "filesystem/linux,cgroups/devices,gpu/nvidia";
   flags.nvidia_gpu_devices = vector<unsigned int>({0u});
   flags.resources = "gpus:1";
 
