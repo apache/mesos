@@ -154,16 +154,21 @@ inline std::set<int> nstypes()
 // allow a process with multiple threads to call this function because
 // it will lead to some weird situations where different threads of a
 // process are in different namespaces.
-inline Try<Nothing> setns(const std::string& path, const std::string& ns)
+inline Try<Nothing> setns(
+    const std::string& path,
+    const std::string& ns,
+    bool checkMultithreaded = true)
 {
-  // Return error if there're multiple threads in the calling process.
-  Try<std::set<pid_t>> threads = proc::threads(::getpid());
-  if (threads.isError()) {
-    return Error(
-        "Failed to get the threads of the current process: " +
-        threads.error());
-  } else if (threads.get().size() > 1) {
-    return Error("Multiple threads exist in the current process");
+  if (checkMultithreaded) {
+    // Return error if there're multiple threads in the calling process.
+    Try<std::set<pid_t>> threads = proc::threads(::getpid());
+    if (threads.isError()) {
+      return Error(
+          "Failed to get the threads of the current process: " +
+          threads.error());
+    } else if (threads.get().size() > 1) {
+      return Error("Multiple threads exist in the current process");
+    }
   }
 
   if (ns::namespaces().count(ns) == 0) {
