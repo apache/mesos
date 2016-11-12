@@ -120,12 +120,6 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
 
   ContainerLaunchInfo launchInfo;
 
-#ifdef __linux__
-  if (bindMountSupported) {
-    launchInfo.set_clone_namespaces(CLONE_NEWNS);
-  }
-#endif // __linux__
-
   foreach (const Volume& volume, containerInfo.volumes()) {
     if (!volume.has_source() ||
         !volume.source().has_type() ||

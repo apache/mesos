@@ -92,14 +92,17 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
     const Flags& flags,
     const NvidiaComponents& components)
 {
-  // Make sure the 'cgroups/devices' isolator is present and
-  // precedes the GPU isolator.
+  // Make sure both the 'cgroups/devices' isolator and the
+  // 'filesystem/linux' isolators are present and precede the GPU
+  // isolator.
   vector<string> tokens = strings::tokenize(flags.isolation, ",");
 
   auto gpuIsolator =
     std::find(tokens.begin(), tokens.end(), "gpu/nvidia");
   auto devicesIsolator =
     std::find(tokens.begin(), tokens.end(), "cgroups/devices");
+  auto filesystemIsolator =
+    std::find(tokens.begin(), tokens.end(), "filesystem/linux");
 
   CHECK(gpuIsolator != tokens.end());
 
@@ -108,8 +111,18 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
                  " order to use the 'gpu/nvidia' isolator");
   }
 
+  if (filesystemIsolator == tokens.end()) {
+    return Error("The 'filesystem/linux' isolator must be enabled in"
+                 " order to use the 'gpu/nvidia' isolator");
+  }
+
   if (devicesIsolator > gpuIsolator) {
     return Error("'cgroups/devices' must precede 'gpu/nvidia'"
+                 " in the --isolation flag");
+  }
+
+  if (filesystemIsolator > gpuIsolator) {
+    return Error("'filesystem/linux' must precede 'gpu/nvidia'"
                  " in the --isolation flag");
   }
 
@@ -329,7 +342,6 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
   }
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_clone_namespaces(CLONE_NEWNS);
 
   // Inject the Nvidia volume into the container.
   //

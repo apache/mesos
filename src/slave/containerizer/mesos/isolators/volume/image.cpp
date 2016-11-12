@@ -72,6 +72,15 @@ Try<Isolator*> VolumeImageIsolatorProcess::create(
     const Flags& flags,
     const Shared<Provisioner>& provisioner)
 {
+  // Make sure 'filesystem/linux' isolator is used.
+  // NOTE: 'filesystem/linux' isolator will make sure mounts in the
+  // child mount namespace will not be propagated back to the host
+  // mount namespace.
+  if (!strings::contains(flags.isolation, "filesystem/linux")) {
+    return Error("'filesystem/linux' must be enabled"
+                 " to create the volume image isolator");
+  }
+
   process::Owned<MesosIsolatorProcess> process(
       new VolumeImageIsolatorProcess(flags, provisioner));
 
@@ -180,7 +189,6 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     const list<Future<ProvisionInfo>>& futures)
 {
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_clone_namespaces(CLONE_NEWNS);
 
   vector<string> messages;
   vector<string> sources;
