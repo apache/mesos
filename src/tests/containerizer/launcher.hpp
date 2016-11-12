@@ -56,7 +56,7 @@ public:
       process::Future<hashset<ContainerID>>(
           const std::list<mesos::slave::ContainerState>& states));
 
-  MOCK_METHOD10(
+  MOCK_METHOD9(
       fork,
       Try<pid_t>(
           const ContainerID& containerId,
@@ -67,8 +67,7 @@ public:
           const process::Subprocess::IO& err,
           const flags::FlagsBase* flags,
           const Option<std::map<std::string, std::string>>& env,
-          const Option<int>& namespaces,
-          std::vector<process::Subprocess::ParentHook> parentHooks));
+          const Option<int>& namespaces));
 
   MOCK_METHOD1(
       destroy,

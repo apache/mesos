@@ -87,8 +87,7 @@ Try<pid_t> PosixLauncher::fork(
     const Subprocess::IO& err,
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
-    const Option<int>& namespaces,
-    vector<process::Subprocess::ParentHook> parentHooks)
+    const Option<int>& namespaces)
 {
   if (namespaces.isSome() && namespaces.get() != 0) {
     return Error("Posix launcher does not support namespaces");
@@ -101,6 +100,8 @@ Try<pid_t> PosixLauncher::fork(
 
   // If we are on systemd, then extend the life of the child. Any
   // grandchildren's lives will also be extended.
+  vector<process::Subprocess::ParentHook> parentHooks;
+
 #ifdef __linux__
   if (systemd::enabled()) {
     parentHooks.emplace_back(Subprocess::ParentHook(

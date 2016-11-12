@@ -79,8 +79,7 @@ public:
       const process::Subprocess::IO& err,
       const flags::FlagsBase* flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<int>& namespaces,
-      std::vector<process::Subprocess::ParentHook> parentHooks);
+      const Option<int>& namespaces);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
@@ -211,8 +210,7 @@ Try<pid_t> LinuxLauncher::fork(
     const process::Subprocess::IO& err,
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
-    const Option<int>& namespaces,
-    vector<Subprocess::ParentHook> parentHooks)
+    const Option<int>& namespaces)
 {
   return dispatch(
       process.get(),
@@ -225,8 +223,7 @@ Try<pid_t> LinuxLauncher::fork(
       err,
       flags,
       environment,
-      namespaces,
-      parentHooks).get();
+      namespaces).get();
 }
 
 
@@ -388,8 +385,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
     const process::Subprocess::IO& err,
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
-    const Option<int>& namespaces,
-    vector<Subprocess::ParentHook> parentHooks)
+    const Option<int>& namespaces)
 {
   // Make sure this container (nested or not) is unique.
   if (containers.contains(containerId)) {
@@ -434,6 +430,8 @@ Try<pid_t> LinuxLauncherProcess::fork(
 
   // Hook to extend the life of the child (and all of its
   // descendants) using a systemd slice.
+  vector<Subprocess::ParentHook> parentHooks;
+
   if (systemdHierarchy.isSome()) {
     parentHooks.emplace_back(Subprocess::ParentHook([](pid_t child) {
       return systemd::mesos::extendLifetime(child);
