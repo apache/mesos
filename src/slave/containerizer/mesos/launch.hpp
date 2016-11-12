@@ -52,6 +52,7 @@ public:
     Option<JSON::Array> pre_exec_commands;
 #ifdef __linux__
     Option<CapabilityInfo> capabilities;
+    Option<pid_t> namespace_mnt_target;
     bool unshare_namespace_mnt;
 #endif // __linux__
   };

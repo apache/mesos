@@ -1201,16 +1201,21 @@ Future<bool> MesosContainerizerProcess::_launch(
     environment.values[key] = value;
   }
 
-  // TODO(jieyu): Consider moving this to 'executorEnvironment' and
-  // consolidating with docker containerizer.
-  //
-  // NOTE: For the command executor case, although it uses the host
-  // filesystem for itself, we still set 'MESOS_SANDBOX' according to
-  // the root filesystem of the task (if specified). Command executor
-  // itself does not use this environment variable.
-  environment.values["MESOS_SANDBOX"] = container->config.has_rootfs()
-    ? flags.sandbox_directory
-    : container->config.directory();
+  // TODO(klueska): Remove the check below once we have a good way of
+  // setting the sandbox directory for DEBUG containers.
+  if (!container->config.has_container_class() ||
+       container->config.container_class() != ContainerClass::DEBUG) {
+    // TODO(jieyu): Consider moving this to 'executorEnvironment' and
+    // consolidating with docker containerizer.
+    //
+    // NOTE: For the command executor case, although it uses the host
+    // filesystem for itself, we still set 'MESOS_SANDBOX' according to
+    // the root filesystem of the task (if specified). Command executor
+    // itself does not use this environment variable.
+    environment.values["MESOS_SANDBOX"] = container->config.has_rootfs()
+      ? flags.sandbox_directory
+      : container->config.directory();
+  }
 
   // NOTE: Command task is a special case. Even if the container
   // config has a root filesystem, the executor container still uses
@@ -1428,7 +1433,15 @@ Future<bool> MesosContainerizerProcess::_launch(
                      << "host filesystem";
       }
 
-      launchFlags.working_directory = container->config.directory();
+      // TODO(klueska): Debug containers should set their working
+      // directory to their sandbox directory (once we know how to set
+      // that properly).
+      if (container->config.has_container_class() &&
+          container->config.container_class() == ContainerClass::DEBUG) {
+        launchFlags.working_directory = None();
+      } else {
+        launchFlags.working_directory = container->config.directory();
+      }
     } else {
       launchFlags.working_directory = workingDirectory.isSome()
         ? workingDirectory
@@ -1493,6 +1506,37 @@ Future<bool> MesosContainerizerProcess::_launch(
     VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
             << launchFlags << "'";
 
+    // For now we need to special case entering a parent container's
+    // mount namespace. We do this to ensure that we have access to
+    // the binary we launch with `launcher->fork()`.
+    //
+    // TODO(klueska): Remove this special case once we pull
+    // the container's `init` process out of its container.
+    Option<int> _enterNamespaces = enterNamespaces;
+
+#ifdef __linux__
+    if (enterNamespaces.isSome() && (enterNamespaces.get() & CLONE_NEWNS)) {
+      CHECK(containerId.has_parent());
+      if (!containers_.contains(containerId.parent())) {
+        return Failure("Unknown parent container");
+      }
+      if (containers_.at(containerId.parent())->pid.isNone()) {
+        return Failure("Unknown parent container pid");
+      }
+
+      pid_t parentPid = containers_.at(containerId.parent())->pid.get();
+
+      Try<pid_t> mountNamespaceTarget = getMountNamespaceTarget(parentPid);
+      if (mountNamespaceTarget.isError()) {
+        return Failure("Cannot get target mount namespace from process"
+                       " '" + stringify(parentPid) + "'");
+      }
+
+      launchFlags.namespace_mnt_target = mountNamespaceTarget.get();
+      _enterNamespaces = enterNamespaces.get() & ~CLONE_NEWNS;
+    }
+#endif // __linux__
+
     // Fork the child using launcher.
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;
@@ -1510,7 +1554,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         &launchFlags,
         launchEnvironment,
         // 'enterNamespaces' will be ignored by PosixLauncher.
-        enterNamespaces,
+        _enterNamespaces,
         // 'cloneNamespaces' will be ignored by PosixLauncher.
         cloneNamespaces);
 

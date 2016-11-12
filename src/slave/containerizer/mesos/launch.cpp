@@ -146,6 +146,11 @@ MesosContainerizerLaunch::Flags::Flags()
       "capabilities",
       "Capabilities the command can use.");
 
+  add(&Flags::namespace_mnt_target,
+      "namespace_mnt_target",
+      "The target 'pid' of the process whose mount namespace we'd like\n"
+      "to enter before executing the command.");
+
   add(&Flags::unshare_namespace_mnt,
       "unshare_namespace_mnt",
       "Whether to launch the command in a new mount namespace.",
@@ -391,6 +396,21 @@ int MesosContainerizerLaunch::execute()
   }
 
 #ifdef __linux__
+  if (flags.namespace_mnt_target.isSome()) {
+    string path = path::join(
+        "/proc",
+        stringify(flags.namespace_mnt_target.get()),
+        "ns",
+        "mnt");
+
+    Try<Nothing> setns = ns::setns(path, "mnt", false);
+    if (setns.isError()) {
+      cerr << "Failed to enter mount namespace: "
+           << setns.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+
   if (flags.unshare_namespace_mnt) {
     if (unshare(CLONE_NEWNS) != 0) {
       cerr << "Failed to unshare mount namespace: "

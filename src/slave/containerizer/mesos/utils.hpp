@@ -19,11 +19,18 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/os.hpp>
+#include <stout/try.hpp>
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
 ContainerID getRootContainerId(const ContainerID& containerId);
+
+#ifdef __linux__
+Try<pid_t> getMountNamespaceTarget(pid_t parent);
+#endif // __linux__
 
 } // namespace slave {
 } // namespace internal {

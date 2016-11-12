@@ -58,6 +58,8 @@ using mesos::internal::slave::state::FrameworkState;
 using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
@@ -346,6 +348,123 @@ TEST_F(NestedMesosContainerizerTest,
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_CURL_INTERNET_LaunchNestedDebugCheckMntNamespace)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux,namespaces/pid";
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> schedRegistered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&schedRegistered));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(schedRegistered);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  // Use a pipe to synchronize with the top-level container.
+  int pipes[2] = {-1, -1};
+  ASSERT_SOME(os::pipe(pipes));
+
+  // Launch a command task within the `alpine` docker image and
+  // synchronize its launch with the launch of a debug container below.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "echo running >&" + stringify(pipes[1]) + ";" + "sleep 1000");
+
+  task.mutable_container()->CopyFrom(createContainerInfo("alpine"));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers->at(0).id(), {task});
+
+  // We wait wait up to 120 seconds
+  // to download the docker image.
+  AWAIT_READY_FOR(statusRunning, Seconds(120));
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+
+  close(pipes[1]);
+
+  // Wait for the parent container to start running its task
+  // before launching a debug container inside it.
+  AWAIT_READY(process::io::poll(pipes[0], process::io::READ));
+  close(pipes[0]);
+
+  ASSERT_TRUE(statusRunning->has_slave_id());
+  ASSERT_TRUE(statusRunning->has_container_status());
+  ASSERT_TRUE(statusRunning->container_status().has_container_id());
+
+  // Launch a nested debug container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(
+      statusRunning->container_status().container_id());
+  nestedContainerId.set_value(UUID::random().toString());
+
+  // Launch a debug container inside the command task and check for
+  // the existence of a file we know to be inside the `alpine` docker
+  // image (but not on the host filesystem).
+  Future<bool> launch = containerizer->launch(
+      nestedContainerId,
+      createCommandInfo(
+          "LINES=`ls -la /etc/alpine-release | wc -l`;"
+          "if [ ${LINES} -ne 1 ]; then"
+          "  exit 1;"
+          "fi;"),
+      None(),
+      None(),
+      statusRunning->slave_id(),
+      ContainerClass::DEBUG);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  driver.stop();
+  driver.join();
 }
 
 
