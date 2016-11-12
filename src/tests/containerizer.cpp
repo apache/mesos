@@ -33,6 +33,7 @@ using testing::_;
 using testing::Invoke;
 using testing::Return;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerTermination;
 
 using mesos::v1::executor::Mesos;
@@ -191,7 +192,8 @@ public:
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
       const Option<string>& user,
-      const SlaveID& slaveId)
+      const SlaveID& slaveId,
+      const Option<ContainerClass>& containerClass)
   {
     CHECK(!terminatedContainers.contains(containerId))
       << "Failed to launch nested container " << containerId
@@ -440,10 +442,10 @@ void TestContainerizer::setup()
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
       const Option<string>& user,
-      const SlaveID& slaveId) =
-    &TestContainerizer::_launch;
+      const SlaveID& slaveId,
+      const Option<ContainerClass>&) = &TestContainerizer::_launch;
 
-  EXPECT_CALL(*this, launch(_, _, _, _, _))
+  EXPECT_CALL(*this, launch(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, _launchNested));
 
   EXPECT_CALL(*this, wait(_))
@@ -504,7 +506,8 @@ Future<bool> TestContainerizer::_launch(
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
     const Option<string>& user,
-    const SlaveID& slaveId)
+    const SlaveID& slaveId,
+    const Option<ContainerClass>& containerClass)
 {
   // Need to disambiguate for the compiler.
   Future<bool> (TestContainerizerProcess::*launch)(
@@ -512,7 +515,9 @@ Future<bool> TestContainerizer::_launch(
       const CommandInfo&,
       const Option<ContainerInfo>&,
       const Option<string>&,
-      const SlaveID&) = &TestContainerizerProcess::launch;
+      const SlaveID&,
+      const Option<ContainerClass>& containerClass) =
+        &TestContainerizerProcess::launch;
 
   return process::dispatch(
       process.get(),
@@ -521,7 +526,8 @@ Future<bool> TestContainerizer::_launch(
       commandInfo,
       containerInfo,
       user,
-      slaveId);
+      slaveId,
+      containerClass);
 }
 
 

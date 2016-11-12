@@ -23,6 +23,17 @@ import "mesos/appc/spec.proto";
 import "mesos/docker/v1.proto";
 
 /**
+ * Some containers are launched in conjunction with a specific
+ * `ContainerClass`. These classes allow an isolator to customize
+ * their functionality based on the class of container being isolated.
+ * The classes we currently define are below.
+ */
+enum ContainerClass {
+  DEFAULT = 1;
+}
+
+
+/**
  * Information when an executor is impacted by a resource limitation
  * and should be terminated. Intended to support resources like memory
  * where the Linux kernel may invoke the OOM killer, killing some/all
@@ -104,6 +115,10 @@ message ContainerConfig {
 
   // Resources associated with the container during launch.
   repeated Resource resources = 13;
+
+  // The class of container being launched. Used by isolators to
+  // perform different operations depending on the class.
+  optional ContainerClass container_class = 14;
 
   // The work directory for the container in the host filesystem.
   required string directory = 3;

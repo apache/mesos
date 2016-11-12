@@ -41,6 +41,7 @@ using std::map;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerTermination;
 
 namespace mesos {
@@ -77,7 +78,8 @@ public:
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
       const Option<string>& user,
-      const SlaveID& slaveId);
+      const SlaveID& slaveId,
+      const Option<ContainerClass>& containerClass);
 
   Future<Nothing> update(
       const ContainerID& containerId,
@@ -202,7 +204,8 @@ Future<bool> ComposingContainerizer::launch(
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
     const Option<string>& user,
-    const SlaveID& slaveId)
+    const SlaveID& slaveId,
+    const Option<ContainerClass>& containerClass)
 {
   return dispatch(process,
                   &ComposingContainerizerProcess::launch,
@@ -210,7 +213,8 @@ Future<bool> ComposingContainerizer::launch(
                   commandInfo,
                   containerInfo,
                   user,
-                  slaveId);
+                  slaveId,
+                  containerClass);
 }
 
 
@@ -474,7 +478,8 @@ Future<bool> ComposingContainerizerProcess::launch(
           const CommandInfo& commandInfo,
           const Option<ContainerInfo>& containerInfo,
           const Option<std::string>& user,
-          const SlaveID& slaveId)
+          const SlaveID& slaveId,
+          const Option<ContainerClass>& containerClass)
 {
   ContainerID rootContainerId = getRootContainerId(containerId);
 
@@ -497,7 +502,8 @@ Future<bool> ComposingContainerizerProcess::launch(
       commandInfo,
       containerInfo,
       user,
-      slaveId)
+      slaveId,
+      containerClass)
     .then(defer(self(),
                 &Self::_launch,
                 containerId,

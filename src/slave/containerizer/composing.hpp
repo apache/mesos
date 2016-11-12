@@ -67,7 +67,8 @@ public:
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
       const Option<std::string>& user,
-      const SlaveID& slaveId);
+      const SlaveID& slaveId,
+      const Option<mesos::slave::ContainerClass>& containerClass = None());
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,

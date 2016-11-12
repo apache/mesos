@@ -119,6 +119,7 @@ using mesos::internal::slave::state::RunState;
 
 using mesos::modules::ModuleManager;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
@@ -478,7 +479,8 @@ Future<bool> MesosContainerizer::launch(
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
     const Option<string>& user,
-    const SlaveID& slaveId)
+    const SlaveID& slaveId,
+    const Option<ContainerClass>& containerClass)
 {
   // Need to disambiguate for the compiler.
   Future<bool> (MesosContainerizerProcess::*launch)(
@@ -486,7 +488,8 @@ Future<bool> MesosContainerizer::launch(
       const CommandInfo&,
       const Option<ContainerInfo>&,
       const Option<string>&,
-      const SlaveID&) = &MesosContainerizerProcess::launch;
+      const SlaveID&,
+      const Option<ContainerClass>&) = &MesosContainerizerProcess::launch;
 
   return dispatch(process.get(),
                   launch,
@@ -494,7 +497,8 @@ Future<bool> MesosContainerizer::launch(
                   commandInfo,
                   containerInfo,
                   user,
-                  slaveId);
+                  slaveId,
+                  containerClass);
 }
 
 
@@ -1660,7 +1664,8 @@ Future<bool> MesosContainerizerProcess::launch(
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
     const Option<string>& user,
-    const SlaveID& slaveId)
+    const SlaveID& slaveId,
+    const Option<ContainerClass>& containerClass)
 {
   CHECK(containerId.has_parent());
 
@@ -1730,6 +1735,10 @@ Future<bool> MesosContainerizerProcess::launch(
 
   if (containerInfo.isSome()) {
     containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
+  }
+
+  if (containerClass.isSome()) {
+    containerConfig.set_container_class(containerClass.get());
   }
 
   return launch(containerId,

@@ -93,14 +93,15 @@ public:
           const std::map<std::string, std::string>&,
           bool checkpoint));
 
-  MOCK_METHOD5(
+  MOCK_METHOD6(
       launch,
       process::Future<bool>(
           const ContainerID& containerId,
           const CommandInfo& commandInfo,
           const Option<ContainerInfo>& containerInfo,
           const Option<std::string>& user,
-          const SlaveID& slaveId));
+          const SlaveID& slaveId,
+          const Option<mesos::slave::ContainerClass>& containerClass));
 
   MOCK_METHOD2(
       update,
@@ -154,7 +155,8 @@ private:
       const CommandInfo& commandInfo,
       const Option<ContainerInfo>& containerInfo,
       const Option<std::string>& user,
-      const SlaveID& slaveId);
+      const SlaveID& slaveId,
+      const Option<mesos::slave::ContainerClass>& containerClass = None());
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
