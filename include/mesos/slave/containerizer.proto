@@ -30,6 +30,7 @@ import "mesos/docker/v1.proto";
  */
 enum ContainerClass {
   DEFAULT = 1;
+  DEBUG = 2;
 }
 
 
