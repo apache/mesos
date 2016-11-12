@@ -1227,9 +1227,14 @@ Future<bool> MesosContainerizerProcess::_launch(
   Option<CapabilityInfo> capabilities;
   Option<RLimitInfo> rlimits;
 
-  // TODO(jieyu): We should use Option here. If no namespace is
-  // required, we should pass None() to 'launcher->fork'.
-  int namespaces = 0;
+  Option<int> enterNamespaces = None();
+  Option<int> cloneNamespaces = None();
+
+  // TODO(klueska): Remove the following once we update
+  // isolators to fill enterNamespaces for us.
+  if (containerId.has_parent()) {
+    enterNamespaces = CLONE_NEWUTS | CLONE_NEWNET | CLONE_NEWPID;
+  }
 
   CHECK_READY(container->launchInfos);
 
@@ -1285,8 +1290,18 @@ Future<bool> MesosContainerizerProcess::_launch(
       preExecCommands.values.emplace_back(JSON::protobuf(command));
     }
 
-    if (launchInfo->has_namespaces()) {
-      namespaces |= launchInfo->namespaces();
+    if (launchInfo->has_enter_namespaces()) {
+      if (enterNamespaces.isNone()) {
+        enterNamespaces = 0;
+      }
+      enterNamespaces = enterNamespaces.get() | launchInfo->enter_namespaces();
+    }
+
+    if (launchInfo->has_clone_namespaces()) {
+      if (cloneNamespaces.isNone()) {
+        cloneNamespaces = 0;
+      }
+      cloneNamespaces = cloneNamespaces.get() | launchInfo->clone_namespaces();
     }
 
     if (launchInfo->has_capabilities()) {
@@ -1500,7 +1515,10 @@ Future<bool> MesosContainerizerProcess::_launch(
                : Subprocess::IO(subprocessInfo.err)),
         &launchFlags,
         launchEnvironment,
-        namespaces); // 'namespaces' will be ignored by PosixLauncher.
+        // 'enterNamespaces' will be ignored by PosixLauncher.
+        enterNamespaces,
+        // 'cloneNamespaces' will be ignored by PosixLauncher.
+        cloneNamespaces);
 
     if (forked.isError()) {
       return Failure("Failed to fork: " + forked.error());

@@ -79,7 +79,7 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerConfig& containerConfig)
 {
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_namespaces(CLONE_NEWPID | CLONE_NEWNS);
+  launchInfo.set_clone_namespaces(CLONE_NEWPID | CLONE_NEWNS);
 
   // Mount /proc with standard options for the container's pid
   // namespace to show the container's pids (and other /proc files),

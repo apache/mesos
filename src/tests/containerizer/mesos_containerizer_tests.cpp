@@ -1434,6 +1434,7 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
       Subprocess::FD(STDERR_FILENO),
       nullptr,
       None(),
+      None(),
       None());
 
   ASSERT_SOME(forked);

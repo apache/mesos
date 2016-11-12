@@ -154,7 +154,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
   ASSERT_EQ(1, prepare.get().get().pre_exec_commands().size());
-  EXPECT_TRUE(prepare.get().get().has_namespaces());
+  EXPECT_TRUE(prepare.get().get().has_clone_namespaces());
 
   // The test will touch a file in container path.
   const string file = path::join(containerPath, UUID::random().toString());
@@ -178,7 +178,8 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
       Subprocess::FD(STDERR_FILENO),
       nullptr,
       None(),
-      prepare.get().get().namespaces());
+      None(),
+      prepare.get().get().clone_namespaces());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
@@ -260,7 +261,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
   ASSERT_EQ(1, prepare.get().get().pre_exec_commands().size());
-  EXPECT_TRUE(prepare.get().get().has_namespaces());
+  EXPECT_TRUE(prepare.get().get().has_clone_namespaces());
 
   // Test the volume mounting by touching a file in the container's
   // /tmp, which should then be in flags.work_dir.
@@ -284,7 +285,8 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
       Subprocess::FD(STDERR_FILENO),
       nullptr,
       None(),
-      prepare.get().get().namespaces());
+      None(),
+      prepare.get().get().clone_namespaces());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.

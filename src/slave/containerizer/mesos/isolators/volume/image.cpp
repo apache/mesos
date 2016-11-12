@@ -180,7 +180,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     const list<Future<ProvisionInfo>>& futures)
 {
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_namespaces(CLONE_NEWNS);
+  launchInfo.set_clone_namespaces(CLONE_NEWNS);
 
   vector<string> messages;
   vector<string> sources;

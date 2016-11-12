@@ -87,10 +87,15 @@ Try<pid_t> PosixLauncher::fork(
     const Subprocess::IO& err,
     const flags::FlagsBase* flags,
     const Option<map<string, string>>& environment,
-    const Option<int>& namespaces)
+    const Option<int>& enterNamespaces,
+    const Option<int>& cloneNamespaces)
 {
-  if (namespaces.isSome() && namespaces.get() != 0) {
-    return Error("Posix launcher does not support namespaces");
+  if (enterNamespaces.isSome() && enterNamespaces.get() != 0) {
+    return Error("Posix launcher does not support entering namespaces");
+  }
+
+  if (cloneNamespaces.isSome() && cloneNamespaces.get() != 0) {
+    return Error("Posix launcher does not support cloning namespaces");
   }
 
   if (pids.contains(containerId)) {

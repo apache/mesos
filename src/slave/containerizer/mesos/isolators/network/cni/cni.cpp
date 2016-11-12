@@ -650,9 +650,12 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         // NOTE: There is an implicit assumption here that when used
         // for testing, '__MESOS_TEST__' is the only network the
         // container is going to join.
-        launchInfo.set_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
+        launchInfo.set_clone_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
       } else {
-        launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS | CLONE_NEWUTS);
+        launchInfo.set_clone_namespaces(
+            CLONE_NEWNET |
+            CLONE_NEWNS |
+            CLONE_NEWUTS);
       }
     } else {
       // This is a nested container. This shares the parent's network
@@ -661,7 +664,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
       // therefore we will need to bind mount its network files
       // (/etc/hosts, /etc/hostname, /etc/resolv.conf) which will be
       // different than those on the host file system.
-      launchInfo.set_namespaces(CLONE_NEWNS);
+      launchInfo.set_clone_namespaces(CLONE_NEWNS);
     }
 
     return launchInfo;

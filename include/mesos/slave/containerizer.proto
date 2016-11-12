@@ -166,9 +166,13 @@ message ContainerLaunchInfo {
   // since 1.0.1.
   optional string rootfs = 3 [deprecated = true]; // Since 1.0.1.
 
-  // (Linux only) The namespaces required for the container.
+  // (Linux only) The namespaces a nested container
+  // should enter in its parent before cloning.
+  optional uint32 enter_namespaces = 9 [default = 0];
+
+  // (Linux only) The namespaces that should be cloned for the container.
   // The namespaces are created while launching the executor.
-  optional uint32 namespaces = 4 [default = 0];
+  optional uint32 clone_namespaces = 4 [default = 0];
 
   // If specified, it'll become the launch command for the custom
   // executor, or the launch command for the user task in the case of

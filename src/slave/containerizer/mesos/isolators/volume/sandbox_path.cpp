@@ -122,7 +122,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
 
 #ifdef __linux__
   if (bindMountSupported) {
-    launchInfo.set_namespaces(CLONE_NEWNS);
+    launchInfo.set_clone_namespaces(CLONE_NEWNS);
   }
 #endif // __linux__
 

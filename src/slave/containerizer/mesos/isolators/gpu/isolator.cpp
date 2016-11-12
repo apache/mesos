@@ -329,7 +329,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
   }
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_namespaces(CLONE_NEWNS);
+  launchInfo.set_clone_namespaces(CLONE_NEWNS);
 
   // Inject the Nvidia volume into the container.
   //
