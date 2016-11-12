@@ -57,14 +57,15 @@ public:
           const std::map<std::string, std::string>&,
           bool));
 
-  MOCK_METHOD5(
+  MOCK_METHOD6(
       launch,
       process::Future<bool>(
-          const ContainerID& containerId,
-          const CommandInfo& commandInfo,
-          const Option<ContainerInfo>& containerInfo,
-          const Option<std::string>& user,
-          const SlaveID& slaveId));
+          const ContainerID&,
+          const CommandInfo&,
+          const Option<ContainerInfo>&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const Option<mesos::slave::ContainerClass>&));
 
   MOCK_METHOD2(
       update,
