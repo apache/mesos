@@ -658,7 +658,15 @@ int MesosContainerizerLaunch::execute()
   // specified, inherit the environment of the current process.
   Option<os::raw::Envp> envp;
   if (flags.environment.isSome()) {
-    envp = os::raw::Envp(flags.environment.get());
+    JSON::Object environment = flags.environment.get();
+
+    Result<JSON::String> path = flags.environment->find<JSON::String>("PATH");
+    if (path.isNone()) {
+      environment.values["PATH"] =
+          "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    }
+
+    envp = os::raw::Envp(environment);
   }
 
 #ifndef __WINDOWS__
