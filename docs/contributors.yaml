@@ -524,6 +524,15 @@
   jira_user: ronald.petty
   reviewboard_user: ronald.petty
 
+- name: Stephen Hankinson
+  affiliations:
+    - {organization: Affinio Inc.}
+  emails:
+    - stephen@affin.io
+    - stephen@affinio.com
+  jira_user: shankinson
+  reviewboard_user: shankinson
+
 - name: Till Toenshoff
   affiliations:
     - {organization: Mesosphere}
