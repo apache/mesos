@@ -299,6 +299,15 @@
   jira_user: nfnt
   reviewboard_user: nfnt
 
+- name: Jason Lai
+  affiliations:
+    - {organization: Uber}
+  emails:
+    - jason@jasonlai.net
+    - jlai@uber.com
+  jira_user: jasonlai
+  reviewboard_user: jasonlai
+
 - name: Jay Guo
   affiliations:
     - {organization: IBM}
