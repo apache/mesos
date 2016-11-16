@@ -221,21 +221,99 @@ public:
     } else {
       switch (action_) {
         // All actions using `object.value` for authorization.
-        case authorization::REGISTER_FRAMEWORK_WITH_ROLE:
-        case authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL:
-        case authorization::RESERVE_RESOURCES_WITH_ROLE:
-        case authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL:
-        case authorization::CREATE_VOLUME_WITH_ROLE:
-        case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
-        case authorization::GET_QUOTA_WITH_ROLE:
         case authorization::VIEW_ROLE:
-        case authorization::UPDATE_WEIGHT_WITH_ROLE:
         case authorization::GET_ENDPOINT_WITH_PATH: {
           // Check object has the required types set.
           CHECK_NOTNULL(object->value);
 
           aclObject.add_values(*(object->value));
           aclObject.set_type(mesos::ACL::Entity::SOME);
+
+          break;
+        }
+        case authorization::REGISTER_FRAMEWORK: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->framework_info) {
+            aclObject.add_values(object->framework_info->role());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::TEARDOWN_FRAMEWORK: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->framework_info) {
+            aclObject.add_values(object->framework_info->principal());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::CREATE_VOLUME:
+        case authorization::RESERVE_RESOURCES: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->resource) {
+            aclObject.add_values(object->resource->role());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::DESTROY_VOLUME: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->resource) {
+            aclObject.add_values(
+                object->resource->disk().persistence().principal());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::UNRESERVE_RESOURCES: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->resource) {
+            aclObject.add_values(object->resource->reservation().principal());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::GET_QUOTA: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->quota_info) {
+            aclObject.add_values(object->quota_info->role());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
+
+          break;
+        }
+        case authorization::UPDATE_WEIGHT: {
+          aclObject.set_type(mesos::ACL::Entity::SOME);
+          if (object->weight_info) {
+            aclObject.add_values(object->weight_info->role());
+          } else if (object->value) {
+            aclObject.add_values(*(object->value));
+          } else {
+            aclObject.set_type(mesos::ACL::Entity::ANY);
+          }
 
           break;
         }
@@ -253,6 +331,7 @@ public:
           } else {
             aclObject.set_type(mesos::ACL::Entity::ANY);
           }
+
           break;
         }
         case authorization::ACCESS_MESOS_LOG: {
@@ -497,7 +576,7 @@ private:
     vector<GenericACL> acls_;
 
     switch (action) {
-      case authorization::REGISTER_FRAMEWORK_WITH_ROLE:
+      case authorization::REGISTER_FRAMEWORK:
         foreach (
             const ACL::RegisterFramework& acl, acls.register_frameworks()) {
           GenericACL acl_;
@@ -509,7 +588,7 @@ private:
 
         return acls_;
         break;
-      case authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL:
+      case authorization::TEARDOWN_FRAMEWORK:
         foreach (
             const ACL::TeardownFramework& acl, acls.teardown_frameworks()) {
           GenericACL acl_;
@@ -532,7 +611,7 @@ private:
 
         return acls_;
         break;
-      case authorization::RESERVE_RESOURCES_WITH_ROLE:
+      case authorization::RESERVE_RESOURCES:
         foreach (const ACL::ReserveResources& acl, acls.reserve_resources()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -543,7 +622,7 @@ private:
 
         return acls_;
         break;
-      case authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL:
+      case authorization::UNRESERVE_RESOURCES:
         foreach (
             const ACL::UnreserveResources& acl, acls.unreserve_resources()) {
           GenericACL acl_;
@@ -555,7 +634,7 @@ private:
 
         return acls_;
         break;
-      case authorization::CREATE_VOLUME_WITH_ROLE:
+      case authorization::CREATE_VOLUME:
         foreach (const ACL::CreateVolume& acl, acls.create_volumes()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -566,7 +645,7 @@ private:
 
         return acls_;
         break;
-      case authorization::DESTROY_VOLUME_WITH_PRINCIPAL:
+      case authorization::DESTROY_VOLUME:
         foreach (const ACL::DestroyVolume& acl, acls.destroy_volumes()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -577,7 +656,7 @@ private:
 
         return acls_;
         break;
-      case authorization::GET_QUOTA_WITH_ROLE:
+      case authorization::GET_QUOTA:
         foreach (const ACL::GetQuota& acl, acls.get_quotas()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -629,7 +708,7 @@ private:
 
         return acls_;
         break;
-      case authorization::UPDATE_WEIGHT_WITH_ROLE:
+      case authorization::UPDATE_WEIGHT:
         foreach (const ACL::UpdateWeight& acl, acls.update_weights()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -845,7 +924,9 @@ process::Future<bool> LocalAuthorizer::authorized(
       request.object().has_task() ||
       request.object().has_task_info() ||
       request.object().has_executor_info() ||
-      request.object().has_quota_info())));
+      request.object().has_quota_info() ||
+      request.object().has_weight_info() ||
+      request.object().has_resource())));
 
   typedef Future<bool> (LocalAuthorizerProcess::*F)(
       const authorization::Request&);

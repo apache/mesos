@@ -46,11 +46,17 @@ message Object {
   optional TaskInfo task_info = 4;
   optional ExecutorInfo executor_info = 5;
   optional quota.QuotaInfo quota_info = 6;
+  optional WeightInfo weight_info = 7;
+  optional Resource resource = 8;
 }
 
 
 // List of authorizable actions supported in Mesos.
+// NOTE: Values in this enum should be kept in
+// numerical order to prevent accidental aliasing.
 enum Action {
+  option allow_alias = true;
+
   // This must be the first enum value in this list, to
   // ensure that if 'type' is not set, the default value
   // is UNKNOWN. This enables enum values to be added
@@ -58,19 +64,67 @@ enum Action {
   UNKNOWN = 0;
 
   // Actions named *_WITH_foo may set a foo in `Object.value`.
+
+  // `REGISTER_FRAMEWORK` will have an object with `FrameworkInfo` set.
+  // The `_WITH_ROLE` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  REGISTER_FRAMEWORK = 1;
   REGISTER_FRAMEWORK_WITH_ROLE = 1;
 
   // `RUN_TASK` will have an object with `FrameworkInfo` and `TaskInfo` set.
   RUN_TASK = 2;
 
+  // `TEARDOWN_FRAMEWORK` will have an object with `FrameworkInfo` set.
+  // The `_WITH_PRINCIPAL` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  TEARDOWN_FRAMEWORK = 3;
   TEARDOWN_FRAMEWORK_WITH_PRINCIPAL = 3;
+
+  // `RESERVE_RESOURCES` will have an object with `Resource` set.
+  // The `_WITH_ROLE` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  RESERVE_RESOURCES = 4;
   RESERVE_RESOURCES_WITH_ROLE = 4;
+
+  // `UNRESERVE_RESOURCES` will have an object with `Resource` set.
+  // The `_WITH_PRINCIPAL` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  UNRESERVE_RESOURCES = 5;
   UNRESERVE_RESOURCES_WITH_PRINCIPAL = 5;
+
+  // `CREATE_VOLUME` will have an object with `Resource` set.
+  // The `_WITH_ROLE` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  CREATE_VOLUME = 6;
   CREATE_VOLUME_WITH_ROLE = 6;
+
+  // `DESTROY_VOLUME` will have an object with `Resource` set.
+  // The `_WITH_PRINCIPAL` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  DESTROY_VOLUME = 7;
   DESTROY_VOLUME_WITH_PRINCIPAL = 7;
+
   GET_ENDPOINT_WITH_PATH = 8;
   VIEW_ROLE = 9;
+
+  // `UPDATE_WEIGHT` will have an object with `WeightInfo` set.
+  // The `_WITH_ROLE` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  UPDATE_WEIGHT = 10;
   UPDATE_WEIGHT_WITH_ROLE = 10;
+
+  // `GET_QUOTA` will have an object with `QuotaInfo` set.
+  // The `_WITH_ROLE` alias is deprecated and will be removed after
+  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
+  // to be set until that time.
+  GET_QUOTA = 11;
   GET_QUOTA_WITH_ROLE = 11;
 
   // `UPDATE_QUOTA` will have an object with a `QuotaInfo` set.
