@@ -659,15 +659,15 @@ inline bool operator!=(const Value& lhs, const Value& rhs)
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const String& string)
+inline std::ostream& operator<<(std::ostream& stream, const String& string)
 {
   // TODO(benh): This escaping DOES NOT handle unicode, it encodes as ASCII.
   // See RFC4627 for the JSON string specificiation.
-  return out << picojson::value(string.value).serialize();
+  return stream << picojson::value(string.value).serialize();
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const Number& number)
+inline std::ostream& operator<<(std::ostream& stream, const Number& number)
 {
   switch (number.type) {
     case Number::FLOATING: {
@@ -686,12 +686,12 @@ inline std::ostream& operator<<(std::ostream& out, const Number& number)
       // Otherwise, printing 1.0 would result in "1.00000000000000".
       // NOTE: valid JSON numbers cannot end with a '.'.
       std::string trimmed = strings::trim(buffer, strings::SUFFIX, "0");
-      return out << trimmed << (trimmed.back() == '.' ? "0" : "");
+      return stream << trimmed << (trimmed.back() == '.' ? "0" : "");
     }
     case Number::SIGNED_INTEGER:
-      return out << number.signed_integer;
+      return stream << number.signed_integer;
     case Number::UNSIGNED_INTEGER:
-      return out << number.unsigned_integer;
+      return stream << number.unsigned_integer;
 
     // NOTE: By not setting a default we leverage the compiler
     // errors when the enumeration is augmented to find all
@@ -702,47 +702,47 @@ inline std::ostream& operator<<(std::ostream& out, const Number& number)
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const Object& object)
+inline std::ostream& operator<<(std::ostream& stream, const Object& object)
 {
-  out << "{";
+  stream << "{";
   std::map<std::string, Value>::const_iterator iterator;
   iterator = object.values.begin();
   while (iterator != object.values.end()) {
-    out << String((*iterator).first) << ":" << (*iterator).second;
+    stream << String((*iterator).first) << ":" << (*iterator).second;
     if (++iterator != object.values.end()) {
-      out << ",";
+      stream << ",";
     }
   }
-  out << "}";
-  return out;
+  stream << "}";
+  return stream;
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const Array& array)
+inline std::ostream& operator<<(std::ostream& stream, const Array& array)
 {
-  out << "[";
+  stream << "[";
   std::vector<Value>::const_iterator iterator;
   iterator = array.values.begin();
   while (iterator != array.values.end()) {
-    out << *iterator;
+    stream << *iterator;
     if (++iterator != array.values.end()) {
-      out << ",";
+      stream << ",";
     }
   }
-  out << "]";
-  return out;
+  stream << "]";
+  return stream;
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const Boolean& boolean)
+inline std::ostream& operator<<(std::ostream& stream, const Boolean& boolean)
 {
-  return out << (boolean.value ? "true" : "false");
+  return stream << (boolean.value ? "true" : "false");
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const Null&)
+inline std::ostream& operator<<(std::ostream& stream, const Null&)
 {
-  return out << "null";
+  return stream << "null";
 }
 
 namespace internal {
