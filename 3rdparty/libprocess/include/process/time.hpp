@@ -102,7 +102,7 @@ public:
   explicit RFC1123(const Time& _time) : time(_time) {}
 
 private:
-  friend std::ostream& operator<<(std::ostream& out, const RFC1123& format);
+  friend std::ostream& operator<<(std::ostream& out, const RFC1123& formatter);
 
   const Time time;
 };
