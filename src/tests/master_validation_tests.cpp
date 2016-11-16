@@ -85,7 +85,10 @@ protected:
 TEST_F(ResourceValidationTest, StaticReservation)
 {
   Resource resource = Resources::parse("cpus", "8", "role").get();
-  EXPECT_NONE(resource::validate(CreateResources(resource)));
+
+  Option<Error> error = resource::validate(CreateResources(resource));
+
+  EXPECT_NONE(error);
 }
 
 
@@ -94,7 +97,9 @@ TEST_F(ResourceValidationTest, DynamicReservation)
   Resource resource = Resources::parse("cpus", "8", "role").get();
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
 
-  EXPECT_NONE(resource::validate(CreateResources(resource)));
+  Option<Error> error = resource::validate(CreateResources(resource));
+
+  EXPECT_NONE(error);
 }
 
 
@@ -104,7 +109,9 @@ TEST_F(ResourceValidationTest, RevocableDynamicReservation)
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
   resource.mutable_revocable();
 
-  EXPECT_SOME(resource::validate(CreateResources(resource)));
+  Option<Error> error = resource::validate(CreateResources(resource));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -113,7 +120,9 @@ TEST_F(ResourceValidationTest, InvalidRoleReservationPair)
   Resource resource = Resources::parse("cpus", "8", "*").get();
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
 
-  EXPECT_SOME(resource::validate(CreateResources(resource)));
+  Option<Error> error = resource::validate(CreateResources(resource));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -122,7 +131,9 @@ TEST_F(ResourceValidationTest, PersistentVolume)
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
 
-  EXPECT_NONE(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_NONE(error);
 }
 
 
@@ -131,7 +142,9 @@ TEST_F(ResourceValidationTest, UnreservedDiskInfo)
   Resource volume = Resources::parse("disk", "128", "*").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -140,7 +153,9 @@ TEST_F(ResourceValidationTest, InvalidPersistenceID)
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1/", "path1"));
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -149,7 +164,9 @@ TEST_F(ResourceValidationTest, PersistentVolumeWithoutVolumeInfo)
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", None()));
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -159,7 +176,9 @@ TEST_F(ResourceValidationTest, PersistentVolumeWithHostPath)
   volume.mutable_disk()->CopyFrom(
       createDiskInfo("id1", "path1", Volume::RW, "foo"));
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -168,7 +187,9 @@ TEST_F(ResourceValidationTest, NonPersistentVolume)
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo(None(), "path1"));
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -178,7 +199,9 @@ TEST_F(ResourceValidationTest, RevocablePersistentVolume)
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
   volume.mutable_revocable();
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -187,7 +210,9 @@ TEST_F(ResourceValidationTest, UnshareableResource)
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_shared();
 
-  EXPECT_SOME(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_SOME(error);
 }
 
 
@@ -197,7 +222,9 @@ TEST_F(ResourceValidationTest, SharedPersistentVolume)
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
   volume.mutable_shared();
 
-  EXPECT_NONE(resource::validate(CreateResources(volume)));
+  Option<Error> error = resource::validate(CreateResources(volume));
+
+  EXPECT_NONE(error);
 }
 
 
@@ -214,7 +241,10 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "frameworkRole"));
+  Option<Error> error =
+    operation::validate(reserve, "principal", "frameworkRole");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -230,7 +260,9 @@ TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "*"));
+  Option<Error> error = operation::validate(reserve, "principal", "*");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -246,7 +278,10 @@ TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "frameworkRole"));
+  Option<Error> error =
+    operation::validate(reserve, "principal", "frameworkRole");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -260,7 +295,9 @@ TEST_F(ReserveOperationValidationTest, MatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_NONE(operation::validate(reserve, "principal", "role"));
+  Option<Error> error = operation::validate(reserve, "principal", "role");
+
+  EXPECT_NONE(error);
 }
 
 
@@ -275,7 +312,9 @@ TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal1", "role"));
+  Option<Error> error = operation::validate(reserve, "principal1", "role");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -291,7 +330,9 @@ TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
+  Option<Error> error = operation::validate(reserve, "principal", "role");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -304,7 +345,9 @@ TEST_F(ReserveOperationValidationTest, StaticReservation)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(staticallyReserved);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
+  Option<Error> error = operation::validate(reserve, "principal", "role");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -318,7 +361,9 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(reserved);
 
-  EXPECT_NONE(operation::validate(reserve, "principal", "role"));
+  Option<Error> error = operation::validate(reserve, "principal", "role");
+
+  EXPECT_NONE(error);
 }
 
 
@@ -336,7 +381,9 @@ TEST_F(ReserveOperationValidationTest, PersistentVolumes)
   reserve.add_resources()->CopyFrom(reserved);
   reserve.add_resources()->CopyFrom(volume);
 
-  EXPECT_SOME(operation::validate(reserve, "principal", "role"));
+  Option<Error> error = operation::validate(reserve, "principal", "role");
+
+  EXPECT_SOME(error);
 }
 
 
@@ -353,7 +400,9 @@ TEST_F(UnreserveOperationValidationTest, WithoutACL)
   Offer::Operation::Unreserve unreserve;
   unreserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_NONE(operation::validate(unreserve));
+  Option<Error> error = operation::validate(unreserve);
+
+  EXPECT_NONE(error);
 }
 
 
@@ -367,7 +416,9 @@ TEST_F(UnreserveOperationValidationTest, FrameworkMissingPrincipal)
   Offer::Operation::Unreserve unreserve;
   unreserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_NONE(operation::validate(unreserve));
+  Option<Error> error = operation::validate(unreserve);
+
+  EXPECT_NONE(error);
 }
 
 
@@ -380,7 +431,9 @@ TEST_F(UnreserveOperationValidationTest, StaticReservation)
   Offer::Operation::Unreserve unreserve;
   unreserve.add_resources()->CopyFrom(staticallyReserved);
 
-  EXPECT_SOME(operation::validate(unreserve));
+  Option<Error> error = operation::validate(unreserve);
+
+  EXPECT_SOME(error);
 }
 
 
@@ -394,7 +447,9 @@ TEST_F(UnreserveOperationValidationTest, NoPersistentVolumes)
   Offer::Operation::Unreserve unreserve;
   unreserve.add_resources()->CopyFrom(reserved);
 
-  EXPECT_NONE(operation::validate(unreserve));
+  Option<Error> error = operation::validate(unreserve);
+
+  EXPECT_NONE(error);
 }
 
 
@@ -412,7 +467,9 @@ TEST_F(UnreserveOperationValidationTest, PersistentVolumes)
   unreserve.add_resources()->CopyFrom(reserved);
   unreserve.add_resources()->CopyFrom(volume);
 
-  EXPECT_SOME(operation::validate(unreserve));
+  Option<Error> error = operation::validate(unreserve);
+
+  EXPECT_SOME(error);
 }
 
 
@@ -429,13 +486,17 @@ TEST_F(CreateOperationValidationTest, PersistentVolumes)
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume);
 
-  EXPECT_NONE(operation::validate(create, Resources(), None()));
+  Option<Error> error = operation::validate(create, Resources(), None());
+
+  EXPECT_NONE(error);
 
   Resource cpus = Resources::parse("cpus", "2", "*").get();
 
   create.add_volumes()->CopyFrom(cpus);
 
-  EXPECT_SOME(operation::validate(create, Resources(), None()));
+  error = operation::validate(create, Resources(), None());
+
+  EXPECT_SOME(error);
 }
 
 
@@ -447,16 +508,22 @@ TEST_F(CreateOperationValidationTest, DuplicatedPersistenceID)
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume1);
 
-  EXPECT_NONE(operation::validate(create, Resources(), None()));
+  Option<Error> error = operation::validate(create, Resources(), None());
+
+  EXPECT_NONE(error);
 
   Resource volume2 = Resources::parse("disk", "64", "role1").get();
   volume2.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
 
-  EXPECT_SOME(operation::validate(create, volume1, None()));
+  error = operation::validate(create, volume1, None());
+
+  EXPECT_SOME(error);
 
   create.add_volumes()->CopyFrom(volume2);
 
-  EXPECT_SOME(operation::validate(create, Resources(), None()));
+  error = operation::validate(create, Resources(), None());
+
+  EXPECT_SOME(error);
 }
 
 
@@ -474,7 +541,10 @@ TEST_F(CreateOperationValidationTest, NonMatchingPrincipal)
     Offer::Operation::Create create;
     create.add_volumes()->CopyFrom(volume);
 
-    EXPECT_SOME(operation::validate(create, Resources(), "other-principal"));
+    Option<Error> error =
+      operation::validate(create, Resources(), "other-principal");
+
+    EXPECT_SOME(error);
   }
 
   // An operation without a principal in `DiskInfo.Persistence`.
@@ -485,7 +555,9 @@ TEST_F(CreateOperationValidationTest, NonMatchingPrincipal)
     Offer::Operation::Create create;
     create.add_volumes()->CopyFrom(volume);
 
-    EXPECT_SOME(operation::validate(create, Resources(), "principal"));
+    Option<Error> error = operation::validate(create, Resources(), "principal");
+
+    EXPECT_SOME(error);
   }
 }
 
@@ -498,7 +570,9 @@ TEST_F(CreateOperationValidationTest, ReadOnlyPersistentVolume)
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume);
 
-  EXPECT_SOME(operation::validate(create, Resources(), None()));
+  Option<Error> error = operation::validate(create, Resources(), None());
+
+  EXPECT_SOME(error);
 }
 
 
@@ -512,21 +586,27 @@ TEST_F(CreateOperationValidationTest, SharedVolumeBasedOnCapability)
 
   // When no FrameworkInfo is specified, validation is not dependent
   // on any framework.
-  EXPECT_NONE(operation::validate(create, Resources(), None()));
+  Option<Error> error = operation::validate(create, Resources(), None());
+
+  EXPECT_NONE(error);
 
   // When a FrameworkInfo with no SHARED_RESOURCES capability is
   // specified, the validation should fail.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
 
-  EXPECT_SOME(operation::validate(create, Resources(), None(), frameworkInfo));
+  error = operation::validate(create, Resources(), None(), frameworkInfo);
+
+  EXPECT_SOME(error);
 
   // When a FrameworkInfo with SHARED_RESOURCES capability is specified,
   // the validation should succeed.
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
-  EXPECT_NONE(operation::validate(create, Resources(), None(), frameworkInfo));
+  error = operation::validate(create, Resources(), None(), frameworkInfo);
+
+  EXPECT_NONE(error);
 }
 
 
@@ -636,13 +716,17 @@ TEST_F(DestroyOperationValidationTest, PersistentVolumes)
   Offer::Operation::Destroy destroy;
   destroy.add_volumes()->CopyFrom(volume1);
 
-  EXPECT_NONE(operation::validate(destroy, volumes, {}, {}));
+  Option<Error> error = operation::validate(destroy, volumes, {}, {});
+
+  EXPECT_NONE(error);
 
   Resource cpus = Resources::parse("cpus", "2", "*").get();
 
   destroy.add_volumes()->CopyFrom(cpus);
 
-  EXPECT_SOME(operation::validate(destroy, volumes, {}, {}));
+  error = operation::validate(destroy, volumes, {}, {});
+
+  EXPECT_SOME(error);
 }
 
 
@@ -675,12 +759,17 @@ TEST_F(DestroyOperationValidationTest, SharedPersistentVolumeInUse)
   Offer::Operation::Destroy destroy;
   destroy.add_volumes()->CopyFrom(disk1);
 
-  EXPECT_SOME(operation::validate(destroy, volumes, usedResources, {}));
+  Option<Error> error =
+    operation::validate(destroy, volumes, usedResources, {});
+
+  EXPECT_SOME(error);
 
   usedResources[frameworkId1] -= disk1;
   usedResources[frameworkId2] -= disk1;
 
-  EXPECT_NONE(operation::validate(destroy, volumes, usedResources, {}));
+  error = operation::validate(destroy, volumes, usedResources, {});
+
+  EXPECT_NONE(error);
 }
 
 
@@ -692,8 +781,13 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
   Offer::Operation::Destroy destroy;
   destroy.add_volumes()->CopyFrom(volume);
 
-  EXPECT_NONE(operation::validate(destroy, volume, {}, {}));
-  EXPECT_SOME(operation::validate(destroy, Resources(), {}, {}));
+  Option<Error> error = operation::validate(destroy, volume, {}, {});
+
+  EXPECT_NONE(error);
+
+  error = operation::validate(destroy, Resources(), {}, {});
+
+  EXPECT_SOME(error);
 }
 
 
@@ -1349,7 +1443,10 @@ TEST_F(TaskValidationTest, TaskUsesRevocableResources)
 
   // A task with only non-revocable cpus is valid.
   task.add_resources()->CopyFrom(cpus);
-  EXPECT_NONE(task::internal::validateResources(task));
+
+  Option<Error> error = task::internal::validateResources(task);
+
+  EXPECT_NONE(error);
 
   // Revocable cpus.
   Resource revocableCpus = cpus;
@@ -1358,13 +1455,19 @@ TEST_F(TaskValidationTest, TaskUsesRevocableResources)
   // A task with only revocable cpus is valid.
   task.clear_resources();
   task.add_resources()->CopyFrom(revocableCpus);
-  EXPECT_NONE(task::internal::validateResources(task));
+
+  error = task::internal::validateResources(task);
+
+  EXPECT_NONE(error);
 
   // A task with both revocable and non-revocable cpus is invalid.
   task.clear_resources();
   task.add_resources()->CopyFrom(cpus);
   task.add_resources()->CopyFrom(revocableCpus);
-  EXPECT_SOME(task::internal::validateResources(task));
+
+  error = task::internal::validateResources(task);
+
+  EXPECT_SOME(error);
 }
 
 
@@ -1389,7 +1492,10 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   task.add_resources()->CopyFrom(cpus);
   executor.add_resources()->CopyFrom(cpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_NONE(task::internal::validateTaskAndExecutorResources(task));
+
+  Option<Error> error = task::internal::validateTaskAndExecutorResources(task);
+
+  EXPECT_NONE(error);
 
   // Revocable cpus.
   Resource revocableCpus = cpus;
@@ -1401,7 +1507,10 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(revocableCpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_NONE(task::internal::validateTaskAndExecutorResources(task));
+
+  error = task::internal::validateTaskAndExecutorResources(task);
+
+  EXPECT_NONE(error);
 
   // A task with revocable cpus and its executor with non-revocable
   // cpus is invalid.
@@ -1410,7 +1519,10 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(cpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_SOME(task::internal::validateTaskAndExecutorResources(task));
+
+  error = task::internal::validateTaskAndExecutorResources(task);
+
+  EXPECT_SOME(error);
 
   // A task with non-revocable cpus and its executor with
   // non-revocable cpus is invalid.
@@ -1419,7 +1531,10 @@ TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(revocableCpus);
   task.mutable_executor()->CopyFrom(executor);
-  EXPECT_SOME(task::internal::validateTaskAndExecutorResources(task));
+
+  error = task::internal::validateTaskAndExecutorResources(task);
+
+  EXPECT_SOME(error);
 }
 
 
@@ -1569,7 +1684,9 @@ TEST_F(ExecutorValidationTest, ExecutorType)
     executorInfo.set_type(ExecutorInfo::CUSTOM);
     executorInfo.mutable_command();
 
-    EXPECT_NONE(::executor::internal::validateType(executorInfo));
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+
+    EXPECT_NONE(error);
   }
 
   {
@@ -1578,6 +1695,7 @@ TEST_F(ExecutorValidationTest, ExecutorType)
     executorInfo.clear_command();
 
     Option<Error> error = ::executor::internal::validateType(executorInfo);
+
     EXPECT_SOME(error);
     EXPECT_TRUE(strings::contains(
         error->message,
@@ -1589,7 +1707,9 @@ TEST_F(ExecutorValidationTest, ExecutorType)
     executorInfo.set_type(ExecutorInfo::DEFAULT);
     executorInfo.clear_command();
 
-    EXPECT_NONE(::executor::internal::validateType(executorInfo));
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+
+    EXPECT_NONE(error);
   }
 
   {
@@ -1598,6 +1718,7 @@ TEST_F(ExecutorValidationTest, ExecutorType)
     executorInfo.mutable_command();
 
     Option<Error> error = ::executor::internal::validateType(executorInfo);
+
     EXPECT_SOME(error);
     EXPECT_TRUE(strings::contains(
         error->message,
@@ -1639,8 +1760,11 @@ TEST_F(TaskGroupValidationTest, TaskGroupUsesRevocableResources)
   taskGroup.add_tasks()->CopyFrom(task1);
   taskGroup.add_tasks()->CopyFrom(task2);
 
-  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
-      taskGroup, executor));
+  Option<Error> error =
+    task::group::internal::validateTaskGroupAndExecutorResources(
+        taskGroup, executor);
+
+  EXPECT_NONE(error);
 
   // Revocable cpus.
   Resource revocableCpus = cpus;
@@ -1656,8 +1780,10 @@ TEST_F(TaskGroupValidationTest, TaskGroupUsesRevocableResources)
   taskGroup.add_tasks()->CopyFrom(task1);
   taskGroup.add_tasks()->CopyFrom(task2);
 
-  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
-      taskGroup, executor));
+  error = task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor);
+
+  EXPECT_NONE(error);
 
   // A task group with one task using revocable resources and another task
   // using non-revocable cpus is invalid.
@@ -1670,8 +1796,10 @@ TEST_F(TaskGroupValidationTest, TaskGroupUsesRevocableResources)
   taskGroup.add_tasks()->CopyFrom(task1);
   taskGroup.add_tasks()->CopyFrom(task2);
 
-  EXPECT_SOME(task::group::internal::validateTaskGroupAndExecutorResources(
-      taskGroup, executor));
+  error = task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor);
+
+  EXPECT_SOME(error);
 }
 
 
@@ -1700,8 +1828,11 @@ TEST_F(TaskGroupValidationTest, TaskGroupAndExecutorUsesRevocableResources)
 
   executor.add_resources()->CopyFrom(cpus);
 
-  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
-      taskGroup, executor));
+  Option<Error> error =
+    task::group::internal::validateTaskGroupAndExecutorResources(
+        taskGroup, executor);
+
+  EXPECT_NONE(error);
 
   // Revocable cpus.
   Resource revocableCpus = cpus;
@@ -1717,8 +1848,10 @@ TEST_F(TaskGroupValidationTest, TaskGroupAndExecutorUsesRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(revocableCpus);
 
-  EXPECT_NONE(task::group::internal::validateTaskGroupAndExecutorResources(
-      taskGroup, executor));
+  error = task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor);
+
+  EXPECT_NONE(error);
 
   // A task group with the task using revocable resources and executor
   // using non-revocable cpus is invalid.
@@ -1731,9 +1864,8 @@ TEST_F(TaskGroupValidationTest, TaskGroupAndExecutorUsesRevocableResources)
   executor.clear_resources();
   executor.add_resources()->CopyFrom(cpus);
 
-  Option<Error> error =
-    task::group::internal::validateTaskGroupAndExecutorResources(
-        taskGroup, executor);
+  error = task::group::internal::validateTaskGroupAndExecutorResources(
+      taskGroup, executor);
 
   EXPECT_SOME(error);
   EXPECT_TRUE(strings::contains(
