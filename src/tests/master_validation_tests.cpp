@@ -351,25 +351,9 @@ TEST_F(ReserveOperationValidationTest, StaticReservation)
 }
 
 
-// This test verifies that the resources specified in the RESERVE
-// operation cannot be persistent volumes.
-TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
-{
-  Resource reserved = Resources::parse("cpus", "8", "role").get();
-  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
-
-  Offer::Operation::Reserve reserve;
-  reserve.add_resources()->CopyFrom(reserved);
-
-  Option<Error> error = operation::validate(reserve, "principal", "role");
-
-  EXPECT_NONE(error);
-}
-
-
 // This test verifies that validation fails if there are persistent
 // volumes specified in the resources of the RESERVE operation.
-TEST_F(ReserveOperationValidationTest, PersistentVolumes)
+TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
 {
   Resource reserved = Resources::parse("cpus", "8", "role").get();
   reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
@@ -390,8 +374,8 @@ TEST_F(ReserveOperationValidationTest, PersistentVolumes)
 class UnreserveOperationValidationTest : public MesosTest {};
 
 
-// This test verifies that any resources can be unreserved by any
-// framework with a principal.
+// This test verifies that validation succeeds if the reservation includes a
+// `principal`.
 TEST_F(UnreserveOperationValidationTest, WithoutACL)
 {
   Resource resource = Resources::parse("cpus", "8", "role").get();
@@ -406,7 +390,7 @@ TEST_F(UnreserveOperationValidationTest, WithoutACL)
 }
 
 
-// This test verifies that validation succeeds if the framework's
+// This test verifies that validation succeeds if the reservation's
 // `principal` is not set.
 TEST_F(UnreserveOperationValidationTest, FrameworkMissingPrincipal)
 {
@@ -437,25 +421,9 @@ TEST_F(UnreserveOperationValidationTest, StaticReservation)
 }
 
 
-// This test verifies that the resources specified in the UNRESERVE
-// operation cannot be persistent volumes.
-TEST_F(UnreserveOperationValidationTest, NoPersistentVolumes)
-{
-  Resource reserved = Resources::parse("cpus", "8", "role").get();
-  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
-
-  Offer::Operation::Unreserve unreserve;
-  unreserve.add_resources()->CopyFrom(reserved);
-
-  Option<Error> error = operation::validate(unreserve);
-
-  EXPECT_NONE(error);
-}
-
-
 // This test verifies that validation fails if there are persistent
 // volumes specified in the resources of the UNRESERVE operation.
-TEST_F(UnreserveOperationValidationTest, PersistentVolumes)
+TEST_F(UnreserveOperationValidationTest, NoPersistentVolumes)
 {
   Resource reserved = Resources::parse("cpus", "8", "role").get();
   reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
@@ -476,8 +444,8 @@ TEST_F(UnreserveOperationValidationTest, PersistentVolumes)
 class CreateOperationValidationTest : public MesosTest {};
 
 
-// This test verifies that all resources specified in the CREATE
-// operation are persistent volumes.
+// This test verifies that validation fails if some resources specified in
+// the CREATE operation are not persistent volumes.
 TEST_F(CreateOperationValidationTest, PersistentVolumes)
 {
   Resource volume = Resources::parse("disk", "128", "role1").get();
@@ -699,8 +667,8 @@ TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
 class DestroyOperationValidationTest : public ::testing::Test {};
 
 
-// This test verifies that all resources specified in the DESTROY
-// operation are persistent volumes.
+// This test verifies that validation fails if some resources specified in
+// the DESTROY operation are not persistent volumes.
 TEST_F(DestroyOperationValidationTest, PersistentVolumes)
 {
   Resource volume1 = Resources::parse("disk", "128", "role1").get();
