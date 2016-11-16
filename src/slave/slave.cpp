@@ -648,7 +648,9 @@ void Slave::initialize()
       &Slave::ping,
       &PingSlaveMessage::connected);
 
-
+  // Setup the '/api/v1' handler for streaming requests.
+  RouteOptions options;
+  options.requestStreaming = true;
   route("/api/v1",
         // TODO(benh): Is this authentication realm sufficient or do
         // we need some kind of hybrid if we expect both executors
@@ -659,7 +661,8 @@ void Slave::initialize()
                const Option<string>& principal) {
           Http::log(request);
           return http.api(request, principal);
-        });
+        },
+        options);
 
   route("/api/v1/executor",
         Http::EXECUTOR_HELP(),

@@ -310,47 +310,42 @@ Future<Response> Slave::Http::api(
     return MethodNotAllowed({"POST"}, request.method);
   }
 
-  v1::agent::Call v1Call;
-
-  Option<string> contentType = request.headers.get("Content-Type");
-  if (contentType.isNone()) {
+  Option<string> contentType_ = request.headers.get("Content-Type");
+  if (contentType_.isNone()) {
     return BadRequest("Expecting 'Content-Type' to be present");
   }
 
-  if (contentType.get() == APPLICATION_PROTOBUF) {
-    if (!v1Call.ParseFromString(request.body)) {
-      return BadRequest("Failed to parse body into Call protobuf");
-    }
-  } else if (contentType.get() == APPLICATION_JSON) {
-    Try<JSON::Value> value = JSON::parse(request.body);
-    if (value.isError()) {
-      return BadRequest("Failed to parse body into JSON: " + value.error());
-    }
-
-    Try<v1::agent::Call> parse =
-      ::protobuf::parse<v1::agent::Call>(value.get());
-
-    if (parse.isError()) {
-      return BadRequest("Failed to convert JSON into Call protobuf: " +
-                        parse.error());
-    }
-
-    v1Call = parse.get();
+  ContentType contentType;
+  if (contentType_.get() == APPLICATION_JSON) {
+    contentType = ContentType::JSON;
+  } else if (contentType_.get() == APPLICATION_PROTOBUF) {
+    contentType = ContentType::PROTOBUF;
   } else {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
         APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
   }
 
-  agent::Call call = devolve(v1Call);
+  // This lambda deserializes a string into a valid `Call`
+  // based on the content type.
+  auto deserializer = [](const string& body, ContentType contentType)
+      -> Try<agent::Call> {
+    Try<v1::agent::Call> v1Call =
+      deserialize<v1::agent::Call>(contentType, body);
 
-  Option<Error> error = validation::agent::call::validate(call);
+    if (v1Call.isError()) {
+      return Error(v1Call.error());
+    }
 
-  if (error.isSome()) {
-    return BadRequest("Failed to validate agent::Call: " + error.get().message);
-  }
+    agent::Call call = devolve(v1Call.get());
 
-  LOG(INFO) << "Processing call " << call.type();
+    Option<Error> error = validation::agent::call::validate(call);
+    if (error.isSome()) {
+      return Error("Failed to validate agent::Call: " + error.get().message);
+    }
+
+    return call;
+  };
 
   ContentType acceptType;
   if (request.acceptsMediaType(APPLICATION_JSON)) {
@@ -362,6 +357,38 @@ Future<Response> Slave::Http::api(
         string("Expecting 'Accept' to allow ") +
         "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
   }
+
+  if (contentType == ContentType::JSON ||
+      contentType == ContentType::PROTOBUF) {
+    CHECK_EQ(http::Request::PIPE, request.type);
+    CHECK_SOME(request.reader);
+
+    Pipe::Reader reader = request.reader.get();  // Remove const.
+
+    return reader.readAll()
+      .then(defer(
+          slave->self(),
+          [=](const string& body) -> Future<Response> {
+            Try<agent::Call> call = deserializer(body, contentType);
+            if (call.isError()) {
+              return BadRequest(call.error());
+            }
+            return _api(call.get(), contentType, acceptType, principal);
+          }));
+  } else {
+    // TODO(vinod): Add support for 'streaming' content type.
+    UNREACHABLE();
+  }
+}
+
+
+Future<Response> Slave::Http::_api(
+    const agent::Call& call,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  LOG(INFO) << "Processing call " << call.type();
 
   switch (call.type()) {
     case agent::Call::UNKNOWN:
