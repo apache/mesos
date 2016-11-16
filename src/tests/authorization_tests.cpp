@@ -671,9 +671,23 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalOfferedRole)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->set_role("*");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("*");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->set_role("*");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -707,6 +721,13 @@ TYPED_TEST(AuthorizationTest, SomePrincipalsOfferedRole)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->set_role("ads");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("ads");
@@ -714,9 +735,23 @@ TYPED_TEST(AuthorizationTest, SomePrincipalsOfferedRole)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->set_role("ads");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
     request.mutable_subject()->set_value("baz");
     request.mutable_object()->set_value("ads");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()->mutable_framework_info()->set_role("ads");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 }
@@ -754,6 +789,13 @@ TYPED_TEST(AuthorizationTest, PrincipalOfferedRole)
     request.mutable_object()->set_value("analytics");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->set_role("analytics");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" cannot be offered "analytics" role's resources.
   {
@@ -761,6 +803,13 @@ TYPED_TEST(AuthorizationTest, PrincipalOfferedRole)
     request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("analytics");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->set_role("analytics");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -791,6 +840,13 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
     request.mutable_object()->set_value("analytics");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->set_role("analytics");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" cannot be offered "analytics" role's resources.
   {
@@ -800,6 +856,13 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
     request.mutable_object()->set_value("analytics");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->set_role("analytics");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" cannot be offered "ads" role's resources because no ACL.
   {
@@ -807,6 +870,13 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
     request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("ads");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->set_role("ads");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -853,6 +923,13 @@ TYPED_TEST(AuthorizationTest, Reserve)
     request.mutable_object()->set_value("bar");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_resource()->set_role("bar");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
@@ -863,9 +940,23 @@ TYPED_TEST(AuthorizationTest, Reserve)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_resource()->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::RESERVE_RESOURCES_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()->set_role("awesome_role");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -878,6 +969,13 @@ TYPED_TEST(AuthorizationTest, Reserve)
     request.mutable_object()->set_value("ads");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()->mutable_resource()->set_role("ads");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
@@ -886,10 +984,23 @@ TYPED_TEST(AuthorizationTest, Reserve)
     request.mutable_object()->set_value("awesome_role");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()->mutable_resource()->set_role("awesome_role");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
     request.set_action(authorization::RESERVE_RESOURCES_WITH_ROLE);
+    request.mutable_subject()->set_value("baz");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
     request.mutable_subject()->set_value("baz");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
@@ -902,6 +1013,13 @@ TYPED_TEST(AuthorizationTest, Reserve)
     request.set_action(authorization::RESERVE_RESOURCES_WITH_ROLE);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->set_value("ads");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()->mutable_resource()->set_role("ads");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -954,6 +1072,14 @@ TYPED_TEST(AuthorizationTest, Unreserve)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" cannot unreserve anyone's
   // resources, so requests 2 and 3 will fail.
@@ -964,12 +1090,28 @@ TYPED_TEST(AuthorizationTest, Unreserve)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("foo");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
     request.set_action(authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("bar");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
@@ -982,12 +1124,28 @@ TYPED_TEST(AuthorizationTest, Unreserve)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
     request.set_action(authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("ops");
     request.mutable_object()->set_value("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
   {
@@ -999,9 +1157,25 @@ TYPED_TEST(AuthorizationTest, Unreserve)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("bar");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("ops");
     request.mutable_object()->set_value("ops");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("ops");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1013,6 +1187,14 @@ TYPED_TEST(AuthorizationTest, Unreserve)
     request.set_action(authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->set_value("foo");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::UNRESERVE_RESOURCES);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()->mutable_resource()
+        ->mutable_reservation()->set_principal("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1064,6 +1246,13 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.mutable_object()->set_value("awesome_role");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_resource()->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" can create volumes for the "panda" role,
   // so this request will pass.
@@ -1072,6 +1261,13 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.set_action(authorization::CREATE_VOLUME_WITH_ROLE);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()->set_role("panda");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1084,6 +1280,13 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.mutable_object()->set_value("giraffe");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
 
   // Principal "baz" cannot create volumes for any role,
   // so this request will fail.
@@ -1092,6 +1295,13 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.set_action(authorization::CREATE_VOLUME_WITH_ROLE);
     request.mutable_subject()->set_value("baz");
     request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()->mutable_resource()->set_role("panda");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
@@ -1103,6 +1313,13 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.set_action(authorization::CREATE_VOLUME_WITH_ROLE);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()->mutable_resource()->set_role("panda");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1155,6 +1372,14 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   // Principal "bar" cannot destroy anyone's
   // volumes, so requests 2 and 3 will fail.
@@ -1165,12 +1390,28 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("foo");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
     request.set_action(authorization::DESTROY_VOLUME_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("bar");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 
@@ -1183,6 +1424,14 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
     request.mutable_object()->set_value("foo");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("foo");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
 
   {
     authorization::Request request;
@@ -1193,9 +1442,25 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
   }
   {
     authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("ops");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
     request.set_action(authorization::DESTROY_VOLUME_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("ops");
     request.mutable_object()->set_value("bar");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("bar");
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
   }
 
@@ -1207,6 +1472,14 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
     request.set_action(authorization::DESTROY_VOLUME_WITH_PRINCIPAL);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->set_value("foo");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_VOLUME);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()->mutable_resource()->mutable_disk()
+        ->mutable_persistence()->set_principal("foo");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
