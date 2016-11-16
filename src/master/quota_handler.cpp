@@ -543,6 +543,8 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
     request.mutable_subject()->set_value(principal.get());
   }
 
+  // TODO(alexr): The `value` field is set for backwards compatibility
+  // reasons until after the deprecation cycle started with 1.2.0 ends.
   request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
   request.mutable_object()->set_value(quotaInfo.role());
 
