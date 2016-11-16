@@ -295,6 +295,12 @@ public:
         "    }\n"
         "  }\n"
         "]");
+
+    add(&Flags::content_type,
+        "content_type",
+        "The content type to use for scheduler protocol messages. 'json'\n"
+        "and 'protobuf' are valid choices.",
+        "json");
   }
 
   string master;
@@ -321,6 +327,7 @@ public:
   Option<string> networks;
   Option<string> principal;
   Option<string> secret;
+  string content_type;
 };
 
 
@@ -330,6 +337,7 @@ public:
   CommandScheduler(
       const FrameworkInfo& _frameworkInfo,
       const string& _master,
+      mesos::ContentType _contentType,
       const Option<Duration>& _killAfter,
       const Option<Credential>& _credential,
       const Option<TaskInfo>& _task,
@@ -338,6 +346,7 @@ public:
     : state(DISCONNECTED),
       frameworkInfo(_frameworkInfo),
       master(_master),
+      contentType(_contentType),
       killAfter(_killAfter),
       credential(_credential),
       task(_task),
@@ -355,7 +364,7 @@ protected:
     // after the process has spawned.
     mesos.reset(new Mesos(
       master,
-      mesos::ContentType::PROTOBUF,
+      contentType,
       process::defer(self(), &Self::connected),
       process::defer(self(), &Self::disconnected),
       process::defer(self(), &Self::received, lambda::_1),
@@ -668,6 +677,7 @@ private:
 
   FrameworkInfo frameworkInfo;
   const string master;
+  mesos::ContentType contentType;
   const Option<Duration> killAfter;
   const Option<Credential> credential;
   const Option<TaskInfo> task;
@@ -794,6 +804,7 @@ static Result<ContainerInfo> getContainerInfo(
 int main(int argc, char** argv)
 {
   Flags flags;
+  mesos::ContentType contentType = mesos::ContentType::PROTOBUF;
 
   // Load flags from command line only.
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
@@ -841,6 +852,17 @@ int main(int argc, char** argv)
       cerr << flags.usage("Missing required option --command") << endl;
       return EXIT_FAILURE;
     }
+  }
+
+  if (flags.content_type == "json" ||
+      flags.content_type == mesos::APPLICATION_JSON) {
+    contentType = mesos::ContentType::JSON;
+  } else if (flags.content_type == "protobuf" ||
+             flags.content_type == mesos::APPLICATION_PROTOBUF) {
+    contentType = mesos::ContentType::PROTOBUF;
+  } else {
+    cerr << "Invalid content type '" << flags.content_type << "'" << endl;
+    return EXIT_FAILURE;
   }
 
   Result<string> user = os::user();
@@ -1070,6 +1092,7 @@ int main(int argc, char** argv)
       new CommandScheduler(
         frameworkInfo,
         flags.master,
+        contentType,
         flags.kill_after,
         credential,
         taskInfo,
