@@ -42,3 +42,7 @@ layout: documentation
 * [ElasticSearch](https://github.com/mesos/elasticsearch) is a distributed search engine. Mesos makes it easy to run and scale.
 * [Hypertable](https://code.google.com/p/hypertable/wiki/Mesos) is a high performance, scalable, distributed storage and processing system for structured and unstructured data.
 * [MrRedis](https://github.com/mesos/mr-redis) MrRedis is a Mesos framework for provisioning [Redis](http://redis.io/) in-memory cache instances. The scheduler provides auto Redis master election, auto recovery of Redis slaves and comes with the CLI and a UI.
+
+## Machine Learning
+
+* [TFMesos](https://github.com/douban/tfmesos) is a lightweight framework to help running distributed [Tensorflow](https://www.tensorflow.org/) Machine Learning tasks on Apache Mesos with GPU support.
