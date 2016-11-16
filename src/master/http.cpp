@@ -3485,13 +3485,15 @@ Future<Response> Master::Http::teardown(
   }
 
   authorization::Request teardown;
-  teardown.set_action(authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL);
+  teardown.set_action(authorization::TEARDOWN_FRAMEWORK);
 
   if (principal.isSome()) {
     teardown.mutable_subject()->set_value(principal.get());
   }
 
   if (framework->info.has_principal()) {
+    teardown.mutable_object()->mutable_framework_info()->CopyFrom(
+        framework->info);
     teardown.mutable_object()->set_value(framework->info.principal());
   }
 

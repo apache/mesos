@@ -118,7 +118,7 @@ Future<vector<WeightInfo>> Master::WeightsHandler::_getWeights(
   // TODO(alexr): Batch these actions once we have BatchRequest in authorizer.
   list<Future<bool>> roleAuthorizations;
   foreach (const WeightInfo& info, weightInfos) {
-    roleAuthorizations.push_back(authorizeGetWeight(principal, info.role()));
+    roleAuthorizations.push_back(authorizeGetWeight(principal, info));
   }
 
   return process::collect(roleAuthorizations)
@@ -325,7 +325,7 @@ Future<bool> Master::WeightsHandler::authorizeUpdateWeights(
             << "' to update weights for roles '" << stringify(roles) << "'";
 
   authorization::Request request;
-  request.set_action(authorization::UPDATE_WEIGHT_WITH_ROLE);
+  request.set_action(authorization::UPDATE_WEIGHT);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
@@ -357,7 +357,7 @@ Future<bool> Master::WeightsHandler::authorizeUpdateWeights(
 
 Future<bool> Master::WeightsHandler::authorizeGetWeight(
     const Option<string>& principal,
-    const string& role) const
+    const WeightInfo& weight) const
 {
   if (master->authorizer.isNone()) {
     return true;
@@ -365,7 +365,7 @@ Future<bool> Master::WeightsHandler::authorizeGetWeight(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? principal.get() : "ANY")
-            << "' to get weight for role '" << role << "'";
+            << "' to get weight for role '" << weight.role() << "'";
 
   authorization::Request request;
   request.set_action(authorization::VIEW_ROLE);
@@ -374,7 +374,8 @@ Future<bool> Master::WeightsHandler::authorizeGetWeight(
     request.mutable_subject()->set_value(principal.get());
   }
 
-  request.mutable_object()->set_value(role);
+  request.mutable_object()->mutable_weight_info()->CopyFrom(weight);
+  request.mutable_object()->set_value(weight.role());
 
   return master->authorizer.get()->authorized(request);
 }

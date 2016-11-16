@@ -1075,7 +1075,7 @@ private:
 
     process::Future<bool> authorizeGetQuota(
         const Option<std::string>& principal,
-        const std::string& role) const;
+        const quota::QuotaInfo& role) const;
 
     // TODO(mpark): The following functions `authorizeSetQuota` and
     // `authorizeRemoveQuota` should be replaced with `authorizeUpdateQuota` at
@@ -1149,7 +1149,7 @@ private:
   private:
     process::Future<bool> authorizeGetWeight(
         const Option<std::string>& principal,
-        const std::string& role) const;
+        const WeightInfo& weight) const;
 
     process::Future<bool> authorizeUpdateWeights(
         const Option<std::string>& principal,

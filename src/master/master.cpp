@@ -2070,12 +2070,13 @@ Future<bool> Master::authorizeFramework(
             << "' to receive offers for role '" << frameworkInfo.role() << "'";
 
   authorization::Request request;
-  request.set_action(authorization::REGISTER_FRAMEWORK_WITH_ROLE);
+  request.set_action(authorization::REGISTER_FRAMEWORK);
 
   if (frameworkInfo.has_principal()) {
     request.mutable_subject()->set_value(frameworkInfo.principal());
   }
 
+  request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
   request.mutable_object()->set_value(frameworkInfo.role());
 
   return authorizer.get()->authorized(request);
@@ -3188,7 +3189,7 @@ Future<bool> Master::authorizeReserveResources(
   }
 
   authorization::Request request;
-  request.set_action(authorization::RESERVE_RESOURCES_WITH_ROLE);
+  request.set_action(authorization::RESERVE_RESOURCES);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
@@ -3203,6 +3204,7 @@ Future<bool> Master::authorizeReserveResources(
     if (!roles.contains(resource.role())) {
       roles.insert(resource.role());
 
+      request.mutable_object()->mutable_resource()->CopyFrom(resource);
       request.mutable_object()->set_value(resource.role());
       authorizations.push_back(authorizer.get()->authorized(request));
     }
@@ -3244,7 +3246,7 @@ Future<bool> Master::authorizeUnreserveResources(
   }
 
   authorization::Request request;
-  request.set_action(authorization::UNRESERVE_RESOURCES_WITH_PRINCIPAL);
+  request.set_action(authorization::UNRESERVE_RESOURCES);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
@@ -3258,6 +3260,8 @@ Future<bool> Master::authorizeUnreserveResources(
     // during validation.
     if (Resources::isDynamicallyReserved(resource) &&
         resource.reservation().has_principal()) {
+      request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
       request.mutable_object()->set_value(
           resource.reservation().principal());
 
@@ -3297,7 +3301,7 @@ Future<bool> Master::authorizeCreateVolume(
   }
 
   authorization::Request request;
-  request.set_action(authorization::CREATE_VOLUME_WITH_ROLE);
+  request.set_action(authorization::CREATE_VOLUME);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
@@ -3312,6 +3316,7 @@ Future<bool> Master::authorizeCreateVolume(
     if (!roles.contains(volume.role())) {
       roles.insert(volume.role());
 
+      request.mutable_object()->mutable_resource()->CopyFrom(volume);
       request.mutable_object()->set_value(volume.role());
       authorizations.push_back(authorizer.get()->authorized(request));
     }
@@ -3349,7 +3354,7 @@ Future<bool> Master::authorizeDestroyVolume(
   }
 
   authorization::Request request;
-  request.set_action(authorization::DESTROY_VOLUME_WITH_PRINCIPAL);
+  request.set_action(authorization::DESTROY_VOLUME);
 
   if (principal.isSome()) {
     request.mutable_subject()->set_value(principal.get());
@@ -3361,6 +3366,7 @@ Future<bool> Master::authorizeDestroyVolume(
     // authorization, we must check here that this resource is a persistent
     // volume. If it isn't, the error will be caught during validation.
     if (Resources::isPersistentVolume(volume)) {
+      request.mutable_object()->mutable_resource()->CopyFrom(volume);
       request.mutable_object()->set_value(
           volume.disk().persistence().principal());
 
