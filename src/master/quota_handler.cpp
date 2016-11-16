@@ -526,7 +526,7 @@ Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
 
 Future<bool> Master::QuotaHandler::authorizeGetQuota(
     const Option<string>& principal,
-    const QuotaInfo& quota) const
+    const QuotaInfo& quotaInfo) const
 {
   if (master->authorizer.isNone()) {
     return true;
@@ -534,7 +534,7 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? principal.get() : "ANY")
-            << "' to get quota for role '" << quota.role() << "'";
+            << "' to get quota for role '" << quotaInfo.role() << "'";
 
   authorization::Request request;
   request.set_action(authorization::GET_QUOTA);
@@ -543,8 +543,8 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
     request.mutable_subject()->set_value(principal.get());
   }
 
-  request.mutable_object()->mutable_quota_info()->CopyFrom(quota);
-  request.mutable_object()->set_value(quota.role());
+  request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
+  request.mutable_object()->set_value(quotaInfo.role());
 
   return master->authorizer.get()->authorized(request);
 }

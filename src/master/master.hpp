@@ -1075,7 +1075,7 @@ private:
 
     process::Future<bool> authorizeGetQuota(
         const Option<std::string>& principal,
-        const quota::QuotaInfo& role) const;
+        const mesos::quota::QuotaInfo& quotaInfo) const;
 
     // TODO(mpark): The following functions `authorizeSetQuota` and
     // `authorizeRemoveQuota` should be replaced with `authorizeUpdateQuota` at
