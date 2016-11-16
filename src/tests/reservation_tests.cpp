@@ -2179,6 +2179,165 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   driver.join();
 }
 
+
+// This test ensures that a framework can't unreserve resources
+// reserved by a framework with another role.
+TEST_F(ReservationTest, PreventUnreservingAlienResources)
+{
+  const string frameworkRole1 = "role1";
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_role(frameworkRole1);
+
+  const string frameworkRole2 = "role2";
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_name("framework2");
+  frameworkInfo2.set_role(frameworkRole2);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus:1;mem:512";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver1.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  Offer offer = offers->front();
+
+  const Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Reserve half the memory for `frameworkRole1`.
+  const Resources halfMemory = Resources::parse("mem:256").get();
+  const Resources dynamicallyReserved =
+    halfMemory
+      .flatten(
+          frameworkRole1, createReservationInfo(frameworkInfo1.principal()))
+      .get();
+
+  driver1.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers->front();
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
+
+  // The filter to decline the offer "forever".
+  Filters filtersForever;
+  filtersForever.set_refuse_seconds(std::numeric_limits<double>::max());
+
+  // Decline the offer "forever" in order to force `framework2` to
+  // receive the remaining resources.
+  driver1.declineOffer(offer.id(), filtersForever);
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
+  // The expectation for `driver2`'s first offer.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver2.start();
+
+  // Expect an offer without the resources reserved by `framework1`.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers->front();
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
+  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Expect that the unreserve offer operation will be dropped and hence
+  // allocator not called at all.
+  EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
+    .Times(0);
+
+  // Try to make `framework2` "steal" the resources reserved by `framework1`.
+  driver2.acceptOffers({offer.id()}, {UNRESERVE(dynamicallyReserved)}, filters);
+
+  // Expect another offer without the resources reserved by `framework1`.
+  AWAIT_READY(offers);
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
+  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  // Decline the offer "forever" in order to force `framework1` to
+  // receive the remaining resources.
+  driver2.declineOffer(offer.id(), filtersForever);
+
+  driver2.stop();
+  driver2.join();
+
+  // The expectation for the last offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Make the allocator ignore the filters.
+  driver1.reviveOffers();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers->front();
+
+  // Make sure that the reservation is still in place.
+  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  driver1.stop();
+  driver1.join();
+}
+
 }  // namespace tests {
 }  // namespace internal {
 }  // namespace mesos {
