@@ -101,7 +101,7 @@ public:
 private:
   friend std::ostream& operator<<(
       std::ostream& stream,
-      const ProcessCapabilities& set);
+      const ProcessCapabilities& processCapabilities);
 
   std::set<Capability> effective;
   std::set<Capability> permitted;

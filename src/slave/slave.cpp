@@ -1500,7 +1500,7 @@ Future<bool> Slave::unschedule(const string& path)
 void Slave::runTask(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
-    const FrameworkID& frameworkId_,
+    const FrameworkID& frameworkId,
     const UPID& pid,
     const TaskInfo& task)
 {

@@ -157,7 +157,7 @@ public:
 
   // Made 'virtual' for Slave mocking.
   virtual void runTaskGroup(
-      const process::UPID& upid,
+      const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroupInfo);
@@ -243,7 +243,7 @@ public:
       StatusUpdate update,
       const Option<process::UPID>& pid,
       const ExecutorID& executorId,
-      const Future<ContainerStatus>& containerStatus);
+      const Future<ContainerStatus>& future);
 
   // Continue handling the status update after optionally updating the
   // container's resources.
@@ -305,7 +305,7 @@ public:
 
   // Invoked whenever the detector detects a change in masters.
   // Made public for testing purposes.
-  void detected(const process::Future<Option<MasterInfo>>& pid);
+  void detected(const process::Future<Option<MasterInfo>>& _master);
 
   enum State
   {

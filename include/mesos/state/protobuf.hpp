@@ -94,7 +94,7 @@ private:
   // constructor.
   template <typename T>
   static process::Future<Variable<T>> _fetch(
-      const mesos::state::Variable& option);
+      const mesos::state::Variable& variable);
 
   template <typename T>
   static process::Future<Option<Variable<T>>> _store(

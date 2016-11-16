@@ -428,14 +428,16 @@ ostream& operator<<(ostream& stream, const Type& type)
 }
 
 
-ostream& operator<<(ostream& stream, const ProcessCapabilities& capabilities)
+ostream& operator<<(
+    ostream& stream,
+    const ProcessCapabilities& processCapabilities)
 {
   return stream
     << "{"
-    << EFFECTIVE    << ": " << stringify(capabilities.effective)   << ", "
-    << PERMITTED    << ": " << stringify(capabilities.permitted)   << ", "
-    << INHERITABLE  << ": " << stringify(capabilities.inheritable) << ", "
-    << BOUNDING     << ": " << stringify(capabilities.bounding)
+    << EFFECTIVE   << ": " << stringify(processCapabilities.effective)   << ", "
+    << PERMITTED   << ": " << stringify(processCapabilities.permitted)   << ", "
+    << INHERITABLE << ": " << stringify(processCapabilities.inheritable) << ", "
+    << BOUNDING    << ": " << stringify(processCapabilities.bounding)
     << "}";
 }
 

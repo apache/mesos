@@ -537,16 +537,16 @@ public:
       const process::Time& reregisteredTime);
 
   void offer(
-      const FrameworkID& framework,
+      const FrameworkID& frameworkId,
       const hashmap<SlaveID, Resources>& resources);
 
   void inverseOffer(
-      const FrameworkID& framework,
+      const FrameworkID& frameworkId,
       const hashmap<SlaveID, UnavailableResources>& resources);
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
-  void detected(const process::Future<Option<MasterInfo>>& pid);
+  void detected(const process::Future<Option<MasterInfo>>& _leader);
 
   // Invoked when the contender has lost the candidacy.
   // Made public for testing purposes.
@@ -621,10 +621,10 @@ protected:
       const std::vector<Task>& tasks,
       const std::vector<FrameworkInfo>& frameworks);
 
-  // 'authenticate' is the future returned by the authenticator.
+  // 'future' is the future returned by the authenticator.
   void _authenticate(
       const process::UPID& pid,
-      const process::Future<Option<std::string>>& authenticate);
+      const process::Future<Option<std::string>>& future);
 
   void authenticationTimeout(process::Future<Option<std::string>> future);
 
@@ -1157,7 +1157,7 @@ private:
 
     process::Future<std::vector<WeightInfo>> _filterWeights(
         const std::vector<WeightInfo>& weightInfos,
-        const std::list<bool>& authorized) const;
+        const std::list<bool>& roleAuthorizations) const;
 
     process::Future<std::vector<WeightInfo>> _getWeights(
         const Option<std::string>& principal) const;
@@ -1168,7 +1168,7 @@ private:
             const;
 
     process::Future<process::http::Response> __updateWeights(
-        const std::vector<WeightInfo>& updateWeightInfos) const;
+        const std::vector<WeightInfo>& weightInfos) const;
 
     // Rescind all outstanding offers if any of the 'weightInfos' roles has
     // an active framework.

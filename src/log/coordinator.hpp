@@ -41,9 +41,9 @@ class Coordinator
 {
 public:
   Coordinator(
-      size_t _quorum,
-      const process::Shared<Replica>& _replica,
-      const process::Shared<Network>& _network);
+      size_t quorum,
+      const process::Shared<Replica>& replica,
+      const process::Shared<Network>& network);
 
   ~Coordinator();
 

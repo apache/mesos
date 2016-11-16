@@ -180,7 +180,7 @@ bool approveViewRole(
  */
 Try<Nothing> initializeHttpAuthenticators(
     const std::string& realm,
-    const std::vector<std::string>& authenticatorNames,
+    const std::vector<std::string>& httpAuthenticatorNames,
     const Option<Credentials>& credentials);
 
 } // namespace mesos {

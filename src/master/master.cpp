@@ -130,7 +130,7 @@ using mesos::master::contender::MasterContender;
 
 using mesos::master::detector::MasterDetector;
 
-static bool isValidFailoverTimeout(const FrameworkInfo& frameworkinfo);
+static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
 
 class SlaveObserver : public ProtobufProcess<SlaveObserver>
 {

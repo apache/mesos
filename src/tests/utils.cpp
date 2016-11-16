@@ -119,12 +119,12 @@ string getTestHelperDir()
   return path;
 }
 
-string getTestScriptPath(const string& script)
+string getTestScriptPath(const string& name)
 {
-  string path = path::join(flags.source_dir, "src", "tests", script);
+  string path = path::join(flags.source_dir, "src", "tests", name);
 
   if (!os::exists(path) && searchInstallationDirectory) {
-    path = path::join(TESTLIBEXECDIR, script);
+    path = path::join(TESTLIBEXECDIR, name);
   }
 
   return path;
