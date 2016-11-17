@@ -212,7 +212,7 @@ Try<Nothing> ModuleManager::verifyIdenticalModule(
     const Modules::Library::Module& module,
     const ModuleBase* base)
 {
-  const string moduleName = module.name();
+  const string& moduleName = module.name();
 
   // Verify that the two modules come from the same module library.
   CHECK(moduleLibraries.contains(moduleName));
@@ -299,7 +299,7 @@ Try<Nothing> ModuleManager::loadManifest(const Modules& modules)
               "'");
         }
 
-        const string moduleName = module.name();
+        const string& moduleName = module.name();
 
         // Load ModuleBase.
         Try<void*> symbol =

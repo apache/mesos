@@ -130,7 +130,7 @@ public:
     HealthCheck healthCheck;
 
     if (env.isSome()) {
-      foreachpair (const string& name, const string value, env.get()) {
+      foreachpair (const string& name, const string& value, env.get()) {
         Environment::Variable* variable =
           healthCommand.mutable_environment()->mutable_variables()->Add();
         variable->set_name(name);

@@ -1619,7 +1619,7 @@ Response Slave::Http::_statistics(
 
   foreach (const ResourceUsage::Executor& executor, usage.executors()) {
     if (executor.has_statistics()) {
-      const ExecutorInfo info = executor.executor_info();
+      const ExecutorInfo& info = executor.executor_info();
 
       JSON::Object entry;
       entry.values["framework_id"] = info.framework_id().value();

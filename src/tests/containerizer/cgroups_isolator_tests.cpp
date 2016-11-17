@@ -1111,7 +1111,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;
-  foreach (const ContainerID containerId, containers.get()) {
+  foreach (const ContainerID& containerId, containers.get()) {
     if (containerId != containerId1) {
       containerId2 = containerId;
     }
@@ -1269,7 +1269,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;
-  foreach (const ContainerID containerId, containers.get()) {
+  foreach (const ContainerID& containerId, containers.get()) {
     if (containerId != containerId1) {
       containerId2 = containerId;
     }
@@ -1425,7 +1425,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;
-  foreach (const ContainerID containerId, containers.get()) {
+  foreach (const ContainerID& containerId, containers.get()) {
     if (containerId != containerId1) {
       containerId2 = containerId;
     }

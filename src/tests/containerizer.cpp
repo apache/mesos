@@ -139,7 +139,7 @@ public:
       // can reset the environment after calling 'driver->start()' below.
       hashmap<string, string> original = os::environment();
 
-      foreachpair (const string& name, const string variable, environment) {
+      foreachpair (const string& name, const string& variable, environment) {
         os::setenv(name, variable);
       }
 

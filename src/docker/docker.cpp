@@ -533,7 +533,7 @@ Future<Option<int>> Docker::run(
   }
 
   if (env.isSome()) {
-    foreachpair (string key, string value, env.get()) {
+    foreachpair (const string& key, const string& value, env.get()) {
       argv.push_back("-e");
       argv.push_back(key + "=" + value);
     }
