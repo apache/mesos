@@ -54,8 +54,7 @@ inline Try<Nothing> rmdir(
     // exist. We manually induce an error here to indicate that we can't remove
     // a directory that does not exist.
     if (!os::exists(directory)) {
-      errno = ENOENT;
-      return ErrnoError();
+      return ErrnoError(ENOENT);
     }
 
     char* paths[] = {const_cast<char*>(directory.c_str()), nullptr};

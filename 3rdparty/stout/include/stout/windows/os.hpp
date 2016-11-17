@@ -425,8 +425,8 @@ inline Try<Load> loadavg()
   // No Windows equivalent, return an error until there is a need. We can
   // construct an approximation of this function by periodically polling
   // `GetSystemTimes` and using a sliding window of statistics.
-  return WindowsErrorBase(ERROR_NOT_SUPPORTED,
-                          "Failed to determine system load averages");
+  return WindowsError(ERROR_NOT_SUPPORTED,
+                      "Failed to determine system load averages");
 }
 
 

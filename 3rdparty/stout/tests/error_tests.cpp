@@ -24,6 +24,7 @@
 
 using std::string;
 
+using testing::StartsWith;
 
 Error error1()
 {
@@ -70,4 +71,31 @@ TEST(ErrorTest, Test)
   EXPECT_ERROR(r);
   r = error5(error1());
   EXPECT_ERROR(r);
+}
+
+
+TEST(ErrorTest, Errno)
+{
+#ifdef __WINDOWS__
+  DWORD einval = ERROR_INVALID_HANDLE;
+#else
+  int einval = EINVAL;
+#endif
+
+#ifdef __WINDOWS__
+  DWORD notsock = WSAENOTSOCK;
+#else
+  int notsock = ENOTSOCK;
+#endif
+
+  EXPECT_EQ(einval, ErrnoError(einval).code);
+  EXPECT_EQ(notsock, SocketError(notsock).code);
+
+  EXPECT_EQ(einval, ErrnoError(einval, "errno error").code);
+  EXPECT_THAT(
+    ErrnoError(einval, "errno error").message, StartsWith("errno error"));
+
+  EXPECT_EQ(notsock, SocketError(notsock, "socket error").code);
+  EXPECT_THAT(
+    SocketError(notsock, "socket error").message, StartsWith("socket error"));
 }

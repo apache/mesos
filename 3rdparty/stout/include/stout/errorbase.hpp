@@ -44,10 +44,15 @@ public:
 class ErrnoError : public Error
 {
 public:
-  ErrnoError() : Error(os::strerror(errno)), code(errno) {}
+  ErrnoError() : ErrnoError(errno) {}
 
-  ErrnoError(const std::string& message)
-    : Error(message + ": " + os::strerror(errno)), code(errno) {}
+  explicit ErrnoError(int _code) : Error(os::strerror(_code)), code(_code) {}
+
+  explicit ErrnoError(const std::string& message)
+    : ErrnoError(errno, message) {}
+
+  ErrnoError(int _code, const std::string& message)
+    : Error(message + ": " + os::strerror(_code)), code(_code) {}
 
   const int code;
 };

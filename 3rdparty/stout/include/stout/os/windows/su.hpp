@@ -52,8 +52,7 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None()) = delete;
 
 inline Result<std::string> user(Option<uid_t> uid = None())
 {
-  SetLastError(ERROR_NOT_SUPPORTED);
-  return WindowsError();
+  return WindowsError(ERROR_NOT_SUPPORTED);
 }
 
 
