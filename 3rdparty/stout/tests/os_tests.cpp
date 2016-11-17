@@ -842,7 +842,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Realpath)
   const Try<string> _testFile = os::mktemp();
   ASSERT_SOME(_testFile);
   ASSERT_SOME(os::touch(_testFile.get()));
-  const string testFile = _testFile.get();
+  const string& testFile = _testFile.get();
 
   // Create a symlink pointing to a file.
   const string testLink = UUID::random().toString();
