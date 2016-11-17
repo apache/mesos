@@ -57,10 +57,13 @@ Try<Handle> Handle::parse(const string& str)
 }
 
 
-ostream& operator<<(ostream& out, const Handle& handle)
+ostream& operator<<(ostream& stream, const Handle& handle)
 {
-  out << std::hex << handle.primary() << ":" << handle.secondary() << std::dec;
-  return out;
+  stream << std::hex
+         << handle.primary() << ":"
+         << handle.secondary()
+         << std::dec;
+  return stream;
 }
 
 } // namespace routing {

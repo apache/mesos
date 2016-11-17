@@ -70,7 +70,7 @@ protected:
 };
 
 
-std::ostream& operator<<(std::ostream& out, const Handle& handle);
+std::ostream& operator<<(std::ostream& stream, const Handle& handle);
 
 
 // Packets flowing from the device driver to the network stack are

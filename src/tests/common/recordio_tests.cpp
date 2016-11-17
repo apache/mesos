@@ -51,17 +51,17 @@ bool operator==(const Result<T>& lhs, const Result<T>& rhs)
 
 
 template <typename T>
-std::ostream& operator<<(std::ostream& out, const Result<T>& r)
+std::ostream& operator<<(std::ostream& stream, const Result<T>& r)
 {
   if (r.isNone()) {
-    return out << "none";
+    return stream << "none";
   }
 
   if (r.isError()) {
-    return out << "error(\"" << r.error() << "\")";
+    return stream << "error(\"" << r.error() << "\")";
   }
 
-  return out << r.get();
+  return stream << r.get();
 }
 
 
