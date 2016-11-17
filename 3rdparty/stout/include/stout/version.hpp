@@ -121,7 +121,9 @@ struct Version
     return *this > other || *this == other;
   }
 
-  friend inline std::ostream& operator<<(std::ostream& s, const Version& v);
+  friend inline std::ostream& operator<<(
+      std::ostream& stream,
+      const Version& version);
 
   const int majorVersion;
   const int minorVersion;
@@ -129,9 +131,13 @@ struct Version
 };
 
 
-inline std::ostream& operator<<(std::ostream& s, const Version& v)
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Version& version)
 {
-  return s << v.majorVersion << "." << v.minorVersion << "." << v.patchVersion;
+  return stream << version.majorVersion << "."
+                << version.minorVersion << "."
+                << version.patchVersion;
 }
 
 #endif // __STOUT_VERSION_HPP__

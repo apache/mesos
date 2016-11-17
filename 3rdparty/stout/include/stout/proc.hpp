@@ -424,11 +424,11 @@ inline bool operator<(const CPU& lhs, const CPU& rhs)
 }
 
 
-inline std::ostream& operator<<(std::ostream& out, const CPU& cpu)
+inline std::ostream& operator<<(std::ostream& stream, const CPU& cpu)
 {
-  return out << "CPU (id:" << cpu.id << ", "
-             << "core:" << cpu.core << ", "
-             << "socket:" << cpu.socket << ")";
+  return stream << "CPU (id:" << cpu.id << ", "
+                << "core:" << cpu.core << ", "
+                << "socket:" << cpu.socket << ")";
 }
 
 
