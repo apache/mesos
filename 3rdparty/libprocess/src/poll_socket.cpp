@@ -131,17 +131,7 @@ Future<Nothing> connect(const Socket& socket, const Address& to)
   }
 
   if (opt != 0) {
-    // Make the error visible to the `SocketError` constructor by pushing
-    // it into the global per-thread error. MESOS-6520 which should
-    // allow us to pass the error code directly into `SocketError`.
-
-#ifdef __WINDOWS__
-    ::WSASetLastError(opt);
-#else
-    errno = opt;
-#endif
-
-    return Failure(SocketError("Failed to connect to " + stringify(to)));
+    return Failure(SocketError(opt, "Failed to connect to " + stringify(to)));
   }
 
   return Nothing();

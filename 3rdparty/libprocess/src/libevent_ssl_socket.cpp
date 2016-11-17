@@ -163,8 +163,7 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown()
       CHECK(recv_request.get() == nullptr);
       CHECK(send_request.get() == nullptr);
 
-      errno = ENOTCONN;
-      return ErrnoError();
+      return ErrnoError(ENOTCONN);
     }
   }
 
