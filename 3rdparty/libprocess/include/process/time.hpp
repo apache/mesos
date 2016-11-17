@@ -102,13 +102,15 @@ public:
   explicit RFC1123(const Time& _time) : time(_time) {}
 
 private:
-  friend std::ostream& operator<<(std::ostream& out, const RFC1123& formatter);
+  friend std::ostream& operator<<(
+      std::ostream& stream,
+      const RFC1123& formatter);
 
   const Time time;
 };
 
 
-std::ostream& operator<<(std::ostream& out, const RFC1123& formatter);
+std::ostream& operator<<(std::ostream& stream, const RFC1123& formatter);
 
 
 // Stream manipulator class which serializes Time objects in RFC 3339
@@ -120,13 +122,13 @@ public:
   explicit RFC3339(const Time& _time) : time(_time) {}
 
 private:
-  friend std::ostream& operator<<(std::ostream& out, const RFC3339& format);
+  friend std::ostream& operator<<(std::ostream& stream, const RFC3339& format);
 
   const Time time;
 };
 
 
-std::ostream& operator<<(std::ostream& out, const RFC3339& formatter);
+std::ostream& operator<<(std::ostream& stream, const RFC3339& formatter);
 
 
 // Outputs the time in RFC 3339 Format.

@@ -19,7 +19,7 @@
 
 namespace process {
 
-std::ostream& operator<<(std::ostream& out, const RFC1123& formatter)
+std::ostream& operator<<(std::ostream& stream, const RFC1123& formatter)
 {
   time_t secs = static_cast<time_t>(formatter.time.secs());
 
@@ -28,7 +28,7 @@ std::ostream& operator<<(std::ostream& out, const RFC1123& formatter)
     PLOG(ERROR)
       << "Failed to convert from 'time_t' to a 'tm' struct "
       << "using os::gmtime_r()";
-    return out;
+    return stream;
   }
 
   static const char* WEEK_DAYS[] = {
@@ -67,16 +67,16 @@ std::ostream& operator<<(std::ostream& out, const RFC1123& formatter)
           timeInfo.tm_sec) < 0) {
     LOG(ERROR)
       << "Failed to format the 'time' to a string using snprintf";
-    return out;
+    return stream;
   }
 
-  out << buffer;
+  stream << buffer;
 
-  return out;
+  return stream;
 }
 
 
-std::ostream& operator<<(std::ostream& out, const RFC3339& formatter)
+std::ostream& operator<<(std::ostream& stream, const RFC3339& formatter)
 {
   // Round down the secs to use it with strftime and then append the
   // fraction part.
@@ -88,28 +88,28 @@ std::ostream& operator<<(std::ostream& out, const RFC3339& formatter)
     PLOG(ERROR)
       << "Failed to convert from 'time_t' to a 'tm' struct "
       << "using os::gmtime_r()";
-    return out;
+    return stream;
   }
 
   char buffer[64] = {};
 
   strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeInfo);
-  out << buffer;
+  stream << buffer;
 
   // Append the fraction part in nanoseconds.
   int64_t nanoSeconds = (formatter.time.duration() - Seconds(secs)).ns();
   if (nanoSeconds != 0) {
-    char prev = out.fill();
+    char prev = stream.fill();
 
     // 9 digits for nanosecond level precision.
-    out << "." << std::setfill('0') << std::setw(9) << nanoSeconds;
+    stream << "." << std::setfill('0') << std::setw(9) << nanoSeconds;
 
     // Return the stream to original formatting state.
-    out.fill(prev);
+    stream.fill(prev);
   }
 
-  out << "+00:00";
-  return out;
+  stream << "+00:00";
+  return stream;
 }
 
 } // namespace process {
