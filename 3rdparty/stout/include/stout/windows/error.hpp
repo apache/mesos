@@ -26,14 +26,15 @@
 // standard libraries, it wraps an error coming from the Windows APIs.
 class WindowsErrorBase : public Error
 {
+public:
+  const DWORD code;
+
 protected:
   explicit WindowsErrorBase(DWORD _code)
     : Error(get_last_error_as_string(_code)), code(_code) {}
 
   WindowsErrorBase(DWORD _code, const std::string& message)
     : Error(message + ": " + get_last_error_as_string(_code)), code(_code) {}
-
-  const DWORD code;
 
 private:
   static std::string get_last_error_as_string(DWORD errorCode)
