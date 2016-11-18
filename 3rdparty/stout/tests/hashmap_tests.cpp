@@ -29,12 +29,12 @@ using std::string;
 TEST(HashMapTest, InitializerList)
 {
   hashmap<string, int> map{{"hello", 1}};
-  EXPECT_EQ(1, map.size());
+  EXPECT_EQ(1u, map.size());
 
   EXPECT_TRUE((hashmap<int, int>{}.empty()));
 
   hashmap<int, int> map2{{1, 2}, {2, 3}, {3, 4}};
-  EXPECT_EQ(3, map2.size());
+  EXPECT_EQ(3u, map2.size());
   EXPECT_SOME_EQ(2, map2.get(1));
   EXPECT_SOME_EQ(3, map2.get(2));
   EXPECT_SOME_EQ(4, map2.get(3));
@@ -48,8 +48,8 @@ TEST(HashMapTest, FromStdMap)
 
   hashmap<int, int> map2(map1);
 
-  EXPECT_EQ(2, map1.size());
-  EXPECT_EQ(2, map2.size());
+  EXPECT_EQ(2u, map1.size());
+  EXPECT_EQ(2u, map2.size());
 
   EXPECT_EQ(2, map1[1]);
   EXPECT_SOME_EQ(2, map2.get(1));
@@ -65,7 +65,7 @@ TEST(HashMapTest, FromRValueStdMap)
 
   hashmap<int, int> map2(std::move(map1));
 
-  EXPECT_EQ(2, map1.size());
+  EXPECT_EQ(2u, map1.size());
 
   EXPECT_EQ(2, map1[1]);
 
@@ -84,7 +84,7 @@ TEST(HashMapTest, Insert)
 
   map.put("def", 4);
   ASSERT_SOME_EQ(4, map.get("def"));
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 }
 
 
@@ -143,7 +143,7 @@ TEST(HashMapTest, CustomHashAndEqual)
   EXPECT_SOME_EQ(3, map.get("abc"));
   EXPECT_SOME_EQ(4, map.get("def"));
 
-  EXPECT_EQ(2, map.size());
+  EXPECT_EQ(2u, map.size());
   EXPECT_TRUE(map.contains("abc"));
   EXPECT_TRUE(map.contains("aBc"));
 }

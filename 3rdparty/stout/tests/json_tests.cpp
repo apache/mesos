@@ -172,22 +172,22 @@ TEST(JsonTest, NumericAssignment)
   v = st;
   d = st;
   EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
-  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 4);
-  EXPECT_EQ(d.as<uint64_t>(), 4);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 4u);
+  EXPECT_EQ(d.as<uint64_t>(), 4u);
 
   uint64_t ui64 = 5;
   v = ui64;
   d = ui64;
   EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
-  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 5);
-  EXPECT_EQ(d.as<uint64_t>(), 5);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 5u);
+  EXPECT_EQ(d.as<uint64_t>(), 5u);
 
   const unsigned int ui = 6;
   v = ui;
   d = ui;
   EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
-  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 6);
-  EXPECT_EQ(d.as<uint64_t>(), 6);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 6u);
+  EXPECT_EQ(d.as<uint64_t>(), 6u);
 
   int i = 7;
   v = i;

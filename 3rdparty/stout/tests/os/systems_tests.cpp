@@ -47,9 +47,9 @@ TEST_F(SystemsTests, Uname)
 
   // The `release`, `version`, and `nodename` properties should all be
   // populated with a string of at least 1 character.
-  EXPECT_GT(info.get().release.size(), 0);
-  EXPECT_GT(info.get().version.size(), 0);
-  EXPECT_GT(info.get().nodename.size(), 0);
+  EXPECT_GT(info.get().release.size(), 0u);
+  EXPECT_GT(info.get().version.size(), 0u);
+  EXPECT_GT(info.get().nodename.size(), 0u);
 }
 
 

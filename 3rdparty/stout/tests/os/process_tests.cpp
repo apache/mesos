@@ -119,7 +119,7 @@ TEST_F(ProcessTest, Processes)
   const Try<list<Process>> processes = os::processes();
 
   ASSERT_SOME(processes);
-  ASSERT_GT(processes.get().size(), 2);
+  ASSERT_GT(processes.get().size(), 2u);
 
   // Look for ourselves in the table.
   bool found = false;

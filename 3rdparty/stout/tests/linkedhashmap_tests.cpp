@@ -29,15 +29,15 @@ TEST(LinkedHashmapTest, Put)
 
   map["foo"] = 1;
   ASSERT_SOME_EQ(1, map.get("foo"));
-  ASSERT_EQ(1, map.size());
+  ASSERT_EQ(1u, map.size());
 
   map["bar"] = 2;
   ASSERT_SOME_EQ(2, map.get("bar"));
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
   map["foo"] = 3;
   ASSERT_SOME_EQ(3, map.get("foo"));
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 }
 
 
@@ -58,12 +58,12 @@ TEST(LinkedHashmapTest, Erase)
 
   map["foo"] = 1;
   map["bar"] = 2;
-  ASSERT_EQ(2, map.size());
+  ASSERT_EQ(2u, map.size());
 
-  ASSERT_EQ(1, map.erase("foo"));
-  ASSERT_EQ(0, map.erase("caz")); // Non-existent key.
+  ASSERT_EQ(1u, map.erase("foo"));
+  ASSERT_EQ(0u, map.erase("caz")); // Non-existent key.
   ASSERT_NONE(map.get("foo"));
-  ASSERT_EQ(1, map.size());
+  ASSERT_EQ(1u, map.size());
   ASSERT_SOME_EQ(2, map.get("bar"));
 }
 

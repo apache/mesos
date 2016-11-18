@@ -241,7 +241,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, LoadFromEnvironment)
 
   Try<Warnings> load = flags.load("FLAGSTEST_");
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -274,7 +274,7 @@ TEST(FlagsTest, LoadFromCommandLine)
 
   Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -306,7 +306,7 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
 
   Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -338,7 +338,7 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
 
   Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -373,7 +373,7 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
 
   Try<Warnings> load = flags.load("FLAGSTEST_", &argc, &_argv);
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   EXPECT_EQ("billy joel", flags.name1);
   EXPECT_EQ(43, flags.name2);
@@ -541,7 +541,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
   // `load(prefix, argc, argv)`.
   Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
-  EXPECT_EQ(0, load->warnings.size());
+  EXPECT_EQ(0u, load->warnings.size());
 
   // The environment variables are overwritten by command line flags.
   EXPECT_EQ(flags.name1, "billy joel");
@@ -555,7 +555,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
     // `load(map<string, string>, unknowns, prefix)`.
     load = flags.load(values, false, "FLAGSTEST_");
     EXPECT_SOME(load);
-    EXPECT_EQ(0, load->warnings.size());
+    EXPECT_EQ(0u, load->warnings.size());
 
     EXPECT_EQ(flags.name1, "billy joel");
     EXPECT_EQ(flags.name2, 50);
@@ -571,7 +571,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
     load = flags.load(values, false, "FLAGSTEST_");
 
     EXPECT_SOME(load);
-    EXPECT_EQ(0, load->warnings.size());
+    EXPECT_EQ(0u, load->warnings.size());
 
     EXPECT_EQ(flags.name1, "billy joel");
     EXPECT_EQ(flags.name2, 51);

@@ -21,10 +21,10 @@
 TEST(CacheTest, Insert)
 {
   Cache<int, std::string> cache(1);
-  EXPECT_EQ(0, cache.size());
+  EXPECT_EQ(0u, cache.size());
   cache.put(1, "a");
   EXPECT_SOME_EQ("a", cache.get(1));
-  EXPECT_EQ(1, cache.size());
+  EXPECT_EQ(1u, cache.size());
 }
 
 
@@ -34,7 +34,7 @@ TEST(CacheTest, Update)
   cache.put(1, "a");
   cache.put(1, "b");
   EXPECT_SOME_EQ("b", cache.get(1));
-  EXPECT_EQ(1, cache.size());
+  EXPECT_EQ(1u, cache.size());
 }
 
 
@@ -47,13 +47,13 @@ TEST(CacheTest, Erase)
   EXPECT_NONE(cache.erase(44));
 
   EXPECT_SOME_EQ("b", cache.erase(2));
-  EXPECT_EQ(1, cache.size());
+  EXPECT_EQ(1u, cache.size());
 
   EXPECT_NONE(cache.erase(2));
-  EXPECT_EQ(1, cache.size());
+  EXPECT_EQ(1u, cache.size());
 
   EXPECT_SOME_EQ("a", cache.erase(1));
-  EXPECT_EQ(0, cache.size());
+  EXPECT_EQ(0u, cache.size());
 }
 
 

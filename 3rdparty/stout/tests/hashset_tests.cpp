@@ -27,12 +27,12 @@ using std::string;
 TEST(HashsetTest, InitializerList)
 {
   hashset<string> set{"hello"};
-  EXPECT_EQ(1, set.size());
+  EXPECT_EQ(1u, set.size());
 
   EXPECT_TRUE((hashset<int>{}.empty()));
 
   hashset<int> set1{1, 3, 5, 7, 11};
-  EXPECT_EQ(5, set1.size());
+  EXPECT_EQ(5u, set1.size());
   EXPECT_TRUE(set1.contains(1));
   EXPECT_TRUE(set1.contains(3));
   EXPECT_TRUE(set1.contains(5));
@@ -50,7 +50,7 @@ TEST(HashsetTest, FromStdSet)
   hashset<int> set2(set1);
 
   EXPECT_EQ(set1.size(), set2.size());
-  EXPECT_EQ(4, set2.size());
+  EXPECT_EQ(4u, set2.size());
 
   foreach (const auto set1_entry, set1) {
     EXPECT_TRUE(set2.contains(set1_entry));
@@ -64,7 +64,7 @@ TEST(HashsetTest, FromRValueStdSet)
 
   hashset<int> set2(std::move(set1));
 
-  EXPECT_EQ(2, set2.size());
+  EXPECT_EQ(2u, set2.size());
 
   EXPECT_TRUE(set2.contains(1));
   EXPECT_TRUE(set2.contains(3));
@@ -110,10 +110,10 @@ TEST(HashsetTest, CustomHashAndEqual)
   EXPECT_TRUE(set.contains("Abc"));
   EXPECT_TRUE(set.contains("dEf"));
 
-  EXPECT_EQ(2, set.size());
+  EXPECT_EQ(2u, set.size());
   set.insert("Abc");
   set.insert("DEF");
-  EXPECT_EQ(2, set.size());
+  EXPECT_EQ(2u, set.size());
   EXPECT_TRUE(set.contains("abc"));
   EXPECT_TRUE(set.contains("def"));
 }

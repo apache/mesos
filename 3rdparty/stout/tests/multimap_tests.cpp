@@ -172,9 +172,9 @@ TYPED_TEST(MultimapTest, Keys)
 
   set<string> keys = map.keys();
 
-  ASSERT_EQ(2, keys.size());
-  ASSERT_EQ(1, keys.count("foo"));
-  ASSERT_EQ(1, keys.count("bar"));
+  ASSERT_EQ(2u, keys.size());
+  ASSERT_EQ(1u, keys.count("foo"));
+  ASSERT_EQ(1u, keys.count("bar"));
 }
 
 

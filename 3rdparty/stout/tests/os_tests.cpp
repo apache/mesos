@@ -295,7 +295,7 @@ TEST_F(OsTest, Sysctl)
 #endif // __APPLE__
   }
 
-  EXPECT_EQ(1, pids.count(getpid()));
+  EXPECT_EQ(1u, pids.count(getpid()));
 
   // Timeval test.
   Try<timeval> bootTime = os::sysctl(CTL_KERN, KERN_BOOTTIME).time();
@@ -708,8 +708,8 @@ TEST_F(OsTest, User)
   EXPECT_SOME(gids);
 
   vector<string> expected_gids;
-  for (int i = 0; i < gids.get().size(); i++) {
-    expected_gids.push_back(stringify(gids.get()[i]));
+  foreach (gid_t gid, gids.get()) {
+    expected_gids.push_back(stringify(gid));
   }
   std::sort(expected_gids.begin(), expected_gids.end());
 
