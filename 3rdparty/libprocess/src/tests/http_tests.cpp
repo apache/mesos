@@ -461,7 +461,7 @@ TEST(HTTPTest, PathParse)
     http::path::parse(pattern, "/books/0304827484/chapters/3");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(4, parse.get().size());
+  EXPECT_EQ(4u, parse.get().size());
   EXPECT_SOME_EQ("books", parse.get().get("books"));
   EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
   EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
@@ -470,14 +470,14 @@ TEST(HTTPTest, PathParse)
   parse = http::path::parse(pattern, "/books/0304827484");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(2, parse.get().size());
+  EXPECT_EQ(2u, parse.get().size());
   EXPECT_SOME_EQ("books", parse.get().get("books"));
   EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
 
   parse = http::path::parse(pattern, "/books/0304827484/chapters");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(3, parse.get().size());
+  EXPECT_EQ(3u, parse.get().size());
   EXPECT_SOME_EQ("books", parse.get().get("books"));
   EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
   EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
@@ -520,7 +520,7 @@ http::Response validateGetWithQuery(const http::Request& request)
   EXPECT_EQ("", request.body);
   EXPECT_NONE(request.url.fragment);
   EXPECT_EQ("bar", request.url.query.at("foo"));
-  EXPECT_EQ(1, request.url.query.size());
+  EXPECT_EQ(1u, request.url.query.size());
 
   return http::OK();
 }

@@ -3732,7 +3732,7 @@ void ProcessBase::visit(const HttpEvent& event)
     response.path = assets[name].path;
 
     // Construct the final path by appending remaining tokens.
-    for (int i = 2; i < tokens.size(); i++) {
+    for (size_t i = 2; i < tokens.size(); i++) {
       response.path += "/" + tokens[i];
     }
 

@@ -18,6 +18,7 @@
 #include <glog/logging.h>
 
 #include <deque>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -249,7 +250,9 @@ private:
       }
       decoder->request->body = decompressed.get();
 
-      CHECK_LE(decoder->request->body.length(), CHAR_MAX);
+      CHECK_LE(static_cast<long>(decoder->request->body.length()),
+        std::numeric_limits<char>::max());
+
       decoder->request->headers["Content-Length"] =
         static_cast<char>(decoder->request->body.length());
     }
@@ -451,7 +454,9 @@ private:
       }
       decoder->response->body = decompressed.get();
 
-      CHECK_LE(decoder->response->body.length(), CHAR_MAX);
+      CHECK_LE(static_cast<long>(decoder->response->body.length()),
+        std::numeric_limits<char>::max());
+
       decoder->response->headers["Content-Length"] =
         static_cast<char>(decoder->response->body.length());
     }

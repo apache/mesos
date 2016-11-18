@@ -50,7 +50,7 @@ TEST(DecoderTest, Request)
 
   deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, requests.size());
+  ASSERT_EQ(1u, requests.size());
 
   Owned<http::Request> request(requests[0]);
   EXPECT_EQ("GET", request->method);
@@ -87,7 +87,7 @@ TEST(DecoderTest, RequestHeaderContinuation)
 
   deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, requests.size());
+  ASSERT_EQ(1u, requests.size());
 
   Owned<http::Request> request(requests[0]);
   EXPECT_SOME_EQ("compress,                 gzip",
@@ -110,7 +110,7 @@ TEST(DecoderTest, RequestHeaderCaseInsensitive)
 
   deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, requests.size());
+  ASSERT_EQ(1u, requests.size());
 
   Owned<http::Request> request(requests[0]);
   EXPECT_FALSE(request->keepAlive);
@@ -133,7 +133,7 @@ TEST(DecoderTest, Response)
 
   deque<http::Response*> responses = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, responses.size());
+  ASSERT_EQ(1u, responses.size());
 
   Owned<http::Response> response(responses[0]);
 
@@ -141,7 +141,7 @@ TEST(DecoderTest, Response)
   EXPECT_EQ(http::Response::BODY, response->type);
   EXPECT_EQ("hi", response->body);
 
-  EXPECT_EQ(3, response->headers.size());
+  EXPECT_EQ(3u, response->headers.size());
 }
 
 
@@ -163,12 +163,12 @@ TEST(DecoderTest, StreamingResponse)
 
   EXPECT_FALSE(decoder.failed());
   EXPECT_TRUE(decoder.writingBody());
-  ASSERT_EQ(1, responses.size());
+  ASSERT_EQ(1u, responses.size());
 
   Owned<http::Response> response(responses[0]);
 
   EXPECT_EQ("200 OK", response->status);
-  EXPECT_EQ(3, response->headers.size());
+  EXPECT_EQ(3u, response->headers.size());
 
   ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);
@@ -216,11 +216,11 @@ TEST(DecoderTest, StreamingResponseFailure)
   EXPECT_FALSE(decoder.failed());
   EXPECT_TRUE(decoder.writingBody());
 
-  ASSERT_EQ(1, responses.size());
+  ASSERT_EQ(1u, responses.size());
   Owned<http::Response> response(responses[0]);
 
   EXPECT_EQ("200 OK", response->status);
-  EXPECT_EQ(3, response->headers.size());
+  EXPECT_EQ(3u, response->headers.size());
 
   ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);

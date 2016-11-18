@@ -50,7 +50,7 @@ TEST(EncoderTest, Response)
     decoder.decode(encoded.data(), encoded.length());
 
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, responses.size());
+  ASSERT_EQ(1u, responses.size());
 
   Owned<http::Response> decoded(responses[0]);
   EXPECT_EQ("200 OK", decoded->status);
@@ -58,7 +58,7 @@ TEST(EncoderTest, Response)
 
   // Encoding should have inserted the 'Date', 'Content-Length' and
   // 'Content-Type' headers.
-  EXPECT_EQ(3, decoded->headers.size());
+  EXPECT_EQ(3u, decoded->headers.size());
   EXPECT_TRUE(decoded->headers.contains("Date"));
   EXPECT_SOME_EQ(
       stringify(response.body.size()),

@@ -82,7 +82,7 @@ TEST_F(IOTest, Read)
   ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Test reading nothing.
-  AWAIT_EXPECT_EQ(0, io::read(pipes[0], data, 0));
+  AWAIT_EXPECT_EQ(0u, io::read(pipes[0], data, 0));
 
   // Test discarded read.
   Future<size_t> future = io::read(pipes[0], data, 3);
@@ -202,13 +202,13 @@ TEST_F(IOTest, Write)
   ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Test writing nothing.
-  AWAIT_EXPECT_EQ(0, io::write(pipes[1], (void*) "hi", 0));
+  AWAIT_EXPECT_EQ(0u, io::write(pipes[1], (void*) "hi", 0));
 
   // Test successful write.
-  AWAIT_EXPECT_EQ(2, io::write(pipes[1], (void*) "hi", 2));
+  AWAIT_EXPECT_EQ(2u, io::write(pipes[1], (void*) "hi", 2));
 
   char data[2];
-  AWAIT_EXPECT_EQ(2, io::read(pipes[0], data, 2));
+  AWAIT_EXPECT_EQ(2u, io::read(pipes[0], data, 2));
   EXPECT_EQ("hi", string(data, 2));
 
   // Test write to broken pipe.
@@ -271,9 +271,9 @@ TEST_F(IOTest, DISABLED_BlockingWrite)
   AWAIT_DISCARDED(future2);
 
   // Check after reading some data the first write remains pending.
-  ASSERT_LT(128, size);
+  ASSERT_LT(128u, size);
   char temp[128];
-  AWAIT_EXPECT_EQ(128, io::read(pipes[0], temp, 128));
+  AWAIT_EXPECT_EQ(128u, io::read(pipes[0], temp, 128));
 
   EXPECT_TRUE(future1.isPending());
 
@@ -281,7 +281,7 @@ TEST_F(IOTest, DISABLED_BlockingWrite)
   // first future to succeed since the second future should have been
   // completely discarded.
   length = 128; // To account for io::read above.
-  while (length < data.size()) {
+  while (length < static_cast<ssize_t>(data.size())) {
     Future<size_t> read = io::read(pipes[0], temp, 128);
     AWAIT_READY(read);
     length += read.get();
@@ -394,7 +394,7 @@ TEST_F(IOTest, Peek)
   ASSERT_SOME(os::nonblock(sockets[1]));
 
   // Test peeking nothing.
-  AWAIT_EXPECT_EQ(0, io::peek(sockets[0], data, 0, 0));
+  AWAIT_EXPECT_EQ(0u, io::peek(sockets[0], data, 0, 0));
 
   // Test discarded peek.
   Future<size_t> future = io::peek(sockets[0], data, sizeof(data), 1);
