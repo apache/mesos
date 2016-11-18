@@ -26,7 +26,6 @@ class Profiler : public Process<Profiler>
 public:
   Profiler(const Option<std::string>& _authenticationRealm)
     : ProcessBase("profiler"),
-      started(false),
       authenticationRealm(_authenticationRealm) {}
 
   virtual ~Profiler() {}
@@ -76,8 +75,6 @@ private:
   Future<http::Response> stop(
       const http::Request& request,
       const Option<std::string>& /* principal */);
-
-  bool started;
 
   // The authentication realm that the profiler's HTTP endpoints will be
   // installed into.

@@ -1495,12 +1495,6 @@ static int foo4(int a, int b, int c, int d)
 }
 
 
-static void bar(int a)
-{
-  return;
-}
-
-
 static Future<string> itoa1(int* const& i)
 {
   std::ostringstream out;

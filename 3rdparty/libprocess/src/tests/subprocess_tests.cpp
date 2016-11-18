@@ -881,16 +881,5 @@ TEST_F(SubprocessTest, EnvironmentOverride)
 #endif // __WINDOWS__
 
 
-static int setupChdir(const string& directory)
-{
-  // Keep everything async-signal safe.
-  if (::chdir(directory.c_str()) == -1) {
-    return errno;
-  }
-
-  return 0;
-}
-
-
 // TODO(joerg84): Consider adding tests for setsid, working_directory,
 // and supervisor childHooks.

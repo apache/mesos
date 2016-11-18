@@ -30,11 +30,11 @@
 
 namespace process {
 
+#ifdef ENABLE_GPERFTOOLS
 namespace {
-
-const char PROFILE_FILE[] = "perftools.out";
-
-}  // namespace {
+constexpr char PROFILE_FILE[] = "perftools.out";
+} // namespace {
+#endif
 
 const std::string Profiler::START_HELP()
 {

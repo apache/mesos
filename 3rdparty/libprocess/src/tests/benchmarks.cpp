@@ -76,8 +76,7 @@ class ClientProcess : public Process<ClientProcess>
 {
 public:
   ClientProcess()
-    : running(false),
-      requests(0),
+    : requests(0),
       responses(0),
       totalRequests(0),
       concurrency(0) {}
@@ -172,8 +171,6 @@ private:
       ++requests;
     }
   }
-
-  bool running;
 
   // The address of the ponger (server).
   UPID server;
