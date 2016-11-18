@@ -4085,8 +4085,8 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
 
 #ifdef __linux__
-// Test that a container started without namespace/pid isolation can
-// be destroyed correctly with namespace/pid isolation enabled.
+// Test that a container started without namespaces/pid isolation can
+// be destroyed correctly with namespaces/pid isolation enabled.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -4192,8 +4192,8 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 }
 
 
-// Test that a container started with namespace/pid isolation can
-// be destroyed correctly without namespace/pid isolation enabled.
+// Test that a container started with namespaces/pid isolation can
+// be destroyed correctly without namespaces/pid isolation enabled.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
