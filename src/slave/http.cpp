@@ -30,6 +30,8 @@
 
 #include <mesos/executor/executor.hpp>
 
+#include <mesos/slave/containerizer.hpp>
+
 #include <mesos/v1/agent/agent.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
@@ -71,6 +73,7 @@ using mesos::agent::ProcessIO;
 
 using mesos::internal::recordio::Reader;
 
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerTermination;
 
 using process::AUTHENTICATION;
@@ -498,7 +501,8 @@ Future<Response> Slave::Http::_api(
       return killNestedContainer(call, acceptType, principal);
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
-      return NotImplemented();
+      return launchNestedContainerSession(
+          call, contentType, acceptType, principal);
 
     case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
       CHECK_SOME(reader);
@@ -2038,6 +2042,7 @@ Future<Response> Slave::Http::launchNestedContainer(
           call.launch_nested_container().has_container()
             ? call.launch_nested_container().container()
             : Option<ContainerInfo>::none(),
+          ContainerClass::DEFAULT,
           acceptType,
           approver);
     }));
@@ -2048,6 +2053,7 @@ Future<Response> Slave::Http::_launchNestedContainer(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
+    const Option<ContainerClass>& containerClass,
     ContentType acceptType,
     const Owned<ObjectApprover>& approver) const
 {
@@ -2111,7 +2117,8 @@ Future<Response> Slave::Http::_launchNestedContainer(
       commandInfo,
       containerInfo,
       user,
-      slave->info.id());
+      slave->info.id(),
+      containerClass);
 
   // TODO(bmahler): The containerizers currently require that
   // the caller calls destroy if the launch fails. See MESOS-6214.
@@ -2122,8 +2129,8 @@ Future<Response> Slave::Http::_launchNestedContainer(
 
       slave->containerizer->destroy(containerId)
         .onFailed([=](const string& failure) {
-          LOG(ERROR) << "Failed to destroy nested container "
-                     << containerId << " after launch failure: " << failure;
+          LOG(ERROR) << "Failed to destroy nested container " << containerId
+                     << " after launch failure: " << failure;
         });
     }));
 
@@ -2375,6 +2382,166 @@ Future<Response> Slave::Http::attachContainerInput(
 
       return connection.send(request);
     });
+}
+
+
+// Helper that reads data from `writer` and writes to `reader`.
+// Returns a failed future if there are any errors reading or writing.
+// The future is satisfied when we get a EOF.
+// TODO(vinod): Move this to libprocess if this is more generally useful.
+Future<Nothing> connect(Pipe::Reader reader, Pipe::Writer writer)
+{
+  return reader.read()
+    .then([reader, writer](const Future<string>& chunk) mutable
+        -> Future<Nothing> {
+      if (!chunk.isReady()) {
+        return process::Failure(
+            chunk.isFailed() ? chunk.failure() : "discarded");
+      }
+
+      if (chunk->empty()) {
+        // EOF case.
+        return Nothing();
+      }
+
+      if (!writer.write(chunk.get())) {
+        return process::Failure("Write failed to the pipe");
+      }
+
+      return connect(reader, writer);
+    });
+}
+
+
+Future<Response> Slave::Http::launchNestedContainerSession(
+    const mesos::agent::Call& call,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION, call.type());
+  CHECK(call.has_launch_nested_container_session());
+
+  const ContainerID& containerId =
+    call.launch_nested_container_session().container_id();
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::LAUNCH_NESTED_CONTAINER_SESSION);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  Future<Response> response = approver
+    .then(defer(slave->self(), [=](const Owned<ObjectApprover>& approver) {
+      return _launchNestedContainer(
+          call.launch_nested_container_session().container_id(),
+          call.launch_nested_container_session().command(),
+          call.launch_nested_container_session().has_container()
+            ? call.launch_nested_container_session().container()
+            : Option<ContainerInfo>::none(),
+          ContainerClass::DEBUG,
+          acceptType,
+          approver);
+    }));
+
+  // Helper to destroy the container.
+  auto destroy = [this](const ContainerID& containerId) {
+    slave->containerizer->destroy(containerId)
+      .onFailed([containerId](const string& failure) {
+        LOG(ERROR) << "Failed to destroy nested container "
+                   << containerId << ": " << failure;
+      });
+  };
+
+  // If `response` has failed or is not `OK`, the container will be
+  // destroyed by `_launchNestedContainer`.
+  return response
+    .then(defer(slave->self(),
+                [=](const Response& response) -> Future<Response> {
+      if (response.status != OK().status) {
+        return response;
+      }
+
+      // If launch is successful, attach to the container output.
+      mesos::agent::Call call;
+      call.set_type(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT);
+      call.mutable_attach_container_output()->mutable_container_id()
+          ->CopyFrom(containerId);
+
+      // Instead of directly returning the response of `attachContainerOutput`
+      // to the client, we use a level of indirection to make sure the container
+      // is destroyed when the client connection breaks.
+      return attachContainerOutput(call, contentType, acceptType, principal)
+        .then(defer(slave->self(),
+                    [=](const Response& response) -> Future<Response> {
+          Pipe pipe;
+          Pipe::Writer writer = pipe.writer();
+
+          OK ok;
+          ok.headers["Content-Type"] = stringify(acceptType);
+          ok.type = Response::PIPE;
+          ok.reader = pipe.reader();
+
+          CHECK_EQ(Response::PIPE, response.type);
+          CHECK_SOME(response.reader);
+          Pipe::Reader reader = response.reader.get();
+
+          // Read from the `response` pipe and write to
+          // the client's response pipe.
+          // NOTE: Need to cast the lambda to std::function here because of a
+          // limitation of `defer`; `defer` does not work with `mutable` lambda.
+          std::function<void (const Future<Nothing>&)> _connect =
+            [=](const Future<Nothing>& future) mutable {
+              CHECK(!future.isDiscarded());
+
+              if (future.isFailed()) {
+                LOG(WARNING) << "Failed to send attach response for "
+                             << containerId << ": " << future.failure();
+
+                writer.fail(future.failure());
+                reader.close();
+              } else {
+                // EOF case.
+                LOG(INFO) << "Received EOF attach response for " << containerId;
+
+                writer.close();
+                reader.close();
+              }
+
+              destroy(containerId);
+          };
+
+          connect(reader, writer)
+            .onAny(defer(slave->self(), _connect));
+
+          // Destroy the container if the connection to client is closed.
+          writer.readerClosed()
+            .onAny(defer(slave->self(), [=](const Future<Nothing>& future) {
+              LOG(WARNING)
+                << "Launch nested container session connection"
+                << " for container " << containerId << " closed"
+                << (future.isFailed() ? ": " + future.failure() : "");
+
+              destroy(containerId);
+            }));
+
+          return ok;
+        }))
+        .onFailed(defer(slave->self(), [=](const string& failure) {
+          LOG(WARNING) << "Failed to attach to nested container "
+                       << containerId << ": " << failure;
+
+          destroy(containerId);
+        }));
+    }));
 }
 
 

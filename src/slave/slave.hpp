@@ -38,6 +38,7 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -644,6 +645,7 @@ private:
         const ContainerID& containerId,
         const CommandInfo& commandInfo,
         const Option<ContainerInfo>& containerInfo,
+        const Option<mesos::slave::ContainerClass>& containerClass,
         ContentType acceptType,
         const Owned<ObjectApprover>& approver) const;
 
@@ -654,6 +656,12 @@ private:
 
     process::Future<process::http::Response> killNestedContainer(
         const mesos::agent::Call& call,
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
+
+    process::Future<process::http::Response> launchNestedContainerSession(
+        const mesos::agent::Call& call,
+        ContentType contentType,
         ContentType acceptType,
         const Option<std::string>& principal) const;
 

@@ -222,8 +222,30 @@ Option<Error> validate(
       return None();
     }
 
-    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
-      return Error("Unsupported");
+    case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION: {
+      if (!call.has_launch_nested_container_session()) {
+        return Error(
+            "Expecting 'launch_nested_container_session' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.launch_nested_container_session().container_id());
+
+      if (error.isSome()) {
+        return Error("'launch_nested_container_session.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      // The parent `ContainerID` is required, so that we know
+      // which container to place it underneath.
+      if (!call.launch_nested_container_session().container_id().has_parent()) {
+        return Error(
+            "Expecting 'launch_nested_container_session.container_id.parent'"
+            " to be present");
+      }
+
+      return None();
+    }
 
     case mesos::agent::Call::ATTACH_CONTAINER_INPUT: {
       if (!call.has_attach_container_input()) {
