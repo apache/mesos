@@ -2030,100 +2030,110 @@ Future<Response> Slave::Http::launchNestedContainer(
     approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return approver.then(defer(slave->self(),
-    [this, call, contentType](const Owned<ObjectApprover>& launchApprover)
-        -> Future<Response> {
-      const ContainerID& containerId =
-        call.launch_nested_container().container_id();
-
-      // We do not yet support launching containers that are nested
-      // two levels beneath the executor's container.
-      if (containerId.parent().has_parent()) {
-        return NotImplemented(
-            "Only a single level of container nesting is supported currently,"
-            " but 'launch_nested_container.container_id.parent.parent' is set");
-      }
-
-      // Locate the executor (for now we just loop since we don't
-      // index based on container id and this likely won't have a
-      // significant performance impact due to the low number of
-      // executors per-agent).
-      // TODO(adam-mesos): Support more levels of nesting.
-      Executor* executor = nullptr;
-      Framework* framework = nullptr;
-      foreachvalue (Framework* framework_, slave->frameworks) {
-        foreachvalue (Executor* executor_, framework_->executors) {
-          if (executor_->containerId == containerId.parent()) {
-            framework = framework_;
-            executor = executor_;
-            break;
-          }
-        }
-      }
-
-      // Return a "Bad Request" here rather than "Not Found" since
-      // the executor needs to set parent to its container id.
-      if (executor == nullptr || framework == nullptr) {
-        return BadRequest("Unable to locate executor for parent container"
-                          " " + stringify(containerId.parent()));
-      }
-
-      ObjectApprover::Object object;
-      object.executor_info = &(executor->info);
-      object.framework_info = &(framework->info);
-      if (call.launch_nested_container().has_command()) {
-        object.command_info = &(call.launch_nested_container().command());
-      }
-
-      Try<bool> approved = launchApprover.get()->approved(object);
-
-      if (approved.isError()) {
-        return Failure(approved.error());
-      } else if (!approved.get()) {
-        return Forbidden();
-      }
-
-      // By default, we use the executor's user.
-      // The command user overrides it if specified.
-      Option<string> user = executor->user;
-
-#ifndef __WINDOWS__
-      if (call.launch_nested_container().command().has_user()) {
-        user = call.launch_nested_container().command().user();
-      }
-#endif
-
-      Future<bool> launched = slave->containerizer->launch(
-          containerId,
+  return approver
+    .then(defer(slave->self(), [=](const Owned<ObjectApprover>& approver) {
+      return _launchNestedContainer(
+          call.launch_nested_container().container_id(),
           call.launch_nested_container().command(),
           call.launch_nested_container().has_container()
             ? call.launch_nested_container().container()
             : Option<ContainerInfo>::none(),
-          user,
-          slave->info.id());
-
-      // TODO(bmahler): The containerizers currently require that
-      // the caller calls destroy if the launch fails. See MESOS-6214.
-      launched
-        .onFailed(defer(slave->self(), [=](const string& failure) {
-          LOG(WARNING) << "Failed to launch nested container " << containerId
-                       << ": " << failure;
-
-          slave->containerizer->destroy(containerId)
-            .onFailed([=](const string& failure) {
-              LOG(ERROR) << "Failed to destroy nested container "
-                         << containerId << " after launch failure: " << failure;
-            });
-        }));
-
-      return launched
-        .then([](bool launched) -> Response {
-          if (!launched) {
-            return BadRequest("The provided ContainerInfo is not supported");
-          }
-          return OK();
-          });
+          acceptType,
+          approver);
     }));
+}
+
+
+Future<Response> Slave::Http::_launchNestedContainer(
+    const ContainerID& containerId,
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo,
+    ContentType acceptType,
+    const Owned<ObjectApprover>& approver) const
+{
+  // We do not yet support launching containers that are nested
+  // two levels beneath the executor's container.
+  if (containerId.parent().has_parent()) {
+    return NotImplemented(
+        "Only a single level of container nesting is supported currently,"
+        " but 'launch_nested_container.container_id.parent.parent' is set");
+  }
+
+  // Locate the executor (for now we just loop since we don't
+  // index based on container id and this likely won't have a
+  // significant performance impact due to the low number of
+  // executors per-agent).
+  // TODO(adam-mesos): Support more levels of nesting.
+  Executor* executor = nullptr;
+  Framework* framework = nullptr;
+  foreachvalue (Framework* framework_, slave->frameworks) {
+    foreachvalue (Executor* executor_, framework_->executors) {
+      if (executor_->containerId == containerId.parent()) {
+        framework = framework_;
+        executor = executor_;
+        break;
+      }
+    }
+  }
+
+  // Return a "Bad Request" here rather than "Not Found" since
+  // the executor needs to set parent to its container id.
+  if (executor == nullptr || framework == nullptr) {
+    return BadRequest("Unable to locate executor for parent container"
+                      " " + stringify(containerId.parent()));
+  }
+
+  ObjectApprover::Object object;
+  object.executor_info = &(executor->info);
+  object.framework_info = &(framework->info);
+  object.command_info = &(commandInfo);
+
+  Try<bool> approved = approver.get()->approved(object);
+
+  if (approved.isError()) {
+    return Failure(approved.error());
+  } else if (!approved.get()) {
+    return Forbidden();
+  }
+
+  // By default, we use the executor's user.
+  // The command user overrides it if specified.
+  Option<string> user = executor->user;
+
+#ifndef __WINDOWS__
+  if (commandInfo.has_user()) {
+    user = commandInfo.user();
+  }
+#endif
+
+  Future<bool> launched = slave->containerizer->launch(
+      containerId,
+      commandInfo,
+      containerInfo,
+      user,
+      slave->info.id());
+
+  // TODO(bmahler): The containerizers currently require that
+  // the caller calls destroy if the launch fails. See MESOS-6214.
+  launched
+    .onFailed(defer(slave->self(), [=](const string& failure) {
+      LOG(WARNING) << "Failed to launch nested container " << containerId
+                   << ": " << failure;
+
+      slave->containerizer->destroy(containerId)
+        .onFailed([=](const string& failure) {
+          LOG(ERROR) << "Failed to destroy nested container "
+                     << containerId << " after launch failure: " << failure;
+        });
+    }));
+
+  return launched
+    .then([](bool launched) -> Response {
+      if (!launched) {
+        return BadRequest("The provided ContainerInfo is not supported");
+      }
+      return OK();
+    });
 }
 
 
@@ -2241,7 +2251,7 @@ Future<Response> Slave::Http::killNestedContainer(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, contentType](const Owned<ObjectApprover>& killApprover)
+    [this, call](const Owned<ObjectApprover>& killApprover)
         -> Future<Response> {
       const ContainerID& containerId =
         call.kill_nested_container().container_id();

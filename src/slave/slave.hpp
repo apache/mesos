@@ -640,6 +640,13 @@ private:
         ContentType acceptType,
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> _launchNestedContainer(
+        const ContainerID& containerId,
+        const CommandInfo& commandInfo,
+        const Option<ContainerInfo>& containerInfo,
+        ContentType acceptType,
+        const Owned<ObjectApprover>& approver) const;
+
     process::Future<process::http::Response> waitNestedContainer(
         const mesos::agent::Call& call,
         ContentType acceptType,
