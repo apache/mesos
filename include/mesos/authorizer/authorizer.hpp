@@ -51,7 +51,9 @@ public:
         task(nullptr),
         task_info(nullptr),
         executor_info(nullptr),
-        quota_info(nullptr) {}
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr) {}
 
     Object(const authorization::Object& object)
       : value(object.has_value() ? &object.value() : nullptr),
