@@ -1815,7 +1815,11 @@ Future<bool> MesosContainerizerProcess::launch(
 Future<Connection> MesosContainerizerProcess::attach(
     const ContainerID& containerId)
 {
-  return Failure("Unsupported");
+  if (!containers_.contains(containerId)) {
+    return Failure("Unknown container " + stringify(containerId));
+  }
+
+  return ioSwitchboard->connect(containerId);
 }
 
 

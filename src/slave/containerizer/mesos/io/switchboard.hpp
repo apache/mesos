@@ -20,6 +20,7 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
@@ -64,6 +65,9 @@ public:
       const mesos::slave::ContainerConfig& containerConfig);
 
   virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId);
+
+  process::Future<process::http::Connection> connect(
       const ContainerID& containerId);
 
 private:

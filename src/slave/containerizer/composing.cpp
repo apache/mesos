@@ -566,7 +566,11 @@ Future<bool> ComposingContainerizerProcess::_launch(
 Future<http::Connection> ComposingContainerizerProcess::attach(
     const ContainerID& containerId)
 {
-    return Failure("Unsupported");
+  if (!containers_.contains(containerId)) {
+    return Failure("Container not found");
+  }
+
+  return containers_[containerId]->containerizer->attach(containerId);
 }
 
 

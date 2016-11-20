@@ -18,10 +18,12 @@
 #include <string>
 #include <vector>
 
+#include <process/address.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/io.hpp>
 #include <process/owned.hpp>
 
@@ -306,6 +308,21 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   os::close(outfds[0]);
   os::close(errfds[0]);
 
+  // Now that the child has come up, we checkpoint the socket
+  // address we told it to bind to so we can access it later.
+  const string path =
+    containerizer::paths::getContainerIOSwitchboardSocketPath(
+        flags.runtime_dir, containerId);
+
+  Try<Nothing> checkpointed = slave::state::checkpoint(
+      path, switchboardFlags.socket_path);
+
+  if (checkpointed.isError()) {
+    close(fds);
+    return Failure("Failed to checkpoint container's socket path to"
+                   " '" + path + "': " + checkpointed.error());
+  }
+
   // Build an info struct for this container.
   infos[containerId] = Owned<Info>(new Info(
     child->pid(),
@@ -325,6 +342,38 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   launchInfo.mutable_err()->set_fd(errfds[1]);
 
   return launchInfo;
+#endif // __WINDOWS__
+}
+
+
+Future<http::Connection> IOSwitchboard::connect(
+    const ContainerID& containerId)
+{
+#ifdef __WINDOWS__
+  return Failure("Not supported on Windows");
+#else
+  if (!flags.io_switchboard_enable_server) {
+    return Failure("Support for running an io switchboard"
+                   " server was disabled by the agent");
+  }
+
+  // Get the io switchboard address from the `containerId`.
+  //
+  // NOTE: We explicitly don't want to check for the existence of
+  // `containerId` in our `infos` struct. Otherwise we wouldn't be
+  // able to reconnect to the io switchboard after agent restarts.
+  Result<unix::Address> address =
+    containerizer::paths::getContainerIOSwitchboardAddress(
+        flags.runtime_dir, containerId);
+
+  if (!address.isSome()) {
+    return Failure("Failed to get the io switchboard address"
+                   " " + (address.isError()
+                          ? address.error()
+                          : "No address found"));
+  }
+
+  return http::connect(address.get());
 #endif // __WINDOWS__
 }
 
