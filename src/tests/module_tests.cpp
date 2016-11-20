@@ -58,6 +58,8 @@ protected:
   // per-test teardown.
   static void SetUpTestCase()
   {
+    MesosTest::SetUpTestCase();
+
     EXPECT_SOME(dynamicLibrary.open(
         getModulePath(DEFAULT_MODULE_LIBRARY_NAME)));
 

@@ -64,6 +64,8 @@ class MemoryPressureMesosTest : public ContainerizerTest<MesosContainerizer>
 public:
   static void SetUpTestCase()
   {
+    ContainerizerTest<MesosContainerizer>::SetUpTestCase();
+
     // Verify that the dd command and its flags used in a bit are valid
     // on this system.
     ASSERT_EQ(0, os::system("dd count=1 bs=1M if=/dev/zero of=/dev/null"))

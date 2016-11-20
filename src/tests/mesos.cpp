@@ -596,6 +596,8 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 #ifdef __linux__
 void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 {
+  MesosTest::SetUpTestCase();
+
   Result<string> user = os::user();
   EXPECT_SOME(user);
 
