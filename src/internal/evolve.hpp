@@ -76,6 +76,7 @@ v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
 
 v1::agent::Call evolve(const mesos::agent::Call& call);
+v1::agent::ProcessIO evolve(const mesos::agent::ProcessIO& processIO);
 v1::agent::Response evolve(const mesos::agent::Response& response);
 
 v1::maintenance::ClusterStatus evolve(

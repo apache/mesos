@@ -224,8 +224,23 @@ Option<Error> validate(
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
     case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
-    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
       return Error("Unsupported");
+
+    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT: {
+      if (!call.has_attach_container_output()) {
+        return Error("Expecting 'attach_container_output' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.attach_container_output().container_id());
+
+      if (error.isSome()) {
+        return Error("'attach_container_output.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      return None();
+    }
   }
 
   UNREACHABLE();

@@ -645,6 +645,12 @@ private:
         const Option<std::string>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> attachContainerOutput(
+        const mesos::agent::Call& call,
+        ContentType contentType,
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
+
     Slave* slave;
 
     // Used to rate limit the statistics endpoint.

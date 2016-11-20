@@ -55,6 +55,7 @@
 
 #include "common/build.hpp"
 #include "common/http.hpp"
+#include "common/recordio.hpp"
 
 #include "internal/devolve.hpp"
 
@@ -65,6 +66,10 @@
 #include "slave/validation.hpp"
 
 #include "version/version.hpp"
+
+using mesos::agent::ProcessIO;
+
+using mesos::internal::recordio::Reader;
 
 using mesos::slave::ContainerTermination;
 
@@ -80,6 +85,7 @@ using process::TLDR;
 
 using process::http::Accepted;
 using process::http::BadRequest;
+using process::http::Connection;
 using process::http::Forbidden;
 using process::http::NotFound;
 using process::http::InternalServerError;
@@ -92,6 +98,8 @@ using process::http::ServiceUnavailable;
 using process::http::UnsupportedMediaType;
 
 using process::metrics::internal::MetricsProcess;
+
+using ::recordio::Decoder;
 
 using std::list;
 using std::string;
@@ -444,8 +452,10 @@ Future<Response> Slave::Http::_api(
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
     case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
-    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
       return NotImplemented();
+
+    case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
+      return attachContainerOutput(call, contentType, acceptType, principal);
   }
 
   UNREACHABLE();
@@ -2088,6 +2098,95 @@ Future<Response> Slave::Http::killNestedContainer(
                         " cannot be found (or is already killed)");
       }
       return OK();
+    });
+}
+
+
+Future<Response> Slave::Http::attachContainerOutput(
+    const mesos::agent::Call& call,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
+  CHECK(call.has_attach_container_output());
+
+  const ContainerID& containerId =
+    call.attach_container_output().container_id();
+
+  return slave->containerizer->attach(containerId)
+    .then([call, contentType, acceptType](Connection connection)
+        -> Future<Response> {
+      Request request;
+      request.method = "POST";
+      request.headers = {{"Accept", stringify(acceptType)},
+                         {"Content-Type", stringify(contentType)}};
+
+      // The 'HOST' header must be EMPTY for non Internet addresses.
+      // TODO(vinod): Instead of setting domain to empty string (which results
+      // in an empty HOST header), add a new URL constructor that doesn't
+      // require domain or IP.
+      request.url.domain = "";
+
+      // NOTE: The path is currently ignored by the switch board.
+      request.url.path = "/";
+
+      request.type = Request::BODY;
+      request.body = serialize(contentType, call);
+
+      // We capture `connection` here to ensure that it doesn't go
+      // out of scope until the `onAny` handler on `transform` is executed.
+      return connection.send(request, true)
+        .then([connection, acceptType](const Response& response)
+            -> Future<Response> {
+          if (response.status != OK().status) {
+            return response;
+          }
+
+          // Evolve the `ProcessIO` records in the Response body to v1
+          // before sending them to the client.
+          Pipe pipe;
+          Pipe::Writer writer = pipe.writer();
+
+          OK ok;
+          ok.headers["Content-Type"] = stringify(acceptType);
+          ok.type = Response::PIPE;
+          ok.reader = pipe.reader();
+
+          CHECK_EQ(Response::PIPE, response.type);
+          CHECK_SOME(response.reader);
+          Pipe::Reader reader = response.reader.get();
+
+          auto deserializer = lambda::bind(
+              deserialize<ProcessIO>, acceptType, lambda::_1);
+
+          Owned<Reader<ProcessIO>> decoder(new Reader<ProcessIO>(
+              Decoder<ProcessIO>(deserializer), reader));
+
+          auto encoder = [acceptType](const ProcessIO& processIO) {
+            ::recordio::Encoder<v1::agent::ProcessIO> encoder (lambda::bind(
+                serialize, acceptType, lambda::_1));
+
+            return encoder.encode(evolve(processIO));
+          };
+
+          recordio::transform<ProcessIO>(std::move(decoder), encoder, writer)
+            .onAny([writer, reader, connection](
+                const Future<Nothing>& future) mutable {
+              CHECK(!future.isDiscarded());
+
+              if (future.isFailed()) {
+                writer.fail(future.failure());
+                reader.close();
+                return;
+              }
+
+              writer.close();
+              reader.close();
+            });
+
+          return ok;
+        });
     });
 }
 

@@ -195,6 +195,12 @@ v1::agent::Call evolve(const mesos::agent::Call& call)
 }
 
 
+v1::agent::ProcessIO evolve(const mesos::agent::ProcessIO& processIO)
+{
+  return evolve<v1::agent::ProcessIO>(processIO);
+}
+
+
 v1::agent::Response evolve(const mesos::agent::Response& response)
 {
   return evolve<v1::agent::Response>(response);
