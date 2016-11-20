@@ -907,7 +907,7 @@ private:
       const process::Future<bool>& authorized);
 
   // Subscribes a client to the 'api/vX' endpoint.
-  void subscribe(HttpConnection http);
+  void subscribe(const HttpConnection& http);
 
   void teardown(Framework* framework);
 

@@ -6982,7 +6982,7 @@ void Master::addFramework(Framework* framework)
   } else {
     CHECK_SOME(framework->http);
 
-    HttpConnection http = framework->http.get();
+    const HttpConnection& http = framework->http.get();
 
     http.closed()
       .onAny(defer(self(), &Self::exited, framework->id(), http));
@@ -8368,7 +8368,7 @@ void Master::exited(const UUID& id)
 }
 
 
-void Master::subscribe(HttpConnection http)
+void Master::subscribe(const HttpConnection& http)
 {
   LOG(INFO) << "Added subscriber: " << http.streamId << " to the "
             << "list of active subscribers";
