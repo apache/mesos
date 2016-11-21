@@ -1355,20 +1355,10 @@ void HierarchicalAllocatorProcess::allocate(
   auto getQuotaRoleAllocatedResources = [this](const string& role) {
     CHECK(quotas.contains(role));
 
-    // NOTE: `allocationScalarQuantities` omits dynamic reservation and
-    // persistent volume info, but we additionally strip `role` here.
-    Resources resources;
-
-    foreach (Resource resource,
-             quotaRoleSorter->allocationScalarQuantities(role)) {
-      CHECK(!resource.has_reservation());
-      CHECK(!resource.has_disk());
-
-      resource.set_role("*");
-      resources += resource;
-    }
-
-    return resources;
+    // NOTE: `allocationScalarQuantities` omits dynamic reservation
+    // and persistent volume info, but we additionally strip `role`
+    // here via `flatten()`.
+    return quotaRoleSorter->allocationScalarQuantities(role).flatten();
   };
 
   // Due to the two stages in the allocation algorithm and the nature of
