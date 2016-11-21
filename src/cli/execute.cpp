@@ -300,7 +300,7 @@ public:
         "content_type",
         "The content type to use for scheduler protocol messages. 'json'\n"
         "and 'protobuf' are valid choices.",
-        "json");
+        "protobuf");
   }
 
   string master;
