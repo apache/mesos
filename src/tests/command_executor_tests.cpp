@@ -39,8 +39,10 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#include "tests/kill_policy_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/utils.hpp"
 
 using mesos::internal::master::Master;
 
@@ -256,13 +258,12 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   AWAIT_READY(offers);
   EXPECT_EQ(1u, offers->size());
 
-  // Use "15" instead of SIGTERM to workaround a bug in ash's implementation of
-  // trap.
-  //
-  // TODO(gkleiman): Replace this fragile workaround with a test helper.
-  TaskInfo task = createTask(
-      offers->front(),
-      "trap \"sleep 15\" 15 && sleep 120");
+  const string command = strings::format(
+      "%s %s --sleep_duration=15",
+      getTestHelperPath("test-helper"),
+      KillPolicyTestHelper::NAME).get();
+
+  TaskInfo task = createTask(offers->front(), command);
 
   // Create a health check that succeeds until a temporary file is removed.
   Try<string> temporaryPath = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
