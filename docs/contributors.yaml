@@ -625,6 +625,14 @@
   jira_user: zhitao
   reviewboard_user: zhitao
 
+- name: Zhongbo Tian
+  affiliations:
+    - {organization: Douban}
+  emails:
+    - windreamer@gmail.com
+  jira_user: windreamer
+  reviewboard_user: windreamer
+
 - name: zhou xing
   affiliations:
     - {organization: IBM}
