@@ -676,12 +676,12 @@ static Future<Owned<Request>> convert(Owned<Request>&& pipeRequest)
   CHECK(pipeRequest->body.empty());
 
   return pipeRequest->reader->readAll()
-    .then([pipeRequest](const string& body) {
+    .then([pipeRequest](const string& body) -> Future<Owned<Request>> {
       pipeRequest->type = Request::BODY;
       pipeRequest->body = body;
       pipeRequest->reader = None(); // Remove the reader.
 
-      return pipeRequest;;
+      return pipeRequest;
     });
 }
 
