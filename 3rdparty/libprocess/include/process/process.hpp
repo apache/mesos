@@ -459,6 +459,12 @@ private:
     std::map<std::string, std::string> types;
   };
 
+  // Continuation for `visit(const HttpEvent&)`.
+  Future<http::Response> _visit(
+      const HttpEndpoint& endpoint,
+      const std::string& name,
+      const Owned<http::Request>& request);
+
   // Static assets(s) to provide.
   std::map<std::string, Asset> assets;
 

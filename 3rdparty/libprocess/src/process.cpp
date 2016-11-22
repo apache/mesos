@@ -667,7 +667,26 @@ static bool libprocess(Request* request)
 }
 
 
-static Message* parse(Request* request)
+// Returns a 'BODY' request once the body of the provided
+// 'PIPE' request can be read completely.
+static Future<Owned<Request>> convert(Owned<Request>&& pipeRequest)
+{
+  CHECK_EQ(Request::PIPE, pipeRequest->type);
+  CHECK_SOME(pipeRequest->reader);
+  CHECK(pipeRequest->body.empty());
+
+  return pipeRequest->reader->readAll()
+    .then([pipeRequest](const string& body) {
+      pipeRequest->type = Request::BODY;
+      pipeRequest->body = body;
+      pipeRequest->reader = None(); // Remove the reader.
+
+      return pipeRequest;;
+    });
+}
+
+
+static Future<Message*> parse(const Request& request)
 {
   // TODO(benh): Do better error handling (to deal with a malformed
   // libprocess message, malicious or otherwise).
@@ -675,11 +694,11 @@ static Message* parse(Request* request)
   // First try and determine 'from'.
   Option<UPID> from = None();
 
-  if (request->headers.contains("Libprocess-From")) {
-    from = UPID(strings::trim(request->headers["Libprocess-From"]));
+  if (request.headers.contains("Libprocess-From")) {
+    from = UPID(strings::trim(request.headers.at("Libprocess-From")));
   } else {
     // Try and get 'from' from the User-Agent.
-    const string& agent = request->headers["User-Agent"];
+    const string& agent = request.headers.at("User-Agent");
     const string identifier = "libprocess/";
     size_t index = agent.find(identifier);
     if (index != string::npos) {
@@ -688,37 +707,42 @@ static Message* parse(Request* request)
   }
 
   if (from.isNone()) {
-    return nullptr;
+    return Failure("Failed to determine sender from request headers");
   }
 
   // Now determine 'to'.
-  size_t index = request->url.path.find('/', 1);
+  size_t index = request.url.path.find('/', 1);
   index = index != string::npos ? index - 1 : string::npos;
 
   // Decode possible percent-encoded 'to'.
-  Try<string> decode = http::decode(request->url.path.substr(1, index));
+  Try<string> decode = http::decode(request.url.path.substr(1, index));
 
   if (decode.isError()) {
-    VLOG(2) << "Failed to decode URL path: " << decode.get();
-    return nullptr;
+    return Failure("Failed to decode URL path: " + decode.get());
   }
 
   const UPID to(decode.get(), __address__);
 
   // And now determine 'name'.
-  index = index != string::npos ? index + 2: request->url.path.size();
-  const string name = request->url.path.substr(index);
+  index = index != string::npos ? index + 2: request.url.path.size();
+  const string name = request.url.path.substr(index);
 
   VLOG(2) << "Parsed message name '" << name
           << "' for " << to << " from " << from.get();
 
-  Message* message = new Message();
-  message->name = name;
-  message->from = from.get();
-  message->to = to;
-  message->body = request->body;
+  CHECK_SOME(request.reader);
+  http::Pipe::Reader reader = request.reader.get(); // Remove const.
 
-  return message;
+  return reader.readAll()
+    .then([from, name, to](const string& body) {
+      Message* message = new Message();
+      message->name = name;
+      message->from = from.get();
+      message->to = to;
+      message->body = body;
+
+      return message;
+    });
 }
 
 
@@ -729,7 +753,7 @@ void decode_recv(
     char* data,
     size_t size,
     Socket socket,
-    DataDecoder* decoder)
+    StreamingRequestDecoder* decoder)
 {
   if (length.isDiscarded() || length.isFailed()) {
     if (length.isFailed()) {
@@ -775,7 +799,7 @@ void decode_recv(
 
     foreach (Request* request, requests) {
       request->client = address.get();
-      process_manager->handle(decoder->socket(), request);
+      process_manager->handle(socket, request);
     }
   }
 
@@ -835,7 +859,7 @@ void on_accept(const Future<Socket>& socket)
     const size_t size = 80 * 1024;
     char* data = new char[size];
 
-    DataDecoder* decoder = new DataDecoder(socket.get());
+    StreamingRequestDecoder* decoder = new StreamingRequestDecoder();
 
     socket.get().recv(data, size)
       .onAny(lambda::bind(
@@ -2683,42 +2707,57 @@ void ProcessManager::handle(
   // Check if this is a libprocess request (i.e., 'User-Agent:
   // libprocess/id@ip:port') and if so, parse as a message.
   if (libprocess(request)) {
-    Message* message = parse(request);
-    if (message != nullptr) {
-      // TODO(benh): Use the sender PID when delivering in order to
-      // capture happens-before timing relationships for testing.
-      bool accepted = deliver(message->to, new MessageEvent(message));
+    // It is guaranteed that the continuation would run before the next
+    // request arrives. Also, it's fine to pass the `this` pointer to the
+    // continuation as this would get executed synchronously (if still pending)
+    // from `SocketManager::finalize()` due to it closing all active sockets
+    // during libprocess finalization.
+    parse(*request)
+      .onAny([this, socket, request](const Future<Message*>& future) {
+        // Get the HttpProxy pid for this socket.
+        PID<HttpProxy> proxy = socket_manager->proxy(socket);
 
-      // Get the HttpProxy pid for this socket.
-      PID<HttpProxy> proxy = socket_manager->proxy(socket);
+        if (!future.isReady()) {
+          Response response = InternalServerError(
+              future.isFailed() ? future.failure() : "discarded future");
 
-      // Only send back an HTTP response if this isn't from libprocess
-      // (which we determine by looking at the User-Agent). This is
-      // necessary because older versions of libprocess would try and
-      // recv the data and parse it as an HTTP request which would
-      // fail thus causing the socket to get closed (but now
-      // libprocess will ignore responses, see ignore_data).
-      Option<string> agent = request->headers.get("User-Agent");
-      if (agent.getOrElse("").find("libprocess/") == string::npos) {
-        if (accepted) {
-          VLOG(2) << "Accepted libprocess message to " << request->url.path;
-          dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
-        } else {
-          VLOG(1) << "Failed to handle libprocess message to "
-                  << request->url.path << ": not found";
-          dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
+          dispatch(proxy, &HttpProxy::enqueue, response, *request);
+
+          VLOG(1) << "Returning '" << response.status << "' for '"
+                  << request->url.path << "': " << response.body;
+
+          delete request;
+          return;
         }
-      }
 
-      delete request;
-      return;
-    }
+        Message* message = CHECK_NOTNULL(future.get());
 
-    VLOG(1) << "Failed to handle libprocess message: "
-            << request->method << " " << request->url.path
-            << " (User-Agent: " << request->headers["User-Agent"] << ")";
+        // TODO(benh): Use the sender PID when delivering in order to
+        // capture happens-before timing relationships for testing.
+        bool accepted = deliver(message->to, new MessageEvent(message));
 
-    delete request;
+        // Only send back an HTTP response if this isn't from libprocess
+        // (which we determine by looking at the User-Agent). This is
+        // necessary because older versions of libprocess would try and
+        // recv the data and parse it as an HTTP request which would
+        // fail thus causing the socket to get closed (but now
+        // libprocess will ignore responses, see ignore_data).
+        Option<string> agent = request->headers.get("User-Agent");
+        if (agent.getOrElse("").find("libprocess/") == string::npos) {
+          if (accepted) {
+            VLOG(2) << "Accepted libprocess message to " << request->url.path;
+            dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
+          } else {
+            VLOG(1) << "Failed to handle libprocess message to "
+                    << request->url.path << ": not found";
+            dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
+          }
+        }
+
+        delete request;
+        return;
+      });
+
     return;
   }
 
@@ -3576,10 +3615,12 @@ void ProcessBase::visit(const HttpEvent& event)
     handlers.httpSequence.reset(new Sequence("__auth_handlers__"));
   }
 
-  CHECK(event.request->url.path.find('/') == 0); // See ProcessManager::handle.
+  const string& path = event.request->url.path;
+
+  CHECK(path.find('/') == 0); // See ProcessManager::handle.
 
   // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(event.request->url.path, "/");
+  vector<string> tokens = strings::tokenize(path, "/");
   CHECK(!tokens.empty());
 
   const string id = http::decode(tokens[0]).get();
@@ -3603,125 +3644,40 @@ void ProcessBase::visit(const HttpEvent& event)
       continue;
     }
 
-    HttpEndpoint endpoint = handlers.http[name];
-    Future<Option<AuthenticationResult>> authentication = None();
+    const HttpEndpoint& endpoint = handlers.http[name];
 
-    if (endpoint.realm.isSome()) {
-      authentication = authenticator_manager->authenticate(
-          *event.request, endpoint.realm.get());
+    Owned<Request> request(new Request(*event.request));
+    Future<Response> response;
+
+    if (!endpoint.options.requestStreaming) {
+      // Consume the request body on behalf of the endpoint.
+      response = convert(std::move(request))
+        .then(defer(self(), [this, endpoint, name](
+            const Owned<Request>& request) {
+          return _visit(endpoint, name, request);
+        }));
+    } else {
+      response = _visit(endpoint, name, request);
     }
 
-    // Sequence the authentication future to ensure the handlers
-    // are invoked in the same order that requests arrive.
-    authentication = handlers.httpSequence->add<Option<AuthenticationResult>>(
-        [authentication]() { return authentication; });
-
-    Request request = *event.request;
-    Promise<Response>* response = new Promise<Response>();
-    event.response->associate(response->future());
-
-    authentication
-      .onAny(defer(self(), [this, endpoint, request, response, name, id](
-          const Future<Option<AuthenticationResult>>& authentication) {
-        if (!authentication.isReady()) {
-          response->set(
-              authentication.isFailed()
-                ? ServiceUnavailable(authentication.failure())
-                : ServiceUnavailable());
-
-          VLOG(1) << "Returning '" << response->future()->status << "'"
-                  << " for '" << request.url.path << "'"
-                  << " (authentication failed: "
-                  << (authentication.isFailed()
-                      ? authentication.failure()
-                      : "discarded") << ")";
-
-          delete response;
-          return;
+    response
+      .onAny([path](const Future<Response>& response) {
+        if (!response.isReady()) {
+          VLOG(1) << "Failed to process request for '" << path << "': "
+                  << (response.isFailed() ? response.failure() : "discarded");
         }
+      });
 
-        Option<string> principal = None();
-
-        // If authentication failed, we do not continue with authorization.
-        if (authentication->isSome()) {
-          if (authentication.get()->unauthorized.isSome()) {
-            // Request was not authenticated, challenged issued.
-            response->set(authentication.get()->unauthorized.get());
-
-            delete response;
-            return;
-          } else if (authentication.get()->forbidden.isSome()) {
-            // Request was not authenticated, no challenge issued.
-            response->set(authentication.get()->forbidden.get());
-
-            delete response;
-            return;
-          }
-
-          principal = authentication.get()->principal;
-        }
-
-        // The result of a call to an authorization callback.
-        Future<bool> authorization;
-
-        // Look for an authorization callback installed for this endpoint path.
-        // If none is found, use a trivial one.
-        const string callback_path = path::join("/" + id, name);
-        if (authorization_callbacks != nullptr &&
-            authorization_callbacks->count(callback_path) > 0) {
-          authorization = authorization_callbacks->at(callback_path)(
-              request, principal);
-
-          // Sequence the authorization future to ensure the handlers
-          // are invoked in the same order that requests arrive.
-          authorization = handlers.httpSequence->add<bool>(
-              [authorization]() { return authorization; });
-        } else {
-          authorization = handlers.httpSequence->add<bool>(
-              []() { return true; });
-        }
-
-        // Install a callback on the authorization result.
-        authorization
-          .onAny(defer(self(), [endpoint, request, response, principal](
-              const Future<bool>& authorization) {
-            if (!authorization.isReady()) {
-              response->set(
-                  authorization.isFailed()
-                    ? ServiceUnavailable(authorization.failure())
-                    : ServiceUnavailable());
-
-              VLOG(1) << "Returning '" << response->future()->status << "'"
-                      << " for '" << request.url.path << "'"
-                      << " (authorization failed: "
-                      << (authorization.isFailed()
-                          ? authorization.failure()
-                          : "discarded") << ")";
-
-              delete response;
-              return;
-            }
-
-            if (authorization.get() == true) {
-              // Authorization succeeded, so forward request to the handler.
-              if (endpoint.realm.isNone()) {
-                response->associate(endpoint.handler.get()(request));
-              } else {
-                response->associate(endpoint.authenticatedHandler.get()(
-                    request, principal));
-              }
-            } else {
-              // Authorization failed, so return a `Forbidden` response.
-              response->set(Forbidden());
-            }
-
-            delete response;
-            return;
-        }));
-      }));
-
+    event.response->associate(response);
     return;
   }
+
+  // Ensure the body is consumed so that no backpressure is applied
+  // to the socket (ignore the content since we do not care about it).
+  //
+  // TODO(anand): Is this an error?
+  CHECK_SOME(event.request->reader);
+  event.request->reader->readAll();
 
   // If no HTTP handler is found look in assets.
   name = tokens.size() > 1 ? tokens[1] : "";
@@ -3756,6 +3712,83 @@ void ProcessBase::visit(const HttpEvent& event)
           << " '" << event.request->url.path << "'";
 
   event.response->associate(NotFound());
+}
+
+
+Future<Response> ProcessBase::_visit(
+    const HttpEndpoint& endpoint,
+    const string& name,
+    const Owned<Request>& request)
+{
+  Future<Option<AuthenticationResult>> authentication = None();
+
+  if (endpoint.realm.isSome()) {
+    authentication = authenticator_manager->authenticate(
+        *request, endpoint.realm.get());
+  }
+
+  // Sequence the authentication future to ensure the handlers
+  // are invoked in the same order that requests arrive.
+  authentication = handlers.httpSequence->add<Option<AuthenticationResult>>(
+      [authentication]() { return authentication; });
+
+  return authentication
+    .then(defer(self(), [this, endpoint, request, name](
+        const Option<AuthenticationResult>& authentication)
+          -> Future<Response> {
+      Option<string> principal = None();
+
+      // If authentication failed, we do not continue with authorization.
+      if (authentication.isSome()) {
+        if (authentication->unauthorized.isSome()) {
+          // Request was not authenticated, challenged issued.
+          return authentication->unauthorized.get();
+        } else if (authentication->forbidden.isSome()) {
+          // Request was not authenticated, no challenge issued.
+          return authentication->forbidden.get();
+        }
+
+        principal = authentication->principal;
+      }
+
+      // The result of a call to an authorization callback.
+      Future<bool> authorization;
+
+      // Look for an authorization callback installed for this endpoint path.
+      // If none is found, use a trivial one.
+      const string callback_path = path::join("/" + pid.id, name);
+      if (authorization_callbacks != nullptr &&
+          authorization_callbacks->count(callback_path) > 0) {
+        authorization = authorization_callbacks->at(callback_path)(
+            *request, principal);
+
+        // Sequence the authorization future to ensure the handlers
+        // are invoked in the same order that requests arrive.
+          authorization = handlers.httpSequence->add<bool>(
+            [authorization]() { return authorization; });
+      } else {
+        authorization = handlers.httpSequence->add<bool>(
+            []() { return true; });
+      }
+
+      // Install a callback on the authorization result.
+      return authorization
+        .then(defer(self(), [endpoint, request, principal](
+            bool authorization) -> Future<Response> {
+          if (authorization) {
+            // Authorization succeeded, so forward request to the handler.
+            if (endpoint.realm.isNone()) {
+              return endpoint.handler.get()(*request);
+            }
+
+            return endpoint.authenticatedHandler.get()(*request, principal);
+          }
+
+          // Authorization failed, so return a `Forbidden` response.
+          return Forbidden();
+        }
+      ));
+    }));
 }
 
 
