@@ -257,45 +257,6 @@ typedef hashmap<std::string,
                 CaseInsensitiveEqual> Headers;
 
 
-struct Request
-{
-  std::string method;
-
-  // TODO(benh): Add major/minor version.
-
-  // For client requests, the URL should be a URI.
-  // For server requests, the URL may be a URI or a relative reference.
-  URL url;
-
-  Headers headers;
-
-  // TODO(bmahler): Add a 'query' field which contains both
-  // the URL query and the parsed form data from the body.
-
-  std::string body;
-
-  // TODO(bmahler): Ensure this is consistent with the 'Connection'
-  // header; perhaps make this a function that checks the header.
-  bool keepAlive;
-
-  // For server requests, this contains the address of the client.
-  // Note that this may correspond to a proxy or load balancer address.
-  network::Address client;
-
-  /**
-   * Returns whether the encoding is considered acceptable in the
-   * response. See RFC 2616 section 14.3 for details.
-   */
-  bool acceptsEncoding(const std::string& encoding) const;
-
-  /**
-   * Returns whether the media type is considered acceptable in the
-   * response. See RFC 2616, section 14.1 for the details.
-   */
-  bool acceptsMediaType(const std::string& mediaType) const;
-};
-
-
 // Represents an asynchronous in-memory unbuffered Pipe, currently
 // used for streaming HTTP responses via chunked encoding. Note that
 // being an in-memory pipe means that this cannot be used across OS
@@ -447,6 +408,45 @@ private:
   };
 
   std::shared_ptr<Data> data;
+};
+
+
+struct Request
+{
+  std::string method;
+
+  // TODO(benh): Add major/minor version.
+
+  // For client requests, the URL should be a URI.
+  // For server requests, the URL may be a URI or a relative reference.
+  URL url;
+
+  Headers headers;
+
+  // TODO(bmahler): Add a 'query' field which contains both
+  // the URL query and the parsed form data from the body.
+
+  std::string body;
+
+  // TODO(bmahler): Ensure this is consistent with the 'Connection'
+  // header; perhaps make this a function that checks the header.
+  bool keepAlive;
+
+  // For server requests, this contains the address of the client.
+  // Note that this may correspond to a proxy or load balancer address.
+  network::Address client;
+
+  /**
+   * Returns whether the encoding is considered acceptable in the
+   * response. See RFC 2616 section 14.3 for details.
+   */
+  bool acceptsEncoding(const std::string& encoding) const;
+
+  /**
+   * Returns whether the media type is considered acceptable in the
+   * response. See RFC 2616, section 14.1 for the details.
+   */
+  bool acceptsMediaType(const std::string& mediaType) const;
 };
 
 
