@@ -2497,15 +2497,15 @@ void SocketManager::swap_implementing_socket(
     addresses[to_fd] = addresses[from_fd];
     addresses.erase(from_fd);
 
-    // If this address is a temporary link.
-    if (temps.count(addresses[to_fd]) > 0) {
-      temps[addresses[to_fd]] = to_fd;
-      // No need to erase as we're changing the value, not the key.
-    }
-
-    // If this address is a persistent link.
-    if (persists.count(addresses[to_fd]) > 0) {
+    // If this address is a persistent or temporary link
+    // that matches the original FD.
+    if (persists.count(addresses[to_fd]) > 0 &&
+        persists.at(addresses[to_fd]) == from_fd) {
       persists[addresses[to_fd]] = to_fd;
+      // No need to erase as we're changing the value, not the key.
+    } else if (temps.count(addresses[to_fd]) > 0 &&
+        temps.at(addresses[to_fd]) == from_fd) {
+      temps[addresses[to_fd]] = to_fd;
       // No need to erase as we're changing the value, not the key.
     }
 
