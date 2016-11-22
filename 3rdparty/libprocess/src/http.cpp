@@ -937,56 +937,23 @@ string encode(const Request& request)
 }
 
 
-// Forward declarations.
-Future<string> _convert(
-    Pipe::Reader reader,
-    const std::shared_ptr<string>& buffer,
-    const string& read);
-Response __convert(
-    const Response& pipeResponse,
-    const string& body);
-
-
 // Returns a 'BODY' response once the body of the provided
 // 'PIPE' response can be read completely.
 Future<Response> convert(const Response& pipeResponse)
 {
-  std::shared_ptr<string> buffer(new string());
-
   CHECK_EQ(Response::PIPE, pipeResponse.type);
   CHECK_SOME(pipeResponse.reader);
 
   Pipe::Reader reader = pipeResponse.reader.get();
 
-  return reader.read()
-    .then(lambda::bind(&_convert, reader, buffer, lambda::_1))
-    .then(lambda::bind(&__convert, pipeResponse, lambda::_1));
-}
-
-
-Future<string> _convert(
-    Pipe::Reader reader,
-    const std::shared_ptr<string>& buffer,
-    const string& read)
-{
-  if (read.empty()) { // EOF.
-    return *buffer;
-  }
-
-  buffer->append(read);
-
-  return reader.read()
-    .then(lambda::bind(&_convert, reader, buffer, lambda::_1));
-}
-
-
-Response __convert(const Response& pipeResponse, const string& body)
-{
-  Response bodyResponse = pipeResponse;
-  bodyResponse.type = Response::BODY;
-  bodyResponse.body = body;
-  bodyResponse.reader = None(); // Remove the reader.
-  return bodyResponse;
+  return reader.readAll()
+    .then([pipeResponse](const string& body) {
+      Response bodyResponse = pipeResponse;
+      bodyResponse.type = Response::BODY;
+      bodyResponse.body = body;
+      bodyResponse.reader = None(); // Remove the reader.
+      return bodyResponse;
+    });
 }
 
 
