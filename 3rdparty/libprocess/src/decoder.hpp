@@ -740,6 +740,309 @@ private:
   std::deque<http::Response*> responses;
 };
 
+
+// Provides a request decoder that returns 'PIPE' requests once
+// the request headers are received, but before the body data
+// is received. Callers are expected to read the body from the
+// Pipe::Reader in the request.
+class StreamingRequestDecoder
+{
+public:
+  explicit StreamingRequestDecoder()
+    : failure(false), header(HEADER_FIELD), request(nullptr)
+  {
+    settings.on_message_begin =
+      &StreamingRequestDecoder::on_message_begin;
+    settings.on_url =
+      &StreamingRequestDecoder::on_url;
+    settings.on_header_field =
+      &StreamingRequestDecoder::on_header_field;
+    settings.on_header_value =
+      &StreamingRequestDecoder::on_header_value;
+    settings.on_headers_complete =
+      &StreamingRequestDecoder::on_headers_complete;
+    settings.on_body =
+      &StreamingRequestDecoder::on_body;
+    settings.on_message_complete =
+      &StreamingRequestDecoder::on_message_complete;
+    settings.on_chunk_complete =
+      &StreamingRequestDecoder::on_chunk_complete;
+    settings.on_chunk_header =
+      &StreamingRequestDecoder::on_chunk_header;
+
+    http_parser_init(&parser, HTTP_REQUEST);
+
+    parser.data = this;
+  }
+
+  ~StreamingRequestDecoder()
+  {
+    delete request;
+
+    if (writer.isSome()) {
+      writer->fail("Decoder is being deleted");
+    }
+
+    foreach (http::Request* request, requests) {
+      delete request;
+    }
+  }
+
+  std::deque<http::Request*> decode(const char* data, size_t length)
+  {
+    size_t parsed = http_parser_execute(&parser, &settings, data, length);
+    if (parsed != length) {
+      // TODO(bmahler): joyent/http-parser exposes error reasons.
+      failure = true;
+
+      // If we're still writing the body, fail the writer!
+      if (writer.isSome()) {
+        http::Pipe::Writer writer_ = writer.get(); // Remove const.
+        writer_.fail("failed to decode body");
+        writer = None();
+      }
+    }
+
+    if (!requests.empty()) {
+      std::deque<http::Request*> result = requests;
+      requests.clear();
+      return result;
+    }
+
+    return std::deque<http::Request*>();
+  }
+
+  bool failed() const
+  {
+    return failure;
+  }
+
+private:
+  static int on_message_begin(http_parser* p)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK(!decoder->failure);
+
+    decoder->header = HEADER_FIELD;
+    decoder->field.clear();
+    decoder->value.clear();
+    decoder->query.clear();
+    decoder->url.clear();
+
+    CHECK(decoder->request == nullptr);
+    CHECK_NONE(decoder->writer);
+
+    decoder->request = new http::Request();
+    decoder->request->type = http::Request::PIPE;
+    decoder->writer = None();
+    decoder->decompressor.reset();
+
+    return 0;
+  }
+
+  static int on_chunk_complete(http_parser* p)
+  {
+    return 0;
+  }
+
+  static int on_chunk_header(http_parser* p)
+  {
+    return 0;
+  }
+
+  static int on_url(http_parser* p, const char* data, size_t length)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->request);
+
+    // The current http_parser library (version 2.6.2 and below)
+    // does not support incremental parsing of URLs. To compensate
+    // we incrementally collect the data and parse it in
+    // `on_header_complete`.
+    decoder->url.append(data, length);
+
+    return 0;
+  }
+
+  static int on_header_field(http_parser* p, const char* data, size_t length)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->request);
+
+    if (decoder->header != HEADER_FIELD) {
+      decoder->request->headers[decoder->field] = decoder->value;
+      decoder->field.clear();
+      decoder->value.clear();
+    }
+
+    decoder->field.append(data, length);
+    decoder->header = HEADER_FIELD;
+
+    return 0;
+  }
+
+  static int on_header_value(http_parser* p, const char* data, size_t length)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->request);
+
+    decoder->value.append(data, length);
+    decoder->header = HEADER_VALUE;
+    return 0;
+  }
+
+  static int on_headers_complete(http_parser* p)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_NOTNULL(decoder->request);
+
+    // Add final header.
+    decoder->request->headers[decoder->field] = decoder->value;
+    decoder->field.clear();
+    decoder->value.clear();
+
+    decoder->request->method =
+      http_method_str((http_method) decoder->parser.method);
+
+    decoder->request->keepAlive = http_should_keep_alive(&decoder->parser) != 0;
+
+    // Parse the URL. This data was incrementally built up during calls
+    // to `on_url`.
+    http_parser_url url;
+    http_parser_url_init(&url);
+    int parse_url =
+      http_parser_parse_url(decoder->url.data(), decoder->url.size(), 0, &url);
+
+    if (parse_url != 0) {
+      return parse_url;
+    }
+
+    if (url.field_set & (1 << UF_PATH)) {
+      decoder->request->url.path = std::string(
+          decoder->url.data() + url.field_data[UF_PATH].off,
+          url.field_data[UF_PATH].len);
+    }
+
+    if (url.field_set & (1 << UF_FRAGMENT)) {
+      decoder->request->url.fragment = std::string(
+          decoder->url.data() + url.field_data[UF_FRAGMENT].off,
+          url.field_data[UF_FRAGMENT].len);
+    }
+
+    if (url.field_set & (1 << UF_QUERY)) {
+      decoder->query = std::string(
+          decoder->url.data() + url.field_data[UF_QUERY].off,
+          url.field_data[UF_QUERY].len);
+    }
+
+    // Parse the query key/values.
+    Try<hashmap<std::string, std::string>> decoded =
+      http::query::decode(decoder->query);
+
+    if (decoded.isError()) {
+      return 1;
+    }
+
+    decoder->request->url.query = std::move(decoded.get());
+
+    Option<std::string> encoding =
+      decoder->request->headers.get("Content-Encoding");
+
+    if (encoding.isSome() && encoding.get() == "gzip") {
+      decoder->decompressor =
+        Owned<gzip::Decompressor>(new gzip::Decompressor());
+    }
+
+    CHECK_NONE(decoder->writer);
+
+    http::Pipe pipe;
+    decoder->writer = pipe.writer();
+    decoder->request->reader = pipe.reader();
+
+    // Send the request to the caller, but keep a Pipe::Writer for
+    // streaming the body content into the request.
+    decoder->requests.push_back(decoder->request);
+    decoder->request = nullptr;
+
+    return 0;
+  }
+
+  static int on_body(http_parser* p, const char* data, size_t length)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_SOME(decoder->writer);
+
+    http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
+
+    std::string body;
+    if (decoder->decompressor.get() != nullptr) {
+      Try<std::string> decompressed =
+        decoder->decompressor->decompress(std::string(data, length));
+
+      if (decompressed.isError()) {
+        return 1;
+      }
+
+      body = std::move(decompressed.get());
+    } else {
+      body = std::string(data, length);
+    }
+
+    writer.write(std::move(body));
+
+    return 0;
+  }
+
+  static int on_message_complete(http_parser* p)
+  {
+    StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
+
+    CHECK_SOME(decoder->writer);
+
+    http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
+
+    if (decoder->decompressor.get() != nullptr &&
+        !decoder->decompressor->finished()) {
+      writer.fail("Failed to decompress body");
+      return 1;
+    }
+
+    writer.close();
+
+    decoder->writer = None();
+
+    return 0;
+  }
+
+  bool failure;
+
+  http_parser parser;
+  http_parser_settings settings;
+
+  enum
+  {
+    HEADER_FIELD,
+    HEADER_VALUE
+  } header;
+
+  std::string field;
+  std::string value;
+  std::string query;
+  std::string url;
+
+  http::Request* request;
+  Option<http::Pipe::Writer> writer;
+  Owned<gzip::Decompressor> decompressor;
+
+  std::deque<http::Request*> requests;
+};
+
 }  // namespace process {
 
 #endif // __DECODER_HPP__
