@@ -33,6 +33,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 #include <process/pid.hpp>
 
 #include <stout/hashmap.hpp>
@@ -103,6 +104,11 @@ public:
           const SlaveID& slaveId,
           const Option<mesos::slave::ContainerClass>& containerClass));
 
+  MOCK_METHOD1(
+      attach,
+      process::Future<process::http::Connection>(
+          const ContainerID& containerId));
+
   MOCK_METHOD2(
       update,
       process::Future<Nothing>(const ContainerID&, const Resources&));
@@ -157,6 +163,9 @@ private:
       const Option<std::string>& user,
       const SlaveID& slaveId,
       const Option<mesos::slave::ContainerClass>& containerClass = None());
+
+  process::Future<process::http::Connection> _attach(
+      const ContainerID& containerId);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,

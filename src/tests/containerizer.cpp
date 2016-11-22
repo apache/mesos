@@ -22,8 +22,11 @@
 
 #include "tests/mesos.hpp"
 
+using process::Failure;
 using process::Future;
 using process::Owned;
+
+using process::http::Connection;
 
 using std::map;
 using std::shared_ptr;
@@ -215,6 +218,13 @@ public:
       const Resources& resources)
   {
     return Nothing();
+  }
+
+
+  Future<Connection> attach(
+      const ContainerID& containerId)
+  {
+    return Failure("Unsupported");
   }
 
   Future<ResourceStatistics> usage(
@@ -448,6 +458,9 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, launch(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, _launchNested));
 
+  EXPECT_CALL(*this, attach(_))
+    .WillRepeatedly(Invoke(this, &TestContainerizer::_attach));
+
   EXPECT_CALL(*this, wait(_))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_wait));
 
@@ -528,6 +541,16 @@ Future<bool> TestContainerizer::_launch(
       user,
       slaveId,
       containerClass);
+}
+
+
+Future<Connection> TestContainerizer::_attach(
+    const ContainerID& containerId)
+{
+  return process::dispatch(
+      process.get(),
+      &TestContainerizerProcess::attach,
+      containerId);
 }
 
 

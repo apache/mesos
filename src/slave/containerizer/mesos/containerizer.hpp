@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <process/id.hpp>
+#include <process/http.hpp>
 #include <process/sequence.hpp>
 #include <process/shared.hpp>
 
@@ -94,6 +95,9 @@ public:
       const SlaveID& slaveId,
       const Option<mesos::slave::ContainerClass>& containerClass = None());
 
+  virtual process::Future<process::http::Connection> attach(
+      const ContainerID& containerId);
+
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resources);
@@ -160,6 +164,9 @@ public:
       const Option<std::string>& user,
       const SlaveID& slaveId,
       const Option<mesos::slave::ContainerClass>& containerClass);
+
+  virtual process::Future<process::http::Connection> attach(
+      const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,

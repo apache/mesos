@@ -23,6 +23,7 @@
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/http.hpp>
 #include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
@@ -105,6 +106,8 @@ using process::defer;
 using process::Failure;
 using process::Future;
 using process::Owned;
+
+using process::http::Connection;
 
 using std::list;
 using std::map;
@@ -499,6 +502,15 @@ Future<bool> MesosContainerizer::launch(
                   user,
                   slaveId,
                   containerClass);
+}
+
+
+Future<Connection> MesosContainerizer::attach(
+    const ContainerID& containerId)
+{
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::attach,
+                  containerId);
 }
 
 
@@ -1802,6 +1814,13 @@ Future<bool> MesosContainerizerProcess::launch(
                 map<string, string>(),
                 slaveId,
                 false);
+}
+
+
+Future<Connection> MesosContainerizerProcess::attach(
+    const ContainerID& containerId)
+{
+  return Failure("Unsupported");
 }
 
 

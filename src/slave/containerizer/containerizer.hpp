@@ -25,6 +25,7 @@
 #include <mesos/slave/containerizer.hpp>
 
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
@@ -102,6 +103,14 @@ public:
       const Option<std::string>& user,
       const SlaveID& slaveId,
       const Option<mesos::slave::ContainerClass>& containerClass = None())
+  {
+    return process::Failure("Unsupported");
+  }
+
+  // Create an HTTP connection that can be used to "attach" (i.e.,
+  // stream input to or stream output from) a container.
+  virtual process::Future<process::http::Connection> attach(
+      const ContainerID& containerId)
   {
     return process::Failure("Unsupported");
   }

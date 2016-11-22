@@ -20,6 +20,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/http.hpp>
 #include <process/id.hpp>
 
 #include <stout/hashmap.hpp>
@@ -80,6 +81,9 @@ public:
       const Option<string>& user,
       const SlaveID& slaveId,
       const Option<ContainerClass>& containerClass);
+
+  Future<http::Connection> attach(
+      const ContainerID& containerId);
 
   Future<Nothing> update(
       const ContainerID& containerId,
@@ -226,6 +230,15 @@ Future<Nothing> ComposingContainerizer::update(
                   &ComposingContainerizerProcess::update,
                   containerId,
                   resources);
+}
+
+
+Future<http::Connection> ComposingContainerizer::attach(
+    const ContainerID& containerId)
+{
+    return dispatch(process,
+                    &ComposingContainerizerProcess::attach,
+                    containerId);
 }
 
 
@@ -547,6 +560,13 @@ Future<bool> ComposingContainerizerProcess::_launch(
 
   // We return false here because the launch is not supported.
   return false;
+}
+
+
+Future<http::Connection> ComposingContainerizerProcess::attach(
+    const ContainerID& containerId)
+{
+    return Failure("Unsupported");
 }
 
 
