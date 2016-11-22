@@ -35,6 +35,7 @@ layout: documentation
 * [DataMan](http://www.dataman-inc.com)
 * [Delivery Hero Holding GmbH](http://www.deliveryhero.com)
 * [Devicescape](http://www.devicescape.com)
+* [Douban](https://www.douban.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
 * [Ericsson](http://www.ericsson.com/)
