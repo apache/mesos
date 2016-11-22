@@ -21,6 +21,7 @@
 #include <netinet/tcp.h>
 #endif // __WINDOWS__
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -86,6 +87,7 @@ public:
   MOCK_METHOD1(requestDelete, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(a, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(abc, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(requestStreaming, Future<http::Response>(const http::Request&));
 
   MOCK_METHOD2(
       authenticated,
@@ -103,6 +105,12 @@ protected:
     route("/a", None(), &HttpProcess::a);
     route("/a/b/c", None(), &HttpProcess::abc);
     route("/authenticated", "realm", None(), &HttpProcess::authenticated);
+
+    // Route accepting a streaming request.
+    RouteOptions options;
+    options.requestStreaming = true;
+
+    route("/requeststreaming", None(), &HttpProcess::requestStreaming, options);
   }
 };
 
@@ -832,6 +840,51 @@ TEST(HTTPTest, Request)
 }
 
 
+// This test verifies that the server can correctly receive the
+// uncompressed data from the request.
+TEST(HTTPConnectionTest, GzipRequestBody)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/body");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  Promise<http::Response> promise;
+  Future<http::Request> expected;
+
+  EXPECT_CALL(*http.process, body(_))
+    .WillOnce(DoAll(FutureArg<0>(&expected), Return(promise.future())));
+
+  string uncompressed = "Hello World";
+
+  http::Request request;
+  request.method = "POST";
+  request.url = url;
+  request.body = gzip::compress(uncompressed).get();
+  request.keepAlive = true;
+
+  request.headers["Content-Encoding"] = "gzip";
+  request.headers["Content-Length"] = request.body.length();
+
+  Future<http::Response> response = connection.send(request);
+
+  AWAIT_READY(expected);
+  EXPECT_EQ(uncompressed, expected->body);
+
+  // Disconnect.
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
+}
+
+
 TEST(HTTPConnectionTest, Serial)
 {
   Http http;
@@ -1172,6 +1225,71 @@ TEST(HTTPConnectionTest, Equality)
 
   EXPECT_NE(connection1, connection2);
   EXPECT_EQ(connection2, connection2);
+}
+
+
+// This test verifies that we can stream the request body using the
+// connection abstraction to a streaming enabled route.
+TEST(HTTPConnectionTest, RequestStreaming)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/requeststreaming");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  Promise<http::Response> promise;
+  Future<http::Request> expected;
+
+  EXPECT_CALL(*http.process, requestStreaming(_))
+    .WillOnce(DoAll(FutureArg<0>(&expected), Return(promise.future())));
+
+  http::Pipe pipe;
+
+  http::Request request;
+  request.method = "POST";
+  request.url = url;
+  request.type = http::Request::PIPE;
+  request.reader = pipe.reader();
+  request.keepAlive = true;
+
+  Future<http::Response> response = connection.send(request);
+
+  AWAIT_READY(expected);
+  ASSERT_EQ(http::Request::PIPE, expected->type);
+  ASSERT_SOME(expected->reader);
+
+  http::Pipe::Reader reader = expected->reader.get();
+
+  // Start streaming the request body.
+  pipe.writer().write("Hello");
+
+  string read;
+  while (read != "Hello") {
+    Future<string> future = reader.read();
+    AWAIT_READY(future);
+
+    read.append(future.get());
+    ASSERT_TRUE(std::equal(read.begin(), read.end(), "Hello"));
+  }
+
+  pipe.writer().close();
+
+  promise.set(http::OK("1"));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  EXPECT_EQ("1", response->body);
+
+  // Disconnect.
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
 }
 
 
