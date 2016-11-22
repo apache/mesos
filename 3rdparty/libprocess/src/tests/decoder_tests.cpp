@@ -15,6 +15,7 @@
 #include <deque>
 #include <string>
 
+#include <process/gtest.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
@@ -28,18 +29,33 @@ using process::DataDecoder;
 using process::Future;
 using process::Owned;
 using process::ResponseDecoder;
+using process::StreamingRequestDecoder;
 using process::StreamingResponseDecoder;
+
+using process::http::Request;
 
 using process::network::Socket;
 
 using std::deque;
 using std::string;
 
-TEST(DecoderTest, Request)
+// TODO(anand): Parameterize the response decoder tests.
+
+template <typename T>
+class RequestDecoderTest : public ::testing::Test {};
+
+
+typedef ::testing::Types<DataDecoder, StreamingRequestDecoder>
+  RequestDecoderTypes;
+
+
+// The request decoder tests are parameterized by the type of request decoder.
+TYPED_TEST_CASE(RequestDecoderTest, RequestDecoderTypes);
+
+
+TYPED_TEST(RequestDecoderTest, Request)
 {
-  Try<Socket> socket = Socket::create();
-  ASSERT_SOME(socket);
-  DataDecoder decoder = DataDecoder(socket.get());
+  TypeParam decoder;
 
   const string data =
     "GET /path/file.json?key1=value1&key2=value2#fragment HTTP/1.1\r\n"
@@ -61,7 +77,15 @@ TEST(DecoderTest, Request)
   EXPECT_SOME_EQ("value1", request->url.query.get("key1"));
   EXPECT_SOME_EQ("value2", request->url.query.get("key2"));
 
-  EXPECT_TRUE(request->body.empty());
+  Future<string> body = [&request]() -> Future<string> {
+    if (request->type == Request::BODY) {
+      return request->body;
+    }
+
+    return request->reader->readAll();
+  }();
+
+  AWAIT_EXPECT_EQ(string(""), body);
   EXPECT_FALSE(request->keepAlive);
 
   EXPECT_EQ(3u, request->headers.size());
@@ -71,11 +95,9 @@ TEST(DecoderTest, Request)
 }
 
 
-TEST(DecoderTest, RequestHeaderContinuation)
+TYPED_TEST(RequestDecoderTest, HeaderContinuation)
 {
-  Try<Socket> socket = Socket::create();
-  ASSERT_SOME(socket);
-  DataDecoder decoder = DataDecoder(socket.get());
+  TypeParam decoder;
 
   const string data =
     "GET /path/file.json HTTP/1.1\r\n"
@@ -95,11 +117,9 @@ TEST(DecoderTest, RequestHeaderContinuation)
 }
 
 
-TEST(DecoderTest, RequestHeaderCaseInsensitive)
+TYPED_TEST(RequestDecoderTest, HeaderCaseInsensitive)
 {
-  Try<Socket> socket = Socket::create();
-  ASSERT_SOME(socket);
-  DataDecoder decoder = DataDecoder(socket.get());
+  TypeParam decoder;
 
   const string data =
     "GET /path/file.json HTTP/1.1\r\n"
