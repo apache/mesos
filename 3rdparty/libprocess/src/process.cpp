@@ -3786,13 +3786,15 @@ UPID ProcessBase::link(const UPID& to, const RemoteConnection remote)
 void ProcessBase::route(
     const string& name,
     const Option<string>& help_,
-    const HttpRequestHandler& handler)
+    const HttpRequestHandler& handler,
+    const RouteOptions& options)
 {
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
 
   HttpEndpoint endpoint;
   endpoint.handler = handler;
+  endpoint.options = options;
 
   handlers.http[name.substr(1)] = endpoint;
 
@@ -3804,7 +3806,8 @@ void ProcessBase::route(
     const string& name,
     const string& realm,
     const Option<string>& help_,
-    const AuthenticatedHttpRequestHandler& handler)
+    const AuthenticatedHttpRequestHandler& handler,
+    const RouteOptions& options)
 {
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
@@ -3812,6 +3815,7 @@ void ProcessBase::route(
   HttpEndpoint endpoint;
   endpoint.realm = realm;
   endpoint.authenticatedHandler = handler;
+  endpoint.options = options;
 
   handlers.http[name.substr(1)] = endpoint;
 

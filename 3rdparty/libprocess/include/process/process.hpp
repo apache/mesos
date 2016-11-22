@@ -253,6 +253,17 @@ protected:
   typedef lambda::function<Future<http::Response>(const http::Request&)>
   HttpRequestHandler;
 
+  // Options to control the behavior of a route.
+  struct RouteOptions
+  {
+    RouteOptions()
+      : requestStreaming(false) {}
+
+    // Set to true if the endpoint supports request streaming.
+    // Default: false.
+    bool requestStreaming;
+  };
+
   /**
    * Sets up a handler for HTTP requests with the specified name.
    *
@@ -262,7 +273,8 @@ protected:
   void route(
       const std::string& name,
       const Option<std::string>& help,
-      const HttpRequestHandler& handler);
+      const HttpRequestHandler& handler,
+      const RouteOptions& options = RouteOptions());
 
   /**
    * @copydoc process::ProcessBase::route
@@ -271,14 +283,15 @@ protected:
   void route(
       const std::string& name,
       const Option<std::string>& help,
-      Future<http::Response> (T::*method)(const http::Request&))
+      Future<http::Response> (T::*method)(const http::Request&),
+      const RouteOptions& options = RouteOptions())
   {
     // Note that we use dynamic_cast here so a process can use
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     HttpRequestHandler handler =
       lambda::bind(method, dynamic_cast<T*>(this), lambda::_1);
-    route(name, help, handler);
+    route(name, help, handler, options);
   }
 
   /**
@@ -305,7 +318,8 @@ protected:
       const std::string& name,
       const std::string& realm,
       const Option<std::string>& help,
-      const AuthenticatedHttpRequestHandler& handler);
+      const AuthenticatedHttpRequestHandler& handler,
+      const RouteOptions& options = RouteOptions());
 
   /**
    * @copydoc process::ProcessBase::route
@@ -317,14 +331,15 @@ protected:
       const Option<std::string>& help,
       Future<http::Response> (T::*method)(
           const http::Request&,
-          const Option<std::string>&))
+          const Option<std::string>&),
+      const RouteOptions& options = RouteOptions())
   {
     // Note that we use dynamic_cast here so a process can use
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     AuthenticatedHttpRequestHandler handler =
       lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, lambda::_2);
-    route(name, realm, help, handler);
+    route(name, realm, help, handler, options);
   }
 
   /**
@@ -423,6 +438,7 @@ private:
 
     Option<std::string> realm;
     Option<AuthenticatedHttpRequestHandler> authenticatedHandler;
+    RouteOptions options;
   };
 
   // Handlers for messages and HTTP requests.
