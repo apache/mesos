@@ -29,10 +29,12 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
-#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
-#include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
+
 #include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
+#include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
+
+#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"

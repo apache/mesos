@@ -39,9 +39,9 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
+#include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
-#include "slave/containerizer/mesos/constants.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
