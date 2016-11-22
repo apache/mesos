@@ -5382,7 +5382,7 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidFailoverTimeout)
 
 // This test verifies that we recover resources when an orphaned task reaches
 // a terminal state.
-TEST_F(MasterTest, RecoverResourcesOrphanedTask)
+TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

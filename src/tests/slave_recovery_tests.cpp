@@ -429,7 +429,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 // The slave is stopped before the first update for a task is received from the
 // HTTP based command executor. When it comes back up with recovery=reconnect,
 // make sure the executor subscribes and the slave properly sends the update.
-TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -525,7 +525,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 //
 // TODO(anand): Remove the `ROOT_CGROUPS` prefix once the posix isolator
 // is nested aware.
-TYPED_TEST(SlaveRecoveryTest, ROOT_CGROUPS_ReconnectDefaultExecutor)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -811,7 +811,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 // The slave is stopped before the HTTP based command executor is
 // registered. When it comes back up with recovery=reconnect, make
 // sure the executor is killed and the task is transitioned to LOST.
-TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredHTTPExecutor)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -1610,7 +1610,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 // The slave is stopped before a terminal update is received from the HTTP
 // based command executor. The slave is then restarted in recovery=cleanup mode.
 // It kills the executor, and terminates. Master should then send TASK_LOST.
-TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -2016,7 +2016,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 // command executor that has been running before the slave restarted.
 // This test ensures that a restarted slave is able to communicate
 // with all components (scheduler, master, executor).
-TYPED_TEST(SlaveRecoveryTest, KillTaskWithHTTPExecutor)
+TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
