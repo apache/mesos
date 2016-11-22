@@ -413,6 +413,9 @@ private:
 
 struct Request
 {
+  Request()
+    : keepAlive(false) {}
+
   std::string method;
 
   // TODO(benh): Add major/minor version.
@@ -430,6 +433,14 @@ struct Request
 
   // TODO(bmahler): Ensure this is consistent with the 'Connection'
   // header; perhaps make this a function that checks the header.
+  //
+  // TODO(anand): Ideally, this could default to 'true' since
+  // persistent connections are the default since HTTP 1.1.
+  // Perhaps, we need to go from `keepAlive` to `closeConnection`
+  // to reflect the header more accurately, and to have an
+  // intuitive default of false.
+  //
+  // Default: false.
   bool keepAlive;
 
   // For server requests, this contains the address of the client.
