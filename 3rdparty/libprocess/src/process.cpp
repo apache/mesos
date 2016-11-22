@@ -1204,6 +1204,11 @@ void finalize()
   // libprocess should be single-threaded.
   process_manager->finalize();
 
+  // Now that all threads except for the main thread have joined, we should
+  // delete the one remaining `_executor_` pointer.
+  delete _executor_;
+  _executor_ = nullptr;
+
   // This clears any remaining timers. Because the event loop has been
   // stopped, no timers will fire.
   Clock::finalize();
@@ -2661,6 +2666,11 @@ long ProcessManager::init_threads()
         }
         process_manager->resume(process);
       } while (true);
+
+      // Threads are joining. Delete the thread local `_executor_`
+      // pointer to prevent a memory leak.
+      delete _executor_;
+      _executor_ = nullptr;
     }
 
     // We hold a constant reference to `joining_threads` to make it clear that
