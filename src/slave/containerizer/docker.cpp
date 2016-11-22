@@ -819,6 +819,16 @@ Future<ResourceStatistics> DockerContainerizer::usage(
 }
 
 
+Future<ContainerStatus> DockerContainerizer::status(
+    const ContainerID& containerId)
+{
+  return dispatch(
+      process.get(),
+      &DockerContainerizerProcess::status,
+      containerId);
+}
+
+
 Future<Option<ContainerTermination>> DockerContainerizer::wait(
     const ContainerID& containerId)
 {
@@ -1935,6 +1945,15 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 
   return result;
 #endif // __linux__
+}
+
+
+Future<ContainerStatus> DockerContainerizerProcess::status(
+    const ContainerID& containerId)
+{
+  ContainerStatus result;
+  result.mutable_container_id()->CopyFrom(containerId);
+  return result;
 }
 
 

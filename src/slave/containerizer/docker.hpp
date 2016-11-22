@@ -102,6 +102,9 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId);
+
   virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId);
 
@@ -152,6 +155,9 @@ public:
       bool force);
 
   virtual process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId);
+
+  virtual process::Future<ContainerStatus> status(
       const ContainerID& containerId);
 
   virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
