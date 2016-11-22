@@ -1198,6 +1198,18 @@ void finalize()
   delete processes_route;
   processes_route = nullptr;
 
+  // Close the server socket.
+  // This will prevent any further connections managed by the `SocketManager`.
+  synchronized (socket_mutex) {
+    // Explicitly terminate the callback loop used to accept incoming
+    // connections. This is necessary as the server socket ignores
+    // most errors, including when the server socket has been closed.
+    future_accept.discard();
+
+    delete __s__;
+    __s__ = nullptr;
+  }
+
   // Terminate all running processes and prevent further processes from
   // being spawned. This will also clean up any metadata for running
   // processes held by the `SocketManager`. After this method returns,
@@ -1212,18 +1224,6 @@ void finalize()
   // This clears any remaining timers. Because the event loop has been
   // stopped, no timers will fire.
   Clock::finalize();
-
-  // Close the server socket.
-  // This will prevent any further connections managed by the `SocketManager`.
-  synchronized (socket_mutex) {
-    // Explicitly terminate the callback loop used to accept incoming
-    // connections. This is necessary as the server socket ignores
-    // most errors, including when the server socket has been closed.
-    future_accept.discard();
-
-    delete __s__;
-    __s__ = nullptr;
-  }
 
   // Clean up the socket manager.
   // Terminating processes above will also clean up any links between
