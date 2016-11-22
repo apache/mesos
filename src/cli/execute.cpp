@@ -97,6 +97,43 @@ public:
         "master",
         "Mesos master (e.g., IP:PORT).");
 
+    add(&Flags::task,
+        "task",
+        "The value could be a JSON-formatted string of `TaskInfo` or a\n"
+        "file path containing the JSON-formatted `TaskInfo`. Path must\n"
+        "be of the form `file:///path/to/file` or `/path/to/file`."
+        "\n"
+        "See the `TaskInfo` message in `mesos.proto` for the expected\n"
+        "format. NOTE: `agent_id` need not to be set.\n"
+        "\n"
+        "Example:\n"
+        "{\n"
+        "  \"name\": \"Name of the task\",\n"
+        "  \"task_id\": {\"value\" : \"Id of the task\"},\n"
+        "  \"agent_id\": {\"value\" : \"\"},\n"
+        "  \"resources\": [\n"
+        "    {\n"
+        "      \"name\": \"cpus\",\n"
+        "      \"type\": \"SCALAR\",\n"
+        "      \"scalar\": {\n"
+        "        \"value\": 0.1\n"
+        "      },\n"
+        "      \"role\": \"*\"\n"
+        "    },\n"
+        "    {\n"
+        "      \"name\": \"mem\",\n"
+        "      \"type\": \"SCALAR\",\n"
+        "      \"scalar\": {\n"
+        "        \"value\": 32\n"
+        "      },\n"
+        "      \"role\": \"*\"\n"
+        "    }\n"
+        "  ],\n"
+        "  \"command\": {\n"
+        "    \"value\": \"sleep 1000\"\n"
+        "  }\n"
+        "}");
+
     add(&Flags::task_group,
         "task_group",
         "The value could be a JSON-formatted string of `TaskGroupInfo` or a\n"
@@ -305,6 +342,7 @@ public:
 
   string master;
   Option<string> name;
+  Option<TaskInfo> task;
   Option<TaskGroupInfo> task_group;
   bool shell;
   Option<string> command;
@@ -828,21 +866,12 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
-  if (flags.task_group.isSome() &&
-      (flags.name.isSome() ||
-       flags.command.isSome() ||
-       flags.environment.isSome() ||
-       flags.appc_image.isSome()  ||
-       flags.docker_image.isSome() ||
-       flags.volumes.isSome())) {
+  if (flags.task.isSome() && flags.task_group.isSome()) {
     cerr << flags.usage(
               "Either task or task group should be set but not both. Provide"
-              " either '--name, --command, --env, --appc_image, --docker_image,"
-              " --volumes' OR '--task_group'") << endl;
+              " either '--task' OR '--task_group'") << endl;
     return EXIT_FAILURE;
-  }
-
-  if (flags.task_group.isNone()) {
+  } else if (flags.task.isNone() && flags.task_group.isNone()) {
     if (flags.name.isNone()) {
       cerr << flags.usage("Missing required option --name") << endl;
       return EXIT_FAILURE;
@@ -850,6 +879,27 @@ int main(int argc, char** argv)
 
     if (flags.shell && flags.command.isNone()) {
       cerr << flags.usage("Missing required option --command") << endl;
+      return EXIT_FAILURE;
+    }
+  } else {
+    // Either --task or --task_group is set.
+    if (flags.name.isSome() ||
+        flags.command.isSome() ||
+        flags.environment.isSome() ||
+        flags.appc_image.isSome()  ||
+        flags.docker_image.isSome() ||
+        flags.volumes.isSome()) {
+      cerr << flags.usage(
+                "'--name, --command, --env, --appc_image, --docker_image,"
+                " --volumes' can only be set when both '--task' and"
+                " '--task_group' are not set") << endl;
+      return EXIT_FAILURE;
+    }
+
+    if (flags.task.isSome() && flags.networks.isSome()) {
+      cerr << flags.usage(
+                "'--networks' can only be set when"
+                " '--task' is not set") << endl;
       return EXIT_FAILURE;
     }
   }
@@ -1022,9 +1072,9 @@ int main(int argc, char** argv)
     }
   }
 
-  Option<TaskInfo> taskInfo = None();
+  Option<TaskInfo> taskInfo = flags.task;
 
-  if (flags.task_group.isNone()) {
+  if (flags.task.isNone() && flags.task_group.isNone()) {
     TaskInfo task;
     task.set_name(flags.name.get());
     task.mutable_task_id()->set_value(flags.name.get());
