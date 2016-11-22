@@ -109,6 +109,12 @@ layout: documentation
 
 <div class="row">
   <div class="col-xs-6 col-md-4">
+    <a href="https://www.packtpub.com/big-data-and-business-intelligence/mastering-mesos" class="thumbnail">
+      <img src="https://www.packtpub.com/sites/default/files/6249OS_5186%20Mastering%20Mesos.jpg" alt="Mastering Mesos by Dipa Dubhashi and Akhil Das">
+    </a>
+    <p class="text-center">Master Mesos by Dipa Dubhashi and Akhil Das (Packt, 2016)</p>
+  </div>
+  <div class="col-xs-6 col-md-4">
     <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-essentials" class="thumbnail">
       <img src="https://www.packtpub.com/sites/default/files/9781783288762.png" alt="Apache Mesos Essentials by Dharmesh Kakadia">
     </a>
