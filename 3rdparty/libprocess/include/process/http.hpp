@@ -307,6 +307,12 @@ public:
     // is closed.
     Future<std::string> read();
 
+    // Performs a series of asynchronous reads, until EOF is reached.
+    // Returns the concatenated result of the reads.
+    // Returns Failure if the writer failed, or the read-end
+    // is closed.
+    Future<std::string> readAll();
+
     // Closing the read-end of the pipe before the write-end closes
     // or fails will notify the writer that the reader is no longer
     // interested. Returns false if the read-end was already closed.
@@ -326,6 +332,11 @@ public:
     };
 
     explicit Reader(const std::shared_ptr<Data>& _data) : data(_data) {}
+
+    // Continuation for `readAll()`.
+    static Future<std::string> _readAll(
+        Pipe::Reader reader,
+        const std::shared_ptr<std::string>& buffer);
 
     std::shared_ptr<Data> data;
   };

@@ -418,6 +418,31 @@ Future<string> Pipe::Reader::read()
 }
 
 
+Future<string> Pipe::Reader::readAll()
+{
+  std::shared_ptr<string> buffer(new string());
+
+  return _readAll(*this, buffer);
+}
+
+
+Future<string> Pipe::Reader::_readAll(
+    Pipe::Reader reader,
+    const std::shared_ptr<string>& buffer)
+{
+  return reader.read()
+    .then([reader, buffer](const string& read) -> Future<string> {
+      if (read.empty()) { // EOF.
+        return std::move(*buffer);
+      }
+
+      buffer->append(read);
+
+      return _readAll(reader, buffer);
+    });
+}
+
+
 bool Pipe::Reader::close()
 {
   bool closed = false;

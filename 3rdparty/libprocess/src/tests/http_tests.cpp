@@ -395,6 +395,46 @@ TEST(HTTPTest, PipeFailure)
 }
 
 
+TEST(HTTPTest, PipeReadAll)
+{
+  {
+    http::Pipe pipe;
+    http::Pipe::Reader reader = pipe.reader();
+    http::Pipe::Writer writer = pipe.writer();
+
+    Future<string> readAll = reader.readAll();
+    EXPECT_TRUE(readAll.isPending());
+
+    // Close the writer after writing some data. This should result in
+    // a successful `readAll()` operation.
+    EXPECT_TRUE(writer.write("hello"));
+    EXPECT_TRUE(writer.write("world"));
+
+    EXPECT_TRUE(writer.close());
+
+    AWAIT_EXPECT_EQ("helloworld", readAll);
+  }
+
+  {
+    http::Pipe pipe;
+    http::Pipe::Reader reader = pipe.reader();
+    http::Pipe::Writer writer = pipe.writer();
+
+    Future<string> readAll = reader.readAll();
+    EXPECT_TRUE(readAll.isPending());
+
+    // Fail the writer after writing some data. This should result in
+    // a failed `readAll()` operation.
+    EXPECT_TRUE(writer.write("hello"));
+    EXPECT_TRUE(writer.write("world"));
+
+    EXPECT_TRUE(writer.fail("disconnected!"));
+
+    AWAIT_EXPECT_FAILED(readAll);
+  }
+}
+
+
 TEST(HTTPTest, PipeReaderCloses)
 {
   http::Pipe pipe;
