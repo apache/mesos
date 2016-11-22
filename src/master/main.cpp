@@ -34,7 +34,9 @@
 #include <mesos/module/authorizer.hpp>
 
 #include <mesos/state/in_memory.hpp>
+#ifndef __WINDOWS__
 #include <mesos/state/log.hpp>
+#endif // __WINDOWS__
 #include <mesos/state/protobuf.hpp>
 #include <mesos/state/storage.hpp>
 
@@ -77,7 +79,9 @@
 #include "version/version.hpp"
 
 using namespace mesos::internal;
+#ifndef __WINDOWS__
 using namespace mesos::internal::log;
+#endif // __WINDOWS__
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
@@ -86,7 +90,9 @@ using mesos::MasterInfo;
 using mesos::Parameter;
 using mesos::Parameters;
 
+#ifndef __WINDOWS__
 using mesos::log::Log;
+#endif // __WINDOWS__
 
 using mesos::allocator::Allocator;
 
@@ -99,7 +105,9 @@ using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
 using mesos::state::InMemoryStorage;
+#ifndef __WINDOWS__
 using mesos::state::LogStorage;
+#endif // __WINDOWS__
 using mesos::state::Storage;
 
 using process::Owned;
@@ -377,10 +385,13 @@ int main(int argc, char** argv)
   LOG(INFO) << "Using '" << allocatorName << "' allocator";
 
   Storage* storage = nullptr;
+#ifndef __WINDOWS__
   Log* log = nullptr;
+#endif // __WINDOWS__
 
   if (flags.registry == "in_memory") {
     storage = new InMemoryStorage();
+#ifndef __WINDOWS__
   } else if (flags.registry == "replicated_log" ||
              flags.registry == "log_storage") {
     // TODO(bmahler): "log_storage" is present for backwards
@@ -429,6 +440,7 @@ int main(int argc, char** argv)
           "registrar/");
     }
     storage = new LogStorage(log);
+#endif // __WINDOWS__
   } else {
     EXIT(EXIT_FAILURE)
       << "'" << flags.registry << "' is not a supported"
@@ -573,7 +585,9 @@ int main(int argc, char** argv)
   delete registrar;
   delete state;
   delete storage;
+#ifndef __WINDOWS__
   delete log;
+#endif // __WINDOWS__
 
   delete contender;
   delete detector;

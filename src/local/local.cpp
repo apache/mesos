@@ -33,7 +33,9 @@
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <mesos/state/in_memory.hpp>
+#ifndef __WINDOWS__
 #include <mesos/state/log.hpp>
+#endif // __WINDOWS__
 #include <mesos/state/protobuf.hpp>
 #include <mesos/state/storage.hpp>
 
@@ -76,9 +78,11 @@
 #include "slave/containerizer/fetcher.hpp"
 
 using namespace mesos::internal;
+#ifndef __WINDOWS__
 using namespace mesos::internal::log;
 
 using mesos::log::Log;
+#endif // __WINDOWS__
 
 using mesos::allocator::Allocator;
 
@@ -123,7 +127,9 @@ namespace internal {
 namespace local {
 
 static Allocator* allocator = nullptr;
+#ifndef __WINDOWS__
 static Log* log = nullptr;
+#endif // __WINDOWS__
 static mesos::state::Storage* storage = nullptr;
 static mesos::state::protobuf::State* state = nullptr;
 static Registrar* registrar = nullptr;
@@ -205,6 +211,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     if (masterFlags.registry == "in_memory") {
       storage = new mesos::state::InMemoryStorage();
+#ifndef __WINDOWS__
     } else if (masterFlags.registry == "replicated_log") {
       // TODO(vinod): Add support for replicated log with ZooKeeper.
       log = new Log(
@@ -214,6 +221,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
           masterFlags.log_auto_initialize,
           "registrar/");
       storage = new mesos::state::LogStorage(log);
+#endif // __WINDOWS__
     } else {
       EXIT(EXIT_FAILURE)
         << "'" << masterFlags.registry << "' is not a supported"
@@ -511,8 +519,10 @@ void shutdown()
     delete storage;
     storage = nullptr;
 
+#ifndef __WINDOWS__
     delete log;
     log = nullptr;
+#endif // __WINDOWS__
   }
 }
 
