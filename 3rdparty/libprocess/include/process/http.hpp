@@ -414,7 +414,7 @@ private:
 struct Request
 {
   Request()
-    : keepAlive(false) {}
+    : keepAlive(false), type(BODY) {}
 
   std::string method;
 
@@ -425,11 +425,6 @@ struct Request
   URL url;
 
   Headers headers;
-
-  // TODO(bmahler): Add a 'query' field which contains both
-  // the URL query and the parsed form data from the body.
-
-  std::string body;
 
   // TODO(bmahler): Ensure this is consistent with the 'Connection'
   // header; perhaps make this a function that checks the header.
@@ -446,6 +441,23 @@ struct Request
   // For server requests, this contains the address of the client.
   // Note that this may correspond to a proxy or load balancer address.
   network::Address client;
+
+  // Clients can choose to provide the entire body at once
+  // via BODY or can choose to stream the body over to the
+  // server via PIPE.
+  //
+  // Default: BODY.
+  enum
+  {
+    BODY,
+    PIPE
+  } type;
+
+  // TODO(bmahler): Add a 'query' field which contains both
+  // the URL query and the parsed form data from the body.
+
+  std::string body;
+  Option<Pipe::Reader> reader;
 
   /**
    * Returns whether the encoding is considered acceptable in the
