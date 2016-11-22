@@ -47,6 +47,11 @@ run into any issues, file them with the library maintainers.*
   mesos-scala-api</a></td>
   <td>Scala</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/douban/pymesos">
+  PyMesos</a></td>
+  <td>Python</td>
+</tr>
 </table>
 
 ## Executor API
@@ -82,5 +87,10 @@ run into any issues, file them with the library maintainers.*
   <td><a href="https://github.com/mesos/mesos-go">
   mesos-go</a></td>
   <td>Go</td>
+</tr>
+<tr>
+  <td><a href="https://github.com/douban/pymesos">
+  PyMesos</a></td>
+  <td>Python</td>
 </tr>
 </table>
