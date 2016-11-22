@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <process/http.hpp>
-#include <process/socket.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/gzip.hpp>
@@ -43,8 +42,8 @@ namespace process {
 class DataDecoder
 {
 public:
-  explicit DataDecoder(const network::Socket& _s)
-    : s(_s), failure(false), request(nullptr)
+  DataDecoder()
+    : failure(false), request(nullptr)
   {
     settings.on_message_begin = &DataDecoder::on_message_begin;
     settings.on_url = &DataDecoder::on_url;
@@ -91,11 +90,6 @@ public:
   bool failed() const
   {
     return failure;
-  }
-
-  network::Socket socket() const
-  {
-    return s;
   }
 
 private:
@@ -261,8 +255,6 @@ private:
     decoder->request = nullptr;
     return 0;
   }
-
-  const network::Socket s; // The socket this decoder is associated with.
 
   bool failure;
 
