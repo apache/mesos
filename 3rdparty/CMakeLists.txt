@@ -124,11 +124,11 @@ endif (NOT WIN32)
 set(HTTP_PARSER_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 
 if (NOT WIN32)
-  set(HTTP_PARSER_PATCH_CMD  ${CMAKE_NOOP})
+  PATCH_CMD(${MESOS_3RDPARTY_SRC}/http-parser-${HTTP_PARSER_VERSION}.patch HTTP_PARSER_PATCH_CMD)
 elseif (WIN32)
   # Set the patch command which will utilize patch.exe under
   # `\Users\<user>\AppData\Local\Temp with no elevation prompt`
-  set(HTTP_PARSER_PATCH_CMD ${PATCHEXE_LOCATION} --binary -p1 < ${MESOS_3RDPARTY_BIN}/http-parser-${HTTP_PARSER_VERSION}.patch)
+  set(HTTP_PARSER_PATCH_CMD ${PATCHEXE_LOCATION} --binary -p1 < ${MESOS_3RDPARTY_SRC}/http-parser-${HTTP_PARSER_VERSION}.patch)
 endif (NOT WIN32)
 
 set(LIBEVENT_CMAKE_ARGS
