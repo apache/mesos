@@ -112,12 +112,17 @@ struct Flags : public virtual flags::FlagsBase
 
           return None();
         });
+
+    add(&Flags::user,
+        "user",
+        "The user this command should run as.");
   }
 
   Bytes max_size;
   Option<std::string> logrotate_options;
   Option<std::string> log_filename;
   std::string logrotate_path;
+  Option<std::string> user;
 };
 
 } // namespace rotate {

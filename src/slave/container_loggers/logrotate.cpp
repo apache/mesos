@@ -37,6 +37,7 @@
 
 #include <stout/os/pagesize.hpp>
 #include <stout/os/shell.hpp>
+#include <stout/os/su.hpp>
 #include <stout/os/write.hpp>
 
 #include "slave/container_loggers/logrotate.hpp"
@@ -240,6 +241,16 @@ int main(int argc, char** argv)
   if (::setsid() == -1) {
     EXIT(EXIT_FAILURE)
       << ErrnoError("Failed to put child in a new session").message;
+  }
+
+  // If the `--user` flag is set, change the UID of this process to that user.
+  if (flags.user.isSome()) {
+    Try<Nothing> result = os::su(flags.user.get());
+
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE)
+        << ErrnoError("Failed to switch user for logrotate process").message;
+    }
   }
 
   // Asynchronously control the flow and size of logs.
