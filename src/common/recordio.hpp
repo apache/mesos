@@ -27,6 +27,7 @@
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 
 #include <stout/lambda.hpp>
@@ -59,17 +60,23 @@ template <typename T>
 class Reader
 {
 public:
+  // We spawn `ReaderProcess` as a managed process to guarantee
+  // that it does not wait on itself (this would cause a deadlock!).
+  // See comments in `Connection::Data` for further details.
   Reader(::recordio::Decoder<T>&& decoder,
          process::http::Pipe::Reader reader)
-    : process(new internal::ReaderProcess<T>(std::move(decoder), reader))
-  {
-    process::spawn(process.get());
-  }
+    : process(process::spawn(
+        new internal::ReaderProcess<T>(std::move(decoder), reader),
+        true)) {}
 
   virtual ~Reader()
   {
-    process::terminate(process.get());
-    process::wait(process.get());
+    // Note that we pass 'false' here to avoid injecting the
+    // termination event at the front of the queue. This is
+    // to ensure we don't drop any queued request dispatches
+    // which would leave the caller with a future stuck in
+    // a pending state.
+    process::terminate(process, false);
   }
 
   /**
@@ -80,11 +87,11 @@ public:
    */
   process::Future<Result<T>> read()
   {
-    return process::dispatch(process.get(), &internal::ReaderProcess<T>::read);
+    return process::dispatch(process, &internal::ReaderProcess<T>::read);
   }
 
 private:
-  process::Owned<internal::ReaderProcess<T>> process;
+  process::PID<internal::ReaderProcess<T>> process;
 };
 
 
@@ -97,7 +104,8 @@ public:
   ReaderProcess(
       ::recordio::Decoder<T>&& _decoder,
       process::http::Pipe::Reader _reader)
-    : decoder(_decoder),
+    : process::ProcessBase(process::ID::generate("__reader__")),
+      decoder(_decoder),
       reader(_reader),
       done(false) {}
 
