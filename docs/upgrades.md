@@ -53,6 +53,24 @@ We categorize the changes as follows:
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-2-x-container-logger-interface">Container Logger prepare method</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.1.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
       <li>R <a href="#1-1-x-container-logger-interface">Container Logger recovery method</a></li>
     </ul>
     <ul style="padding-left:10px;">
@@ -204,6 +222,12 @@ We categorize the changes as follows:
 </tr>
 </table>
 
+
+## Upgrading from 1.1.x to 1.2.x ##
+
+<a name="1-2-x-container-logger-interface"></a>
+
+* Mesos 1.2 modifies the `ContainerLogger`'s `prepare()` method.  The method now takes an additional argument for the `user` the logger should run a subprocess as.  Please see [MESOS-5856](https://issues.apache.org/jira/browse/MESOS-5856) for more information.
 
 ## Upgrading from 1.0.x to 1.1.x ##
 
