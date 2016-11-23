@@ -5,6 +5,7 @@ Release Notes - Mesos - Version 1.0.3
 All Issues:
 ** Bug
     * [MESOS-6142] - Frameworks may RESERVE for an arbitrary role.
+    * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets
 
 
 Release Notes - Mesos - Version 1.0.2
