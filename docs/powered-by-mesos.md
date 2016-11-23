@@ -103,6 +103,7 @@ layout: documentation
 * [Uber](http://www.uber.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
+* [UCloud](https://www.ucloud.cn)
 * [Udacity](https://udacity.com)
 * [Uninett AS](http://www.uninett.no)
 * [URX](http://www.urx.com)
