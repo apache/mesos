@@ -1077,7 +1077,7 @@ bool initialize(
   Try<flags::Warnings> load = flags.load("LIBPROCESS_");
 
   if (load.isError()) {
-    LOG(FATAL) << flags.usage(load.error());
+    EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
   // Log any flag warnings.
