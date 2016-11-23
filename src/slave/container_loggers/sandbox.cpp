@@ -57,7 +57,8 @@ public:
 
   process::Future<ContainerLogger::SubprocessInfo> prepare(
       const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory)
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user)
   {
     ContainerLogger::SubprocessInfo info;
 
@@ -92,13 +93,15 @@ Try<Nothing> SandboxContainerLogger::initialize()
 Future<ContainerLogger::SubprocessInfo>
 SandboxContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory)
+    const std::string& sandboxDirectory,
+    const Option<std::string>& user)
 {
   return dispatch(
       process.get(),
       &SandboxContainerLoggerProcess::prepare,
       executorInfo,
-      sandboxDirectory);
+      sandboxDirectory,
+      user);
 }
 
 } // namespace slave {

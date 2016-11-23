@@ -61,7 +61,8 @@ public:
   virtual process::Future<mesos::slave::ContainerLogger::SubprocessInfo>
   prepare(
       const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory);
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user);
 
 protected:
   process::Owned<SandboxContainerLoggerProcess> process;

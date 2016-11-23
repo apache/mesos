@@ -73,7 +73,8 @@ public:
   // the files according to the configured maximum size and number of files.
   Future<SubprocessInfo> prepare(
       const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory)
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user)
   {
     // Inherit most, but not all of the agent's environment.
     // Since the subprocess links to libmesos, it will need some of the
@@ -163,6 +164,7 @@ public:
     outFlags.logrotate_options = overridenFlags.logrotate_stdout_options;
     outFlags.log_filename = path::join(sandboxDirectory, "stdout");
     outFlags.logrotate_path = flags.logrotate_path;
+    outFlags.user = user;
 
     // If we are on systemd, then extend the life of the process as we
     // do with the executor. Any grandchildren's lives will also be
@@ -220,6 +222,7 @@ public:
     errFlags.logrotate_options = overridenFlags.logrotate_stderr_options;
     errFlags.log_filename = path::join(sandboxDirectory, "stderr");
     errFlags.logrotate_path = flags.logrotate_path;
+    errFlags.user = user;
 
     Try<Subprocess> errProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
@@ -275,13 +278,15 @@ Try<Nothing> LogrotateContainerLogger::initialize()
 
 Future<SubprocessInfo> LogrotateContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory)
+    const std::string& sandboxDirectory,
+    const Option<std::string>& user)
 {
   return dispatch(
       process.get(),
       &LogrotateContainerLoggerProcess::prepare,
       executorInfo,
-      sandboxDirectory);
+      sandboxDirectory,
+      user);
 }
 
 } // namespace logger {

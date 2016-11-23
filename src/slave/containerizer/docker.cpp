@@ -1289,7 +1289,10 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
   Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
 
-  return logger->prepare(container->executor, container->directory)
+  return logger->prepare(
+      container->executor,
+      container->directory,
+      container->user)
     .then(defer(
         self(),
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
@@ -1398,7 +1401,10 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   return allocateGpus
     .then(defer(self(), [=]() {
-      return logger->prepare(container->executor, container->directory);
+      return logger->prepare(
+          container->executor,
+          container->directory,
+          container->user);
     }))
     .then(defer(
         self(),

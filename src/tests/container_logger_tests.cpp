@@ -109,7 +109,7 @@ public:
       .WillRepeatedly(Return(Nothing()));
 
     // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
-    EXPECT_CALL(*this, prepare(_, _))
+    EXPECT_CALL(*this, prepare(_, _, _))
       .WillRepeatedly(Return(mesos::slave::ContainerLogger::SubprocessInfo()));
   }
 
@@ -117,10 +117,10 @@ public:
 
   MOCK_METHOD0(initialize, Try<Nothing>(void));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       prepare,
       Future<mesos::slave::ContainerLogger::SubprocessInfo>(
-          const ExecutorInfo&, const string&));
+          const ExecutorInfo&, const string&, const Option<string>&));
 };
 
 

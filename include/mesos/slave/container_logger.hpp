@@ -150,7 +150,8 @@ public:
    */
   virtual process::Future<SubprocessInfo> prepare(
       const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory) = 0;
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user) = 0;
 };
 
 } // namespace slave {

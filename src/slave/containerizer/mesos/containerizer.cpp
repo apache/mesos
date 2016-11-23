@@ -1393,9 +1393,15 @@ Future<bool> MesosContainerizerProcess::_launch(
     executorInfo = containers_[rootContainerId]->config.executor_info();
   }
 
+  Option<string> user;
+  if (container->config.has_user()) {
+    user = container->config.user();
+  }
+
   return logger->prepare(
       executorInfo,
-      container->config.directory())
+      container->config.directory(),
+      user)
     .then(defer(
         self(),
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
