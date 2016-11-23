@@ -32,6 +32,7 @@ All Issues:
   * [MESOS-6457] - Tasks shouldn't transition from TASK_KILLING to TASK_RUNNING.
   * [MESOS-6502] - _version uses incorrect MESOS_{MAJOR,MINOR,PATCH}_VERSION in libmesos java binding.
   * [MESOS-6527] - Memory leak in the libprocess request decoder.
+  * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets
 
 
 Release Notes - Mesos - Version 0.28.2
