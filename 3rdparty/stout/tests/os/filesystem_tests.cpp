@@ -31,6 +31,7 @@
 #include <stout/os/rm.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/write.hpp>
+#include <stout/os/xattr.hpp>
 
 #include <stout/tests/utils.hpp>
 
@@ -436,3 +437,40 @@ TEST_F(FsTest, Close)
   _CrtSetReportMode(_CRT_ASSERT, previous_report_mode);
 #endif // __WINDOWS__
 }
+
+
+#if defined(__linux__) || defined(__APPLE__)
+TEST_F(FsTest, Xattr)
+{
+  const string file = path::join(os::getcwd(), UUID::random().toString());
+
+  // Create file.
+  ASSERT_SOME(os::touch(file));
+  ASSERT_TRUE(os::exists(file));
+
+  // Set an extended attribute.
+  Try<Nothing> setxattr = os::setxattr(
+      file,
+      "user.mesos.test",
+      "y",
+      0);
+
+  // Only run this test if extended attribute is supported.
+  if (setxattr.isError() && setxattr.error() == os::strerror(ENOTSUP)) {
+    return;
+  }
+
+  ASSERT_SOME(setxattr);
+
+  // Get the extended attribute.
+  Try<string> value = os::getxattr(file, "user.mesos.test");
+  ASSERT_SOME(value);
+  EXPECT_EQ(value.get(), "y");
+
+  // Remove the extended attribute.
+  ASSERT_SOME(os::removexattr(file, "user.mesos.test"));
+
+  // Get the extended attribute again which should not exist.
+  ASSERT_ERROR(os::getxattr(file, "user.mesos.test"));
+}
+#endif // __linux__ || __APPLE__
