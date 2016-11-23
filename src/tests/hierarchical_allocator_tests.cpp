@@ -1061,15 +1061,15 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
 
   // Not enough memory or cpu to be considered allocatable.
   SlaveInfo slave1 = createSlaveInfo(
-      "cpus:" + stringify(MIN_CPUS / 2) + ";"
-      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "cpus:" + stringify(MIN_CPUS / 2u) + ";"
+      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
       "disk:128");
   allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), {});
 
   // Enough cpus to be considered allocatable.
   SlaveInfo slave2 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS) + ";"
-      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
       "disk:128");
   allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), {});
 
@@ -1082,7 +1082,7 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
 
   // Enough memory to be considered allocatable.
   SlaveInfo slave3 = createSlaveInfo(
-      "cpus:" + stringify(MIN_CPUS / 2) + ";"
+      "cpus:" + stringify(MIN_CPUS / 2u) + ";"
       "mem:" + stringify((MIN_MEM).megabytes()) + ";"
       "disk:128");
   allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), {});
@@ -1097,10 +1097,10 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // slave4 has enough cpu and memory to be considered allocatable,
   // but it lies across unreserved and reserved resources!
   SlaveInfo slave4 = createSlaveInfo(
-      "cpus:" + stringify(MIN_CPUS / 1.5) + ";"
-      "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
-      "cpus(role1):" + stringify(MIN_CPUS / 1.5) + ";"
-      "mem(role1):" + stringify((MIN_MEM / 2).megabytes()) + ";"
+      "cpus:" + stringify(MIN_CPUS * 3u / 2u) + ";"
+      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
+      "cpus(role1):" + stringify(MIN_CPUS * 3u / 2u) + ";"
+      "mem(role1):" + stringify((MIN_MEM / 2u).megabytes()) + ";"
       "disk:128");
   allocator->addSlave(slave4.id(), slave4, None(), slave4.resources(), {});
 
