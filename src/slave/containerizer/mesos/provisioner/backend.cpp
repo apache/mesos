@@ -23,6 +23,7 @@
 #endif
 
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/provisioner/backends/aufs.hpp"
@@ -46,14 +47,14 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
   hashmap<string, Try<Owned<Backend>>(*)(const Flags&)> creators;
 
 #ifdef __linux__
-  creators.put("bind", &BindBackend::create);
+  creators.put(BIND_BACKEND, &BindBackend::create);
 
   Try<bool> aufsSupported = fs::supported("aufs");
   if (aufsSupported.isError()) {
     LOG(WARNING) << "Failed to check aufs availability: '"
                  << aufsSupported.error();
   } else if (aufsSupported.get()) {
-    creators.put("aufs", &AufsBackend::create);
+    creators.put(AUFS_BACKEND, &AufsBackend::create);
   }
 
   Try<bool> overlayfsSupported = fs::supported("overlayfs");
@@ -61,11 +62,11 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
     LOG(WARNING) << "Failed to check overlayfs availability: '"
                  << overlayfsSupported.error();
   } else if (overlayfsSupported.get()) {
-    creators.put("overlay", &OverlayBackend::create);
+    creators.put(OVERLAY_BACKEND, &OverlayBackend::create);
   }
 #endif // __linux__
 
-  creators.put("copy", &CopyBackend::create);
+  creators.put(COPY_BACKEND, &CopyBackend::create);
 
   hashmap<string, Owned<Backend>> backends;
 
