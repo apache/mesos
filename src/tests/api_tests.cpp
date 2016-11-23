@@ -53,6 +53,8 @@
 
 #include "tests/containerizer/mock_containerizer.hpp"
 
+namespace http = process::http;
+
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
@@ -74,14 +76,6 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 using process::Promise;
-
-using process::http::Accepted;
-using process::http::BadRequest;
-using process::http::NotFound;
-using process::http::NotImplemented;
-using process::http::OK;
-using process::http::Pipe;
-using process::http::Response;
 
 using recordio::Decoder;
 
@@ -108,18 +102,18 @@ public:
       const v1::master::Call& call,
       const ContentType& contentType)
   {
-    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
     headers["Accept"] = stringify(contentType);
 
-    return process::http::post(
+    return http::post(
         pid,
         "api/v1",
         headers,
         serialize(contentType, call),
         stringify(contentType))
-      .then([contentType](const Response& response)
+      .then([contentType](const http::Response& response)
             -> Future<v1::master::Response> {
-        if (response.status != OK().status) {
+        if (response.status != http::OK().status) {
           return Failure("Unexpected response status " + response.status);
         }
         return deserialize<v1::master::Response>(contentType, response.body);
@@ -748,17 +742,17 @@ TEST_P(MasterAPITest, SetLoggingLevel)
   setLoggingLevel->mutable_duration()->set_nanoseconds(toggleDuration.ns());
 
   ContentType contentType = GetParam();
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
-  Future<Nothing> v1Response = process::http::post(
+  Future<Nothing> v1Response = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1Call),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -828,14 +822,14 @@ TEST_P(MasterAPITest, ListFilesInvalidPath)
 
   ContentType contentType = GetParam();
 
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
     master.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
 }
 
 
@@ -987,14 +981,14 @@ TEST_P(MasterAPITest, ReserveResources)
 
   ContentType contentType = GetParam();
 
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
     master.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, response);
 
   AWAIT_READY(offers);
 
@@ -1051,14 +1045,14 @@ TEST_P(MasterAPITest, UnreserveResources)
 
   ContentType contentType = GetParam();
 
-  Future<Response> reserveResponse = process::http::post(
+  Future<http::Response> reserveResponse = http::post(
     master.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, reserveResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, reserveResponse);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1096,14 +1090,14 @@ TEST_P(MasterAPITest, UnreserveResources)
   unreserveResources->mutable_resources()->CopyFrom(
       evolve(dynamicallyReserved));
 
-  Future<Response> unreserveResponse = process::http::post(
+  Future<http::Response> unreserveResponse = http::post(
     master.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, unreserveResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, unreserveResponse);
 
   AWAIT_READY(offers);
 
@@ -1126,7 +1120,7 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
   ASSERT_SOME(master);
 
   ContentType contentType = GetParam();
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
   // Generate `MachineID`s that can be used in this test.
@@ -1146,14 +1140,14 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
     v1UpdateScheduleCall.mutable_update_maintenance_schedule();
   maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
 
-  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+  Future<Nothing> v1UpdateScheduleResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1192,7 +1186,7 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
   ASSERT_SOME(master);
 
   ContentType contentType = GetParam();
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
   // Generate `MachineID`s that can be used in this test.
@@ -1212,14 +1206,14 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
     v1UpdateScheduleCall.mutable_update_maintenance_schedule();
   maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
 
-  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+  Future<Nothing> v1UpdateScheduleResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1258,7 +1252,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
   ASSERT_SOME(master);
 
   ContentType contentType = GetParam();
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
   // Generate `MachineID`s that can be used in this test.
@@ -1284,14 +1278,14 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     v1UpdateScheduleCall.mutable_update_maintenance_schedule();
   maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
 
-  Future<Nothing> v1UpdateScheduleResponse = process::http::post(
+  Future<Nothing> v1UpdateScheduleResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1306,14 +1300,14 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     v1StartMaintenanceCall.mutable_start_maintenance();
   startMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
-  Future<Nothing> v1StartMaintenanceResponse = process::http::post(
+  Future<Nothing> v1StartMaintenanceResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1StartMaintenanceCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1328,14 +1322,14 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     v1StopMaintenanceCall.mutable_stop_maintenance();
   stopMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
-  Future<Nothing> v1StopMaintenanceResponse = process::http::post(
+  Future<Nothing> v1StopMaintenanceResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1StopMaintenanceCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1378,23 +1372,23 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::SUBSCRIBE);
 
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
 
   headers["Accept"] = stringify(contentType);
 
-  Future<Response> response = process::http::streaming::post(
+  Future<http::Response> response = http::streaming::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1Call),
       stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
   ASSERT_SOME(response->reader);
 
-  Pipe::Reader reader = response->reader.get();
+  http::Pipe::Reader reader = response->reader.get();
 
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
@@ -1525,23 +1519,23 @@ TEST_P(MasterAPITest, Subscribe)
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::SUBSCRIBE);
 
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
 
   headers["Accept"] = stringify(contentType);
 
-  Future<Response> response = process::http::streaming::post(
+  Future<http::Response> response = http::streaming::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1Call),
       stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
   ASSERT_SOME(response->reader);
 
-  Pipe::Reader reader = response->reader.get();
+  http::Pipe::Reader reader = response->reader.get();
 
   auto deserializer =
     lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
@@ -1672,14 +1666,14 @@ TEST_P(MasterAPITest, GetQuota)
     quotaRequest->mutable_guarantee()->CopyFrom(quotaResources);
 
     // Send a quota request for the specified role.
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
         master.get()->pid,
         "api/v1",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         serialize(contentType, v1Call),
         stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 
   // Verify the quota is set using the `GET_QUOTA` call.
@@ -1723,14 +1717,14 @@ TEST_P(MasterAPITest, SetQuota)
   ContentType contentType = GetParam();
 
   // Send a quota request for the specified role.
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
       master.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, v1Call),
       stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
 }
 
 
@@ -1760,14 +1754,14 @@ TEST_P(MasterAPITest, RemoveQuota)
     ContentType contentType = GetParam();
 
     // Send a quota request for the specified role.
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
         master.get()->pid,
         "api/v1",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         serialize(contentType, v1Call),
         stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 
   // Verify if the quota is set using `GET_QUOTA` call.
@@ -1797,14 +1791,14 @@ TEST_P(MasterAPITest, RemoveQuota)
     ContentType contentType = GetParam();
 
     // Send a quota request for the specified role.
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
         master.get()->pid,
         "api/v1",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         serialize(contentType, v1Call),
         stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 
   // Verify if the quota is removed using `GET_QUOTA` call.
@@ -1876,17 +1870,17 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
 
   ContentType contentType = GetParam();
 
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
-  Future<Nothing> v1CreateVolumesResponse = process::http::post(
+  Future<Nothing> v1CreateVolumesResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1CreateVolumesCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != Accepted().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::Accepted().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -1952,14 +1946,14 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   destroyVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
   destroyVolumes->add_volumes()->CopyFrom(evolve(volume));
 
-  Future<Nothing> v1DestroyVolumesResponse = process::http::post(
+  Future<Nothing> v1DestroyVolumesResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1DestroyVolumesCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != Accepted().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::Accepted().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -2029,17 +2023,17 @@ TEST_P(MasterAPITest, UpdateWeights)
   weightInfo->set_role("role");
   weightInfo->set_weight(4.0);
 
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
-  Future<Nothing> updateResponse = process::http::post(
+  Future<Nothing> updateResponse = http::post(
       master.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, updateCall),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -2181,14 +2175,14 @@ TEST_P(MasterAPITest, ReadFileInvalidPath)
 
   ContentType contentType = GetParam();
 
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
     master.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
 }
 
 
@@ -2204,18 +2198,18 @@ public:
       const v1::agent::Call& call,
       const ContentType& contentType)
   {
-    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
     headers["Accept"] = stringify(contentType);
 
-    return process::http::post(
+    return http::post(
         pid,
         "api/v1",
         headers,
         serialize(contentType, call),
         stringify(contentType))
-      .then([contentType](const Response& response)
+      .then([contentType](const http::Response& response)
             -> Future<v1::agent::Response> {
-        if (response.status != OK().status) {
+        if (response.status != http::OK().status) {
           return Failure("Unexpected response status " + response.status);
         }
         return deserialize<v1::agent::Response>(contentType, response.body);
@@ -2425,17 +2419,17 @@ TEST_P(AgentAPITest, SetLoggingLevel)
   setLoggingLevel->mutable_duration()->set_nanoseconds(toggleDuration.ns());
 
   ContentType contentType = GetParam();
-  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = stringify(contentType);
 
-  Future<Nothing> v1Response = process::http::post(
+  Future<Nothing> v1Response = http::post(
       slave.get()->pid,
       "api/v1",
       headers,
       serialize(contentType, v1Call),
       stringify(contentType))
-    .then([contentType](const Response& response) -> Future<Nothing> {
-      if (response.status != OK().status) {
+    .then([contentType](const http::Response& response) -> Future<Nothing> {
+      if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
       return Nothing();
@@ -2523,14 +2517,14 @@ TEST_P(AgentAPITest, ListFilesInvalidPath)
 
   ContentType contentType = GetParam();
 
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
     slave.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
 }
 
 
@@ -2780,14 +2774,14 @@ TEST_P(AgentAPITest, ReadFileInvalidPath)
 
   ContentType contentType = GetParam();
 
-  Future<Response> response = process::http::post(
+  Future<http::Response> response = http::post(
     slave.get()->pid,
     "api/v1",
     createBasicAuthHeaders(DEFAULT_CREDENTIAL),
     serialize(contentType, v1Call),
     stringify(contentType));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
 }
 
 
@@ -3309,14 +3303,14 @@ TEST_P(AgentAPITest, NestedContainerWaitNotFound)
     call.mutable_wait_nested_container()->mutable_container_id()
       ->CopyFrom(unknownContainerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
   }
 
   // The destructor of `cluster::Slave` will try to clean up any
@@ -3364,14 +3358,14 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
     call.mutable_kill_nested_container()->mutable_container_id()
       ->CopyFrom(unknownContainerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotFound().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotFound().status, response);
   }
 
   // The destructor of `cluster::Slave` will try to clean up any
@@ -3446,14 +3440,14 @@ TEST_P(AgentAPITest, NestedContainerLaunchFalse)
     call.mutable_launch_nested_container()->mutable_container_id()
       ->CopyFrom(containerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
   }
 
   EXPECT_CALL(exec, shutdown(_))
@@ -3495,14 +3489,14 @@ TEST_P(AgentAPITest, NestedContainerLaunchGrandchildNotSupported)
     call.mutable_launch_nested_container()->mutable_container_id()
       ->CopyFrom(containerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotImplemented().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotImplemented().status, response);
   }
 }
 
@@ -3565,14 +3559,14 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
     call.mutable_launch_nested_container()->mutable_container_id()
       ->CopyFrom(containerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 
   Future<v1::agent::Response> wait;
@@ -3599,14 +3593,14 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
     call.mutable_kill_nested_container()->mutable_container_id()
       ->CopyFrom(containerId);
 
-    Future<Response> response = process::http::post(
+    Future<http::Response> response = http::post(
       slave.get()->pid,
       "api/v1",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       serialize(contentType, call),
       stringify(contentType));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 
   AWAIT_READY(wait);
