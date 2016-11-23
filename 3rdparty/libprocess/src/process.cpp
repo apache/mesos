@@ -91,6 +91,7 @@
 #include <process/ssl/flags.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
@@ -99,6 +100,7 @@
 #include <stout/os.hpp>
 #include <stout/os/strerror.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/thread_local.hpp>
@@ -149,6 +151,72 @@ using std::stringstream;
 using std::vector;
 
 namespace process {
+
+namespace internal {
+
+// These are environment variables expected in `process::initialize`.
+// All these flags should be loaded with the prefix "LIBPROCESS_".
+struct Flags : public virtual flags::FlagsBase
+{
+  Flags()
+  {
+    add(&Flags::ip,
+        "ip",
+        "The IP address for communication to and from libprocess.\n"
+        "If not specified, libprocess will attempt to reverse-DNS lookup\n"
+        "the hostname and use that IP instead.");
+
+    add(&Flags::advertise_ip,
+        "advertise_ip",
+        "The IP address that will be advertised to the outside world\n"
+        "for communication to and from libprocess.  This is useful,\n"
+        "for example, for containerized tasks in which communication\n"
+        "is bound locally to a non-public IP that will be inaccessible\n"
+        "to the master.");
+
+    add(&Flags::port,
+        "port",
+        "The port for communication to and from libprocess.\n"
+        "If not specified or set to 0, libprocess will bind it to a random\n"
+        "available port.",
+        [](const Option<int>& value) -> Option<Error> {
+          if (value.isSome()) {
+            if (value.get() < 0 || value.get() > USHRT_MAX) {
+              return Error(
+                  "LIBPROCESS_PORT=" + stringify(value.get()) +
+                  " is not a valid port");
+            }
+          }
+
+          return None();
+        });
+
+    add(&Flags::advertise_port,
+        "advertise_port",
+        "The port that will be advertised to the outside world\n"
+        "for communication to and from libprocess.  NOTE: This port\n"
+        "will not actually be bound (only the local '--port' will be), so\n"
+        "redirection to the local IP and port must be provided separately.",
+        [](const Option<int>& value) -> Option<Error> {
+          if (value.isSome()) {
+            if (value.get() <= 0 || value.get() > USHRT_MAX) {
+              return Error(
+                  "LIBPROCESS_ADVERTISE_PORT=" + stringify(value.get()) +
+                  " is not a valid port");
+            }
+          }
+
+          return None();
+        });
+  }
+
+  Option<net::IP> ip;
+  Option<net::IP> advertise_ip;
+  Option<int> port;
+  Option<int> advertise_port;
+};
+
+} // namespace internal {
 
 namespace ID {
 
@@ -1001,28 +1069,28 @@ bool initialize(
 
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
+  // Fill in the local IP and port for inter-libprocess communication.
   __address__ = Address::LOCALHOST_ANY();
 
-  // Check environment for ip.
-  Option<string> value = os::getenv("LIBPROCESS_IP");
-  if (value.isSome()) {
-    Try<net::IP> ip = net::IP::parse(value.get(), AF_INET);
-    if (ip.isError()) {
-      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value.get()
-                 << " failed: " << ip.error();
-    }
-    __address__.ip = ip.get();
+  // Fetch and parse the libprocess environment variables.
+  internal::Flags flags;
+  Try<flags::Warnings> load = flags.load("LIBPROCESS_");
+
+  if (load.isError()) {
+    LOG(FATAL) << flags.usage(load.error());
   }
 
-  // Check environment for port.
-  value = os::getenv("LIBPROCESS_PORT");
-  if (value.isSome()) {
-    Try<int> result = numify<int>(value.get().c_str());
-    if (result.isSome() && result.get() >=0 && result.get() <= USHRT_MAX) {
-      __address__.port = result.get();
-    } else {
-      LOG(FATAL) << "LIBPROCESS_PORT=" << value.get() << " is not a valid port";
-    }
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
+
+  if (flags.ip.isSome()) {
+    __address__.ip = flags.ip.get();
+  }
+
+  if (flags.port.isSome()) {
+    __address__.port = flags.port.get();
   }
 
   // Create a "server" socket for communicating.
@@ -1053,25 +1121,12 @@ bool initialize(
   __address__ = bind.get();
 
   // If advertised IP and port are present, use them instead.
-  value = os::getenv("LIBPROCESS_ADVERTISE_IP");
-  if (value.isSome()) {
-    Try<net::IP> ip = net::IP::parse(value.get(), AF_INET);
-    if (ip.isError()) {
-      LOG(FATAL) << "Parsing LIBPROCESS_ADVERTISE_IP=" << value.get()
-                 << " failed: " << ip.error();
-    }
-    __address__.ip = ip.get();
+  if (flags.advertise_ip.isSome()) {
+    __address__.ip = flags.advertise_ip.get();
   }
 
-  value = os::getenv("LIBPROCESS_ADVERTISE_PORT");
-  if (value.isSome()) {
-    Try<int> result = numify<int>(value.get().c_str());
-    if (result.isSome() && result.get() >=0 && result.get() <= USHRT_MAX) {
-      __address__.port = result.get();
-    } else {
-      LOG(FATAL) << "LIBPROCESS_ADVERTISE_PORT=" << value.get()
-                 << " is not a valid port";
-    }
+  if (flags.advertise_port.isSome()) {
+    __address__.port = flags.advertise_port.get();
   }
 
   // Lookup hostname if missing ip or if ip is 0.0.0.0 in case we
