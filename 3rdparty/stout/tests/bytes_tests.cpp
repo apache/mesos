@@ -44,9 +44,9 @@ TEST(BytesTest, Arithmetic)
   EXPECT_EQ(Terabytes(1), Gigabytes(512) + Gigabytes(512));
   EXPECT_EQ(Terabytes(1), Terabytes(2) - Terabytes(1));
 
-  EXPECT_EQ(Terabytes(1), Gigabytes(1) * 1024);
+  EXPECT_EQ(Terabytes(1), Gigabytes(1) * 1024u);
 
-  EXPECT_EQ(Gigabytes(1), Terabytes(1) / 1024);
+  EXPECT_EQ(Gigabytes(1), Terabytes(1) / 1024u);
 }
 
 

@@ -97,24 +97,14 @@ public:
     return *this;
   }
 
-  Bytes& operator*=(double multiplier)
+  Bytes& operator*=(uint64_t multiplier)
   {
-    if (multiplier < 0) {
-      ABORT("Multiplying Bytes by negative multiplier "
-            "'" + stringify(multiplier) + "'");
-    }
-
     value *= multiplier;
     return *this;
   }
 
-  Bytes& operator/=(double divisor)
+  Bytes& operator/=(uint64_t divisor)
   {
-    if (divisor < 0) {
-      ABORT("Dividing Bytes by negative divisor "
-            "'" + stringify(divisor) + "'");
-    }
-
     value /= divisor;
     return *this;
   }
@@ -194,26 +184,16 @@ inline Bytes operator-(const Bytes& lhs, const Bytes& rhs)
 }
 
 
-inline Bytes operator*(const Bytes& lhs, double multiplier)
+inline Bytes operator*(const Bytes& lhs, uint64_t multiplier)
 {
-  if (multiplier < 0) {
-    ABORT("Multiplying Bytes by negative multiplier "
-          "'" + stringify(multiplier) + "'");
-  }
-
   Bytes result = lhs;
   result *= multiplier;
   return result;
 }
 
 
-inline Bytes operator/(const Bytes& lhs, double divisor)
+inline Bytes operator/(const Bytes& lhs, uint64_t divisor)
 {
-  if (divisor < 0) {
-    ABORT("Dividing Bytes by negative divisor "
-          "'" + stringify(divisor) + "'");
-  }
-
   Bytes result = lhs;
   result /= divisor;
   return result;
