@@ -549,10 +549,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   EXPECT_SOME_FALSE(find);
 
-  // Now verify that the TaskStatus contains the container IP address.
-  ASSERT_TRUE(statusRunning.get().has_container_status());
-  EXPECT_EQ(1, statusRunning.get().container_status().network_infos().size());
-  EXPECT_EQ(1, statusRunning.get().container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
+  // Now verify the ContainerStatus fields in the TaskStatus.
+  ASSERT_TRUE(statusRunning->has_container_status());
+  EXPECT_TRUE(statusRunning->container_status().has_container_id());
+  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
+  EXPECT_EQ(1, statusRunning->container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
