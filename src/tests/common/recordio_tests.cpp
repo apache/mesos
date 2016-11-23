@@ -159,3 +159,116 @@ TEST(RecordIOReaderTest, PipeFailure)
   // Subsequent reads should return a failure.
   AWAIT_EXPECT_FAILED(reader.read());
 }
+
+
+// This test verifies that when an EOF is received by the `writer` used
+// in `transform`, the future returned to the caller is satisfied.
+TEST(RecordIOTransformTest, EndOfFile)
+{
+  // Write some data to the pipe so that records
+  // are available before any reads occur.
+  ::recordio::Encoder<string> encoder(strings::upper);
+
+  string data;
+
+  data += encoder.encode("hello ");
+  data += encoder.encode("world! ");
+
+  process::http::Pipe pipeA;
+  pipeA.writer().write(data);
+
+  process::Owned<internal::recordio::Reader<string>> reader(
+    new internal::recordio::Reader<string>(
+        ::recordio::Decoder<string>(strings::lower),
+        pipeA.reader()));
+
+  process::http::Pipe pipeB;
+
+  auto trim = [](const string& str) { return strings::trim(str); };
+
+  Future<Nothing> transform = internal::recordio::transform<string>(
+      std::move(reader), trim, pipeB.writer());
+
+  Future<string> future = pipeB.reader().readAll();
+
+  pipeA.writer().close();
+
+  AWAIT_READY(transform);
+
+  pipeB.writer().close();
+
+  AWAIT_ASSERT_EQ("helloworld!", future);
+}
+
+
+// This test verifies that when the write end of the `reader` used in
+// `transform` fails, a failure is returned to the caller.
+TEST(RecordIOTransformTest, ReaderWriterEndFail)
+{
+  // Write some data to the pipe so that records
+  // are available before any reads occur.
+  ::recordio::Encoder<string> encoder(strings::upper);
+
+  string data;
+
+  data += encoder.encode("hello ");
+  data += encoder.encode("world! ");
+
+  process::http::Pipe pipeA;
+  pipeA.writer().write(data);
+
+  process::Owned<internal::recordio::Reader<string>> reader(
+    new internal::recordio::Reader<string>(
+        ::recordio::Decoder<string>(strings::lower),
+        pipeA.reader()));
+
+  process::http::Pipe pipeB;
+
+  auto trim = [](const string& str) { return strings::trim(str); };
+
+  Future<Nothing> transform = internal::recordio::transform<string>(
+      std::move(reader), trim, pipeB.writer());
+
+  Future<string> future = pipeB.reader().readAll();
+
+  pipeA.writer().fail("Writer failure");
+
+  AWAIT_FAILED(transform);
+  ASSERT_TRUE(future.isPending());
+}
+
+
+// This test verifies that when the read end of the `writer` used in
+// `transform` is closed, a failure is returned to the caller.
+TEST(RecordIOTransformTest, WriterReadEndFail)
+{
+  // Write some data to the pipe so that records
+  // are available before any reads occur.
+  ::recordio::Encoder<string> encoder(strings::upper);
+
+  string data;
+
+  data += encoder.encode("hello ");
+  data += encoder.encode("world! ");
+
+  process::http::Pipe pipeA;
+  pipeA.writer().write(data);
+
+  process::Owned<internal::recordio::Reader<string>> reader(
+    new internal::recordio::Reader<string>(
+        ::recordio::Decoder<string>(strings::lower),
+        pipeA.reader()));
+
+  process::http::Pipe pipeB;
+
+  auto trim = [](const string& str) { return strings::trim(str); };
+
+  pipeB.reader().close();
+
+  Future<Nothing> transform = internal::recordio::transform<string>(
+      std::move(reader), trim, pipeB.writer());
+
+  pipeA.writer().close();
+
+  AWAIT_FAILED(transform);
+}

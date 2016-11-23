@@ -31,6 +31,7 @@
 #include <process/process.hpp>
 
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
 #include <stout/recordio.hpp>
 #include <stout/result.hpp>
 
@@ -93,6 +94,46 @@ public:
 private:
   process::PID<internal::ReaderProcess<T>> process;
 };
+
+
+/**
+ * This is a helper function that reads records from a `Reader`, applies
+ * a transformation to the records and writes to the pipe.
+ *
+ * Returns a failed future if there are any errors reading or writing.
+ * The future is satisfied when we get a EOF.
+ *
+ * TODO(vinod): Split this method into primitives that can transform a
+ * stream of bytes to a stream of typed records that can be further transformed.
+ * See the TODO above in `Reader` for further details.
+ */
+template <typename T>
+process::Future<Nothing> transform(
+    process::Owned<Reader<T>>&& reader,
+    const std::function<std::string(const T&)>& func,
+    process::http::Pipe::Writer writer)
+{
+  return reader->read()
+    .then([=](const Result<T>& record) mutable -> process::Future<Nothing> {
+      // This could happen if EOF is sent by the writer.
+      if (record.isNone()) {
+        return Nothing();
+      }
+
+      // This could happen if there is a de-serialization error.
+      if (record.isError()) {
+        return process::Failure(record.error());
+      }
+
+      // TODO(vinod): Instead of detecting that the reader went away only
+      // after attempting a write, leverage `writer.readerClosed` future.
+      if (!writer.write(func(record.get()))) {
+        return process::Failure("Write failed to the pipe");
+      }
+
+      return transform(std::move(reader), func, writer);
+  });
+}
 
 
 namespace internal {
