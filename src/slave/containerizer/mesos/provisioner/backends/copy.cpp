@@ -16,6 +16,8 @@
 
 #include <list>
 
+#include <mesos/docker/spec.hpp>
+
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -24,14 +26,12 @@
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
-
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 
 #include "common/status_utils.hpp"
 
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
-
 
 using namespace process;
 
@@ -128,9 +128,93 @@ Future<Nothing> CopyBackendProcess::provision(
 
 
 Future<Nothing> CopyBackendProcess::_provision(
-  string layer,
-  const string& rootfs)
+    string layer,
+    const string& rootfs)
 {
+#ifndef __WINDOWS__
+  // Traverse the layer to check if there is any whiteout files, if
+  // yes, remove the corresponding files/directories from the rootfs.
+  // Note: We assume all image types use AUFS whiteout format.
+  char* source[] = {const_cast<char*>(layer.c_str()), nullptr};
+
+  FTS* tree = ::fts_open(source, FTS_NOCHDIR | FTS_PHYSICAL, nullptr);
+  if (tree == nullptr) {
+    return Failure("Failed to open '" + layer + "': " + os::strerror(errno));
+  }
+
+  vector<string> whiteouts;
+  for (FTSENT *node = ::fts_read(tree);
+       node != nullptr; node = ::fts_read(tree)) {
+    if (node->fts_info != FTS_F) {
+      continue;
+    }
+
+    if (!strings::startsWith(node->fts_name, docker::spec::WHITEOUT_PREFIX)) {
+      continue;
+    }
+
+    string ftsPath = string(node->fts_path);
+    Path whiteout = Path(ftsPath.substr(layer.length() + 1));
+
+    // Keep the relative paths of the whiteout files, we will
+    // remove them from rootfs after layer is copied to rootfs.
+    whiteouts.push_back(whiteout.string());
+
+    if (node->fts_name == string(docker::spec::WHITEOUT_OPAQUE_PREFIX)) {
+      const string path = path::join(rootfs, Path(whiteout).dirname());
+
+      // Remove the entries under the directory labeled
+      // as opaque whiteout from rootfs.
+      Try<Nothing> rmdir = os::rmdir(path, true, false);
+      if (rmdir.isError()) {
+        ::fts_close(tree);
+        return Failure(
+            "Failed to remove the entries under the directory labeled as"
+            " opaque whiteout '" + path + "': " + rmdir.error());
+      }
+    } else {
+      const string path = path::join(
+          rootfs,
+          whiteout.dirname(),
+          whiteout.basename().substr(strlen(docker::spec::WHITEOUT_PREFIX)));
+
+      // The file/directory labeled as whiteout may have already been
+      // removed with the code above due to its parent directory labeled
+      // as opaque whiteout, so here we need to check if it still exists
+      // before trying to remove it.
+      if (os::exists(path)) {
+        if (os::stat::isdir(path)) {
+          Try<Nothing> rmdir = os::rmdir(path);
+          if (rmdir.isError()) {
+            ::fts_close(tree);
+            return Failure(
+                "Failed to remove the directory labeled as whiteout '" +
+                path + "': " + rmdir.error());
+          }
+        } else {
+          Try<Nothing> rm = os::rm(path);
+          if (rm.isError()) {
+            ::fts_close(tree);
+            return Failure(
+                "Failed to remove the file labeled as whiteout '" +
+                path + "': " + rm.error());
+          }
+        }
+      }
+    }
+  }
+
+  if (errno != 0) {
+    Error error = ErrnoError();
+    ::fts_close(tree);
+    return Failure(error);
+  }
+
+  if (::fts_close(tree) != 0) {
+    return Failure(
+        "Failed to stop traversing file system: " + os::strerror(errno));
+  }
+
   VLOG(1) << "Copying layer path '" << layer << "' to rootfs '" << rootfs
           << "'";
 
@@ -160,7 +244,7 @@ Future<Nothing> CopyBackendProcess::_provision(
   Subprocess cp = s.get();
 
   return cp.status()
-    .then([cp](const Option<int>& status) -> Future<Nothing> {
+    .then([=](const Option<int>& status) -> Future<Nothing> {
       if (status.isNone()) {
         return Failure("Failed to reap subprocess to copy image");
       } else if (status.get() != 0) {
@@ -170,8 +254,22 @@ Future<Nothing> CopyBackendProcess::_provision(
           });
       }
 
+      // Remove the whiteout files from rootfs.
+      foreach (const string whiteout, whiteouts) {
+        Try<Nothing> rm = os::rm(path::join(rootfs, whiteout));
+        if (rm.isError()) {
+          return Failure(
+              "Failed to remove whiteout file '" +
+              whiteout + "': " + rm.error());
+        }
+      }
+
       return Nothing();
     });
+#else
+  return Failure(
+      "Provisioning a rootfs from an image is not supported on Windows");
+#endif // __WINDOWS__
 }
 
 

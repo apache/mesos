@@ -30,6 +30,9 @@
 
 #include <mesos/docker/spec.hpp>
 
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
+#include "slave/containerizer/mesos/provisioner/utils.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
@@ -331,6 +334,23 @@ Future<Nothing> StoreProcess::moveLayer(
       flags.docker_store_dir,
       layerId);
 
+  const string sourceRootfs = paths::getImageLayerRootfsPath(
+      source,
+      flags.image_provisioner_backend);
+
+#ifdef __linux__
+  // If the backend is "overlay", we need to convert
+  // AUFS whiteout files to OverlayFS whiteout files.
+  if (flags.image_provisioner_backend == OVERLAY_BACKEND) {
+    Try<Nothing> convert = convertWhiteouts(sourceRootfs);
+    if (convert.isError()) {
+      return Failure(
+          "Failed to convert the whiteout files under '" +
+          sourceRootfs + "': " + convert.error());
+    }
+  }
+#endif
+
   if (!os::exists(target)) {
     // This is the case that we pull the layer for the first time.
     Try<Nothing> mkdir = os::mkdir(target);
@@ -349,10 +369,6 @@ Future<Nothing> StoreProcess::moveLayer(
   } else {
     // This is the case where the layer has already been pulled with a
     // different backend.
-    const string sourceRootfs = paths::getImageLayerRootfsPath(
-        source,
-        flags.image_provisioner_backend);
-
     Try<Nothing> rename = os::rename(sourceRootfs, targetRootfs);
     if (rename.isError()) {
       return Failure(

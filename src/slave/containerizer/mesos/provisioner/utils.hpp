@@ -14,19 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_CONTAINERIZER_UTILS_HPP__
-#define __MESOS_CONTAINERIZER_UTILS_HPP__
+#ifndef __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
+#define __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
 
-#include <mesos/mesos.hpp>
+#include <string>
+
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-ContainerID getRootContainerId(const ContainerID& containerId);
+#ifdef __linux__
+Try<Nothing> convertWhiteouts(const std::string& directory);
+#endif
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_CONTAINERIZER_UTILS_HPP__
+#endif // __MESOS_CONTAINERIZER_PROVISIONER_UTILS_HPP__
