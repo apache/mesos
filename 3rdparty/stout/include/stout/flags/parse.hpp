@@ -19,6 +19,7 @@
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -73,6 +74,13 @@ template <>
 inline Try<Bytes> parse(const std::string& value)
 {
   return Bytes::parse(value);
+}
+
+
+template <>
+inline Try<net::IP> parse(const std::string& value)
+{
+  return net::IP::parse(value, AF_INET);
 }
 
 
