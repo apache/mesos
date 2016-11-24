@@ -289,7 +289,9 @@ public:
     Owned<Launcher> launcher(launcher_.get());
 
     // Create and initialize a new container io switchboard.
-    Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+    Try<Owned<IOSwitchboard>> ioSwitchboard =
+      IOSwitchboard::create(flags, false);
+
     if (ioSwitchboard.isError()) {
       return Error("Failed to create container io switchboard:"
                    " " + ioSwitchboard.error());
@@ -302,7 +304,6 @@ public:
 
     return new MesosContainerizer(
         flags,
-        false,
         fetcher,
         std::move(ioSwitchboard.get()),
         std::move(launcher),
@@ -720,7 +721,6 @@ class MockMesosContainerizerProcess : public MesosContainerizerProcess
 public:
   MockMesosContainerizerProcess(
       const slave::Flags& flags,
-      bool local,
       Fetcher* fetcher,
       const Owned<IOSwitchboard>& ioSwitchboard,
       const Owned<Launcher>& launcher,
@@ -728,7 +728,6 @@ public:
       const vector<Owned<Isolator>>& isolators)
     : MesosContainerizerProcess(
           flags,
-          local,
           fetcher,
           ioSwitchboard,
           launcher,
@@ -773,7 +772,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -781,7 +780,6 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),
@@ -852,7 +850,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -860,7 +858,6 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),
@@ -980,12 +977,11 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),
@@ -1073,12 +1069,11 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),
@@ -1173,12 +1168,11 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),
@@ -1268,7 +1262,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   Fetcher fetcher;
 
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags, true);
   ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
@@ -1276,7 +1270,6 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
-      true,
       &fetcher,
       std::move(ioSwitchboard.get()),
       std::move(launcher),

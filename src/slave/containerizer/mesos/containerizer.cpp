@@ -207,7 +207,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   LOG(INFO) << "Using isolation: " << flags_.isolation;
 
   // Create the container io switchboard for the MesosContainerizer.
-  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags_);
+  Try<Owned<IOSwitchboard>> ioSwitchboard =
+    IOSwitchboard::create(flags_, local);
 
   if (ioSwitchboard.isError()) {
     return Error("Failed to create container io switchboard:"
@@ -391,7 +392,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   return new MesosContainerizer(
       flags_,
-      local,
       fetcher,
       ioSwitchboard.get(),
       Owned<Launcher>(launcher.get()),
@@ -402,7 +402,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
 MesosContainerizer::MesosContainerizer(
     const Flags& flags,
-    bool local,
     Fetcher* fetcher,
     const Owned<IOSwitchboard>& ioSwitchboard,
     const Owned<Launcher>& launcher,
@@ -410,7 +409,6 @@ MesosContainerizer::MesosContainerizer(
     const vector<Owned<Isolator>>& isolators)
   : process(new MesosContainerizerProcess(
       flags,
-      local,
       fetcher,
       ioSwitchboard,
       launcher,
@@ -1566,12 +1564,9 @@ Future<bool> MesosContainerizerProcess::_launch(
         containerId,
         path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
         argv,
-        (local ? Subprocess::FD(STDIN_FILENO)
-               : Subprocess::IO(subprocessInfo.in)),
-        (local ? Subprocess::FD(STDOUT_FILENO)
-               : Subprocess::IO(subprocessInfo.out)),
-        (local ? Subprocess::FD(STDERR_FILENO)
-               : Subprocess::IO(subprocessInfo.err)),
+        Subprocess::IO(subprocessInfo.in),
+        Subprocess::IO(subprocessInfo.out),
+        Subprocess::IO(subprocessInfo.err),
         &launchFlags,
         launchEnvironment,
         // 'enterNamespaces' will be ignored by PosixLauncher.

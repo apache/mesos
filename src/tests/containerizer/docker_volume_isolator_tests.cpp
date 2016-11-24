@@ -195,7 +195,9 @@ protected:
 
     Owned<Launcher> launcher(launcher_.get());
 
-    Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+    Try<Owned<IOSwitchboard>> ioSwitchboard =
+      IOSwitchboard::create(flags, false);
+
     if (ioSwitchboard.isError()) {
       return Error("Failed to create container io switchboard:"
                    " " + ioSwitchboard.error());
@@ -209,7 +211,6 @@ protected:
     return Owned<MesosContainerizer>(
         new MesosContainerizer(
             flags,
-            false,
             &fetcher,
             std::move(ioSwitchboard.get()),
             std::move(launcher),

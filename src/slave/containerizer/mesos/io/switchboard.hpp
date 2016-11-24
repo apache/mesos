@@ -54,7 +54,9 @@ public:
     process::Subprocess::IO err;
   };
 
-  static Try<process::Owned<IOSwitchboard>> create(const Flags& flags);
+  static Try<process::Owned<IOSwitchboard>> create(
+      const Flags& flags,
+      bool local);
 
   ~IOSwitchboard();
 
@@ -66,6 +68,7 @@ public:
 private:
   explicit IOSwitchboard(
       const Flags& flags,
+      bool local,
       const process::Owned<mesos::slave::ContainerLogger>& logger);
 
   process::Owned<IOSwitchboardProcess> process;

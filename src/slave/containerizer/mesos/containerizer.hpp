@@ -63,7 +63,6 @@ public:
 
   MesosContainerizer(
       const Flags& flags,
-      bool local,
       Fetcher* fetcher,
       const process::Owned<IOSwitchboard>& ioSwitchboard,
       const process::Owned<Launcher>& launcher,
@@ -128,7 +127,6 @@ class MesosContainerizerProcess
 public:
   MesosContainerizerProcess(
       const Flags& _flags,
-      bool _local,
       Fetcher* _fetcher,
       const process::Owned<IOSwitchboard>& _ioSwitchboard,
       const process::Owned<Launcher>& _launcher,
@@ -136,7 +134,6 @@ public:
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators)
     : ProcessBase(process::ID::generate("mesos-containerizer")),
       flags(_flags),
-      local(_local),
       fetcher(_fetcher),
       ioSwitchboard(_ioSwitchboard),
       launcher(_launcher),
@@ -295,7 +292,6 @@ private:
       const ContainerID& containerId);
 
   const Flags flags;
-  const bool local;
   Fetcher* fetcher;
   const process::Owned<IOSwitchboard> ioSwitchboard;
   const process::Owned<Launcher> launcher;

@@ -48,6 +48,7 @@ class IOSwitchboardProcess: public Process<IOSwitchboardProcess>
 public:
   IOSwitchboardProcess(
     const Flags& flags,
+    bool local,
     const Owned<ContainerLogger>& logger);
 
   Future<IOSwitchboard::SubprocessInfo> prepare(
@@ -57,6 +58,7 @@ public:
 
 private:
   const Flags flags;
+  bool local;
   Owned<mesos::slave::ContainerLogger> logger;
 };
 
@@ -67,7 +69,9 @@ IOSwitchboard::SubprocessInfo::SubprocessInfo()
     err(Subprocess::FD(STDERR_FILENO, Subprocess::IO::OWNED)) {}
 
 
-Try<Owned<IOSwitchboard>> IOSwitchboard::create(const Flags& flags)
+Try<Owned<IOSwitchboard>> IOSwitchboard::create(
+    const Flags& flags,
+    bool local)
 {
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -76,14 +80,15 @@ Try<Owned<IOSwitchboard>> IOSwitchboard::create(const Flags& flags)
     return Error("Cannot create container logger: " + logger.error());
   }
 
-  return new IOSwitchboard(flags, Owned<ContainerLogger>(logger.get()));
+  return new IOSwitchboard(flags, local, Owned<ContainerLogger>(logger.get()));
 }
 
 
 IOSwitchboard::IOSwitchboard(
     const Flags& flags,
+    bool local,
     const Owned<ContainerLogger>& logger)
-  : process(new IOSwitchboardProcess(flags, logger))
+  : process(new IOSwitchboardProcess(flags, local, logger))
 {
   spawn(process.get());
 }
@@ -112,8 +117,10 @@ Future<IOSwitchboard::SubprocessInfo> IOSwitchboard::prepare(
 
 IOSwitchboardProcess::IOSwitchboardProcess(
     const Flags& _flags,
+    bool _local,
     const Owned<ContainerLogger>& _logger)
   : flags(_flags),
+    local(_local),
     logger(_logger) {}
 
 
@@ -122,6 +129,15 @@ Future<IOSwitchboard::SubprocessInfo> IOSwitchboardProcess::prepare(
     const std::string& sandboxDirectory,
     const Option<std::string>& user)
 {
+  if (local) {
+    IOSwitchboard::SubprocessInfo ioSwitchboardInfo;
+    ioSwitchboardInfo.in = Subprocess::FD(STDIN_FILENO);
+    ioSwitchboardInfo.out = Subprocess::FD(STDOUT_FILENO);
+    ioSwitchboardInfo.err = Subprocess::FD(STDERR_FILENO);
+
+    return ioSwitchboardInfo;
+  }
+
   return logger->prepare(executorInfo, sandboxDirectory, user)
     .then(defer(self(), [](const ContainerLogger::SubprocessInfo& loggerInfo)
       -> Future<IOSwitchboard::SubprocessInfo> {
