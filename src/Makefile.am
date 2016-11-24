@@ -830,6 +830,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/mount.cpp					\
   slave/containerizer/mesos/paths.cpp					\
   slave/containerizer/mesos/utils.cpp					\
+  slave/containerizer/mesos/io/switchboard.cpp				\
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/paths.cpp		\
   slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
@@ -960,6 +961,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/mount.hpp					\
   slave/containerizer/mesos/paths.hpp					\
   slave/containerizer/mesos/utils.hpp					\
+  slave/containerizer/mesos/io/switchboard.hpp				\
   slave/containerizer/mesos/isolators/posix.hpp				\
   slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
   slave/containerizer/mesos/isolators/filesystem/windows.hpp		\

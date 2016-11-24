@@ -24,7 +24,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/isolator.hpp>
 
 #include <process/future.hpp>
@@ -43,6 +42,8 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
 
+#include "slave/containerizer/mesos/io/switchboard.hpp"
+
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #include "tests/environment.hpp"
@@ -58,6 +59,7 @@ using namespace process;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::IOSwitchboard;
 using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
@@ -75,7 +77,6 @@ using mesos::internal::slave::state::SlaveState;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
@@ -287,15 +288,12 @@ public:
 
     Owned<Launcher> launcher(launcher_.get());
 
-    // Create and initialize a new container logger.
-    Try<ContainerLogger*> logger_ =
-      ContainerLogger::create(flags.container_logger);
-
-    if (logger_.isError()) {
-      return Error("Failed to create container logger: " + logger_.error());
+    // Create and initialize a new container io switchboard.
+    Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+    if (ioSwitchboard.isError()) {
+      return Error("Failed to create container io switchboard:"
+                   " " + ioSwitchboard.error());
     }
-
-    Owned<ContainerLogger> logger(logger_.get());
 
     Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
     if (provisioner.isError()) {
@@ -306,7 +304,7 @@ public:
         flags,
         false,
         fetcher,
-        std::move(logger),
+        std::move(ioSwitchboard.get()),
         std::move(launcher),
         provisioner->share(),
         isolators);
@@ -724,7 +722,7 @@ public:
       const slave::Flags& flags,
       bool local,
       Fetcher* fetcher,
-      const Owned<ContainerLogger>& logger,
+      const Owned<IOSwitchboard>& ioSwitchboard,
       const Owned<Launcher>& launcher,
       const Shared<Provisioner>& provisioner,
       const vector<Owned<Isolator>>& isolators)
@@ -732,7 +730,7 @@ public:
           flags,
           local,
           fetcher,
-          logger,
+          ioSwitchboard,
           launcher,
           provisioner,
           isolators)
@@ -775,12 +773,8 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger_ =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger_);
-
-  Owned<ContainerLogger> logger(logger_.get());
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
@@ -789,7 +783,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
       flags,
       true,
       &fetcher,
-      std::move(logger),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       provisioner->share(),
       vector<Owned<Isolator>>());
@@ -858,12 +852,8 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger_ =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger_);
-
-  Owned<ContainerLogger> logger(logger_.get());
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
@@ -872,7 +862,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       flags,
       true,
       &fetcher,
-      std::move(logger),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       provisioner->share(),
       {Owned<Isolator>(isolator)});
@@ -990,16 +980,14 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
-      Owned<ContainerLogger>(logger.get()),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       Shared<Provisioner>(provisioner),
       vector<Owned<Isolator>>());
@@ -1085,16 +1073,14 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
-      Owned<ContainerLogger>(logger.get()),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       Shared<Provisioner>(provisioner),
       vector<Owned<Isolator>>());
@@ -1187,16 +1173,14 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
-      Owned<ContainerLogger>(logger.get()),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       Shared<Provisioner>(provisioner),
       {Owned<Isolator>(isolator)});
@@ -1284,10 +1268,8 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   Fetcher fetcher;
 
-  Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
-
-  ASSERT_SOME(logger);
+  Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+  ASSERT_SOME(ioSwitchboard);
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
@@ -1296,7 +1278,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
       flags,
       true,
       &fetcher,
-      Owned<ContainerLogger>(logger.get()),
+      std::move(ioSwitchboard.get()),
       std::move(launcher),
       provisioner->share(),
       vector<Owned<Isolator>>());

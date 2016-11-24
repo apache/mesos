@@ -29,6 +29,8 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
+#include "slave/containerizer/mesos/io/switchboard.hpp"
+
 #include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
 
 #include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
@@ -50,6 +52,8 @@ using std::vector;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::IOSwitchboard;
+
 using mesos::internal::slave::DockerRuntimeIsolatorProcess;
 using mesos::internal::slave::DockerVolumeIsolatorProcess;
 using mesos::internal::slave::Fetcher;
@@ -63,7 +67,6 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
-using mesos::slave::ContainerLogger;
 using mesos::slave::Isolator;
 
 using slave::docker::volume::DriverClient;
@@ -192,14 +195,11 @@ protected:
 
     Owned<Launcher> launcher(launcher_.get());
 
-    Try<ContainerLogger*> logger_ =
-      ContainerLogger::create(flags.container_logger);
-
-    if (logger_.isError()) {
-      return Error("Failed to create container logger: " + logger_.error());
+    Try<Owned<IOSwitchboard>> ioSwitchboard = IOSwitchboard::create(flags);
+    if (ioSwitchboard.isError()) {
+      return Error("Failed to create container io switchboard:"
+                   " " + ioSwitchboard.error());
     }
-
-    Owned<ContainerLogger> logger(logger_.get());
 
     Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
     if (provisioner.isError()) {
@@ -211,7 +211,7 @@ protected:
             flags,
             false,
             &fetcher,
-            std::move(logger),
+            std::move(ioSwitchboard.get()),
             std::move(launcher),
             provisioner->share(),
             {std::move(linuxIsolator),

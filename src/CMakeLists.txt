@@ -326,6 +326,7 @@ set(AGENT_SRC
   slave/containerizer/mesos/mount.cpp
   slave/containerizer/mesos/paths.cpp
   slave/containerizer/mesos/utils.cpp
+  slave/containerizer/mesos/io/switchboard.cpp
   slave/containerizer/mesos/provisioner/paths.cpp
   slave/containerizer/mesos/provisioner/provisioner.cpp
   slave/containerizer/mesos/provisioner/store.cpp
