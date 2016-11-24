@@ -16,7 +16,7 @@ and Scala.
 ## Create your Framework Scheduler
 
 If you are writing a scheduler against Mesos 1.0 or newer, it is recommended
-to use the new [HTTP API](scheduler-http-api) to talk to Mesos.
+to use the new [HTTP API](scheduler-http-api.md) to talk to Mesos.
 
 If your framework needs to talk to Mesos 0.28.0 or older, you can write the
 scheduler in C++, Java/Scala, or Python. Your framework scheduler should inherit
