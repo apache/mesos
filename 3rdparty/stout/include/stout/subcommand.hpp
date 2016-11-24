@@ -97,10 +97,10 @@ private:
       const std::vector<Subcommand*>& subcommands);
 
   static int dispatch(
-    const Option<std::string>& prefix,
-    int argc,
-    char** argv,
-    const std::vector<Subcommand*>& subcommands);
+      const Option<std::string>& prefix,
+      int argc,
+      char** argv,
+      const std::vector<Subcommand*>& subcommands);
 
   // The name of this subcommand.
   std::string name_;
