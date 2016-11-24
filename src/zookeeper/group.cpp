@@ -599,12 +599,14 @@ Result<Group::Membership> GroupProcess::doJoin(
 {
   CHECK_EQ(state, READY);
 
+  const string path = znode + "/" + (label.isSome() ? (label.get() + "_") : "");
+
   // Create a new ephemeral node to represent a new member and use the
   // the specified data as its contents.
   string result;
 
-  int code = zk->create(
-      znode + "/" + (label.isSome() ? (label.get() + "_") : ""),
+  const int code = zk->create(
+      path,
       data,
       acl,
       ZOO_SEQUENCE | ZOO_EPHEMERAL,
@@ -615,7 +617,7 @@ Result<Group::Membership> GroupProcess::doJoin(
     return None();
   } else if (code != ZOK) {
     return Error(
-        "Failed to create ephemeral node at '" + znode +
+        "Failed to create ephemeral node at '" + path +
         "' in ZooKeeper: " + zk->message(code));
   }
 
@@ -625,10 +627,10 @@ Result<Group::Membership> GroupProcess::doJoin(
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/label_0000000131" => "0000000131".
-  string basename = Path(result).basename();
+  const string basename = Path(result).basename();
 
   // Strip the label before grabbing the sequence number.
-  string node = label.isSome()
+  const string node = label.isSome()
       ? strings::remove(basename, label.get() + "_")
       : basename;
 
