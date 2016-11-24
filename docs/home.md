@@ -27,6 +27,7 @@ layout: documentation
     * [CNI support](cni.md)
     * [Docker Volume Support](docker-volume.md)
 * [Framework Rate Limiting](framework-rate-limiting.md)
+* [Task Health Checking](health-checks.md)
 * [High Availability](high-availability.md) for running multiple masters simultaneously.
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [Logging](logging.md)
