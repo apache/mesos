@@ -115,7 +115,8 @@ Future<Nothing> write(int fd, const std::string& data);
 
 /**
  * Redirect output from the 'from' file descriptor to the 'to' file
- * descriptor (or /dev/null if 'to' is None).
+ * descriptor (or /dev/null if 'to' is None). Optionally call a vector
+ * of callback hooks, passing them the data before it is written to 'to'.
  *
  * The 'to' and 'from' file descriptors will be duplicated so that the
  * file descriptors' lifetimes can be controlled within this function.
@@ -125,10 +126,19 @@ Future<Nothing> write(int fd, const std::string& data);
  *     descriptor is bad, or if the file descriptor cannot be duplicated,
  *     set to close-on-exec, or made non-blocking.
  */
-Future<Nothing> redirect(int from, Option<int> to, size_t chunk = 4096);
+Future<Nothing> redirect(
+    int from,
+    Option<int> to,
+    size_t chunk = 4096,
+    const std::vector<lambda::function<void(const std::string&)>>& hooks = {});
+
 #ifdef __WINDOWS__
 // Version of this function compatible with Windows `HANDLE`.
-Future<Nothing> redirect(HANDLE from, Option<int> to, size_t chunk = 4096);
+Future<Nothing> redirect(
+    HANDLE from,
+    Option<int> to,
+    size_t chunk = 4096,
+    const std::vector<lambda::function<void(const std::string&)>>& hooks = {});
 #endif // __WINDOWS__
 
 

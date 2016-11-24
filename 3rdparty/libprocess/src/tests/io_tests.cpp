@@ -322,7 +322,14 @@ TEST_F(IOTest, Redirect)
   ASSERT_SOME(os::nonblock(pipes[0]));
   ASSERT_SOME(os::nonblock(pipes[1]));
 
-  // Now write data to the pipe and splice to the file.
+  // Set up a redirect hook to also accumlate the data that we splice.
+  string accumulated = "";
+  lambda::function<void(const string&)> hook =
+    [&accumulated](const string& data) {
+      accumulated += data;
+    };
+
+  // Now write data to the pipe and splice to the file and the redirect hook.
   string data =
     "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
     "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim "
@@ -337,7 +344,7 @@ TEST_F(IOTest, Redirect)
     data.append(data);
   }
 
-  Future<Nothing> redirect = io::redirect(pipes[0], fd.get());
+  Future<Nothing> redirect = io::redirect(pipes[0], fd.get(), 256, {hook});
 
   // Closing the read end of the pipe and the file should not have any
   // impact as we dup the file descriptor.
@@ -358,10 +365,14 @@ TEST_F(IOTest, Redirect)
 
   AWAIT_READY(redirect);
 
-  // Now make sure all the data is there!
+  // Now make sure all the data is in the file!
   Try<string> read = os::read(path.get());
   ASSERT_SOME(read);
   EXPECT_EQ(data, read.get());
+
+  // Also make sure the data was properly
+  // accumulated in the redirect hook.
+  EXPECT_EQ(data, accumulated);
 }
 
 

@@ -28,6 +28,7 @@
 #include <stout/try.hpp>
 
 using std::string;
+using std::vector;
 
 namespace process {
 namespace io {
@@ -334,6 +335,7 @@ void _splice(
     int from,
     int to,
     size_t chunk,
+    const vector<lambda::function<void(const string&)>>& hooks,
     boost::shared_array<char> data,
     std::shared_ptr<Promise<Nothing>> promise)
 {
@@ -362,12 +364,19 @@ void _splice(
       if (size == 0) { // EOF.
         promise->set(Nothing());
       } else {
+        // Send the data to the redirect hooks.
+        foreach (
+            const lambda::function<void(const string&)>& hook,
+            hooks) {
+          hook(string(data.get(), size));
+        }
+
         // Note that we always try and complete the write, even if a
         // discard has occurred on our future, in order to provide
         // semantics where everything read is written. The promise
         // will eventually be discarded in the next read.
         io::write(to, string(data.get(), size))
-          .onReady([=]() { _splice(from, to, chunk, data, promise); })
+          .onReady([=]() { _splice(from, to, chunk, hooks, data, promise); })
           .onFailed([=](const string& message) { promise->fail(message); })
           .onDiscarded([=]() { promise->discard(); });
       }
@@ -377,7 +386,11 @@ void _splice(
 }
 
 
-Future<Nothing> splice(int from, int to, size_t chunk)
+Future<Nothing> splice(
+    int from,
+    int to,
+    size_t chunk,
+    const vector<lambda::function<void(const string&)>>& hooks)
 {
   boost::shared_array<char> data(new char[chunk]);
 
@@ -389,7 +402,7 @@ Future<Nothing> splice(int from, int to, size_t chunk)
 
   Future<Nothing> future = promise->future();
 
-  _splice(from, to, chunk, data, promise);
+  _splice(from, to, chunk, hooks, data, promise);
 
   return future;
 }
@@ -496,7 +509,11 @@ Future<Nothing> write(int fd, const string& data)
 }
 
 
-Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
+Future<Nothing> redirect(
+    int from,
+    Option<int> to,
+    size_t chunk,
+    const vector<lambda::function<void(const string&)>>& hooks)
 {
   // Make sure we've got "valid" file descriptors.
   if (from < 0 || (to.isSome() && to.get() < 0)) {
@@ -562,7 +579,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
   }
 
   // NOTE: We wrap `os::close` in a lambda to disambiguate on Windows.
-  return internal::splice(from, to.get(), chunk)
+  return internal::splice(from, to.get(), chunk, hooks)
     .onAny([from]() { os::close(from); })
     .onAny([to]() { os::close(to.get()); });
 }
@@ -571,12 +588,17 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
 #ifdef __WINDOWS__
 // NOTE: Ordinarily this would go in a Windows-specific header; we put it here
 // to avoid complex forward declarations.
-Future<Nothing> redirect(HANDLE from, Option<int> to, size_t chunk)
+Future<Nothing> redirect(
+    HANDLE from,
+    Option<int> to,
+    size_t chunk,
+    const vector<lambda::function<void(const string&)>>& hooks)
 {
   return redirect(
       _open_osfhandle(reinterpret_cast<intptr_t>(from), O_RDWR),
       to,
-      chunk);
+      chunk,
+      hooks);
 }
 #endif // __WINDOWS__
 
