@@ -890,6 +890,29 @@ TEST(FlagsTest, OptionalMessage)
 }
 
 
+TEST(FlagsTest, BuildEnvironment)
+{
+  TestFlagsBase flags;
+  flags.name4 = true;
+
+  map<string, string> environment = flags.buildEnvironment("PREFIX_");
+
+  ASSERT_EQ(1u, environment.count("PREFIX_NAME1"));
+  EXPECT_EQ("ben folds", environment["PREFIX_NAME1"]);
+
+  ASSERT_EQ(1u, environment.count("PREFIX_NAME2"));
+  EXPECT_EQ("42", environment["PREFIX_NAME2"]);
+
+  ASSERT_EQ(1u, environment.count("PREFIX_NAME3"));
+  EXPECT_EQ("false", environment["PREFIX_NAME3"]);
+
+  ASSERT_EQ(1u, environment.count("PREFIX_NAME4"));
+  EXPECT_EQ("true", environment["PREFIX_NAME4"]);
+
+  EXPECT_EQ(0u, environment.count("PREFIX_NAME5"));
+}
+
+
 TEST(FlagsTest, Duration)
 {
   class TestFlags : public virtual FlagsBase
