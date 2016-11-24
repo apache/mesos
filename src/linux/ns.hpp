@@ -546,7 +546,7 @@ inline Try<pid_t> clone(
       // Need to reap the grandchild and then just exit since we're no
       // longer necessary. Technically when the grandchild exits it'll
       // be reaped but by doing a `waitpid` we can better propagate
-      // back any errors that might have occured with the grandchild.
+      // back any errors that might have occurred with the grandchild.
       int status;
       while (true) {
         if (waitpid(grandchild, &status, 0) == -1) {
