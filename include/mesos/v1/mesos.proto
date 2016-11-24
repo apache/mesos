@@ -399,19 +399,24 @@ message HealthCheck {
   // allows doing something similar to the HTTP strategy but
   // encapsulates all the details in a single string field.
 
-  // Amount of time to wait until starting the health checks.
+  // Amount of time to wait until starting health checking the task.
   optional double delay_seconds = 2 [default = 15.0];
 
   // Interval between health checks.
   optional double interval_seconds = 3 [default = 10.0];
 
-  // Amount of time to wait for the health check to complete.
+  // Amount of time to wait for the health check to complete. After this
+  // timeout, the health check is aborted and treated as a failure.
   optional double timeout_seconds = 4 [default = 20.0];
 
-  // Number of consecutive failures until signaling kill task.
+  // Number of consecutive failures until the task is killed by the executor.
   optional uint32 consecutive_failures = 5 [default = 3];
 
-  // Amount of time to allow failed health checks since launch.
+  // Amount of time after the task is launched during which health check
+  // failures are ignored. Once the a check succeeds for the first time,
+  // the grace period does not apply anymore. Note that it includes
+  // `delay_seconds`, i.e., setting `grace_period_seconds` < `delay_seconds`
+  // has no effect.
   optional double grace_period_seconds = 6 [default = 10.0];
 
   // TODO(alexr): Add an optional `KillPolicy` that should be used
