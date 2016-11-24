@@ -33,10 +33,10 @@ __CAVEAT:__ In order to modify a static reservation, the operator must drain and
             restart the slave with the new configuration specified in the
             `--resources` flag.
 
-__NOTE:__ This feature is supported for backwards compatibility.
-          The recommended approach is to specify the total resources available
-          on the slave as unreserved via the `--resources` flag and manage
-          reservations dynamically via the master HTTP endpoints.
+**NOTE:** This feature is supported for backwards compatibility. The recommended
+approach is to specify the total resources available on the slave as unreserved
+via the `--resources` flag and manage reservations dynamically via the master
+HTTP endpoints.
 
 
 ## Dynamic Reservation

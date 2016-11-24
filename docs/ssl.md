@@ -21,7 +21,7 @@ Before building Mesos 0.23.0 from source, assuming you have installed the requir
 # Running
 Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Agent`, `Framework Scheduler/Executor`, or any `libprocess process`:
 
-NOTE: Prior to 1.0, the SSL related environment variables used to be prefixed by `SSL_`. However, we found that they may collide with other programs and lead to unexpected results (e.g., openssl, see [MESOS-5863](https://issues.apache.org/jira/browse/MESOS-5863) for details). To be backward compatible, we accept environment variables prefixed by both `SSL_` or `LIBPROCESS_SSL_`. New users should use the `LIBPROCESS_SSL_` version.
+**NOTE:** Prior to 1.0, the SSL related environment variables used to be prefixed by `SSL_`. However, we found that they may collide with other programs and lead to unexpected results (e.g., openssl, see [MESOS-5863](https://issues.apache.org/jira/browse/MESOS-5863) for details). To be backward compatible, we accept environment variables prefixed by both `SSL_` or `LIBPROCESS_SSL_`. New users should use the `LIBPROCESS_SSL_` version.
 
 #### LIBPROCESS_SSL_ENABLED=(false|0,true|1) [default=false|0]
 Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `LIBPROCESS_SSL_CERT_FILE` and `LIBPROCESS_SSL_KEY_FILE` must be supplied.
@@ -94,7 +94,9 @@ brew install openssl
 # <a name="Upgrading"></a>Upgrading Your Cluster
 _There is no SSL specific requirement for upgrading different components in a specific order._
 
-The recommended strategy is to restart all your components to enable SSL with downgrades support enabled. Once all components have SSL enabled, then do a second restart of all your components to disable downgrades. This strategy will allow each component to be restarted independently at your own convenience with no time restrictions. It will also allow you to try SSL in a subset of your cluster. __NOTE:__ While different components in your cluster are serving SSL vs non-SSL traffic, any relative links in the WebUI may be broken. Please see the [WebUI](#WebUI) section for details. Here are sample commands for upgrading your cluster:
+The recommended strategy is to restart all your components to enable SSL with downgrades support enabled. Once all components have SSL enabled, then do a second restart of all your components to disable downgrades. This strategy will allow each component to be restarted independently at your own convenience with no time restrictions. It will also allow you to try SSL in a subset of your cluster.
+
+**NOTE:** While different components in your cluster are serving SSL vs non-SSL traffic, any relative links in the WebUI may be broken. Please see the [WebUI](#WebUI) section for details. Here are sample commands for upgrading your cluster:
 
 ~~~
 // Restart each component with downgrade support (master, agent, framework):
@@ -107,12 +109,12 @@ Executors must be able to access the SSL environment variables and the files ref
 
 The end state is a cluster that is only communicating with SSL.
 
-__NOTE:__ Any tools you may use that communicate with your components must be able to speak SSL, or they will be denied. You may choose to maintain `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` for some time as you upgrade your internal tooling. The advantage of `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` is that all components that speak SSL will do so, while other components may still communicate over insecure channels.
+**NOTE:** Any tools you may use that communicate with your components must be able to speak SSL, or they will be denied. You may choose to maintain `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` for some time as you upgrade your internal tooling. The advantage of `LIBPROCESS_SSL_SUPPORT_DOWNGRADE=true` is that all components that speak SSL will do so, while other components may still communicate over insecure channels.
 
 # <a name="WebUI"></a>WebUI
 The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and agents. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `LIBPROCESS_SSL_SUPPORT_DOWNGRADE` option is set to true.
 
-__NOTE:__ Frameworks with their own WebUI will need to add HTTPS support separately.
+**NOTE:** Frameworks with their own WebUI will need to add HTTPS support separately.
 
 ### Certificates
 Most browsers have built in protection that guard transitions between pages served using different certificates. For this reason you may choose to serve both the master and agent endpoints using a common certificate that covers multiple hostnames. If you do not do this, certain links, such as those to agent sandboxes, may seem broken as the browser treats the transition between differing certificates transition as unsafe.

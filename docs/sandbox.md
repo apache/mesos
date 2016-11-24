@@ -18,10 +18,9 @@ The sandbox holds:
 * The output of the executor and tasks (as files "stdout" and "stderr").
 * Files created by the executor and tasks, with some exceptions.
 
-> **NOTE:** With the introduction of
-> [persistent volumes](persistent-volume.md), executors
-> and tasks should never create files outside of the sandbox.  However,
-> some containerizers do not enforce this sandboxing.
+**NOTE:** With the introduction of [persistent volumes](persistent-volume.md),
+executors and tasks should never create files outside of the sandbox.  However,
+some containerizers do not enforce this sandboxing.
 
 ## <a name="where-is-it"></a>Where is the sandbox?
 
@@ -49,10 +48,10 @@ root ('--work_dir')
 
 ## Using the sandbox
 
-> **NOTE:** For anything other than Mesos, the executor, or the task(s), the
-> sandbox should be considered a read-only directory.  This is not enforced via
-> permissions, but the executor/tasks may malfunction if the sandbox is
-> mutated unexpectedly.
+**NOTE:** For anything other than Mesos, the executor, or the task(s), the
+sandbox should be considered a read-only directory.  This is not enforced via
+permissions, but the executor/tasks may malfunction if the sandbox is mutated
+unexpectedly.
 
 ### Via a file browser
 
@@ -159,8 +158,8 @@ Sandbox files are scheduled for garbage collection when:
 * A framework is removed.
 * An executor is recovered unsuccessfully during agent recovery.
 
-> **NOTE:** During agent recovery, all of the executor's runs, except for the
-> latest run, are scheduled for garbage collection as well.
+**NOTE:** During agent recovery, all of the executor's runs, except for the
+latest run, are scheduled for garbage collection as well.
 
 Garbage collection is scheduled based on the `--gc_delay` agent flag.  By
 default, this is one week since the sandbox was last modified.
