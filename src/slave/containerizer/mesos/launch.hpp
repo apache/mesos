@@ -57,8 +57,6 @@ public:
 #endif // __linux__
   };
 
-  static Flags prepare();
-
   MesosContainerizerLaunch() : Subcommand(NAME) {}
 
   Flags flags;
