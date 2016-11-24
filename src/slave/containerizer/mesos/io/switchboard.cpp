@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -35,12 +36,16 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/recordio.hpp>
 
+#include <mesos/http.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <mesos/agent/agent.hpp>
 
 #include <mesos/slave/container_logger.hpp>
+
+#include "common/http.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
@@ -65,6 +70,7 @@ using process::Process;
 using process::Promise;
 using process::Subprocess;
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -275,6 +281,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   switchboardFlags.stdout_to_fd = STDOUT_FILENO;
   switchboardFlags.stderr_from_fd = errfds[0];
   switchboardFlags.stderr_to_fd = STDERR_FILENO;
+  switchboardFlags.wait_for_connection = false;
   switchboardFlags.socket_path = path::join(
       stringify(os::PATH_SEPARATOR),
       "tmp",
@@ -422,11 +429,43 @@ public:
       int _stdoutToFd,
       int _stderrFromFd,
       int _stderrToFd,
-      const unix::Socket& _socket);
+      const unix::Socket& _socket,
+      bool waitForConnection);
+
+  virtual void finalize();
 
   Future<Nothing> run();
 
 private:
+  class HttpConnection
+  {
+  public:
+    HttpConnection(
+        const http::Pipe::Writer& _writer,
+        const ContentType& contentType)
+      : writer(_writer),
+        encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+
+    bool send(const agent::ProcessIO& message)
+    {
+      return writer.write(encoder.encode(message));
+    }
+
+    bool close()
+    {
+      return writer.close();
+    }
+
+    process::Future<Nothing> closed() const
+    {
+      return writer.readerClosed();
+    }
+
+  private:
+    http::Pipe::Writer writer;
+    ::recordio::Encoder<agent::ProcessIO> encoder;
+  };
+
   // Sit in an accept loop forever.
   void acceptLoop();
 
@@ -436,6 +475,16 @@ private:
   // both `APPLICATION_PROTOBUF` and `APPLICATION_JSON` and respond
   // with the same format we receive them in.
   Future<http::Response> handler(const http::Request& request);
+
+  // Handle `ATTACH_CONTAINER_INPUT` calls.
+  Future<http::Response> attachContainerInput(
+    const agent::Call& call,
+    const ContentType& contentType);
+
+  // Handle `ATTACH_CONTAINER_OUTPUT` calls.
+  Future<http::Response> attachContainerOutput(
+    const agent::Call& call,
+    const ContentType& contentType);
 
   // Asynchronously receive data as we read it from our
   // `stdoutFromFd` and `stdoutFromFd` file descriptors.
@@ -449,7 +498,13 @@ private:
   int stderrFromFd;
   int stderrToFd;
   unix::Socket socket;
+  bool waitForConnection;
   Promise<Nothing> promise;
+  Promise<Nothing> startRedirect;
+  // The following must be a `std::list`
+  // for proper erase semantics later on.
+  list<HttpConnection> connections;
+  Option<Failure> failure;
 };
 
 
@@ -459,7 +514,8 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
     int stdoutToFd,
     int stderrFromFd,
     int stderrToFd,
-    const string& socketPath)
+    const string& socketPath,
+    bool waitForConnection)
 {
   Try<unix::Socket> socket = unix::Socket::create();
   if (socket.isError()) {
@@ -490,7 +546,8 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
       stdoutToFd,
       stderrFromFd,
       stderrToFd,
-      socket.get());
+      socket.get(),
+      waitForConnection);
 }
 
 
@@ -500,14 +557,16 @@ IOSwitchboardServer::IOSwitchboardServer(
     int stdoutToFd,
     int stderrFromFd,
     int stderrToFd,
-    const unix::Socket& socket)
+    const unix::Socket& socket,
+    bool waitForConnection)
   : process(new IOSwitchboardServerProcess(
         stdinToFd,
         stdoutFromFd,
         stdoutToFd,
         stderrFromFd,
         stderrToFd,
-        socket))
+        socket,
+        waitForConnection))
 {
   spawn(process.get());
 }
@@ -532,67 +591,93 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     int _stdoutToFd,
     int _stderrFromFd,
     int _stderrToFd,
-    const unix::Socket& _socket)
+    const unix::Socket& _socket,
+    bool _waitForConnection)
   : stdinToFd(_stdinToFd),
     stdoutFromFd(_stdoutFromFd),
     stdoutToFd(_stdoutToFd),
     stderrFromFd(_stderrFromFd),
     stderrToFd(_stderrToFd),
-    socket(_socket) {}
+    socket(_socket),
+    waitForConnection(_waitForConnection) {}
 
 
 Future<Nothing> IOSwitchboardServerProcess::run()
 {
-  Future<Nothing> stdoutRedirect = process::io::redirect(
-      stdoutFromFd,
-      stdoutToFd,
-      4096,
-      {defer(self(),
-             &Self::outputHook,
-             lambda::_1,
-             agent::ProcessIO::Data::STDOUT)});
+  if (!waitForConnection) {
+    startRedirect.set(Nothing());
+  }
 
-  Future<Nothing> stderrRedirect = process::io::redirect(
-      stderrFromFd,
-      stderrToFd,
-      4096,
-      {defer(self(),
-             &Self::outputHook,
-             lambda::_1,
-             agent::ProcessIO::Data::STDERR)});
-
-  // Set the future once our IO redirects finish. On failure,
-  // fail the future.
-  //
-  // For now we simply assume that whenever both `stdoutRedirect`
-  // and `stderrRedirect` have completed then it is OK to exit the
-  // switchboard process. We assume this because `stdoutRedirect`
-  // and `stderrRedirect` will only complete after both the read end
-  // of the `stdout` stream and the read end of the `stderr` stream
-  // have been drained. Since draining these `fds` represents having
-  // read everything possible from a container's `stdout` and
-  // `stderr` this is likely sufficient termination criteria.
-  // However, there's a non-zero chance that *some* containers may
-  // decide to close their `stdout` and `stderr` while expecting to
-  // continue reading from `stdin`. For now we don't support
-  // containers with this behavior and we will exit out of the
-  // switchboard process early.
-  //
-  // TODO(klueska): Add support to asynchronously detect when
-  // `stdinToFd` has become invalid before deciding to terminate.
-  stdoutRedirect
-    .onFailed(defer(self(), [this](const string& message) {
-       promise.fail("Failed redirecting stdout: " + message);
-    }));
-
-  stderrRedirect
-    .onFailed(defer(self(), [this](const string& message) {
-       promise.fail("Failed redirecting stderr: " + message);
-    }));
-
-  collect(stdoutRedirect, stderrRedirect)
+  startRedirect.future()
     .then(defer(self(), [this]() {
-      promise.set(Nothing());
+      Future<Nothing> stdoutRedirect = process::io::redirect(
+          stdoutFromFd,
+          stdoutToFd,
+          4096,
+          {defer(self(),
+                 &Self::outputHook,
+                 lambda::_1,
+                 agent::ProcessIO::Data::STDOUT)});
+
+      Future<Nothing> stderrRedirect = process::io::redirect(
+          stderrFromFd,
+          stderrToFd,
+          4096,
+          {defer(self(),
+                 &Self::outputHook,
+                 lambda::_1,
+                 agent::ProcessIO::Data::STDERR)});
+
+      // Set the future once our IO redirects finish. On failure,
+      // fail the future.
+      //
+      // For now we simply assume that whenever both `stdoutRedirect`
+      // and `stderrRedirect` have completed then it is OK to exit the
+      // switchboard process. We assume this because `stdoutRedirect`
+      // and `stderrRedirect` will only complete after both the read end
+      // of the `stdout` stream and the read end of the `stderr` stream
+      // have been drained. Since draining these `fds` represents having
+      // read everything possible from a container's `stdout` and
+      // `stderr` this is likely sufficient termination criteria.
+      // However, there's a non-zero chance that *some* containers may
+      // decide to close their `stdout` and `stderr` while expecting to
+      // continue reading from `stdin`. For now we don't support
+      // containers with this behavior and we will exit out of the
+      // switchboard process early.
+      //
+      // NOTE: We always call `terminate()` with `false` to ensure
+      // that our event queue is drained before actually terminating.
+      // Without this, it's possible that we might drop some data we
+      // are trying to write out over any open connections we have.
+      //
+      // TODO(klueska): Add support to asynchronously detect when
+      // `stdinToFd` has become invalid before deciding to terminate.
+      stdoutRedirect
+        .onFailed(defer(self(), [this](const string& message) {
+           failure = Failure("Failed redirecting stdout: " + message);
+           terminate(self(), false);
+        }))
+        .onDiscarded(defer(self(), [this]() {
+           failure = Failure("Redirecting stdout discarded");
+           terminate(self(), false);
+        }));
+
+      stderrRedirect
+        .onFailed(defer(self(), [this](const string& message) {
+           failure = Failure("Failed redirecting stderr: " + message);
+           terminate(self(), false);
+        }))
+        .onDiscarded(defer(self(), [this]() {
+           failure = Failure("Redirecting stderr discarded");
+           terminate(self(), false);
+        }));
+
+      collect(stdoutRedirect, stderrRedirect)
+        .then(defer(self(), [this]() {
+          terminate(self(), false);
+          return Nothing();
+        }));
+
       return Nothing();
     }));
 
@@ -602,12 +687,27 @@ Future<Nothing> IOSwitchboardServerProcess::run()
 }
 
 
+void IOSwitchboardServerProcess::finalize()
+{
+  foreach (HttpConnection& connection, connections) {
+    connection.close();
+  }
+
+  if (failure.isSome()) {
+    promise.fail(failure->message);
+  } else {
+    promise.set(Nothing());
+  }
+}
+
+
 void IOSwitchboardServerProcess::acceptLoop()
 {
   socket.accept()
     .onAny(defer(self(), [this](const Future<unix::Socket>& socket) {
       if (!socket.isReady()) {
-        promise.fail("Failed trying to accept connection");
+        failure = Failure("Failed trying to accept connection");
+        terminate(self(), false);
       }
 
       // We intentionally ignore errors on the serve path, and assume
@@ -628,7 +728,117 @@ void IOSwitchboardServerProcess::acceptLoop()
 Future<http::Response> IOSwitchboardServerProcess::handler(
     const http::Request& request)
 {
-  return http::BadRequest("Unsupported");
+  if (request.method != "POST") {
+    return http::MethodNotAllowed({"POST"}, request.method);
+  }
+
+  agent::Call call;
+
+  Option<string> contentType =
+    request.headers.get(strings::lower("Content-Type"));
+
+  if (contentType.isNone()) {
+    return http::BadRequest("Expecting 'Content-Type' to be present");
+  }
+
+  if (contentType.get() == APPLICATION_PROTOBUF) {
+    if (!call.ParseFromString(request.body)) {
+      return http::BadRequest("Failed to parse body into Call protobuf");
+    }
+  } else if (contentType.get() == APPLICATION_JSON) {
+    Try<JSON::Value> value = JSON::parse(request.body);
+
+    if (value.isError()) {
+      return http::BadRequest("Failed to parse body into JSON:"
+                              " " + value.error());
+    }
+
+    Try<agent::Call> parse = ::protobuf::parse<agent::Call>(value.get());
+    if (parse.isError()) {
+      return http::BadRequest("Failed to convert JSON into Call protobuf:"
+                              " " + parse.error());
+    }
+
+    call = parse.get();
+  } else {
+    return http::UnsupportedMediaType(
+        "Expecting 'Content-Type' of '" + stringify(APPLICATION_JSON) +
+        "' or '" + stringify(APPLICATION_PROTOBUF) + "'");
+  }
+
+  ContentType acceptType;
+  if (request.acceptsMediaType(APPLICATION_JSON)) {
+    acceptType = ContentType::JSON;
+  } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+    acceptType = ContentType::PROTOBUF;
+  } else {
+    return http::NotAcceptable(
+        "Expecting 'Accept' to allow '" + stringify(APPLICATION_JSON) + "'"
+        " or '" + stringify(APPLICATION_PROTOBUF) + "'");
+  }
+
+  switch (call.type()) {
+    case agent::Call::ATTACH_CONTAINER_INPUT:
+      return attachContainerInput(call, acceptType);
+
+    case agent::Call::ATTACH_CONTAINER_OUTPUT:
+      return attachContainerOutput(call, acceptType);
+
+    default:
+      return http::NotImplemented();
+  }
+
+  UNREACHABLE();
+}
+
+
+Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
+    const agent::Call& call,
+    const ContentType& contentType)
+{
+  CHECK_EQ(agent::Call::ATTACH_CONTAINER_INPUT, call.type());
+  return http::NotImplemented("ATTACH_CONTAINER_INPUT");
+}
+
+
+Future<http::Response> IOSwitchboardServerProcess::attachContainerOutput(
+    const agent::Call& call,
+    const ContentType& contentType)
+{
+  CHECK_EQ(agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
+
+  http::Pipe pipe;
+  http::OK ok;
+
+  ok.headers["Content-Type"] = stringify(contentType);
+  ok.type = http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  // We store the connection in a list and wait for asynchronous
+  // calls to `receiveOutput()` to actually push data out over the
+  // connection. If we ever detect a connection has been closed,
+  // we remove it from this list.
+  HttpConnection connection(pipe.writer(), contentType);
+  auto iterator = connections.insert(connections.end(), connection);
+
+  // We use the `startRedirect` promise to indicate when we should
+  // begin reading data from our `stdoutFromFd` and `stderrFromFd`
+  // file descriptors. If we were started with the `waitForConnection`
+  // parameter set to `true`, only set this promise here once the
+  // first connection has been established.
+  if (!startRedirect.future().isReady()) {
+    startRedirect.set(Nothing());
+  }
+
+  connection.closed()
+    .then(defer(self(), [this, iterator]() {
+      // Erasing from a `std::list` only invalidates the iterator of
+      // the object being erased. All other iterators remain valid.
+      connections.erase(iterator);
+      return Nothing();
+    }));
+
+  return ok;
 }
 
 
@@ -636,6 +846,27 @@ void IOSwitchboardServerProcess::outputHook(
     const string& data,
     const agent::ProcessIO::Data::Type& type)
 {
+  // Break early if there are no connections to send the data to.
+  if (connections.size() == 0) {
+    return;
+  }
+
+  // Build a `ProcessIO` message from the data.
+  agent::ProcessIO message;
+  message.set_type(agent::ProcessIO::DATA);
+  message.mutable_data()->set_type(type);
+  message.mutable_data()->set_data(data);
+
+  // Walk through our list of connections and write the message to
+  // them. It's possible that a write might fail if the writer has
+  // been closed. That's OK because we already take care of removing
+  // closed connections from our list via the future returned by
+  // the `HttpConnection::closed()` call above. We might do a few
+  // unnecessary writes if we have a bunch of messages queued up,
+  // but that shouldn't be a problem.
+  foreach (HttpConnection& connection, connections) {
+    connection.send(message);
+  }
 }
 #endif // __WINDOWS__
 

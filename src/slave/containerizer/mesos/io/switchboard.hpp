@@ -120,7 +120,8 @@ public:
       int stdoutToFd,
       int stderrFromFd,
       int stderrToFd,
-      const std::string& socketPath);
+      const std::string& socketPath,
+      bool waitForConnection = false);
 
   ~IOSwitchboardServer();
 
@@ -133,7 +134,8 @@ private:
       int stdoutToFd,
       int stderrFromFd,
       int stderrToFd,
-      const process::network::unix::Socket& socket);
+      const process::network::unix::Socket& socket,
+      bool waitForConnection);
 
   process::Owned<IOSwitchboardServerProcess> process;
 };
@@ -183,6 +185,11 @@ struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
         "A file descriptor where data read from\n"
         "'stderr_from_fd' should be redirected to.");
 
+    add(&IOSwitchboardServerFlags::wait_for_connection,
+        "wait_for_connection",
+        "A boolean indicating whether the server should wait for the\n"
+        "first connection before reading any data from the '*_from_fd's.");
+
     add(&IOSwitchboardServerFlags::socket_path,
         "socket_address",
         "The path of the unix domain socket this\n"
@@ -195,6 +202,7 @@ struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
   int stderr_from_fd;
   int stderr_to_fd;
   std::string socket_path;
+  bool wait_for_connection;
 };
 #endif // __WINDOWS__
 
