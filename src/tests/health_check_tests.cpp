@@ -839,7 +839,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
 // This test creates a task that uses the Docker executor and whose
 // health flaps. It then verifies that the health status updates are
-// sent to the scheduler.
+// sent to the framework.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
   Shared<Docker> docker(new MockDocker(
@@ -901,8 +901,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  // Create a temporary file in host and then we could this file to make sure
-  // the health check command is run in docker container.
+  // Create a temporary file in host and then we could this file to
+  // make sure the health check command is run in docker container.
   string tmpPath = path::join(os::getcwd(), "foobar");
   ASSERT_SOME(os::write(tmpPath, "bar"));
 
@@ -916,11 +916,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   //
   // Case 1:
   //   - Remove the temporary file.
-  string alt = "rm " + tmpPath + " || (mkdir -p " + os::getcwd() +
-               " && echo foo >" + tmpPath + " && exit 1)";
+  const string healthCheckCmd =
+    "rm " + tmpPath + " || "
+    "(mkdir -p " + os::getcwd() + " && echo foo >" + tmpPath + " && exit 1)";
 
   vector<TaskInfo> tasks = populateTasks(
-      "sleep 120", alt, offers.get()[0], 0, 3, None(), containerInfo);
+      "sleep 60", healthCheckCmd, offers.get()[0], 0, 3, None(), containerInfo);
 
   Future<ContainerID> containerId;
   EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
@@ -929,35 +930,36 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
                            &MockDockerContainerizer::_launch)));
 
   Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusHealth1;
-  Future<TaskStatus> statusHealth2;
-  Future<TaskStatus> statusHealth3;
+  Future<TaskStatus> statusUnhealthy;
+  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusUnhealthyAgain;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusHealth1))
-    .WillOnce(FutureArg<1>(&statusHealth2))
-    .WillOnce(FutureArg<1>(&statusHealth3));
+    .WillOnce(FutureArg<1>(&statusUnhealthy))
+    .WillOnce(FutureArg<1>(&statusHealthy))
+    .WillOnce(FutureArg<1>(&statusUnhealthyAgain))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  AWAIT_READY(statusHealth1);
-  EXPECT_EQ(TASK_RUNNING, statusHealth1.get().state());
-  EXPECT_FALSE(statusHealth1.get().healthy());
+  AWAIT_READY(statusUnhealthy);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
+  EXPECT_FALSE(statusUnhealthy.get().healthy());
 
-  AWAIT_READY(statusHealth2);
-  EXPECT_EQ(TASK_RUNNING, statusHealth2.get().state());
-  EXPECT_TRUE(statusHealth2.get().healthy());
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_TRUE(statusHealthy.get().healthy());
 
-  AWAIT_READY(statusHealth3);
-  EXPECT_EQ(TASK_RUNNING, statusHealth3.get().state());
-  EXPECT_FALSE(statusHealth3.get().healthy());
+  AWAIT_READY(statusUnhealthyAgain);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthyAgain.get().state());
+  EXPECT_FALSE(statusUnhealthyAgain.get().healthy());
 
-  // Check the temporary file created in host still exists and the content
-  // don't change.
+  // Check the temporary file created in host still exists and the
+  // content don't change.
   ASSERT_SOME(os::read(tmpPath));
   EXPECT_EQ("bar", os::read(tmpPath).get());
 
