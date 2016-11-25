@@ -17,6 +17,8 @@
 #ifndef __TESTS_UTILS_HPP__
 #define __TESTS_UTILS_HPP__
 
+#include <string>
+
 #include <stout/json.hpp>
 
 namespace mesos {

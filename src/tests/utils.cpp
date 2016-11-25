@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "tests/utils.hpp"
+
 #include <gtest/gtest.h>
 
 #include <mesos/http.hpp>
@@ -27,7 +29,6 @@
 #include <stout/gtest.hpp>
 
 #include "tests/flags.hpp"
-#include "tests/utils.hpp"
 
 using std::string;
 
