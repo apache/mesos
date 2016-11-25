@@ -174,13 +174,13 @@ HealthCheckerProcess::HealthCheckerProcess(
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
-    healthUpdateCallback(_callback),
     launcherDir(_launcherDir),
-    initializing(true),
+    healthUpdateCallback(_callback),
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
-    consecutiveFailures(0)
+    consecutiveFailures(0),
+    initializing(true)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
   CHECK_SOME(create);

@@ -135,15 +135,18 @@ private:
   Duration checkGracePeriod;
   Duration checkTimeout;
 
-  lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
-  std::string launcherDir;
-  bool initializing;
-  TaskID taskID;
-  Option<pid_t> taskPid;
-  std::vector<std::string> namespaces;
+  // Contains a binary for TCP health checks.
+  const std::string launcherDir;
+
+  const lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
+  const TaskID taskID;
+  const Option<pid_t> taskPid;
+  const std::vector<std::string> namespaces;
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
+
   uint32_t consecutiveFailures;
   process::Time startTime;
+  bool initializing;
 };
 
 
