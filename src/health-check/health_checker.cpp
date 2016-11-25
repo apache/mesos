@@ -158,6 +158,14 @@ HealthChecker::~HealthChecker()
 }
 
 
+void HealthChecker::stop()
+{
+  LOG(INFO) << "Health checking stopped";
+
+  terminate(process.get(), true);
+}
+
+
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const string& _launcherDir,

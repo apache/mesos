@@ -70,6 +70,11 @@ public:
 
   ~HealthChecker();
 
+  /**
+   * Immediately stops health checking. Any in-flight health checks are dropped.
+   */
+  void stop();
+
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
 
