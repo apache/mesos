@@ -1428,17 +1428,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     MesosContainerizerLaunch::Flags launchFlags;
 
     launchFlags.command = JSON::protobuf(launchCommand.get());
-
-    // The launch helper should inherit the agent's environment.
-    map<string, string> launchEnvironment = os::environment();
-
-    // Passing the command environment via an environment variable
-    // to the launch helper instead of a flag due to the sensitivity
-    // of environment variables. Otherwise the command environment
-    // would have been visible through commands like `ps` which are
-    // not protected from unprivileged users on the host.
-    launchEnvironment["MESOS_CONTAINERIZER_ENVIRONMENT"] =
-      stringify(environment);
+    launchFlags.environment = environment;
 
     if (rootfs.isNone()) {
       // NOTE: If the executor shares the host filesystem, we should
@@ -1555,6 +1545,21 @@ Future<bool> MesosContainerizerProcess::_launch(
     VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
             << launchFlags << "'";
 
+    // Passing the launch flags via environment variables to the
+    // launch helper due to the sensitivity of those flags. Otherwise
+    // the launch flags would have been visible through commands like
+    // `ps` which are not protected from unprivileged users on the
+    // host.
+    map<string, string> launchFlagsEnvironment =
+      launchFlags.buildEnvironment("MESOS_CONTAINERIZER_");
+
+    // The launch helper should inherit the agent's environment.
+    map<string, string> launchEnvironment = os::environment();
+
+    launchEnvironment.insert(
+        launchFlagsEnvironment.begin(),
+        launchFlagsEnvironment.end());
+
     // Fork the child using launcher.
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;
@@ -1567,7 +1572,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         Subprocess::IO(subprocessInfo.in),
         Subprocess::IO(subprocessInfo.out),
         Subprocess::IO(subprocessInfo.err),
-        &launchFlags,
+        nullptr,
         launchEnvironment,
         // 'enterNamespaces' will be ignored by PosixLauncher.
         _enterNamespaces,
