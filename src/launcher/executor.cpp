@@ -304,7 +304,7 @@ protected:
   {
     // This check prevents us from sending `TASK_RUNNING` updates
     // after the task has been transitioned to `TASK_KILLING`.
-    if (killed) {
+    if (killed || terminated) {
       return;
     }
 
@@ -594,6 +594,11 @@ private:
         update(taskId.get(), TASK_KILLING);
       }
 
+      // Stop health checking the task.
+      if (checker.get() != nullptr) {
+        checker->stop();
+      }
+
       // Now perform signal escalation to begin killing the task.
       CHECK_GT(pid, 0);
 
@@ -628,6 +633,11 @@ private:
   void reaped(pid_t pid, const Future<Option<int>>& status_)
   {
     terminated = true;
+
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->stop();
+    }
 
     TaskState taskState;
     string message;
