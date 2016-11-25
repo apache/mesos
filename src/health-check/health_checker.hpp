@@ -45,7 +45,8 @@ class HealthChecker
 {
 public:
   /**
-   * Attempts to create a `HealthChecker` object.
+   * Attempts to create a `HealthChecker` object. In case of success, health
+   * checking starts immediately after initialization.
    *
    * @param check The protobuf message definition of health check.
    * @param executor The executor UPID to which health check results will be
@@ -68,8 +69,6 @@ public:
 
   ~HealthChecker();
 
-  process::Future<Nothing> healthCheck();
-
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
 
@@ -90,14 +89,15 @@ public:
 
   virtual ~HealthCheckerProcess() {}
 
-  process::Future<Nothing> healthCheck();
+protected:
+  virtual void initialize() override;
 
 private:
   void failure(const std::string& message);
   void success();
 
+  void healthCheck();
   void _healthCheck();
-
   void __healthCheck(const process::Future<Nothing>& future);
 
   process::Future<Nothing> _commandHealthCheck();
@@ -120,7 +120,6 @@ private:
 
   void reschedule();
 
-  process::Promise<Nothing> promise;
   HealthCheck check;
   std::string launcherDir;
   bool initializing;

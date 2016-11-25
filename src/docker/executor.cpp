@@ -526,13 +526,14 @@ private:
       namespaces.push_back("net");
     }
 
-    Try<Owned<health::HealthChecker>> _checker = health::HealthChecker::create(
-        healthCheck,
-        launcherDir,
-        self(),
-        task.task_id(),
-        containerPid,
-        namespaces);
+    Try<Owned<health::HealthChecker>> _checker =
+      health::HealthChecker::create(
+          healthCheck,
+          launcherDir,
+          self(),
+          task.task_id(),
+          containerPid,
+          namespaces);
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -540,14 +541,6 @@ private:
            << _checker.error() << endl;
     } else {
       checker = _checker.get();
-
-      checker->healthCheck()
-        .onAny([](const Future<Nothing>& future) {
-          // Only possible to be a failure.
-          if (future.isFailed()) {
-            cerr << "Health check failed:" << future.failure() << endl;
-          }
-        });
     }
   }
 

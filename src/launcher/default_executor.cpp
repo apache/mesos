@@ -420,20 +420,7 @@ protected:
           return;
         }
 
-        Owned<health::HealthChecker> checker = _checker.get();
-
-        checker->healthCheck()
-          .onAny(defer(self(), [this, taskId](const Future<Nothing>& future) {
-            if (!future.isReady()) {
-              LOG(ERROR)
-                << "Health check for task '" << taskId << "' failed due to: "
-                << (future.isFailed() ? future.failure() : "discarded");
-
-              __shutdown();
-            }
-          }));
-
-        checkers.push_back(checker);
+        checkers.push_back(_checker.get());
       }
 
       // Currently, the Mesos agent does not expose the mapping from
