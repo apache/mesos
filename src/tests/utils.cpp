@@ -20,11 +20,13 @@
 
 #include <mesos/http.hpp>
 
+#include <process/address.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
+#include <process/socket.hpp>
 
 #include <stout/gtest.hpp>
 
@@ -37,6 +39,7 @@ using process::UPID;
 using process::address;
 
 namespace http = process::http;
+namespace network = process::network;
 
 namespace mesos {
 namespace internal {
@@ -65,6 +68,29 @@ JSON::Object Metrics()
 
   return parse.get();
 }
+
+
+Try<uint16_t> getFreePort()
+{
+  // Bind to port=0 to obtain a random unused port.
+  Try<network::Socket> socket = network::Socket::create();
+
+  if (socket.isError()) {
+    return Error(socket.error());
+  }
+
+  Try<network::Address> result = socket->bind(network::Address());
+
+  if (result.isSome()) {
+    return result->port;
+  } else {
+    return Error(result.error());
+  }
+
+  // No explicit cleanup of `socket` as we rely on the implementation
+  // of `Socket` to close the socket on destruction.
+}
+
 
 string getModulePath(const string& name)
 {
