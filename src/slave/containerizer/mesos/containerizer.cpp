@@ -1521,9 +1521,6 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchFlags.runtime_directory = runtimePath;
 #endif // __WINDOWS__
 
-    VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
-            << launchFlags << "'";
-
     // For now we need to special case entering a parent container's
     // mount namespace. We do this to ensure that we have access to
     // the binary we launch with `launcher->fork()`.
@@ -1554,6 +1551,9 @@ Future<bool> MesosContainerizerProcess::_launch(
       _enterNamespaces = enterNamespaces.get() & ~CLONE_NEWNS;
     }
 #endif // __linux__
+
+    VLOG(1) << "Launching '" << MESOS_CONTAINERIZER << "' with flags '"
+            << launchFlags << "'";
 
     // Fork the child using launcher.
     vector<string> argv(2);
