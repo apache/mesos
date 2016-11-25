@@ -96,23 +96,22 @@ private:
   void failure(const std::string& message);
   void success();
 
-  void healthCheck();
-  void _healthCheck();
-  void __healthCheck(const process::Future<Nothing>& future);
+  void performSingleCheck();
+  void processCheckResult(const process::Future<Nothing>& future);
 
-  process::Future<Nothing> _commandHealthCheck();
+  process::Future<Nothing> commandHealthCheck();
 
-  process::Future<Nothing> _httpHealthCheck();
+  process::Future<Nothing> httpHealthCheck();
 
-  process::Future<Nothing> __httpHealthCheck(
+  process::Future<Nothing> _httpHealthCheck(
       const std::tuple<
           process::Future<Option<int>>,
           process::Future<std::string>,
           process::Future<std::string>>& t);
 
-  process::Future<Nothing> _tcpHealthCheck();
+  process::Future<Nothing> tcpHealthCheck();
 
-  process::Future<Nothing> __tcpHealthCheck(
+  process::Future<Nothing> _tcpHealthCheck(
       const std::tuple<
           process::Future<Option<int>>,
           process::Future<std::string>,

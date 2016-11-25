@@ -185,12 +185,6 @@ HealthCheckerProcess::HealthCheckerProcess(
 
 void HealthCheckerProcess::initialize()
 {
-  healthCheck();
-}
-
-
-void HealthCheckerProcess::healthCheck()
-{
   VLOG(1) << "Health check starting in "
           << Seconds(static_cast<int64_t>(check.delay_seconds()))
           << ", grace period "
@@ -200,7 +194,7 @@ void HealthCheckerProcess::healthCheck()
 
   delay(Seconds(static_cast<int64_t>(check.delay_seconds())),
         self(),
-        &Self::_healthCheck);
+        &Self::performSingleCheck);
 }
 
 
@@ -257,23 +251,23 @@ void HealthCheckerProcess::success()
 }
 
 
-void HealthCheckerProcess::_healthCheck()
+void HealthCheckerProcess::performSingleCheck()
 {
   Future<Nothing> checkResult;
 
   switch (check.type()) {
     case HealthCheck::COMMAND: {
-      checkResult = _commandHealthCheck();
+      checkResult = commandHealthCheck();
       break;
     }
 
     case HealthCheck::HTTP: {
-      checkResult = _httpHealthCheck();
+      checkResult = httpHealthCheck();
       break;
     }
 
     case HealthCheck::TCP: {
-      checkResult = _tcpHealthCheck();
+      checkResult = tcpHealthCheck();
       break;
     }
 
@@ -282,11 +276,11 @@ void HealthCheckerProcess::_healthCheck()
     }
   }
 
-  checkResult.onAny(defer(self(), &Self::__healthCheck, lambda::_1));
+  checkResult.onAny(defer(self(), &Self::processCheckResult, lambda::_1));
 }
 
 
-void HealthCheckerProcess::__healthCheck(const Future<Nothing>& future)
+void HealthCheckerProcess::processCheckResult(const Future<Nothing>& future)
 {
   if (future.isReady()) {
     success();
@@ -301,7 +295,7 @@ void HealthCheckerProcess::__healthCheck(const Future<Nothing>& future)
 }
 
 
-Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
+Future<Nothing> HealthCheckerProcess::commandHealthCheck()
 {
   CHECK_EQ(HealthCheck::COMMAND, check.type());
   CHECK(check.has_command());
@@ -387,7 +381,7 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
 }
 
 
-Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
+Future<Nothing> HealthCheckerProcess::httpHealthCheck()
 {
   CHECK_EQ(HealthCheck::HTTP, check.type());
   CHECK(check.has_http());
@@ -452,11 +446,11 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
           string(HTTP_CHECK_COMMAND) + " has not returned after " +
           stringify(timeout) + "; aborting");
     })
-    .then(defer(self(), &Self::__httpHealthCheck, lambda::_1));
+    .then(defer(self(), &Self::_httpHealthCheck, lambda::_1));
 }
 
 
-Future<Nothing> HealthCheckerProcess::__httpHealthCheck(
+Future<Nothing> HealthCheckerProcess::_httpHealthCheck(
     const tuple<
         Future<Option<int>>,
         Future<string>,
@@ -515,7 +509,7 @@ Future<Nothing> HealthCheckerProcess::__httpHealthCheck(
 }
 
 
-Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
+Future<Nothing> HealthCheckerProcess::tcpHealthCheck()
 {
   CHECK_EQ(HealthCheck::TCP, check.type());
   CHECK(check.has_tcp());
@@ -575,11 +569,11 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
           string(TCP_CHECK_COMMAND) + " has not returned after " +
           stringify(timeout) + "; aborting");
     })
-    .then(defer(self(), &Self::__tcpHealthCheck, lambda::_1));
+    .then(defer(self(), &Self::_tcpHealthCheck, lambda::_1));
 }
 
 
-Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
+Future<Nothing> HealthCheckerProcess::_tcpHealthCheck(
     const tuple<
         Future<Option<int>>,
         Future<string>,
@@ -623,7 +617,7 @@ void HealthCheckerProcess::reschedule()
 
   delay(Seconds(static_cast<int64_t>(check.interval_seconds())),
         self(),
-        &Self::_healthCheck);
+        &Self::performSingleCheck);
 }
 
 
