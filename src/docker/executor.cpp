@@ -297,7 +297,7 @@ protected:
 
     // This check prevents us from sending `TASK_RUNNING` updates
     // after the task has been transitioned to `TASK_KILLING`.
-    if (killed) {
+    if (killed || terminated) {
       return;
     }
 
@@ -376,6 +376,11 @@ private:
         driver.get()->sendStatusUpdate(status);
       }
 
+      // Stop health checking the task.
+      if (checker.get() != nullptr) {
+        checker->stop();
+      }
+
       // TODO(bmahler): Replace this with 'docker kill' so
       // that we can adjust the grace period in the case of
       // a `KillPolicy` override.
@@ -386,6 +391,11 @@ private:
   void reaped(const Future<Option<int>>& run)
   {
     terminated = true;
+
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->stop();
+    }
 
     // In case the stop is stuck, discard it.
     stop.discard();
