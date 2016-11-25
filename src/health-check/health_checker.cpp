@@ -37,6 +37,8 @@
 #include <process/subprocess.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -208,8 +210,8 @@ HealthCheckerProcess::HealthCheckerProcess(
 
 void HealthCheckerProcess::initialize()
 {
-  VLOG(1) << "Health check starts in " << checkDelay
-          << ", grace period " << checkGracePeriod;
+  VLOG(1) << "Health check configuration:"
+          << " '" << jsonify(JSON::Protobuf(check)) << "'";
 
   startTime = Clock::now();
 
