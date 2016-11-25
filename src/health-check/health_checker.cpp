@@ -185,16 +185,14 @@ HealthCheckerProcess::HealthCheckerProcess(
 
 void HealthCheckerProcess::initialize()
 {
-  VLOG(1) << "Health check starting in "
+  VLOG(1) << "Health check starts in "
           << Seconds(static_cast<int64_t>(check.delay_seconds()))
           << ", grace period "
           << Seconds(static_cast<int64_t>(check.grace_period_seconds()));
 
   startTime = Clock::now();
 
-  delay(Seconds(static_cast<int64_t>(check.delay_seconds())),
-        self(),
-        &Self::performSingleCheck);
+  scheduleNext(Seconds(static_cast<int64_t>(check.delay_seconds())));
 }
 
 
@@ -204,7 +202,7 @@ void HealthCheckerProcess::failure(const string& message)
       check.grace_period_seconds() > 0 &&
       (Clock::now() - startTime).secs() <= check.grace_period_seconds()) {
     LOG(INFO) << "Ignoring failure as health check still in grace period";
-    reschedule();
+    scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
     return;
   }
 
@@ -228,7 +226,7 @@ void HealthCheckerProcess::failure(const string& message)
   // Even if we set the `kill_task` flag, it is an executor who kills the task
   // and honors the flag (or not). We have no control over the task's lifetime,
   // hence we should continue until we are explicitly asked to stop.
-  reschedule();
+  scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
 }
 
 
@@ -247,7 +245,7 @@ void HealthCheckerProcess::success()
   }
 
   consecutiveFailures = 0;
-  reschedule();
+  scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
 }
 
 
@@ -610,14 +608,11 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck(
 }
 
 
-void HealthCheckerProcess::reschedule()
+void HealthCheckerProcess::scheduleNext(const Duration& duration)
 {
-  VLOG(1) << "Rescheduling health check in "
-          << Seconds(static_cast<int64_t>(check.interval_seconds()));
+  VLOG(1) << "Scheduling health check in " << duration;
 
-  delay(Seconds(static_cast<int64_t>(check.interval_seconds())),
-        self(),
-        &Self::performSingleCheck);
+  delay(duration, self(), &Self::performSingleCheck);
 }
 
 
