@@ -420,7 +420,7 @@ protected:
           return;
         }
 
-        checkers.push_back(_checker.get());
+        checkers[taskId] = _checker.get();
       }
 
       // Currently, the Mesos agent does not expose the mapping from
@@ -617,6 +617,17 @@ protected:
       deserialize<agent::Response>(contentType, response->body);
     CHECK_SOME(waitResponse);
 
+    // If the task has been health checked, stop the associated checker.
+    //
+    // TODO(alexr): Once we support `TASK_KILLING` in this executor, health
+    // checking should be stopped right before sending the `TASK_KILLING`
+    // update to avoid subsequent `TASK_RUNNING` updates.
+    if (checkers.contains(taskId)) {
+      CHECK_NOTNULL(checkers.at(taskId).get());
+      checkers.at(taskId)->stop();
+      checkers.erase(taskId);
+    }
+
     TaskState taskState;
     Option<string> message;
 
@@ -681,6 +692,12 @@ protected:
     LOG(INFO) << "Shutting down";
 
     shuttingDown = true;
+
+    // Stop health checking all tasks because we are shutting down.
+    foreach (const Owned<health::HealthChecker>& checker, checkers.values()) {
+      checker->stop();
+    }
+    checkers.clear();
 
     if (!launched) {
       __shutdown();
@@ -818,6 +835,13 @@ protected:
       bool healthy,
       bool initiateTaskKill)
   {
+    // This prevents us from sending `TASK_RUNNING` after a terminal status
+    // update, because we may receive an update from a health check scheduled
+    // before the task has been waited on.
+    if (!checkers.contains(taskId)) {
+      return;
+    }
+
     LOG(INFO) << "Received task health update for task '" << taskId
               << "', task is "
               << (healthy ? "healthy" : "not healthy");
@@ -1009,7 +1033,7 @@ private:
   // a `connected()` callback.
   Option<UUID> connectionId;
 
-  list<Owned<health::HealthChecker>> checkers; // Health checkers.
+  hashmap<TaskID, Owned<health::HealthChecker>> checkers; // Health checkers.
 };
 
 } // namespace internal {
