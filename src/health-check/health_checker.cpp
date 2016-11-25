@@ -175,6 +175,22 @@ HealthCheckerProcess::HealthCheckerProcess(
     namespaces(_namespaces),
     consecutiveFailures(0)
 {
+  Try<Duration> create = Duration::create(check.delay_seconds());
+  CHECK_SOME(create);
+  checkDelay = create.get();
+
+  create = Duration::create(check.interval_seconds());
+  CHECK_SOME(create);
+  checkInterval = create.get();
+
+  create = Duration::create(check.grace_period_seconds());
+  CHECK_SOME(create);
+  checkGracePeriod = create.get();
+
+  create = Duration::create(check.timeout_seconds());
+  CHECK_SOME(create);
+  checkTimeout = create.get();
+
 #ifdef __linux__
   if (!namespaces.empty()) {
     clone = lambda::bind(&cloneWithSetns, lambda::_1, taskPid, namespaces);
@@ -185,24 +201,22 @@ HealthCheckerProcess::HealthCheckerProcess(
 
 void HealthCheckerProcess::initialize()
 {
-  VLOG(1) << "Health check starts in "
-          << Seconds(static_cast<int64_t>(check.delay_seconds()))
-          << ", grace period "
-          << Seconds(static_cast<int64_t>(check.grace_period_seconds()));
+  VLOG(1) << "Health check starts in " << checkDelay
+          << ", grace period " << checkGracePeriod;
 
   startTime = Clock::now();
 
-  scheduleNext(Seconds(static_cast<int64_t>(check.delay_seconds())));
+  scheduleNext(checkDelay);
 }
 
 
 void HealthCheckerProcess::failure(const string& message)
 {
   if (initializing &&
-      check.grace_period_seconds() > 0 &&
-      (Clock::now() - startTime).secs() <= check.grace_period_seconds()) {
+      checkGracePeriod.secs() > 0 &&
+      (Clock::now() - startTime) <= checkGracePeriod) {
     LOG(INFO) << "Ignoring failure as health check still in grace period";
-    scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
+    scheduleNext(checkInterval);
     return;
   }
 
@@ -226,7 +240,7 @@ void HealthCheckerProcess::failure(const string& message)
   // Even if we set the `kill_task` flag, it is an executor who kills the task
   // and honors the flag (or not). We have no control over the task's lifetime,
   // hence we should continue until we are explicitly asked to stop.
-  scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
+  scheduleNext(checkInterval);
 }
 
 
@@ -245,7 +259,7 @@ void HealthCheckerProcess::success()
   }
 
   consecutiveFailures = 0;
-  scheduleNext(Seconds(static_cast<int64_t>(check.interval_seconds())));
+  scheduleNext(checkInterval);
 }
 
 
@@ -347,10 +361,12 @@ Future<Nothing> HealthCheckerProcess::commandHealthCheck()
   }
 
   pid_t commandPid = external->pid();
-  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
+  const Duration timeout = checkTimeout;
 
   return external->status()
-    .after(timeout, [timeout, commandPid](Future<Option<int>> future) {
+    .after(
+        timeout,
+        [timeout, commandPid](Future<Option<int>> future) {
       future.discard();
 
       if (commandPid != -1) {
@@ -421,16 +437,17 @@ Future<Nothing> HealthCheckerProcess::httpHealthCheck()
   }
 
   pid_t curlPid = s->pid();
-  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
+  const Duration timeout = checkTimeout;
 
   return await(
       s->status(),
       process::io::read(s->out().get()),
       process::io::read(s->err().get()))
-    .after(timeout,
-      [timeout, curlPid](Future<tuple<Future<Option<int>>,
-                                      Future<string>,
-                                      Future<string>>> future) {
+    .after(
+        timeout,
+        [timeout, curlPid](Future<tuple<Future<Option<int>>,
+                                        Future<string>,
+                                        Future<string>>> future) {
       future.discard();
 
       if (curlPid != -1) {
@@ -544,16 +561,17 @@ Future<Nothing> HealthCheckerProcess::tcpHealthCheck()
   }
 
   pid_t tcpConnectPid = s->pid();
-  Duration timeout = Seconds(static_cast<int64_t>(check.timeout_seconds()));
+  const Duration timeout = checkTimeout;
 
   return await(
       s->status(),
       process::io::read(s->out().get()),
       process::io::read(s->err().get()))
-    .after(timeout,
-      [timeout, tcpConnectPid](Future<tuple<Future<Option<int>>,
-                                            Future<string>,
-                                            Future<string>>> future) {
+    .after(
+        timeout,
+        [timeout, tcpConnectPid](Future<tuple<Future<Option<int>>,
+                                              Future<string>,
+                                              Future<string>>> future) {
       future.discard();
 
       if (tcpConnectPid != -1) {

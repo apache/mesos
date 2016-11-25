@@ -121,6 +121,11 @@ private:
   void scheduleNext(const Duration& duration);
 
   HealthCheck check;
+  Duration checkDelay;
+  Duration checkInterval;
+  Duration checkGracePeriod;
+  Duration checkTimeout;
+
   std::string launcherDir;
   bool initializing;
   process::UPID executor;
