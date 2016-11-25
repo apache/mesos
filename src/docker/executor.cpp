@@ -32,6 +32,7 @@
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
@@ -277,19 +278,7 @@ public:
   void error(ExecutorDriver* driver, const string& message) {}
 
 protected:
-  virtual void initialize()
-  {
-    install<TaskHealthStatus>(
-        &Self::taskHealthUpdated,
-        &TaskHealthStatus::task_id,
-        &TaskHealthStatus::healthy,
-        &TaskHealthStatus::kill_task);
-  }
-
-  void taskHealthUpdated(
-      const TaskID& taskID,
-      const bool& healthy,
-      const bool& initiateTaskKill)
+  void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
     if (driver.isNone()) {
       return;
@@ -302,11 +291,11 @@ protected:
     }
 
     cout << "Received task health update, healthy: "
-         << stringify(healthy) << endl;
+         << stringify(healthStatus.healthy()) << endl;
 
     TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskID);
-    status.set_healthy(healthy);
+    status.mutable_task_id()->CopyFrom(healthStatus.task_id());
+    status.set_healthy(healthStatus.healthy());
     status.set_state(TASK_RUNNING);
 
     if (containerNetworkInfo.isSome()) {
@@ -316,9 +305,9 @@ protected:
 
     driver.get()->sendStatusUpdate(status);
 
-    if (initiateTaskKill) {
+    if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
-      killTask(driver.get(), taskID);
+      killTask(driver.get(), healthStatus.task_id());
     }
   }
 
@@ -540,7 +529,7 @@ private:
       health::HealthChecker::create(
           healthCheck,
           launcherDir,
-          self(),
+          defer(self(), &Self::taskHealthUpdated, lambda::_1),
           task.task_id(),
           containerPid,
           namespaces);
