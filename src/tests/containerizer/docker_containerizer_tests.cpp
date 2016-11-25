@@ -3970,7 +3970,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
   AWAIT_READY(offers);
   EXPECT_EQ(1u, offers->size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Launch a HTTP server until SIGTERM is received, then sleep for
   // 15 seconds to let the health check fail.

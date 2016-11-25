@@ -1339,7 +1339,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaHTTP)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use `test-helper` to launch a simple HTTP
   // server to respond to HTTP health checks.
@@ -1421,7 +1421,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use `test-helper` to launch a simple HTTP
   // server to respond to HTTP health checks.
@@ -1498,7 +1498,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use `test-helper` to launch a simple HTTP
   // server to respond to TCP health checks.
@@ -1578,7 +1578,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use Netcat to launch a HTTP server.
   const string command = strings::format(
@@ -1663,7 +1663,7 @@ TEST_F(HealthCheckTest,
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   const string command = strings::format(
       "python https_server.py %u",
@@ -1755,7 +1755,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use Netcat to launch a HTTP server.
   const string command = strings::format(
@@ -1851,7 +1851,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use Netcat to launch a HTTP server.
   const string command = strings::format(
@@ -1978,7 +1978,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   const string command = strings::format(
       "python https_server.py %u",
@@ -2110,7 +2110,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const uint16_t testPort = 31001;
+  const uint16_t testPort = getFreePort().get();
 
   // Use Netcat to launch a HTTP server.
   const string command = strings::format(
