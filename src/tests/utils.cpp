@@ -32,6 +32,12 @@
 
 using std::string;
 
+using process::Future;
+using process::UPID;
+using process::address;
+
+namespace http = process::http;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -44,15 +50,14 @@ const bool searchInstallationDirectory = false;
 
 JSON::Object Metrics()
 {
-  process::UPID upid("metrics", process::address());
+  UPID upid("metrics", address());
 
   // TODO(neilc): This request might timeout if the current value of a
   // metric cannot be determined. In tests, a common cause for this is
   // MESOS-6231 when multiple scheduler drivers are in use.
-  process::Future<process::http::Response> response =
-    process::http::get(upid, "snapshot");
+  Future<http::Response> response = http::get(upid, "snapshot");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
