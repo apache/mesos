@@ -643,8 +643,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
 
 // This test creates a task whose health flaps, and verifies that the
-// health status updates are sent to the framework and reflected in the
-// state endpoint of both the master and the agent.
+// health status updates are sent to the framework scheduler.
 TEST_F(HealthCheckTest, HealthStatusChange)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -712,125 +711,13 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
   EXPECT_TRUE(statusHealthy.get().healthy());
 
-  // Verify that task health is exposed in the master's state endpoint.
-  {
-    Future<http::Response> response = http::get(
-        master.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_TRUE(find);
-  }
-
-  // Verify that task health is exposed in the agent's state endpoint.
-  {
-    Future<http::Response> response = http::get(
-        agent.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_TRUE(find);
-  }
-
   AWAIT_READY(statusUnhealthy);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
   EXPECT_FALSE(statusUnhealthy.get().healthy());
 
-  // Verify that the task health change is reflected in the master's
-  // state endpoint.
-  {
-    Future<http::Response> response = http::get(
-        master.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_FALSE(find);
-  }
-
-  // Verify that the task health change is reflected in the agent's
-  // state endpoint.
-  {
-    Future<http::Response> response = http::get(
-        agent.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_FALSE(find);
-  }
-
   AWAIT_READY(statusHealthyAgain);
   EXPECT_EQ(TASK_RUNNING, statusHealthyAgain.get().state());
   EXPECT_TRUE(statusHealthyAgain.get().healthy());
-
-  // Verify through master's state endpoint that the task is back to a
-  // healthy state.
-  {
-    Future<http::Response> response = http::get(
-        master.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_TRUE(find);
-  }
-
-  // Verify through agent's state endpoint that the task is back to a
-  // healthy state.
-  {
-    Future<http::Response> response = http::get(
-        agent.get()->pid,
-        "state",
-        None(),
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-    ASSERT_SOME(parse);
-
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
-        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
-    EXPECT_SOME_TRUE(find);
-  }
 
   driver.stop();
   driver.join();
@@ -839,7 +726,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
 // This test creates a task that uses the Docker executor and whose
 // health flaps. It then verifies that the health status updates are
-// sent to the framework.
+// sent to the framework scheduler.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
   Shared<Docker> docker(new MockDocker(
@@ -958,8 +845,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   EXPECT_EQ(TASK_RUNNING, statusUnhealthyAgain.get().state());
   EXPECT_FALSE(statusUnhealthyAgain.get().healthy());
 
-  // Check the temporary file created in host still exists and the
-  // content don't change.
+  // Check the temporary file created in host still
+  // exists and the content has not changed.
   ASSERT_SOME(os::read(tmpPath));
   EXPECT_EQ("bar", os::read(tmpPath).get());
 
