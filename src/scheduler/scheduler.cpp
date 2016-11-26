@@ -642,7 +642,7 @@ protected:
     }
 
     // This could happen if the master failed over after sending an event.
-    if (!event->isSome()) {
+    if (event->isNone()) {
       const string error = "End-Of-File received from master. The master "
                            "closed the event stream";
       LOG(ERROR) << error;
