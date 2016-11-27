@@ -1449,6 +1449,11 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     environment["GLOG_v"] = glog.get();
   }
 
+  if (environment.count("PATH") == 0) {
+    environment["PATH"] =
+      "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+  }
+
   vector<string> argv;
   argv.push_back("mesos-docker-executor");
 
