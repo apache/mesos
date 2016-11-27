@@ -849,7 +849,8 @@ public:
   bool operator!=(const Connection& c) const { return !(*this == c); }
 
 private:
-  Connection(const network::inet::Socket& s);
+  Connection(const network::Socket& s);
+  friend Future<Connection> connect(const network::Address& address);
   friend Future<Connection> connect(const URL&);
 
   // Forward declaration.
@@ -857,6 +858,13 @@ private:
 
   std::shared_ptr<Data> data;
 };
+
+
+// TODO(benh): Currently we don't support SSL for this version of
+// connect. We should support this, perhaps with an enum or a bool and
+// then update the `connect(URL)` variant to just call this function
+// instead.
+Future<Connection> connect(const network::Address& address);
 
 
 Future<Connection> connect(const URL& url);
