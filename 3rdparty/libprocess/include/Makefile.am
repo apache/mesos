@@ -37,6 +37,7 @@ nobase_include_HEADERS =		\
   process/latch.hpp			\
   process/limiter.hpp			\
   process/logging.hpp			\
+  process/loop.hpp			\
   process/message.hpp			\
   process/mime.hpp			\
   process/mutex.hpp			\
