@@ -44,11 +44,16 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #include "encoder.hpp"
 
 namespace authentication = process::http::authentication;
 namespace ID = process::ID;
 namespace http = process::http;
+#ifndef __WINDOWS__
+namespace unix = process::network::unix;
+#endif // __WINDOWS__
 
 using authentication::Authenticator;
 using authentication::AuthenticationResult;
@@ -62,6 +67,7 @@ using process::Promise;
 
 using process::http::URL;
 
+using process::network::inet::Address;
 using process::network::inet::Socket;
 
 using std::string;
@@ -1759,3 +1765,214 @@ TEST_F(HttpAuthenticationTest, Basic)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 }
+
+
+class HttpServeTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(HttpServeTest, Pipelining)
+{
+  Try<Socket> server = Socket::create();
+  ASSERT_SOME(server);
+
+  ASSERT_SOME(server->bind(Address::ANY_ANY()));
+  ASSERT_SOME(server->listen(1));
+
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
+
+  Future<Socket> accept = server->accept();
+
+  Future<http::Connection> connect = http::connect(address.get());
+
+  AWAIT_READY(connect);
+  http::Connection connection = connect.get();
+
+  AWAIT_READY(accept);
+  Socket socket = accept.get();
+
+  class Handler
+  {
+  public:
+    MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+  } handler;
+
+  Future<Nothing> serve = http::serve(
+    socket,
+    [&](const http::Request& request) {
+      return handler.handle(request);
+    });
+
+  Promise<http::Response> promise1;
+  Future<http::Request> request1;
+
+  Promise<http::Response> promise2;
+  Future<http::Request> request2;
+
+  Promise<http::Response> promise3;
+  Future<http::Request> request3;
+
+  EXPECT_CALL(handler, handle(_))
+    .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())))
+    .WillOnce(DoAll(FutureArg<0>(&request2), Return(promise2.future())))
+    .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
+    .WillRepeatedly(Return(http::OK()));
+
+  http::URL url("http", address->hostname().get(), address->port, "/");
+
+  http::Request request;
+  request.method = "GET";
+  request.url = url;
+  request.keepAlive = true;
+
+  Future<http::Response> response1 = connection.send(request);
+  Future<http::Response> response2 = connection.send(request);
+  Future<http::Response> response3 = connection.send(request);
+
+  AWAIT_READY(request1);
+  AWAIT_READY(request2);
+  AWAIT_READY(request3);
+
+  ASSERT_TRUE(response1.isPending());
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise3.set(http::OK("3"));
+
+  ASSERT_TRUE(response1.isPending());
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise1.set(http::OK("1"));
+
+  AWAIT_READY(response1);
+  EXPECT_EQ("1", response1->body);
+
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise2.set(http::OK("2"));
+
+  AWAIT_READY(response2);
+  EXPECT_EQ("2", response2->body);
+
+  AWAIT_READY(response3);
+  EXPECT_EQ("3", response3->body);
+
+  AWAIT_READY(connection.disconnect());
+
+  AWAIT_READY(serve);
+}
+
+
+TEST_F(HttpServeTest, Discard)
+{
+  Try<Socket> server = Socket::create();
+  ASSERT_SOME(server);
+
+  ASSERT_SOME(server->bind(Address::ANY_ANY()));
+  ASSERT_SOME(server->listen(1));
+
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
+
+  Future<Socket> accept = server->accept();
+
+  Future<http::Connection> connect = http::connect(address.get());
+
+  AWAIT_READY(connect);
+  http::Connection connection = connect.get();
+
+  AWAIT_READY(accept);
+  Socket socket = accept.get();
+
+  class Handler
+  {
+  public:
+    MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+  } handler;
+
+  Future<Nothing> serve = http::serve(
+    socket,
+    [&](const http::Request& request) {
+      return handler.handle(request);
+    });
+
+  Promise<http::Response> promise1;
+  Future<http::Request> request1;
+
+  EXPECT_CALL(handler, handle(_))
+    .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())));
+
+  http::URL url("http", address->hostname().get(), address->port, "/");
+
+  http::Request request;
+  request.method = "GET";
+  request.url = url;
+  request.keepAlive = true;
+
+  Future<http::Response> response = connection.send(request);
+
+  AWAIT_READY(request1);
+
+  promise1.future().onDiscard([&]() { promise1.discard(); });
+
+  serve.discard();
+
+  AWAIT_DISCARDED(serve);
+
+  EXPECT_TRUE(promise1.future().hasDiscard());
+
+  AWAIT_FAILED(response);
+
+  AWAIT_READY(connection.disconnected());
+}
+
+
+#ifndef __WINDOWS__
+TEST_F(HttpServeTest, Unix)
+{
+  Try<unix::Socket> server = unix::Socket::create();
+  ASSERT_SOME(server);
+
+  // Use a path in the temporary directory so it gets cleaned up.
+  string path = path::join(sandbox.get(), "socket");
+
+  Try<unix::Address> address = unix::Address::create(path);
+  ASSERT_SOME(address);
+
+  ASSERT_SOME(server->bind(address.get()));
+  ASSERT_SOME(server->listen(1));
+
+  Future<unix::Socket> accept = server->accept();
+
+  Future<http::Connection> connect = http::connect(address.get());
+
+  AWAIT_READY(connect);
+  http::Connection connection = connect.get();
+
+  AWAIT_READY(accept);
+  unix::Socket socket = accept.get();
+
+  Future<Nothing> serve = http::serve(
+    socket,
+    [](const http::Request& request) {
+      return http::OK(request.body);
+    });
+
+  http::Request request;
+  request.method = "GET";
+  request.url = http::URL("http", "", 80, "/");
+  request.keepAlive = true;
+  request.body = "Hello World!";
+
+  Future<http::Response> response = connection.send(request);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(request.body, response->body);
+
+  AWAIT_READY(connection.disconnect());
+
+  AWAIT_READY(serve);
+}
+#endif // __WINDOWS__

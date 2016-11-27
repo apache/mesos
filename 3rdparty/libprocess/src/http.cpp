@@ -31,13 +31,17 @@
 #include <tuple>
 #include <vector>
 
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
+#include <process/io.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
+#include <process/queue.hpp>
 #include <process/socket.hpp>
 
 #include <stout/foreach.hpp>
@@ -52,6 +56,7 @@
 #include <stout/try.hpp>
 
 #include "decoder.hpp"
+#include "encoder.hpp"
 
 using std::deque;
 using std::istringstream;
@@ -1386,6 +1391,434 @@ Future<Connection> connect(const URL& url)
       return Connection(socket.get());
     });
 }
+
+
+namespace internal {
+
+Future<Nothing> send(network::Socket socket, Encoder* encoder)
+{
+  size_t* size = new size_t();
+  return [=]() {
+    switch (encoder->kind()) {
+      case Encoder::DATA: {
+        const char* data = static_cast<DataEncoder*>(encoder)->next(size);
+        return socket.send(data, *size);
+      }
+      case Encoder::FILE: {
+        off_t offset = 0;
+        int fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
+        return socket.sendfile(fd, offset, *size);
+      }
+    }
+  }()
+  .then([=](size_t length) -> Future<Nothing> {
+    // Update the encoder with the amount sent.
+    encoder->backup(*size - length);
+
+    // See if there is any more of the message to send.
+    if (encoder->remaining() != 0) {
+      return send(socket, encoder);
+    }
+
+    return Nothing();
+  })
+  .onAny([=]() {
+    delete size;
+  });
+}
+
+
+Future<Nothing> send(
+    network::Socket socket,
+    const Response& response,
+    Request* request)
+{
+  CHECK(response.type == Response::BODY ||
+        response.type == Response::NONE);
+
+  Encoder* encoder = new HttpResponseEncoder(response, *request);
+
+  return send(socket, encoder)
+    .onAny([=]() {
+      delete encoder;
+    });
+}
+
+
+Future<Nothing> sendfile(
+    network::Socket socket,
+    Response response,
+    Request* request)
+{
+  CHECK(response.type == Response::PATH);
+
+  // Make sure no body is sent (this is really an error and
+  // should be reported and no response sent.
+  response.body.clear();
+
+  Try<int> fd = os::open(response.path, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+
+  if (fd.isError()) {
+    const string body = "Failed to open '" + response.path + "': " + fd.error();
+    // TODO(benh): VLOG(1)?
+    // TODO(benh): Don't send error back as part of InternalServiceError?
+    // TODO(benh): Copy headers from `response`?
+    return send(socket, InternalServerError(body), request);
+  }
+
+  struct stat s; // Need 'struct' because of function named 'stat'.
+  if (fstat(fd.get(), &s) != 0) {
+    const string body =
+      "Failed to fstat '" + response.path + "': " + os::strerror(errno);
+    // TODO(benh): VLOG(1)?
+    // TODO(benh): Don't send error back as part of InternalServiceError?
+    // TODO(benh): Copy headers from `response`?
+    os::close(fd.get());
+    return send(socket, InternalServerError(body), request);
+  } else if (S_ISDIR(s.st_mode)) {
+    const string body = "'" + response.path + "' is a directory";
+    // TODO(benh): VLOG(1)?
+    // TODO(benh): Don't send error back as part of InternalServiceError?
+    // TODO(benh): Copy headers from `response`?
+    os::close(fd.get());
+    return send(socket, InternalServerError(body), request);
+  }
+
+  // While the user is expected to properly set a 'Content-Type'
+  // header, we'll fill in (or overwrite) 'Content-Length' header.
+  response.headers["Content-Length"] = stringify(s.st_size);
+
+  // TODO(benh): If this is a TCP socket consider turning on TCP_CORK
+  // for both sends and then turning it off.
+  Encoder* encoder = new HttpResponseEncoder(response, *request);
+
+  return send(socket, encoder)
+    .onAny([=](const Future<Nothing>& future) {
+      delete encoder;
+
+      // Close file descriptor if we aren't doing any more sending.
+      if (future.isDiscarded() || future.isFailed()) {
+        os::close(fd.get());
+      }
+    })
+    .then([=]() mutable {
+      // NOTE: the file descriptor gets closed by FileEncoder.
+      Encoder* encoder = new FileEncoder(fd.get(), s.st_size);
+      return send(socket, encoder)
+        .onAny([=]() {
+          delete encoder;
+        });
+    });
+}
+
+
+Future<Nothing> stream(
+    const network::Socket& socket,
+    http::Pipe::Reader reader)
+{
+  return reader.read()
+    .then([=](const string& data) mutable {
+      bool finished = false;
+
+      ostringstream out;
+
+      if (data.empty()) {
+        // Finished reading.
+        out << "0\r\n" << "\r\n";
+        finished = true;
+      } else {
+        out << std::hex << data.size() << "\r\n";
+        out << data;
+        out << "\r\n";
+      }
+
+      Encoder* encoder = new DataEncoder(out.str());
+
+      return send(socket, encoder)
+        .onAny([=]() {
+          delete encoder;
+        })
+        .then([=]() mutable -> Future<Nothing> {
+          if (!finished) {
+            return stream(socket, reader);
+          }
+
+          return Nothing();
+        });
+    });
+}
+
+
+Future<Nothing> stream(
+    const network::Socket& socket,
+    Response response,
+    Request* request)
+{
+  CHECK(response.type == Response::PIPE);
+
+  // Make sure no body is sent (this is really an error and
+  // should be reported and no response sent).
+  response.body.clear();
+
+  if (response.reader.isNone()) {
+    // This is clearly a programmer error, we don't have a reader from
+    // which to stream! We return an `InternalServerError` rather than
+    // failing just as we do in `sendfile` when we get a malformed
+    // response.
+    const string body = "Missing data to stream";
+    // TODO(benh): VLOG(1)?
+    // TODO(benh): Don't send error back as part of InternalServiceError?
+    // TODO(benh): Copy headers from `response`?
+    return send(socket, InternalServerError(body), request);
+  }
+
+  // While the user is expected to properly set a 'Content-Type'
+  // header, we'll fill in (or overwrite) 'Transfer-Encoding' header.
+  response.headers["Transfer-Encoding"] = "chunked";
+
+  Encoder* encoder = new HttpResponseEncoder(response, *request);
+
+  return send(socket, encoder)
+    .onAny([=]() {
+      delete encoder;
+    })
+    .then([=]() {
+      return stream(socket, response.reader.get());
+    })
+    // Regardless of whether `send` or `stream` completed succesfully
+    // or failed we close the reader so any writers will be notified.
+    .onAny([=]() mutable {
+      response.reader->close();
+    });
+}
+
+
+struct Item
+{
+  Request* request;
+  Future<Response> response;
+};
+
+
+Future<Nothing> send(
+    network::Socket socket,
+    Queue<Option<Item>> pipeline)
+{
+  return loop(
+      [=]() mutable {
+        return pipeline.get();
+      },
+      [=](const Option<Item>& item) -> Future<bool> {
+        if (item.isNone()) {
+          return false;
+        }
+
+        Request* request = item->request;
+        Future<Response> response = item->response;
+
+        return response
+          // TODO(benh):
+          // .recover([]() {
+          //   return InternalServerError("Discarded response");
+          // })
+          .repair([](const Future<Response>& response) {
+            // TODO(benh): Is this severe enough that we should close
+            // the connection?
+            return InternalServerError(response.failure());
+          })
+          .then([=](const Response& response) {
+            // TODO(benh): Should any generated InternalServerError
+            // responses due to bugs in the Response passed to us cause
+            // us to return a Failure here rather than keep processing
+            // more requests/responses?
+            return [&]() {
+              switch (response.type) {
+                case Response::PATH: return sendfile(socket, response, request);
+                case Response::PIPE: return stream(socket, response, request);
+                case Response::BODY:
+                case Response::NONE: return send(socket, response, request);
+              }
+            }()
+            .then([=]() {
+              // Persist the connection if the request expects it and
+              // the response doesn't include 'Connection: close'.
+              bool persist = request->keepAlive;
+              if (response.headers.contains("Connection")) {
+                if (response.headers.at("Connection") == "close") {
+                  persist = false;
+                }
+              }
+              return persist;
+            });
+          })
+          .onAny([=]() {
+            delete request;
+          });
+      });
+}
+
+
+Future<Nothing> receive(
+    network::Socket socket,
+    std::function<Future<Response>(const Request&)>&& f,
+    Queue<Option<Item>> pipeline)
+{
+  // Get the peer address to augment any requests we receive.
+  Try<network::Address> address = socket.peer();
+
+  if (address.isError()) {
+    return Failure("Failed to get peer address: " + address.error());
+  }
+
+  const size_t size = io::BUFFERED_READ_SIZE;
+  char* data = new char[size];
+
+  DataDecoder* decoder = new DataDecoder();
+
+  return loop(
+      [=]() {
+        return socket.recv(data, size);
+      },
+      [=](size_t length) mutable -> Future<bool> {
+        if (length == 0) {
+          return false;
+        }
+
+        // Decode as much of the data as possible into HTTP requests.
+        const deque<Request*> requests = decoder->decode(data, length);
+
+        // NOTE: it's possible the decoder has failed but some
+        // requests might be available, i.e., `requests.empty()` is
+        // not true, so we wait to return a `Failure` until when there
+        // are no requests.
+
+        if (decoder->failed() && requests.empty()) {
+          return Failure("Decoder error while receiving");
+        }
+
+        foreach (Request* request, requests) {
+          request->client = address.get();
+          // TODO(benh): To support HTTP pipelining we invoke `f`
+          // regardless of whether the previous response has been
+          // completed. This can make handling of requests more
+          // difficult so we could consider supporting disabling HTTP
+          // pipelining via some sort of "options" initially passed
+          // in.
+          pipeline.put(Item{request, f(*request)});
+        }
+
+        return true; // Keep looping!
+      })
+    .onAny([=]() {
+      delete decoder;
+      delete[] data;
+    });
+}
+
+
+Future<Nothing> serve(
+    network::Socket socket,
+    std::function<Future<Response>(const Request&)>&& f)
+{
+  // HTTP serving is implemented by running two loops, a "receive"
+  // loop and a "send" loop. The receive loop passes the pipeline of
+  // request/responses via a `Queue` to the send loop that is
+  // responsible for sending the response back to the client. A `None`
+  // passed on the queue signifies that receiving has completed.
+  //
+  // TODO(benh): Replace this with something like `Stream` that can
+  // give us completion semantics without having to encode them with
+  // an `Option` like we do here.
+  Queue<Option<Item>> pipeline;
+
+  Future<Nothing> receiving =
+    receive(socket, std::move(f), pipeline)
+      .onAny([=]() mutable {
+        // Either:
+        //
+        //   (1) An EOF was received.
+        //   (2) A failure occured while receiving.
+        //   (3) Receiving was discarded (likely because serving was
+        //       discarded).
+        //
+        // In all cases the best course of action is to signify that
+        // no more items will be enqueued on the `pipeline` and in
+        // the case of (2) or (3) shutdown the read end of the
+        // socket so the client recognizes it can't send any more
+        // requests.
+        //
+        // Note that we don't look at the return value of
+        // `Socket::shutdown` because the socket might already be
+        // shutdown!
+        pipeline.put(None());
+        socket.shutdown(network::Socket::Shutdown::READ);
+      });
+
+  Future<Nothing> sending =
+    send(socket, pipeline)
+      .onAny([=]() mutable {
+        // Either:
+        //
+        //   (1) HTTP connection is not meant to be persistent or
+        //       there are no more items expected in the pipeline.
+        //   (2) A failure occured while sending.
+        //   (3) Sending was discarded (likely because serving was
+        //       discarded).
+        //
+        // In all cases the best course of action is to shutdown the
+        // socket which will also force receiving to complete.
+        //
+        // Note that we don't look at the return value of
+        // `Socket::shutdown` because the socket might already be
+        // shutdown!
+        socket.shutdown(network::Socket::Shutdown::READ_WRITE);
+      });
+
+  std::shared_ptr<Promise<Nothing>> promise(new Promise<Nothing>());
+
+  promise->future().onDiscard([=]() mutable {
+    receiving.discard();
+    sending.discard();
+  });
+
+  await(sending, receiving)
+    .onAny([=]() mutable {
+      // Delete remaining requests and discard remaining responses.
+      if (pipeline.size() != 0) {
+        loop([=]() mutable {
+               return pipeline.get();
+             },
+             [=](Option<Item> item) {
+               if (item.isNone()) {
+                 return false;
+               }
+               delete item->request;
+               if (promise->future().hasDiscard()) {
+                 item->response.discard();
+               }
+               return true;
+             });
+      }
+
+      if (receiving.isReady() && sending.isReady()) {
+        promise->set(Nothing());
+      } else if (receiving.isFailed() && sending.isFailed()) {
+        promise->fail("Failed to receive (" + receiving.failure() +
+                      ") and send (" + sending.failure() + ")");
+      } else if (receiving.isFailed()) {
+        promise->fail("Failed to receive: " + receiving.failure());
+      } else if (sending.isFailed()) {
+        promise->fail("Failed to send: " + sending.failure());
+      } else {
+        CHECK(receiving.isDiscarded() || sending.isDiscarded());
+        promise->discard();
+      }
+    });
+
+  return promise->future();
+}
+
+} // namespace internal {
 
 
 Request createRequest(

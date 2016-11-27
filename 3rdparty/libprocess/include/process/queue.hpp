@@ -69,6 +69,13 @@ public:
     return future;
   }
 
+  size_t size() const
+  {
+    synchronized (data->lock) {
+      return data->elements.size();
+    }
+  }
+
 private:
   struct Data
   {
