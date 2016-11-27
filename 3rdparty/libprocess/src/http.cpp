@@ -1084,9 +1084,8 @@ public:
 
   Future<Nothing> disconnect(const Option<string>& message = None())
   {
-    Try<Nothing> shutdown = socket.shutdown();
-
-    disconnection.set(Nothing());
+    Try<Nothing> shutdown = socket.shutdown(
+        network::Socket::Shutdown::READ_WRITE);
 
     // If a response is still streaming, we send EOF to
     // the decoder in order to fail the pipe reader.
@@ -1100,6 +1099,8 @@ public:
           message.isSome() ? message.get() : "Disconnected");
       pipeline.pop();
     }
+
+    disconnection.set(Nothing());
 
     return shutdown;
   }
