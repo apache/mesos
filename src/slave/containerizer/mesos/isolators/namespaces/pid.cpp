@@ -84,7 +84,7 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
   if (containerId.has_parent()) {
     // If we are a nested container, then we want to enter our
     // parent's pid namespace before cloning a new one.
-    launchInfo.set_enter_namespaces(CLONE_NEWPID);
+    launchInfo.add_enter_namespaces(CLONE_NEWPID);
 
     // However, if we are a nested container in the `DEBUG` class,
     // then we don't want to clone a new PID namespace at all, so we
@@ -95,7 +95,7 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     }
   }
 
-  launchInfo.set_clone_namespaces(CLONE_NEWPID);
+  launchInfo.add_clone_namespaces(CLONE_NEWPID);
 
   // Mount /proc with standard options for the container's pid
   // namespace to show the container's pids (and other /proc files),

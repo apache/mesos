@@ -34,6 +34,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/slave/containerizer.hpp>
+
 #include "common/parse.hpp"
 
 #ifdef __linux__
@@ -62,6 +64,8 @@ using mesos::internal::capabilities::Capability;
 using mesos::internal::capabilities::ProcessCapabilities;
 #endif // __linux__
 
+using mesos::slave::ContainerLaunchInfo;
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -71,54 +75,9 @@ const string MesosContainerizerLaunch::NAME = "launch";
 
 MesosContainerizerLaunch::Flags::Flags()
 {
-  add(&Flags::command,
-      "command",
-      "The command to execute.");
-
-  add(&Flags::environment,
-      "environment",
-      "The environment variables for the command.");
-
-  add(&Flags::working_directory,
-      "working_directory",
-      "The working directory for the command. It has to be an absolute path \n"
-      "w.r.t. the root filesystem used for the command.");
-
-#ifndef __WINDOWS__
-  add(&Flags::runtime_directory,
-      "runtime_directory",
-      "The runtime directory for the container (used for checkpointing)");
-
-  add(&Flags::rootfs,
-      "rootfs",
-      "Absolute path to the container root filesystem. The command will be \n"
-      "interpreted relative to this path");
-
-  add(&Flags::user,
-      "user",
-      "The user to change to.");
-
-  add(&Flags::rlimits,
-      "rlimits",
-      "Resource limits for the launched process. This might require\n"
-      "additional priviledges if the new limits exceed the system\n"
-      "limits\n"
-      "Example with limits for CPU time, and unlimited size of created files:\n"
-      "{\n"
-      "  \"rlimits\":[\n"
-      "    {\n"
-      "      \"type\":\"RLMT_CPU\",\n"
-      "      \"soft\":\"1\",\n"
-      "      \"hard\":\"1\",\n"
-      "    },\n"
-      "    {\n"
-      "      \"type\":\"RLMT_FSIZE\"\n"
-      "    }\n"
-      "  ]\n"
-      "}"
-
-      );
-#endif // __WINDOWS__
+  add(&Flags::launch_info,
+      "launch_info",
+      "");
 
   add(&Flags::pipe_read,
       "pipe_read",
@@ -136,16 +95,13 @@ MesosContainerizerLaunch::Flags::Flags()
       "properly in the subprocess. It's used to synchronize with the \n"
       "parent process. If not specified, no synchronization will happen.");
 
-  add(&Flags::pre_exec_commands,
-      "pre_exec_commands",
-      "The additional preparation commands to execute before\n"
-      "executing the command.");
+#ifndef __WINDOWS__
+  add(&Flags::runtime_directory,
+      "runtime_directory",
+      "The runtime directory for the container (used for checkpointing)");
+#endif // __WINDOWS__
 
 #ifdef __linux__
-  add(&Flags::capabilities,
-      "capabilities",
-      "Capabilities the command can use.");
-
   add(&Flags::namespace_mnt_target,
       "namespace_mnt_target",
       "The target 'pid' of the process whose mount namespace we'd like\n"
@@ -318,14 +274,38 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-  // Check command line flags.
-  if (flags.command.isNone()) {
-    cerr << "Flag --command is not specified" << endl;
+  if (flags.launch_info.isNone()) {
+    cerr << "Flag --launch_info is not specified" << endl;
     exitWithStatus(EXIT_FAILURE);
   }
 
-  bool controlPipeSpecified =
-    flags.pipe_read.isSome() && flags.pipe_write.isSome();
+  Try<ContainerLaunchInfo> _launchInfo =
+    ::protobuf::parse<ContainerLaunchInfo>(flags.launch_info.get());
+
+  if (_launchInfo.isError()) {
+    cerr << "Failed to parse launch info: " << _launchInfo.error() << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+
+  ContainerLaunchInfo launchInfo = _launchInfo.get();
+
+  if (!launchInfo.has_command()) {
+    cerr << "Launch command is not specified" << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+
+  // Validate the command.
+  if (launchInfo.command().shell()) {
+    if (!launchInfo.command().has_value()) {
+      cerr << "Shell command is not specified" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  } else {
+    if (!launchInfo.command().has_value()) {
+      cerr << "Executable path is not specified" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
 
   if ((flags.pipe_read.isSome() && flags.pipe_write.isNone()) ||
       (flags.pipe_read.isNone() && flags.pipe_write.isSome())) {
@@ -334,27 +314,8 @@ int MesosContainerizerLaunch::execute()
     exitWithStatus(EXIT_FAILURE);
   }
 
-  // Parse the command.
-  Try<CommandInfo> command =
-    ::protobuf::parse<CommandInfo>(flags.command.get());
-
-  if (command.isError()) {
-    cerr << "Failed to parse the command: " << command.error() << endl;
-    exitWithStatus(EXIT_FAILURE);
-  }
-
-  // Validate the command.
-  if (command.get().shell()) {
-    if (!command.get().has_value()) {
-      cerr << "Shell command is not specified" << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  } else {
-    if (!command.get().has_value()) {
-      cerr << "Executable path is not specified" << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
+  bool controlPipeSpecified =
+    flags.pipe_read.isSome() && flags.pipe_write.isSome();
 
   if (controlPipeSpecified) {
     int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
@@ -422,54 +383,40 @@ int MesosContainerizerLaunch::execute()
 
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.
-  if (flags.pre_exec_commands.isSome()) {
-    // TODO(jieyu): Use JSON::Array if we have generic parse support.
-    JSON::Array array = flags.pre_exec_commands.get();
-    foreach (const JSON::Value& value, array.values) {
-      if (!value.is<JSON::Object>()) {
-        cerr << "Invalid JSON format for flag --commands" << endl;
-        exitWithStatus(EXIT_FAILURE);
+  foreach (const CommandInfo& command, launchInfo.pre_exec_commands()) {
+    if (!command.has_value()) {
+      cerr << "The 'value' of a preparation command is not specified" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    cout << "Executing pre-exec command '"
+         << JSON::protobuf(command) << "'" << endl;
+
+    int status = 0;
+
+    if (command.shell()) {
+      // Execute the command using the system shell.
+      status = os::system(command.value());
+    } else {
+      // Directly spawn all non-shell commands to prohibit users
+      // from injecting arbitrary shell commands in the arguments.
+      vector<string> args;
+      foreach (const string& arg, command.arguments()) {
+        args.push_back(arg);
       }
 
-      Try<CommandInfo> parse = ::protobuf::parse<CommandInfo>(value);
-      if (parse.isError()) {
-        cerr << "Failed to parse a preparation command: "
-             << parse.error() << endl;
-        exitWithStatus(EXIT_FAILURE);
-      }
+      status = os::spawn(command.value(), args);
+    }
 
-      if (!parse.get().has_value()) {
-        cerr << "The 'value' of a preparation command is not specified" << endl;
-        exitWithStatus(EXIT_FAILURE);
-      }
-
-      cout << "Executing pre-exec command '" << value << "'" << endl;
-
-      int status = 0;
-
-      if (parse->shell()) {
-        // Execute the command using the system shell.
-        status = os::system(parse->value());
-      } else {
-        // Directly spawn all non-shell commands to prohibit users
-        // from injecting arbitrary shell commands in the arguments.
-        vector<string> args;
-        foreach (const string& arg, parse->arguments()) {
-          args.push_back(arg);
-        }
-
-        status = os::spawn(parse->value(), args);
-      }
-
-      if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-        cerr << "Failed to execute pre-exec command '" << value << "'" << endl;
-        exitWithStatus(EXIT_FAILURE);
-      }
+    if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+      cerr << "Failed to execute pre-exec command '"
+           << JSON::protobuf(command) << "'" << endl;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 
 #ifndef __WINDOWS__
-  // NOTE: If 'flags.user' is set, we will get the uid, gid, and the
+  // NOTE: If 'user' is set, we will get the uid, gid, and the
   // supplementary group ids associated with the specified user before
   // changing the filesystem root. This is because after changing the
   // filesystem root, the current process might no longer have access
@@ -483,10 +430,10 @@ int MesosContainerizerLaunch::execute()
   // user namespace and container capabilities is available for
   // mesos container.
 
-  if (flags.user.isSome()) {
-    Result<uid_t> _uid = os::getuid(flags.user.get());
+  if (launchInfo.has_user()) {
+    Result<uid_t> _uid = os::getuid(launchInfo.user());
     if (!_uid.isSome()) {
-      cerr << "Failed to get the uid of user '" << flags.user.get() << "': "
+      cerr << "Failed to get the uid of user '" << launchInfo.user() << "': "
            << (_uid.isError() ? _uid.error() : "not found") << endl;
       exitWithStatus(EXIT_FAILURE);
     }
@@ -494,17 +441,17 @@ int MesosContainerizerLaunch::execute()
     // No need to change user/groups if the specified user is the same
     // as that of the current process.
     if (_uid.get() != os::getuid().get()) {
-      Result<gid_t> _gid = os::getgid(flags.user.get());
+      Result<gid_t> _gid = os::getgid(launchInfo.user());
       if (!_gid.isSome()) {
-        cerr << "Failed to get the gid of user '" << flags.user.get() << "': "
+        cerr << "Failed to get the gid of user '" << launchInfo.user() << "': "
              << (_gid.isError() ? _gid.error() : "not found") << endl;
         exitWithStatus(EXIT_FAILURE);
       }
 
-      Try<vector<gid_t>> _gids = os::getgrouplist(flags.user.get());
+      Try<vector<gid_t>> _gids = os::getgrouplist(launchInfo.user());
       if (_gids.isError()) {
         cerr << "Failed to get the supplementary gids of user '"
-             << flags.user.get() << "': "
+             << launchInfo.user() << "': "
              << (_gids.isError() ? _gids.error() : "not found") << endl;
         exitWithStatus(EXIT_FAILURE);
       }
@@ -514,13 +461,18 @@ int MesosContainerizerLaunch::execute()
       gids = _gids.get();
     }
   }
+#else
+  if (launchInfo.has_user()) {
+    cerr << "Switching user is not supported on Windows" << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
 #endif // __WINDOWS__
 
 #ifdef __linux__
   // Initialize capabilities support if necessary.
   Try<Capabilities> capabilitiesManager = Error("Not initialized");
 
-  if (flags.capabilities.isSome()) {
+  if (launchInfo.has_capabilities()) {
     capabilitiesManager = Capabilities::create();
     if (capabilitiesManager.isError()) {
       cerr << "Failed to initialize capabilities support: "
@@ -538,21 +490,20 @@ int MesosContainerizerLaunch::execute()
       }
     }
   }
+#else
+  if (launchInfo.has_capabilities()) {
+    cerr << "Capabilities are not supported on non Linux system" << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
 #endif // __linux__
 
-#ifdef __WINDOWS__
-  // Not supported on Windows.
-  const Option<string> rootfs = None();
-#else
-  const Option<string> rootfs = flags.rootfs;
-#endif // __WINDOWS__
-
+#ifndef __WINDOWS__
   // Change root to a new root, if provided.
-  if (rootfs.isSome()) {
-    cout << "Changing root to " << rootfs.get() << endl;
+  if (launchInfo.has_rootfs()) {
+    cout << "Changing root to " << launchInfo.rootfs() << endl;
 
     // Verify that rootfs is an absolute path.
-    Result<string> realpath = os::realpath(rootfs.get());
+    Result<string> realpath = os::realpath(launchInfo.rootfs());
     if (realpath.isError()) {
       cerr << "Failed to determine if rootfs is an absolute path: "
            << realpath.error() << endl;
@@ -560,29 +511,35 @@ int MesosContainerizerLaunch::execute()
     } else if (realpath.isNone()) {
       cerr << "Rootfs path does not exist" << endl;
       exitWithStatus(EXIT_FAILURE);
-    } else if (realpath.get() != rootfs.get()) {
+    } else if (realpath.get() != launchInfo.rootfs()) {
       cerr << "Rootfs path is not an absolute path" << endl;
       exitWithStatus(EXIT_FAILURE);
     }
 
 #ifdef __linux__
-    Try<Nothing> chroot = fs::chroot::enter(rootfs.get());
-#elif defined(__WINDOWS__)
-    Try<Nothing> chroot = Error("`chroot` not supported on Windows");
-#else // For any other platform we'll just use POSIX chroot.
-    Try<Nothing> chroot = os::chroot(rootfs.get());
+    Try<Nothing> chroot = fs::chroot::enter(launchInfo.rootfs());
+#else
+    // For any other platform we'll just use POSIX chroot.
+    Try<Nothing> chroot = os::chroot(launchInfo.rootfs());
 #endif // __linux__
+
     if (chroot.isError()) {
-      cerr << "Failed to enter chroot '" << rootfs.get()
+      cerr << "Failed to enter chroot '" << launchInfo.rootfs()
            << "': " << chroot.error();
       exitWithStatus(EXIT_FAILURE);
     }
   }
+#else
+  if (launchInfo.has_rootfs()) {
+    cerr << "Changing rootfs is not supported on Windows" << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+#endif // __WINDOWS__
 
 #ifndef __WINDOWS__
   // Setting resource limits for the process.
-  if (flags.rlimits.isSome()) {
-    foreach (const RLimitInfo::RLimit& limit, flags.rlimits->rlimits()) {
+  if (launchInfo.has_rlimits()) {
+    foreach (const RLimitInfo::RLimit& limit, launchInfo.rlimits().rlimits()) {
       Try<Nothing> set = rlimits::set(limit);
       if (set.isError()) {
         cerr << "Failed to set rlimit: " << set.error() << endl;
@@ -590,7 +547,14 @@ int MesosContainerizerLaunch::execute()
       }
     }
   }
+#else
+  if (launchInfo.has_rlimits()) {
+    cerr << "Rlimits are not supported on Windows" << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+#endif // __WINDOWS__
 
+#ifndef __WINDOWS__
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
   // same privilege as the mesos-agent.
@@ -619,7 +583,7 @@ int MesosContainerizerLaunch::execute()
 #endif // __WINDOWS__
 
 #ifdef __linux__
-  if (flags.capabilities.isSome()) {
+  if (launchInfo.has_capabilities()) {
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
@@ -640,7 +604,7 @@ int MesosContainerizerLaunch::execute()
     }
 
     // Set up requested capabilities.
-    set<Capability> target = capabilities::convert(flags.capabilities.get());
+    set<Capability> target = capabilities::convert(launchInfo.capabilities());
 
     capabilities->set(capabilities::EFFECTIVE, target);
     capabilities->set(capabilities::PERMITTED, target);
@@ -655,35 +619,53 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __linux__
 
-  if (flags.working_directory.isSome()) {
-    Try<Nothing> chdir = os::chdir(flags.working_directory.get());
+  if (launchInfo.has_working_directory()) {
+    Try<Nothing> chdir = os::chdir(launchInfo.working_directory());
     if (chdir.isError()) {
       cerr << "Failed to chdir into current working directory "
-           << "'" << flags.working_directory.get() << "': "
+           << "'" << launchInfo.working_directory() << "': "
            << chdir.error() << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }
 
   // Prepare the executable and the argument list for the child.
-  string executable(command->shell()
+  string executable(launchInfo.command().shell()
     ? os::Shell::name
-    : command->value().c_str());
+    : launchInfo.command().value().c_str());
 
-  os::raw::Argv argv(command->shell()
-    ? vector<string>({os::Shell::arg0, os::Shell::arg1, command->value()})
-    : vector<string>(command->arguments().begin(), command->arguments().end()));
+  os::raw::Argv argv(launchInfo.command().shell()
+    ? vector<string>({
+          os::Shell::arg0,
+          os::Shell::arg1,
+          launchInfo.command().value()})
+    : vector<string>(
+          launchInfo.command().arguments().begin(),
+          launchInfo.command().arguments().end()));
 
   // Prepare the environment for the child. If 'environment' is not
   // specified, inherit the environment of the current process.
   Option<os::raw::Envp> envp;
-  if (flags.environment.isSome()) {
-    JSON::Object environment = flags.environment.get();
+  if (launchInfo.has_environment()) {
+    hashmap<string, string> environment;
 
-    Result<JSON::String> path = flags.environment->find<JSON::String>("PATH");
-    if (path.isNone()) {
-      environment.values["PATH"] =
-          "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    foreach (const Environment::Variable& variable,
+             launchInfo.environment().variables()) {
+      const string& name = variable.name();
+      const string& value = variable.value();
+
+      if (environment.contains(name)) {
+        cout << "Overwriting environment variable '" << name
+             << "', original: '" << environment[name]
+             << "', new: '" << value << "'" << endl;
+      }
+
+      environment[name] = value;
+    }
+
+    if (!environment.contains("PATH")) {
+      environment["PATH"] =
+        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
     }
 
     envp = os::raw::Envp(environment);

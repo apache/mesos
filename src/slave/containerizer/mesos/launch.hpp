@@ -25,6 +25,7 @@
 
 #include <mesos/mesos.hpp>
 
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -38,20 +39,13 @@ public:
   {
     Flags();
 
-    Option<JSON::Object> command;
-    Option<JSON::Object> environment;
-    Option<std::string> working_directory;
-#ifndef __WINDOWS__
-    Option<std::string> runtime_directory;
-    Option<std::string> rootfs;
-    Option<std::string> user;
-    Option<RLimitInfo> rlimits;
-#endif // __WINDOWS__
+    Option<JSON::Object> launch_info;
     Option<int> pipe_read;
     Option<int> pipe_write;
-    Option<JSON::Array> pre_exec_commands;
+#ifndef __WINDOWS__
+    Option<std::string> runtime_directory;
+#endif // __WINDOWS__
 #ifdef __linux__
-    Option<CapabilityInfo> capabilities;
     Option<pid_t> namespace_mnt_target;
     bool unshare_namespace_mnt;
 #endif // __linux__

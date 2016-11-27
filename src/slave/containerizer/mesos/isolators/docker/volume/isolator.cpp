@@ -467,7 +467,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const list<Future<string>>& futures)
 {
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_clone_namespaces(CLONE_NEWNS);
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
   vector<string> messages;
   vector<string> sources;

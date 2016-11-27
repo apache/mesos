@@ -101,7 +101,7 @@ Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
   containerPaths.insert(containerConfig.directory());
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_clone_namespaces(CLONE_NEWNS);
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     // Because the filesystem is shared we require the container path

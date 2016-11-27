@@ -307,7 +307,7 @@ protected:
       int pipes[2],
       const ContainerID& containerId,
       const string& command,
-      const Option<ContainerLaunchInfo>& launchInfo)
+      const Option<ContainerLaunchInfo>& isolatorLaunchInfo)
   {
     CommandInfo commandInfo;
     commandInfo.set_value(command);
@@ -315,24 +315,22 @@ protected:
     // The flags to pass to the helper process.
     MesosContainerizerLaunch::Flags launchFlags;
 
-    launchFlags.command = JSON::protobuf(commandInfo);
-    launchFlags.working_directory = os::getcwd();
-
-    CHECK_SOME(os::user());
-    launchFlags.user = os::user().get();
-
     launchFlags.pipe_read = pipes[0];
     launchFlags.pipe_write = pipes[1];
 
-    if (launchInfo->pre_exec_commands().size() != 1) {
-      return Error("No valid commands inside ContainerLaunchInfo.");
+    ContainerLaunchInfo launchInfo;
+    launchInfo.mutable_command()->CopyFrom(commandInfo);
+    launchInfo.set_working_directory(os::getcwd());
+
+    CHECK_SOME(os::user());
+    launchInfo.set_user(os::user().get());
+
+    if (isolatorLaunchInfo.isSome()) {
+      launchInfo.mutable_pre_exec_commands()->MergeFrom(
+          isolatorLaunchInfo->pre_exec_commands());
     }
 
-    JSON::Array preExecCommands;
-    preExecCommands.values.push_back(JSON::protobuf(
-        launchInfo->pre_exec_commands(0)));
-
-    launchFlags.pre_exec_commands = preExecCommands;
+    launchFlags.launch_info = JSON::protobuf(launchInfo);
 
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;

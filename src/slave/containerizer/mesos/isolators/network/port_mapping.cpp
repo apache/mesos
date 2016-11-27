@@ -2522,7 +2522,8 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
   // other isolators, we need to set mount sharing accordingly for
   // PORT_MAPPING_BIND_MOUNT_ROOT to avoid races described in
   // MESOS-1558. So we turn on mount namespace here for consistency.
-  launchInfo.set_clone_namespaces(CLONE_NEWNET | CLONE_NEWNS);
+  launchInfo.add_clone_namespaces(CLONE_NEWNET);
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
   return launchInfo;
 }

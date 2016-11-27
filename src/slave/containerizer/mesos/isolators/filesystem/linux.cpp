@@ -327,7 +327,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     }
 
     ContainerLaunchInfo launchInfo;
-    launchInfo.set_enter_namespaces(CLONE_NEWNS);
+    launchInfo.add_enter_namespaces(CLONE_NEWNS);
     return launchInfo;
   }
 
@@ -347,7 +347,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
       executorInfo)));
 
   ContainerLaunchInfo launchInfo;
-  launchInfo.set_clone_namespaces(CLONE_NEWNS);
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
   // Prepare the commands that will be run in the container's mount
   // namespace right after forking the executor process. We use these

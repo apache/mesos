@@ -674,22 +674,23 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         // NOTE: There is an implicit assumption here that when used
         // for testing, '__MESOS_TEST__' is the only network the
         // container is going to join.
-        launchInfo.set_clone_namespaces(CLONE_NEWNS | CLONE_NEWUTS);
+        launchInfo.add_clone_namespaces(CLONE_NEWNS);
+        launchInfo.add_clone_namespaces(CLONE_NEWUTS);
       } else {
-        launchInfo.set_clone_namespaces(
-            CLONE_NEWNET |
-            CLONE_NEWNS |
-            CLONE_NEWUTS);
+        launchInfo.add_clone_namespaces(CLONE_NEWNET);
+        launchInfo.add_clone_namespaces(CLONE_NEWNS);
+        launchInfo.add_clone_namespaces(CLONE_NEWUTS);
       }
     } else {
       // This is a nested container. This shares the parent's network
       // and UTS namespace. For non-DEBUG containers it also needs a
       // new mount namespace.
-      launchInfo.set_enter_namespaces(CLONE_NEWNET | CLONE_NEWUTS);
+      launchInfo.add_enter_namespaces(CLONE_NEWNET);
+      launchInfo.add_enter_namespaces(CLONE_NEWUTS);
 
       if (!containerConfig.has_container_class() ||
           containerConfig.container_class() != ContainerClass::DEBUG) {
-        launchInfo.set_clone_namespaces(CLONE_NEWNS);
+        launchInfo.add_clone_namespaces(CLONE_NEWNS);
       }
     }
 
