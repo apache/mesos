@@ -386,7 +386,7 @@ public:
   // This generally happens when `process::finalize` is called.
   void unproxy(const Socket& socket);
 
-  void send(Encoder* encoder, bool persist);
+  void send(Encoder* encoder, bool persist, const Socket& socket);
   void send(const Response& response,
             const Request& request,
             const Socket& socket);
@@ -1492,13 +1492,15 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
         // TODO(benh): Consider a way to have the socket manager turn
         // on TCP_CORK for both sends and then turn it off.
         socket_manager->send(
-            new HttpResponseEncoder(socket, response, request),
-            true);
+            new HttpResponseEncoder(response, request),
+            true,
+            socket);
 
         // Note the file descriptor gets closed by FileEncoder.
         socket_manager->send(
-            new FileEncoder(socket, fd, s.st_size),
-            request.keepAlive);
+            new FileEncoder(fd, s.st_size),
+            request.keepAlive,
+            socket);
       }
     }
   } else if (response.type == Response::PIPE) {
@@ -1513,8 +1515,9 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
     VLOG(3) << "Starting \"chunked\" streaming";
 
     socket_manager->send(
-        new HttpResponseEncoder(socket, response, request),
-        true);
+        new HttpResponseEncoder(response, request),
+        true,
+        socket);
 
     CHECK_SOME(response.reader);
     http::Pipe::Reader reader = response.reader.get();
@@ -1569,8 +1572,9 @@ void HttpProxy::stream(
 
     // Always persist the connection when streaming is not finished.
     socket_manager->send(
-        new DataEncoder(socket, out.str()),
-        finished ? request->keepAlive : true);
+        new DataEncoder(out.str()),
+        finished ? request->keepAlive : true,
+        socket);
   } else if (chunk.isFailed()) {
     VLOG(1) << "Failed to read from stream: " << chunk.failure();
     // TODO(bmahler): Have to close connection if headers were sent!
@@ -2033,12 +2037,11 @@ void _send(
 } // namespace internal {
 
 
-void SocketManager::send(Encoder* encoder, bool persist)
+void SocketManager::send(Encoder* encoder, bool persist, const Socket& socket)
 {
   CHECK(encoder != nullptr);
 
   synchronized (mutex) {
-    Socket socket = encoder->socket();
     if (sockets.count(socket) > 0) {
       // Update whether or not this socket should get disposed after
       // there is no more data to send.
@@ -2061,7 +2064,7 @@ void SocketManager::send(Encoder* encoder, bool persist)
   }
 
   if (encoder != nullptr) {
-    internal::send(encoder, encoder->socket());
+    internal::send(encoder, socket);
   }
 }
 
@@ -2081,7 +2084,7 @@ void SocketManager::send(
     }
   }
 
-  send(new HttpResponseEncoder(socket, response, request), persist);
+  send(new HttpResponseEncoder(response, request), persist, socket);
 }
 
 
@@ -2150,7 +2153,7 @@ void SocketManager::send_connect(
     return;
   }
 
-  Encoder* encoder = new MessageEncoder(socket, message);
+  Encoder* encoder = new MessageEncoder(message);
 
   // Receive and ignore data from this socket. Note that we don't
   // expect to receive anything other than HTTP '202 Accepted'
@@ -2195,7 +2198,7 @@ void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
       }
 
       if (outgoing.count(socket.get()) > 0) {
-        outgoing[socket.get()].push(new MessageEncoder(socket.get(), message));
+        outgoing[socket.get()].push(new MessageEncoder(message));
         return;
       } else {
         // Initialize the outgoing queue.
@@ -2244,9 +2247,7 @@ void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
   } else {
     // If we're not connecting and we haven't added the encoder to
     // the 'outgoing' queue then schedule it to be sent.
-    internal::send(
-        new MessageEncoder(socket.get(), message),
-        socket.get());
+    internal::send(new MessageEncoder(message), socket.get());
   }
 }
 

@@ -17,7 +17,6 @@
 
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
-#include <process/socket.hpp>
 
 #include <stout/gtest.hpp>
 
