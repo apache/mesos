@@ -265,7 +265,12 @@ endif (WIN32)
 # library tests (located in `3rdparty/`).
 ###############################################################################
 
-include(ProcessTestsConfigure)
+list(
+  APPEND CMAKE_MODULE_PATH
+  ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
+  )
+include(StoutConfigure)
+include(StoutTestsConfigure)
 
 if (REBUNDLED)
   set(GMOCK_URL    ${REBUNDLED_DIR}/gmock-${GMOCK_VERSION}.tar.gz)
@@ -334,13 +339,6 @@ ExternalProject_Add(
 #
 # Builds, configures, and compiles the Stout tests.
 ###################################################
-
-list(
-  APPEND CMAKE_MODULE_PATH
-  ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
-  )
-include(StoutConfigure)
-include(StoutTestsConfigure)
 add_subdirectory(stout/tests)
 
 

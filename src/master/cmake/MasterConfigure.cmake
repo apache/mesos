@@ -95,13 +95,6 @@ set(
   CACHE STRING "Master target")
 
 
-# COMPILER CONFIGURATION.
-#########################
-if (APPLE)
-  # GTEST on OSX needs its own tr1 tuple.
-  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11)
-endif (APPLE)
-
 # DEFINE PROCESS MASTER LIBRARY DEPENDENCIES. Tells the process library build
 # tests target download/configure/build all third-party libraries before
 # attempting to build.
@@ -109,7 +102,6 @@ endif (APPLE)
 set(PROCESS_MASTER_DEPENDENCIES
   ${PROCESS_MASTER_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
-  ${GMOCK_TARGET}
   )
 
 if (WIN32)

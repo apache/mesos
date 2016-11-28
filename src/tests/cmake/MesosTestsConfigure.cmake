@@ -37,34 +37,6 @@ add_definitions(-DTESTLIBEXECDIR="${TEST_LIB_EXEC_DIR}")
 add_definitions(-DPKGMODULEDIR="${PKG_MODULE_DIR}")
 add_definitions(-DSBINDIR="${S_BIN_DIR}")
 
-# DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
-############################################################################
-EXTERNAL("gmock" ${GMOCK_VERSION} "${MESOS_3RDPARTY_BIN}")
-
-set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
-set(GPERFTOOLS_VERSION 2.0)
-set(GPERFTOOLS         ${MESOS_3RDPARTY_BIN}/gperftools-${GPERFTOOLS_VERSION})
-
-# Convenience variables for include directories of third-party dependencies.
-set(GMOCK_INCLUDE_DIR ${GMOCK_ROOT}/include)
-set(GTEST_INCLUDE_DIR ${GTEST_SRC}/include)
-
-# Convenience variables for `lib` directories of built third-party dependencies.
-if (WIN32)
-  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-build/${CMAKE_BUILD_TYPE})
-  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/${CMAKE_BUILD_TYPE})
-else (WIN32)
-  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-lib/lib/)
-  # TODO(hausdorff): Figure out why this path is different from the
-  # `ProcessTestsConfigure` equivalent.
-  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/)
-endif (WIN32)
-
-# Convenience variables for "lflags", the symbols we pass to CMake to generate
-# things like `-L/path/to/glog` or `-lglog`.
-#set(GMOCK_LFLAG gmock)
-set(GTEST_LFLAG gtest)
-
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
