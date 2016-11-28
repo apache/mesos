@@ -532,10 +532,11 @@ Future<Option<int>> Docker::run(
     }
   }
 
+  string environmentVariables = "";
+
   if (env.isSome()) {
     foreachpair (const string& key, const string& value, env.get()) {
-      argv.push_back("-e");
-      argv.push_back(key + "=" + value);
+      environmentVariables += key + "=" + value + "\n";
     }
   }
 
@@ -546,14 +547,42 @@ Future<Option<int>> Docker::run(
       // Skip to avoid duplicate environment variables.
       continue;
     }
-    argv.push_back("-e");
-    argv.push_back(variable.name() + "=" + variable.value());
+    environmentVariables += variable.name() + "=" + variable.value() + "\n";
   }
 
-  argv.push_back("-e");
-  argv.push_back("MESOS_SANDBOX=" + mappedDirectory);
-  argv.push_back("-e");
-  argv.push_back("MESOS_CONTAINER_NAME=" + name);
+  environmentVariables += "MESOS_SANDBOX=" + mappedDirectory + "\n";
+  environmentVariables += "MESOS_CONTAINER_NAME=" + name + "\n";
+
+  Try<string> environmentFile_ = os::mktemp();
+  if (environmentFile_.isError()) {
+    return Failure("Failed to create temporary docker environment "
+                   "file: " + environmentFile_.error());
+  }
+
+  const string& environmentFile = environmentFile_.get();
+
+  Try<int> fd = os::open(
+      environmentFile,
+      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR);
+
+  if (fd.isError()) {
+    return Failure(
+        "Failed to open file '" + environmentFile + "': " + fd.error());
+  }
+
+  Try<Nothing> write = os::write(fd.get(), environmentVariables);
+
+  os::close(fd.get());
+
+  if (write.isError()) {
+    return Failure(
+        "Failed to write docker environment file to '" + environmentFile +
+        "': " + write.error());
+  }
+
+  argv.push_back("--env-file");
+  argv.push_back(environmentFile);
 
   Option<string> volumeDriver;
   foreach (const Volume& volume, containerInfo.volumes()) {
@@ -830,7 +859,15 @@ Future<Option<int>> Docker::run(
   }
 
   s->status()
-    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd))
+    .onAny([environmentFile]() {
+      Try<Nothing> rm = os::rm(environmentFile);
+
+      if (rm.isError()) {
+        LOG(WARNING) << "Failed to remove temporary docker environment file "
+                     << "'" << environmentFile << "': " << rm.error();
+      }
+    });
 
   // Ideally we could capture the stderr when docker itself fails,
   // however due to the stderr redirection used here we cannot.
