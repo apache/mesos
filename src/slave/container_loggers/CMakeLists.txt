@@ -17,22 +17,31 @@
 # Logrotate container logger sources.
 #####################################
 set(LOGROTATE_CONTAINER_LOGGER_SRC lib_logrotate.cpp)
+set(MESOS_LOGROTATE_LOGGER_SRC logrotate.cpp)
 
 # Build the container logger module.
 ####################################
 # NOTE: Modules are not supported on Windows.
 if (NOT WIN32)
   add_library(${LOGROTATE_CONTAINER_LOGGER_TARGET} SHARED ${LOGROTATE_CONTAINER_LOGGER_SRC})
+  add_executable(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LOGROTATE_LOGGER_SRC})
 endif (NOT WIN32)
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 if (NOT WIN32)
   target_link_libraries(${LOGROTATE_CONTAINER_LOGGER_TARGET} ${MESOS_TARGET})
+  target_link_libraries(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_TARGET})
 endif (NOT WIN32)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 if (NOT WIN32)
-  add_dependencies(${LOGROTATE_CONTAINER_LOGGER_TARGET} ${MESOS_TARGET})
+  add_dependencies(
+    ${LOGROTATE_CONTAINER_LOGGER_TARGET}
+    ${MESOS_TARGET}
+    ${MESOS_LOGROTATE_LOGGER_TARGET}
+    )
+
+  add_dependencies(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_TARGET})
 endif (NOT WIN32)
