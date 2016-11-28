@@ -92,7 +92,7 @@ add_custom_target(
 
 # CONFIGURE AGENT.
 ##################
-include(SlaveConfigure)
+include(AgentConfigure)
 
 # CONFIGURE MASTER.
 ##################
