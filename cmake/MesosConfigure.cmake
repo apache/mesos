@@ -81,6 +81,14 @@ set(MESOS_BIN_SRC_DIR ${MESOS_BIN}/src)
 set(MESOS_PUBLIC_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 set(MESOS_BIN_INCLUDE_DIR    ${CMAKE_BINARY_DIR}/include)
 
+set(
+  MESOS_PROTOBUF_HEADER_INCLUDE_DIRS
+  ${MESOS_BIN_INCLUDE_DIR}
+  ${MESOS_BIN_INCLUDE_DIR}/mesos
+  ${MESOS_BIN_SRC_DIR}
+  ${MESOS_SRC_DIR}
+  )
+
 # Make directories that generated Mesos code goes into.
 add_custom_target(
   make_bin_include_dir ALL
@@ -149,9 +157,7 @@ set(
 add_custom_target(${MESOS_TARGET} ALL)
 
 set(MESOS_LIBS_TARGET mesos-${MESOS_PACKAGE_VERSION}
-    CACHE STRING "Library of master and agent code"
-    )
+    CACHE STRING "Library of master and agent code")
 
 set(MESOS_PROTOBUF_TARGET mesos-protobufs
-    CACHE STRING "Library of protobuf definitions used by Mesos"
-    )
+    CACHE STRING "Library of protobuf definitions used by Mesos")

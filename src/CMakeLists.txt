@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# COMPILE PROTOBUF STRUCTS REQUIRED TO BUILD MESOS.
-###################################################
+# GENERATE PUBLIC AND INTERNAL PROTOBUFS.
+#########################################
 include(MesosProtobuf)
 
 # Build the protobuf structs.
@@ -50,16 +50,16 @@ PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
 PROTOC_TO_INCLUDE_DIR(V1_QUOTA         mesos/v1/quota/quota)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
 
-PROTOC_TO_SRC_DIR(REGISTRY                      master/registry)
-PROTOC_TO_SRC_DIR(INTERNAL_MESSAGES             messages/messages)
 PROTOC_TO_SRC_DIR(INTERNAL_FLAGS                messages/flags)
 PROTOC_TO_SRC_DIR(INTERNAL_LOG                  messages/log)
+PROTOC_TO_SRC_DIR(INTERNAL_MESSAGES             messages/messages)
 PROTOC_TO_SRC_DIR(INTERNAL_STATE                messages/state)
-PROTOC_TO_SRC_DIR(PROVISIONER_DOCKER            slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_TO_SRC_DIR(ISOLATOR_CNI_SPEC             slave/containerizer/mesos/isolators/network/cni/spec)
 PROTOC_TO_SRC_DIR(ISOLATOR_DOCKER_VOLUME_STATE  slave/containerizer/mesos/isolators/docker/volume/state)
+PROTOC_TO_SRC_DIR(PROVISIONER_DOCKER            slave/containerizer/mesos/provisioner/docker/message)
+PROTOC_TO_SRC_DIR(REGISTRY                      master/registry)
 
-set(MESOS_PROTOBUF_SRC
+set(PUBLIC_PROTOBUF_SRC
   ${ACLS_PROTO_CC}
   ${AGENT_PROTO_CC}
   ${ALLOCATOR_PROTO_CC}
@@ -73,20 +73,12 @@ set(MESOS_PROTOBUF_SRC
   ${EXECUTOR_PROTO_CC}
   ${FETCHER_PROTO_CC}
   ${HOOK_PROTO_CC}
-  ${INTERNAL_FLAGS_PROTO_CC}
-  ${INTERNAL_LOG_PROTO_CC}
-  ${INTERNAL_MESSAGES_PROTO_CC}
-  ${INTERNAL_STATE_PROTO_CC}
-  ${ISOLATOR_CNI_SPEC_PROTO_CC}
-  ${ISOLATOR_DOCKER_VOLUME_STATE_PROTO_CC}
   ${MAINTENANCE_PROTO_CC}
   ${MASTER_PROTO_CC}
   ${MESOS_PROTO_CC}
   ${MODULE_PROTO_CC}
   ${OVERSUBSCRIPTION_PROTO_CC}
-  ${PROVISIONER_DOCKER_PROTO_CC}
   ${QUOTA_PROTO_CC}
-  ${REGISTRY_PROTO_CC}
   ${SCHEDULER_PROTO_CC}
   ${STATE_PROTO_CC}
   ${URI_PROTO_CC}
@@ -99,6 +91,38 @@ set(MESOS_PROTOBUF_SRC
   ${V1_QUOTA_PROTO_CC}
   ${V1_SCHEDULER_PROTO_CC}
   )
+
+set(INTERNAL_PROTOBUF_SRC
+  ${INTERNAL_FLAGS_PROTO_CC}
+  ${INTERNAL_LOG_PROTO_CC}
+  ${INTERNAL_MESSAGES_PROTO_CC}
+  ${INTERNAL_STATE_PROTO_CC}
+  ${ISOLATOR_CNI_SPEC_PROTO_CC}
+  ${ISOLATOR_DOCKER_VOLUME_STATE_PROTO_CC}
+  ${PROVISIONER_DOCKER_PROTO_CC}
+  ${REGISTRY_PROTO_CC}
+  )
+
+
+# BUILD PROTOBUFS.
+##################
+include_directories(
+  ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIR})
+
+link_directories(${PROTOBUF_LIB_DIR})
+
+add_library(
+  ${MESOS_PROTOBUF_TARGET}
+  ${MESOS_DEFAULT_LIBRARY_LINKAGE}
+  ${PUBLIC_PROTOBUF_SRC}
+  ${INTERNAL_PROTOBUF_SRC}
+  )
+
+add_dependencies(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_TARGET})
+
+target_link_libraries(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_LFLAG})
+
 
 # Configure Mesos files.
 ########################
@@ -512,23 +536,14 @@ set_target_properties(
   SOVERSION ${MESOS_PACKAGE_SOVERSION}
   )
 
-add_library(${MESOS_PROTOBUF_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${MESOS_PROTOBUF_SRC})
-set_target_properties(
-  ${MESOS_PROTOBUF_TARGET} PROPERTIES
-  VERSION ${MESOS_PACKAGE_VERSION}
-  SOVERSION ${MESOS_PACKAGE_SOVERSION}
-  )
-
 # ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})
 add_dependencies(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET})
-add_dependencies(${MESOS_PROTOBUF_TARGET} ${AGENT_DEPENDENCIES})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
-target_link_libraries(${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################
