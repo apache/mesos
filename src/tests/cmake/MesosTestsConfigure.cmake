@@ -15,8 +15,13 @@
 # limitations under the License.
 
 set(
+  MESOS_TESTS_TARGET mesos-tests
+  CACHE STRING "Target we use to refer to tests for the mesos"
+  )
+
+set(
   TEST_HELPER_TARGET test-helper
-  CACHE STRING "Test helper target to run tests that require a subprocess."
+  CACHE STRING "Test helper target to run tests that require a subprocess"
   )
 
 # COMPILER CONFIGURATION.
@@ -40,8 +45,8 @@ add_definitions(-DSBINDIR="${S_BIN_DIR}")
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
-set(TEST_HELPER_DEPENDENCIES
-  ${TEST_HELPER_DEPENDENCIES}
+set(MESOS_TESTS_DEPENDENCIES
+  ${MESOS_TESTS_DEPENDENCIES}
   ${MESOS_TARGET}
   ${GMOCK_TARGET}
   )
@@ -49,8 +54,9 @@ set(TEST_HELPER_DEPENDENCIES
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux)..
 ###############################################################################
-set(TEST_HELPER_INCLUDE_DIRS
-  ${TEST_HELPER_INCLUDE_DIRS}
+set(MESOS_TESTS_INCLUDE_DIRS
+  ${MESOS_TESTS_INCLUDE_DIRS}
+  ${AGENT_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
   )
@@ -59,17 +65,20 @@ set(TEST_HELPER_INCLUDE_DIRS
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
-set(TEST_HELPER_LIB_DIRS
-  ${TEST_HELPER_LIB_DIRS}
+set(MESOS_TESTS_LIB_DIRS
+  ${MESOS_TESTS_LIB_DIRS}
+  ${GMOCK_LIB_DIR}
   ${GTEST_LIB_DIR}
   )
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
-set(TEST_HELPER_LIBS
-  ${TEST_HELPER_LIBS}
+set(MESOS_TESTS_LIBS
+  ${MESOS_TESTS_LIBS}
   ${MESOS_TARGET}
   ${PROCESS_TARGET}
+  ${MESOS_LIBS}
+  ${GMOCK_LFLAG}
   ${GTEST_LFLAG}
   )
