@@ -218,7 +218,53 @@ target_link_libraries(${TEST_HELPER_TARGET} ${MESOS_TESTS_LIBS})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_TESTS_TARGET} ${MESOS_TESTS_DEPENDENCIES})
+add_dependencies(
+  ${MESOS_TESTS_TARGET}
+  ${MESOS_TESTS_DEPENDENCIES}
+  ${TEST_HELPER_TARGET}
+  )
+
+if (NOT WIN32)
+  # The tests require all the test modules.
+  # NOTE: Modules are not supported on Windows.
+  add_dependencies(
+    ${MESOS_TESTS_TARGET}
+    ${TEST_ALLOCATOR}
+    ${TEST_ANONYMOUS}
+    ${TEST_AUTHENTICATION}
+    ${TEST_AUTHORIZER}
+    ${TEST_CONTAINER_LOGGER}
+    ${TEST_EXAMPLEMODULE}
+    ${TEST_HOOK}
+    ${TEST_HTTPAUTHENTICATOR}
+    ${TEST_ISOLATOR}
+    ${TEST_MASTER_CONTENDER}
+    ${TEST_MASTER_DETECTOR}
+    ${TEST_QOS_CONTROLLER}
+    ${TEST_RESOURCE_ESTIMATOR}
+    )
+
+  # The tests require all the example frameworks and executors.
+  # TODO(josephw): The scheduler driver is current not built on Windows.
+  add_dependencies(
+    ${MESOS_TESTS_TARGET}
+    ${BALLOON_EXECUTOR}
+    ${BALLOON_FRAMEWORK}
+    ${DISK_FULL_FRAMEWORK}
+    ${DOCKER_NO_EXECUTOR_FRAMEWORK}
+    ${DYNAMIC_RESERVATION_FRAMEWORK}
+    ${LOAD_GENERATOR_FRAMEWORK}
+    ${LONG_LIVED_EXECUTOR}
+    ${LONG_LIVED_FRAMEWORK}
+    ${NO_EXECUTOR_FRAMEWORK}
+    ${PERSISTENT_VOLUME_FRAMEWORK}
+    ${TEST_EXECUTOR}
+    ${TEST_FRAMEWORK}
+    ${TEST_HTTP_EXECUTOR}
+    ${TEST_HTTP_FRAMEWORK}
+    )
+endif (NOT WIN32)
+
 add_dependencies(${TEST_HELPER_TARGET} ${MESOS_TESTS_DEPENDENCIES})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
