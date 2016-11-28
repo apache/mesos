@@ -103,8 +103,8 @@ public:
   // If there is a conflict, the hook loaded last will take priority.
   //
   // NOTE: Unlike `slaveExecutorEnvironmentDecorator`, environment variables
-  // returned from this hook *will* overwrite environment variables inside
-  // the `ExecutorInfo`.
+  // returned from this hook, in case of conflicts, *will* overwrite
+  // environment variables inside the `ExecutorInfo`.
   //
   // NOTE: This hook is designed to be an asynchronous replacement for
   // `slavePreLaunchDockerHook`. This hook is called first.
@@ -114,9 +114,9 @@ public:
     slavePreLaunchDockerEnvironmentDecorator(
         const Option<TaskInfo>& taskInfo,
         const ExecutorInfo& executorInfo,
-        const std::string& name,
-        const std::string& sandboxDirectory,
-        const std::string& mappedDirectory,
+        const std::string& containerName,
+        const std::string& containerWorkDirectory,
+        const std::string& mappedSandboxDirectory,
         const Option<std::map<std::string, std::string>>& env)
   {
     return None();
@@ -157,15 +157,15 @@ public:
   // A typical module implementing the hook will perform some settings
   // as required.
   //
-  // NOTE: Superceded by `slavePreLaunchDockerEnvironmentDecorator`.
+  // NOTE: Superseded by `slavePreLaunchDockerEnvironmentDecorator`.
   virtual Try<Nothing> slavePreLaunchDockerHook(
       const ContainerInfo& containerInfo,
       const CommandInfo& commandInfo,
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
-      const std::string& name,
-      const std::string& sandboxDirectory,
-      const std::string& mappedDirectory,
+      const std::string& containerName,
+      const std::string& containerWorkDirectory,
+      const std::string& mappedSandboxDirectory,
       const Option<Resources>& resources,
       const Option<std::map<std::string, std::string>>& env)
   {

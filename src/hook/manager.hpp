@@ -61,8 +61,8 @@ public:
         const Option<TaskInfo>& taskInfo,
         const ExecutorInfo& executorInfo,
         const std::string& containerName,
-        const std::string& sandboxDirectory,
-        const std::string& mappedDirectory,
+        const std::string& containerWorkDirectory,
+        const std::string& mappedSandboxDirectory,
         const Option<std::map<std::string, std::string>>& env);
 
   static process::Future<DockerTaskExecutorPrepareInfo>
@@ -80,8 +80,8 @@ public:
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& containerName,
-      const std::string& sandboxDirectory,
-      const std::string& mappedDirectory,
+      const std::string& containerWorkDirectory,
+      const std::string& mappedSandboxDirectory,
       const Option<Resources>& resources,
       const Option<std::map<std::string, std::string>>& env);
 

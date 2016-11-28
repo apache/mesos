@@ -257,8 +257,8 @@ Future<map<string, string>>
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const string& containerName,
-      const string& sandboxDirectory,
-      const string& mappedDirectory,
+      const string& containerWorkDirectory,
+      const string& mappedSandboxDirectory,
       const Option<map<string, string>>& env)
 {
   // We execute these hooks according to their ordering so any conflicting
@@ -275,8 +275,8 @@ Future<map<string, string>>
             taskInfo,
             executorInfo,
             containerName,
-            sandboxDirectory,
-            mappedDirectory,
+            containerWorkDirectory,
+            mappedSandboxDirectory,
             env));
   }
 
@@ -307,8 +307,8 @@ void HookManager::slavePreLaunchDockerHook(
     const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& containerName,
-    const string& sandboxDirectory,
-    const string& mappedDirectory,
+    const string& containerWorkDirectory,
+    const string& mappedSandboxDirectory,
     const Option<Resources>& resources,
     const Option<map<string, string>>& env)
 {
@@ -321,8 +321,8 @@ void HookManager::slavePreLaunchDockerHook(
           taskInfo,
           executorInfo,
           containerName,
-          sandboxDirectory,
-          mappedDirectory,
+          containerWorkDirectory,
+          mappedSandboxDirectory,
           resources,
           env);
     if (result.isError()) {

@@ -193,9 +193,9 @@ public:
   virtual Future<Option<Environment>> slavePreLaunchDockerEnvironmentDecorator(
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
-      const string& name,
-      const string& sandboxDirectory,
-      const string& mappedDirectory,
+      const string& containerName,
+      const string& containerWorkDirectory,
+      const string& mappedSandboxDirectory,
       const Option<map<string, string>>& env)
   {
     LOG(INFO) << "Executing 'slavePreLaunchDockerEnvironmentDecorator' hook";
@@ -222,14 +222,14 @@ public:
       const CommandInfo& commandInfo,
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
-      const string& name,
-      const string& sandboxDirectory,
-      const string& mappedDirectory,
+      const string& containerName,
+      const string& containerWorkDirectory,
+      const string& mappedSandboxDirectory,
       const Option<Resources>& resources,
       const Option<map<string, string>>& env)
   {
     LOG(INFO) << "Executing 'slavePreLaunchDockerHook'";
-    return os::touch(path::join(sandboxDirectory, "foo"));
+    return os::touch(path::join(containerWorkDirectory, "foo"));
   }
 
 
