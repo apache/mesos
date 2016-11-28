@@ -109,6 +109,10 @@ set(
   CACHE STRING "Target we use to refer to agent executable")
 
 set(
+  DEFAULT_EXECUTOR_TARGET mesos-default-executor
+  CACHE STRING "Target for the default executor")
+
+set(
   MESOS_CONTAINERIZER mesos-containerizer
   CACHE STRING "Target for containerizer")
 

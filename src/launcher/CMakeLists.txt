@@ -16,6 +16,11 @@
 
 # THE MESOS LAUNCHER EXECUTOR SOURCE.
 #####################################
+set(DEFAULT_EXECUTOR_SRC
+  ${DEFAULT_EXECUTOR_SRC}
+  default_executor.cpp
+  )
+
 set(EXECUTOR_EXECUTABLE_SRC
   ${EXECUTOR_EXECUTABLE_SRC}
   executor.cpp
@@ -37,18 +42,9 @@ endif (NOT WIN32)
 ####################################
 set(FETCHER_EXECUTABLE_SRC fetcher.cpp)
 
-# INCLUDE DIRECTIVES FOR LAUNCHER EXECUTABLES (generates, e.g., -I/path/to/thing
-# on Linux).
-################################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
-
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
-
 # THE LAUNCHER EXECUTOR AND FETCHER EXECUTABLES.
 ################################################
+add_executable(${DEFAULT_EXECUTOR_TARGET} ${DEFAULT_EXECUTOR_SRC})
 add_executable(${MESOS_EXECUTOR} ${EXECUTOR_EXECUTABLE_SRC})
 
 if (NOT WIN32)
@@ -57,18 +53,25 @@ endif (NOT WIN32)
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_EXECUTOR} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
+target_link_libraries(${DEFAULT_EXECUTOR_TARGET} ${MESOS_LIBS_TARGET})
+target_link_libraries(${MESOS_EXECUTOR} ${MESOS_LIBS_TARGET})
 
 if (NOT WIN32)
-  target_link_libraries(${MESOS_FETCHER} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
+  target_link_libraries(${MESOS_FETCHER} ${MESOS_LIBS_TARGET})
 endif (NOT WIN32)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_EXECUTOR})
-add_dependencies(${MESOS_EXECUTOR} ${AGENT_DEPENDENCIES})
+add_dependencies(
+  ${MESOS_TARGET}
+  ${DEFAULT_EXECUTOR_TARGET}
+  ${MESOS_EXECUTOR}
+  )
+
+add_dependencies(${DEFAULT_EXECUTOR_TARGET} ${MESOS_LIBS_TARGET})
+add_dependencies(${MESOS_EXECUTOR}          ${MESOS_LIBS_TARGET})
 
 if (NOT WIN32)
   add_dependencies(${MESOS_TARGET} ${MESOS_FETCHER})
-  add_dependencies(${MESOS_FETCHER} ${AGENT_DEPENDENCIES})
+  add_dependencies(${MESOS_FETCHER} ${MESOS_LIBS_TARGET})
 endif (NOT WIN32)
