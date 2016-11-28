@@ -525,6 +525,7 @@ target_link_libraries(${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 ##############################
 add_subdirectory(cli/)
 add_subdirectory(docker/)
+add_subdirectory(examples/)
 add_subdirectory(health-check/)
 add_subdirectory(launcher/)
 add_subdirectory(local/)

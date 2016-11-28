@@ -98,6 +98,10 @@ include(SlaveConfigure)
 ##################
 include(MasterConfigure)
 
+# CONFIGURE EXAMPLE MODULES AND FRAMEWORKS.
+###########################################
+include(ExamplesConfigure)
+
 # DEFINE MESOS BUILD TARGETS.
 #############################
 set(
