@@ -133,6 +133,68 @@ configure_file(
 
 # SOURCE FILES FOR THE MESOS LIBRARY.
 #####################################
+set(AGENT_SRC
+  ${AGENT_SRC}
+  slave/constants.cpp
+  slave/container_logger.cpp
+  slave/flags.cpp
+  slave/gc.cpp
+  slave/http.cpp
+  slave/metrics.cpp
+  slave/paths.cpp
+  slave/qos_controller.cpp
+  slave/qos_controllers/noop.cpp
+  slave/resource_estimator.cpp
+  slave/slave.cpp
+  slave/state.cpp
+  slave/status_update_manager.cpp
+  slave/validation.cpp
+  slave/container_loggers/sandbox.cpp
+  slave/containerizer/composing.cpp
+  slave/containerizer/containerizer.cpp
+  slave/containerizer/docker.cpp
+  slave/containerizer/fetcher.cpp
+  slave/containerizer/mesos/containerizer.cpp
+  slave/containerizer/mesos/isolator.cpp
+  slave/containerizer/mesos/launch.cpp
+  slave/containerizer/mesos/launcher.cpp
+  slave/containerizer/mesos/mount.cpp
+  slave/containerizer/mesos/paths.cpp
+  slave/containerizer/mesos/utils.cpp
+  slave/containerizer/mesos/io/switchboard.cpp
+  slave/containerizer/mesos/provisioner/backend.cpp
+  slave/containerizer/mesos/provisioner/paths.cpp
+  slave/containerizer/mesos/provisioner/provisioner.cpp
+  slave/containerizer/mesos/provisioner/store.cpp
+  slave/containerizer/mesos/provisioner/utils.cpp
+  slave/containerizer/mesos/provisioner/appc/cache.cpp
+  slave/containerizer/mesos/provisioner/appc/fetcher.cpp
+  slave/containerizer/mesos/provisioner/appc/paths.cpp
+  slave/containerizer/mesos/provisioner/appc/store.cpp
+  slave/containerizer/mesos/provisioner/backends/copy.cpp
+  slave/containerizer/mesos/provisioner/docker/local_puller.cpp
+  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
+  slave/containerizer/mesos/provisioner/docker/paths.cpp
+  slave/containerizer/mesos/provisioner/docker/puller.cpp
+  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
+  slave/containerizer/mesos/provisioner/docker/store.cpp
+  slave/resource_estimators/noop.cpp
+  )
+
+if (NOT WIN32)
+  set(AGENT_SRC
+    ${AGENT_SRC}
+    slave/containerizer/mesos/isolators/docker/volume/driver.cpp
+    slave/containerizer/mesos/isolators/docker/volume/paths.cpp
+    slave/containerizer/mesos/isolators/filesystem/posix.cpp
+    slave/containerizer/mesos/isolators/network/cni/paths.cpp
+    slave/containerizer/mesos/isolators/network/cni/spec.cpp
+    slave/containerizer/mesos/isolators/posix/disk.cpp
+    slave/containerizer/mesos/isolators/posix/rlimits.cpp
+    slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
+    )
+endif (NOT WIN32)
+
 set(APPC_SRC
   appc/spec.cpp
   )
@@ -169,9 +231,33 @@ set(COMMON_SRC
   common/values.cpp
   )
 
+set(DOCKER_SRC
+  docker/docker.cpp
+  docker/spec.cpp
+  )
+
+set(EXECUTOR_SRC
+  exec/exec.cpp
+  executor/executor.cpp
+  executor/v0_v1executor.cpp
+  )
+
+set(FILES_SRC
+  files/files.cpp
+  )
+
 set(HDFS_SRC
   ${HDFS_SRC}
   hdfs/hdfs.cpp
+  )
+
+set(HEALTH_CHECK_SRC
+  health-check/health_checker.cpp
+  )
+
+set(INTERNAL_SRC
+  internal/devolve.cpp
+  internal/evolve.cpp
   )
 
 set(LINUX_SRC
@@ -193,7 +279,6 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
-  slave/containerizer/mesos/isolators/docker/volume/driver.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp
   slave/containerizer/mesos/isolators/filesystem/linux.cpp
   slave/containerizer/mesos/isolators/filesystem/shared.cpp
@@ -204,49 +289,11 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/linux/capabilities.cpp
   slave/containerizer/mesos/isolators/namespaces/pid.cpp
   slave/containerizer/mesos/isolators/network/cni/cni.cpp
+  slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp
   slave/containerizer/mesos/isolators/volume/image.cpp
   slave/containerizer/mesos/provisioner/backends/aufs.cpp
   slave/containerizer/mesos/provisioner/backends/bind.cpp
   slave/containerizer/mesos/provisioner/backends/overlay.cpp
-  )
-
-set(WIN32_SRC
-  ${WIN32_SRC}
-  slave/containerizer/mesos/isolators/filesystem/posix.cpp
-  slave/containerizer/mesos/isolators/filesystem/windows.cpp
-  )
-
-set(DOCKER_SRC
-  docker/docker.hpp
-  docker/docker.cpp
-  docker/executor.hpp
-  docker/spec.cpp
-  )
-
-set(EXEC_SRC
-  exec/exec.cpp
-  )
-
-set(EXECUTOR_SRC
-  executor/executor.cpp
-  executor/v0_v1executor.cpp
-  )
-
-set(FILES_SRC
-  files/files.cpp
-  )
-
-set(HEALTH_CHECK_SRC
-  health-check/health_checker.cpp
-  )
-
-set(HOOK_SRC
-  hook/manager.cpp
-  )
-
-set(INTERNAL_SRC
-  internal/devolve.cpp
-  internal/evolve.cpp
   )
 
 set(LOCAL_SRC
@@ -291,7 +338,6 @@ if (NOT WIN32)
     master/metrics.cpp
     master/quota.cpp
     master/quota_handler.cpp
-    master/registry.hpp
     master/registrar.cpp
     master/weights.cpp
     master/weights_handler.cpp
@@ -306,15 +352,22 @@ if (NOT WIN32)
     )
 endif (NOT WIN32)
 
+set(MESSAGES_SRC
+  ${MESSAGES_SRC}
+  messages/messages.cpp
+  )
+
 set(MODULE_SRC
+  hook/manager.cpp
   module/manager.cpp
   )
 
-set(SCHED_SRC
-  sched/sched.cpp
+set(POSIX_SRC
+  posix/rlimits.cpp
   )
 
 set(SCHEDULER_SRC
+  sched/sched.cpp
   scheduler/scheduler.cpp
   )
 
@@ -324,74 +377,6 @@ set(STATE_SRC
   state/leveldb.cpp
   state/log.cpp
   )
-
-set(AGENT_SRC
-  ${AGENT_SRC}
-  slave/constants.cpp
-  slave/flags.cpp
-  slave/gc.cpp
-  slave/http.cpp
-  slave/metrics.cpp
-  slave/paths.cpp
-  slave/slave.cpp
-  slave/qos_controller.cpp
-  slave/qos_controllers/noop.cpp
-  slave/resource_estimator.cpp
-  slave/resource_estimators/noop.cpp
-  slave/state.cpp
-  slave/status_update_manager.cpp
-  slave/validation.cpp
-  slave/containerizer/mesos/launch.cpp
-  slave/containerizer/fetcher.cpp
-  slave/containerizer/containerizer.cpp
-  slave/containerizer/composing.cpp
-  slave/containerizer/mesos/containerizer.cpp
-  slave/container_logger.cpp
-  slave/container_loggers/sandbox.cpp
-  slave/containerizer/mesos/isolator.cpp
-  slave/containerizer/mesos/launcher.cpp
-  slave/containerizer/mesos/mount.cpp
-  slave/containerizer/mesos/paths.cpp
-  slave/containerizer/mesos/utils.cpp
-  slave/containerizer/mesos/io/switchboard.cpp
-  slave/containerizer/mesos/provisioner/paths.cpp
-  slave/containerizer/mesos/provisioner/provisioner.cpp
-  slave/containerizer/mesos/provisioner/store.cpp
-  slave/containerizer/mesos/provisioner/utils.cpp
-  slave/containerizer/mesos/provisioner/appc/cache.cpp
-  slave/containerizer/mesos/provisioner/appc/fetcher.cpp
-  slave/containerizer/mesos/provisioner/appc/paths.cpp
-  slave/containerizer/mesos/provisioner/appc/store.cpp
-  slave/containerizer/mesos/provisioner/backend.cpp
-  slave/containerizer/mesos/provisioner/backends/copy.cpp
-  slave/containerizer/mesos/provisioner/docker/local_puller.cpp
-  slave/containerizer/mesos/provisioner/docker/message.proto
-  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
-  slave/containerizer/mesos/provisioner/docker/paths.cpp
-  slave/containerizer/mesos/provisioner/docker/puller.cpp
-  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
-  slave/containerizer/mesos/provisioner/docker/store.cpp
-  slave/containerizer/docker.cpp
-  )
-
-if (NOT WIN32)
-  set(AGENT_SRC
-    ${AGENT_SRC}
-    slave/container_logger.cpp
-    slave/container_loggers/sandbox.cpp
-    slave/resource_estimator.cpp
-    slave/slave.cpp
-    slave/containerizer/docker.cpp
-    slave/containerizer/mesos/mount.cpp
-    slave/containerizer/mesos/isolators/filesystem/posix.cpp
-    slave/containerizer/mesos/isolators/posix/disk.cpp
-    slave/containerizer/mesos/isolators/posix/rlimits.cpp
-    slave/containerizer/mesos/isolators/docker/volume/paths.cpp
-    slave/containerizer/mesos/isolators/network/cni/paths.cpp
-    slave/containerizer/mesos/isolators/network/cni/spec.cpp
-    slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
-    )
-endif (NOT WIN32)
 
 set(URI_SRC
   uri/fetcher.cpp
@@ -407,10 +392,6 @@ if (NOT WIN32)
     uri/fetchers/hadoop.cpp
     )
 endif (NOT WIN32)
-
-set(POSIX_SRC
-  posix/rlimits.cpp
-  )
 
 set(USAGE_SRC
   usage/usage.cpp
@@ -431,42 +412,41 @@ set(WATCHER_SRC
   watcher/whitelist_watcher.cpp
   )
 
+set(WIN32_SRC
+  ${WIN32_SRC}
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp
+  slave/containerizer/mesos/isolators/filesystem/windows.cpp
+  )
+
 set(ZOOKEEPER_SRC
+  zookeeper/authentication.cpp
   zookeeper/contender.cpp
   zookeeper/detector.cpp
   zookeeper/zookeeper.cpp
-  zookeeper/authentication.cpp
   zookeeper/group.cpp
-  )
-
-set(MESSAGES_SRC
-  ${MESSAGES_SRC}
-  messages/messages.cpp
   )
 
 set(MESOS_SRC
   ${MESOS_SRC}
-  ${AUTHENTICATION_SRC}
-  ${AUTHORIZER_SRC}
   ${AGENT_SRC}
   ${APPC_SRC}
-  ${MODULE_SRC}
+  ${AUTHENTICATION_SRC}
+  ${AUTHORIZER_SRC}
   ${COMMON_SRC}
+  ${DOCKER_SRC}
   ${EXECUTOR_SRC}
-  ${V1_SRC}
-  ${HOOK_SRC}
-  ${INTERNAL_SRC}
   ${FILES_SRC}
   ${HEALTH_CHECK_SRC}
-  ${MESSAGES_SRC}
+  ${INTERNAL_SRC}
   ${LOGGING_SRC}
+  ${MASTER_SRC}
+  ${MESSAGES_SRC}
+  ${MODULE_SRC}
+  ${URI_SRC}
+  ${USAGE_SRC}
+  ${V1_SRC}
   ${VERSION_SRC}
   ${ZOOKEEPER_SRC}
-  ${MASTER_SRC}
-  ${EXEC_SRC}
-  ${DOCKER_SRC}
-  ${USAGE_SRC}
-  ${URI_SRC}
   )
 
 if (NOT WIN32)
@@ -476,7 +456,6 @@ if (NOT WIN32)
     ${LOCAL_SRC}
     ${LOG_SRC}
     ${POSIX_SRC}
-    ${SCHED_SRC}
     ${SCHEDULER_SRC}
     ${STATE_SRC}
     ${WATCHER_SRC}
