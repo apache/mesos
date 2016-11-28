@@ -96,8 +96,11 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
 const char LOGROTATE_CONTAINER_LOGGER_NAME[] =
   "org_apache_mesos_LogrotateContainerLogger";
+#endif // __WINDOWS__
 
 
 // Definition of a mock ContainerLogger to be used in tests with gmock.
@@ -224,6 +227,8 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
 }
 
 
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
 // Tests that the packaged logrotate container logger writes files into the
 // sandbox and keeps them at a reasonable size.
 TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
@@ -770,6 +775,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   EXPECT_LE(2040u, stdoutSize->kilobytes());
   EXPECT_GE(2048u, stdoutSize->kilobytes());
 }
+#endif // __WINDOWS__
 
 } // namespace tests {
 } // namespace internal {

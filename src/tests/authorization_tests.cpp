@@ -44,9 +44,12 @@ template <typename T>
 class AuthorizationTest : public MesosTest {};
 
 
-typedef ::testing::Types<LocalAuthorizer,
-                         tests::Module<Authorizer, TestLocalAuthorizer>>
-  AuthorizerTypes;
+typedef ::testing::Types<
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
+    tests::Module<Authorizer, TestLocalAuthorizer>,
+#endif // __WINDOWS__
+    LocalAuthorizer> AuthorizerTypes;
 
 
 TYPED_TEST_CASE(AuthorizationTest, AuthorizerTypes);

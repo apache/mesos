@@ -109,9 +109,11 @@ template <typename T>
 class HttpAuthenticationTest : public MesosTest {};
 
 typedef ::testing::Types<
-  BasicAuthenticatorFactory,
-  tests::Module<Authenticator, TestHttpBasicAuthenticator>>
-  HttpAuthenticatorTypes;
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
+    tests::Module<Authenticator, TestHttpBasicAuthenticator>,
+#endif // __WINDOWS__
+    BasicAuthenticatorFactory> HttpAuthenticatorTypes;
 
 TYPED_TEST_CASE(HttpAuthenticationTest, HttpAuthenticatorTypes);
 

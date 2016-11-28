@@ -65,13 +65,16 @@ public:
 // default authenticatee      <> modularized authenticator
 // modularized authenticatee  <> modularized authenticator
 typedef ::testing::Types<
-  Authentication<CRAMMD5Authenticatee, CRAMMD5Authenticator>,
-  Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
-                 CRAMMD5Authenticator>,
-  Authentication<CRAMMD5Authenticatee,
-                 tests::Module<Authenticator, TestCRAMMD5Authenticator>>,
-  Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
-                 tests::Module<Authenticator, TestCRAMMD5Authenticator>>>
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
+    Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
+                   CRAMMD5Authenticator>,
+    Authentication<CRAMMD5Authenticatee,
+                   tests::Module<Authenticator, TestCRAMMD5Authenticator>>,
+    Authentication<tests::Module<Authenticatee, TestCRAMMD5Authenticatee>,
+                   tests::Module<Authenticator, TestCRAMMD5Authenticator>>,
+#endif // __WINDOWS__
+    Authentication<CRAMMD5Authenticatee, CRAMMD5Authenticator>>
   AuthenticationTypes;
 
 TYPED_TEST_CASE(CRAMMD5AuthenticationTest, AuthenticationTypes);

@@ -66,6 +66,8 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
+// TODO(josephw): Modules are not supported on Windows (MESOS-5994).
+#ifndef __WINDOWS__
   // Initialize Modules.
   if (flags.modules.isSome() && flags.modulesDir.isSome()) {
     EXIT(EXIT_FAILURE) <<
@@ -85,6 +87,7 @@ int main(int argc, char** argv)
     cerr << "Error initializing modules: " << result.error() << endl;
     return EXIT_FAILURE;
   }
+#endif // __WINDOWS__
 
   // Disable /metrics/snapshot rate limiting, but do not
   // overwrite whatever the user set.
