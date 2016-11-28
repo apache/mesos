@@ -222,6 +222,7 @@ DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
 EXECUTOR_PROTO = $(top_srcdir)/include/mesos/executor/executor.proto
 FETCHER_PROTO = $(top_srcdir)/include/mesos/fetcher/fetcher.proto
+HOOK_PROTO = $(top_srcdir)/include/mesos/module/hook.proto
 MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/maintenance/maintenance.proto
 MASTER_PROTO = $(top_srcdir)/include/mesos/master/master.proto
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
@@ -270,6 +271,8 @@ CXX_PROTOS =								\
   ../include/mesos/maintenance/maintenance.pb.h				\
   ../include/mesos/master/master.pb.cc					\
   ../include/mesos/master/master.pb.h					\
+  ../include/mesos/module/hook.pb.cc					\
+  ../include/mesos/module/hook.pb.h					\
   ../include/mesos/module/module.pb.cc					\
   ../include/mesos/module/module.pb.h					\
   ../include/mesos/quota/quota.pb.cc					\
@@ -566,6 +569,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/authorizer.hpp			\
   $(top_srcdir)/include/mesos/module/container_logger.hpp		\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
+  $(top_srcdir)/include/mesos/module/hook.proto				\
   $(top_srcdir)/include/mesos/module/http_authenticator.hpp		\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
@@ -1285,6 +1289,7 @@ libmesos_la_SOURCES =							\
   $(DOCKER_V1_PROTO)							\
   $(DOCKER_V2_PROTO)							\
   $(FETCHER_PROTO)							\
+  $(HOOK_PROTO)								\
   $(MAINTENANCE_PROTO)							\
   $(MASTER_PROTO)							\
   $(MESOS_PROTO)							\

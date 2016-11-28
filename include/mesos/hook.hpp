@@ -31,6 +31,9 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/module/hook.pb.h>
+
 namespace mesos {
 
 class Hook
@@ -105,6 +108,8 @@ public:
   //
   // NOTE: This hook is designed to be an asynchronous replacement for
   // `slavePreLaunchDockerHook`. This hook is called first.
+  //
+  // NOTE: Superseded by `slavePreLaunchDockerTaskExecutorDecorator`.
   virtual process::Future<Option<Environment>>
     slavePreLaunchDockerEnvironmentDecorator(
         const Option<TaskInfo>& taskInfo,
@@ -112,6 +117,37 @@ public:
         const std::string& name,
         const std::string& sandboxDirectory,
         const std::string& mappedDirectory,
+        const Option<std::map<std::string, std::string>>& env)
+  {
+    return None();
+  }
+
+  // This task and executor decorator is called from within the slave after
+  // receiving a run task request from the master but before the docker
+  // containerizer launches the task. A module implementing the hook can
+  // inspect the arguments and return a `Failure` if the task should be
+  // rejected with a `TASK_FAILED`.
+  // The hook can return a set of environment variables individually for
+  // both, the executor and the task. Note that for custom executors,
+  // the task environment variables, in case of conflicts, *will*
+  // overwrite the executor variables.
+  //
+  // NOTE: The order of hooks matters for environment variables.
+  // If there is a conflict, the hook loaded last will take priority.
+  //
+  // NOTE: Unlike `slaveExecutorEnvironmentDecorator`, environment variables
+  // returned from this hook, in case of conflicts, *will* overwrite
+  // environment variables inside the `ExecutorInfo`.
+  //
+  // NOTE: This hook is designed to be a replacement for
+  // `slavePreLaunchDockerEnvironmentDecorator`.
+  virtual process::Future<Option<DockerTaskExecutorPrepareInfo>>
+    slavePreLaunchDockerTaskExecutorDecorator(
+        const Option<TaskInfo>& taskInfo,
+        const ExecutorInfo& executorInfo,
+        const std::string& containerName,
+        const std::string& containerWorkDirectory,
+        const std::string& mappedSandboxDirectory,
         const Option<std::map<std::string, std::string>>& env)
   {
     return None();

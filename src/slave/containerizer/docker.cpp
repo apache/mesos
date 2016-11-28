@@ -1128,6 +1128,9 @@ Future<bool> DockerContainerizerProcess::launch(
   Future<Nothing> f = Nothing();
 
   if (HookManager::hooksAvailable()) {
+    // TODO(tillt): `slavePreLaunchDockerEnvironmentDecorator` is
+    // deprecated, remove this entire block after Mesos 1.2's
+    // deprecation cycle ends.
     f = HookManager::slavePreLaunchDockerEnvironmentDecorator(
         taskInfo,
         executorInfo,
@@ -1160,6 +1163,72 @@ Future<bool> DockerContainerizerProcess::launch(
           // are passed directly into the executor.  It is up to the custom
           // executor whether individual tasks should inherit these variables.
           foreachpair (const string& key, const string& value, environment) {
+            container->environment[key] = value;
+          }
+        }
+
+        return Nothing();
+      }));
+
+    f = HookManager::slavePreLaunchDockerTaskExecutorDecorator(
+        taskInfo,
+        executorInfo,
+        container.get()->name(),
+        container.get()->directory,
+        flags.sandbox_directory,
+        container.get()->environment)
+      .then(defer(self(), [this, taskInfo, containerId](
+          const DockerTaskExecutorPrepareInfo& decoratorInfo)
+          -> Future<Nothing> {
+        if (!containers_.contains(containerId)) {
+          return Failure("Container is already destroyed");
+        }
+
+        Container* container = containers_.at(containerId);
+
+        if (decoratorInfo.has_executorenvironment()) {
+          foreach (
+              const Environment::Variable& variable,
+              decoratorInfo.executorenvironment().variables()) {
+            // TODO(tillt): Tell the user about overrides possibly
+            // happening here while making sure we state the source
+            // hook causing this conflict.
+            container->environment[variable.name()] =
+              variable.value();
+          }
+        }
+
+        map<string, string> taskEnvironment;
+
+        if (decoratorInfo.has_taskenvironment()) {
+          foreach (
+              const Environment::Variable& variable,
+              decoratorInfo.taskenvironment().variables()) {
+            taskEnvironment[variable.name()] = variable.value();
+          }
+        }
+
+        if (taskInfo.isSome()) {
+          container->taskEnvironment = taskEnvironment;
+
+          // For dockerized command executors, the flags have already
+          // been serialized into the command, albeit without these
+          // environment variables. Append the last flag to the
+          // overridden command.
+          if (container->launchesExecutorContainer) {
+            container->command.add_arguments(
+                "--task_environment=" +
+                string(jsonify(taskEnvironment)));
+          }
+        } else {
+          // For custom executors, the environment variables from a
+          // hook are passed directly into the executor.  It is up to
+          // the custom executor whether individual tasks should
+          // inherit these variables.
+          foreachpair (
+              const string& key,
+              const string& value,
+              taskEnvironment) {
             container->environment[key] = value;
           }
         }
