@@ -29,6 +29,7 @@ if (NOT WIN32)
     )
 endif (NOT WIN32)
 
+add_subdirectory(container_loggers)
 add_subdirectory(qos_controllers)
 add_subdirectory(resource_estimators)
 
