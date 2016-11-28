@@ -16,7 +16,7 @@
 
 # THE MESOS PROJECT.
 ####################
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.10)
 
 project(Mesos)
 set(MESOS_MAJOR_VERSION 1)

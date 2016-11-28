@@ -23,7 +23,7 @@ set(RESOURCE_ESTIMATOR_SRC
 
 # THE AGENT EXECUTABLE.
 #######################
-add_library(${RESOURCE_ESTIMATOR_TARGET} SHARED ${RESOURCE_ESTIMATOR_SRC})
+add_library(${RESOURCE_ESTIMATOR_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${RESOURCE_ESTIMATOR_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################

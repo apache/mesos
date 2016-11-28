@@ -23,7 +23,7 @@ set(QOS_CONTROLLER_SRC
 
 # THE AGENT EXECUTABLE.
 #######################
-add_library(${QOS_CONTROLLER_TARGET} SHARED ${QOS_CONTROLLER_SRC})
+add_library(${QOS_CONTROLLER_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${QOS_CONTROLLER_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################

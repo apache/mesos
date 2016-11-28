@@ -134,10 +134,16 @@ endif (NOT WIN32)
 set(LIBEVENT_CMAKE_ARGS
   ${LIBEVENT_CMAKE_ARGS}
   -LH
-  -DCMAKE_C_FLAGS=-fPIC
   -DEVENT__HAVE_SYS_STAT_H=1
   -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
   )
+
+if (NOT WIN32)
+  set(LIBEVENT_CMAKE_ARGS
+    ${LIBEVENT_CMAKE_ARGS}
+    -DCMAKE_C_FLAGS=-fPIC
+    )
+endif (NOT WIN32)
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
