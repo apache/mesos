@@ -31,6 +31,24 @@ set(TEST_QOS_CONTROLLER_SRC     test_qos_controller_module.cpp)
 set(TEST_RESOURCE_ESTIMATOR_SRC test_resource_estimator_module.cpp)
 
 
+# Example framework and executor sources.
+#########################################
+set(BALLOON_EXECUTOR_SRC              balloon_executor.cpp)
+set(BALLOON_FRAMEWORK_SRC             balloon_framework.cpp)
+set(DISK_FULL_FRAMEWORK_SRC           disk_full_framework.cpp)
+set(DOCKER_NO_EXECUTOR_FRAMEWORK_SRC  docker_no_executor_framework.cpp)
+set(DYNAMIC_RESERVATION_FRAMEWORK_SRC dynamic_reservation_framework.cpp)
+set(LOAD_GENERATOR_FRAMEWORK_SRC      load_generator_framework.cpp)
+set(LONG_LIVED_EXECUTOR_SRC           long_lived_executor.cpp)
+set(LONG_LIVED_FRAMEWORK_SRC          long_lived_framework.cpp)
+set(NO_EXECUTOR_FRAMEWORK_SRC         no_executor_framework.cpp)
+set(PERSISTENT_VOLUME_FRAMEWORK_SRC   persistent_volume_framework.cpp)
+set(TEST_EXECUTOR_SRC                 test_executor.cpp)
+set(TEST_FRAMEWORK_SRC                test_framework.cpp)
+set(TEST_HTTP_EXECUTOR_SRC            test_http_executor.cpp)
+set(TEST_HTTP_FRAMEWORK_SRC           test_http_framework.cpp)
+
+
 # Build the test modules.
 #########################
 # NOTE: Modules are not supported on Windows.
@@ -51,6 +69,27 @@ if (NOT WIN32)
 endif (NOT WIN32)
 
 
+# Build the example frameworks and executors.
+#############################################
+# TODO(josephw): The scheduler driver is current not built on Windows.
+if (NOT WIN32)
+  add_executable(${BALLOON_EXECUTOR}              ${BALLOON_EXECUTOR_SRC})
+  add_executable(${BALLOON_FRAMEWORK}             ${BALLOON_FRAMEWORK_SRC})
+  add_executable(${DISK_FULL_FRAMEWORK}           ${DISK_FULL_FRAMEWORK_SRC})
+  add_executable(${DOCKER_NO_EXECUTOR_FRAMEWORK}  ${DOCKER_NO_EXECUTOR_FRAMEWORK_SRC})
+  add_executable(${DYNAMIC_RESERVATION_FRAMEWORK} ${DYNAMIC_RESERVATION_FRAMEWORK_SRC})
+  add_executable(${LOAD_GENERATOR_FRAMEWORK}      ${LOAD_GENERATOR_FRAMEWORK_SRC})
+  add_executable(${LONG_LIVED_EXECUTOR}           ${LONG_LIVED_EXECUTOR_SRC})
+  add_executable(${LONG_LIVED_FRAMEWORK}          ${LONG_LIVED_FRAMEWORK_SRC})
+  add_executable(${NO_EXECUTOR_FRAMEWORK}         ${NO_EXECUTOR_FRAMEWORK_SRC})
+  add_executable(${PERSISTENT_VOLUME_FRAMEWORK}   ${PERSISTENT_VOLUME_FRAMEWORK_SRC})
+  add_executable(${TEST_EXECUTOR}                 ${TEST_EXECUTOR_SRC})
+  add_executable(${TEST_FRAMEWORK}                ${TEST_FRAMEWORK_SRC})
+  add_executable(${TEST_HTTP_EXECUTOR}            ${TEST_HTTP_EXECUTOR_SRC})
+  add_executable(${TEST_HTTP_FRAMEWORK}           ${TEST_HTTP_FRAMEWORK_SRC})
+endif (NOT WIN32)
+
+
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 if (NOT WIN32)
@@ -67,6 +106,21 @@ if (NOT WIN32)
   target_link_libraries(${TEST_MASTER_DETECTOR}    ${MESOS_TARGET})
   target_link_libraries(${TEST_QOS_CONTROLLER}     ${MESOS_TARGET})
   target_link_libraries(${TEST_RESOURCE_ESTIMATOR} ${MESOS_TARGET})
+
+  target_link_libraries(${BALLOON_EXECUTOR}              ${MESOS_TARGET})
+  target_link_libraries(${BALLOON_FRAMEWORK}             ${MESOS_TARGET})
+  target_link_libraries(${DISK_FULL_FRAMEWORK}           ${MESOS_TARGET})
+  target_link_libraries(${DOCKER_NO_EXECUTOR_FRAMEWORK}  ${MESOS_TARGET})
+  target_link_libraries(${DYNAMIC_RESERVATION_FRAMEWORK} ${MESOS_TARGET})
+  target_link_libraries(${LOAD_GENERATOR_FRAMEWORK}      ${MESOS_TARGET})
+  target_link_libraries(${LONG_LIVED_EXECUTOR}           ${MESOS_TARGET})
+  target_link_libraries(${LONG_LIVED_FRAMEWORK}          ${MESOS_TARGET})
+  target_link_libraries(${NO_EXECUTOR_FRAMEWORK}         ${MESOS_TARGET})
+  target_link_libraries(${PERSISTENT_VOLUME_FRAMEWORK}   ${MESOS_TARGET})
+  target_link_libraries(${TEST_EXECUTOR}                 ${MESOS_TARGET})
+  target_link_libraries(${TEST_FRAMEWORK}                ${MESOS_TARGET})
+  target_link_libraries(${TEST_HTTP_EXECUTOR}            ${MESOS_TARGET})
+  target_link_libraries(${TEST_HTTP_FRAMEWORK}           ${MESOS_TARGET})
 endif (NOT WIN32)
 
 
@@ -86,4 +140,19 @@ if (NOT WIN32)
   add_dependencies(${TEST_MASTER_DETECTOR}    ${MESOS_TARGET})
   add_dependencies(${TEST_QOS_CONTROLLER}     ${MESOS_TARGET})
   add_dependencies(${TEST_RESOURCE_ESTIMATOR} ${MESOS_TARGET})
+
+  add_dependencies(${BALLOON_EXECUTOR}              ${MESOS_TARGET})
+  add_dependencies(${BALLOON_FRAMEWORK}             ${MESOS_TARGET})
+  add_dependencies(${DISK_FULL_FRAMEWORK}           ${MESOS_TARGET})
+  add_dependencies(${DOCKER_NO_EXECUTOR_FRAMEWORK}  ${MESOS_TARGET})
+  add_dependencies(${DYNAMIC_RESERVATION_FRAMEWORK} ${MESOS_TARGET})
+  add_dependencies(${LOAD_GENERATOR_FRAMEWORK}      ${MESOS_TARGET})
+  add_dependencies(${LONG_LIVED_EXECUTOR}           ${MESOS_TARGET})
+  add_dependencies(${LONG_LIVED_FRAMEWORK}          ${MESOS_TARGET})
+  add_dependencies(${NO_EXECUTOR_FRAMEWORK}         ${MESOS_TARGET})
+  add_dependencies(${PERSISTENT_VOLUME_FRAMEWORK}   ${MESOS_TARGET})
+  add_dependencies(${TEST_EXECUTOR}                 ${MESOS_TARGET})
+  add_dependencies(${TEST_FRAMEWORK}                ${MESOS_TARGET})
+  add_dependencies(${TEST_HTTP_EXECUTOR}            ${MESOS_TARGET})
+  add_dependencies(${TEST_HTTP_FRAMEWORK}           ${MESOS_TARGET})
 endif (NOT WIN32)
