@@ -138,7 +138,16 @@ set(
 
 # MESOS LIBRARY CONFIGURATION.
 ##############################
-set(MESOS_TARGET mesos-${MESOS_PACKAGE_VERSION})
+set(
+  MESOS_TARGET mesos-and-binaries
+  CACHE STRING "Target that includes libmesos and all required binaries")
+
+add_custom_target(${MESOS_TARGET} ALL)
+
+set(MESOS_LIBS_TARGET mesos-${MESOS_PACKAGE_VERSION}
+    CACHE STRING "Library of master and agent code"
+    )
+
 set(MESOS_PROTOBUF_TARGET mesos-protobufs
     CACHE STRING "Library of protobuf definitions used by Mesos"
     )
