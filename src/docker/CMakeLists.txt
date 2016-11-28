@@ -38,8 +38,8 @@ add_executable(${MESOS_DOCKER_EXECUTOR} ${DOCKER_EXECUTOR_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_DOCKER_EXECUTOR} ${AGENT_LIBS} ${MESOS_TARGET})
+target_link_libraries(${MESOS_DOCKER_EXECUTOR} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_DOCKER_EXECUTOR} ${MESOS_TARGET})
+add_dependencies(${MESOS_DOCKER_EXECUTOR} ${MESOS_LIBS_TARGET})

@@ -30,8 +30,8 @@ endif (NOT WIN32)
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 if (NOT WIN32)
-  target_link_libraries(${LOGROTATE_CONTAINER_LOGGER_TARGET} ${MESOS_TARGET})
-  target_link_libraries(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_TARGET})
+  target_link_libraries(${LOGROTATE_CONTAINER_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
+  target_link_libraries(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
 endif (NOT WIN32)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
@@ -39,9 +39,9 @@ endif (NOT WIN32)
 if (NOT WIN32)
   add_dependencies(
     ${LOGROTATE_CONTAINER_LOGGER_TARGET}
-    ${MESOS_TARGET}
+    ${MESOS_LIBS_TARGET}
     ${MESOS_LOGROTATE_LOGGER_TARGET}
     )
 
-  add_dependencies(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_TARGET})
+  add_dependencies(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
 endif (NOT WIN32)

@@ -505,9 +505,9 @@ link_directories(${AGENT_LIB_DIRS})
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so, etc., on Linux).
 ###################################################################
-add_library(${MESOS_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${MESOS_SRC})
+add_library(${MESOS_LIBS_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${MESOS_SRC})
 set_target_properties(
-  ${MESOS_TARGET} PROPERTIES
+  ${MESOS_LIBS_TARGET} PROPERTIES
   VERSION ${MESOS_PACKAGE_VERSION}
   SOVERSION ${MESOS_PACKAGE_SOVERSION}
   )
@@ -521,12 +521,13 @@ set_target_properties(
 
 # ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_PROTOBUF_TARGET})
+add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})
+add_dependencies(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET})
 add_dependencies(${MESOS_PROTOBUF_TARGET} ${AGENT_DEPENDENCIES})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
+target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 target_link_libraries(${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 
 # BUILD THE MESOS EXECUTABLES.

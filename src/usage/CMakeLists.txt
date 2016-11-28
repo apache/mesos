@@ -37,8 +37,8 @@ add_executable(${MESOS_USAGE} ${USAGE_EXECUTABLE_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_USAGE} ${AGENT_LIBS} ${MESOS_TARGET})
+target_link_libraries(${MESOS_USAGE} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_USAGE} ${MESOS_TARGET})
+add_dependencies(${MESOS_USAGE} ${MESOS_LIBS_TARGET})

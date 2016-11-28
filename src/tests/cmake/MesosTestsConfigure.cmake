@@ -76,7 +76,7 @@ set(MESOS_TESTS_LIB_DIRS
 #########################################################################
 set(MESOS_TESTS_LIBS
   ${MESOS_TESTS_LIBS}
-  ${MESOS_TARGET}
+  ${MESOS_LIBS_TARGET}
   ${PROCESS_TARGET}
   ${MESOS_LIBS}
   ${GMOCK_LFLAG}
