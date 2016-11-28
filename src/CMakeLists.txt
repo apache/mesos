@@ -297,6 +297,7 @@ set(SCHEDULER_SRC
 set(STATE_SRC
   ${STATE_SRC}
   state/in_memory.cpp
+  state/leveldb.cpp
   state/log.cpp
   )
 
