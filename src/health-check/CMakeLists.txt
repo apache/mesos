@@ -44,6 +44,7 @@ target_link_libraries(${MESOS_TCP_CONNECT} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_TCP_CONNECT})
 add_dependencies(${MESOS_TCP_CONNECT} ${MESOS_LIBS_TARGET})
 
 endif (NOT WIN32)

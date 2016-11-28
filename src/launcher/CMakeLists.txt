@@ -35,9 +35,7 @@ endif (NOT WIN32)
 
 # THE MESOS LAUNCHER FETCHER SOURCE.
 ####################################
-set(FETCHER_EXECUTABLE_SRC
-  fetcher.cpp
-  )
+set(FETCHER_EXECUTABLE_SRC fetcher.cpp)
 
 # INCLUDE DIRECTIVES FOR LAUNCHER EXECUTABLES (generates, e.g., -I/path/to/thing
 # on Linux).
@@ -52,20 +50,25 @@ link_directories(${AGENT_LIB_DIRS})
 # THE LAUNCHER EXECUTOR AND FETCHER EXECUTABLES.
 ################################################
 add_executable(${MESOS_EXECUTOR} ${EXECUTOR_EXECUTABLE_SRC})
+
 if (NOT WIN32)
   add_executable(${MESOS_FETCHER} ${FETCHER_EXECUTABLE_SRC})
 endif (NOT WIN32)
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_EXECUTOR} ${AGENT_LIBS} ${MESOS_TARGET})
+target_link_libraries(${MESOS_EXECUTOR} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
+
 if (NOT WIN32)
-  target_link_libraries(${MESOS_FETCHER} ${AGENT_LIBS} ${MESOS_TARGET})
+  target_link_libraries(${MESOS_FETCHER} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 endif (NOT WIN32)
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_EXECUTOR})
 add_dependencies(${MESOS_EXECUTOR} ${AGENT_DEPENDENCIES})
+
 if (NOT WIN32)
+  add_dependencies(${MESOS_TARGET} ${MESOS_FETCHER})
   add_dependencies(${MESOS_FETCHER} ${AGENT_DEPENDENCIES})
 endif (NOT WIN32)

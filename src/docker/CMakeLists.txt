@@ -42,4 +42,5 @@ target_link_libraries(${MESOS_DOCKER_EXECUTOR} ${AGENT_LIBS} ${MESOS_LIBS_TARGET
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_DOCKER_EXECUTOR})
 add_dependencies(${MESOS_DOCKER_EXECUTOR} ${MESOS_LIBS_TARGET})

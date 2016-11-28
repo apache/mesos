@@ -31,4 +31,5 @@ target_link_libraries(${RESOURCE_ESTIMATOR_TARGET} ${AGENT_LIBS} ${MESOS_LIBS_TA
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${RESOURCE_ESTIMATOR_TARGET})
 add_dependencies(${RESOURCE_ESTIMATOR_TARGET} ${MESOS_LIBS_TARGET})

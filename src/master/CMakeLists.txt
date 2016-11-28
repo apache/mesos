@@ -44,6 +44,7 @@ target_link_libraries(${MESOS_MASTER} ${MASTER_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_MASTER})
 add_dependencies(${MESOS_MASTER} ${MESOS_LIBS_TARGET})
 
 endif (NOT WIN32)

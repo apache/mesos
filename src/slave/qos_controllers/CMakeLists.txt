@@ -31,4 +31,5 @@ target_link_libraries(${QOS_CONTROLLER_TARGET} ${AGENT_LIBS} ${MESOS_LIBS_TARGET
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${QOS_CONTROLLER_TARGET})
 add_dependencies(${QOS_CONTROLLER_TARGET} ${MESOS_LIBS_TARGET})

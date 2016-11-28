@@ -37,6 +37,8 @@ endif (NOT WIN32)
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 if (NOT WIN32)
+  add_dependencies(${MESOS_TARGET} ${LOGROTATE_CONTAINER_LOGGER_TARGET})
+
   add_dependencies(
     ${LOGROTATE_CONTAINER_LOGGER_TARGET}
     ${MESOS_LIBS_TARGET}

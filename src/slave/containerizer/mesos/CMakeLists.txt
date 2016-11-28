@@ -41,4 +41,5 @@ target_link_libraries(${MESOS_CONTAINERIZER} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
+add_dependencies(${MESOS_TARGET} ${MESOS_CONTAINERIZER})
 add_dependencies(${MESOS_CONTAINERIZER} ${MESOS_LIBS_TARGET})
