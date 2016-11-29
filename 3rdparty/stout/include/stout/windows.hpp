@@ -171,6 +171,8 @@ typedef SSIZE_T ssize_t;
 // the Windows versions of these flags to their POSIX equivalents so we don't
 // have to change any socket code.
 constexpr int SHUT_RD = SD_RECEIVE;
+constexpr int SHUT_WR = SD_SEND;
+constexpr int SHUT_RDWR = SD_BOTH;
 constexpr int MSG_NOSIGNAL = 0; // `SIGPIPE` signal does not exist on Windows.
 
 // The following functions are usually macros on POSIX; we provide them here as
