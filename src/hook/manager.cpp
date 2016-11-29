@@ -252,55 +252,6 @@ Future<DockerTaskExecutorPrepareInfo>
 }
 
 
-Future<map<string, string>>
-  HookManager::slavePreLaunchDockerEnvironmentDecorator(
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& containerName,
-      const string& containerWorkDirectory,
-      const string& mappedSandboxDirectory,
-      const Option<map<string, string>>& env)
-{
-  // We execute these hooks according to their ordering so any conflicting
-  // environment variables can be deterministically resolved
-  // (the last hook takes priority).
-  list<Future<Option<Environment>>> futures;
-
-  foreach (const string& name, availableHooks.keys()) {
-    Hook* hook = availableHooks[name];
-
-    // Chain together each hook.
-    futures.push_back(
-        hook->slavePreLaunchDockerEnvironmentDecorator(
-            taskInfo,
-            executorInfo,
-            containerName,
-            containerWorkDirectory,
-            mappedSandboxDirectory,
-            env));
-  }
-
-  return collect(futures)
-    .then([](const list<Option<Environment>>& results)
-        -> Future<map<string, string>> {
-      // Combine all the Environments.
-      map<string, string> environment;
-
-      foreach (const Option<Environment>& result, results) {
-        if (result.isNone()) {
-          continue;
-        }
-
-        foreach (const Environment::Variable& variable, result->variables()) {
-          environment[variable.name()] = variable.value();
-        }
-      }
-
-      return environment;
-    });
-}
-
-
 void HookManager::slavePreLaunchDockerHook(
     const ContainerInfo& containerInfo,
     const CommandInfo& commandInfo,

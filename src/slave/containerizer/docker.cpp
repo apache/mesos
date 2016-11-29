@@ -1128,48 +1128,6 @@ Future<bool> DockerContainerizerProcess::launch(
   Future<Nothing> f = Nothing();
 
   if (HookManager::hooksAvailable()) {
-    // TODO(tillt): `slavePreLaunchDockerEnvironmentDecorator` is
-    // deprecated, remove this entire block after Mesos 1.2's
-    // deprecation cycle ends.
-    f = HookManager::slavePreLaunchDockerEnvironmentDecorator(
-        taskInfo,
-        executorInfo,
-        container.get()->name(),
-        container.get()->directory,
-        flags.sandbox_directory,
-        container.get()->environment)
-      .then(defer(self(), [this, taskInfo, containerId](
-          const map<string, string>& environment) -> Future<Nothing> {
-        if (!containers_.contains(containerId)) {
-          return Failure("Container is already destroyed");
-        }
-
-        Container* container = containers_.at(containerId);
-
-        if (taskInfo.isSome()) {
-          // The built-in command executors explicitly support passing
-          // environment variables from a hook into a task.
-          container->taskEnvironment = environment;
-
-          // For dockerized command executors, the flags have already been
-          // serialized into the command, albeit without these environment
-          // variables. Append the last flag to the overridden command.
-          if (container->launchesExecutorContainer) {
-            container->command.add_arguments(
-                "--task_environment=" + string(jsonify(environment)));
-          }
-        } else {
-          // For custom executors, the environment variables from a hook
-          // are passed directly into the executor.  It is up to the custom
-          // executor whether individual tasks should inherit these variables.
-          foreachpair (const string& key, const string& value, environment) {
-            container->environment[key] = value;
-          }
-        }
-
-        return Nothing();
-      }));
-
     f = HookManager::slavePreLaunchDockerTaskExecutorDecorator(
         taskInfo,
         executorInfo,

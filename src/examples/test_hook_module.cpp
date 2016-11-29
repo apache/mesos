@@ -187,36 +187,6 @@ public:
   }
 
 
-  // In this hook, look for the existence of a specific label.
-  // If found, return a `Failure`.
-  // Otherwise, add an environment variable to the task.
-  virtual Future<Option<Environment>> slavePreLaunchDockerEnvironmentDecorator(
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& containerName,
-      const string& containerWorkDirectory,
-      const string& mappedSandboxDirectory,
-      const Option<map<string, string>>& env)
-  {
-    LOG(INFO) << "Executing 'slavePreLaunchDockerEnvironmentDecorator' hook";
-
-    if (taskInfo.isSome()) {
-      foreach (const Label& label, taskInfo->labels().labels()) {
-        if (label.key() == testErrorLabelKey) {
-          return Failure("Spotted error label");
-        }
-      }
-    }
-
-    Environment environment;
-    Environment::Variable* variable = environment.add_variables();
-    variable->set_name("FOO_DOCKER");
-    variable->set_value("docker_bar");
-
-    return environment;
-  }
-
-
   // In this hook, add an environment variable to the executor and task.
   virtual Future<Option<DockerTaskExecutorPrepareInfo>>
     slavePreLaunchDockerTaskExecutorDecorator(
@@ -228,6 +198,14 @@ public:
         const Option<map<string, string>>& env)
   {
     LOG(INFO) << "Executing 'slavePreLaunchDockerTaskExecutorDecorator' hook";
+
+    if (taskInfo.isSome()) {
+      foreach (const Label& label, taskInfo->labels().labels()) {
+        if (label.key() == testErrorLabelKey) {
+          return Failure("Spotted error label");
+        }
+      }
+    }
 
     DockerTaskExecutorPrepareInfo prepareInfo;
 
