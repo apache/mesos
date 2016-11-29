@@ -21,6 +21,8 @@
 
 #include "slave/containerizer/mesos/paths.hpp"
 
+namespace unix = process::network::unix;
+
 using mesos::slave::ContainerTermination;
 
 using std::list;
@@ -132,6 +134,38 @@ Result<int> getContainerStatus(
 
   return None();
 }
+
+
+#ifndef __WINDOWS__
+Result<unix::Address> getContainerIOSwitchboardAddress(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = path::join(
+      getRuntimePath(runtimeDir, containerId),
+      IO_SWITCHBOARD_SOCKET_FILE);
+
+  if (!os::exists(path)) {
+    // This is possible because we don't atomically create the
+    // directory and write the 'IO_SWITCHBOARD_SOCKET_FILE' file and
+    // thus we might terminate/restart after we've created the
+    // directory but before we've written the file.
+    return None();
+  }
+
+  Try<string> read = os::read(path);
+  if (read.isError()) {
+    return Error("Failed reading '" + path + "': " + read.error());
+  }
+
+  Try<unix::Address> address = unix::Address::create(read.get());
+  if (address.isError()) {
+    return Error("Invalid AF_UNIX address: " + address.error());
+  }
+
+  return address.get();
+}
+#endif // __WINDOWS__
 
 
 Result<ContainerTermination> getContainerTermination(

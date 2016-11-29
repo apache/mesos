@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include <process/address.hpp>
+
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
@@ -38,6 +40,7 @@ namespace paths {
 constexpr char PID_FILE[] = "pid";
 constexpr char STATUS_FILE[] = "status";
 constexpr char TERMINATION_FILE[] = "termination";
+constexpr char IO_SWITCHBOARD_SOCKET_FILE[] = "io_switchboard.sock";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 
 
@@ -91,6 +94,14 @@ Result<pid_t> getContainerPid(
 Result<int> getContainerStatus(
     const std::string& runtimeDir,
     const ContainerID& containerId);
+
+
+#ifndef __WINDOWS__
+// The helper method to read the io switchboard socket file.
+Result<process::network::unix::Address> getContainerIOSwitchboardAddress(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+#endif
 
 
 // The helper method to read the container termination state.
