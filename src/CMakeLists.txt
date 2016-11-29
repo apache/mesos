@@ -518,7 +518,11 @@ set_target_properties(
 # ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})
-add_dependencies(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET})
+add_dependencies(
+  ${MESOS_LIBS_TARGET}
+  ${MESOS_PROTOBUF_TARGET}
+  ${AGENT_DEPENDENCIES}
+  )
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
