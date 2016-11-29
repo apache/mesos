@@ -217,6 +217,36 @@ public:
   }
 
 
+  // In this hook, add an environment variable to the executor and task.
+  virtual Future<Option<DockerTaskExecutorPrepareInfo>>
+    slavePreLaunchDockerTaskExecutorDecorator(
+        const Option<TaskInfo>& taskInfo,
+        const ExecutorInfo& executorInfo,
+        const string& containerName,
+        const string& containerWorkDirectory,
+        const string& mappedSandboxDirectory,
+        const Option<map<string, string>>& env)
+  {
+    LOG(INFO) << "Executing 'slavePreLaunchDockerTaskExecutorDecorator' hook";
+
+    DockerTaskExecutorPrepareInfo prepareInfo;
+
+    Environment* taskEnvironment =
+      prepareInfo.mutable_taskenvironment();
+    Environment::Variable* variable = taskEnvironment->add_variables();
+    variable->set_name("HOOKTEST_TASK");
+    variable->set_value("foo");
+
+    Environment* executorEnvironment =
+      prepareInfo.mutable_executorenvironment();
+    variable = executorEnvironment->add_variables();
+    variable->set_name("HOOKTEST_EXECUTOR");
+    variable->set_value("bar");
+
+    return prepareInfo;
+  }
+
+
   virtual Try<Nothing> slavePreLaunchDockerHook(
       const ContainerInfo& containerInfo,
       const CommandInfo& commandInfo,
