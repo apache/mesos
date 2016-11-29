@@ -2190,6 +2190,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_spec_tests.cpp			\
   tests/containerizer/docker_tests.cpp				\
+  tests/containerizer/io_switchboard_tests.cpp			\
   tests/containerizer/isolator_tests.cpp			\
   tests/containerizer/launcher.cpp				\
   tests/containerizer/memory_isolator_tests.cpp			\

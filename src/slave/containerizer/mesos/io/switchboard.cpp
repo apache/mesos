@@ -16,11 +16,24 @@
 
 #include <string>
 
+#include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/owned.hpp>
 
+#include <mesos/agent/agent.hpp>
+
+#include <mesos/slave/container_logger.hpp>
+
 #include "slave/containerizer/mesos/io/switchboard.hpp"
+
+namespace http = process::http;
+
+#ifndef __WINDOWS__
+namespace unix = process::network::unix;
+#endif // __WINDOWS__
 
 using std::string;
 
@@ -28,6 +41,8 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Process;
+using process::Promise;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerIO;
@@ -138,6 +153,237 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 
   return launchInfo;
 }
+
+
+#ifndef __WINDOWS__
+constexpr char IOSwitchboardServer::NAME[];
+
+
+class IOSwitchboardServerProcess : public Process<IOSwitchboardServerProcess>
+{
+public:
+  IOSwitchboardServerProcess(
+      int _stdinToFd,
+      int _stdoutFromFd,
+      int _stdoutToFd,
+      int _stderrFromFd,
+      int _stderrToFd,
+      const unix::Socket& _socket);
+
+  Future<Nothing> run();
+
+private:
+  // Sit in an accept loop forever.
+  void acceptLoop();
+
+  // Parse the request and look for `ATTACH_CONTAINER_INPUT` and
+  // `ATTACH_CONTAINER_OUTPUT` calls. We call their corresponding
+  // handler functions once we have parsed them. We accept calls as
+  // both `APPLICATION_PROTOBUF` and `APPLICATION_JSON` and respond
+  // with the same format we receive them in.
+  Future<http::Response> handler(const http::Request& request);
+
+  // Asynchronously receive data as we read it from our
+  // `stdoutFromFd` and `stdoutFromFd` file descriptors.
+  void outputHook(
+      const string& data,
+      const agent::ProcessIO::Data::Type& type);
+
+  int stdinToFd;
+  int stdoutFromFd;
+  int stdoutToFd;
+  int stderrFromFd;
+  int stderrToFd;
+  unix::Socket socket;
+  Promise<Nothing> promise;
+};
+
+
+Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
+    int stdinToFd,
+    int stdoutFromFd,
+    int stdoutToFd,
+    int stderrFromFd,
+    int stderrToFd,
+    const string& socketPath)
+{
+  Try<unix::Socket> socket = unix::Socket::create();
+  if (socket.isError()) {
+    return Error("Failed to create socket: " + socket.error());
+  }
+
+  Try<unix::Address> address = unix::Address::create(socketPath);
+  if (address.isError()) {
+    return Error("Failed to build address from '" + socketPath + "':"
+                 " " + address.error());
+  }
+
+  Try<unix::Address> bind = socket->bind(address.get());
+  if (bind.isError()) {
+    return Error("Failed to bind to address '" + socketPath + "':"
+                 " " + bind.error());
+  }
+
+  Try<Nothing> listen = socket->listen(64);
+  if (listen.isError()) {
+    return Error("Failed to listen on socket at address"
+                 " '" + socketPath + "': " + listen.error());
+  }
+
+  return new IOSwitchboardServer(
+      stdinToFd,
+      stdoutFromFd,
+      stdoutToFd,
+      stderrFromFd,
+      stderrToFd,
+      socket.get());
+}
+
+
+IOSwitchboardServer::IOSwitchboardServer(
+    int stdinToFd,
+    int stdoutFromFd,
+    int stdoutToFd,
+    int stderrFromFd,
+    int stderrToFd,
+    const unix::Socket& socket)
+  : process(new IOSwitchboardServerProcess(
+        stdinToFd,
+        stdoutFromFd,
+        stdoutToFd,
+        stderrFromFd,
+        stderrToFd,
+        socket))
+{
+  spawn(process.get());
+}
+
+
+IOSwitchboardServer::~IOSwitchboardServer()
+{
+  terminate(process.get());
+  process::wait(process.get());
+}
+
+
+Future<Nothing> IOSwitchboardServer::run()
+{
+  return dispatch(process.get(), &IOSwitchboardServerProcess::run);
+}
+
+
+IOSwitchboardServerProcess::IOSwitchboardServerProcess(
+    int _stdinToFd,
+    int _stdoutFromFd,
+    int _stdoutToFd,
+    int _stderrFromFd,
+    int _stderrToFd,
+    const unix::Socket& _socket)
+  : stdinToFd(_stdinToFd),
+    stdoutFromFd(_stdoutFromFd),
+    stdoutToFd(_stdoutToFd),
+    stderrFromFd(_stderrFromFd),
+    stderrToFd(_stderrToFd),
+    socket(_socket) {}
+
+
+Future<Nothing> IOSwitchboardServerProcess::run()
+{
+  Future<Nothing> stdoutRedirect = process::io::redirect(
+      stdoutFromFd,
+      stdoutToFd,
+      4096,
+      {defer(self(),
+             &Self::outputHook,
+             lambda::_1,
+             agent::ProcessIO::Data::STDOUT)});
+
+  Future<Nothing> stderrRedirect = process::io::redirect(
+      stderrFromFd,
+      stderrToFd,
+      4096,
+      {defer(self(),
+             &Self::outputHook,
+             lambda::_1,
+             agent::ProcessIO::Data::STDERR)});
+
+  // Set the future once our IO redirects finish. On failure,
+  // fail the future.
+  //
+  // For now we simply assume that whenever both `stdoutRedirect`
+  // and `stderrRedirect` have completed then it is OK to exit the
+  // switchboard process. We assume this because `stdoutRedirect`
+  // and `stderrRedirect` will only complete after both the read end
+  // of the `stdout` stream and the read end of the `stderr` stream
+  // have been drained. Since draining these `fds` represents having
+  // read everything possible from a container's `stdout` and
+  // `stderr` this is likely sufficient termination criteria.
+  // However, there's a non-zero chance that *some* containers may
+  // decide to close their `stdout` and `stderr` while expecting to
+  // continue reading from `stdin`. For now we don't support
+  // containers with this behavior and we will exit out of the
+  // switchboard process early.
+  //
+  // TODO(klueska): Add support to asynchronously detect when
+  // `stdinToFd` has become invalid before deciding to terminate.
+  stdoutRedirect
+    .onFailed(defer(self(), [this](const string& message) {
+       promise.fail("Failed redirecting stdout: " + message);
+    }));
+
+  stderrRedirect
+    .onFailed(defer(self(), [this](const string& message) {
+       promise.fail("Failed redirecting stderr: " + message);
+    }));
+
+  collect(stdoutRedirect, stderrRedirect)
+    .then(defer(self(), [this]() {
+      promise.set(Nothing());
+      return Nothing();
+    }));
+
+  acceptLoop();
+
+  return promise.future();
+}
+
+
+void IOSwitchboardServerProcess::acceptLoop()
+{
+  socket.accept()
+    .onAny(defer(self(), [this](const Future<unix::Socket>& socket) {
+      if (!socket.isReady()) {
+        promise.fail("Failed trying to accept connection");
+      }
+
+      // We intentionally ignore errors on the serve path, and assume
+      // that they will eventually be propagated back to the client in
+      // one form or another (e.g. a timeout on the client side). We
+      // explicitly *don't* want to kill the whole server though, just
+      // beause a single connection fails.
+      http::serve(
+          socket.get(),
+          defer(self(), &Self::handler, lambda::_1));
+
+      // Use `dispatch` to limit the size of the call stack.
+      dispatch(self(), &Self::acceptLoop);
+    }));
+}
+
+
+Future<http::Response> IOSwitchboardServerProcess::handler(
+    const http::Request& request)
+{
+  return http::BadRequest("Unsupported");
+}
+
+
+void IOSwitchboardServerProcess::outputHook(
+    const string& data,
+    const agent::ProcessIO::Data::Type& type)
+{
+}
+#endif // __WINDOWS__
 
 } // namespace slave {
 } // namespace internal {
