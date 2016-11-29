@@ -21,7 +21,9 @@
 
 #include "slave/containerizer/mesos/paths.hpp"
 
+#ifndef __WINDOWS__
 namespace unix = process::network::unix;
+#endif // __WINDOWS__
 
 using mesos::slave::ContainerTermination;
 
