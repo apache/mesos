@@ -1156,14 +1156,16 @@ Future<bool> DockerContainerizerProcess::launch(
           }
         }
 
+        if (!decoratorInfo.has_taskenvironment()) {
+          return Nothing();
+        }
+
         map<string, string> taskEnvironment;
 
-        if (decoratorInfo.has_taskenvironment()) {
-          foreach (
-              const Environment::Variable& variable,
-              decoratorInfo.taskenvironment().variables()) {
-            taskEnvironment[variable.name()] = variable.value();
-          }
+        foreach (
+            const Environment::Variable& variable,
+            decoratorInfo.taskenvironment().variables()) {
+          taskEnvironment[variable.name()] = variable.value();
         }
 
         if (taskInfo.isSome()) {
