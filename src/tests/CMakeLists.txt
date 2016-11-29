@@ -185,7 +185,6 @@ if (LINUX)
     containerizer/cni_isolator_tests.cpp
     containerizer/docker_volume_isolator_tests.cpp
     containerizer/fs_tests.cpp
-    containerizer/launch_tests.cpp
     containerizer/linux_capabilities_isolator_tests.cpp
     containerizer/linux_filesystem_isolator_tests.cpp
     containerizer/memory_pressure_tests.cpp
