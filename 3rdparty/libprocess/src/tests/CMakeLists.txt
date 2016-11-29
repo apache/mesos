@@ -32,11 +32,12 @@ set(PROCESS_TESTS_SRC
   queue_tests.cpp
   sequence_tests.cpp
   shared_tests.cpp
+  socket_tests.cpp
   statistics_tests.cpp
   subprocess_tests.cpp
   system_tests.cpp
-  timeseries_tests.cpp
   time_tests.cpp
+  timeseries_tests.cpp
   )
 
 if (NOT WIN32)
