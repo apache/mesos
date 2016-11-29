@@ -63,18 +63,33 @@ public:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId);
+
 private:
+  struct Info
+  {
+    Info(pid_t _pid, const process::Future<Option<int>>& _status)
+      : pid(_pid),
+        status(_status) {}
+
+    pid_t pid;
+    process::Future<Option<int>> status;
+  };
+
   IOSwitchboard(
       const Flags& flags,
       bool local,
       process::Owned<mesos::slave::ContainerLogger> logger);
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const ContainerID& containerId,
       const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
 
   Flags flags;
   bool local;
   process::Owned<mesos::slave::ContainerLogger> logger;
+  hashmap<ContainerID, process::Owned<Info>> infos;
 };
 
 

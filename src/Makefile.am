@@ -1389,6 +1389,12 @@ mesos_logrotate_logger_SOURCES =		\
 mesos_logrotate_logger_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_logrotate_logger_LDADD = libmesos.la $(LDADD)
 
+pkglibexec_PROGRAMS += mesos-io-switchboard
+mesos_io_switchboard_SOURCES =	\
+  slave/containerizer/mesos/io/switchboard_main.cpp
+mesos_io_switchboard_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_io_switchboard_LDADD = libmesos.la $(LDADD)
+
 if WITH_NETWORK_ISOLATOR
 pkglibexec_PROGRAMS += mesos-network-helper
 mesos_network_helper_SOURCES = slave/containerizer/mesos/isolators/network/helper.cpp
