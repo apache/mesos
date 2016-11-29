@@ -442,24 +442,24 @@ private:
   set<int> dispose;
 
   // Map from socket to socket address for outbound sockets.
-  map<int, Address> addresses;
+  hashmap<int, Address> addresses;
 
   // Map from socket address to temporary sockets (outbound sockets
   // that will be closed once there is no more data to send on them).
-  map<Address, int> temps;
+  hashmap<Address, int> temps;
 
   // Map from socket address (ip, port) to persistent sockets
   // (outbound sockets that will remain open even if there is no more
   // data to send on them).  We distinguish these from the 'temps'
   // collection so we can tell when a persistent socket has been lost
   // (and thus generate ExitedEvents).
-  map<Address, int> persists;
+  hashmap<Address, int> persists;
 
   // Map from outbound socket to outgoing queue.
-  map<int, queue<Encoder*>> outgoing;
+  hashmap<int, queue<Encoder*>> outgoing;
 
   // HTTP proxies.
-  map<int, HttpProxy*> proxies;
+  hashmap<int, HttpProxy*> proxies;
 
   // Protects instance variables.
   std::recursive_mutex mutex;
@@ -1822,9 +1822,9 @@ void SocketManager::link(
         CHECK(sockets.count(s) == 0);
         sockets.emplace(s, socket.get());
 
-        addresses[s] = to.address;
+        addresses.emplace(s, to.address);
 
-        persists[to.address] = s;
+        persists.emplace(to.address, s);
 
         // Initialize 'outgoing' to prevent a race with
         // SocketManager::send() while the socket is not yet connected.
@@ -2220,8 +2220,8 @@ void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
       CHECK(sockets.count(s) == 0);
       sockets.emplace(s, socket.get());
 
-      addresses[s] = address;
-      temps[address] = s;
+      addresses.emplace(s, address);
+      temps.emplace(address, s);
 
       dispose.insert(s);
 
@@ -2285,10 +2285,10 @@ Encoder* SocketManager::next(int s)
           // This is either a temporary socket we created or it's a
           // socket that we were receiving data from and possibly
           // sending HTTP responses back on. Clean up either way.
-          if (addresses.count(s) > 0) {
-            const Address& address = addresses[s];
-            CHECK(temps.count(address) > 0 && temps[address] == s);
-            temps.erase(address);
+          Option<Address> address = addresses.get(s);
+          if (address.isSome()) {
+            CHECK(temps.count(address.get()) > 0 && temps[address.get()] == s);
+            temps.erase(address.get());
             addresses.erase(s);
           }
 
@@ -2356,15 +2356,15 @@ void SocketManager::close(int s)
       }
 
       // Clean up after sockets used for remote communication.
-      if (addresses.count(s) > 0) {
-        const Address& address = addresses[s];
-
+      Option<Address> address = addresses.get(s);
+      if (address.isSome()) {
         // Don't bother invoking `exited` unless socket was persistent.
-        if (persists.count(address) > 0 && persists[address] == s) {
-          persists.erase(address);
-          exited(address); // Generate ExitedEvent(s)!
-        } else if (temps.count(address) > 0 && temps[address] == s) {
-          temps.erase(address);
+        if (persists.count(address.get()) > 0 && persists[address.get()] == s) {
+          persists.erase(address.get());
+          exited(address.get()); // Generate ExitedEvent(s)!
+        } else if (temps.count(address.get()) > 0 &&
+                   temps[address.get()] == s) {
+          temps.erase(address.get());
         }
 
         addresses.erase(s);
@@ -2551,18 +2551,20 @@ void SocketManager::swap_implementing_socket(
     // Update the fd that this address is associated with. Once we've
     // done this we can update the 'temps' and 'persists'
     // data structures using this updated address.
-    addresses[to_fd] = addresses[from_fd];
+    Option<Address> address = addresses.get(from_fd);
+    CHECK_SOME(address);
+    addresses.emplace(to_fd, address.get());
     addresses.erase(from_fd);
 
     // If this address is a persistent or temporary link
     // that matches the original FD.
-    if (persists.count(addresses[to_fd]) > 0 &&
-        persists.at(addresses[to_fd]) == from_fd) {
-      persists[addresses[to_fd]] = to_fd;
+    if (persists.count(address.get()) > 0 &&
+        persists.at(address.get()) == from_fd) {
+      persists[address.get()] = to_fd;
       // No need to erase as we're changing the value, not the key.
-    } else if (temps.count(addresses[to_fd]) > 0 &&
-        temps.at(addresses[to_fd]) == from_fd) {
-      temps[addresses[to_fd]] = to_fd;
+    } else if (temps.count(address.get()) > 0 &&
+               temps.at(address.get()) == from_fd) {
+      temps[address.get()] = to_fd;
       // No need to erase as we're changing the value, not the key.
     }
 
