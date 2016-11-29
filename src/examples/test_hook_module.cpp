@@ -187,7 +187,11 @@ public:
   }
 
 
-  // In this hook, add an environment variable to the executor and task.
+  // In this hook, we check for the presence of a label, and if set
+  // we return a failure, effectively failing the container creation.
+  // Otherwise we add an environment variable to the executor and task.
+  // Additionally, this hook creates a file named "foo" in the container
+  // work directory (sandbox).
   virtual Future<Option<DockerTaskExecutorPrepareInfo>>
     slavePreLaunchDockerTaskExecutorDecorator(
         const Option<TaskInfo>& taskInfo,
@@ -221,23 +225,9 @@ public:
     variable->set_name("HOOKTEST_EXECUTOR");
     variable->set_value("bar");
 
+    os::touch(path::join(containerWorkDirectory, "foo"));
+
     return prepareInfo;
-  }
-
-
-  virtual Try<Nothing> slavePreLaunchDockerHook(
-      const ContainerInfo& containerInfo,
-      const CommandInfo& commandInfo,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& containerName,
-      const string& containerWorkDirectory,
-      const string& mappedSandboxDirectory,
-      const Option<Resources>& resources,
-      const Option<map<string, string>>& env)
-  {
-    LOG(INFO) << "Executing 'slavePreLaunchDockerHook'";
-    return os::touch(path::join(containerWorkDirectory, "foo"));
   }
 
 

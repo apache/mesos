@@ -117,24 +117,6 @@ public:
     return None();
   }
 
-  // This hook is called from within slave before docker is launched.
-  // A typical module implementing the hook will perform some settings
-  // as required.
-  //
-  // NOTE: Superseded by `slavePreLaunchDockerEnvironmentDecorator`.
-  virtual Try<Nothing> slavePreLaunchDockerHook(
-      const ContainerInfo& containerInfo,
-      const CommandInfo& commandInfo,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& containerName,
-      const std::string& containerWorkDirectory,
-      const std::string& mappedSandboxDirectory,
-      const Option<Resources>& resources,
-      const Option<std::map<std::string, std::string>>& env)
-  {
-    return Nothing();
-  }
 
   // This hook is called from within slave after URIs and container
   // image are fetched. A typical module implementing this hook will

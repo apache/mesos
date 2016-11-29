@@ -1221,19 +1221,6 @@ Future<bool> DockerContainerizerProcess::_launch(
 
   Container* container = containers_.at(containerId);
 
-  if (HookManager::hooksAvailable()) {
-    HookManager::slavePreLaunchDockerHook(
-        container->container,
-        container->command,
-        taskInfo,
-        executorInfo,
-        container->name(),
-        container->directory,
-        flags.sandbox_directory,
-        container->resources,
-        container->environment);
-  }
-
   if (taskInfo.isSome() && flags.docker_mesos_image.isNone()) {
     // Launching task by forking a subprocess to run docker executor.
     // TODO(steveniemitz): We should call 'update' to set CPU/CFS/mem
