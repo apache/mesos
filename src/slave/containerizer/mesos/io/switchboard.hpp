@@ -17,24 +17,22 @@
 #ifndef __MESOS_CONTAINERIZER_IO_SWITCHBOARD_HPP__
 #define __MESOS_CONTAINERIZER_IO_SWITCHBOARD_HPP__
 
-#include <string>
-
-#include <mesos/slave/container_logger.hpp>
-
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
-#include <stout/flags.hpp>
+#include <stout/try.hpp>
+
+#include <mesos/slave/container_logger.hpp>
 
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/mesos/isolator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class IOSwitchboardProcess;
-
-// The `IOSwitchboard` is designed to feed stdin to a container from
+// The I/O switchboard is designed to feed stdin to a container from
 // an external source, as well as redirect the stdin/stdout of a
 // container to multiple targets.
 //
@@ -43,35 +41,36 @@ class IOSwitchboardProcess;
 // external client can attach to the stdin/stdout/stderr of a running
 // container as well as launch arbitrary subcommands inside a
 // container and attach to its stdin/stdout/stderr.
-class IOSwitchboard
+//
+// The I/O switchboard is integrated with `MesosContainerizer` through
+// the `Isolator` interface.
+class IOSwitchboardIsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  struct SubprocessInfo
-  {
-    SubprocessInfo();
-    process::Subprocess::IO in;
-    process::Subprocess::IO out;
-    process::Subprocess::IO err;
-  };
-
-  static Try<process::Owned<IOSwitchboard>> create(
+  static Try<mesos::slave::Isolator*> create(
       const Flags& flags,
       bool local);
 
-  ~IOSwitchboard();
+  virtual ~IOSwitchboardIsolatorProcess();
 
-  process::Future<SubprocessInfo> prepare(
-      const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory,
-      const Option<std::string>& user);
+  virtual bool supportsNesting();
+
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig);
 
 private:
-  explicit IOSwitchboard(
+  IOSwitchboardIsolatorProcess(
       const Flags& flags,
       bool local,
-      const process::Owned<mesos::slave::ContainerLogger>& logger);
+      process::Owned<mesos::slave::ContainerLogger> logger);
 
-  process::Owned<IOSwitchboardProcess> process;
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
+
+  Flags flags;
+  bool local;
+  process::Owned<mesos::slave::ContainerLogger> logger;
 };
 
 } // namespace slave {
