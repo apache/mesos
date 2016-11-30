@@ -92,8 +92,8 @@ public:
    *
    * @return An instance of a `SocketImpl`.
    */
-   // TODO(josephw): MESOS-5729: Consider making the CLOEXEC option
-   // configurable by the caller of the interface.
+  // TODO(josephw): MESOS-5729: Consider making the CLOEXEC option
+  // configurable by the caller of the interface.
   static Try<std::shared_ptr<SocketImpl>> create(
       Address::Family family,
       Kind kind = DEFAULT_KIND());
