@@ -242,6 +242,8 @@ slave::Flags MesosTest::CreateSlaveFlags()
     flags.isolation = tests::flags.isolation.get();
   }
 
+  flags.io_switchboard_enable_server = true;
+
   return flags;
 }
 
