@@ -580,6 +580,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/detector.hpp
 
 nodist_module_HEADERS =							\
+  ../include/mesos/module/hook.pb.h					\
   ../include/mesos/module/module.pb.h
 
 quotadir = $(pkgincludedir)/quota
