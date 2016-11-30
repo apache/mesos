@@ -54,6 +54,12 @@ CommandInfo devolve(const v1::CommandInfo& command)
 }
 
 
+ContainerID devolve(const v1::ContainerID& containerId)
+{
+  return devolve<ContainerID>(containerId);
+}
+
+
 Credential devolve(const v1::Credential& credential)
 {
   return devolve<Credential>(credential);

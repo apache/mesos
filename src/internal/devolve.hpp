@@ -46,6 +46,7 @@ namespace internal {
 
 // Helpers for devolving types between versions. Please add as necessary!
 CommandInfo devolve(const v1::CommandInfo& command);
+ContainerID devolve(const v1::ContainerID& containerId);
 Credential devolve(const v1::Credential& credential);
 ExecutorID devolve(const v1::ExecutorID& executorId);
 FrameworkID devolve(const v1::FrameworkID& frameworkId);
