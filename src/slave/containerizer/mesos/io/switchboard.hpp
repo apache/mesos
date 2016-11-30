@@ -44,14 +44,14 @@ namespace slave {
 //
 // The I/O switchboard is integrated with `MesosContainerizer` through
 // the `Isolator` interface.
-class IOSwitchboardIsolatorProcess : public MesosIsolatorProcess
+class IOSwitchboard : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(
+  static Try<IOSwitchboard*> create(
       const Flags& flags,
       bool local);
 
-  virtual ~IOSwitchboardIsolatorProcess();
+  virtual ~IOSwitchboard();
 
   virtual bool supportsNesting();
 
@@ -60,7 +60,7 @@ public:
       const mesos::slave::ContainerConfig& containerConfig);
 
 private:
-  IOSwitchboardIsolatorProcess(
+  IOSwitchboard(
       const Flags& flags,
       bool local,
       process::Owned<mesos::slave::ContainerLogger> logger);

@@ -39,7 +39,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Isolator*> IOSwitchboardIsolatorProcess::create(
+Try<IOSwitchboard*> IOSwitchboard::create(
     const Flags& flags,
     bool local)
 {
@@ -50,15 +50,14 @@ Try<Isolator*> IOSwitchboardIsolatorProcess::create(
     return Error("Cannot create container logger: " + logger.error());
   }
 
-  return new MesosIsolator(Owned<MesosIsolatorProcess>(
-      new IOSwitchboardIsolatorProcess(
-          flags,
-          local,
-          Owned<ContainerLogger>(logger.get()))));
+  return new IOSwitchboard(
+      flags,
+      local,
+      Owned<ContainerLogger>(logger.get()));
 }
 
 
-IOSwitchboardIsolatorProcess::IOSwitchboardIsolatorProcess(
+IOSwitchboard::IOSwitchboard(
     const Flags& _flags,
     bool _local,
     Owned<ContainerLogger> _logger)
@@ -67,16 +66,16 @@ IOSwitchboardIsolatorProcess::IOSwitchboardIsolatorProcess(
     logger(_logger) {}
 
 
-IOSwitchboardIsolatorProcess::~IOSwitchboardIsolatorProcess() {}
+IOSwitchboard::~IOSwitchboard() {}
 
 
-bool IOSwitchboardIsolatorProcess::supportsNesting()
+bool IOSwitchboard::supportsNesting()
 {
   return true;
 }
 
 
-Future<Option<ContainerLaunchInfo>> IOSwitchboardIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
@@ -97,13 +96,13 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboardIsolatorProcess::prepare(
         ? Option<string>(containerConfig.user())
         : None())
     .then(defer(
-        PID<IOSwitchboardIsolatorProcess>(this),
-        &IOSwitchboardIsolatorProcess::_prepare,
+        PID<IOSwitchboard>(this),
+        &IOSwitchboard::_prepare,
         lambda::_1));
 }
 
 
-Future<Option<ContainerLaunchInfo>> IOSwitchboardIsolatorProcess::_prepare(
+Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerLogger::SubprocessInfo& loggerInfo)
 {
   ContainerLaunchInfo launchInfo;

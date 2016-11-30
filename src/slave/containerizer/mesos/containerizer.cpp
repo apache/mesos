@@ -398,23 +398,27 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     const Shared<Provisioner>& provisioner,
     const vector<Owned<Isolator>>& isolators)
 {
-  // Include those internal isolators which are always enabled and
-  // invisible to operators.
-  vector<Owned<Isolator>> _isolators(isolators);
-
-  Try<Isolator*> isolator = IOSwitchboardIsolatorProcess::create(flags, local);
-  if (isolator.isError()) {
-    return Error(
-        "Failed to create internal isolator 'io/switchboard':" +
-        isolator.error());
+  // Add I/O switchboard to the isolator list.
+  //
+  // TODO(jieyu): This is a workaround currently because we don't have
+  // good support for dynamic pointer cast for 'Owned' yet. The I/O
+  // switchboard object will be released automatically during the
+  // destruction of the containerizer.
+  Try<IOSwitchboard*> ioSwitchboard = IOSwitchboard::create(flags, local);
+  if (ioSwitchboard.isError()) {
+    return Error("Failed to create I/O switchboard: " + ioSwitchboard.error());
   }
 
-  _isolators.push_back(Owned<Isolator>(isolator.get()));
+  vector<Owned<Isolator>> _isolators(isolators);
+
+  _isolators.push_back(Owned<Isolator>(new MesosIsolator(
+      Owned<MesosIsolatorProcess>(ioSwitchboard.get()))));
 
   return new MesosContainerizer(Owned<MesosContainerizerProcess>(
       new MesosContainerizerProcess(
           flags,
           fetcher,
+          ioSwitchboard.get(),
           launcher,
           provisioner,
           _isolators)));
