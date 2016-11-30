@@ -175,11 +175,11 @@ struct Slave
     const FrameworkID& frameworkId = task->framework_id();
 
     CHECK(protobuf::isTerminalState(task->state()));
-    CHECK(tasks[frameworkId].contains(taskId))
+    CHECK(tasks.at(frameworkId).contains(taskId))
       << "Unknown task " << taskId << " of framework " << frameworkId;
 
     usedResources[frameworkId] -= task->resources();
-    if (!tasks.contains(frameworkId) && !executors.contains(frameworkId)) {
+    if (usedResources[frameworkId].empty()) {
       usedResources.erase(frameworkId);
     }
   }
@@ -189,12 +189,12 @@ struct Slave
     const TaskID& taskId = task->task_id();
     const FrameworkID& frameworkId = task->framework_id();
 
-    CHECK(tasks[frameworkId].contains(taskId))
+    CHECK(tasks.at(frameworkId).contains(taskId))
       << "Unknown task " << taskId << " of framework " << frameworkId;
 
     if (!protobuf::isTerminalState(task->state())) {
       usedResources[frameworkId] -= task->resources();
-      if (!tasks.contains(frameworkId) && !executors.contains(frameworkId)) {
+      if (usedResources[frameworkId].empty()) {
         usedResources.erase(frameworkId);
       }
     }
@@ -265,6 +265,9 @@ struct Slave
 
     usedResources[frameworkId] -=
       executors[frameworkId][executorId].resources();
+    if (usedResources[frameworkId].empty()) {
+      usedResources.erase(frameworkId);
+    }
 
     executors[frameworkId].erase(executorId);
     if (executors[frameworkId].empty()) {
