@@ -245,9 +245,16 @@ message FrameworkInfo {
   // the cost of a (usually small) increase in disk I/O.
   optional bool checkpoint = 5 [default = false];
 
-  // Used to group frameworks for allocation decisions, depending on
-  // the allocation policy being used.
-  optional string role = 6 [default = "*"];
+  // Roles are the entities to which allocations are made.
+  // The framework must have at least one role in order to
+  // be offered resources. Note that `role` is deprecated
+  // in favor of `roles` and only one of these fields must
+  // be used. Since we cannot distinguish between empty
+  // `roles` and the default unset `role`, we require that
+  // frameworks set the `MULTI_ROLE` capability if
+  // setting the `roles` field.
+  optional string role = 6 [default = "*", deprecated=true];
+  repeated string roles = 12;
 
   // Used to indicate the current host from which the scheduler is
   // registered in the Mesos Web UI. If set to an empty string Mesos
@@ -318,6 +325,15 @@ message FrameworkInfo {
       // Mesos when the agent reregisters (unless the master has
       // failed over).
       PARTITION_AWARE = 5;
+
+      // This expresses the ability for the framework to be
+      // "multi-tenant" via using the newly introduced `roles`
+      // field, and examining `Offer.allocation_info` to determine
+      // which role the offers are being made to. We also
+      // expect that "single-tenant" schedulers eventually
+      // provide this and move away from the deprecated
+      // `role` field.
+      MULTI_ROLE = 6;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
