@@ -26,6 +26,7 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
@@ -66,6 +67,10 @@ public:
           const Option<std::string>&,
           const SlaveID&,
           const Option<mesos::slave::ContainerClass>&));
+
+  MOCK_METHOD1(
+      attach,
+      process::Future<process::http::Connection>(const ContainerID&));
 
   MOCK_METHOD2(
       update,
