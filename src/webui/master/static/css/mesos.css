@@ -2,6 +2,28 @@
  * BOOTSTRAP OVERRIDES
  */
 
+.navbar {
+  border: 0;
+}
+
+.navbar.navbar-inverse {
+  background-color: #2A6496;
+  color: #FFF;
+}
+
+.navbar .navbar-nav > li > a {
+  color: inherit;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.navbar .navbar-nav > .active > a,
+.navbar .navbar-nav > .active > a:focus,
+.navbar .navbar-nav > .active > a:hover {
+    color: inherit;
+    background-color: rgba(255,255,255,.1);
+}
+
 .table thead th {
   vertical-align: top;
 }
