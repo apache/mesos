@@ -3290,9 +3290,6 @@ TEST_P(AgentAPITest, NestedContainerWaitNotFound)
 
   // Expect a 404 for waiting on unknown containers.
   {
-    EXPECT_CALL(mockContainerizer, wait(_))
-      .WillOnce(Return(Future<Option<ContainerTermination>>(None())));
-
     v1::agent::Call call;
     call.set_type(v1::agent::Call::WAIT_NESTED_CONTAINER);
 
@@ -3345,9 +3342,6 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
 
   // Expect a 404 for killing unknown containers.
   {
-    EXPECT_CALL(mockContainerizer, destroy(_))
-      .WillOnce(Return(Future<bool>(false)));
-
     v1::agent::Call call;
     call.set_type(v1::agent::Call::KILL_NESTED_CONTAINER);
 
