@@ -37,6 +37,7 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/recordio.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 
@@ -72,6 +73,12 @@ ostream& operator<<(ostream& stream, ContentType contentType)
     case ContentType::JSON: {
       return stream << APPLICATION_JSON;
     }
+    case ContentType::STREAMING_PROTOBUF: {
+      return stream << APPLICATION_STREAMING_PROTOBUF;
+    }
+    case ContentType::STREAMING_JSON: {
+      return stream << APPLICATION_STREAMING_JSON;
+    }
   }
 
   UNREACHABLE();
@@ -96,10 +103,12 @@ string serialize(
     const google::protobuf::Message& message)
 {
   switch (contentType) {
-    case ContentType::PROTOBUF: {
+    case ContentType::PROTOBUF:
+    case ContentType::STREAMING_PROTOBUF: {
       return message.SerializeAsString();
     }
-    case ContentType::JSON: {
+    case ContentType::JSON:
+    case ContentType::STREAMING_JSON: {
       JSON::Object object = JSON::protobuf(message);
       return stringify(object);
     }
