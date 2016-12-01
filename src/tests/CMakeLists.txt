@@ -162,10 +162,11 @@ set(MESOS_TESTS_SRC
   containerizer/docker_containerizer_tests.cpp
   containerizer/docker_spec_tests.cpp
   containerizer/docker_tests.cpp
+  containerizer/io_switchboard_tests.cpp
   containerizer/isolator_tests.cpp
   containerizer/memory_isolator_tests.cpp
-  containerizer/mesos_containerizer_tests.cpp
   containerizer/mesos_containerizer_paths_tests.cpp
+  containerizer/mesos_containerizer_tests.cpp
   containerizer/posix_rlimits_isolator_tests.cpp
   containerizer/provisioner_appc_tests.cpp
   containerizer/provisioner_backend_tests.cpp

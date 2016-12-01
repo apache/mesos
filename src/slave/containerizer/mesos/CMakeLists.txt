@@ -21,25 +21,27 @@ set(CONTAINERIZER_EXECUTABLE_SRC
   main.cpp
   )
 
-# INCLUDE DIRECTIVES FOR CONTAINERIZER EXECUTABLE (generates, e.g.,
-# -I/path/to/thing on Linux).
-###################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
-
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
+set(MESOS_IO_SWITCHBOARD_SRC
+  ${MESOS_IO_SWITCHBOARD_SRC}
+  io/switchboard_main.cpp
+  )
 
 # THE CONTAINERIZER EXECUTABLE.
 ###############################
 add_executable(${MESOS_CONTAINERIZER} ${CONTAINERIZER_EXECUTABLE_SRC})
+add_executable(${MESOS_IO_SWITCHBOARD} ${MESOS_IO_SWITCHBOARD_SRC})
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_CONTAINERIZER} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
+target_link_libraries(${MESOS_CONTAINERIZER}  ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
+target_link_libraries(${MESOS_IO_SWITCHBOARD} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_CONTAINERIZER})
-add_dependencies(${MESOS_CONTAINERIZER} ${MESOS_LIBS_TARGET})
+add_dependencies(
+  ${MESOS_TARGET}
+  ${MESOS_CONTAINERIZER}
+  ${MESOS_IO_SWITCHBOARD})
+
+add_dependencies(${MESOS_CONTAINERIZER}  ${MESOS_LIBS_TARGET})
+add_dependencies(${MESOS_IO_SWITCHBOARD} ${MESOS_LIBS_TARGET})

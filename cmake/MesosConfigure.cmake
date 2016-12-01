@@ -137,6 +137,10 @@ set(
   CACHE STRING "Target for fetcher")
 
 set(
+  MESOS_IO_SWITCHBOARD mesos-io-switchboard
+  CACHE STRING "Target for the IO switchboard")
+
+set(
   MESOS_MASTER mesos-master
   CACHE STRING "Target for master")
 
