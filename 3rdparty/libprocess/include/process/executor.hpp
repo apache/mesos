@@ -13,7 +13,6 @@
 #ifndef __PROCESS_EXECUTOR_HPP__
 #define __PROCESS_EXECUTOR_HPP__
 
-#include <process/defer.hpp>
 #include <process/deferred.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
