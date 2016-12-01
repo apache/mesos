@@ -783,6 +783,24 @@ message Resource {
   // be offered to frameworks that belong to this role.
   optional string role = 6 [default = "*"];
 
+  // This was initially introduced to support MULTI_ROLE capable
+  // frameworks. Frameworks that are not MULTI_ROLE capable can
+  // continue to assume that the offered resources are allocated
+  // to their role.
+  //
+  // NOTE: Implementation of this is in-progress, DO NOT USE!
+  message AllocationInfo {
+    // If set, this resource is allocated to a role. Note that in the
+    // future, this may be unset and the scheduler may be responsible
+    // for allocating to one of its roles.
+    optional string role = 1;
+
+    // In the future, we may add additional fields here, e.g. priority
+    // tier, type of allocation (quota / fair share).
+  }
+
+  optional AllocationInfo allocation_info = 11;
+
   message ReservationInfo {
     // Describes a dynamic reservation. A dynamic reservation is
     // acquired by an operator via the '/reserve' HTTP endpoint or by
