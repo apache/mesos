@@ -614,6 +614,10 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
 
 Future<Nothing> IOSwitchboardServerProcess::run()
 {
+  // TODO(jieyu): This silence the compiler warning of private field
+  // being not used. Remove this once it is used.
+  stdinToFd = -1;
+
   if (!waitForConnection) {
     startRedirect.set(Nothing());
   }
