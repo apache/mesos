@@ -25,6 +25,7 @@ set(PROCESS_TESTS_SRC
   future_tests.cpp
   http_tests.cpp
   limiter_tests.cpp
+  loop_tests.cpp
   metrics_tests.cpp
   mutex_tests.cpp
   owned_tests.cpp
