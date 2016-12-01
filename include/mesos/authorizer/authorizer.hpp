@@ -53,7 +53,8 @@ public:
         executor_info(nullptr),
         quota_info(nullptr),
         weight_info(nullptr),
-        resource(nullptr) {}
+        resource(nullptr),
+        command_info(nullptr) {}
 
     Object(const authorization::Object& object)
       : value(object.has_value() ? &object.value() : nullptr),
@@ -65,7 +66,9 @@ public:
             object.has_executor_info() ? &object.executor_info() : nullptr),
         quota_info(object.has_quota_info() ? &object.quota_info() : nullptr),
         weight_info(object.has_weight_info() ? &object.weight_info() : nullptr),
-        resource(object.has_resource() ? &object.resource() : nullptr) {}
+        resource(object.has_resource() ? &object.resource() : nullptr),
+        command_info(
+            object.has_command_info() ? &object.command_info() : nullptr) {}
 
     const std::string* value;
     const FrameworkInfo* framework_info;
@@ -75,6 +78,7 @@ public:
     const quota::QuotaInfo* quota_info;
     const WeightInfo* weight_info;
     const Resource* resource;
+    const CommandInfo* command_info;
   };
 
   /**

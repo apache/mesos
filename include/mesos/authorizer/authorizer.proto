@@ -48,6 +48,7 @@ message Object {
   optional quota.QuotaInfo quota_info = 6;
   optional WeightInfo weight_info = 7;
   optional Resource resource = 8;
+  optional CommandInfo command_info = 9;
 }
 
 
@@ -153,6 +154,26 @@ enum Action {
   // This action will not fill in any object fields, since the object
   // is the entire set of flags.
   VIEW_FLAGS = 18;
+
+  // This action will always set the `ExecutorInfo`, `FrameworkInfo` fields
+  // and optionally a `CommandInfo` if available.
+  LAUNCH_NESTED_CONTAINER = 19;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  KILL_NESTED_CONTAINER = 20;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  WAIT_NESTED_CONTAINER = 21;
+
+  // This action will always set the `ExecutorInfo`, `FrameworkInfo` fields
+  // and optionally a `CommandInfo` if available.
+  LAUNCH_NESTED_CONTAINER_SESSION = 22;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  ATTACH_CONTAINER_INPUT = 23;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  ATTACH_CONTAINER_OUTPUT = 24;
 }
 
 
