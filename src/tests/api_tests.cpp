@@ -3628,7 +3628,12 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &mockContainerizer);
 
   ASSERT_SOME(slave);
 
@@ -3642,6 +3647,9 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   call.mutable_attach_container_output()->mutable_container_id()
     ->set_value(UUID::random().toString());
 
+  EXPECT_CALL(mockContainerizer, attach(_))
+    .WillOnce(Return(process::Failure("Unsupported")));
+
   Future<http::Response> response = http::post(
     slave.get()->pid,
     "api/v1",
@@ -3651,6 +3659,11 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("Unsupported", response);
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
 }
 
 
