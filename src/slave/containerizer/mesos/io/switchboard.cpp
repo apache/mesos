@@ -43,6 +43,7 @@
 
 #include <mesos/agent/agent.hpp>
 
+#include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/container_logger.hpp>
 
 #include "common/http.hpp"
@@ -76,6 +77,7 @@ using std::string;
 using std::vector;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerIO;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLogger;
@@ -145,12 +147,14 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
         PID<IOSwitchboard>(this),
         &IOSwitchboard::_prepare,
         containerId,
+        containerConfig,
         lambda::_1));
 }
 
 
 Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerID& containerId,
+    const ContainerConfig& containerConfig,
     const ContainerLogger::SubprocessInfo& loggerInfo)
 {
   // On windows, we do not yet support running an io switchboard
@@ -281,7 +285,13 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   switchboardFlags.stdout_to_fd = STDOUT_FILENO;
   switchboardFlags.stderr_from_fd = errfds[0];
   switchboardFlags.stderr_to_fd = STDERR_FILENO;
-  switchboardFlags.wait_for_connection = false;
+
+  if (containerConfig.container_class() == ContainerClass::DEBUG) {
+    switchboardFlags.wait_for_connection = true;
+  } else {
+    switchboardFlags.wait_for_connection = false;
+  }
+
   switchboardFlags.socket_path = path::join(
       stringify(os::PATH_SEPARATOR),
       "tmp",

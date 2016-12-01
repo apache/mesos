@@ -88,6 +88,7 @@ private:
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
 
   Flags flags;
