@@ -63,6 +63,7 @@
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/recordio.hpp"
 
 #include "files/files.hpp"
 
@@ -523,9 +524,13 @@ private:
   private:
     JSON::Object _flags() const;
 
-    // Continuation for `/api` endpoint that handles non-streaming requests.
+    // Continuation for `/api` endpoint that handles streaming and non-streaming
+    // requests. In case of a streaming request, `call` would be the first
+    // record and additional records can be read using the `reader`. For
+    // non-streaming requests, `reader` would be set to `None()`.
     process::Future<process::http::Response> _api(
         const agent::Call& call,
+        Option<process::Owned<recordio::Reader<agent::Call>>>&& reader,
         ContentType contentTye,
         ContentType acceptType,
         const Option<std::string>& principal) const;

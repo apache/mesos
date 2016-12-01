@@ -118,6 +118,24 @@ string serialize(
 }
 
 
+bool requestStreaming(ContentType contentType)
+{
+  switch(contentType) {
+    case ContentType::PROTOBUF:
+    case ContentType::JSON: {
+      return false;
+    }
+
+    case ContentType::STREAMING_JSON:
+    case ContentType::STREAMING_PROTOBUF: {
+      return true;
+    }
+  }
+
+  UNREACHABLE();
+}
+
+
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON
 // Conversion (when it becomes available).
 

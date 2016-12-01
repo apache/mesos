@@ -90,6 +90,10 @@ Try<Message> deserialize(
 }
 
 
+// Returns true if the content type can be used for streaming requests.
+bool requestStreaming(ContentType contentType);
+
+
 JSON::Object model(const Resources& resources);
 JSON::Object model(const hashmap<std::string, Resources>& roleResources);
 JSON::Object model(const Attributes& attributes);

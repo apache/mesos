@@ -330,10 +330,15 @@ Future<Response> Slave::Http::api(
     contentType = ContentType::JSON;
   } else if (contentType_.get() == APPLICATION_PROTOBUF) {
     contentType = ContentType::PROTOBUF;
+  } else if (contentType_.get() == APPLICATION_STREAMING_JSON) {
+    contentType = ContentType::STREAMING_JSON;
+  } else if (contentType_.get() == APPLICATION_STREAMING_PROTOBUF) {
+    contentType = ContentType::STREAMING_PROTOBUF;
   } else {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
-        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
+        APPLICATION_STREAMING_JSON + " or " + APPLICATION_STREAMING_PROTOBUF);
   }
 
   // This lambda deserializes a string into a valid `Call`
@@ -358,21 +363,48 @@ Future<Response> Slave::Http::api(
   };
 
   ContentType acceptType;
-  if (request.acceptsMediaType(APPLICATION_JSON)) {
+  if (request.acceptsMediaType(APPLICATION_STREAMING_PROTOBUF)) {
+    acceptType = ContentType::STREAMING_PROTOBUF;
+  } else if (request.acceptsMediaType(APPLICATION_STREAMING_JSON)) {
+    acceptType = ContentType::STREAMING_JSON;
+  } else if (request.acceptsMediaType(APPLICATION_JSON)) {
     acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
     acceptType = ContentType::PROTOBUF;
   } else {
     return NotAcceptable(
         string("Expecting 'Accept' to allow ") +
-        "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
+        APPLICATION_STREAMING_JSON + " or "  + APPLICATION_STREAMING_PROTOBUF);
   }
 
-  if (contentType == ContentType::JSON ||
-      contentType == ContentType::PROTOBUF) {
-    CHECK_EQ(http::Request::PIPE, request.type);
-    CHECK_SOME(request.reader);
+  CHECK_EQ(http::Request::PIPE, request.type);
+  CHECK_SOME(request.reader);
 
+  if (requestStreaming(contentType)) {
+    Owned<Reader<mesos::agent::Call>> reader(new Reader<mesos::agent::Call>(
+        Decoder<mesos::agent::Call>(lambda::bind(
+            deserializer, lambda::_1, contentType)), request.reader.get()));
+
+    return reader->read()
+      .then(defer(
+          slave->self(),
+          [=](const Result<mesos::agent::Call>& call) -> Future<Response> {
+            if (call.isNone()) {
+              return BadRequest("Received EOF while reading request body");
+            }
+
+            if (call.isError()) {
+              return Failure(call.error());
+            }
+
+            return _api(call.get(),
+                        std::move(reader),
+                        contentType,
+                        acceptType,
+                        principal);
+          }));
+  } else {
     Pipe::Reader reader = request.reader.get();  // Remove const.
 
     return reader.readAll()
@@ -383,21 +415,34 @@ Future<Response> Slave::Http::api(
             if (call.isError()) {
               return BadRequest(call.error());
             }
-            return _api(call.get(), contentType, acceptType, principal);
+            return _api(call.get(), None(), contentType, acceptType, principal);
           }));
-  } else {
-    // TODO(vinod): Add support for 'streaming' content type.
-    UNREACHABLE();
   }
 }
 
 
 Future<Response> Slave::Http::_api(
     const agent::Call& call,
+    Option<Owned<Reader<mesos::agent::Call>>>&& reader,
     ContentType contentType,
     ContentType acceptType,
     const Option<string>& principal) const
 {
+  // Validate that a client has not _accidentally_ sent us a
+  // streaming request for a call type that does not support it.
+  if (requestStreaming(contentType) &&
+      call.type() != mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
+    return UnsupportedMediaType(
+        "Streaming 'Content-Type' " + stringify(contentType) + " is not "
+        "supported for " + stringify(call.type()) + " call");
+  } else if (!requestStreaming(contentType) &&
+             call.type() == mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
+    return UnsupportedMediaType(
+        string("Expecting 'Content-Type' of ") + APPLICATION_STREAMING_JSON +
+        " or " + APPLICATION_STREAMING_PROTOBUF + " for "  +
+        stringify(call.type()) + " call");
+  }
+
   LOG(INFO) << "Processing call " << call.type();
 
   switch (call.type()) {
