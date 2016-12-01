@@ -55,9 +55,8 @@ int main(int argc, char** argv)
   run.await();
 
   if (!run.isReady()) {
-    EXIT(EXIT_FAILURE) << "The io switchboard server failed:"
-                       << " " << run.isFailed() ? run.failure()
-                                                : "discarded";
+    EXIT(EXIT_FAILURE) << "The io switchboard server failed: "
+                       << (run.isFailed() ? run.failure() : "discarded");
   }
 
   return EXIT_SUCCESS;
