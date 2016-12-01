@@ -185,3 +185,8 @@ a.badge-type:hover {
   -webkit-box-shadow: none;
   box-shadow: none;
 }
+
+#logo {
+  margin: -15px -10px;
+  height: 60px;
+}
