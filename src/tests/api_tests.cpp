@@ -3653,6 +3653,57 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   AWAIT_EXPECT_RESPONSE_BODY_EQ("Unsupported", response);
 }
 
+
+TEST_F(AgentAPITest, AttachContainerInputFailure)
+{
+  Clock::pause();
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  MockContainerizer mockContainerizer;
+
+  EXPECT_CALL(mockContainerizer, recover(_))
+    .WillOnce(Return(Future<Nothing>(Nothing())));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &mockContainerizer);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  v1::agent::Call call;
+  call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+  call.mutable_attach_container_input()->mutable_container_id()
+    ->set_value(UUID::random().toString());
+
+  ContentType contentType = ContentType::STREAMING_PROTOBUF;
+
+  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+        serialize, contentType, lambda::_1));
+
+  EXPECT_CALL(mockContainerizer, attach(_))
+    .WillOnce(Return(process::Failure("Unsupported")));
+
+  Future<http::Response> response = http::post(
+    slave.get()->pid,
+    "api/v1",
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+    encoder.encode(call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("Unsupported", response);
+
+  // The destructor of `cluster::Slave` will try to clean up any
+  // remaining containers by inspecting the result of `containers()`.
+  EXPECT_CALL(mockContainerizer, containers())
+    .WillRepeatedly(Return(hashset<ContainerID>()));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
