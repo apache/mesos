@@ -450,52 +450,52 @@ Future<Response> Slave::Http::_api(
       return NotImplemented();
 
     case agent::Call::GET_HEALTH:
-      return getHealth(call, principal, acceptType);
+      return getHealth(call, acceptType, principal);
 
     case agent::Call::GET_FLAGS:
-      return getFlags(call, principal, acceptType);
+      return getFlags(call, acceptType, principal);
 
     case agent::Call::GET_VERSION:
-      return getVersion(call, principal, acceptType);
+      return getVersion(call, acceptType, principal);
 
     case agent::Call::GET_METRICS:
-      return getMetrics(call, principal, acceptType);
+      return getMetrics(call, acceptType, principal);
 
     case agent::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, principal, acceptType);
+      return getLoggingLevel(call, acceptType, principal);
 
     case agent::Call::SET_LOGGING_LEVEL:
-      return setLoggingLevel(call, principal, acceptType);
+      return setLoggingLevel(call, acceptType, principal);
 
     case agent::Call::LIST_FILES:
-      return listFiles(call, principal, acceptType);
+      return listFiles(call, acceptType, principal);
 
     case agent::Call::READ_FILE:
-      return readFile(call, principal, acceptType);
+      return readFile(call, acceptType, principal);
 
     case agent::Call::GET_STATE:
-      return getState(call, principal, acceptType);
+      return getState(call, acceptType, principal);
 
     case agent::Call::GET_CONTAINERS:
-      return getContainers(call, principal, acceptType);
+      return getContainers(call, acceptType, principal);
 
     case agent::Call::GET_FRAMEWORKS:
-      return getFrameworks(call, principal, acceptType);
+      return getFrameworks(call, acceptType, principal);
 
     case agent::Call::GET_EXECUTORS:
-      return getExecutors(call, principal, acceptType);
+      return getExecutors(call, acceptType, principal);
 
     case agent::Call::GET_TASKS:
-      return getTasks(call, principal, acceptType);
+      return getTasks(call, acceptType, principal);
 
     case agent::Call::LAUNCH_NESTED_CONTAINER:
-      return launchNestedContainer(call, principal, acceptType);
+      return launchNestedContainer(call, acceptType, principal);
 
     case agent::Call::WAIT_NESTED_CONTAINER:
-      return waitNestedContainer(call, principal, acceptType);
+      return waitNestedContainer(call, acceptType, principal);
 
     case agent::Call::KILL_NESTED_CONTAINER:
-      return killNestedContainer(call, principal, acceptType);
+      return killNestedContainer(call, acceptType, principal);
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
       return NotImplemented();
@@ -733,14 +733,14 @@ JSON::Object Slave::Http::_flags() const
 
 Future<Response> Slave::Http::getFlags(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_FLAGS, call.type());
 
-  return OK(serialize(contentType,
+  return OK(serialize(acceptType,
                       evolve<v1::agent::Response::GET_FLAGS>(_flags())),
-            stringify(contentType));
+            stringify(acceptType));
 }
 
 
@@ -764,8 +764,8 @@ Future<Response> Slave::Http::health(const Request& request) const
 
 Future<Response> Slave::Http::getHealth(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_HEALTH, call.type());
 
@@ -773,28 +773,28 @@ Future<Response> Slave::Http::getHealth(
   response.set_type(agent::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
 
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
+  return OK(serialize(acceptType, evolve(response)),
+            stringify(acceptType));
 }
 
 
 Future<Response> Slave::Http::getVersion(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_VERSION, call.type());
 
-  return OK(serialize(contentType,
+  return OK(serialize(acceptType,
                       evolve<v1::agent::Response::GET_VERSION>(version())),
-            stringify(contentType));
+            stringify(acceptType));
 }
 
 
 Future<Response> Slave::Http::getMetrics(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_METRICS, call.type());
   CHECK(call.has_get_metrics());
@@ -805,7 +805,7 @@ Future<Response> Slave::Http::getMetrics(
   }
 
   return process::metrics::snapshot(timeout)
-      .then([contentType](const hashmap<string, double>& metrics) -> Response {
+      .then([acceptType](const hashmap<string, double>& metrics) -> Response {
         agent::Response response;
         response.set_type(agent::Response::GET_METRICS);
         agent::Response::GetMetrics* _getMetrics =
@@ -817,16 +817,16 @@ Future<Response> Slave::Http::getMetrics(
           metric->set_value(value);
         }
 
-        return OK(serialize(contentType, evolve(response)),
-                  stringify(contentType));
+        return OK(serialize(acceptType, evolve(response)),
+                  stringify(acceptType));
       });
 }
 
 
 Future<Response> Slave::Http::getLoggingLevel(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_LOGGING_LEVEL, call.type());
 
@@ -834,15 +834,15 @@ Future<Response> Slave::Http::getLoggingLevel(
   response.set_type(agent::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
 
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
+  return OK(serialize(acceptType, evolve(response)),
+            stringify(acceptType));
 }
 
 
 Future<Response> Slave::Http::setLoggingLevel(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType /*contentType*/) const
+    ContentType /*contentType*/,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::SET_LOGGING_LEVEL, call.type());
   CHECK(call.has_set_logging_level());
@@ -860,15 +860,15 @@ Future<Response> Slave::Http::setLoggingLevel(
 
 Future<Response> Slave::Http::listFiles(
     const mesos::agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::LIST_FILES, call.type());
 
   const string& path = call.list_files().path();
 
   return slave->files->browse(path, principal)
-    .then([contentType](const Try<list<FileInfo>, FilesError>& result)
+    .then([acceptType](const Try<list<FileInfo>, FilesError>& result)
       -> Future<Response> {
       if (result.isError()) {
         const FilesError& error = result.error();
@@ -900,8 +900,8 @@ Future<Response> Slave::Http::listFiles(
         listFiles->add_file_infos()->CopyFrom(fileInfo);
       }
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
     });
 }
 
@@ -1196,8 +1196,8 @@ Future<Response> Slave::Http::state(
 
 Future<Response> Slave::Http::getFrameworks(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_FRAMEWORKS, call.type());
 
@@ -1219,15 +1219,15 @@ Future<Response> Slave::Http::getFrameworks(
 
   return frameworksApprover
     .then(defer(slave->self(),
-        [this, contentType](const Owned<ObjectApprover>& frameworksApprover)
+        [this, acceptType](const Owned<ObjectApprover>& frameworksApprover)
           -> Future<Response> {
       agent::Response response;
       response.set_type(agent::Response::GET_FRAMEWORKS);
       response.mutable_get_frameworks()->CopyFrom(
           _getFrameworks(frameworksApprover));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
     }));
 }
 
@@ -1262,8 +1262,8 @@ agent::Response::GetFrameworks Slave::Http::_getFrameworks(
 
 Future<Response> Slave::Http::getExecutors(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_EXECUTORS, call.type());
 
@@ -1288,7 +1288,7 @@ Future<Response> Slave::Http::getExecutors(
 
   return collect(frameworksApprover, executorsApprover)
     .then(defer(slave->self(),
-        [this, contentType](const tuple<Owned<ObjectApprover>,
+        [this, acceptType](const tuple<Owned<ObjectApprover>,
                                         Owned<ObjectApprover>>& approvers)
           -> Future<Response> {
       // Get approver from tuple.
@@ -1302,8 +1302,8 @@ Future<Response> Slave::Http::getExecutors(
       response.mutable_get_executors()->CopyFrom(
           _getExecutors(frameworksApprover, executorsApprover));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
     }));
 }
 
@@ -1366,8 +1366,8 @@ agent::Response::GetExecutors Slave::Http::_getExecutors(
 
 Future<Response> Slave::Http::getTasks(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_TASKS, call.type());
 
@@ -1397,7 +1397,7 @@ Future<Response> Slave::Http::getTasks(
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
     .then(defer(slave->self(),
-      [this, contentType](const tuple<Owned<ObjectApprover>,
+      [this, acceptType](const tuple<Owned<ObjectApprover>,
                                       Owned<ObjectApprover>,
                                       Owned<ObjectApprover>>& approvers)
         -> Future<Response> {
@@ -1415,8 +1415,8 @@ Future<Response> Slave::Http::getTasks(
                     tasksApprover,
                     executorsApprover));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
   }));
 }
 
@@ -1547,8 +1547,8 @@ agent::Response::GetTasks Slave::Http::_getTasks(
 
 Future<Response> Slave::Http::getState(
     const agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_STATE, call.type());
 
@@ -1595,8 +1595,8 @@ Future<Response> Slave::Http::getState(
                     tasksApprover,
                     executorsApprover));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
     }));
 }
 
@@ -1805,13 +1805,13 @@ Future<Response> Slave::Http::containers(
 
 Future<Response> Slave::Http::getContainers(
     const agent::Call& call,
-    const Option<string>& printcipal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& printcipal) const
 {
   CHECK_EQ(agent::Call::GET_CONTAINERS, call.type());
 
   return __containers()
-      .then([contentType](const Future<JSON::Array>& result)
+      .then([acceptType](const Future<JSON::Array>& result)
           -> Future<Response> {
         if (!result.isReady()) {
           LOG(WARNING) << "Could not collect container status and statistics: "
@@ -1825,9 +1825,9 @@ Future<Response> Slave::Http::getContainers(
 
         return OK(
             serialize(
-                contentType,
+                acceptType,
                 evolve<v1::agent::Response::GET_CONTAINERS>(result.get())),
-            stringify(contentType));
+            stringify(acceptType));
       });
 }
 
@@ -1960,8 +1960,8 @@ Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
 
 Future<Response> Slave::Http::readFile(
     const mesos::agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::READ_FILE, call.type());
 
@@ -1974,7 +1974,7 @@ Future<Response> Slave::Http::readFile(
   }
 
   return slave->files->read(offset, length, path, principal)
-    .then([contentType](const Try<tuple<size_t, string>, FilesError>& result)
+    .then([acceptType](const Try<tuple<size_t, string>, FilesError>& result)
         -> Future<Response> {
       if (result.isError()) {
         const FilesError& error = result.error();
@@ -2002,16 +2002,16 @@ Future<Response> Slave::Http::readFile(
       response.mutable_read_file()->set_size(std::get<0>(result.get()));
       response.mutable_read_file()->set_data(std::get<1>(result.get()));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+      return OK(serialize(acceptType, evolve(response)),
+                stringify(acceptType));
     });
 }
 
 
 Future<Response> Slave::Http::launchNestedContainer(
     const mesos::agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::LAUNCH_NESTED_CONTAINER, call.type());
   CHECK(call.has_launch_nested_container());
@@ -2129,8 +2129,8 @@ Future<Response> Slave::Http::launchNestedContainer(
 
 Future<Response> Slave::Http::waitNestedContainer(
     const mesos::agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::WAIT_NESTED_CONTAINER, call.type());
   CHECK(call.has_wait_nested_container());
@@ -2150,7 +2150,7 @@ Future<Response> Slave::Http::waitNestedContainer(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, contentType](const Owned<ObjectApprover>& waitApprover)
+    [this, call, acceptType](const Owned<ObjectApprover>& waitApprover)
         -> Future<Response> {
       const ContainerID& containerId =
         call.wait_nested_container().container_id();
@@ -2194,7 +2194,7 @@ Future<Response> Slave::Http::waitNestedContainer(
         slave->containerizer->wait(containerId);
 
       return wait
-        .then([containerId, contentType](
+        .then([containerId, acceptType](
             const Option<ContainerTermination>& termination) -> Response {
           if (termination.isNone()) {
             return NotFound("Container " + stringify(containerId) +
@@ -2211,8 +2211,8 @@ Future<Response> Slave::Http::waitNestedContainer(
             waitNestedContainer->set_exit_status(termination->status());
           }
 
-          return OK(serialize(contentType, evolve(response)),
-                    stringify(contentType));
+          return OK(serialize(acceptType, evolve(response)),
+                    stringify(acceptType));
         });
     }));
 }
@@ -2220,8 +2220,8 @@ Future<Response> Slave::Http::waitNestedContainer(
 
 Future<Response> Slave::Http::killNestedContainer(
     const mesos::agent::Call& call,
-    const Option<string>& principal,
-    ContentType contentType) const
+    ContentType acceptType,
+    const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::KILL_NESTED_CONTAINER, call.type());
   CHECK(call.has_kill_nested_container());

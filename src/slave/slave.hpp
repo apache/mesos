@@ -555,61 +555,61 @@ private:
 
     process::Future<process::http::Response> getFlags(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getHealth(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getVersion(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getMetrics(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getLoggingLevel(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> setLoggingLevel(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> listFiles(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getContainers(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> readFile(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> getFrameworks(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     mesos::agent::Response::GetFrameworks _getFrameworks(
         const process::Owned<ObjectApprover>& frameworksApprover) const;
 
     process::Future<process::http::Response> getExecutors(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     mesos::agent::Response::GetExecutors _getExecutors(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -617,8 +617,8 @@ private:
 
     process::Future<process::http::Response> getTasks(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     mesos::agent::Response::GetTasks _getTasks(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -627,8 +627,8 @@ private:
 
     process::Future<process::http::Response> getState(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     mesos::agent::Response::GetState _getState(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -637,18 +637,18 @@ private:
 
     process::Future<process::http::Response> launchNestedContainer(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> waitNestedContainer(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> killNestedContainer(
         const mesos::agent::Call& call,
-        const Option<std::string>& principal,
-        ContentType contentType) const;
+        ContentType acceptType,
+        const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> attachContainerInput(
         const mesos::agent::Call& call,
