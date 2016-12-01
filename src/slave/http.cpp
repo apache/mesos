@@ -498,8 +498,12 @@ Future<Response> Slave::Http::_api(
       return killNestedContainer(call, principal, acceptType);
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
-    case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
       return NotImplemented();
+
+    case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
+      CHECK_SOME(reader);
+      return attachContainerInput(
+          call, std::move(reader).get(), contentType, acceptType, principal);
 
     case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
       return attachContainerOutput(call, contentType, acceptType, principal);
@@ -2145,6 +2149,79 @@ Future<Response> Slave::Http::killNestedContainer(
                         " cannot be found (or is already killed)");
       }
       return OK();
+    });
+}
+
+
+Future<Response> Slave::Http::attachContainerInput(
+    const mesos::agent::Call& call,
+    Owned<Reader<mesos::agent::Call>>&& decoder,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, call.type());
+  CHECK(call.has_attach_container_input());
+
+  const ContainerID& containerId = call.attach_container_input().container_id();
+
+  Pipe pipe;
+  Pipe::Reader reader = pipe.reader();
+  Pipe::Writer writer = pipe.writer();
+
+  auto encoder = [contentType](const mesos::agent::Call& call) {
+    ::recordio::Encoder<mesos::agent::Call> encoder(lambda::bind(
+        serialize, contentType, lambda::_1));
+
+    return encoder.encode(call);
+  };
+
+  // Write the first record. We had extracted it from the `decoder`
+  // in the `api()` handler to identify the call type earlier.
+  pipe.writer().write(encoder(call));
+
+  // We create this here since C++11 does not support move capture of `reader`.
+  Future<Nothing> transform = recordio::transform<mesos::agent::Call>(
+      std::move(decoder), encoder, writer);
+
+  return slave->containerizer->attach(containerId)
+    .then([contentType, acceptType, reader, writer, transform](
+        Connection connection) mutable {
+      Request request;
+      request.method = "POST";
+      request.type = Request::PIPE;
+      request.reader = reader;
+      request.headers = {{"Content-Type", stringify(contentType)},
+                         {"Accept-Type", stringify(acceptType)}};
+
+      // See comments in `attachContainerOutput()` for the reasoning
+      // behind these values.
+      request.url.domain = "";
+      request.url.path = "/";
+
+      transform
+        .onAny([reader, writer](
+            const Future<Nothing>& future) mutable {
+          CHECK(!future.isDiscarded());
+
+          if (future.isFailed()) {
+            writer.fail(future.failure());
+            reader.close();
+            return;
+          }
+
+          writer.close();
+          reader.close();
+         });
+
+      // This is a non Keep-Alive request which means the connection
+      // will be closed when the response is received. Since the
+      // 'Connection' is reference-counted, we must maintain a copy
+      // until the disconnection occurs.
+      connection.disconnected()
+        .onAny([connection]() {});
+
+      return connection.send(request);
     });
 }
 
