@@ -171,6 +171,13 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 #endif
 
   if (!flags.io_switchboard_enable_server) {
+    // TTY support requires I/O switchboard server so that stdio can
+    // be properly redirected to logger.
+    if (containerConfig.has_container_info() &&
+        containerConfig.container_info().has_tty_info()) {
+      return Failure("TTY support requires I/O switchboard server");
+    }
+
     ContainerLaunchInfo launchInfo;
 
     ContainerIO* out = launchInfo.mutable_out();
