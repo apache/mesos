@@ -741,6 +741,39 @@ TEST_F(DestroyOperationValidationTest, SharedPersistentVolumeInUse)
 }
 
 
+// This test verifies that DESTROY for shared persistent volumes is valid
+// when the volumes are not assigned to any pending task.
+TEST_F(DestroyOperationValidationTest, SharedPersistentVolumeInPendingTasks)
+{
+  Resource cpus = Resources::parse("cpus", "1", "*").get();
+  Resource mem = Resources::parse("mem", "5", "*").get();
+  Resource sharedDisk = createDiskResource(
+      "50", "role1", "1", "path1", None(), true); // Shared.
+
+  SlaveID slaveId;
+  slaveId.set_value("S1");
+
+  // Add a task using shared volume as pending tasks.
+  TaskInfo task = createTask(slaveId, sharedDisk, "sleep 1000");
+
+  hashmap<FrameworkID, hashmap<TaskID, TaskInfo>> pendingTasks;
+  FrameworkID frameworkId1;
+  frameworkId1.set_value("id1");
+  pendingTasks[frameworkId1] = {{task.task_id(), task}};
+
+  // Destroy `sharedDisk` which is assigned to `task`.
+  Offer::Operation::Destroy destroy;
+  destroy.add_volumes()->CopyFrom(sharedDisk);
+
+  EXPECT_SOME(operation::validate(destroy, sharedDisk, {}, pendingTasks));
+
+  // Remove all pending tasks.
+  pendingTasks.clear();
+
+  EXPECT_NONE(operation::validate(destroy, sharedDisk, {}, pendingTasks));
+}
+
+
 TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
 {
   Resource volume = Resources::parse("disk", "128", "role1").get();

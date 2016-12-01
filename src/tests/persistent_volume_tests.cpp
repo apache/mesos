@@ -945,10 +945,10 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
       frameworkInfo.principal(),
       true); // Shared.
 
+  // Create 2 tasks which write distinct files in the shared volume.
   Try<Resources> taskResources1 = Resources::parse(
       "cpus:1;mem:128;disk(" + string(DEFAULT_TEST_ROLE) + "):32");
 
-  // Create 2 tasks which write distinct files in the shared volume.
   TaskInfo task1 = createTask(
       offer.slave_id(),
       taskResources1.get() + volume,
@@ -1052,7 +1052,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
       "path1",
       None(),
       frameworkInfo1.principal(),
-      true);  // Shared volume.
+      true); // Shared volume.
 
   // Create a task which uses a portion of the offered resources, so that
   // the remaining resources can be offered to framework2. It's not important
@@ -1148,6 +1148,132 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   driver2.stop();
   driver2.join();
+}
+
+
+// This test verifies that the master recovers after a failover and
+// re-offers the shared persistent volume when tasks using the same
+// volume are still running.
+TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = getSlaveResources();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create the framework with SHARED_RESOURCES capability.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_FALSE(offers1.get().empty());
+
+  Offer offer1 = offers1.get()[0];
+
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(2048)),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  Try<Resources> taskResources = Resources::parse("cpus:0.5;mem:512");
+
+  TaskInfo task1 = createTask(
+      offer1.slave_id(),
+      taskResources.get() + volume,
+      "sleep 1000");
+
+  TaskInfo task2 = createTask(
+      offer1.slave_id(),
+      taskResources.get() + volume,
+      "sleep 1000");
+
+  // We should receive a TASK_RUNNING for each of the tasks.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<CheckpointResourcesMessage> checkpointResources =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
+
+  driver.acceptOffers(
+      {offer1.id()},
+      {CREATE(volume),
+       LAUNCH({task1, task2})});
+
+  AWAIT_READY(checkpointResources);
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // This is to make sure CheckpointResourcesMessage is processed.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  // Simulate failed over master by restarting the master.
+  master->reset();
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<SlaveReregisteredMessage> slaveReregistered =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Simulate a new master detected event on the slave so that the
+  // slave will do a re-registration.
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(slaveReregistered);
+
+  AWAIT_READY(offers2);
+  EXPECT_FALSE(offers2.get().empty());
+
+  Offer offer2 = offers2.get()[0];
+
+  // Verify the offer from the failed over master.
+  EXPECT_TRUE(Resources(offer2.resources()).contains(
+      Resources::parse("cpus:1;mem:1024").get()));
+  EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
 }
 
 
