@@ -68,7 +68,7 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
     # Install other Mesos dependencies.
     $ sudo apt-get -y install build-essential python-dev libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev
 
-### Mac OS X Yosemite & El Capitan
+### Mac OS X 10.10 (Yosemite), Mac OS X 10.11 (El Capitan), macOS 10.12 (Sierra)
 
 Following are the instructions for stock Mac OS X Yosemite and El Capitan. If you are using a different OS, please install the packages accordingly.
 
@@ -83,6 +83,26 @@ Following are the instructions for stock Mac OS X Yosemite and El Capitan. If yo
 
     # Install libraries.
     $ brew install wget git autoconf automake libtool subversion maven
+
+When compiling on macOS 10.12, the following is needed:
+
+    # There is an incompatiblity with the system installed svn and apr headers.
+    # We need the svn and apr headers from a brew installation of subversion.
+    # You may need to unlink the existing version os subversion installed via
+    # brew in order to configure correctly.
+    $ brew unlink subversion # (If already installed)
+    $ brew install subversion
+
+    # When configuring, the svn and apr headers from brew will be automatically
+    # detected, so no need to explicitly point to them. Also,
+    # `-Wno-deprecated-declarations` is needed to suppress warnings.
+    $ ../configure CXXFLAGS=-Wno-deprecated-declarations
+
+    # Lastly, you may encounter the following error when the libprocess tests run:
+    $ ./libprocess-tests
+    Failed to obtain the IP address for '<hostname>'; the DNS service may not be able to resolve it: nodename nor servname provided, or not known
+
+    # If so, turn on 'Remote Login' within System Preferences > Sharing to resolve the issue.
 
 *NOTE: When upgrading from Yosemite to El Capitan, make sure to rerun `xcode-select --install` after the upgrade.*
 
