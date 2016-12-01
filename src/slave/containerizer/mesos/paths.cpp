@@ -139,13 +139,22 @@ Result<int> getContainerStatus(
 
 
 #ifndef __WINDOWS__
+string getContainerIOSwitchboardSocketPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      IO_SWITCHBOARD_SOCKET_FILE);
+}
+
+
 Result<unix::Address> getContainerIOSwitchboardAddress(
     const string& runtimeDir,
     const ContainerID& containerId)
 {
-  const string path = path::join(
-      getRuntimePath(runtimeDir, containerId),
-      IO_SWITCHBOARD_SOCKET_FILE);
+  const string path = getContainerIOSwitchboardSocketPath(
+      runtimeDir, containerId);
 
   if (!os::exists(path)) {
     // This is possible because we don't atomically create the

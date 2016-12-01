@@ -97,6 +97,12 @@ Result<int> getContainerStatus(
 
 
 #ifndef __WINDOWS__
+// The helper method to get the socket file path.
+std::string getContainerIOSwitchboardSocketPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
 // The helper method to read the io switchboard socket file.
 Result<process::network::unix::Address> getContainerIOSwitchboardAddress(
     const std::string& runtimeDir,
