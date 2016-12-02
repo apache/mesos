@@ -47,6 +47,7 @@
 #include <mesos/slave/container_logger.hpp>
 
 #include "common/http.hpp"
+#include "common/recordio.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
@@ -488,13 +489,10 @@ private:
 
   // Handle `ATTACH_CONTAINER_INPUT` calls.
   Future<http::Response> attachContainerInput(
-    const agent::Call& call,
-    const ContentType& contentType);
+      const Owned<recordio::Reader<agent::Call>>& reader);
 
   // Handle `ATTACH_CONTAINER_OUTPUT` calls.
-  Future<http::Response> attachContainerOutput(
-    const agent::Call& call,
-    const ContentType& contentType);
+  Future<http::Response> attachContainerOutput(ContentType acceptType);
 
   // Asynchronously receive data as we read it from our
   // `stdoutFromFd` and `stdoutFromFd` file descriptors.
@@ -746,85 +744,104 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
     return http::MethodNotAllowed({"POST"}, request.method);
   }
 
-  agent::Call call;
-
-  Option<string> contentType =
-    request.headers.get(strings::lower("Content-Type"));
-
-  if (contentType.isNone()) {
+  Option<string> contentType_ = request.headers.get("Content-Type");
+  if (contentType_.isNone()) {
     return http::BadRequest("Expecting 'Content-Type' to be present");
   }
 
-  if (contentType.get() == APPLICATION_PROTOBUF) {
-    if (!call.ParseFromString(request.body)) {
-      return http::BadRequest("Failed to parse body into Call protobuf");
-    }
-  } else if (contentType.get() == APPLICATION_JSON) {
-    Try<JSON::Value> value = JSON::parse(request.body);
-
-    if (value.isError()) {
-      return http::BadRequest("Failed to parse body into JSON:"
-                              " " + value.error());
-    }
-
-    Try<agent::Call> parse = ::protobuf::parse<agent::Call>(value.get());
-    if (parse.isError()) {
-      return http::BadRequest("Failed to convert JSON into Call protobuf:"
-                              " " + parse.error());
-    }
-
-    call = parse.get();
+  ContentType contentType;
+  if (contentType_.get() == APPLICATION_JSON) {
+    contentType = ContentType::JSON;
+  } else if (contentType_.get() == APPLICATION_PROTOBUF) {
+    contentType = ContentType::PROTOBUF;
+  } else if (contentType_.get() == APPLICATION_STREAMING_JSON) {
+    contentType = ContentType::STREAMING_JSON;
+  } else if (contentType_.get() == APPLICATION_STREAMING_PROTOBUF) {
+    contentType = ContentType::STREAMING_PROTOBUF;
   } else {
     return http::UnsupportedMediaType(
-        "Expecting 'Content-Type' of '" + stringify(APPLICATION_JSON) +
-        "' or '" + stringify(APPLICATION_PROTOBUF) + "'");
+        string("Expecting 'Content-Type' of ") +
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
+        APPLICATION_STREAMING_JSON + " or " + APPLICATION_STREAMING_PROTOBUF);
   }
 
   ContentType acceptType;
-  if (request.acceptsMediaType(APPLICATION_JSON)) {
+  if (request.acceptsMediaType(APPLICATION_STREAMING_PROTOBUF)) {
+    acceptType = ContentType::STREAMING_PROTOBUF;
+  } else if (request.acceptsMediaType(APPLICATION_STREAMING_JSON)) {
+    acceptType = ContentType::STREAMING_JSON;
+  } else if (request.acceptsMediaType(APPLICATION_JSON)) {
     acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
     acceptType = ContentType::PROTOBUF;
   } else {
     return http::NotAcceptable(
-        "Expecting 'Accept' to allow '" + stringify(APPLICATION_JSON) + "'"
-        " or '" + stringify(APPLICATION_PROTOBUF) + "'");
+        string("Expecting 'Accept' to allow ") +
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
+        APPLICATION_STREAMING_JSON + " or "  + APPLICATION_STREAMING_PROTOBUF);
   }
 
-  switch (call.type()) {
-    case agent::Call::ATTACH_CONTAINER_INPUT:
-      return attachContainerInput(call, acceptType);
+  CHECK_EQ(http::Request::PIPE, request.type);
+  CHECK_SOME(request.reader);
 
-    case agent::Call::ATTACH_CONTAINER_OUTPUT:
-      return attachContainerOutput(call, acceptType);
+  if (requestStreaming(contentType)) {
+    Owned<recordio::Reader<agent::Call>> reader(
+        new recordio::Reader<agent::Call>(
+            ::recordio::Decoder<agent::Call>(lambda::bind(
+                deserialize<agent::Call>, contentType, lambda::_1)),
+            request.reader.get()));
 
-    default:
-      return http::NotImplemented();
+    return reader->read()
+      .then(defer(
+          self(),
+          [=](const Result<agent::Call>& call) -> Future<http::Response> {
+            if (call.isNone()) {
+              return http::BadRequest(
+                  "Received EOF while reading request body");
+            }
+
+            if (call.isError()) {
+              return Failure(call.error());
+            }
+
+            CHECK_EQ(agent::Call::ATTACH_CONTAINER_INPUT, call->type());
+
+            return attachContainerInput(reader);
+          }));
+  } else {
+    http::Pipe::Reader reader = request.reader.get();  // Remove const.
+
+    return reader.readAll()
+      .then(defer(
+          self(),
+          [=](const string& body) -> Future<http::Response> {
+            Try<agent::Call> call = deserialize<agent::Call>(contentType, body);
+            if (call.isError()) {
+              return http::BadRequest(call.error());
+            }
+
+            CHECK_EQ(agent::Call::ATTACH_CONTAINER_OUTPUT, call->type());
+
+            return attachContainerOutput(acceptType);
+          }));
   }
-
-  UNREACHABLE();
 }
 
 
 Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
-    const agent::Call& call,
-    const ContentType& contentType)
+    const Owned<recordio::Reader<agent::Call>>& reader)
 {
-  CHECK_EQ(agent::Call::ATTACH_CONTAINER_INPUT, call.type());
   return http::NotImplemented("ATTACH_CONTAINER_INPUT");
 }
 
 
 Future<http::Response> IOSwitchboardServerProcess::attachContainerOutput(
-    const agent::Call& call,
-    const ContentType& contentType)
+    ContentType acceptType)
 {
-  CHECK_EQ(agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
-
   http::Pipe pipe;
   http::OK ok;
 
-  ok.headers["Content-Type"] = stringify(contentType);
+  ok.headers["Content-Type"] = stringify(acceptType);
   ok.type = http::Response::PIPE;
   ok.reader = pipe.reader();
 
@@ -832,7 +849,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerOutput(
   // calls to `receiveOutput()` to actually push data out over the
   // connection. If we ever detect a connection has been closed,
   // we remove it from this list.
-  HttpConnection connection(pipe.writer(), contentType);
+  HttpConnection connection(pipe.writer(), acceptType);
   auto iterator = connections.insert(connections.end(), connection);
 
   // We use the `startRedirect` promise to indicate when we should
