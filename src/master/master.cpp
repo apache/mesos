@@ -1953,6 +1953,10 @@ void Master::_markUnreachableAfterFailover(
 void Master::sendSlaveLost(const SlaveInfo& slaveInfo)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
+    if (!framework->connected) {
+      continue;
+    }
+
     LOG(INFO) << "Notifying framework " << *framework << " of lost agent "
               << slaveInfo.id() << " (" << slaveInfo.hostname() << ")";
 
