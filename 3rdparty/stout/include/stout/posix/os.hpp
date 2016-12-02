@@ -45,9 +45,12 @@
 
 #include <list>
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <stout/synchronized.hpp>
 
 #include <stout/os/close.hpp>
 #include <stout/os/environment.hpp>
@@ -467,6 +470,23 @@ inline Try<Nothing> pipe(int pipe_fd[2])
     return ErrnoError();
   }
   return Nothing();
+}
+
+
+inline Try<std::string> ptsname(int master)
+{
+  // 'ptsname' is not thread safe. Therefore, we use mutex here to
+  // make this method thread safe.
+  // TODO(jieyu): Consider using ptsname_r for linux.
+  static std::mutex* mutex = new std::mutex;
+
+  synchronized (mutex) {
+    const char* slavePath = ::ptsname(master);
+    if (slavePath == nullptr) {
+      return ErrnoError();
+    }
+    return slavePath;
+  }
 }
 
 } // namespace os {
