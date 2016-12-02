@@ -1501,7 +1501,7 @@ Future<Nothing> sendfile(
         os::close(fd.get());
       }
     })
-    .then([=]() mutable {
+    .then([=]() mutable -> Future<Nothing> {
       // NOTE: the file descriptor gets closed by FileEncoder.
       Encoder* encoder = new FileEncoder(fd.get(), s.st_size);
       return send(socket, encoder)
