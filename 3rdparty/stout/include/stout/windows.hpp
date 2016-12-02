@@ -33,6 +33,8 @@
 
 #include <memory>
 
+#include <glog/logging.h>
+
 
 #ifdef _UNICODE
 // Much of the core Windows API is available both in `string` and `wstring`
@@ -346,10 +348,10 @@ decltype(_chdir(path))
 }
 
 
-inline auto getcwd(char* path, int maxlen) ->
-decltype(_getcwd(path, maxlen))
+inline char * getcwd(char* path, size_t maxlen)
 {
-  return _getcwd(path, maxlen);
+  CHECK_LE(maxlen, INT_MAX);
+  return _getcwd(path, static_cast<int>(maxlen));
 }
 
 
