@@ -6088,7 +6088,7 @@ void Master::_markUnreachable(
           newTaskState,
           TaskStatus::SOURCE_MASTER,
           None(),
-          "Slave " + slave->info.hostname() + " is unreachable",
+          "Agent " + slave->info.hostname() + " is unreachable",
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()),
@@ -7351,7 +7351,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
         TASK_LOST,
         TaskStatus::SOURCE_MASTER,
         None(),
-        "Slave " + slave->info.hostname() + " disconnected",
+        "Agent " + slave->info.hostname() + " disconnected",
         TaskStatus::REASON_SLAVE_DISCONNECTED,
         (task->has_executor_id()
             ? Option<ExecutorID>(task->executor_id()) : None()));
@@ -7583,7 +7583,7 @@ void Master::_removeSlave(
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
           None(),
-          "Slave " + slave->info.hostname() + " removed: " + removalCause,
+          "Agent " + slave->info.hostname() + " removed: " + removalCause,
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()));
