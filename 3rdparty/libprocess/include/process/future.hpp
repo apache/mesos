@@ -44,6 +44,8 @@
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/strerror.hpp>
+
 namespace process {
 
 // Forward declarations (instead of include to break circular dependency).
@@ -76,6 +78,7 @@ class WeakFuture;
 
 // Forward declaration of Failure.
 struct Failure;
+struct ErrnoFailure;
 
 
 // Definition of a "shared" future. A future can hold any
@@ -96,6 +99,8 @@ public:
   /*implicit*/ Future(const U& u);
 
   /*implicit*/ Future(const Failure& failure);
+
+  /*implicit*/ Future(const ErrnoFailure& failure);
 
   /*implicit*/ Future(const Future<T>& that);
 
@@ -536,6 +541,23 @@ struct Failure
 };
 
 
+struct ErrnoFailure : public Failure
+{
+  ErrnoFailure() : ErrnoFailure(errno) {}
+
+  explicit ErrnoFailure(int _code)
+    : Failure(os::strerror(_code)), code(_code) {}
+
+  explicit ErrnoFailure(const std::string& message)
+    : ErrnoFailure(errno, message) {}
+
+  ErrnoFailure(int _code, const std::string& message)
+    : Failure(message + ": " + os::strerror(_code)), code(_code) {}
+
+  const int code;
+};
+
+
 // Forward declaration to use as friend below.
 namespace internal {
 template <typename U>
@@ -921,6 +943,14 @@ Future<T>::Future(const U& u)
 
 template <typename T>
 Future<T>::Future(const Failure& failure)
+  : data(new Data())
+{
+  fail(failure.message);
+}
+
+
+template <typename T>
+Future<T>::Future(const ErrnoFailure& failure)
   : data(new Data())
 {
   fail(failure.message);
