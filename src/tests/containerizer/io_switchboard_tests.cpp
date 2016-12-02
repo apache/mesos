@@ -23,10 +23,12 @@
 
 #include <stout/json.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
 
 #include <mesos/http.hpp>
+#include <mesos/mesos.hpp>
 
 #include <mesos/agent/agent.hpp>
 
@@ -35,6 +37,7 @@
 
 #include "slave/containerizer/mesos/io/switchboard.hpp"
 
+#include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 
 namespace http = process::http;
@@ -45,8 +48,13 @@ namespace unix = process::network::unix;
 
 using mesos::agent::Call;
 
-
+using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::IOSwitchboardServer;
+using mesos::internal::slave::MesosContainerizer;
+
+using mesos::internal::slave::state::SlaveState;
+
+using mesos::slave::ContainerTermination;
 
 using process::Future;
 using process::Owned;
@@ -57,11 +65,11 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class IOSwitchboardTest : public TemporaryDirectoryTest {};
-
-
 #ifndef __WINDOWS__
-TEST_F(IOSwitchboardTest, ServerRedirectLog)
+class IOSwitchboardServerTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(IOSwitchboardServerTest, ServerRedirectLog)
 {
   int stdoutPipe[2];
   int stderrPipe[2];
@@ -150,7 +158,7 @@ TEST_F(IOSwitchboardTest, ServerRedirectLog)
 }
 
 
-TEST_F(IOSwitchboardTest, ServerAttachOutput)
+TEST_F(IOSwitchboardServerTest, ServerAttachOutput)
 {
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);
@@ -293,6 +301,76 @@ TEST_F(IOSwitchboardTest, ServerAttachOutput)
 
   EXPECT_EQ(data, stdoutReceived);
   EXPECT_EQ(data, stderrReceived);
+}
+
+
+class IOSwitchboardTest
+  : public ContainerizerTest<slave::MesosContainerizer> {};
+
+
+// The test verifies the output redirection of the container with TTY
+// allocated for the container.
+TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
+  flags.io_switchboard_enable_server = true;
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  // Print 'Hello' to stdout and 'World' to stderr. Since the
+  // container requests a TTY. Both will be redirected to the same
+  // terminal device and logged in 'stdout' in the sandbox.
+  ExecutorInfo executorInfo = createExecutorInfo(
+      "executor",
+      "printf Hello; printf World 1>&2",
+      "cpus:1");
+
+  // Request a tty for the container.
+  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+  executorInfo.mutable_container()->mutable_tty_info();
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executorInfo,
+      directory.get(),
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  EXPECT_SOME_EQ("HelloWorld", os::read(path::join(directory.get(), "stdout")));
 }
 #endif // __WINDOWS__
 
