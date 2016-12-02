@@ -1262,12 +1262,18 @@ void Master::exited(const UPID& pid)
 
       // The semantics when a registered slave gets disconnected are as
       // follows for each framework running on that slave:
-      // 1) If the framework is checkpointing: No immediate action is taken.
-      //    The slave is given a chance to reconnect until the slave
-      //    observer times out (75s) and removes the slave.
-      // 2) If the framework is not-checkpointing: The slave is not removed
-      //    but the framework is removed from the slave's structs,
-      //    its tasks transitioned to LOST and resources recovered.
+      //
+      // 1) If the framework is checkpointing: No immediate action is
+      //    taken. The slave is given a chance to reconnect until the
+      //    slave observer times out (75s) and removes the slave.
+      //
+      // 2) If the framework is not-checkpointing: The slave is not
+      //    removed but the framework is removed from the slave's
+      //    structs, its tasks transitioned to LOST and resources
+      //    recovered.
+      //
+      // NOTE: If the framework hasn't re-registered since the master
+      // failed over, we assume the framework is checkpointing.
       hashset<FrameworkID> frameworkIds =
         slave->tasks.keys() | slave->executors.keys();
 
@@ -7822,7 +7828,7 @@ void Master::removeTask(Task* task)
 
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
-  if (framework != nullptr) { // A framework might not be re-connected yet.
+  if (framework != nullptr) { // A framework might not be re-registered yet.
     framework->removeTask(task);
   }
 
