@@ -13,6 +13,8 @@
 #ifndef __PROCESS_LOOP_HPP__
 #define __PROCESS_LOOP_HPP__
 
+#include <mutex>
+
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -29,11 +31,17 @@ namespace process {
 // (i.e., a compiler that can't do sufficient tail call optimization
 // may add stack frames for each recursive call).
 //
-// The loop abstraction takes a PID `pid` and uses it as the execution
-// context to run the loop. The implementation does a `defer` on this
-// `pid` to "pop" the stack when it needs to asynchronously
-// recurse. This also lets callers synchronize execution with other
-// code dispatching and deferring using `pid`.
+// The loop abstraction takes an optional PID `pid` and uses it as the
+// execution context to run the loop. The implementation does a
+// `defer` on this `pid` to "pop" the stack when it needs to
+// asynchronously recurse. This also lets callers synchronize
+// execution with other code dispatching and deferring using `pid`. If
+// `None` is passed for `pid` then no `defer` is done and the stack
+// will still "pop" but be restarted from the execution context
+// wherever the blocked future is completed. This is usually very safe
+// when that blocked future will be completed by the IO thread, but
+// should not be used if it's completed by another process (because
+// you'll block that process until the next time the loop blocks).
 //
 // The two functions passed to the loop represent the loop "iterate"
 // step and the loop "body" step respectively. Each invocation of
@@ -87,13 +95,8 @@ namespace process {
 //          [](T t) {
 //            return body(t);
 //          });
-//
-// TODO(benh): Provide an implementation that doesn't require a `pid`
-// for situations like `io::read` and `io::write` where for
-// performance reasons it could make more sense to NOT defer but
-// rather just let the I/O thread handle the execution.
 template <typename Iterate, typename Body>
-Future<Nothing> loop(const UPID& pid, Iterate&& iterate, Body&& body);
+Future<Nothing> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body);
 
 
 // A helper for `loop` which creates a Process for us to provide an
@@ -120,10 +123,10 @@ template <typename Iterate, typename Body, typename T>
 class Loop : public std::enable_shared_from_this<Loop<Iterate, Body, T>>
 {
 public:
-  Loop(const UPID& pid, const Iterate& iterate, const Body& body)
+  Loop(const Option<UPID>& pid, const Iterate& iterate, const Body& body)
     : pid(pid), iterate(iterate), body(body) {}
 
-  Loop(const UPID& pid, Iterate&& iterate, Body&& body)
+  Loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body)
     : pid(pid), iterate(std::move(iterate)), body(std::move(body)) {}
 
   std::shared_ptr<Loop> shared()
@@ -142,113 +145,157 @@ public:
     auto self = shared();
     auto weak_self = weak();
 
-    // Make sure we propagate discarding. Note that to avoid an
-    // infinite memory bloat we explicitly don't add a new `onDiscard`
-    // callback for every new future that gets created from invoking
-    // `iterate()` or `body()` but instead discard those futures
-    // explicitly with our single callback here.
-    promise.future()
-      .onDiscard(defer(pid, [weak_self, this]() {
-        auto self = weak_self.lock();
-        if (self) {
-          // NOTE: There's no race here between setting `next` or
-          // `condition` and calling `discard()` on those futures
-          // because we're serializing execution via `defer` on
-          // `pid`. An alternative would require something like
-          // `atomic_shared_ptr` or a mutex.
-          next.discard();
-          condition.discard();
+    // Propagating discards:
+    //
+    // When the caller does a discard we need to propagate it to
+    // either the future returned from `iterate` or the future
+    // returned from `body`. One easy way to do this would be to add
+    // an `onAny` callback for every future returned from `iterate`
+    // and `body`, but that would be a slow memory leak that would
+    // grow over time, especially if the loop was actually
+    // infinite. Instead, we capture the current future that needs to
+    // be discarded within a `discard` function that we'll invoke when
+    // we get a discard. Because there is a race setting the `discard`
+    // function and reading it out to invoke we have to synchronize
+    // access using a mutex. An alternative strategy would be to use
+    // something like `atomic_load` and `atomic_store` with
+    // `shared_ptr` so that we can swap the current future(s)
+    // atomically.
+    promise.future().onDiscard([weak_self, this]() {
+      auto self = weak_self.lock();
+      if (self) {
+        // We need to make a copy of the current `discard` function so
+        // that we can invoke it outside of the `synchronized` block
+        // in the event that discarding invokes causes the `onAny`
+        // callbacks that we have added in `run` to execute which may
+        // deadlock attempting to re-acquire `mutex`!
+        std::function<void()> f = []() {};
+        synchronized (mutex) {
+          f = discard;
         }
-      }));
-
-    // Start the loop using `pid` as the execution context.
-    dispatch(pid, [self, this]() {
-      next = discard_if_necessary<T>(iterate());
-      run();
+        f();
+      }
     });
+
+    if (pid.isSome()) {
+      // Start the loop using `pid` as the execution context.
+      dispatch(pid.get(), [self, this]() {
+        run(iterate());
+      });
+    } else {
+      run(iterate());
+    }
 
     return promise.future();
   }
 
-  // Helper for discarding a future if our promise already has a
-  // discard. We need to check this for every future that gets
-  // returned from `iterate` and `body` because there is a race
-  // between our discard callback (that was set up in `start`) from
-  // being executed and us replacing that future on the next call to
-  // `iterate` and `body`. Note that we explicitly don't stop the loop
-  // if our promise has a discard but rather we just propagate the
-  // discard on to any futures returned from `iterate` and `body`. In
-  // the event of synchronous `iterate` or `body` functions this could
-  // result in an infinite loop.
-  template <typename U>
-  Future<U> discard_if_necessary(Future<U> future) const
-  {
-    if (promise.future().hasDiscard()) {
-      future.discard();
-    }
-    return future;
-  }
-
-  void run()
+  void run(Future<T> next)
   {
     auto self = shared();
 
+    // Reset `discard` so that we're not delaying cleanup of any
+    // captured futures longer than necessary.
+    //
+    // TODO(benh): Use `WeakFuture` in `discard` functions instead.
+    discard = []() {};
+
     while (next.isReady()) {
-      condition = discard_if_necessary<bool>(body(next.get()));
+      Future<bool> condition = body(next.get());
       if (condition.isReady()) {
         if (condition.get()) {
-          next = discard_if_necessary<T>(iterate());
+          next = iterate();
           continue;
         } else {
           promise.set(Nothing());
           return;
         }
       } else {
-        condition
-          .onAny(defer(pid, [self, this](const Future<bool>&) {
-            if (condition.isReady()) {
-              if (condition.get()) {
-                next = discard_if_necessary<T>(iterate());
-                run();
-              } else {
-                promise.set(Nothing());
-              }
-            } else if (condition.isFailed()) {
-              promise.fail(condition.failure());
-            } else if (condition.isDiscarded()) {
-              promise.discard();
+        auto continuation = [self, this](const Future<bool>& condition) {
+          if (condition.isReady()) {
+            if (condition.get()) {
+              run(iterate());
+            } else {
+              promise.set(Nothing());
             }
-          }));
+          } else if (condition.isFailed()) {
+            promise.fail(condition.failure());
+          } else if (condition.isDiscarded()) {
+            promise.discard();
+          }
+        };
+
+        if (pid.isSome()) {
+          condition.onAny(defer(pid.get(), continuation));
+        } else {
+          condition.onAny(continuation);
+        }
+
+        if (!promise.future().hasDiscard()) {
+          synchronized (mutex) {
+            discard = [=]() mutable { condition.discard(); };
+          }
+        }
+
+        // There's a race between when a discard occurs and the
+        // `discard` function gets invoked and therefore we must
+        // explicitly always do a discard. In addition, after a
+        // discard occurs we'll need to explicitly do discards for
+        // each new future that blocks.
+        if (promise.future().hasDiscard()) {
+          condition.discard();
+        }
+
         return;
       }
     }
 
-    next
-      .onAny(defer(pid, [self, this](const Future<T>&) {
-        if (next.isReady()) {
-          run();
-        } else if (next.isFailed()) {
-          promise.fail(next.failure());
-        } else if (next.isDiscarded()) {
-          promise.discard();
-        }
-      }));
+    auto continuation = [self, this](const Future<T>& next) {
+      if (next.isReady()) {
+        run(next);
+      } else if (next.isFailed()) {
+        promise.fail(next.failure());
+      } else if (next.isDiscarded()) {
+        promise.discard();
+      }
+    };
+
+    if (pid.isSome()) {
+      next.onAny(defer(pid.get(), continuation));
+    } else {
+      next.onAny(continuation);
+    }
+
+    if (!promise.future().hasDiscard()) {
+      synchronized (mutex) {
+        discard = [=]() mutable { next.discard(); };
+      }
+    }
+
+    // See comment above as to why we need to explicitly discard
+    // regardless of the path the if statement took above.
+    if (promise.future().hasDiscard()) {
+      next.discard();
+    }
   }
 
 private:
-  const UPID pid;
+  const Option<UPID> pid;
   Iterate iterate;
   Body body;
   Promise<Nothing> promise;
-  Future<T> next;
-  Future<bool> condition;
+
+  // In order to discard the loop safely we capture the future that
+  // needs to be discarded within the `discard` function and reading
+  // and writing that function with a mutex.
+  std::mutex mutex;
+  std::function<void()> discard = []() {};
 };
 
 } // namespace internal {
 
 
 template <typename Iterate, typename Body>
-Future<Nothing> loop(const UPID& pid, Iterate&& iterate, Body&& body)
+Future<Nothing> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body)
 {
   using T =
     typename internal::unwrap<typename result_of<Iterate()>::type>::type;

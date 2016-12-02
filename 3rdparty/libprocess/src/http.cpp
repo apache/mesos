@@ -1790,7 +1790,8 @@ Future<Nothing> serve(
     .onAny([=]() mutable {
       // Delete remaining requests and discard remaining responses.
       if (pipeline.size() != 0) {
-        loop([=]() mutable {
+        loop(None(),
+             [=]() mutable {
                return pipeline.get();
              },
              [=](Option<Item> item) {
