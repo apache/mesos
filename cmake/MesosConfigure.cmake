@@ -136,9 +136,11 @@ set(
   MESOS_FETCHER mesos-fetcher
   CACHE STRING "Target for fetcher")
 
-set(
-  MESOS_IO_SWITCHBOARD mesos-io-switchboard
-  CACHE STRING "Target for the IO switchboard")
+if (NOT WIN32)
+  set(
+    MESOS_IO_SWITCHBOARD mesos-io-switchboard
+    CACHE STRING "Target for the IO switchboard")
+endif (NOT WIN32)
 
 set(
   MESOS_MASTER mesos-master
