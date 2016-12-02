@@ -34,6 +34,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
 
@@ -72,6 +73,9 @@
 using namespace mesos::internal::slave;
 
 using namespace process;
+
+using process::http::OK;
+using process::http::Response;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -3013,8 +3017,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Capture the slave and framework ids.
-  SlaveID slaveId = offers.get()[0].slave_id();
+  // Capture the framework id.
   FrameworkID frameworkId = offers.get()[0].framework_id();
 
   // Expecting TASK_RUNNING status.
@@ -3061,6 +3064,45 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   // Ensure that the executor is terminated.
   AWAIT_READY(executorTerminated);
+
+  // Check the output of the master's "/state" endpoint.
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+  EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+  JSON::Array completedFrameworks =
+    parse->values["completed_frameworks"].as<JSON::Array>();
+
+  ASSERT_EQ(1u, completedFrameworks.values.size());
+
+  JSON::Object completedFramework =
+    completedFrameworks.values.front().as<JSON::Object>();
+
+  EXPECT_EQ(
+      frameworkId,
+      completedFramework.values["id"].as<JSON::String>().value);
+
+  JSON::Array completedTasks =
+    completedFramework.values["completed_tasks"].as<JSON::Array>();
+
+  ASSERT_EQ(1u, completedTasks.values.size());
+
+  JSON::Object completedTask = completedTasks.values.front().as<JSON::Object>();
+
+  EXPECT_EQ(
+      "TASK_KILLED",
+      completedTask.values["state"].as<JSON::String>().value);
 }
 
 
