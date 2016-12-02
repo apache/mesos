@@ -1778,12 +1778,24 @@ TEST_F(HttpServeTest, Pipelining)
   ASSERT_SOME(server->bind(Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> address = server->address();
-  ASSERT_SOME(address);
+  Try<Address> any_address = server->address();
+  ASSERT_SOME(any_address);
+
+  // Connect to the IP from the libprocess library, but use the port
+  // from the `bind` call above. The libprocess IP will always report
+  // a locally bindable IP, meaning it will also work for the server
+  // socket above.
+  //
+  // NOTE: We do not use the server socket's address directly because
+  // this contains a `0.0.0.0` IP. According to RFC1122, this is an
+  // invalid address, except when used to resolve a host's address
+  // for the first time.
+  // See: https://tools.ietf.org/html/rfc1122#section-3.2.1.3
+  Address address(process::address().ip, any_address->port);
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect = http::connect(address);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1818,7 +1830,7 @@ TEST_F(HttpServeTest, Pipelining)
     .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
     .WillRepeatedly(Return(http::OK()));
 
-  http::URL url("http", address->hostname().get(), address->port, "/");
+  http::URL url("http", address.hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
@@ -1873,12 +1885,20 @@ TEST_F(HttpServeTest, Discard)
   ASSERT_SOME(server->bind(Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> address = server->address();
-  ASSERT_SOME(address);
+  Try<Address> any_address = server->address();
+  ASSERT_SOME(any_address);
+
+  // Connect to the IP from the libprocess library, but use the port
+  // from the `bind` call above. The libprocess IP will always report
+  // a locally bindable IP, meaning it will also work for the server
+  // socket above.
+  //
+  // See the comment in `HttpServeTest.Pipelining` for more details.
+  Address address(process::address().ip, any_address->port);
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect = http::connect(address);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1904,7 +1924,7 @@ TEST_F(HttpServeTest, Discard)
   EXPECT_CALL(handler, handle(_))
     .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())));
 
-  http::URL url("http", address->hostname().get(), address->port, "/");
+  http::URL url("http", address.hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
