@@ -60,7 +60,7 @@ class TeardownTest : public MesosTest {};
 // the designated framework or returns an appropriate error.
 
 // Testing route with authorization header and good credentials.
-TEST_F(TeardownTest, TeardownEndpoint)
+TEST_F(TeardownTest, Success)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -92,7 +92,7 @@ TEST_F(TeardownTest, TeardownEndpoint)
 
 
 // Testing route with bad credentials.
-TEST_F(TeardownTest, TeardownEndpointBadCredentials)
+TEST_F(TeardownTest, BadCredentials)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -128,7 +128,7 @@ TEST_F(TeardownTest, TeardownEndpointBadCredentials)
 
 
 // Testing route with good ACLs.
-TEST_F(TeardownTest, TeardownEndpointGoodACLs)
+TEST_F(TeardownTest, GoodACLs)
 {
   // Setup ACLs so that the default principal can teardown the
   // framework.
@@ -172,7 +172,7 @@ TEST_F(TeardownTest, TeardownEndpointGoodACLs)
 
 // Testing route with deprecated (but still good) ACLs.
 // This ACL/test will be removed at the end of the deprecation cycle on 0.27.
-TEST_F(TeardownTest, TeardownEndpointGoodDeprecatedACLs)
+TEST_F(TeardownTest, GoodDeprecatedACLs)
 {
   // Setup ACLs so that the default principal can teardown the
   // framework.
@@ -215,7 +215,7 @@ TEST_F(TeardownTest, TeardownEndpointGoodDeprecatedACLs)
 
 
 // Testing route with bad ACLs.
-TEST_F(TeardownTest, TeardownEndpointBadACLs)
+TEST_F(TeardownTest, BadACLs)
 {
   // Setup ACLs so that no principal can teardown the framework.
   ACLs acls;
@@ -257,7 +257,7 @@ TEST_F(TeardownTest, TeardownEndpointBadACLs)
 
 
 // Testing route without frameworkId value.
-TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
+TEST_F(TeardownTest, NoFrameworkId)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -289,7 +289,7 @@ TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
 
 
 // Testing route without authorization header.
-TEST_F(TeardownTest, TeardownEndpointNoHeader)
+TEST_F(TeardownTest, NoHeader)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
