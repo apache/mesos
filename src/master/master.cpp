@@ -7405,20 +7405,24 @@ void Master::addSlave(
 
   // Add the slave's executors to the frameworks.
   foreachkey (const FrameworkID& frameworkId, slave->executors) {
+    Framework* framework = getFramework(frameworkId);
+
+    // The framework might not be re-registered yet.
+    if (framework == nullptr) {
+      continue;
+    }
+
     foreachvalue (const ExecutorInfo& executorInfo,
                   slave->executors[frameworkId]) {
-      Framework* framework = getFramework(frameworkId);
-      // The framework might not be re-registered yet.
-      if (framework != nullptr) {
-        framework->addExecutor(slave->id, executorInfo);
-      }
+      framework->addExecutor(slave->id, executorInfo);
     }
   }
 
   // Add the slave's tasks to the frameworks.
   foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+    Framework* framework = getFramework(frameworkId);
+
     foreachvalue (Task* task, slave->tasks[frameworkId]) {
-      Framework* framework = getFramework(task->framework_id());
       // The framework might not be re-registered yet.
       if (framework != nullptr) {
         framework->addTask(task);
@@ -7569,6 +7573,8 @@ void Master::_removeSlave(
 
   // Transition the tasks to lost and remove them.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    Framework* framework = getFramework(frameworkId);
+
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task->framework_id(),
@@ -7585,7 +7591,6 @@ void Master::_removeSlave(
       updateTask(task, update);
       removeTask(task);
 
-      Framework* framework = getFramework(frameworkId);
       if (framework == nullptr) {
         LOG(WARNING) << "Dropping update " << update
                      << " for unknown framework " << frameworkId;
