@@ -837,14 +837,14 @@
 
         var sandboxDirectory = executor.directory;
 
+        function matchTask(task) {
+          return $routeParams.task_id === task.id;
+        }
+
         // Continue to navigate to the task's sandbox if the task id is
         // specified in route parameters.
         if ($routeParams.task_id) {
           setTaskSandbox(executor);
-
-          function matchTask(task) {
-            return $routeParams.task_id === task.id;
-          }
 
           var task =
             _.find(executor.tasks, matchTask) ||
