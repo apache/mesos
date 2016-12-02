@@ -77,14 +77,49 @@ TEST_F(TeardownTest, Success)
 
   AWAIT_READY(frameworkId);
 
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "teardown",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      "frameworkId=" + frameworkId.get().value());
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "teardown",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        "frameworkId=" + frameworkId.get().value());
 
-  AWAIT_READY(response);
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_READY(response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // Check that the framework that was shutdown appears in the
+  // "completed_frameworks" list in the master's "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE(frameworks.values.empty());
+
+    JSON::Array completedFrameworks =
+      parse->values["completed_frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedFrameworks.values.size());
+
+    JSON::Object completedFramework =
+      completedFrameworks.values.front().as<JSON::Object>();
+
+    JSON::String completedFrameworkId =
+      completedFramework.values["id"].as<JSON::String>();
+
+    EXPECT_EQ(frameworkId.get(), completedFrameworkId.value);
+  }
 
   driver.stop();
   driver.join();
