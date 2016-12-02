@@ -1701,9 +1701,7 @@ private:
     } registered;
 
     // Slaves that are in the process of being removed from the
-    // registrar. Think of these as being partially removed: we must
-    // not answer questions related to these until they are removed
-    // from the registry.
+    // registrar.
     hashset<SlaveID> removing;
 
     // Slaves that are in the process of being marked unreachable.
