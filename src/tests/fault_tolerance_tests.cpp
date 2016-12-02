@@ -803,21 +803,20 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &schedDetector);
 
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  Future<process::Message> message =
-    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+  // Pause the clock so that we know the time at which framework
+  // (re-)registration should occur.
+  Clock::pause();
+
+  process::Time registerTime = Clock::now();
 
   driver.start();
 
-  AWAIT_READY(message); // Framework registered message, to get the pid.
-  AWAIT_READY(registered); // Framework registered call.
   AWAIT_READY(resourceOffers);
 
   Future<Nothing> disconnected;
@@ -830,27 +829,59 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
   Future<Nothing> resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureSatisfy(&resourceOffers2))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureSatisfy(&resourceOffers2));
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
+
+  // Advance the clock so that the initial registration time and the
+  // re-registration time are distinct.
+  Clock::advance(Seconds(2));
+  process::Time reregisterTime = Clock::now();
 
   // Simulate a spurious leading master change at the scheduler.
   schedDetector.appoint(master.get()->pid);
 
   AWAIT_READY(disconnected);
-
   AWAIT_READY(reregistered);
 
   // Trigger the allocation and therefore resource offer instantly to
   // avoid blocking the test.
-  Clock::pause();
   Clock::advance(masterFlags.allocation_interval);
   Clock::resume();
 
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);
+
+  // Check that the framework is displayed correctly in the "/state" endpoint.
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(1u, frameworks.values.size());
+
+  JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+  EXPECT_TRUE(framework.values["active"].as<JSON::Boolean>().value);
+
+  EXPECT_EQ(
+      static_cast<int64_t>(registerTime.secs()),
+      framework.values["registered_time"].as<JSON::Number>().as<int64_t>());
+
+  ASSERT_NE(0, framework.values.count("reregistered_time"));
+  EXPECT_EQ(
+      static_cast<int64_t>(reregisterTime.secs()),
+      framework.values["reregistered_time"].as<JSON::Number>().as<int64_t>());
 
   driver.stop();
   driver.join();
