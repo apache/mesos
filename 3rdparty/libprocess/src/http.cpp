@@ -1673,7 +1673,7 @@ Future<Nothing> receive(
   const size_t size = io::BUFFERED_READ_SIZE;
   char* data = new char[size];
 
-  DataDecoder* decoder = new DataDecoder();
+  StreamingRequestDecoder* decoder = new StreamingRequestDecoder();
 
   return loop(
       [=]() {

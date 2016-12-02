@@ -895,6 +895,9 @@ Future<Nothing> serve(
 // NOTE: HTTP pipelining is automatically performed. If you don't want
 // pipelining you must explicitly sequence/serialize the requests to
 // wait for previous responses yourself.
+//
+// NOTE: The `Request` passed to the handler is of type `PIPE` and should
+// always be read using `Request.reader`.
 template <typename F>
 Future<Nothing> serve(const network::Socket& s, F&& f)
 {

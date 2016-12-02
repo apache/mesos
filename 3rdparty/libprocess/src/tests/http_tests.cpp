@@ -1957,7 +1957,13 @@ TEST_F(HttpServeTest, Unix)
   Future<Nothing> serve = http::serve(
     socket,
     [](const http::Request& request) {
-      return http::OK(request.body);
+      CHECK_SOME(request.reader);
+      http::Pipe::Reader reader = request.reader.get(); // Remove const.
+
+      return reader.readAll()
+        .then([](const string& body) -> Future<http::Response> {
+          return http::OK(body);
+        });
     });
 
   http::Request request;
