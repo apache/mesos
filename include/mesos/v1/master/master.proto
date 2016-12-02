@@ -361,7 +361,7 @@ message Response {
   // time. Note that there might be tasks unknown to the master running on
   // partitioned or unsubscribed agents.
   message GetTasks {
-    // Tasks that are an enqueued on the master waiting (e.g., authorizing)
+    // Tasks that are enqueued on the master waiting (e.g., authorizing)
     // to be launched.
     repeated Task pending_tasks = 1;
 
@@ -466,8 +466,8 @@ message Event {
   message TaskUpdated {
     required FrameworkID framework_id = 1;
 
-		// This is the status of the task corresponding to the last
-		// status update acknowledged by the scheduler.
+    // This is the status of the task corresponding to the last
+    // status update acknowledged by the scheduler.
     required TaskStatus status = 2;
 
     // This is the latest state of the task according to the agent.
