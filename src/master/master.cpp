@@ -2354,19 +2354,15 @@ void Master::subscribe(
                             " without --root_submissions set");
   }
 
-  if (validationError.isNone() && frameworkInfo.has_id()) {
-    foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
-      if (framework->id() == frameworkInfo.id()) {
-        // This could happen if a framework tries to subscribe after
-        // its failover timeout has elapsed or it unregistered itself
-        // by calling 'stop()' on the scheduler driver.
-        //
-        // TODO(vinod): Master should persist admitted frameworks to the
-        // registry and remove them from it after failover timeout.
-        validationError = Error("Framework has been removed");
-        break;
-      }
-    }
+  if (validationError.isNone() && frameworkInfo.has_id() &&
+      isCompletedFramework(frameworkInfo.id())) {
+    // This could happen if a framework tries to subscribe after its
+    // failover timeout has elapsed or it unregistered itself by
+    // calling 'stop()' on the scheduler driver.
+    //
+    // TODO(vinod): Master should persist admitted frameworks to the
+    // registry and remove them from it after failover timeout.
+    validationError = Error("Framework has been removed");
   }
 
   if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
@@ -2583,19 +2579,15 @@ void Master::subscribe(
                             " without --root_submissions set");
   }
 
-  if (validationError.isNone() && frameworkInfo.has_id()) {
-    foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
-      if (framework->id() == frameworkInfo.id()) {
-        // This could happen if a framework tries to subscribe after
-        // its failover timeout has elapsed or it unregistered itself
-        // by calling 'stop()' on the scheduler driver.
-        //
-        // TODO(vinod): Master should persist admitted frameworks to the
-        // registry and remove them from it after failover timeout.
-        validationError = Error("Framework has been removed");
-        break;
-      }
-    }
+  if (validationError.isNone() && frameworkInfo.has_id() &&
+      isCompletedFramework(frameworkInfo.id())) {
+    // This could happen if a framework tries to subscribe after its
+    // failover timeout has elapsed or it unregistered itself by
+    // calling 'stop()' on the scheduler driver.
+    //
+    // TODO(vinod): Master should persist admitted frameworks to the
+    // registry and remove them from it after failover timeout.
+    validationError = Error("Framework has been removed");
   }
 
   if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
@@ -8002,6 +7994,18 @@ void Master::removeInverseOffer(InverseOffer* inverseOffer, bool rescind)
   // Delete it.
   inverseOffers.erase(inverseOffer->id());
   delete inverseOffer;
+}
+
+
+bool Master::isCompletedFramework(const FrameworkID& frameworkId)
+{
+  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
+    if (framework->id() == frameworkId) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 

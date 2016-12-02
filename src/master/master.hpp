@@ -860,6 +860,8 @@ protected:
   // Remove an inverse offer and optionally rescind it as well.
   void removeInverseOffer(InverseOffer* inverseOffer, bool rescind = false);
 
+  bool isCompletedFramework(const FrameworkID& frameworkId);
+
   Framework* getFramework(const FrameworkID& frameworkId);
   Offer* getOffer(const OfferID& offerId);
   InverseOffer* getInverseOffer(const OfferID& inverseOfferId);
