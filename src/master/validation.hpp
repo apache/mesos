@@ -52,6 +52,44 @@ Option<Error> validate(
 } // namespace call {
 } // namespace master {
 
+
+namespace framework {
+namespace internal {
+
+// Validates the roles in given FrameworkInfo. Role, roles and
+// MULTI_ROLE should be set according to following matrix. Also,
+// roles should not contain duplicate entries.
+//
+// -- MULTI_ROLE is NOT set --
+// +-------+-------+---------+
+// |       |Roles  |No Roles |
+// +-------+-------+---------+
+// |Role   | Error |  None   |
+// +-------+-------+---------+
+// |No Role| Error |  None   |
+// +-------+-------+---------+
+//
+// ---- MULTI_ROLE is set ----
+// +-------+-------+---------+
+// |       |Roles  |No Roles |
+// +-------+-------+---------+
+// |Role   | Error |  Error  |
+// +-------+-------+---------+
+// |No Role| None  |  None   |
+// +-------+-------+---------+
+Option<Error> validateRoles(const mesos::FrameworkInfo& frameworkInfo);
+
+} // namespace internal {
+
+// Validate a FrameworkInfo.
+//
+// TODO(jay_guo): This currently only validates
+// the role(s), validate more fields!
+Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo);
+
+} // namespace framework {
+
+
 namespace scheduler {
 namespace call {
 
@@ -63,6 +101,7 @@ Option<Error> validate(
 
 } // namespace call {
 } // namespace scheduler {
+
 
 namespace resource {
 

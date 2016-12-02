@@ -20,6 +20,7 @@
 
 #include <glog/logging.h>
 
+#include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <stout/foreach.hpp>
@@ -28,6 +29,8 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
+
+#include "common/protobuf_utils.hpp"
 
 #include "health-check/health_checker.hpp"
 
@@ -227,6 +230,84 @@ Option<Error> validate(
 
 } // namespace call {
 } // namespace master {
+
+
+namespace framework {
+namespace internal {
+
+Option<Error> validateRoles(const FrameworkInfo& frameworkInfo)
+{
+  bool multiRole = protobuf::frameworkHasCapability(
+      frameworkInfo,
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  // Ensure that the right fields are used.
+  if (multiRole) {
+    if (frameworkInfo.has_role()) {
+      return Error("'FrameworkInfo.role' must not be set when the"
+                   " framework is MULTI_ROLE capable");
+     }
+  } else {
+    if (frameworkInfo.roles_size() > 0) {
+      return Error("'FrameworkInfo.roles' must not be set when the"
+                   " framework is not MULTI_ROLE capable");
+    }
+  }
+
+  // Check for duplicate entries.
+  //
+  // TODO(bmahler): Use a generic duplicate check function.
+  if (multiRole) {
+    const hashset<string> duplicateRoles = [&]() {
+      hashset<string> roles;
+      hashset<string> duplicates;
+
+      foreach (const string& role, frameworkInfo.roles()) {
+        if (roles.contains(role)) {
+          duplicates.insert(role);
+        } else {
+          roles.insert(role);
+        }
+      }
+
+      return duplicates;
+    }();
+
+    if (!duplicateRoles.empty()) {
+      return Error("'FrameworkInfo.roles' contains duplicate items: " +
+                   stringify(duplicateRoles));
+     }
+  }
+
+  // Validate the role(s).
+  if (multiRole) {
+    foreach (const string& role, frameworkInfo.roles()) {
+      Option<Error> error = roles::validate(role);
+      if (error.isSome()) {
+        return Error("'FrameworkInfo.roles' contains invalid role: " +
+                     error->message);
+      }
+    }
+  } else {
+    Option<Error> error = roles::validate(frameworkInfo.role());
+    if (error.isSome()) {
+      return Error("'FrameworkInfo.role' is not a valid role: " +
+                   error->message);
+    }
+  }
+
+  return None();
+}
+
+} // namespace internal {
+
+Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
+{
+  return internal::validateRoles(frameworkInfo);
+}
+
+} // namespace framework {
+
 
 namespace scheduler {
 namespace call {
