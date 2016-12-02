@@ -14,10 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <sys/wait.h>
+#endif // __WINDOWS__
 
 #include <string.h>
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <list>
 #include <set>
@@ -43,6 +47,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/pstree.hpp>
 #include <stout/os/shell.hpp>
 
 #ifdef __linux__
@@ -634,6 +639,10 @@ class RootFilter : public TestFilter
 public:
   bool disable(const ::testing::TestInfo* test) const
   {
+#ifdef __WINDOWS__
+    // On Windows, `root` does not exist, so we cannot run `ROOT_` tests.
+    return matches(test, "ROOT_");
+#else
     Result<string> user = os::user();
     CHECK_SOME(user);
 
@@ -646,6 +655,7 @@ public:
 #endif // __linux__
 
     return matches(test, "ROOT_") && user.get() != "root";
+#endif // __WINDOWS__
   }
 };
 
@@ -785,9 +795,9 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
-  char** environ = os::raw::environment();
-  for (int i = 0; environ[i] != nullptr; i++) {
-    string variable = environ[i];
+  char** env = os::raw::environment();
+  for (int i = 0; env[i] != nullptr; i++) {
+    string variable = env[i];
     if (variable.find("MESOS_") == 0) {
       string key;
       size_t eq = variable.find_first_of("=");

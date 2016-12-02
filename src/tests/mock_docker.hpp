@@ -106,8 +106,8 @@ public:
       const Option<mesos::Resources>& resources,
       const Option<std::map<std::string, std::string>>& env,
       const Option<std::vector<Device>>& devices,
-      const process::Subprocess::IO& stdout,
-      const process::Subprocess::IO& stderr) const
+      const process::Subprocess::IO& _stdout,
+      const process::Subprocess::IO& _stderr) const
   {
     return Docker::run(
         containerInfo,
@@ -118,8 +118,8 @@ public:
         resources,
         env,
         devices,
-        stdout,
-        stderr);
+        _stdout,
+        _stderr);
   }
 
   process::Future<std::list<Docker::Container>> _ps(

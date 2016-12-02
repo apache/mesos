@@ -17,7 +17,9 @@
 #ifndef __TEST_CONTAINERIZER_HPP__
 #define __TEST_CONTAINERIZER_HPP__
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <map>
 #include <memory>
