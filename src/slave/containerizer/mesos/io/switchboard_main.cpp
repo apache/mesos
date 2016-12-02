@@ -38,6 +38,7 @@ int main(int argc, char** argv)
   }
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
+      flags.tty,
       flags.stdin_to_fd,
       flags.stdout_from_fd,
       flags.stdout_to_fd,

@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <list>
 #include <map>
 #include <string>
@@ -37,6 +40,10 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/recordio.hpp>
+
+#ifndef __WINDOWS__
+#include <stout/posix/os.hpp>
+#endif // __WINDOWS__
 
 #include <mesos/http.hpp>
 #include <mesos/type_utils.hpp>
@@ -64,6 +71,7 @@ namespace unix = process::network::unix;
 
 using std::string;
 
+using process::ErrnoFailure;
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -170,11 +178,13 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   }
 #endif
 
+  bool hasTTY = containerConfig.has_container_info() &&
+                containerConfig.container_info().has_tty_info();
+
   if (!flags.io_switchboard_enable_server) {
     // TTY support requires I/O switchboard server so that stdio can
     // be properly redirected to logger.
-    if (containerConfig.has_container_info() &&
-        containerConfig.container_info().has_tty_info()) {
+    if (hasTTY) {
       return Failure("TTY support requires I/O switchboard server");
     }
 
@@ -220,78 +230,175 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
                    " '" + stringify(containerId) + "'");
   }
 
+  // Return the set of fds that should be sent to the
+  // container and dup'd onto its stdin/stdout/stderr.
+  ContainerLaunchInfo launchInfo;
+
   // Manually construct pipes instead of using `Subprocess::PIPE`
   // so that the ownership of the FDs is properly represented. The
   // `Subprocess` spawned below owns one end of each pipe and will
   // be solely responsible for closing that end. The ownership of
   // the other end will be passed to the caller of this function
   // and eventually passed to the container being launched.
-  int infds[2];
-  int outfds[2];
-  int errfds[2];
+  int stdinToFd = -1;
+  int stdoutFromFd = -1;
+  int stderrFromFd = -1;
 
   // A list of file decriptors we've opened so far.
-  vector<int> fds = {};
+  hashset<int> openedFds = {};
 
-  // Helper for closing the list of file
-  // descriptors we've opened so far.
-  auto close = [](const vector<int>& fds) {
+  // A list of file descriptors that will be passed to the I/O
+  // switchboard. We need to close those file descriptors once the
+  // I/O switchboard server is forked.
+  hashset<int> ioSwitchboardFds = {};
+
+  // Helper for closing a set of file descriptors.
+  auto close = [](const hashset<int>& fds) {
     foreach (int fd, fds) {
       os::close(fd);
     }
   };
 
-  Try<Nothing> pipe = os::pipe(infds);
-  if (pipe.isError()) {
-    close(fds);
-    return Failure("Failed to create stdin pipe: " + pipe.error());
+  // Setup a pseudo terminal for the container.
+  if (hasTTY) {
+    // TODO(jieyu): Consider moving all TTY related method to stout.
+    // For instance, 'stout/posix/tty.hpp'.
+
+    // Set flag 'O_NOCTTY' so that the terminal device will not become
+    // the controlling terminal for the process.
+    int master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC);
+    if (master == -1) {
+      return Failure("Failed to open a master pseudo terminal");
+    }
+
+    openedFds.insert(master);
+
+    Try<string> slavePath = os::ptsname(master);
+    if (slavePath.isError()) {
+      close(openedFds);
+      return Failure("Failed to get the slave pseudo terminal path: " +
+                     slavePath.error());
+    }
+
+    // Unlock the slave end of the pseudo terminal.
+    if (unlockpt(master) != 0) {
+      close(openedFds);
+      return ErrnoFailure("Failed to unlock the slave pseudo terminal");
+    }
+
+    // Set proper permission and ownership for the device.
+    if (grantpt(master) != 0) {
+      close(openedFds);
+      return ErrnoFailure("Failed to grant the slave pseudo terminal");
+    }
+
+    if (containerConfig.has_user()) {
+      Try<Nothing> chown = os::chown(
+          containerConfig.user(),
+          slavePath.get(),
+          false);
+
+      if (chown.isError()) {
+        close(openedFds);
+        return Failure("Failed to chown the slave pseudo terminal: " +
+                       chown.error());
+      }
+    }
+
+    // Open the slave end of the pseudo terminal. The opened file
+    // descriptor will be dup'ed to stdin/out/err of the container.
+    Try<int> slave = os::open(slavePath.get(), O_RDWR | O_NOCTTY | O_CLOEXEC);
+    if (slave.isError()) {
+      return Failure("Failed to open the slave pseudo terminal: " +
+                     slave.error());
+    }
+
+    openedFds.insert(slave.get());
+
+    LOG(INFO) << "Allocated pseudo terminal '" << slavePath.get()
+              << "' for container " << containerId;
+
+    stdinToFd = master;
+    stdoutFromFd = master;
+    stderrFromFd = master;
+
+    launchInfo.mutable_in()->set_type(ContainerIO::FD);
+    launchInfo.mutable_in()->set_fd(slave.get());
+
+    launchInfo.mutable_out()->set_type(ContainerIO::FD);
+    launchInfo.mutable_out()->set_fd(slave.get());
+
+    launchInfo.mutable_err()->set_type(ContainerIO::FD);
+    launchInfo.mutable_err()->set_fd(slave.get());
+
+    launchInfo.set_tty_slave_path(slavePath.get());
+  } else {
+    int infds[2];
+    int outfds[2];
+    int errfds[2];
+
+    Try<Nothing> pipe = os::pipe(infds);
+    if (pipe.isError()) {
+      close(openedFds);
+      return Failure("Failed to create stdin pipe: " + pipe.error());
+    }
+
+    openedFds.insert(infds[0]);
+    openedFds.insert(infds[1]);
+
+    pipe = os::pipe(outfds);
+    if (pipe.isError()) {
+      close(openedFds);
+      return Failure("Failed to create stdout pipe: " + pipe.error());
+    }
+
+    openedFds.insert(outfds[0]);
+    openedFds.insert(outfds[1]);
+
+    pipe = os::pipe(errfds);
+    if (pipe.isError()) {
+      close(openedFds);
+      return Failure("Failed to create stderr pipe: " + pipe.error());
+    }
+
+    openedFds.insert(errfds[0]);
+    openedFds.insert(errfds[1]);
+
+    stdinToFd = infds[1];
+    stdoutFromFd = outfds[0];
+    stderrFromFd = errfds[0];
+
+    launchInfo.mutable_in()->set_type(ContainerIO::FD);
+    launchInfo.mutable_in()->set_fd(infds[0]);
+
+    launchInfo.mutable_out()->set_type(ContainerIO::FD);
+    launchInfo.mutable_out()->set_fd(outfds[1]);
+
+    launchInfo.mutable_err()->set_type(ContainerIO::FD);
+    launchInfo.mutable_err()->set_fd(errfds[1]);
   }
 
-  fds.push_back(infds[0]);
-  fds.push_back(infds[1]);
-
-  pipe = os::pipe(outfds);
-  if (pipe.isError()) {
-    close(fds);
-    return Failure("Failed to create stdout pipe: " + pipe.error());
+  // Make sure all file descriptors opened have CLOEXEC set.
+  foreach (int fd, openedFds) {
+    Try<Nothing> cloexec = os::cloexec(fd);
+    if (cloexec.isError()) {
+      close(openedFds);
+      return Failure("Failed to set cloexec: " + cloexec.error());
+    }
   }
 
-  fds.push_back(outfds[0]);
-  fds.push_back(outfds[1]);
-
-  pipe = os::pipe(errfds);
-  if (pipe.isError()) {
-    close(fds);
-    return Failure("Failed to create stderr pipe: " + pipe.error());
-  }
-
-  fds.push_back(errfds[0]);
-  fds.push_back(errfds[1]);
-
-  Try<Nothing> cloexec = os::cloexec(infds[0]);
-  if (cloexec.isError()) {
-    close(fds);
-    return Failure("Failed to cloexec infds.read: " + cloexec.error());
-  }
-
-  cloexec = os::cloexec(outfds[1]);
-  if (cloexec.isError()) {
-    close(fds);
-    return Failure("Failed to cloexec outfds.write: " + cloexec.error());
-  }
-
-  cloexec = os::cloexec(errfds[1]);
-  if (cloexec.isError()) {
-    close(fds);
-    return Failure("Failed to cloexec errfds.write: " + cloexec.error());
-  }
+  ioSwitchboardFds.insert(stdinToFd);
+  ioSwitchboardFds.insert(stdoutFromFd);
+  ioSwitchboardFds.insert(stderrFromFd);
 
   // Set up our flags to send to the io switchboard server process.
   IOSwitchboardServerFlags switchboardFlags;
-  switchboardFlags.stdin_to_fd = infds[1];
-  switchboardFlags.stdout_from_fd = outfds[0];
+  switchboardFlags.tty = hasTTY;
+
+  // We use the default values for other file descriptor flags. Since
+  // I/O switchboard server's stdout and stderr will be redirected to
+  // the logger, we explicitly set the flags here.
   switchboardFlags.stdout_to_fd = STDOUT_FILENO;
-  switchboardFlags.stderr_from_fd = errfds[0];
   switchboardFlags.stderr_to_fd = STDERR_FILENO;
 
   if (containerConfig.container_class() == ContainerClass::DEBUG) {
@@ -321,17 +428,30 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       map<string, string>(),
       None(),
       {},
-      {Subprocess::ChildHook::SETSID()});
+      {Subprocess::ChildHook::SETSID(),
+       Subprocess::ChildHook::DUP2(
+           stdinToFd,
+           IOSwitchboardServer::STDIN_TO_FD),
+       Subprocess::ChildHook::DUP2(
+           stdoutFromFd,
+           IOSwitchboardServer::STDOUT_FROM_FD),
+       Subprocess::ChildHook::DUP2(
+           stderrFromFd,
+           IOSwitchboardServer::STDERR_FROM_FD)});
 
   if (child.isError()) {
-    close(fds);
+    close(openedFds);
     return Failure("Failed to create io switchboard"
                    " server process: " + child.error());
   }
 
-  os::close(infds[1]);
-  os::close(outfds[0]);
-  os::close(errfds[0]);
+  close(ioSwitchboardFds);
+
+  // We remove the already closed file descriptors from 'openedFds' so
+  // that we don't close multiple times if failures happen below.
+  foreach (int fd, ioSwitchboardFds) {
+    openedFds.erase(fd);
+  }
 
   // Now that the child has come up, we checkpoint the socket
   // address we told it to bind to so we can access it later.
@@ -343,7 +463,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       path, switchboardFlags.socket_path);
 
   if (checkpointed.isError()) {
-    close(fds);
+    close(openedFds);
     return Failure("Failed to checkpoint container's socket path to"
                    " '" + path + "': " + checkpointed.error());
   }
@@ -352,19 +472,6 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   infos[containerId] = Owned<Info>(new Info(
     child->pid(),
     process::reap(child->pid())));
-
-  // Return the set of fds that should be sent to the
-  // container and dup'd onto its stdin/stdout/stderr.
-  ContainerLaunchInfo launchInfo;
-
-  launchInfo.mutable_in()->set_type(ContainerIO::FD);
-  launchInfo.mutable_in()->set_fd(infds[0]);
-
-  launchInfo.mutable_out()->set_type(ContainerIO::FD);
-  launchInfo.mutable_out()->set_fd(outfds[1]);
-
-  launchInfo.mutable_err()->set_type(ContainerIO::FD);
-  launchInfo.mutable_err()->set_fd(errfds[1]);
 
   return launchInfo;
 #endif // __WINDOWS__
@@ -435,13 +542,19 @@ Future<Nothing> IOSwitchboard::cleanup(
 
 
 #ifndef __WINDOWS__
-constexpr char IOSwitchboardServer::NAME[];
+const char IOSwitchboardServer::NAME[]          = "mesos-io-switchboard";
+const int  IOSwitchboardServer::STDIN_TO_FD     = STDERR_FILENO + 1;
+const int  IOSwitchboardServer::STDOUT_FROM_FD  = STDERR_FILENO + 2;
+const int  IOSwitchboardServer::STDERR_FROM_FD  = STDERR_FILENO + 3;
+const int  IOSwitchboardServer::STDOUT_TO_FD    = STDERR_FILENO + 4;
+const int  IOSwitchboardServer::STDERR_TO_FD    = STDERR_FILENO + 5;
 
 
 class IOSwitchboardServerProcess : public Process<IOSwitchboardServerProcess>
 {
 public:
   IOSwitchboardServerProcess(
+      bool _tty,
       int _stdinToFd,
       int _stdoutFromFd,
       int _stdoutToFd,
@@ -507,6 +620,7 @@ private:
       const string& data,
       const agent::ProcessIO::Data::Type& type);
 
+  bool tty;
   int stdinToFd;
   int stdoutFromFd;
   int stdoutToFd;
@@ -524,6 +638,7 @@ private:
 
 
 Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
+    bool tty,
     int stdinToFd,
     int stdoutFromFd,
     int stdoutToFd,
@@ -556,6 +671,7 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
   }
 
   return new IOSwitchboardServer(
+      tty,
       stdinToFd,
       stdoutFromFd,
       stdoutToFd,
@@ -567,6 +683,7 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
 
 
 IOSwitchboardServer::IOSwitchboardServer(
+    bool tty,
     int stdinToFd,
     int stdoutFromFd,
     int stdoutToFd,
@@ -575,6 +692,7 @@ IOSwitchboardServer::IOSwitchboardServer(
     const unix::Socket& socket,
     bool waitForConnection)
   : process(new IOSwitchboardServerProcess(
+        tty,
         stdinToFd,
         stdoutFromFd,
         stdoutToFd,
@@ -601,6 +719,7 @@ Future<Nothing> IOSwitchboardServer::run()
 
 
 IOSwitchboardServerProcess::IOSwitchboardServerProcess(
+    bool _tty,
     int _stdinToFd,
     int _stdoutFromFd,
     int _stdoutToFd,
@@ -608,7 +727,8 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     int _stderrToFd,
     const unix::Socket& _socket,
     bool _waitForConnection)
-  : stdinToFd(_stdinToFd),
+  : tty(_tty),
+    stdinToFd(_stdinToFd),
     stdoutFromFd(_stdoutFromFd),
     stdoutToFd(_stdoutToFd),
     stderrFromFd(_stderrFromFd),
@@ -638,14 +758,24 @@ Future<Nothing> IOSwitchboardServerProcess::run()
                  lambda::_1,
                  agent::ProcessIO::Data::STDOUT)});
 
-      Future<Nothing> stderrRedirect = process::io::redirect(
-          stderrFromFd,
-          stderrToFd,
-          4096,
-          {defer(self(),
-                 &Self::outputHook,
-                 lambda::_1,
-                 agent::ProcessIO::Data::STDERR)});
+      // NOTE: We don't need to redirect stderr if TTY is enabled. If
+      // TTY is enabled for the container, stdout and stderr for the
+      // container will be redirected to the slave end of the pseudo
+      // terminal device. Both stdout and stderr of the container will
+      // both coming out from the master end of the pseudo terminal.
+      Future<Nothing> stderrRedirect;
+      if (tty) {
+        stderrRedirect = Nothing();
+      } else {
+        stderrRedirect = process::io::redirect(
+            stderrFromFd,
+            stderrToFd,
+            4096,
+            {defer(self(),
+                   &Self::outputHook,
+                   lambda::_1,
+                   agent::ProcessIO::Data::STDERR)});
+      }
 
       // Set the future once our IO redirects finish. On failure,
       // fail the future.

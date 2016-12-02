@@ -96,6 +96,7 @@ TEST_F(IOSwitchboardTest, ServerRedirectLog)
       "mesos-io-switchboard-" + UUID::random().toString());
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
+      false,
       nullFd.get(),
       stdoutPipe[0],
       stdoutFd.get(),
@@ -203,6 +204,7 @@ TEST_F(IOSwitchboardTest, ServerAttachOutput)
       "mesos-io-switchboard-" + UUID::random().toString());
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
+      false,
       nullFd.get(),
       stdoutFd.get(),
       nullFd.get(),

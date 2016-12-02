@@ -356,6 +356,16 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
+#ifndef __WINDOWS__
+  if (launchInfo.has_tty_slave_path()) {
+    Try<Nothing> setctty = os::setctty(STDIN_FILENO);
+    if (setctty.isError()) {
+      cerr << "Failed to set control tty: " << setctty.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+#endif // __WINDOWS__
+
 #ifdef __linux__
   if (flags.namespace_mnt_target.isSome()) {
     string path = path::join(

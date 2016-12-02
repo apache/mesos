@@ -212,6 +212,9 @@ message ContainerLaunchInfo {
   optional ContainerIO in = 11;
   optional ContainerIO out = 12;
   optional ContainerIO err = 13;
+
+  // (POSIX only) The slave path of the pseudo terminal.
+  optional string tty_slave_path = 14;
 }
 
 

@@ -1272,6 +1272,11 @@ Future<bool> MesosContainerizerProcess::_launch(
       return Failure("Multiple isolators specify stderr");
     }
 
+    if (isolatorLaunchInfo->has_tty_slave_path() &&
+        launchInfo.has_tty_slave_path()) {
+      return Failure("Multiple isolators specify tty");
+    }
+
     launchInfo.MergeFrom(isolatorLaunchInfo.get());
   }
 
