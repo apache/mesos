@@ -30,6 +30,12 @@ class DynamicLibrary
 public:
   DynamicLibrary() : handle_(nullptr) { }
 
+  // Since this class manages a naked handle it cannot be copy- or
+  // move-constructed.
+  // TODO(bbannier): Allow for move-construction.
+  DynamicLibrary(const DynamicLibrary&) = delete;
+  DynamicLibrary(DynamicLibrary&&) = delete;
+
   virtual ~DynamicLibrary()
   {
     if (handle_ != nullptr) {
