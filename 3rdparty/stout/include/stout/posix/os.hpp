@@ -35,6 +35,8 @@
 #include <unistd.h>
 #include <utime.h>
 
+#include <sys/ioctl.h>
+
 #ifdef __linux__
 #include <linux/version.h>
 #include <sys/sysinfo.h>
@@ -487,6 +489,15 @@ inline Try<std::string> ptsname(int master)
     }
     return slavePath;
   }
+}
+
+
+inline Try<Nothing> setctty(int fd)
+{
+  if (ioctl(fd, TIOCSCTTY, nullptr) == -1) {
+    return ErrnoError();
+  }
+  return Nothing();
 }
 
 } // namespace os {
