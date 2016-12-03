@@ -2359,6 +2359,105 @@ TEST_F(TaskGroupValidationTest, TaskUsesDifferentExecutor)
   driver.join();
 }
 
+
+class FrameworkInfoValidationTest : public MesosTest {};
+
+
+// This tests the validateRoles function of FrameworkInfo.
+TEST_F(FrameworkInfoValidationTest, ValidateRoles)
+{
+  // Not MULTI_ROLE, no 'role' (default to "*"), no 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Not MULTI_ROLE, no 'role' (default to "*"), has 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("qux");
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Not MULTI_ROLE, has 'role', no 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_role("foo");
+    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Not MULTI_ROLE, has 'role', has 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("qux");
+    frameworkInfo.set_role("foo");
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Is MULTI_ROLE, no 'role', no 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Is MULTI_ROLE, no 'role', has 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("qux");
+    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Is MULTI_ROLE, has 'role', no 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_role("foo");
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    // 'Role' is set, but MULTI_ROLE capability is also enabled.
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Is MULTI_ROLE, has 'role', has 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.set_role("foo");
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("qux");
+    // All 'role', 'roles' and MULTI_ROLE are set.
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Duplicate items in 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("qux");
+    frameworkInfo.add_roles("bar");
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+
+  // Check invalid character in 'roles'.
+  {
+    FrameworkInfo frameworkInfo;
+    frameworkInfo.add_roles("bar");
+    frameworkInfo.add_roles("/x");
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::MULTI_ROLE);
+    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
