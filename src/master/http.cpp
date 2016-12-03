@@ -1006,7 +1006,7 @@ Future<Response> Master::Http::createVolumes(
 
   value = values.get("slaveId");
   if (value.isNone()) {
-    return BadRequest("Missing 'slaveId' query parameter");
+    return BadRequest("Missing 'slaveId' query parameter in the request body");
   }
 
   SlaveID slaveId;
@@ -1014,7 +1014,7 @@ Future<Response> Master::Http::createVolumes(
 
   value = values.get("volumes");
   if (value.isNone()) {
-    return BadRequest("Missing 'volumes' query parameter");
+    return BadRequest("Missing 'volumes' query parameter in the request body");
   }
 
   Try<JSON::Array> parse =
@@ -1022,7 +1022,8 @@ Future<Response> Master::Http::createVolumes(
 
   if (parse.isError()) {
     return BadRequest(
-        "Error in parsing 'volumes' query parameter: " + parse.error());
+        "Error in parsing 'volumes' query parameter in the request body: " +
+        parse.error());
   }
 
   Resources volumes;
@@ -1030,7 +1031,8 @@ Future<Response> Master::Http::createVolumes(
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
-          "Error in parsing 'volumes' query parameter: " + volume.error());
+          "Error in parsing 'volumes' query parameter in the request body: " +
+          volume.error());
     }
 
     // Since the `+=` operator will silently drop invalid resources, we validate
@@ -1153,7 +1155,7 @@ Future<Response> Master::Http::destroyVolumes(
 
   value = values.get("slaveId");
   if (value.isNone()) {
-    return BadRequest("Missing 'slaveId' query parameter");
+    return BadRequest("Missing 'slaveId' query parameter in the request body");
   }
 
   SlaveID slaveId;
@@ -1161,7 +1163,7 @@ Future<Response> Master::Http::destroyVolumes(
 
   value = values.get("volumes");
   if (value.isNone()) {
-    return BadRequest("Missing 'volumes' query parameter");
+    return BadRequest("Missing 'volumes' query parameter in the request body");
   }
 
   Try<JSON::Array> parse =
@@ -1169,7 +1171,8 @@ Future<Response> Master::Http::destroyVolumes(
 
   if (parse.isError()) {
     return BadRequest(
-        "Error in parsing 'volumes' query parameter: " + parse.error());
+        "Error in parsing 'volumes' query parameter in the request body: " +
+        parse.error());
   }
 
   Resources volumes;
@@ -1177,7 +1180,8 @@ Future<Response> Master::Http::destroyVolumes(
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
-          "Error in parsing 'volumes' query parameter: " + volume.error());
+          "Error in parsing 'volumes' query parameter in the request body: " +
+          volume.error());
     }
 
     // Since the `+=` operator will silently drop invalid resources, we validate
@@ -2111,7 +2115,7 @@ Future<Response> Master::Http::reserve(
 
   value = values.get("slaveId");
   if (value.isNone()) {
-    return BadRequest("Missing 'slaveId' query parameter");
+    return BadRequest("Missing 'slaveId' query parameter in the request body");
   }
 
   SlaveID slaveId;
@@ -2119,7 +2123,8 @@ Future<Response> Master::Http::reserve(
 
   value = values.get("resources");
   if (value.isNone()) {
-    return BadRequest("Missing 'resources' query parameter");
+    return BadRequest(
+        "Missing 'resources' query parameter in the request body");
   }
 
   Try<JSON::Array> parse =
@@ -2127,7 +2132,8 @@ Future<Response> Master::Http::reserve(
 
   if (parse.isError()) {
     return BadRequest(
-        "Error in parsing 'resources' query parameter: " + parse.error());
+        "Error in parsing 'resources' query parameter in the request body: " +
+        parse.error());
   }
 
   Resources resources;
@@ -2135,7 +2141,8 @@ Future<Response> Master::Http::reserve(
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(
-          "Error in parsing 'resources' query parameter: " + resource.error());
+          "Error in parsing 'resources' query parameter in the request body: " +
+          resource.error());
     }
 
     // Since the `+=` operator will silently drop invalid resources, we validate
@@ -3447,7 +3454,8 @@ Future<Response> Master::Http::teardown(
 
   Option<string> value = values.get("frameworkId");
   if (value.isNone()) {
-    return BadRequest("Missing 'frameworkId' query parameter");
+    return BadRequest(
+        "Missing 'frameworkId' query parameter in the request body");
   }
 
   FrameworkID id;
@@ -4477,7 +4485,7 @@ Future<Response> Master::Http::unreserve(
 
   value = values.get("slaveId");
   if (value.isNone()) {
-    return BadRequest("Missing 'slaveId' query parameter");
+    return BadRequest("Missing 'slaveId' query parameter in the request body");
   }
 
   SlaveID slaveId;
@@ -4485,7 +4493,8 @@ Future<Response> Master::Http::unreserve(
 
   value = values.get("resources");
   if (value.isNone()) {
-    return BadRequest("Missing 'resources' query parameter");
+    return BadRequest(
+        "Missing 'resources' query parameter in the request body");
   }
 
   Try<JSON::Array> parse =
@@ -4493,7 +4502,8 @@ Future<Response> Master::Http::unreserve(
 
   if (parse.isError()) {
     return BadRequest(
-        "Error in parsing 'resources' query parameter: " + parse.error());
+        "Error in parsing 'resources' query parameter in the request body: " +
+        parse.error());
   }
 
   Resources resources;
@@ -4501,7 +4511,8 @@ Future<Response> Master::Http::unreserve(
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(
-          "Error in parsing 'resources' query parameter: " + resource.error());
+          "Error in parsing 'resources' query parameter in the request body: " +
+          resource.error());
     }
 
     // Since the `+=` operator will silently drop invalid resources, we validate
