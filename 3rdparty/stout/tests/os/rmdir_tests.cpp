@@ -238,6 +238,13 @@ TEST_F(RmdirTest, FailToRemoveNestedInvalidPath)
 // exist on Windows.
 TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 {
+#ifdef __FreeBSD__
+  // If we're in a jail on FreeBSD, we can't use mknod.
+  if (isJailed()) {
+      return;
+  }
+#endif
+
   // mknod requires root permission.
   Result<string> user = os::user();
   ASSERT_SOME(user);

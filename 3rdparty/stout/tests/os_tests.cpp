@@ -789,6 +789,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Shell)
 #ifndef __WINDOWS__
 TEST_F(OsTest, Mknod)
 {
+#ifdef __FreeBSD__
+  // If we're in a jail on FreeBSD, we can't use mknod.
+  if (isJailed()) {
+      return;
+  }
+#endif
+
   // mknod requires root permission.
   Result<string> user = os::user();
   ASSERT_SOME(user);
