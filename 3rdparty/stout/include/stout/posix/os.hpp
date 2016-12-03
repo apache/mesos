@@ -475,6 +475,19 @@ inline Try<Nothing> pipe(int pipe_fd[2])
 }
 
 
+inline Try<Nothing> dup2(int oldFd, int newFd)
+{
+  while (::dup2(oldFd, newFd) == -1) {
+    if (errno == EINTR) {
+      continue;
+    } else {
+      return ErrnoError();
+    }
+  }
+  return Nothing();
+}
+
+
 inline Try<std::string> ptsname(int master)
 {
   // 'ptsname' is not thread safe. Therefore, we use mutex here to
