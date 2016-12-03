@@ -357,15 +357,16 @@ inline std::ostream& operator<<(std::ostream& stream, const Address& address)
 {
   switch (address.family()) {
     case Address::Family::INET: {
-      stream << inet::Address(address.sockaddr.in);
+      return stream << inet::Address(address.sockaddr.in);
     }
 #ifndef __WINDOWS__
     case Address::Family::UNIX: {
-      stream << unix::Address(address.sockaddr.un);
+      return stream << unix::Address(address.sockaddr.un);
     }
 #endif // __WINDOWS__
   }
-  return stream;
+
+  UNREACHABLE();
 }
 
 } // namespace network {
