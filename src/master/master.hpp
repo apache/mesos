@@ -2597,7 +2597,7 @@ private:
 };
 
 
-  inline std::ostream& operator<<(
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Framework& framework)
 {
