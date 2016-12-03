@@ -108,6 +108,13 @@ TEST_F(ProcessTest, Process)
   // NOTE: On Windows, inspecting other processes usually requires privileges.
   // So we expect it to error out instead of succeed, unlike the POSIX version.
   EXPECT_ERROR(init_process);
+#elif __FreeBSD__
+  // In a FreeBSD jail, we wont find an init process.
+  if (!isJailed()) {
+      EXPECT_SOME(init_process);
+  } else {
+      EXPECT_NONE(init_process);
+  }
 #else
   EXPECT_SOME(init_process);
 #endif // __WINDOWS__
