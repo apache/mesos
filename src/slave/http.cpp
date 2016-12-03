@@ -2359,18 +2359,16 @@ Future<Response> Slave::Http::attachContainerInput(
       request.url.path = "/";
 
       transform
-        .onAny([reader, writer](
+        .onAny([writer](
             const Future<Nothing>& future) mutable {
           CHECK(!future.isDiscarded());
 
           if (future.isFailed()) {
             writer.fail(future.failure());
-            reader.close();
             return;
           }
 
           writer.close();
-          reader.close();
          });
 
       // This is a non Keep-Alive request which means the connection
