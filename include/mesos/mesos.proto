@@ -1322,6 +1322,14 @@ message Offer {
   // `Unavailability` for more details.
   optional Unavailability unavailability = 9;
 
+  // An offer represents resources allocated to *one* of the
+  // roles managed by the scheduler. (Therefore, each
+  // `Offer.resources[i].allocation_info` will match the
+  // top level `Offer.allocation_info`).
+  //
+  // NOTE: Implementation of this is in-progress, DO NOT USE!
+  optional Resource.AllocationInfo allocation_info = 10;
+
   // Defines an operation that can be performed against offers.
   message Operation {
     enum Type {
