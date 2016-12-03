@@ -2466,6 +2466,88 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
   }
 }
 
+
+// This test ensures that ia framework cannot use the
+// `FrameworkInfo.roles` field without providing the
+// MULTI_ROLE capability.
+TEST_F(FrameworkInfoValidationTest, MissingMultiRoleCapability)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_roles("role");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(error);
+}
+
+
+// This test ensures subscription succeeds for multi-role
+// framework when MULTI_ROLE capability is enabled.
+TEST_F(FrameworkInfoValidationTest, AcceptMultiRoleFramework)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_roles("role1");
+  framework.add_roles("role2");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+}
+
+
+// This test ensures subscription fails for multi-role
+// framework with non-whitelisted role.
+TEST_F(FrameworkInfoValidationTest, MultiRoleWhitelist)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = "role1";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_roles("role1");
+  framework.add_roles("role2");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(error);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
