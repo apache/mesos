@@ -1023,7 +1023,7 @@ __EOF__
       dir="$JAVA_HOME/jre/lib/$arch/server"
       if test -e "$dir"; then
 	# Note that these are libtool specific flags.
-	JAVA_TEST_LDFLAGS="-L$dir -R$dir -Wl,-ljvm"
+	JAVA_TEST_LDFLAGS="-L$dir -R$dir -pthread -Wl,-ljvm"
 	JAVA_JVM_LIBRARY=$dir/libjvm.so
 	break;
       fi
