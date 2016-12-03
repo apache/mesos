@@ -2340,11 +2340,31 @@ void Master::subscribe(
   LOG(INFO) << "Received subscription request for"
             << " HTTP framework '" << frameworkInfo.name() << "'";
 
-  Option<Error> validationError = roles::validate(frameworkInfo.role());
+  Option<Error> validationError =
+    validation::framework::validate(frameworkInfo);
 
-  if (validationError.isNone() && !isWhitelistedRole(frameworkInfo.role())) {
-    validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
-                            " present in the master's --roles");
+  if (validationError.isNone()) {
+    // Check the framework's role(s) against the whitelist.
+    set<string> invalidRoles;
+
+    if (protobuf::frameworkHasCapability(
+            frameworkInfo,
+            FrameworkInfo::Capability::MULTI_ROLE)) {
+      foreach (const string& role, frameworkInfo.roles()) {
+        if (!isWhitelistedRole(role)) {
+          invalidRoles.insert(role);
+        }
+      }
+    } else {
+      if (!isWhitelistedRole(frameworkInfo.role())) {
+        invalidRoles.insert(frameworkInfo.role());
+      }
+    }
+
+    if (!invalidRoles.empty()) {
+      validationError = Error("Roles " + stringify(invalidRoles) +
+                              " are not present in master's --roles");
+    }
   }
 
   // TODO(vinod): Deprecate this in favor of authorization.
@@ -2565,11 +2585,31 @@ void Master::subscribe(
     return;
   }
 
-  Option<Error> validationError = roles::validate(frameworkInfo.role());
+  Option<Error> validationError =
+    validation::framework::validate(frameworkInfo);
 
-  if (validationError.isNone() && !isWhitelistedRole(frameworkInfo.role())) {
-    validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
-                            " present in the master's --roles");
+  if (validationError.isNone()) {
+    // Check the framework's role(s) against the whitelist.
+    set<string> invalidRoles;
+
+    if (protobuf::frameworkHasCapability(
+            frameworkInfo,
+            FrameworkInfo::Capability::MULTI_ROLE)) {
+      foreach (const string& role, frameworkInfo.roles()) {
+        if (!isWhitelistedRole(role)) {
+          invalidRoles.insert(role);
+        }
+      }
+    } else {
+      if (!isWhitelistedRole(frameworkInfo.role())) {
+        invalidRoles.insert(frameworkInfo.role());
+      }
+    }
+
+    if (!invalidRoles.empty()) {
+      validationError = Error("Roles " + stringify(invalidRoles) +
+                              " are not present in the master's --roles");
+    }
   }
 
   // TODO(vinod): Deprecate this in favor of authorization.
