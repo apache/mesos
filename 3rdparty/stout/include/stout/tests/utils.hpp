@@ -25,6 +25,10 @@
 #include <stout/os/mkdtemp.hpp>
 #include <stout/os/rmdir.hpp>
 
+#if __FreeBSD__
+#include <stout/os/sysctl.hpp>
+#endif
+
 class TemporaryDirectoryTest : public ::testing::Test
 {
 protected:
@@ -62,5 +66,20 @@ protected:
 private:
   std::string cwd;
 };
+
+
+#ifdef __FreeBSD__
+inline bool isJailed() {
+  int mib[4];
+  size_t len = 4;
+  ::sysctlnametomib("security.jail.jailed", mib, &len);
+  Try<int> jailed = os::sysctl(mib[0], mib[1], mib[2]).integer();
+  if (jailed.isSome()) {
+      return jailed.get() == 1;
+  }
+
+  return false;
+}
+#endif
 
 #endif // __STOUT_TESTS_UTILS_HPP__

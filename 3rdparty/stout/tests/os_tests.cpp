@@ -67,21 +67,6 @@ using std::string;
 using std::vector;
 
 
-#ifdef __FreeBSD__
-static bool isJailed() {
-  int mib[4];
-  size_t len = 4;
-  ::sysctlnametomib("security.jail.jailed", mib, &len);
-  Try<int> jailed = os::sysctl(mib[0], mib[1], mib[2]).integer();
-  if (jailed.isSome()) {
-      return jailed.get() == 1;
-  }
-
-  return false;
-}
-#endif
-
-
 class OsTest : public TemporaryDirectoryTest {};
 
 
