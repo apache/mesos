@@ -79,7 +79,7 @@ TEST(RecordIOReaderTest, EndOfFile)
   process::http::Pipe pipe;
   pipe.writer().write(data);
 
-  internal::recordio::Reader<string> reader(
+  mesos::internal::recordio::Reader<string> reader(
       ::recordio::Decoder<string>(strings::lower),
       pipe.reader());
 
@@ -109,7 +109,7 @@ TEST(RecordIOReaderTest, DecodingFailure)
   ::recordio::Encoder<string> encoder(strings::upper);
   process::http::Pipe pipe;
 
-  internal::recordio::Reader<string> reader(
+  mesos::internal::recordio::Reader<string> reader(
       ::recordio::Decoder<string>(strings::lower),
       pipe.reader());
 
@@ -139,7 +139,7 @@ TEST(RecordIOReaderTest, PipeFailure)
   ::recordio::Encoder<string> encoder(strings::upper);
   process::http::Pipe pipe;
 
-  internal::recordio::Reader<string> reader(
+  mesos::internal::recordio::Reader<string> reader(
       ::recordio::Decoder<string>(strings::lower),
       pipe.reader());
 
