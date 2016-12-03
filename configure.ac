@@ -540,6 +540,10 @@ case "$host_os" in
     # FreeBSD needs GTEST_HAS_PTHREAD for this version of gmock/gtest and
     # _WITH_GETLINE for getline().
     CXXFLAGS="$CXXFLAGS -DGTEST_HAS_PTHREAD -D_WITH_GETLINE"
+
+    # Add no-sentinal so that stout builds with system clang on 11.0 and later
+    # (3.8+).
+    CXXFLAGS="$CXXFLAGS -Wno-sentinel"
     ;;
 esac
 
