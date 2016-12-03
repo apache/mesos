@@ -21,6 +21,11 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif
