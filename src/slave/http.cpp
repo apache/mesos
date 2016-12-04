@@ -398,7 +398,7 @@ Future<Response> Slave::Http::api(
             }
 
             if (call.isError()) {
-              return Failure(call.error());
+              return BadRequest(call.error());
             }
 
             return _api(call.get(),
