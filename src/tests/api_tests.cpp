@@ -3795,6 +3795,71 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
     .WillRepeatedly(Return(hashset<ContainerID>()));
 }
 
+
+TEST_F(AgentAPITest, AttachContainerInputValidation)
+{
+  Clock::pause();
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Missing 'attach_container_input.container_id'.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    call.mutable_attach_container_input()->set_type(
+        v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+
+    ContentType contentType = ContentType::STREAMING_PROTOBUF;
+
+    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+        serialize, contentType, lambda::_1));
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        encoder.encode(call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
+  }
+
+  // First call on the request stream should be of type
+  // 'AttachContainerInput::CONTAINER_ID'.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    call.mutable_attach_container_input()->set_type(
+        v1::agent::Call::AttachContainerInput::PROCESS_IO);
+
+    ContentType contentType = ContentType::STREAMING_PROTOBUF;
+
+    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+        serialize, contentType, lambda::_1));
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        encoder.encode(call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

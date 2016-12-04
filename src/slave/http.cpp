@@ -2322,6 +2322,13 @@ Future<Response> Slave::Http::attachContainerInput(
   CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, call.type());
   CHECK(call.has_attach_container_input());
 
+  if (call.attach_container_input().type() !=
+      mesos::agent::Call::AttachContainerInput::CONTAINER_ID) {
+    return BadRequest(
+        "Expecting 'attach_container_input.type' to be CONTAINER_ID");
+  }
+
+  CHECK(call.attach_container_input().has_container_id());
   const ContainerID& containerId = call.attach_container_input().container_id();
 
   Pipe pipe;

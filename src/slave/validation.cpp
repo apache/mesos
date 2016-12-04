@@ -252,15 +252,29 @@ Option<Error> validate(
         return Error("Expecting 'attach_container_input' to be present");
       }
 
-      Option<Error> error = validation::container::validateContainerId(
-          call.attach_container_input().container_id());
-
-      if (error.isSome()) {
-        return Error("'attach_container_input.container_id' is invalid"
-                     ": " + error->message);
+      if (!call.attach_container_input().has_type()) {
+        return Error("Expecting 'attach_container_input.type' to be present");
       }
 
-      return None();
+      switch (call.attach_container_input().type()) {
+        case mesos::agent::Call::AttachContainerInput::UNKNOWN:
+          return Error("'attach_container_input.type' is unknown");
+
+        case mesos::agent::Call::AttachContainerInput::CONTAINER_ID: {
+          Option<Error> error = validation::container::validateContainerId(
+              call.attach_container_input().container_id());
+
+          if (error.isSome()) {
+            return Error("'attach_container_input.container_id' is invalid"
+                ": " + error->message);
+          }
+        }
+
+        case mesos::agent::Call::AttachContainerInput::PROCESS_IO:
+          return None();
+      }
+
+      UNREACHABLE();
     }
 
     case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT: {
