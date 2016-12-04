@@ -23,6 +23,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashset.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -44,6 +45,15 @@ using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
 
 namespace internal {
 
+inline void close(const hashset<HANDLE>& fds)
+{
+  foreach (HANDLE fd, fds) {
+    if (fd != INVALID_HANDLE_VALUE) {
+      os::close(fd);
+    }
+  }
+}
+
 // This function will invoke `os::close` on all specified file
 // descriptors that are valid (i.e., not `None` and >= 0).
 inline void close(
@@ -51,17 +61,14 @@ inline void close(
     const OutputFileDescriptors& stdoutfds,
     const OutputFileDescriptors& stderrfds)
 {
-  HANDLE fds[6] = {
-    stdinfds.read, stdinfds.write.getOrElse(INVALID_HANDLE_VALUE),
-    stdoutfds.read.getOrElse(INVALID_HANDLE_VALUE), stdoutfds.write,
-    stderrfds.read.getOrElse(INVALID_HANDLE_VALUE), stderrfds.write
-  };
-
-  foreach (HANDLE fd, fds) {
-    if (fd != INVALID_HANDLE_VALUE) {
-      os::close(fd);
-    }
-  }
+  close({
+    stdinfds.read,
+    stdinfds.write.getOrElse(INVALID_HANDLE_VALUE),
+    stdoutfds.read.getOrElse(INVALID_HANDLE_VALUE),
+    stdoutfds.write,
+    stderrfds.read.getOrElse(INVALID_HANDLE_VALUE),
+    stderrfds.write
+  });
 }
 
 // Retrieves system environment in a `std::map`, ignoring

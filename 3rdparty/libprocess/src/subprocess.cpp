@@ -327,16 +327,16 @@ Try<Subprocess> subprocess(
       return error;
     }
 
+    // Close the child-ends of the file descriptors that are created
+    // by this function.
+    // TODO(jieyu): We should move the closing of FDs to
+    // 'createChildProcess' to be consistent with the posix path.
+    internal::close({stdinfds.read, stdoutfds.write, stderrfds.write});
+
     process.data->processInformation = processInformation.get();
     process.data->pid = processInformation.get().dwProcessId;
 #endif // __WINDOWS__
   }
-
-  // Close the child-ends of the file descriptors that are created
-  // by this function.
-  os::close(stdinfds.read);
-  os::close(stdoutfds.write);
-  os::close(stderrfds.write);
 
   // For any pipes, store the parent side of the pipe so that
   // the user can communicate with the subprocess.
