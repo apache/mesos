@@ -91,6 +91,16 @@ Subprocess::ChildHook Subprocess::ChildHook::SETSID()
 }
 
 
+#ifndef __WINDOWS__
+Subprocess::ChildHook Subprocess::ChildHook::DUP2(int oldFd, int newFd)
+{
+  return Subprocess::ChildHook([oldFd, newFd]() -> Try<Nothing> {
+    return os::dup2(oldFd, newFd);
+  });
+}
+#endif // __WINDOWS__
+
+
 #ifdef __linux__
 inline void signalHandler(int signal)
 {

@@ -199,6 +199,13 @@ public:
      */
     static ChildHook SETSID();
 
+#ifndef __WINDOWS__
+    /**
+     * `ChildHook` for duplicating a file descriptor.
+     */
+    static ChildHook DUP2(int oldFd, int newFd);
+#endif // __WINDOWS__
+
     /**
      * `ChildHook` for starting a Supervisor process monitoring
      *  and killing the child process if the parent process terminates.
