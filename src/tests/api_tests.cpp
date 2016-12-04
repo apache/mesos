@@ -3768,6 +3768,9 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
   v1::agent::Call call;
   call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
 
+  call.mutable_attach_container_input()->set_type(
+        v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+
   call.mutable_attach_container_input()->mutable_container_id()
     ->set_value(UUID::random().toString());
 
