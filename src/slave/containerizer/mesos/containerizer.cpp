@@ -87,6 +87,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 #include "slave/containerizer/mesos/isolators/linux/capabilities.hpp"
+#include "slave/containerizer/mesos/isolators/namespaces/ipc.hpp"
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
@@ -322,6 +323,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
         return NvidiaGpuIsolatorProcess::create(flags, nvidia.get());
       }},
 
+    {"namespaces/ipc", &NamespacesIPCIsolatorProcess::create},
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__
