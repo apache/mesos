@@ -112,9 +112,10 @@ public:
 
 private:
   friend class inet::Address;
-  #ifndef __WINDOWS__
+#ifndef __WINDOWS__
   friend class unix::Address;
 #endif // __WINDOWS__
+
   template <typename AddressType>
   friend Try<AddressType> convert(Try<Address>&& address);
   friend std::ostream& operator<<(std::ostream& stream, const Address& address);
@@ -356,13 +357,11 @@ inline Try<unix::Address> convert(Try<Address>&& address)
 inline std::ostream& operator<<(std::ostream& stream, const Address& address)
 {
   switch (address.family()) {
-    case Address::Family::INET: {
+    case Address::Family::INET:
       return stream << inet::Address(address.sockaddr.in);
-    }
 #ifndef __WINDOWS__
-    case Address::Family::UNIX: {
+    case Address::Family::UNIX:
       return stream << unix::Address(address.sockaddr.un);
-    }
 #endif // __WINDOWS__
   }
 
