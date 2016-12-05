@@ -295,6 +295,12 @@ destroyed.
 
 This is described in a [separate document](cni.md).
 
+
 ### The `linux/capabilities` Isolator
 
 This is described in a [separate document](linux_capabilities.md).
+
+
+### The `posix/rlimits` Isolator
+
+This is described in a [separate document](posix_rlimits.md).
