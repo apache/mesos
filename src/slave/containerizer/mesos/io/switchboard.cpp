@@ -536,7 +536,26 @@ Future<Nothing> IOSwitchboard::cleanup(
   infos.erase(containerId);
 
   return status
-    .then([]() { return Nothing(); });
+    .then(defer, self(), [this, containerId]() {
+      // Best effort removal of the unix domain socket file created for
+      // this container's `IOSwitchboardServer`. If it hasn't been
+      // checkpointed yet, or the socket file itself hasn't been created,
+      // we simply continue without error.
+      Result<unix::Address> address =
+        containerizer::paths::getContainerIOSwitchboardAddress(
+            flags.runtime_dir, containerId);
+
+      if (address.isSome()) {
+        Try<Nothing> rm = os::rm(address->path());
+        if (rm.isError()) {
+          LOG(ERROR) << "Failed to remove unix domain socket file"
+                     << " '" << address->path() << "' for container"
+                     << " '" << containerId << "': " << rm.error();
+        }
+      }
+
+      return Nothing();
+    });
 #endif // __WINDOWS__
 }
 
