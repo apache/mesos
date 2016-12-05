@@ -344,7 +344,7 @@ TEST_F(IOTest, Redirect)
     data.append(data);
   }
 
-  Future<Nothing> redirect = io::redirect(pipes[0], fd.get(), 256, {hook});
+  Future<Nothing> redirect = io::redirect(pipes[0], fd.get(), 4096, {hook});
 
   // Closing the read end of the pipe and the file should not have any
   // impact as we dup the file descriptor.
