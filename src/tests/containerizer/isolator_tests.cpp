@@ -99,32 +99,17 @@ public:
 };
 
 
-class NamespacesPidIsolatorTest : public MesosTest {};
-
-
-TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
+TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
 {
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,namespaces/pid";
-
-  string directory = os::getcwd(); // We're inside a temporary sandbox.
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  ASSERT_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/pid");
+  ASSERT_SOME(containerizer);
 
   // Write the command's pid namespace inode and init name to files.
   const string command =
     "stat -c %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
 
-  Future<bool> launch = containerizer->launch(
+  process::Future<bool> launch = containerizer.get()->launch(
       containerId,
       None(),
       createExecutorInfo("executor", command),
@@ -138,7 +123,9 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   ASSERT_TRUE(launch.get());
 
   // Wait on the container.
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(containerId);
+
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
 
