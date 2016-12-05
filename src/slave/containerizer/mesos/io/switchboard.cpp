@@ -29,8 +29,8 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
-
 #include <process/process.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
@@ -607,6 +607,13 @@ private:
   // with the same format we receive them in.
   Future<http::Response> handler(const http::Request& request);
 
+  // Validate `ATTACH_CONTAINER_INPUT` calls.
+  //
+  // TODO(klueska): Move this to `src/slave/validation.hpp` and make
+  // the agent validate all the calls before forwarding them to the
+  // switchboard.
+  Option<Error> validate(const agent::Call::AttachContainerInput& call);
+
   // Handle `ATTACH_CONTAINER_INPUT` calls.
   Future<http::Response> attachContainerInput(
       const Owned<recordio::Reader<agent::Call>>& reader);
@@ -628,11 +635,12 @@ private:
   int stderrToFd;
   unix::Socket socket;
   bool waitForConnection;
+  bool inputConnected;
   Promise<Nothing> promise;
   Promise<Nothing> startRedirect;
   // The following must be a `std::list`
   // for proper erase semantics later on.
-  list<HttpConnection> connections;
+  list<HttpConnection> outputConnections;
   Option<Failure> failure;
 };
 
@@ -734,15 +742,12 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     stderrFromFd(_stderrFromFd),
     stderrToFd(_stderrToFd),
     socket(_socket),
-    waitForConnection(_waitForConnection) {}
+    waitForConnection(_waitForConnection),
+    inputConnected(false) {}
 
 
 Future<Nothing> IOSwitchboardServerProcess::run()
 {
-  // TODO(jieyu): This silence the compiler warning of private field
-  // being not used. Remove this once it is used.
-  stdinToFd = -1;
-
   if (!waitForConnection) {
     startRedirect.set(Nothing());
   }
@@ -838,7 +843,7 @@ Future<Nothing> IOSwitchboardServerProcess::run()
 
 void IOSwitchboardServerProcess::finalize()
 {
-  foreach (HttpConnection& connection, connections) {
+  foreach (HttpConnection& connection, outputConnections) {
     connection.close();
   }
 
@@ -934,14 +939,21 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
           [=](const Result<agent::Call>& call) -> Future<http::Response> {
             if (call.isNone()) {
               return http::BadRequest(
-                  "Received EOF while reading request body");
+                  "IOSwitchboard received EOF while reading request body");
             }
 
             if (call.isError()) {
               return Failure(call.error());
             }
 
+            // Should have already been validated by the agent.
+            CHECK(call->has_type());
             CHECK_EQ(agent::Call::ATTACH_CONTAINER_INPUT, call->type());
+            CHECK(call->has_attach_container_input());
+            CHECK_EQ(mesos::agent::Call::AttachContainerInput::CONTAINER_ID,
+                     call->attach_container_input().type());
+            CHECK(call->attach_container_input().has_container_id());
+            CHECK(call->attach_container_input().container_id().has_value());
 
             return attachContainerInput(reader);
           }));
@@ -957,6 +969,8 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
               return http::BadRequest(call.error());
             }
 
+            // Should have already been validated by the agent.
+            CHECK(call->has_type());
             CHECK_EQ(agent::Call::ATTACH_CONTAINER_OUTPUT, call->type());
 
             return attachContainerOutput(acceptType);
@@ -965,10 +979,203 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
 }
 
 
+Option<Error> IOSwitchboardServerProcess::validate(
+    const agent::Call::AttachContainerInput& call)
+{
+  switch (call.type()) {
+    case agent::Call::AttachContainerInput::UNKNOWN:
+    case agent::Call::AttachContainerInput::CONTAINER_ID: {
+        return Error(
+            "Expecting 'attach_container_input.type' to be 'PROCESS_IO'"
+             " instead of: '" + stringify(call.type()) + "'");
+    }
+    case agent::Call::AttachContainerInput::PROCESS_IO: {
+      if (!call.has_process_io()) {
+        return Error(
+            "Expecting 'attach_container_input.process_io' to be present");
+      }
+
+      const agent::ProcessIO& message = call.process_io();
+
+      if (!message.has_type()) {
+        return Error("Expecting 'process_io.type' to be present");
+      }
+
+      switch (message.type()) {
+        case agent::ProcessIO::UNKNOWN: {
+          return Error("'process_io.type' is unknown");
+        }
+        case agent::ProcessIO::CONTROL: {
+          if (!message.has_control()) {
+            return Error("Expecting 'process_io.control' to be present");
+          }
+
+          if (!message.control().has_type()) {
+            return Error("Expecting 'process_io.control.type' to be present");
+          }
+
+          switch (message.control().type()) {
+            case agent::ProcessIO::Control::UNKNOWN: {
+              return Error("'process_io.control.type' is unknown");
+            }
+            case agent::ProcessIO::Control::TTY_INFO: {
+              if (!message.control().has_tty_info()) {
+                return Error(
+                    "Expecting 'process_io.control.tty_info' to be present");
+              }
+
+              const TTYInfo& ttyInfo = message.control().tty_info();
+
+              if (!ttyInfo.has_window_size()) {
+                return Error("Expecting 'tty_info.window_size' to be present");
+              }
+            }
+          }
+
+          return None();
+        }
+        case agent::ProcessIO::DATA: {
+          if (!message.has_data()) {
+            return Error("Expecting 'process_io.data' to be present");
+          }
+
+          if (!message.data().has_type()) {
+            return Error("Expecting 'process_io.data.type' to be present");
+          }
+
+          if (message.data().type() != agent::ProcessIO::Data::STDIN) {
+            return Error("Expecting 'process_io.data.type' to be 'STDIN'");
+          }
+
+          if (!message.data().has_data()) {
+            return Error("Expecting 'process_io.data.data' to be present");
+          }
+
+          return None();
+        }
+      }
+    }
+  }
+
+  UNREACHABLE();
+}
+
+
 Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
     const Owned<recordio::Reader<agent::Call>>& reader)
 {
-  return http::NotImplemented("ATTACH_CONTAINER_INPUT");
+  // Only allow a single input connection at a time.
+  if (inputConnected) {
+    return http::Conflict("Multiple input connections are not allowed");
+  }
+
+  // We set `inputConnected` to true here and then reset it to false
+  // at the bottom of this function once our asynchronous loop has
+  // terminated. This way another connection can be established once
+  // the current one is complete.
+  inputConnected = true;
+
+  // Loop through each record and process it. Return a proper
+  // response once the last record has been fully processed.
+  Owned<http::Response> response(new http::Response());
+
+  return loop(
+      self(),
+      [=]() {
+        return reader->read();
+      },
+      [=](const Result<agent::Call>& record) -> Future<bool> {
+        if (record.isNone()) {
+          *response = http::OK();
+          return false;
+        }
+
+        if (record.isError()) {
+          *response = http::BadRequest(record.error());
+          return false;
+        }
+
+        // Should have already been validated by the agent.
+        CHECK(record->has_type());
+        CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, record->type());
+        CHECK(record->has_attach_container_input());
+
+        // Validate the rest of the `AttachContainerInput` message.
+        Option<Error> error = validate(record->attach_container_input());
+        if (error.isSome()) {
+          *response = http::BadRequest(error->message);
+          return false;
+        }
+
+        const agent::ProcessIO& message =
+          record->attach_container_input().process_io();
+
+        switch (message.type()) {
+          case agent::ProcessIO::CONTROL: {
+            // TODO(klueska): Return a failure if the container we are
+            // attaching to does not have a tty associated with it.
+
+            // Update the window size.
+            Try<Nothing> window = os::setWindowSize(
+                stdinToFd,
+                message.control().tty_info().window_size().rows(),
+                message.control().tty_info().window_size().columns());
+
+            if (window.isError()) {
+              *response = http::BadRequest(
+                  "Unable to set the window size: "  + window.error());
+              return false;
+            }
+
+            return true;
+          }
+          case agent::ProcessIO::DATA: {
+            // Write the STDIN data to `stdinToFd`. If there is a
+            // failure, we set the `failure` member variable and exit
+            // the loop. In the resulting `.then()` callback, we then
+            // terminate the process. We don't terminate the process
+            // here because we want to propagate an `InternalServerError`
+            // back to the client.
+            Owned<Promise<bool>> condition(new Promise<bool>());
+
+            process::io::write(stdinToFd, message.data().data())
+              .onAny(defer(self(), [this, condition, response](
+                  const Future<Nothing>& future) {
+                if (future.isReady()) {
+                  condition->set(true);
+                  return;
+                }
+
+                failure = Failure(
+                    "Failed writing to stdin:"
+                    " " + (future.isFailed() ? future.failure() : "discarded"));
+
+                *response = http::InternalServerError(failure->message);
+
+                condition->set(false);
+              }));
+
+            return condition->future();
+          }
+          default: {
+            UNREACHABLE();
+          }
+        }
+      })
+    .then(defer(self(), [this, response](
+        const Future<Nothing> future) -> http::Response {
+      // Reset `inputConnected` to allow future input connections.
+      inputConnected = false;
+
+      // We only set `failure` if writing to `stdin` failed, in which
+      // case we want to terminate ourselves (after flushing any
+      // outstanding messages from our message queue).
+      if (failure.isSome()) {
+        terminate(self(), false);
+      }
+
+      return *response;
+    }));
 }
 
 
@@ -987,7 +1194,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerOutput(
   // connection. If we ever detect a connection has been closed,
   // we remove it from this list.
   HttpConnection connection(pipe.writer(), acceptType);
-  auto iterator = connections.insert(connections.end(), connection);
+  auto iterator = outputConnections.insert(outputConnections.end(), connection);
 
   // We use the `startRedirect` promise to indicate when we should
   // begin reading data from our `stdoutFromFd` and `stderrFromFd`
@@ -1002,7 +1209,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerOutput(
     .then(defer(self(), [this, iterator]() {
       // Erasing from a `std::list` only invalidates the iterator of
       // the object being erased. All other iterators remain valid.
-      connections.erase(iterator);
+      outputConnections.erase(iterator);
       return Nothing();
     }));
 
@@ -1015,7 +1222,7 @@ void IOSwitchboardServerProcess::outputHook(
     const agent::ProcessIO::Data::Type& type)
 {
   // Break early if there are no connections to send the data to.
-  if (connections.size() == 0) {
+  if (outputConnections.size() == 0) {
     return;
   }
 
@@ -1032,7 +1239,7 @@ void IOSwitchboardServerProcess::outputHook(
   // the `HttpConnection::closed()` call above. We might do a few
   // unnecessary writes if we have a bunch of messages queued up,
   // but that shouldn't be a problem.
-  foreach (HttpConnection& connection, connections) {
+  foreach (HttpConnection& connection, outputConnections) {
     connection.send(message);
   }
 }
