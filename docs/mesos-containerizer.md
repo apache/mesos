@@ -282,6 +282,15 @@ the container&mdash; in the agent's [/state](endpoints/slave/state.md) endpoint.
 This is described in a [separate document](docker-volume.md).
 
 
+### The `namespaces/ipc` Isolator
+
+The IPC Namespace isolator can be used on Linux to place tasks
+in a distinct IPC namespace. The benefit of this is that any
+[IPC objects](http://man7.org/linux/man-pages/man7/svipc.7.html) created
+in the container will be automatically removed when the container is
+destroyed.
+
+
 ### The `network/cni` Isolator
 
 This is described in a [separate document](cni.md).
