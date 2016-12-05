@@ -329,6 +329,8 @@ TEST_P(DefaultExecutorTest, KillTask)
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
   taskGroup.add_tasks()->CopyFrom(taskInfo2);
 
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -351,11 +353,17 @@ TEST_P(DefaultExecutorTest, KillTask)
 
   AWAIT_READY(runningUpdate1);
   ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
-  EXPECT_EQ(taskInfo1.task_id(), runningUpdate1->status().task_id());
 
   AWAIT_READY(runningUpdate2);
   ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
-  EXPECT_EQ(taskInfo2.task_id(), runningUpdate2->status().task_id());
+
+  // When running a task, TASK_RUNNING updates for the tasks in a task
+  // group can be received in any order.
+  const hashset<v1::TaskID> tasksRunning{
+    runningUpdate1->status().task_id(),
+    runningUpdate2->status().task_id()};
+
+  ASSERT_EQ(tasks, tasksRunning);
 
   // Acknowledge the TASK_RUNNING updates to receive the next updates.
 
@@ -385,13 +393,6 @@ TEST_P(DefaultExecutorTest, KillTask)
     mesos.send(call);
   }
 
-  // When killing a task, TASK_KILLED update for the tasks in a task
-  // group can be received in any order.
-  hashset<v1::TaskID> tasks;
-
-  tasks.insert(taskInfo1.task_id());
-  tasks.insert(taskInfo2.task_id());
-
   Future<v1::scheduler::Event::Update> killedUpdate1;
   Future<v1::scheduler::Event::Update> killedUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
@@ -414,13 +415,17 @@ TEST_P(DefaultExecutorTest, KillTask)
 
   AWAIT_READY(killedUpdate1);
   ASSERT_EQ(TASK_KILLED, killedUpdate1->status().state());
-  ASSERT_TRUE(tasks.contains(killedUpdate1->status().task_id()));
-
-  tasks.erase(killedUpdate1->status().task_id());
 
   AWAIT_READY(killedUpdate2);
   ASSERT_EQ(TASK_KILLED, killedUpdate2->status().state());
-  ASSERT_TRUE(tasks.contains(killedUpdate2->status().task_id()));
+
+  // When killing a task, TASK_KILLED updates for the tasks in a task
+  // group can be received in any order.
+  const hashset<v1::TaskID> tasksKilled{
+    killedUpdate1->status().task_id(),
+    killedUpdate2->status().task_id()};
+
+  ASSERT_EQ(tasks, tasksKilled);
 }
 
 
@@ -495,8 +500,6 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
 
-  // TODO(anand): The TASK_RUNNING updates for the tasks in a task group
-  // can arrive in any order.
   Future<v1::scheduler::Event::Update> runningUpdate1;
   Future<v1::scheduler::Event::Update> runningUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
@@ -512,6 +515,8 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
   v1::TaskInfo taskInfo2 =
     evolve(createTask(slaveId, resources, "sleep 1000"));
+
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
@@ -539,11 +544,17 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
   AWAIT_READY(runningUpdate1);
   ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
-  EXPECT_EQ(taskInfo1.task_id(), runningUpdate1->status().task_id());
 
   AWAIT_READY(runningUpdate2);
   ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
-  EXPECT_EQ(taskInfo2.task_id(), runningUpdate2->status().task_id());
+
+  // When running a task, TASK_RUNNING updates for the tasks in a task
+  // group can be received in any order.
+  const hashset<v1::TaskID> tasksRunning{
+    runningUpdate1->status().task_id(),
+    runningUpdate2->status().task_id()};
+
+  ASSERT_EQ(tasks, tasksRunning);
 
   // Acknowledge the TASK_RUNNING updates to receive the next updates.
 
