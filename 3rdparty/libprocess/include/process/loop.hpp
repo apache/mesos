@@ -91,21 +91,48 @@ namespace process {
 // And now what this looks like using `loop`:
 //
 //     loop(pid,
-//          []() { return iterate(); },
+//          []() {
+//            return iterate();
+//          },
 //          [](T t) {
 //            return body(t);
 //          });
-template <typename Iterate, typename Body>
-Future<Nothing> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body);
+//
+// One difference between the `loop` version of the "body" versus the
+// other non-loop examples above is the return value is not `bool` or
+// `Future<bool>` but rather `ControlFlow<V>` or
+// `Future<ControlFlow<V>>`. This enables you to return values out of
+// the loop via a `Break(...)`, for example:
+//
+//     loop(pid,
+//          []() {
+//            return iterate();
+//          },
+//          [](T t) {
+//            if (finished(t)) {
+//              return Break(SomeValue());
+//            }
+//            return Continue();
+//          });
+template <typename Iterate,
+          typename Body,
+          typename T = typename internal::unwrap<typename result_of<Iterate()>::type>::type, // NOLINT(whitespace/line_length)
+          typename CF = typename internal::unwrap<typename result_of<Body(T)>::type>::type, // NOLINT(whitespace/line_length)
+          typename V = typename CF::ValueType>
+Future<V> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body);
 
 
 // A helper for `loop` which creates a Process for us to provide an
 // execution context for running the loop.
-template <typename Iterate, typename Body>
-Future<Nothing> loop(Iterate&& iterate, Body&& body)
+template <typename Iterate,
+          typename Body,
+          typename T = typename internal::unwrap<typename result_of<Iterate()>::type>::type, // NOLINT(whitespace/line_length)
+          typename CF = typename internal::unwrap<typename result_of<Body(T)>::type>::type, // NOLINT(whitespace/line_length)
+          typename V = typename CF::ValueType>
+Future<V> loop(Iterate&& iterate, Body&& body)
 {
   ProcessBase* process = new ProcessBase();
-  return loop(
+  return loop<Iterate, Body, T, CF, V>(
       spawn(process, true), // Have libprocess free `process`.
       std::forward<Iterate>(iterate),
       std::forward<Body>(body))
@@ -117,10 +144,117 @@ Future<Nothing> loop(Iterate&& iterate, Body&& body)
 }
 
 
+// Generic "control flow" construct that is leveraged by
+// implementations such as `loop`. At a high-level a `ControlFlow`
+// represents some control flow statement such as `continue` or
+// `break`, however, these statements can both have values or be
+// value-less (i.e., these are meant to be composed "functionally" so
+// the representation of `break` captures a value that "exits the
+// current function" but the representation of `continue` does not).
+//
+// The pattern here is to define the type/representation of control
+// flow statements within the `ControlFlow` class (e.g.,
+// `ControlFlow::Continue` and `ControlFlow::Break`) but also provide
+// "syntactic sugar" to make it easier to use at the call site (e.g.,
+// the functions `Continue()` and `Break(...)`).
+template <typename T>
+class ControlFlow
+{
+public:
+  using ValueType = T;
+
+  enum class Statement
+  {
+    CONTINUE,
+    BREAK
+  };
+
+  class Continue
+  {
+  public:
+    Continue() = default;
+
+    template <typename U>
+    operator ControlFlow<U>() const
+    {
+      return ControlFlow<U>(ControlFlow<U>::Statement::CONTINUE, None());
+    }
+  };
+
+  class Break
+  {
+  public:
+    Break(T t) : t(std::move(t)) {}
+
+    template <typename U>
+    operator ControlFlow<U>() const &
+    {
+      return ControlFlow<U>(ControlFlow<U>::Statement::BREAK, t);
+    }
+
+    template <typename U>
+    operator ControlFlow<U>() &&
+    {
+      return ControlFlow<U>(ControlFlow<U>::Statement::BREAK, std::move(t));
+    }
+
+  private:
+    T t;
+  };
+
+  Statement statement() const { return s; }
+
+  T& value() & { return t.get(); }
+  const T& value() const & { return t.get(); }
+  T&& value() && { return t.get(); }
+  const T&& value() const && { return t.get(); }
+
+private:
+  template <typename U>
+  friend class ControlFlow<U>::Continue;
+  template <typename U>
+  friend class ControlFlow<U>::Break;
+
+  ControlFlow(Statement s, Option<T> t)
+    : s(s), t(std::move(t)) {}
+
+  Statement s;
+  Option<T> t;
+};
+
+
+// Provides "syntactic sugar" for creating a `ControlFlow::Continue`.
+struct Continue
+{
+  Continue() = default;
+
+  template <typename T>
+  operator ControlFlow<T>() const
+  {
+    return typename ControlFlow<T>::Continue();
+  }
+};
+
+
+// Provides "syntactic sugar" for creating a `ControlFlow::Break`.
+template <typename T>
+typename ControlFlow<typename std::decay<T>::type>::Break Break(T&& t)
+{
+  return typename ControlFlow<typename std::decay<T>::type>::Break(
+      std::forward<T>(t));
+}
+
+
+inline ControlFlow<Nothing>::Break Break()
+{
+  return ControlFlow<Nothing>::Break(Nothing());
+}
+
+
 namespace internal {
 
-template <typename Iterate, typename Body, typename T>
-class Loop : public std::enable_shared_from_this<Loop<Iterate, Body, T>>
+template <typename Iterate, typename Body, typename T, typename R>
+class Loop : public std::enable_shared_from_this<Loop<Iterate, Body, T, R>>
 {
 public:
   Loop(const Option<UPID>& pid, const Iterate& iterate, const Body& body)
@@ -140,7 +274,7 @@ public:
     return std::weak_ptr<Loop>(shared());
   }
 
-  Future<Nothing> start()
+  Future<R> start()
   {
     auto self = shared();
     auto weak_self = weak();
@@ -200,39 +334,47 @@ public:
     discard = []() {};
 
     while (next.isReady()) {
-      Future<bool> condition = body(next.get());
-      if (condition.isReady()) {
-        if (condition.get()) {
-          next = iterate();
-          continue;
-        } else {
-          promise.set(Nothing());
-          return;
+      Future<ControlFlow<R>> flow = body(next.get());
+      if (flow.isReady()) {
+        switch (flow->statement()) {
+          case ControlFlow<R>::Statement::CONTINUE: {
+            next = iterate();
+            continue;
+          }
+          case ControlFlow<R>::Statement::BREAK: {
+            promise.set(flow->value());
+            return;
+          }
         }
       } else {
-        auto continuation = [self](const Future<bool>& condition) {
-          if (condition.isReady()) {
-            if (condition.get()) {
-              self->run(self->iterate());
-            } else {
-              self->promise.set(Nothing());
+        auto continuation = [self](const Future<ControlFlow<R>>& flow) {
+          if (flow.isReady()) {
+            switch (flow->statement()) {
+              case ControlFlow<R>::Statement::CONTINUE: {
+                self->run(self->iterate());
+                break;
+              }
+              case ControlFlow<R>::Statement::BREAK: {
+                self->promise.set(flow->value());
+                break;
+              }
             }
-          } else if (condition.isFailed()) {
-            self->promise.fail(condition.failure());
-          } else if (condition.isDiscarded()) {
+          } else if (flow.isFailed()) {
+            self->promise.fail(flow.failure());
+          } else if (flow.isDiscarded()) {
             self->promise.discard();
           }
         };
 
         if (pid.isSome()) {
-          condition.onAny(defer(pid.get(), continuation));
+          flow.onAny(defer(pid.get(), continuation));
         } else {
-          condition.onAny(continuation);
+          flow.onAny(continuation);
         }
 
         if (!promise.future().hasDiscard()) {
           synchronized (mutex) {
-            self->discard = [=]() mutable { condition.discard(); };
+            self->discard = [=]() mutable { flow.discard(); };
           }
         }
 
@@ -242,7 +384,7 @@ public:
         // discard occurs we'll need to explicitly do discards for
         // each new future that blocks.
         if (promise.future().hasDiscard()) {
-          condition.discard();
+          flow.discard();
         }
 
         return;
@@ -282,7 +424,7 @@ private:
   const Option<UPID> pid;
   Iterate iterate;
   Body body;
-  Promise<Nothing> promise;
+  Promise<R> promise;
 
   // In order to discard the loop safely we capture the future that
   // needs to be discarded within the `discard` function and reading
@@ -294,16 +436,14 @@ private:
 } // namespace internal {
 
 
-template <typename Iterate, typename Body>
-Future<Nothing> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body)
+template <typename Iterate, typename Body, typename T, typename CF, typename V>
+Future<V> loop(const Option<UPID>& pid, Iterate&& iterate, Body&& body)
 {
-  using T =
-    typename internal::unwrap<typename result_of<Iterate()>::type>::type;
-
   using Loop = internal::Loop<
     typename std::decay<Iterate>::type,
     typename std::decay<Body>::type,
-    T>;
+    T,
+    V>;
 
   std::shared_ptr<Loop> loop(
       new Loop(pid, std::forward<Iterate>(iterate), std::forward<Body>(body)));

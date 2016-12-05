@@ -1607,9 +1607,9 @@ Future<Nothing> send(
       [=]() mutable {
         return pipeline.get();
       },
-      [=](const Option<Item>& item) -> Future<bool> {
+      [=](const Option<Item>& item) -> Future<ControlFlow<Nothing>> {
         if (item.isNone()) {
-          return false;
+          return Break();
         }
 
         Request* request = item->request;
@@ -1638,7 +1638,7 @@ Future<Nothing> send(
                 case Response::NONE: return send(socket, response, request);
               }
             }()
-            .then([=]() {
+            .then([=]() -> ControlFlow<Nothing> {
               // Persist the connection if the request expects it and
               // the response doesn't include 'Connection: close'.
               bool persist = request->keepAlive;
@@ -1647,7 +1647,10 @@ Future<Nothing> send(
                   persist = false;
                 }
               }
-              return persist;
+              if (persist) {
+                return Continue();
+              }
+              return Break();
             });
           })
           .onAny([=]() {
@@ -1678,9 +1681,9 @@ Future<Nothing> receive(
       [=]() {
         return socket.recv(data, size);
       },
-      [=](size_t length) mutable -> Future<bool> {
+      [=](size_t length) mutable -> Future<ControlFlow<Nothing>> {
         if (length == 0) {
-          return false;
+          return Break();
         }
 
         // Decode as much of the data as possible into HTTP requests.
@@ -1706,7 +1709,7 @@ Future<Nothing> receive(
           pipeline.put(Item{request, f(*request)});
         }
 
-        return true; // Keep looping!
+        return Continue(); // Keep looping!
       })
     .onAny([=]() {
       delete decoder;
@@ -1794,15 +1797,15 @@ Future<Nothing> serve(
              [=]() mutable {
                return pipeline.get();
              },
-             [=](Option<Item> item) {
+             [=](Option<Item> item) -> ControlFlow<Nothing> {
                if (item.isNone()) {
-                 return false;
+                 return Break();
                }
                delete item->request;
                if (promise->future().hasDiscard()) {
                  item->response.discard();
                }
-               return true;
+               return Continue();
              });
       }
 

@@ -329,9 +329,9 @@ Future<Nothing> splice(
       [=]() {
         return io::read(from, data.get(), chunk);
       },
-      [=](size_t length) -> Future<bool> {
+      [=](size_t length) -> Future<ControlFlow<Nothing>> {
         if (length == 0) { // EOF.
-          return false;
+          return Break();
         }
 
         // Send the data to the redirect hooks.
@@ -341,8 +341,8 @@ Future<Nothing> splice(
         }
 
         return io::write(to, s)
-          .then([]() {
-            return true;
+          .then([]() -> Future<ControlFlow<Nothing>> {
+            return Continue();
           });
       });
 }
@@ -444,7 +444,13 @@ Future<Nothing> write(int fd, const string& data)
         nonblock.error());
   }
 
+  // We store `data.size()` so that we can just use `size` in the
+  // second lambda below versus having to make a copy of `data` in
+  // both lambdas since `data` might be very big and two copies could
+  // be expensive!
   const size_t size = data.size();
+
+  // We need to share the `index` between both lambdas below.
   std::shared_ptr<size_t> index(new size_t(0));
 
   return loop(
@@ -452,8 +458,11 @@ Future<Nothing> write(int fd, const string& data)
       [=]() {
         return io::write(fd, data.data() + *index, size - *index);
       },
-      [=](size_t length) {
-        return (*index += length) != size;
+      [=](size_t length) -> ControlFlow<Nothing> {
+        if ((*index += length) != size) {
+          return Continue();
+        }
+        return Break();
       })
     .onAny([fd]() {
         os::close(fd);
