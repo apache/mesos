@@ -536,7 +536,7 @@ Future<Nothing> IOSwitchboard::cleanup(
   infos.erase(containerId);
 
   return status
-    .then(defer, self(), [this, containerId]() {
+    .then(defer(self(), [this, containerId]() {
       // Best effort removal of the unix domain socket file created for
       // this container's `IOSwitchboardServer`. If it hasn't been
       // checkpointed yet, or the socket file itself hasn't been created,
@@ -555,7 +555,7 @@ Future<Nothing> IOSwitchboard::cleanup(
       }
 
       return Nothing();
-    });
+    }));
 #endif // __WINDOWS__
 }
 
