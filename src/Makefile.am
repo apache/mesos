@@ -341,10 +341,15 @@ V1_JAVA_PROTOS =							\
   java/generated/org/apache/mesos/v1/quota/Protos.java			\
   java/generated/org/apache/mesos/v1/scheduler/Protos.java
 
-V1_PYTHON_PROTOS =							\
-  python/interface/src/mesos/v1/interface/mesos_pb2.py			\
+V1_PYTHON_PROTOS =                                                      \
+  python/interface/src/mesos/v1/interface/agent_pb2.py                  \
+  python/interface/src/mesos/v1/interface/allocator_pb2.py              \
+  python/interface/src/mesos/v1/interface/executor_pb2.py               \
+  python/interface/src/mesos/v1/interface/maintenance_pb2.py            \
+  python/interface/src/mesos/v1/interface/master_pb2.py                 \
+  python/interface/src/mesos/v1/interface/mesos_pb2.py                  \
+  python/interface/src/mesos/v1/interface/quota_pb2.py                  \
   python/interface/src/mesos/v1/interface/scheduler_pb2.py
-
 
 BUILT_SOURCES +=							\
   $(CXX_LOG_PROTOS)							\
@@ -445,9 +450,33 @@ python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 		--python_out=python/interface/src/mesos/interface $^
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
+python/interface/src/mesos/v1/interface/agent_pb2.py: $(V1_AGENT_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/agent $(PROTOCFLAGS)		\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
+python/interface/src/mesos/v1/interface/allocator_pb2.py: $(V1_ALLOCATOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/allocator $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
 python/interface/src/mesos/v1/interface/executor_pb2.py: $(V1_EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
+python/interface/src/mesos/v1/interface/maintenance_pb2.py: $(V1_MAINTENANCE_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/maintenance $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
+python/interface/src/mesos/v1/interface/master_pb2.py: $(V1_MASTER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/master $(PROTOCFLAGS)	\
 		--python_out=python/interface/src/mesos/v1/interface $^
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
@@ -455,6 +484,12 @@ python/interface/src/mesos/v1/interface/mesos_pb2.py: $(V1_MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1 $(PROTOCFLAGS)		\
 		--python_out=python/interface/src/mesos/v1/interface $^
+
+python/interface/src/mesos/v1/interface/quota_pb2.py: $(V1_QUOTA_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/quota $(PROTOCFLAGS)		\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
