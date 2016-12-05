@@ -38,10 +38,9 @@ inline bool wsa_initialize()
   // Check that the WinSock version we got back is 2.2 or higher.
   // The high-order byte specifies the minor version number.
   if (LOBYTE(data.wVersion) < 2 ||
-      (LOBYTE(data.wVersion) == 2 &&
-      HIBYTE(data.wVersion) != 2)) {
+      (LOBYTE(data.wVersion) == 2 && HIBYTE(data.wVersion) != 2)) {
     LOG(ERROR) << "Incorrect WinSock version found : " << LOBYTE(data.wVersion)
-      << "." << HIBYTE(data.wVersion);
+               << "." << HIBYTE(data.wVersion);
 
     // WinSock was initialized, we just didn't like the version, so we need to
     // clean up.
@@ -96,25 +95,14 @@ inline bool wsa_cleanup()
 // interupted, the operation can be restarted imediately.
 // The error will append on Windows only when the operation
 // is interupted using  `WSACancelBlockingCall`.
-inline bool is_restartable_error(int error)
-{
-  return (error == WSAEINTR);
-}
+inline bool is_restartable_error(int error) { return (error == WSAEINTR); }
 
 
 // The error indicates the last socket function on a non-blocking socket
 // cannot be completed. This is a temporary condition and the caller can
 // retry the operation later.
-inline bool is_retryable_error(int error)
-{
-  return (error == WSAEWOULDBLOCK);
-}
-
-
-inline bool is_inprogress_error(int error)
-{
-  return (error == WSAEWOULDBLOCK);
-}
+inline bool is_retryable_error(int error) { return (error == WSAEWOULDBLOCK); }
+inline bool is_inprogress_error(int error) { return (error == WSAEWOULDBLOCK); }
 
 
 inline bool is_socket(SOCKET fd)
@@ -122,12 +110,8 @@ inline bool is_socket(SOCKET fd)
   int value = 0;
   int length = sizeof(int);
 
-  if (::getsockopt(
-          fd,
-          SOL_SOCKET,
-          SO_TYPE,
-          (char*) &value,
-          &length) == SOCKET_ERROR) {
+  if (::getsockopt(fd, SOL_SOCKET, SO_TYPE, (char*)&value, &length) ==
+      SOCKET_ERROR) {
     switch (WSAGetLastError()) {
       case WSAENOTSOCK:
         return false;
@@ -143,21 +127,21 @@ inline bool is_socket(SOCKET fd)
 // NOTE: The below wrappers are used to silence some implicit
 // type-casting warnings.
 
-inline int bind(int socket, const struct sockaddr *addr, size_t addrlen)
+inline int bind(int socket, const struct sockaddr* addr, size_t addrlen)
 {
   CHECK_LE(addrlen, INT32_MAX);
   return ::bind(socket, addr, static_cast<int>(addrlen));
 }
 
 
-inline int connect(int socket, const struct sockaddr *address, size_t addrlen)
+inline int connect(int socket, const struct sockaddr* address, size_t addrlen)
 {
   CHECK_LE(addrlen, INT32_MAX);
   return ::connect(socket, address, static_cast<int>(addrlen));
 }
 
 
-inline ssize_t send(int sockfd, const void *buf, size_t len, int flags)
+inline ssize_t send(int sockfd, const void* buf, size_t len, int flags)
 {
   CHECK_LE(len, INT32_MAX);
   return ::send(
@@ -165,10 +149,10 @@ inline ssize_t send(int sockfd, const void *buf, size_t len, int flags)
 }
 
 
-inline size_t recv(int sockfd, void *buf, size_t len, int flags)
+inline size_t recv(int sockfd, void* buf, size_t len, int flags)
 {
   CHECK_LE(len, INT32_MAX);
-  return ::recv(sockfd, static_cast<char *>(buf), static_cast<int>(len), flags);
+  return ::recv(sockfd, static_cast<char*>(buf), static_cast<int>(len), flags);
 }
 
 } // namespace net {
