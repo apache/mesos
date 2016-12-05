@@ -18,6 +18,9 @@ import "mesos/v1/mesos.proto";
 
 package mesos.v1.allocator;
 
+option java_package = "org.apache.mesos.v1.allocator";
+option java_outer_classname = "Protos";
+
 
 /**
  * Describes the status of an inverse offer.
