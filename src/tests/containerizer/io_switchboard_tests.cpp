@@ -233,9 +233,10 @@ TEST_F(IOSwitchboardServerTest, ServerAttachOutput)
 
   http::Request request;
   request.method = "POST";
-  request.url = http::URL("http", "", 80, "/");
+  request.url.domain = "";
+  request.url.path = "/";
   request.keepAlive = true;
-  request.headers["Accept"] = APPLICATION_JSON;
+  request.headers["Accept"] = APPLICATION_STREAMING_JSON;
   request.headers["Content-Type"] = APPLICATION_JSON;
   request.body = stringify(JSON::protobuf(call));
 
@@ -244,8 +245,8 @@ TEST_F(IOSwitchboardServerTest, ServerAttachOutput)
 
   Future<http::Connection> _connection = http::connect(address.get());
   AWAIT_READY(_connection);
-
   http::Connection connection = _connection.get();
+
   Future<http::Response> response = connection.send(request, true);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -292,6 +293,9 @@ TEST_F(IOSwitchboardServerTest, ServerAttachOutput)
       stderrReceived += message.data().data();
     }
   }
+
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
 
   AWAIT_ASSERT_READY(runServer);
 
