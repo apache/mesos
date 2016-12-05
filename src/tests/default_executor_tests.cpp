@@ -14,22 +14,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include <gmock/gmock.h>
+
 #include <gtest/gtest.h>
 
-#include <string>
+#include <mesos/resources.hpp>
 
 #include <mesos/v1/executor.hpp>
+#include <mesos/v1/mesos.hpp>
 #include <mesos/v1/scheduler.hpp>
 
+#include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/hashset.hpp>
+#include <stout/json.hpp>
+#include <stout/none.hpp>
+#include <stout/nothing.hpp>
+#include <stout/path.hpp>
 
+#include <stout/os/exists.hpp>
+
+#include "slave/paths.hpp"
+
+#include "tests/cluster.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
