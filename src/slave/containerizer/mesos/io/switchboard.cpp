@@ -862,6 +862,7 @@ void IOSwitchboardServerProcess::acceptLoop()
       if (!socket.isReady()) {
         failure = Failure("Failed trying to accept connection");
         terminate(self(), false);
+        return;
       }
 
       // We intentionally ignore errors on the serve path, and assume
