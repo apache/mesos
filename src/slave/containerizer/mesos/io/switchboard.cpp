@@ -484,6 +484,10 @@ Future<http::Connection> IOSwitchboard::connect(
 #ifdef __WINDOWS__
   return Failure("Not supported on Windows");
 #else
+  if (local) {
+    return Failure("Not supported in local mode");
+  }
+
   if (!flags.io_switchboard_enable_server) {
     return Failure("Support for running an io switchboard"
                    " server was disabled by the agent");
