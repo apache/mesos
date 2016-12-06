@@ -123,13 +123,6 @@ class IOSwitchboardServer
 public:
   static const char NAME[];
 
-  // Constant FD numbers used by I/O switchboard server.
-  static const int STDIN_TO_FD;
-  static const int STDOUT_FROM_FD;
-  static const int STDERR_FROM_FD;
-  static const int STDOUT_TO_FD;
-  static const int STDERR_TO_FD;
-
   static Try<process::Owned<IOSwitchboardServer>> create(
       bool tty,
       int stdinToFd,
@@ -192,30 +185,25 @@ struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
 
     add(&IOSwitchboardServerFlags::stdin_to_fd,
         "stdin_to_fd",
-        "The file descriptor where incoming stdin data should be written.",
-        IOSwitchboardServer::STDIN_TO_FD);
+        "The file descriptor where incoming stdin data should be written.");
 
     add(&IOSwitchboardServerFlags::stdout_from_fd,
         "stdout_from_fd",
-        "The file descriptor that should be read to consume stdout data.",
-        IOSwitchboardServer::STDOUT_FROM_FD);
+        "The file descriptor that should be read to consume stdout data.");
 
     add(&IOSwitchboardServerFlags::stdout_to_fd,
         "stdout_to_fd",
         "A file descriptor where data read from\n"
-        "'stdout_from_fd' should be redirected to.",
-        IOSwitchboardServer::STDOUT_TO_FD);
+        "'stdout_from_fd' should be redirected to.");
 
     add(&IOSwitchboardServerFlags::stderr_from_fd,
         "stderr_from_fd",
-        "The file descriptor that should be read to consume stderr data.",
-        IOSwitchboardServer::STDERR_FROM_FD);
+        "The file descriptor that should be read to consume stderr data.");
 
     add(&IOSwitchboardServerFlags::stderr_to_fd,
         "stderr_to_fd",
         "A file descriptor where data read from\n"
-        "'stderr_from_fd' should be redirected to.",
-        IOSwitchboardServer::STDERR_TO_FD);
+        "'stderr_from_fd' should be redirected to.");
 
     add(&IOSwitchboardServerFlags::wait_for_connection,
         "wait_for_connection",

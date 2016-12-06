@@ -498,10 +498,9 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // Set up our flags to send to the io switchboard server process.
   IOSwitchboardServerFlags switchboardFlags;
   switchboardFlags.tty = hasTTY;
-
-  // We use the default values for other file descriptor flags. Since
-  // I/O switchboard server's stdout and stderr will be redirected to
-  // the logger, we explicitly set the flags here.
+  switchboardFlags.stdin_to_fd = stdinToFd;
+  switchboardFlags.stdout_from_fd = stdoutFromFd;
+  switchboardFlags.stderr_from_fd = stderrFromFd;
   switchboardFlags.stdout_to_fd = STDOUT_FILENO;
   switchboardFlags.stderr_to_fd = STDERR_FILENO;
 
@@ -550,15 +549,9 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       None(),
       {},
       {Subprocess::ChildHook::SETSID(),
-       Subprocess::ChildHook::DUP2(
-           stdinToFd,
-           IOSwitchboardServer::STDIN_TO_FD),
-       Subprocess::ChildHook::DUP2(
-           stdoutFromFd,
-           IOSwitchboardServer::STDOUT_FROM_FD),
-       Subprocess::ChildHook::DUP2(
-           stderrFromFd,
-           IOSwitchboardServer::STDERR_FROM_FD)});
+       Subprocess::ChildHook::UNSET_CLOEXEC(stdinToFd),
+       Subprocess::ChildHook::UNSET_CLOEXEC(stdoutFromFd),
+       Subprocess::ChildHook::UNSET_CLOEXEC(stderrFromFd)});
 
   if (child.isError()) {
     close(openedFds);
@@ -768,11 +761,6 @@ Future<Nothing> IOSwitchboard::cleanup(
 
 #ifndef __WINDOWS__
 const char IOSwitchboardServer::NAME[]          = "mesos-io-switchboard";
-const int  IOSwitchboardServer::STDIN_TO_FD     = STDERR_FILENO + 1;
-const int  IOSwitchboardServer::STDOUT_FROM_FD  = STDERR_FILENO + 2;
-const int  IOSwitchboardServer::STDERR_FROM_FD  = STDERR_FILENO + 3;
-const int  IOSwitchboardServer::STDOUT_TO_FD    = STDERR_FILENO + 4;
-const int  IOSwitchboardServer::STDERR_TO_FD    = STDERR_FILENO + 5;
 
 
 class IOSwitchboardServerProcess : public Process<IOSwitchboardServerProcess>
