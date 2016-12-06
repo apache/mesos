@@ -204,6 +204,12 @@ public:
      * `ChildHook` for duplicating a file descriptor.
      */
     static ChildHook DUP2(int oldFd, int newFd);
+
+    /**
+     * `ChildHook` to unset CLOEXEC on a file descriptor. This is
+     * useful to explicitly pass an FD to a subprocess.
+     */
+    static ChildHook UNSET_CLOEXEC(int fd);
 #endif // __WINDOWS__
 
     /**

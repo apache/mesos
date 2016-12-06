@@ -98,6 +98,14 @@ Subprocess::ChildHook Subprocess::ChildHook::DUP2(int oldFd, int newFd)
     return os::dup2(oldFd, newFd);
   });
 }
+
+
+Subprocess::ChildHook Subprocess::ChildHook::UNSET_CLOEXEC(int fd)
+{
+  return Subprocess::ChildHook([fd]() -> Try<Nothing> {
+    return os::unsetCloexec(fd);
+  });
+}
 #endif // __WINDOWS__
 
 
