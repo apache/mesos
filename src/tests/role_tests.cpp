@@ -396,7 +396,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 
   Future<FrameworkID> frameworkId1;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId1));;
+    .WillOnce(FutureArg<1>(&frameworkId1));
 
   driver1.start();
 
@@ -409,7 +409,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 
   Future<FrameworkID> frameworkId2;
   EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId2));;
+    .WillOnce(FutureArg<1>(&frameworkId2));
 
   driver2.start();
 
