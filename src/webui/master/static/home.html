@@ -166,7 +166,7 @@
       </thead>
       <tbody>
         <tr data-ng-if="active_tasks.length === 0">
-          <td colspan="6">No active tasks.</td>
+          <td colspan="7">No active tasks.</td>
         </tr>
         <tr ng-repeat="task in $data">
           <td>
@@ -220,7 +220,7 @@
       </thead>
       <tbody>
         <tr data-ng-if="completed_tasks.length === 0">
-          <td colspan="7">No completed tasks.</td>
+          <td colspan="8">No completed tasks.</td>
         </tr>
         <tr ng-repeat="task in $data">
           <td>{{task.framework_id}}</td>
@@ -269,7 +269,7 @@
         </thead>
         <tbody>
           <tr data-ng-if="orphan_tasks.length === 0">
-            <td colspan="7">No orphan tasks.</td>
+            <td colspan="8">No orphan tasks.</td>
           </tr>
           <tr ng-repeat="task in $data">
             <td>{{task.framework_id}}</td>
