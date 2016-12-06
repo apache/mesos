@@ -88,6 +88,7 @@ endif (LINUX)
 set(MESOS_TESTS_SRC
   ${MESOS_TESTS_SRC}
   ${MESOS_TESTS_UTILS_SRC}
+  authentication_tests.cpp
   )
 
 if (NOT WIN32)
@@ -96,7 +97,6 @@ if (NOT WIN32)
     anonymous_tests.cpp
     api_tests.cpp
     attributes_tests.cpp
-    authentication_tests.cpp
     authorization_tests.cpp
     command_executor_tests.cpp
     container_logger_tests.cpp

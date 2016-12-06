@@ -440,6 +440,7 @@ set(MESOS_SRC
   ${FILES_SRC}
   ${HEALTH_CHECK_SRC}
   ${INTERNAL_SRC}
+  ${LOCAL_SRC}
   ${LOGGING_SRC}
   ${MASTER_SRC}
   ${MESSAGES_SRC}
@@ -458,7 +459,6 @@ if (NOT WIN32)
   set(MESOS_SRC
     ${MESOS_SRC}
     ${HDFS_SRC}
-    ${LOCAL_SRC}
     ${LOG_SRC}
     ${POSIX_SRC}
     )
