@@ -1,13 +1,21 @@
+---
+title: Apache Mesos - POSIX Resource Limits Support in Mesos Containerizer
+layout: documentation
+---
+
 # POSIX Resource Limits Support in Mesos Containerizer
 
 This document describes the `posix/rlimits` isolator. The isolator adds support
 for setting POSIX resource limits (rlimits) for containers launched using the
 [Mesos containerizer](mesos-containerizer.md).
 
-POSIX rlimits can be used control the resources a process can consume.  Resource
+
+## POSIX Resource Limits
+
+POSIX rlimits can be used control the resources a process can consume. Resource
 limits are typically set at boot time and inherited when a child process is
 forked from a parent process; resource limits can also be modified via
-`setrlimit(2)`.  In many interactive shells, resource limits can be inspected or
+`setrlimit(2)`. In many interactive shells, resource limits can be inspected or
 modified with the `ulimit` shell built-in.
 
 A POSIX resource limit consist of a _soft_ and a _hard_ limit. The soft limit
@@ -20,10 +28,14 @@ of resources that can be consumed by a user; users can employ soft resource
 limits to ensure that one of their tasks only consumes a limited amount of the
 global hard resource limit.
 
+
+## Setting POSIX Resource Limits for Tasks
+
 This isolator permits setting per-task resource limits. This isolator interprets
 rlimits specified as part of a task's `ContainerInfo` for the Mesos
 containerizer, e.g.,
-```{.json}
+
+~~~{.json}
 {
   "container": {
     "type": "MESOS",
@@ -41,16 +53,16 @@ containerizer, e.g.,
     }
   }
 }
-```
+~~~
 
 To enable interpretation of rlimits, agents need to
 be started with `posix/rlimits` in its `--isolation` flag, e.g.,
 
-```{.console}
+~~~{.console}
 mesos-agent --master=<master ip> --ip=<agent ip>
   --work_dir=/var/lib/mesos
   --isolation=posix/rlimits[,other isolation flags]
-```
+~~~
 
 To set a hard limit for a task larger than the current value of the hard limit,
 the agent process needs to be under a privileged user (with the
@@ -61,24 +73,80 @@ POSIX currently defines a base set of resources, see
 Linux defines additional resource limits, see e.g., the documentation of
 `setrlimit(2)`.
 
-Resource          | Comment
------------------ | ------
-`RLIMIT_CORE`     | _POSIX_: This is the maximum size of a core file, in bytes, that may be created by a process.
-`RLIMIT_CPU`      | _POSIX_: This is the maximum amount of CPU time, in seconds, used by a process.
-`RLIMIT_DATA`     | _POSIX_: This is the maximum size of a process' data segment, in bytes.
-`RLIMIT_FSIZE`    | _POSIX_: This is the maximum size of a file, in bytes, that may be created by a process.
-`RLIMIT_NOFILE`   | _POSIX_: This is a number one greater than the maximum value that the system may assign to a newly-created descriptor.
-`RLIMIT_STACK`    | _POSIX_: This is the maximum size of the initial thread's stack, in bytes.
-`RLIMIT_AS`       | _POSIX_: This is the maximum size of a process' total available memory, in bytes.
-`RLMT_LOCKS`      | _Linux_: (Early Linux 2.4 only) A limit on the combined number of `flock(2)` locks and `fcntl(2)` leases that this process may establish.
-`RLMT_MEMLOCK`    | _Linux_: The maximum number of bytes of memory that may be locked into RAM.
-`RLMT_MSGQUEUE`   | _Linux_: Specifies the limit on the number of bytes that can be allocated for POSIX message queues for the real user ID of the calling process.
-`RLMT_NICE`       | _Linux_: (Since Linux 2.6.12) Specifies a ceiling to which the process's nice value can be raised using `setpriority(2)` or `nice(2)`.
-`RLMT_NPROC`      | _Linux_: The maximum number of processes (or, more precisely on Linux, threads) that can be created for the real user ID of the calling process.
-`RLMT_RSS`        | _Linux_: Specifies the limit (in pages) of the process's resident set (the number of virtual pages resident in RAM).
-`RLMT_RTPRIO`     | _Linux_: (Since Linux 2.6.12) Specifies a ceiling on the real-time priority that may be set for this process using sched_setscheduler(2) and sched_setparam(2).
-`RLMT_RTTIME`     | _Linux_: (Since Linux 2.6.25) Specifies a limit (in microseconds) on the amount of CPU time that a process scheduled under a real-time scheduling policy may consume without making a blocking system call.
-`RLMT_SIGPENDING` | _Linux_: (Since Linux 2.6.8) Specifies the limit on the number of signals that may be queued for the real user ID of the calling process.
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Resource</th>
+      <th>Comment</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>RLIMIT_CORE</code></td>
+      <td><em>POSIX</em>: This is the maximum size of a core file, in bytes, that may be created by a process.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_CPU</code></td>
+      <td><em>POSIX</em>: This is the maximum amount of CPU time, in seconds, used by a process.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_DATA</code></td>
+      <td><em>POSIX</em>: This is the maximum size of a process' data segment, in bytes.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_FSIZE</code></td>
+      <td><em>POSIX</em>: This is the maximum size of a file, in bytes, that may be created by a process.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_NOFILE</code></td>
+      <td><em>POSIX</em>: This is a number one greater than the maximum value that the system may assign to a newly-created descriptor.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_STACK</code></td>
+      <td><em>POSIX</em>: This is the maximum size of the initial thread's stack, in bytes.</td>
+    </tr>
+    <tr>
+      <td><code>RLIMIT_AS</code></td>
+      <td><em>POSIX</em>: This is the maximum size of a process' total available memory, in bytes.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_LOCKS</code></td>
+      <td><em>Linux</em>: (Early Linux 2.4 only) A limit on the combined number of <code>flock(2)</code> locks and <code>fcntl(2)</code> leases that this process may establish.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_MEMLOCK</code></td>
+      <td><em>Linux</em>: The maximum number of bytes of memory that may be locked into RAM.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_MSGQUEUE</code></td>
+      <td><em>Linux</em>: Specifies the limit on the number of bytes that can be allocated for POSIX message queues for the real user ID of the calling process.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_NICE</code></td>
+      <td><em>Linux</em>: (Since Linux 2.6.12) Specifies a ceiling to which the process's nice value can be raised using <code>setpriority(2)</code> or <code>nice(2)</code>.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_NPROC</code></td>
+      <td><em>Linux</em>: The maximum number of processes (or, more precisely on Linux, threads) that can be created for the real user ID of the calling process.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_RSS</code></td>
+      <td><em>Linux</em>: Specifies the limit (in pages) of the process's resident set (the number of virtual pages resident in RAM).</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_RTPRIO</code></td>
+      <td><em>Linux</em>: (Since Linux 2.6.12) Specifies a ceiling on the real-time priority that may be set for this process using sched_setscheduler(2) and sched_setparam(2).</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_RTTIME</code></td>
+      <td><em>Linux</em>: (Since Linux 2.6.25) Specifies a limit (in microseconds) on the amount of CPU time that a process scheduled under a real-time scheduling policy may consume without making a blocking system call.</td>
+    </tr>
+    <tr>
+      <td><code>RLMT_SIGPENDING</code></td>
+      <td><em>Linux</em>: (Since Linux 2.6.8) Specifies the limit on the number of signals that may be queued for the real user ID of the calling process.</td>
+    </tr>
+  </tbody>
+</table>
 
 Mesos maps these resource types onto `RLimit` types, where by convention the
 prefix `RLMT_` is used in place of `RLIMIT_` above. Not all limits types are
