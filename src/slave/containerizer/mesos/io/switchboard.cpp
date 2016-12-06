@@ -1169,6 +1169,13 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
             return true;
           }
           case agent::ProcessIO::DATA: {
+            // Receiving a `DATA` message with length 0 indicates
+            // `EOF` so we should close `stdinToFd`.
+            if (message.data().data().length() == 0) {
+              os::close(stdinToFd);
+              return true;
+            }
+
             // Write the STDIN data to `stdinToFd`. If there is a
             // failure, we set the `failure` member variable and exit
             // the loop. In the resulting `.then()` callback, we then
