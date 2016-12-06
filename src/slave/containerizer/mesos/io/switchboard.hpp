@@ -26,6 +26,7 @@
 
 #include <stout/try.hpp>
 
+#include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/container_logger.hpp>
 
 #include "slave/flags.hpp"
@@ -67,6 +68,9 @@ public:
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
+
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+    const ContainerID& containerId);
 
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);

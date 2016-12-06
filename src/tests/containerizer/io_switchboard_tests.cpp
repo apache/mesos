@@ -35,6 +35,8 @@
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 
+#include "slave/containerizer/mesos/paths.hpp"
+
 #include "slave/containerizer/mesos/io/switchboard.hpp"
 
 #include "tests/environment.hpp"
@@ -45,6 +47,8 @@ namespace http = process::http;
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
+
+namespace paths = mesos::internal::slave::containerizer::paths;
 
 using mesos::agent::Call;
 using mesos::agent::ProcessIO;
@@ -508,6 +512,74 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   EXPECT_SOME_EQ("HelloWorld", os::read(path::join(directory.get(), "stdout")));
 }
 
+
+// This test verifies that a container will be
+// destroyed if its io switchboard exits unexpectedly.
+TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
+  flags.io_switchboard_enable_server = true;
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  ExecutorInfo executorInfo = createExecutorInfo(
+      "executor",
+      "sleep 1000",
+      "cpus:1");
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executorInfo,
+      directory.get(),
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Result<pid_t> pid = paths::getContainerIOSwitchboardPid(
+        flags.runtime_dir, containerId);
+
+  ASSERT_SOME(pid);
+
+  ASSERT_EQ(0, os::kill(pid.get(), SIGKILL));
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+
+  ASSERT_TRUE(wait.get()->reasons().size() == 1);
+  ASSERT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED,
+            wait.get()->reasons().Get(0));
+}
 #endif // __WINDOWS__
 
 } // namespace tests {

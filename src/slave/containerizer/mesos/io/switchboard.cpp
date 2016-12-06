@@ -89,6 +89,7 @@ using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerIO;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
@@ -641,6 +642,59 @@ Future<http::Connection> IOSwitchboard::connect(
   }
 
   return http::connect(address.get());
+#endif // __WINDOWS__
+}
+
+
+Future<ContainerLimitation> IOSwitchboard::watch(
+    const ContainerID& containerId)
+{
+#ifdef __WINDOWS__
+  return Future<ContainerLimitation>();
+#else
+  if (local) {
+    return Future<ContainerLimitation>();
+  }
+
+  // We ignore unknown containers here because legacy containers
+  // without an io switchboard directory will not have an info struct
+  // created for during recovery. Likewise, containers launched
+  // by a previous agent with io switchboard server mode disabled will
+  // not have info structs created for them either. In both cases
+  // there is nothing to watch, so we return an unsatisfiable future.
+  if (!infos.contains(containerId)) {
+    return Future<ContainerLimitation>();
+  }
+
+  Future<Option<int>> status = infos[containerId]->status;
+
+  return status
+    .then([](const Option<int>& status) {
+      if (status.isNone()) {
+        return Future<ContainerLimitation>();
+      }
+
+      if (status.isSome() &&
+          WIFEXITED(status.get()) &&
+          WEXITSTATUS(status.get()) == 0) {
+        return Future<ContainerLimitation>();
+      }
+
+      ContainerLimitation limitation;
+      limitation.set_reason(TaskStatus::REASON_IO_SWITCHBOARD_EXITED);
+
+      if (WIFEXITED(status.get())) {
+        limitation.set_message(
+            "'IOSwitchboard' exited with status:"
+            " " + stringify(WEXITSTATUS(status.get())));
+      } else if (WIFSIGNALED(status.get())) {
+        limitation.set_message(
+            "'IOSwitchboard' exited with signal:"
+            " " + stringify(strsignal(WTERMSIG(status.get()))));
+      }
+
+      return Future<ContainerLimitation>(limitation);
+    });
 #endif // __WINDOWS__
 }
 
