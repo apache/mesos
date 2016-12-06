@@ -139,13 +139,23 @@ Result<int> getContainerStatus(
 
 
 #ifndef __WINDOWS__
-string getContainerIOSwitchboardPidPath(
+string getContainerIOSwitchboardPath(
     const string& runtimeDir,
     const ContainerID& containerId)
 {
   return path::join(
       getRuntimePath(runtimeDir, containerId),
-      IO_SWITCHBOARD_PID_FILE);
+      IO_SWITCHBOARD_DIRECTORY);
+}
+
+
+string getContainerIOSwitchboardPidPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getContainerIOSwitchboardPath(runtimeDir, containerId),
+      PID_FILE);
 }
 
 
@@ -185,8 +195,8 @@ string getContainerIOSwitchboardSocketPath(
     const ContainerID& containerId)
 {
   return path::join(
-      getRuntimePath(runtimeDir, containerId),
-      IO_SWITCHBOARD_SOCKET_FILE);
+      getContainerIOSwitchboardPath(runtimeDir, containerId),
+      SOCKET_FILE);
 }
 
 

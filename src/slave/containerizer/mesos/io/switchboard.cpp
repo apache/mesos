@@ -230,6 +230,22 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
                    " '" + stringify(containerId) + "'");
   }
 
+  // We start by creating a directory to hold checkpointed files
+  // related to the io switchboard server we are about to launch. The
+  // existence of this directory indicates that we intended to launch
+  // a server on behalf of a container. The lack of any expected files
+  // in this directroy during recovery/cleanup indicates that
+  // something went wrong and we need to take appropriate action.
+  string path = containerizer::paths::getContainerIOSwitchboardPath(
+      flags.runtime_dir, containerId);
+
+  Try<Nothing> mkdir = os::mkdir(path);
+  if (mkdir.isError()) {
+    return Failure("Error creating 'IOSwitchboard' checkpoint directory"
+                   " for container '" + stringify(containerId) + "':"
+                   " " + mkdir.error());
+  }
+
   // Return the set of fds that should be sent to the
   // container and dup'd onto its stdin/stdout/stderr.
   ContainerLaunchInfo launchInfo;
@@ -455,9 +471,8 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 
   // Now that the child has come up, we checkpoint the socket
   // address we told it to bind to so we can access it later.
-  const string path =
-    containerizer::paths::getContainerIOSwitchboardSocketPath(
-        flags.runtime_dir, containerId);
+  path = containerizer::paths::getContainerIOSwitchboardSocketPath(
+      flags.runtime_dir, containerId);
 
   Try<Nothing> checkpointed = slave::state::checkpoint(
       path, switchboardFlags.socket_path);
