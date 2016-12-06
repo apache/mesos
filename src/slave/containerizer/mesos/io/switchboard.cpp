@@ -550,9 +550,25 @@ Future<Nothing> IOSwitchboard::cleanup(
     return Nothing();
   }
 
+  Option<pid_t> pid = infos[containerId]->pid;
   Future<Option<int>> status = infos[containerId]->status;
 
   infos.erase(containerId);
+
+  // If we have a pid, then we attempt to send it a SIGTERM to have it
+  // shutdown gracefully. This is best effort, as it's likely that the
+  // switchboard has already shutdown in the common case.
+  //
+  // NOTE: There is an unfortunate race condition here. If the io
+  // switchboard terminates and the pid is reused by some other
+  // process, we might be sending SIGTERM to a random process. This
+  // could be a problem under high load.
+  //
+  // TODO(klueska): Send a message over the io switchboard server's
+  // domain socket instead of using a signal.
+  if (pid.isSome()) {
+    os::kill(pid.get(), SIGTERM);
+  }
 
   return status
     .then(defer(self(), [this, containerId]() {
