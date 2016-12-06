@@ -33,6 +33,16 @@ inline Try<Nothing> cloexec(int fd)
 
 
 // NOTE: This is not supported on Windows.
+inline Try<Nothing> unsetCloexec(int fd)
+{
+  LOG(WARNING) << "`os::unsetCloexec` has been called, "
+               << "but is a no-op on Windows";
+
+  return Nothing();
+}
+
+
+// NOTE: This is not supported on Windows.
 inline Try<bool> isCloexec(int fd)
 {
   LOG(WARNING) << "`os::isCloexec` has been called, but is a stub on Windows";

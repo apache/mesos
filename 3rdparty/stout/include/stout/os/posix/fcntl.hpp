@@ -40,6 +40,22 @@ inline Try<Nothing> cloexec(int fd)
 }
 
 
+inline Try<Nothing> unsetCloexec(int fd)
+{
+  int flags = ::fcntl(fd, F_GETFD);
+
+  if (flags == -1) {
+    return ErrnoError();
+  }
+
+  if (::fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC) == -1) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
 inline Try<bool> isCloexec(int fd)
 {
   int flags = ::fcntl(fd, F_GETFD);

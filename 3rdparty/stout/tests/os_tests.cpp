@@ -132,6 +132,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
   ASSERT_SOME(fd);
   EXPECT_SOME_TRUE(os::isCloexec(fd.get()));
 
+  ASSERT_SOME(os::unsetCloexec(fd.get()));
+  EXPECT_SOME_FALSE(os::isCloexec(fd.get()));
+
   close(fd.get());
 
   fd = os::open(
@@ -141,6 +144,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
 
   ASSERT_SOME(fd);
   EXPECT_SOME_FALSE(os::isCloexec(fd.get()));
+
+  ASSERT_SOME(os::cloexec(fd.get()));
+  EXPECT_SOME_TRUE(os::isCloexec(fd.get()));
 
   close(fd.get());
 }
