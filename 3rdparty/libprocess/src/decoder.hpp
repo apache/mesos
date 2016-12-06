@@ -45,6 +45,8 @@ public:
   DataDecoder()
     : failure(false), request(nullptr)
   {
+    http_parser_settings_init(&settings);
+
     settings.on_message_begin = &DataDecoder::on_message_begin;
     settings.on_url = &DataDecoder::on_url;
     settings.on_header_field = &DataDecoder::on_header_field;
@@ -284,6 +286,8 @@ public:
   ResponseDecoder()
     : failure(false), header(HEADER_FIELD), response(nullptr)
   {
+    http_parser_settings_init(&settings);
+
     settings.on_message_begin = &ResponseDecoder::on_message_begin;
     settings.on_url = &ResponseDecoder::on_url;
     settings.on_header_field = &ResponseDecoder::on_header_field;
@@ -496,6 +500,8 @@ public:
   StreamingResponseDecoder()
     : failure(false), header(HEADER_FIELD), response(nullptr)
   {
+    http_parser_settings_init(&settings);
+
     settings.on_message_begin =
       &StreamingResponseDecoder::on_message_begin;
     settings.on_url =
@@ -743,6 +749,8 @@ public:
   explicit StreamingRequestDecoder()
     : failure(false), header(HEADER_FIELD), request(nullptr)
   {
+    http_parser_settings_init(&settings);
+
     settings.on_message_begin =
       &StreamingRequestDecoder::on_message_begin;
     settings.on_url =
