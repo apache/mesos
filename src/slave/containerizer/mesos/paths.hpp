@@ -41,6 +41,7 @@ constexpr char PID_FILE[] = "pid";
 constexpr char STATUS_FILE[] = "status";
 constexpr char TERMINATION_FILE[] = "termination";
 constexpr char IO_SWITCHBOARD_SOCKET_FILE[] = "io_switchboard.sock";
+constexpr char IO_SWITCHBOARD_PID_FILE[] = "io_switchboard.pid";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 
 
@@ -97,6 +98,18 @@ Result<int> getContainerStatus(
 
 
 #ifndef __WINDOWS__
+// The helper method to get the io switchboard pid file path.
+std::string getContainerIOSwitchboardPidPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to get the io switchboard pid.
+Result<pid_t> getContainerIOSwitchboardPid(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
 // The helper method to get the socket file path.
 std::string getContainerIOSwitchboardSocketPath(
     const std::string& runtimeDir,
