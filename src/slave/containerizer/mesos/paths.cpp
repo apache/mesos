@@ -230,6 +230,31 @@ Result<unix::Address> getContainerIOSwitchboardAddress(
 #endif // __WINDOWS__
 
 
+std::string getContainerForceDestroyOnRecoveryPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      FORCE_DESTROY_ON_RECOVERY_FILE);
+}
+
+
+bool getContainerForceDestroyOnRecovery(
+    const std::string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getContainerForceDestroyOnRecoveryPath(
+      runtimeDir, containerId);
+
+  if (os::exists(path)) {
+    return true;
+  }
+
+  return false;
+}
+
+
 Result<ContainerTermination> getContainerTermination(
     const string& runtimeDir,
     const ContainerID& containerId)
