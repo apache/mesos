@@ -35,7 +35,7 @@ namespace process {
 namespace io {
 namespace internal {
 
-Future<size_t> read(int fd, void* data, size_t size)
+Future<size_t> read(int_fd fd, void* data, size_t size)
 {
   // TODO(benh): Let the system calls do what ever they're supposed to
   // rather than return 0 here?
@@ -85,7 +85,7 @@ Future<size_t> read(int fd, void* data, size_t size)
 }
 
 
-Future<size_t> write(int fd, const void* data, size_t size)
+Future<size_t> write(int_fd fd, const void* data, size_t size)
 {
   // TODO(benh): Let the system calls do what ever they're supposed to
   // rather than return 0 here?
@@ -131,7 +131,7 @@ Future<size_t> write(int fd, const void* data, size_t size)
 } // namespace internal {
 
 
-Future<size_t> read(int fd, void* data, size_t size)
+Future<size_t> read(int_fd fd, void* data, size_t size)
 {
   process::initialize();
 
@@ -150,7 +150,7 @@ Future<size_t> read(int fd, void* data, size_t size)
 }
 
 
-Future<size_t> write(int fd, const void* data, size_t size)
+Future<size_t> write(int_fd fd, const void* data, size_t size)
 {
   process::initialize();
 
@@ -173,8 +173,8 @@ Future<size_t> write(int fd, const void* data, size_t size)
 namespace internal {
 
 Future<Nothing> splice(
-    int from,
-    int to,
+    int_fd from,
+    int_fd to,
     size_t chunk,
     const vector<lambda::function<void(const string&)>>& hooks)
 {
@@ -206,7 +206,7 @@ Future<Nothing> splice(
 } // namespace internal {
 
 
-Future<string> read(int fd)
+Future<string> read(int_fd fd)
 {
   process::initialize();
 
@@ -219,10 +219,12 @@ Future<string> read(int fd)
     return Failure(os::strerror(EBADF));
   }
 
-  fd = dup(fd);
-  if (fd == -1) {
-    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  Try<int_fd> dup = os::dup(fd);
+  if (dup.isError()) {
+    return Failure(dup.error());
   }
+
+  fd = dup.get();
 
   // Set the close-on-exec flag.
   Try<Nothing> cloexec = os::cloexec(fd);
@@ -265,17 +267,7 @@ Future<string> read(int fd)
 }
 
 
-#ifdef __WINDOWS__
-// NOTE: Ordinarily this would go in a Windows-specific header; we put it here
-// to avoid complex forward declarations.
-Future<string> read(HANDLE handle)
-{
-  return read(_open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY));
-}
-#endif // __WINDOWS__
-
-
-Future<Nothing> write(int fd, const string& data)
+Future<Nothing> write(int_fd fd, const string& data)
 {
   process::initialize();
 
@@ -288,10 +280,12 @@ Future<Nothing> write(int fd, const string& data)
     return Failure(os::strerror(EBADF));
   }
 
-  fd = dup(fd);
-  if (fd == -1) {
-    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  Try<int_fd> dup = os::dup(fd);
+  if (dup.isError()) {
+    return Failure(dup.error());
   }
+
+  fd = dup.get();
 
   // Set the close-on-exec flag.
   Try<Nothing> cloexec = os::cloexec(fd);
@@ -338,8 +332,8 @@ Future<Nothing> write(int fd, const string& data)
 
 
 Future<Nothing> redirect(
-    int from,
-    Option<int> to,
+    int_fd from,
+    Option<int_fd> to,
     size_t chunk,
     const vector<lambda::function<void(const string&)>>& hooks)
 {
@@ -350,7 +344,7 @@ Future<Nothing> redirect(
 
   if (to.isNone()) {
     // Open up /dev/null that we can splice into.
-    Try<int> open = os::open("/dev/null", O_WRONLY | O_CLOEXEC);
+    Try<int_fd> open = os::open("/dev/null", O_WRONLY | O_CLOEXEC);
 
     if (open.isError()) {
       return Failure("Failed to open /dev/null for writing: " + open.error());
@@ -359,22 +353,24 @@ Future<Nothing> redirect(
     to = open.get();
   } else {
     // Duplicate 'to' so that we're in control of its lifetime.
-    int fd = dup(to.get());
-    if (fd == -1) {
-      return Failure(ErrnoError("Failed to duplicate 'to' file descriptor"));
+    Try<int_fd> dup = os::dup(to.get());
+    if (dup.isError()) {
+      return Failure(dup.error());
     }
 
-    to = fd;
+    to = dup.get();
   }
 
   CHECK_SOME(to);
 
   // Duplicate 'from' so that we're in control of its lifetime.
-  from = dup(from);
-  if (from == -1) {
+  Try<int_fd> dup = os::dup(from);
+  if (dup.isError()) {
     os::close(to.get());
     return Failure(ErrnoError("Failed to duplicate 'from' file descriptor"));
   }
+
+  from = dup.get();
 
   // Set the close-on-exec flag (no-op if already set).
   Try<Nothing> cloexec = os::cloexec(from);
@@ -411,24 +407,6 @@ Future<Nothing> redirect(
     .onAny([from]() { os::close(from); })
     .onAny([to]() { os::close(to.get()); });
 }
-
-
-#ifdef __WINDOWS__
-// NOTE: Ordinarily this would go in a Windows-specific header; we put it here
-// to avoid complex forward declarations.
-Future<Nothing> redirect(
-    HANDLE from,
-    Option<int> to,
-    size_t chunk,
-    const vector<lambda::function<void(const string&)>>& hooks)
-{
-  return redirect(
-      _open_osfhandle(reinterpret_cast<intptr_t>(from), O_RDWR),
-      to,
-      chunk,
-      hooks);
-}
-#endif // __WINDOWS__
 
 } // namespace io {
 } // namespace process {

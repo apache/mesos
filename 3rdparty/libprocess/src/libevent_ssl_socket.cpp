@@ -28,6 +28,10 @@
 #include <stout/net.hpp>
 #include <stout/synchronized.hpp>
 
+#include <stout/os/close.hpp>
+#include <stout/os/dup.hpp>
+#include <stout/os/fcntl.hpp>
+
 #include "libevent.hpp"
 #include "libevent_ssl_socket.hpp"
 #include "openssl.hpp"
@@ -104,7 +108,7 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
   //
   // Release ownership of the file descriptor so that
   // we can defer closing the socket.
-  int fd = release();
+  int_fd fd = release();
   CHECK(fd >= 0);
 
   evconnlistener* _listener = listener;
@@ -761,7 +765,7 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
 
 
 Future<size_t> LibeventSSLSocketImpl::sendfile(
-    int fd,
+    int_fd fd,
     off_t offset,
     size_t size)
 {
@@ -784,10 +788,12 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
   // future versions of Libevent. In Libevent versions 2.1.2 and later,
   // we may use `evbuffer_file_segment_new` and `evbuffer_add_file_segment`
   // instead of `evbuffer_add_file`.
-  int owned_fd = dup(fd);
-  if (owned_fd < 0) {
-    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  Try<int_fd> dup = os::dup(fd);
+  if (dup.isError()) {
+    return Failure(dup.error());
   }
+
+  int_fd owned_fd = dup.get();
 
   // Set the close-on-exec flag.
   Try<Nothing> cloexec = os::cloexec(owned_fd);

@@ -142,7 +142,7 @@ TEST_F(IOTest, BufferedRead)
   // First read from a file.
   ASSERT_SOME(os::write("file", data));
 
-  Try<int> fd = os::open("file", O_RDONLY | O_CLOEXEC);
+  Try<int_fd> fd = os::open("file", O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);
 
   AWAIT_EXPECT_EQ(data, io::read(fd.get()));
@@ -306,7 +306,7 @@ TEST_F(IOTest, Redirect)
   Try<string> path = os::mktemp();
   ASSERT_SOME(path);
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path.get(),
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

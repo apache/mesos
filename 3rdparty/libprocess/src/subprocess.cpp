@@ -206,6 +206,64 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
 }
 
 
+Subprocess::IO Subprocess::FD(int_fd fd, IO::FDType type)
+{
+  return Subprocess::IO(
+      [fd, type]() -> Try<InputFileDescriptors> {
+        int_fd prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATED: {
+            Try<int_fd> dup = os::dup(fd);
+            if (dup.isError()) {
+              return Error(dup.error());
+            }
+
+            prepared_fd = dup.get();
+            break;
+          }
+          case IO::OWNED: {
+            prepared_fd = fd;
+            break;
+          }
+
+            // NOTE: By not setting a default we leverage the compiler
+            // errors when the enumeration is augmented to find all
+            // the cases we need to provide. Same for below.
+        }
+
+        InputFileDescriptors fds;
+        fds.read = prepared_fd;
+        return fds;
+      },
+      [fd, type]() -> Try<OutputFileDescriptors> {
+        int_fd prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATED: {
+            Try<int_fd> dup = os::dup(fd);
+            if (dup.isError()) {
+              return Error(dup.error());
+            }
+
+            prepared_fd = dup.get();
+            break;
+          }
+          case IO::OWNED: {
+            prepared_fd = fd;
+            break;
+          }
+
+            // NOTE: By not setting a default we leverage the compiler
+            // errors when the enumeration is augmented to find all
+            // the cases we need to provide. Same for below.
+        }
+
+        OutputFileDescriptors fds;
+        fds.write = prepared_fd;
+        return fds;
+      });
+}
+
+
 namespace internal {
 
 static void cleanup(

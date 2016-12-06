@@ -28,12 +28,12 @@ using net::socket;
 
 
 // TODO(benh): Remove and defer to Socket::accept.
-inline Try<int> accept(int s)
+inline Try<int_fd> accept(int_fd s)
 {
   sockaddr_storage storage;
   socklen_t length = sizeof(storage);
 
-  int accepted = ::accept(s, (sockaddr*) &storage, &length);
+  int_fd accepted = net::accept(s, (sockaddr*) &storage, &length);
   if (accepted < 0) {
     return ErrnoError("Failed to accept");
   }
@@ -43,7 +43,7 @@ inline Try<int> accept(int s)
 
 
 // TODO(benh): Remove and defer to Socket::bind.
-inline Try<Nothing> bind(int s, const Address& address)
+inline Try<Nothing> bind(int_fd s, const Address& address)
 {
   sockaddr_storage storage = address;
 
@@ -56,7 +56,7 @@ inline Try<Nothing> bind(int s, const Address& address)
 
 
 // TODO(benh): Remove and defer to Socket::connect.
-inline Try<Nothing, SocketError> connect(int s, const Address& address)
+inline Try<Nothing, SocketError> connect(int_fd s, const Address& address)
 {
   sockaddr_storage storage = address;
 
@@ -74,12 +74,12 @@ inline Try<Nothing, SocketError> connect(int s, const Address& address)
  * @return An `Address` or an error if the `getsockname` system call
  *     fails or the family type is not supported.
  */
-inline Try<Address> address(int s)
+inline Try<Address> address(int_fd s)
 {
   sockaddr_storage storage;
   socklen_t length = sizeof(storage);
 
-  if (::getsockname(s, (sockaddr*) &storage, &length) < 0) {
+  if (::getsockname(s, (sockaddr*)&storage, &length) < 0) {
     return ErrnoError("Failed to getsockname");
   }
 
@@ -93,12 +93,12 @@ inline Try<Address> address(int s)
  * @return An `Address` or an error if the `getpeername` system call
  *     fails or the family type is not supported.
  */
-inline Try<Address> peer(int s)
+inline Try<Address> peer(int_fd s)
 {
   sockaddr_storage storage;
   socklen_t length = sizeof(storage);
 
-  if (::getpeername(s, (sockaddr*) &storage, &length) < 0) {
+  if (::getpeername(s, (sockaddr*)&storage, &length) < 0) {
     return ErrnoError("Failed to getpeername");
   }
 

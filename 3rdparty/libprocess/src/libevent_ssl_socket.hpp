@@ -44,7 +44,7 @@ public:
   virtual Future<size_t> recv(char* data, size_t size);
   // Send does not currently support discard. See implementation.
   virtual Future<size_t> send(const char* data, size_t size);
-  virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);
+  virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size);
   virtual Try<Nothing> listen(int backlog);
   virtual Future<std::shared_ptr<SocketImpl>> accept();
   virtual SocketImpl::Kind kind() const { return SocketImpl::Kind::SSL; }

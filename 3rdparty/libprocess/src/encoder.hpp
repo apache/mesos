@@ -243,7 +243,7 @@ public:
 class FileEncoder : public Encoder
 {
 public:
-  FileEncoder(int _fd, size_t _size)
+  FileEncoder(int_fd _fd, size_t _size)
     : fd(_fd), size(_size), index(0) {}
 
   virtual ~FileEncoder()
@@ -256,7 +256,7 @@ public:
     return Encoder::FILE;
   }
 
-  virtual int next(off_t* offset, size_t* length)
+  virtual int_fd next(off_t* offset, size_t* length)
   {
     off_t temp = index;
     index = size;
@@ -278,7 +278,7 @@ public:
   }
 
 private:
-  int fd;
+  int_fd fd;
   off_t size;
   off_t index;
 };

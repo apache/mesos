@@ -77,7 +77,12 @@ Future<Nothing> await_subprocess(
 {
   // Dup the pipe fd of the subprocess so we can read the output if
   // needed.
-  int out = dup(subprocess.out().get());
+  Try<int_fd> dup = os::dup(subprocess.out().get());
+  if (dup.isError()) {
+    return Failure(dup.error());
+  }
+
+  int_fd out = dup.get();
 
   // Once we get the status of the process.
   return subprocess.status()

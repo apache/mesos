@@ -35,37 +35,7 @@
 #include <userEnv.h>
 
 namespace process {
-
-using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
-using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
-
 namespace internal {
-
-inline void close(const hashset<HANDLE>& fds)
-{
-  foreach (HANDLE fd, fds) {
-    if (fd != INVALID_HANDLE_VALUE) {
-      os::close(fd);
-    }
-  }
-}
-
-// This function will invoke `os::close` on all specified file
-// descriptors that are valid (i.e., not `None` and >= 0).
-inline void close(
-    const InputFileDescriptors& stdinfds,
-    const OutputFileDescriptors& stdoutfds,
-    const OutputFileDescriptors& stderrfds)
-{
-  close({
-    stdinfds.read,
-    stdinfds.write.getOrElse(INVALID_HANDLE_VALUE),
-    stdoutfds.read.getOrElse(INVALID_HANDLE_VALUE),
-    stdoutfds.write,
-    stderrfds.read.getOrElse(INVALID_HANDLE_VALUE),
-    stderrfds.write
-  });
-}
 
 // Retrieves system environment in a `std::map`, ignoring
 // the current process's environment variables.

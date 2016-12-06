@@ -86,7 +86,7 @@ TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
   const string outfile = path::join(testdir.get(), outfile_name);
   ASSERT_SOME(os::touch(outfile));
 
-  Try<int> outfile_fd = os::open(outfile, O_RDWR);
+  Try<int_fd> outfile_fd = os::open(outfile, O_RDWR);
   ASSERT_SOME(outfile_fd);
 
   // Create temporary files to pipe `stderr` to, and open it. We will pipe
@@ -95,15 +95,15 @@ TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
   const string errorfile = path::join(testdir.get(), errorfile_name);
   ASSERT_SOME(os::touch(errorfile));
 
-  Try<int> errorfile_fd = os::open(errorfile, O_RDWR);
+  Try<int_fd> errorfile_fd = os::open(errorfile, O_RDWR);
   ASSERT_SOME(errorfile_fd);
 
   // RAII handle for the file descriptor increases chance that we clean up
   // after ourselves.
-  const auto close_fd = [](int* fd) { os::close(*fd); };
+  const auto close_fd = [](int_fd* fd) { os::close(*fd); };
 
-  shared_ptr<int> safe_out_fd(&outfile_fd.get(), close_fd);
-  shared_ptr<int> safe_err_fd(&errorfile_fd.get(), close_fd);
+  shared_ptr<int_fd> safe_out_fd(&outfile_fd.get(), close_fd);
+  shared_ptr<int_fd> safe_err_fd(&errorfile_fd.get(), close_fd);
 
   // Pipe simple string to output file.
   run_subprocess(
@@ -385,7 +385,7 @@ TEST_F(SubprocessTest, PipeRedirect)
   // Create a temporary file for splicing into.
   string path = path::join(os::getcwd(), "stdout");
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

@@ -1536,7 +1536,7 @@ Future<Nothing> send(network::Socket socket, Encoder* encoder)
           }
           case Encoder::FILE: {
             off_t offset = 0;
-            int fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
+            int_fd fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
             return socket.sendfile(fd, offset, *size);
           }
         }
@@ -1587,7 +1587,7 @@ Future<Nothing> sendfile(
   // should be reported and no response sent.
   response.body.clear();
 
-  Try<int> fd = os::open(response.path, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+  Try<int_fd> fd = os::open(response.path, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
 
   if (fd.isError()) {
     const string body = "Failed to open '" + response.path + "': " + fd.error();
@@ -1598,7 +1598,14 @@ Future<Nothing> sendfile(
   }
 
   struct stat s; // Need 'struct' because of function named 'stat'.
-  if (fstat(fd.get(), &s) != 0) {
+  // We don't bother introducing a `os::fstat` since this is only
+  // one of two places where we use `fstat` in the entire codebase
+  // as of writing this comment.
+#ifdef __WINDOWS__
+  if (::fstat(fd->crt(), &s) != 0) {
+#else
+  if (::fstat(fd.get(), &s) != 0) {
+#endif
     const string body =
       "Failed to fstat '" + response.path + "': " + os::strerror(errno);
     // TODO(benh): VLOG(1)?

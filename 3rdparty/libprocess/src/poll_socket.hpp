@@ -23,9 +23,9 @@ namespace internal {
 class PollSocketImpl : public SocketImpl
 {
 public:
-  static Try<std::shared_ptr<SocketImpl>> create(int s);
+  static Try<std::shared_ptr<SocketImpl>> create(int_fd s);
 
-  PollSocketImpl(int s) : SocketImpl(s) {}
+  PollSocketImpl(int_fd s) : SocketImpl(s) {}
 
   virtual ~PollSocketImpl() {}
 
@@ -35,7 +35,7 @@ public:
   virtual Future<Nothing> connect(const Address& address);
   virtual Future<size_t> recv(char* data, size_t size);
   virtual Future<size_t> send(const char* data, size_t size);
-  virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);
+  virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size);
   virtual Kind kind() const { return SocketImpl::Kind::POLL; }
 };
 

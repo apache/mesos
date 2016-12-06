@@ -44,10 +44,6 @@
 
 namespace process {
 
-using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
-using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
-
-
 inline pid_t defaultClone(const lambda::function<int()>& func)
 {
   pid_t pid = ::fork();
@@ -65,33 +61,6 @@ inline pid_t defaultClone(const lambda::function<int()>& func)
 
 
 namespace internal {
-
-inline void close(const hashset<int>& fds)
-{
-  foreach (int fd, fds) {
-    if (fd >= 0) {
-      os::close(fd);
-    }
-  }
-}
-
-// This function will invoke `os::close` on all specified file
-// descriptors that are valid (i.e., not `None` and >= 0).
-inline void close(
-    const InputFileDescriptors& stdinfds,
-    const OutputFileDescriptors& stdoutfds,
-    const OutputFileDescriptors& stderrfds)
-{
-  close({
-    stdinfds.read,
-    stdinfds.write.getOrElse(-1),
-    stdoutfds.read.getOrElse(-1),
-    stdoutfds.write,
-    stderrfds.read.getOrElse(-1),
-    stderrfds.write
-  });
-}
-
 
 // This function will invoke `os::cloexec` on all specified file
 // descriptors that are valid (i.e., not `None` and >= 0).
@@ -277,13 +246,16 @@ inline Try<pid_t> cloneChild(
 
   // Currently we will block the child's execution of the new process
   // until all the `parent_hooks` (if any) have executed.
-  int pipes[2];
+  std::array<int, 2> pipes;
   const bool blocking = !parent_hooks.empty();
 
   if (blocking) {
     // We assume this should not fail under reasonable conditions so we
     // use CHECK.
-    CHECK_SOME(os::pipe(pipes));
+    Try<std::array<int, 2>> pipe = os::pipe();
+    CHECK_SOME(pipe);
+
+    pipes = pipe.get();
   }
 
   // Now, clone the child process.
@@ -296,7 +268,7 @@ inline Try<pid_t> cloneChild(
       stdoutfds,
       stderrfds,
       blocking,
-      pipes,
+      pipes.data(),
       child_hooks));
 
   delete[] _argv;
