@@ -88,7 +88,7 @@ When compiling on macOS 10.12, the following is needed:
 
     # There is an incompatiblity with the system installed svn and apr headers.
     # We need the svn and apr headers from a brew installation of subversion.
-    # You may need to unlink the existing version os subversion installed via
+    # You may need to unlink the existing version of subversion installed via
     # brew in order to configure correctly.
     $ brew unlink subversion # (If already installed)
     $ brew install subversion
