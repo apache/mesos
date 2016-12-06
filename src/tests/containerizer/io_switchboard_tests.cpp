@@ -32,8 +32,12 @@
 
 #include <mesos/agent/agent.hpp>
 
+#include <mesos/master/detector.hpp>
+
 #include "common/http.hpp"
 #include "common/recordio.hpp"
+
+#include "messages/messages.hpp"
 
 #include "slave/containerizer/mesos/paths.hpp"
 
@@ -59,10 +63,14 @@ using mesos::internal::slave::MesosContainerizer;
 
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::master::detector::MasterDetector;
+
 using mesos::slave::ContainerTermination;
 
 using process::Future;
 using process::Owned;
+
+using testing::Eq;
 
 using std::string;
 
@@ -579,6 +587,126 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   ASSERT_TRUE(wait.get()->reasons().size() == 1);
   ASSERT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED,
             wait.get()->reasons().Get(0));
+}
+
+
+// This test verifies that the io switchboard isolator recovers properly.
+TEST_F(IOSwitchboardTest, RecoverThenKillSwitchboardContainerDestroyed)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
+  flags.io_switchboard_enable_server = true;
+
+  Fetcher fetcher;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch a task.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  // Drop the status update from the slave to the master so the
+  // scheduler never recieves the first task update.
+  Future<StatusUpdateMessage> update =
+    DROP_PROTOBUF(StatusUpdateMessage(), slave.get()->pid, master.get()->pid);
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(update);
+
+  // Restart the slave with a new containerizer.
+  slave.get()->terminate();
+
+  create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  // Expect three task updates.
+  // (1) TASK_RUNNING before recovery.
+  // (2) TASK_RUNNING after recovery.
+  // (3) TASK_FAILED after the io switchboard is killed.
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFailed))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Make sure the task comes back as running.
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Kill the io switchboard for the task.
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  Result<pid_t> pid = paths::getContainerIOSwitchboardPid(
+        flags.runtime_dir, *containers->begin());
+
+  ASSERT_SOME(pid);
+
+  ASSERT_EQ(0, os::kill(pid.get(), SIGKILL));
+
+  // Make sure the task is killed and its
+  // reason is an IO switchboard failure.
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  ASSERT_TRUE(statusFailed->has_reason());
+  EXPECT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED, statusFailed->reason());
+
+  driver.stop();
+  driver.join();
 }
 #endif // __WINDOWS__
 
