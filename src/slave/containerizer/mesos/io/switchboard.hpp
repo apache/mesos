@@ -60,6 +60,10 @@ public:
 
   virtual bool supportsNesting();
 
+  virtual process::Future<Nothing> recover(
+    const std::list<mesos::slave::ContainerState>& states,
+    const hashset<ContainerID>& orphans);
+
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
@@ -73,11 +77,11 @@ public:
 private:
   struct Info
   {
-    Info(pid_t _pid, const process::Future<Option<int>>& _status)
+    Info(Option<pid_t> _pid, const process::Future<Option<int>>& _status)
       : pid(_pid),
         status(_status) {}
 
-    pid_t pid;
+    Option<pid_t> pid;
     process::Future<Option<int>> status;
   };
 
