@@ -605,6 +605,8 @@ public:
 
   Future<Nothing> run();
 
+  Future<Nothing> unblock();
+
 private:
   class HttpConnection
   {
@@ -764,6 +766,12 @@ Future<Nothing> IOSwitchboardServer::run()
 }
 
 
+Future<Nothing> IOSwitchboardServer::unblock()
+{
+  return dispatch(process.get(), &IOSwitchboardServerProcess::unblock);
+}
+
+
 IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     bool _tty,
     int _stdinToFd,
@@ -876,6 +884,13 @@ Future<Nothing> IOSwitchboardServerProcess::run()
   acceptLoop();
 
   return promise.future();
+}
+
+
+Future<Nothing> IOSwitchboardServerProcess::unblock()
+{
+  startRedirect.set(Nothing());
+  return Nothing();
 }
 
 

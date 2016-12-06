@@ -134,7 +134,12 @@ public:
 
   ~IOSwitchboardServer();
 
+  // Run the io switchboard server.
   process::Future<Nothing> run();
+
+  // Forcibly unblock the io switchboard server if it
+  // has been started with `waitForConnection` set to `true`.
+  process::Future<Nothing> unblock();
 
 private:
   IOSwitchboardServer(
