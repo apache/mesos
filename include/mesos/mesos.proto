@@ -2178,6 +2178,13 @@ message TTYInfo {
 /**
  * Describes a container configuration and allows extensible
  * configurations for different container implementations.
+ *
+ * NOTE: `ContainerInfo` may be specified, e.g., by a task, even if no
+ * container image is provided. In this case neither `MesosInfo` nor
+ * `DockerInfo` is set, the required `type` must be `MESOS`. This is to
+ * address a case when a task without an image, e.g., a shell script
+ * with URIs, wants to use features originally designed for containers,
+ * for example custom network isolation via `NetworkInfo`.
  */
 message ContainerInfo {
   // All container implementation types.
