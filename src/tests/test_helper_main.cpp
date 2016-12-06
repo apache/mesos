@@ -21,7 +21,9 @@
 #include "tests/health_check_test_helper.hpp"
 #include "tests/kill_policy_test_helper.hpp"
 
+#ifndef __WINDOWS__
 #include "tests/containerizer/memory_test_helper.hpp"
+#endif // !__WINDOWS__
 #ifdef __linux__
 #include "tests/containerizer/capabilities_test_helper.hpp"
 #include "tests/containerizer/setns_test_helper.hpp"
@@ -29,8 +31,10 @@
 
 using mesos::internal::tests::ActiveUserTestHelper;
 using mesos::internal::tests::HealthCheckTestHelper;
+#ifndef __WINDOWS__
 using mesos::internal::tests::KillPolicyTestHelper;
 using mesos::internal::tests::MemoryTestHelper;
+#endif // !__WINDOWS__
 #ifdef __linux__
 using mesos::internal::tests::CapabilitiesTestHelper;
 using mesos::internal::tests::SetnsTestHelper;
@@ -47,8 +51,10 @@ int main(int argc, char** argv)
       new CapabilitiesTestHelper(),
       new SetnsTestHelper(),
 #endif
-      new ActiveUserTestHelper(),
       new HealthCheckTestHelper(),
+#ifndef __WINDOWS__
       new KillPolicyTestHelper(),
-      new MemoryTestHelper());
+      new MemoryTestHelper(),
+#endif // !__WINDOWS__
+      new ActiveUserTestHelper());
 }

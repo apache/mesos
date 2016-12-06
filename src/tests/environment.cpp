@@ -816,9 +816,16 @@ void Environment::SetUp()
     os::setenv("MESOS_NATIVE_JAVA_LIBRARY", path);
   }
 
+  // TODO(hausdorff): Revisit whether we need this check when we complete work
+  // to light up Agent tests on Windows (see epic tracking this work at
+  // MESOS-6695). As we incrementally add tests to the Windows build, we will
+  // add this check to the tests that need it; eventually, the goal is to get
+  // rid of this altogether. See MESOS-5903.
+#ifndef __WINDOWS__
   if (!GTEST_IS_THREADSAFE) {
     EXIT(EXIT_FAILURE) << "Testing environment is not thread safe, bailing!";
   }
+#endif // !__WINDOWS__
 }
 
 

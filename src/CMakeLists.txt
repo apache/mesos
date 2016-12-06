@@ -323,35 +323,30 @@ set(LOGGING_SRC
   )
 
 set(MASTER_SRC
+  ${MASTER_SRC}
+  master/flags.cpp
+  master/http.cpp
+  master/maintenance.cpp
+  master/master.cpp
+  master/metrics.cpp
+  master/quota.cpp
+  master/quota_handler.cpp
+  master/registrar.cpp
+  master/weights.cpp
+  master/weights_handler.cpp
   master/validation.cpp
+  master/allocator/allocator.cpp
+  master/allocator/mesos/hierarchical.cpp
+  master/allocator/mesos/metrics.cpp
+  master/allocator/sorter/drf/metrics.cpp
+  master/allocator/sorter/drf/sorter.cpp
+  master/contender/contender.cpp
+  master/contender/standalone.cpp
+  master/contender/zookeeper.cpp
   master/detector/detector.cpp
   master/detector/standalone.cpp
   master/detector/zookeeper.cpp
   )
-
-if (NOT WIN32)
-  set(MASTER_SRC
-    ${MASTER_SRC}
-    master/flags.cpp
-    master/http.cpp
-    master/maintenance.cpp
-    master/master.cpp
-    master/metrics.cpp
-    master/quota.cpp
-    master/quota_handler.cpp
-    master/registrar.cpp
-    master/weights.cpp
-    master/weights_handler.cpp
-    master/allocator/allocator.cpp
-    master/allocator/mesos/hierarchical.cpp
-    master/allocator/mesos/metrics.cpp
-    master/allocator/sorter/drf/metrics.cpp
-    master/allocator/sorter/drf/sorter.cpp
-    master/contender/contender.cpp
-    master/contender/standalone.cpp
-    master/contender/zookeeper.cpp
-    )
-endif (NOT WIN32)
 
 set(MESSAGES_SRC
   ${MESSAGES_SRC}
@@ -375,9 +370,15 @@ set(SCHEDULER_SRC
 set(STATE_SRC
   ${STATE_SRC}
   state/in_memory.cpp
-  state/leveldb.cpp
-  state/log.cpp
   )
+
+if (NOT WIN32)
+  set(STATE_SRC
+    ${STATE_SRC}
+    state/leveldb.cpp
+    state/log.cpp
+    )
+endif (NOT WIN32)
 
 set(URI_SRC
   uri/fetcher.cpp
@@ -443,10 +444,13 @@ set(MESOS_SRC
   ${MASTER_SRC}
   ${MESSAGES_SRC}
   ${MODULE_SRC}
+  ${SCHEDULER_SRC}
+  ${STATE_SRC}
   ${URI_SRC}
   ${USAGE_SRC}
   ${V1_SRC}
   ${VERSION_SRC}
+  ${WATCHER_SRC}
   ${ZOOKEEPER_SRC}
   )
 
@@ -457,9 +461,6 @@ if (NOT WIN32)
     ${LOCAL_SRC}
     ${LOG_SRC}
     ${POSIX_SRC}
-    ${SCHEDULER_SRC}
-    ${STATE_SRC}
-    ${WATCHER_SRC}
     )
 endif (NOT WIN32)
 
@@ -545,6 +546,4 @@ add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.
 #########################################################
-if (NOT WIN32)
-  add_subdirectory(tests/)
-endif (NOT WIN32)
+add_subdirectory(tests/)

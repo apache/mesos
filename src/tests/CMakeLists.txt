@@ -24,12 +24,18 @@ set(TEST_HELPER_SRC
   active_user_test_helper.cpp
   flags.cpp
   health_check_test_helper.cpp
-  kill_policy_test_helper.cpp
   resources_utils.cpp
   test_helper_main.cpp
   utils.cpp
-  containerizer/memory_test_helper.cpp
   )
+
+if (NOT WIN32)
+  set(TEST_HELPER_SRC
+    ${TEST_HELPER_SRC}
+    kill_policy_test_helper.cpp
+    containerizer/memory_test_helper.cpp
+    )
+endif (NOT WIN32)
 
 if (LINUX)
   set(TEST_HELPER_SRC
@@ -49,7 +55,6 @@ set(MESOS_TESTS_UTILS_SRC
   environment.cpp
   flags.cpp
   health_check_test_helper.cpp
-  kill_policy_test_helper.cpp
   main.cpp
   mesos.cpp
   mock_docker.cpp
@@ -57,11 +62,18 @@ set(MESOS_TESTS_UTILS_SRC
   mock_slave.cpp
   module.cpp
   resources_utils.cpp
-  script.cpp
   utils.cpp
   containerizer/launcher.cpp
-  containerizer/memory_test_helper.cpp
   )
+
+if (NOT WIN32)
+  set(MESOS_TESTS_UTILS_SRC
+    ${MESOS_TESTS_UTILS_SRC}
+    kill_policy_test_helper.cpp
+    script.cpp
+    containerizer/memory_test_helper.cpp
+    )
+endif (NOT WIN32)
 
 if (LINUX)
   set(MESOS_TESTS_UTILS_SRC
@@ -76,105 +88,111 @@ endif (LINUX)
 set(MESOS_TESTS_SRC
   ${MESOS_TESTS_SRC}
   ${MESOS_TESTS_UTILS_SRC}
-  anonymous_tests.cpp
-  api_tests.cpp
-  attributes_tests.cpp
-  authentication_tests.cpp
-  authorization_tests.cpp
-  command_executor_tests.cpp
-  container_logger_tests.cpp
-  cram_md5_authentication_tests.cpp
-  credentials_tests.cpp
-  default_executor_tests.cpp
-  disk_quota_tests.cpp
-  dynamic_weights_tests.cpp
-  examples_tests.cpp
-  exception_tests.cpp
-  executor_http_api_tests.cpp
-  fault_tolerance_tests.cpp
-  fetcher_cache_tests.cpp
-  fetcher_tests.cpp
-  files_tests.cpp
-  gc_tests.cpp
-  hdfs_tests.cpp
-  health_check_tests.cpp
-  hierarchical_allocator_tests.cpp
-  hook_tests.cpp
-  http_authentication_tests.cpp
-  http_fault_tolerance_tests.cpp
-  log_tests.cpp
-  logging_tests.cpp
-  master_allocator_tests.cpp
-  master_authorization_tests.cpp
-  master_contender_detector_tests.cpp
-  master_maintenance_tests.cpp
-  master_quota_tests.cpp
-  master_slave_reconciliation_tests.cpp
-  master_tests.cpp
-  master_validation_tests.cpp
-  metrics_tests.cpp
-  module_tests.cpp
-  oversubscription_tests.cpp
-  partition_tests.cpp
-  paths_tests.cpp
-  persistent_volume_endpoints_tests.cpp
-  persistent_volume_tests.cpp
-  protobuf_io_tests.cpp
-  rate_limiting_tests.cpp
-  reconciliation_tests.cpp
-  registrar_tests.cpp
-  reservation_endpoints_tests.cpp
-  reservation_tests.cpp
-  resource_offers_tests.cpp
-  resources_tests.cpp
-  role_tests.cpp
-  scheduler_driver_tests.cpp
-  scheduler_event_call_tests.cpp
-  scheduler_http_api_tests.cpp
-  scheduler_tests.cpp
-  slave_authorization_tests.cpp
-  slave_recovery_tests.cpp
-  slave_tests.cpp
-  slave_validation_tests.cpp
-  sorter_tests.cpp
-  state_tests.cpp
-  status_update_manager_tests.cpp
-  teardown_tests.cpp
-  uri_fetcher_tests.cpp
-  uri_tests.cpp
-  values_tests.cpp
-  zookeeper_url_tests.cpp
   )
 
-set(MESOS_TESTS_SRC
-  ${MESOS_TESTS_SRC}
-  common/command_utils_tests.cpp
-  common/http_tests.cpp
-  common/recordio_tests.cpp
-  common/type_utils_tests.cpp
-  )
+if (NOT WIN32)
+  set(MESOS_TESTS_SRC
+    ${MESOS_TESTS_SRC}
+    anonymous_tests.cpp
+    api_tests.cpp
+    attributes_tests.cpp
+    authentication_tests.cpp
+    authorization_tests.cpp
+    command_executor_tests.cpp
+    container_logger_tests.cpp
+    cram_md5_authentication_tests.cpp
+    credentials_tests.cpp
+    default_executor_tests.cpp
+    disk_quota_tests.cpp
+    dynamic_weights_tests.cpp
+    examples_tests.cpp
+    exception_tests.cpp
+    executor_http_api_tests.cpp
+    fault_tolerance_tests.cpp
+    fetcher_cache_tests.cpp
+    fetcher_tests.cpp
+    files_tests.cpp
+    gc_tests.cpp
+    hdfs_tests.cpp
+    health_check_tests.cpp
+    hierarchical_allocator_tests.cpp
+    hook_tests.cpp
+    http_authentication_tests.cpp
+    http_fault_tolerance_tests.cpp
+    log_tests.cpp
+    logging_tests.cpp
+    master_allocator_tests.cpp
+    master_authorization_tests.cpp
+    master_contender_detector_tests.cpp
+    master_maintenance_tests.cpp
+    master_quota_tests.cpp
+    master_slave_reconciliation_tests.cpp
+    master_tests.cpp
+    master_validation_tests.cpp
+    metrics_tests.cpp
+    module_tests.cpp
+    oversubscription_tests.cpp
+    partition_tests.cpp
+    paths_tests.cpp
+    persistent_volume_endpoints_tests.cpp
+    persistent_volume_tests.cpp
+    protobuf_io_tests.cpp
+    rate_limiting_tests.cpp
+    reconciliation_tests.cpp
+    registrar_tests.cpp
+    reservation_endpoints_tests.cpp
+    reservation_tests.cpp
+    resource_offers_tests.cpp
+    resources_tests.cpp
+    role_tests.cpp
+    scheduler_driver_tests.cpp
+    scheduler_event_call_tests.cpp
+    scheduler_http_api_tests.cpp
+    scheduler_tests.cpp
+    slave_authorization_tests.cpp
+    slave_recovery_tests.cpp
+    slave_tests.cpp
+    slave_validation_tests.cpp
+    sorter_tests.cpp
+    state_tests.cpp
+    status_update_manager_tests.cpp
+    teardown_tests.cpp
+    uri_fetcher_tests.cpp
+    uri_tests.cpp
+    values_tests.cpp
+    zookeeper_url_tests.cpp
+    )
 
-set(MESOS_TESTS_SRC
-  ${MESOS_TESTS_SRC}
-  containerizer/appc_spec_tests.cpp
-  containerizer/composing_containerizer_tests.cpp
-  containerizer/cpu_isolator_tests.cpp
-  containerizer/docker_containerizer_tests.cpp
-  containerizer/docker_spec_tests.cpp
-  containerizer/docker_tests.cpp
-  containerizer/io_switchboard_tests.cpp
-  containerizer/isolator_tests.cpp
-  containerizer/memory_isolator_tests.cpp
-  containerizer/mesos_containerizer_paths_tests.cpp
-  containerizer/mesos_containerizer_tests.cpp
-  containerizer/posix_rlimits_isolator_tests.cpp
-  containerizer/provisioner_appc_tests.cpp
-  containerizer/provisioner_backend_tests.cpp
-  containerizer/provisioner_docker_tests.cpp
-  containerizer/provisioner_paths_tests.cpp
-  containerizer/volume_image_isolator_tests.cpp
-  containerizer/volume_sandbox_path_isolator_tests.cpp
-  )
+  set(MESOS_TESTS_SRC
+    ${MESOS_TESTS_SRC}
+    common/command_utils_tests.cpp
+    common/http_tests.cpp
+    common/recordio_tests.cpp
+    common/type_utils_tests.cpp
+    )
+
+  set(MESOS_TESTS_SRC
+    ${MESOS_TESTS_SRC}
+    containerizer/appc_spec_tests.cpp
+    containerizer/composing_containerizer_tests.cpp
+    containerizer/cpu_isolator_tests.cpp
+    containerizer/docker_containerizer_tests.cpp
+    containerizer/docker_spec_tests.cpp
+    containerizer/docker_tests.cpp
+    containerizer/io_switchboard_tests.cpp
+    containerizer/isolator_tests.cpp
+    containerizer/memory_isolator_tests.cpp
+    containerizer/mesos_containerizer_paths_tests.cpp
+    containerizer/mesos_containerizer_tests.cpp
+    containerizer/posix_rlimits_isolator_tests.cpp
+    containerizer/provisioner_appc_tests.cpp
+    containerizer/provisioner_backend_tests.cpp
+    containerizer/provisioner_docker_tests.cpp
+    containerizer/provisioner_paths_tests.cpp
+    containerizer/volume_image_isolator_tests.cpp
+    containerizer/volume_sandbox_path_isolator_tests.cpp
+    )
+endif (NOT WIN32)
 
 if (LINUX)
   set(MESOS_TESTS_SRC

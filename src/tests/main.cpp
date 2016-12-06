@@ -164,6 +164,11 @@ int main(int argc, char** argv)
 
   const int test_results = RUN_ALL_TESTS();
 
+  // Tear down the libprocess server sockets before we try to clean up the
+  // Windows WSA stack. If we don't, this will cause worker threads to crash
+  // the program on its way out.
+  process::finalize();
+
   // Prefer to return the error code from the test run over the error code
   // from the WSA teardown. That is: if the test run failed, return that error
   // code; but, if the tests passed, we still want to return an error if the

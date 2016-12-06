@@ -22,7 +22,9 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#ifndef __WINDOWS__
 #include <mesos/log/log.hpp>
+#endif // !__WINDOWS__
 
 #include <mesos/allocator/allocator.hpp>
 
@@ -211,6 +213,7 @@ Try<process::Owned<Master>> Master::start(
 
   // Create the replicated-log-based registry, if specified in the flags.
   if (flags.registry == "replicated_log") {
+#ifndef __WINDOWS__
     if (zookeeperUrl.isSome()) {
       // Use ZooKeeper-based replicated log.
       master->log.reset(new mesos::log::Log(
@@ -228,13 +231,21 @@ Try<process::Owned<Master>> Master::start(
           std::set<process::UPID>(),
           flags.log_auto_initialize));
     }
+#else
+    return Error("Windows does not support replicated log");
+#endif // !__WINDOWS__
   }
 
   // Create the registry's storage backend.
   if (flags.registry == "in_memory") {
     master->storage.reset(new mesos::state::InMemoryStorage());
   } else if (flags.registry == "replicated_log") {
+#ifndef __WINDOWS__
     master->storage.reset(new mesos::state::LogStorage(master->log.get()));
+#else
+    return Error("Windows does not support replicated log");
+#endif // !__WINDOWS__
+
   } else {
     return Error(
         "Unsupported option for registry persistence: " + flags.registry);
