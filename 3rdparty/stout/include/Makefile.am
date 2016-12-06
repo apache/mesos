@@ -100,6 +100,7 @@ nobase_include_HEADERS =			\
   stout/os/strerror.hpp				\
   stout/os/su.hpp				\
   stout/os/sysctl.hpp				\
+  stout/os/temp.hpp				\
   stout/os/touch.hpp				\
   stout/os/utime.hpp				\
   stout/os/wait.hpp				\
@@ -128,6 +129,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/socket.hpp			\
   stout/os/posix/stat.hpp			\
   stout/os/posix/su.hpp				\
+  stout/os/posix/temp.hpp			\
   stout/os/posix/write.hpp			\
   stout/os/posix/xattr.hpp			\
   stout/os/raw/argv.hpp				\
@@ -154,6 +156,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/socket.hpp			\
   stout/os/windows/stat.hpp			\
   stout/os/windows/su.hpp			\
+  stout/os/windows/temp.hpp			\
   stout/os/windows/write.hpp			\
   stout/os/windows/xattr.hpp			\
   stout/path.hpp				\

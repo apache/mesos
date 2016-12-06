@@ -746,22 +746,6 @@ inline Try<Nothing> kill_job(pid_t pid)
 }
 
 
-inline std::string temp()
-{
-  // Get temp folder for current user.
-  char temp_folder[MAX_PATH + 2];
-  if (::GetTempPath(MAX_PATH + 2, temp_folder) == 0) {
-    // Failed, try current folder.
-    if (::GetCurrentDirectory(MAX_PATH + 2, temp_folder) == 0) {
-      // Failed, use relative path.
-      return ".";
-    }
-  }
-
-  return std::string(temp_folder);
-}
-
-
 // Create pipes for interprocess communication. Since the pipes cannot
 // be used directly by Posix `read/write' functions they are wrapped
 // in file descriptors, a process-local concept.

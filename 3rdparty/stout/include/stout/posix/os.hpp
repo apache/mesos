@@ -460,12 +460,6 @@ inline Option<std::string> which(
 }
 
 
-inline std::string temp()
-{
-  return "/tmp";
-}
-
-
 // Create pipes for interprocess communication.
 inline Try<Nothing> pipe(int pipe_fd[2])
 {

@@ -61,6 +61,7 @@
 #include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 #include <stout/os/su.hpp>
+#include <stout/os/temp.hpp>
 #include <stout/os/touch.hpp>
 #include <stout/os/utime.hpp>
 #include <stout/os/wait.hpp>
