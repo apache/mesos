@@ -211,14 +211,22 @@ mesos::internal::slave::Flags::Flags()
       "not across reboots). This directory will be cleared on reboot.\n"
       "(Example: `/var/run/mesos`)",
       []() -> string {
+#ifdef __WINDOWS__
+        // TODO(josephw): After adding a platform-dependent helper
+        // for determining the "var" directory, consider removing
+        // this `#ifdef`.
+        return path::join(os::temp(), "mesos", "runtime");
+#else
         Result<string> user = os::user();
         CHECK_SOME(user);
 
+        // TODO(andschwa): Check for permissions instead of user.
         if (user.get() == "root") {
-            return DEFAULT_ROOT_RUNTIME_DIRECTORY;
+          return path::join("/var", "run", "mesos");
         } else {
-            return path::join(os::temp(), "mesos", "runtime");
+          return path::join(os::temp(), "mesos", "runtime");
         }
+#endif // __WINDOWS__
       }());
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
