@@ -35,7 +35,9 @@
 #include <stout/os/close.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/ftruncate.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/lseek.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
@@ -614,8 +616,7 @@ Try<TaskState> TaskState::recover(
 
   // Open the status updates file for reading and writing (for
   // truncating).
-  Try<int> fd = os::open(path, O_RDWR | O_CLOEXEC);
-
+  Try<int_fd> fd = os::open(path, O_RDWR | O_CLOEXEC);
   if (fd.isError()) {
     message = "Failed to open status updates file '" + path +
               "': " + fd.error();
@@ -647,12 +648,14 @@ Try<TaskState> TaskState::recover(
     }
   }
 
-  off_t offset = lseek(fd.get(), 0, SEEK_CUR);
-
-  if (offset < 0) {
+  Try<off_t> lseek = os::lseek(fd.get(), 0, SEEK_CUR);
+  if (lseek.isError()) {
     os::close(fd.get());
-    return ErrnoError("Failed to lseek status updates file '" + path + "'");
+    return Error(
+        "Failed to lseek status updates file '" + path + "':" + lseek.error());
   }
+
+  off_t offset = lseek.get();
 
   // Always truncate the file to contain only valid updates.
   // NOTE: This is safe even though we ignore partial protobuf read
@@ -740,7 +743,7 @@ Try<Resources> ResourcesState::recoverResources(
 {
   Resources resources;
 
-  Try<int> fd = os::open(path, O_RDWR | O_CLOEXEC);
+  Try<int_fd> fd = os::open(path, O_RDWR | O_CLOEXEC);
   if (fd.isError()) {
     string message =
       "Failed to open resources file '" + path + "': " + fd.error();
@@ -766,11 +769,14 @@ Try<Resources> ResourcesState::recoverResources(
     resources += resource.get();
   }
 
-  off_t offset = lseek(fd.get(), 0, SEEK_CUR);
-  if (offset < 0) {
+  Try<off_t> lseek = os::lseek(fd.get(), 0, SEEK_CUR);
+  if (lseek.isError()) {
     os::close(fd.get());
-    return ErrnoError("Failed to lseek resources file '" + path + "'");
+    return Error(
+        "Failed to lseek resources file '" + path + "':" + lseek.error());
   }
+
+  off_t offset = lseek.get();
 
   // Always truncate the file to contain only valid resources.
   // NOTE: This is safe even though we ignore partial protobuf read

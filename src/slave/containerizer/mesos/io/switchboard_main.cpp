@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
+
 #include <process/future.hpp>
 #include <process/io.hpp>
 #include <process/owned.hpp>
@@ -38,8 +40,7 @@ using process::Owned;
 // support to defer a signal handler to a thread, but we currently
 // don't expose this through libprocess. Once we do expose this, we
 // should change this logic to use it.
-int unblockFds[2];
-
+std::array<int_fd, 2> unblockFds;
 
 static void sigtermHandler(int sig)
 {
@@ -91,11 +92,13 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE) << flags.usage("'--socket_path' is missing");
   }
 
-  Try<Nothing> pipe = os::pipe(unblockFds);
+  Try<std::array<int_fd, 2>> pipe = os::pipe();
   if (pipe.isError()) {
     EXIT(EXIT_FAILURE) << "Failed to create pipe for signaling unblock:"
                        << " " + pipe.error();
   }
+
+  unblockFds = pipe.get();
 
   if (os::signals::install(SIGTERM, sigtermHandler) != 0) {
     EXIT(EXIT_FAILURE) << "Failed to register signal"

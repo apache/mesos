@@ -83,7 +83,7 @@ public:
         return IO(Type::PATH, None(), path);
       }
 
-      static IO FD(int fd)
+      static IO FD(int_fd fd)
       {
         return IO(Type::FD, fd, None());
       }
@@ -107,19 +107,19 @@ public:
       }
 
       Type type() const { return type_; }
-      Option<int> fd() const { return fd_; }
+      Option<int_fd> fd() const { return fd_; }
       Option<std::string> path() const { return path_; }
 
     private:
       IO(Type _type,
-         const Option<int>& _fd,
+         const Option<int_fd>& _fd,
          const Option<std::string>& _path)
         : type_(_type),
           fd_(_fd),
           path_(_path) {}
 
       Type type_;
-      Option<int> fd_;
+      Option<int_fd> fd_;
       Option<std::string> path_;
     };
 

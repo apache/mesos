@@ -311,10 +311,12 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     ContainerIO* err = launchInfo.mutable_err();
 
     switch (loggerInfo.out.type()) {
+#ifndef __WINDOWS__
       case ContainerLogger::SubprocessInfo::IO::Type::FD:
         out->set_type(ContainerIO::FD);
         out->set_fd(loggerInfo.out.fd().get());
         break;
+#endif
       case ContainerLogger::SubprocessInfo::IO::Type::PATH:
         out->set_type(ContainerIO::PATH);
         out->set_path(loggerInfo.out.path().get());
@@ -324,10 +326,12 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     }
 
     switch (loggerInfo.err.type()) {
+#ifndef __WINDOWS__
       case ContainerLogger::SubprocessInfo::IO::Type::FD:
         err->set_type(ContainerIO::FD);
         err->set_fd(loggerInfo.err.fd().get());
         break;
+#endif
       case ContainerLogger::SubprocessInfo::IO::Type::PATH:
         err->set_type(ContainerIO::PATH);
         err->set_path(loggerInfo.err.path().get());
@@ -450,33 +454,35 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 
     launchInfo.set_tty_slave_path(slavePath.get());
   } else {
-    int infds[2];
-    int outfds[2];
-    int errfds[2];
-
-    Try<Nothing> pipe = os::pipe(infds);
-    if (pipe.isError()) {
+    Try<std::array<int_fd, 2>> infds_ = os::pipe();
+    if (infds_.isError()) {
       close(openedFds);
-      return Failure("Failed to create stdin pipe: " + pipe.error());
+      return Failure("Failed to create stdin pipe: " + infds_.error());
     }
+
+    const std::array<int_fd, 2>& infds = infds_.get();
 
     openedFds.insert(infds[0]);
     openedFds.insert(infds[1]);
 
-    pipe = os::pipe(outfds);
-    if (pipe.isError()) {
+    Try<std::array<int_fd, 2>> outfds_ = os::pipe();
+    if (outfds_.isError()) {
       close(openedFds);
-      return Failure("Failed to create stdout pipe: " + pipe.error());
+      return Failure("Failed to create stdout pipe: " + outfds_.error());
     }
+
+    const std::array<int_fd, 2>& outfds = outfds_.get();
 
     openedFds.insert(outfds[0]);
     openedFds.insert(outfds[1]);
 
-    pipe = os::pipe(errfds);
-    if (pipe.isError()) {
+    Try<std::array<int_fd, 2>> errfds_ = os::pipe();
+    if (errfds_.isError()) {
       close(openedFds);
-      return Failure("Failed to create stderr pipe: " + pipe.error());
+      return Failure("Failed to create stderr pipe: " + errfds_.error());
     }
+
+    const std::array<int_fd, 2>& errfds = errfds_.get();
 
     openedFds.insert(errfds[0]);
     openedFds.insert(errfds[1]);

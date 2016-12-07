@@ -734,7 +734,7 @@ Future<Nothing> FetcherProcess::run(
   // chown them.
   const string stdoutPath = path::join(info.sandbox_directory(), "stdout");
 
-  Try<int> out = os::open(
+  Try<int_fd> out = os::open(
       stdoutPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -744,7 +744,7 @@ Future<Nothing> FetcherProcess::run(
   }
 
   string stderrPath = path::join(info.sandbox_directory(), "stderr");
-  Try<int> err = os::open(
+  Try<int_fd> err = os::open(
       stderrPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

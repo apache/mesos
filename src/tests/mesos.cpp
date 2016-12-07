@@ -118,7 +118,7 @@ master::Flags MesosTest::CreateMasterFlags()
   // Create a default credentials file.
   const string& path = path::join(os::getcwd(), "credentials");
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
@@ -182,7 +182,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
     // Create a default credential file for master/agent authentication.
     const string& path = path::join(directory.get(), "credential");
 
-    Try<int> fd = os::open(
+    Try<int_fd> fd = os::open(
         path,
         O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
         S_IRUSR | S_IWUSR | S_IRGRP);
@@ -212,7 +212,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
     // Create a default HTTP credentials file.
     const string& path = path::join(directory.get(), "http_credentials");
 
-    Try<int> fd = os::open(
+    Try<int_fd> fd = os::open(
         path,
         O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
         S_IRUSR | S_IWUSR | S_IRGRP);

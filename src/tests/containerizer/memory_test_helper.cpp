@@ -255,7 +255,7 @@ static Try<Nothing> doIncreasePageCache(const vector<string>& tokens)
     return Error("Failed to create a temporary file: " + path.error());
   }
 
-  Try<int> fd = os::open(path.get(), O_WRONLY);
+  Try<int_fd> fd = os::open(path.get(), O_WRONLY);
   if (fd.isError()) {
     return Error("Failed to open file: " + fd.error());
   }

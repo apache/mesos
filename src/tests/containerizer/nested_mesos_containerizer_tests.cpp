@@ -400,8 +400,10 @@ TEST_F(NestedMesosContainerizerTest,
   ASSERT_EQ(1u, offers->size());
 
   // Use a pipe to synchronize with the top-level container.
-  int pipes[2] = {-1, -1};
-  ASSERT_SOME(os::pipe(pipes));
+  Try<std::array<int, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  const std::array<int, 2>& pipes = pipes_.get();
 
   // Launch a command task within the `alpine` docker image and
   // synchronize its launch with the launch of a debug container below.
@@ -768,8 +770,10 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  int pipes[2] = {-1, -1};
-  ASSERT_SOME(os::pipe(pipes));
+  Try<std::array<int, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  const std::array<int, 2>& pipes = pipes_.get();
 
   // NOTE: We use a non-shell command here to use 'bash -c' to execute
   // the 'read', which deals with the file descriptor, because of a bug
@@ -869,8 +873,10 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   containerId.set_value(UUID::random().toString());
 
   // Use a pipe to synchronize with the top-level container.
-  int pipes[2] = {-1, -1};
-  ASSERT_SOME(os::pipe(pipes));
+  Try<std::array<int, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  const std::array<int, 2>& pipes = pipes_.get();
 
   // NOTE: We use a non-shell command here to use 'bash -c' to execute
   // the 'echo', which deals with the file descriptor, because of a bug

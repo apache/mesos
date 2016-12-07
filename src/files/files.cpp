@@ -619,8 +619,7 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
 
   // TODO(benh): Cache file descriptors so we aren't constantly
   // opening them and paging the data in from disk.
-  Try<int> fd = os::open(resolvedPath.get(), O_RDONLY | O_CLOEXEC);
-
+  Try<int_fd> fd = os::open(resolvedPath.get(), O_RDONLY | O_CLOEXEC);
   if (fd.isError()) {
     string error = strings::format(
         "Failed to open file at '%s': %s",
@@ -630,9 +629,8 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
     return FilesError(FilesError::Type::UNKNOWN, error + ".\n");
   }
 
-  const off_t size = lseek(fd.get(), 0, SEEK_END);
-
-  if (size == -1) {
+  Try<off_t> lseek = os::lseek(fd.get(), 0, SEEK_END);
+  if (lseek.isError()) {
     string error = strings::format(
         "Failed to open file at '%s': %s",
         resolvedPath.get(),
@@ -642,6 +640,8 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
     os::close(fd.get());
     return FilesError(FilesError::Type::UNKNOWN, error + ".\n");
   }
+
+  const off_t size = lseek.get();
 
   if (offset >= static_cast<size_t>(size)) {
     os::close(fd.get());
@@ -662,7 +662,8 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
   length = std::min(length.get(), os::pagesize() * 16);
 
   // Seek to the offset we want to read from.
-  if (lseek(fd.get(), offset, SEEK_SET) == -1) {
+  lseek = os::lseek(fd.get(), offset, SEEK_SET);
+  if (lseek.isError()) {
     string error = strings::format(
         "Failed to seek file at '%s': %s",
         resolvedPath.get(),

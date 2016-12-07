@@ -162,17 +162,18 @@ protected:
 
 TEST_F(IOSwitchboardServerTest, RedirectLog)
 {
-  int stdoutPipe[2];
-  int stderrPipe[2];
-
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);
 
-  Try<Nothing> pipe = os::pipe(stdoutPipe);
-  ASSERT_SOME(pipe);
+  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  ASSERT_SOME(stdoutPipe_);
 
-  pipe = os::pipe(stderrPipe);
-  ASSERT_SOME(pipe);
+  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
+
+  Try<std::array<int, 2>> stderrPipe_ = os::pipe();
+  ASSERT_SOME(stderrPipe_);
+
+  const std::array<int, 2>& stderrPipe = stderrPipe_.get();
 
   string stdoutPath = path::join(sandbox.get(), "stdout");
   Try<int> stdoutFd = os::open(
@@ -360,10 +361,10 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  int stdoutPipe[2];
+  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  ASSERT_SOME(stdoutPipe_);
 
-  Try<Nothing> pipe = os::pipe(stdoutPipe);
-  ASSERT_SOME(pipe);
+  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);
@@ -467,10 +468,10 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  int stdoutPipe[2];
+  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  ASSERT_SOME(stdoutPipe_);
 
-  Try<Nothing> pipe = os::pipe(stdoutPipe);
-  ASSERT_SOME(pipe);
+  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);
@@ -598,10 +599,10 @@ TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  int stdoutPipe[2];
+  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  ASSERT_SOME(stdoutPipe_);
 
-  Try<Nothing> pipe = os::pipe(stdoutPipe);
-  ASSERT_SOME(pipe);
+  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);

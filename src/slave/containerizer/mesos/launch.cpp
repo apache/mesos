@@ -319,16 +319,7 @@ int MesosContainerizerLaunch::execute()
     flags.pipe_read.isSome() && flags.pipe_write.isSome();
 
   if (controlPipeSpecified) {
-    int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
-
-    // NOTE: On windows we need to pass `HANDLE`s between processes,
-    // as file descriptors are not unique across processes. Here we
-    // convert back from from the `HANDLE`s we receive to fds that can
-    // be used in os-agnostic code.
-#ifdef __WINDOWS__
-    pipe[0] = os::handle_to_fd(pipe[0], _O_RDONLY | _O_TEXT);
-    pipe[1] = os::handle_to_fd(pipe[1], _O_TEXT);
-#endif // __WINDOWS__
+    int_fd pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
 
     Try<Nothing> close = os::close(pipe[1]);
     if (close.isError()) {

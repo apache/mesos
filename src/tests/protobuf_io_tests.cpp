@@ -47,14 +47,14 @@ TEST_F(ProtobufIOTest, Basic)
 {
   const string file = ".protobuf_io_test_basic";
 
-  Try<int> result = os::open(
+  Try<int_fd> result = os::open(
       file,
       O_CREAT | O_WRONLY | O_SYNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(result);
 
-  int fdw = result.get();
+  int_fd fdw = result.get();
 
   result = os::open(
       file,
@@ -63,7 +63,7 @@ TEST_F(ProtobufIOTest, Basic)
 
   ASSERT_SOME(result);
 
-  int fdr = result.get();
+  int_fd fdr = result.get();
 
   const size_t writes = 10;
   for (size_t i = 0; i < writes; i++) {
@@ -107,7 +107,7 @@ TEST_F(ProtobufIOTest, Append)
     ASSERT_SOME(result);
   }
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       file,
       O_CREAT | O_RDONLY | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

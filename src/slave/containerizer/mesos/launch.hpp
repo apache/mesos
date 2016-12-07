@@ -40,9 +40,12 @@ public:
     Flags();
 
     Option<JSON::Object> launch_info;
+#ifdef __WINDOWS__
+    Option<HANDLE> pipe_read;
+    Option<HANDLE> pipe_write;
+#else
     Option<int> pipe_read;
     Option<int> pipe_write;
-#ifndef __WINDOWS__
     Option<std::string> runtime_directory;
 #endif // __WINDOWS__
 #ifdef __linux__

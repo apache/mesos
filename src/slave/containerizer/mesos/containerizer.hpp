@@ -29,6 +29,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/os/int_fd.hpp>
 
 #include <mesos/slave/isolator.hpp>
 
@@ -181,7 +182,7 @@ public:
 
   virtual process::Future<bool> exec(
       const ContainerID& containerId,
-      int pipeWrite);
+      int_fd pipeWrite);
 
   virtual process::Future<bool> destroy(
       const ContainerID& containerId);

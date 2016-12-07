@@ -1366,7 +1366,7 @@ TEST_F(CgroupsAnyHierarchyDevicesTest, ROOT_CGROUPS_Devices)
   EXPECT_TRUE(whitelist->empty());
 
   // Verify that we can't open /dev/null.
-  Try<int> fd = os::open("/dev/null", O_RDWR);
+  Try<int_fd> fd = os::open("/dev/null", O_RDWR);
   EXPECT_ERROR(fd);
 
   // Add /dev/null to the list of allowed devices.

@@ -561,7 +561,7 @@ Future<Option<int>> Docker::run(
 
   const string& environmentFile = environmentFile_.get();
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       environmentFile,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR);

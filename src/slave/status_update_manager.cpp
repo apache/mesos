@@ -680,7 +680,7 @@ StatusUpdateStream::StatusUpdateStream(
     // if the host did not crash. `os::write` success implies the kernel
     // will have flushed our data to the page cache. This is sufficient
     // for the recovery scenarios we use this data for.
-    Try<int> result = os::open(
+    Try<int_fd> result = os::open(
         path.get(),
         O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC,
         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
