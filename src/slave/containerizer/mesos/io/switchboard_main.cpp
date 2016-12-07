@@ -67,6 +67,16 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
+  // Verify non-optional flags have valid values.
+  if (flags.stdin_to_fd == -1 ||
+      flags.stdout_from_fd == -1 ||
+      flags.stdout_to_fd == -1 ||
+      flags.stderr_from_fd == -1 ||
+      flags.stderr_to_fd == -1 ||
+      flags.socket_path == "") {
+    EXIT(EXIT_FAILURE) << "Illegal value in flags: " << stringify(flags);
+  }
+
   Try<Nothing> pipe = os::pipe(unblockFds);
   if (pipe.isError()) {
     EXIT(EXIT_FAILURE) << "Failed to create pipe for signaling unblock:"
