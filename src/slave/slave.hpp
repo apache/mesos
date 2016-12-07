@@ -468,6 +468,8 @@ private:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  Executor* locateExecutor(const ContainerID& containerId) const;
+
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).
   class Http
@@ -672,11 +674,22 @@ private:
         ContentType acceptType,
         const Option<std::string>& principal) const;
 
+    process::Future<process::http::Response> _attachContainerInput(
+        const mesos::agent::Call& call,
+        process::Owned<recordio::Reader<agent::Call>>&& decoder,
+        ContentType contentType,
+        ContentType acceptType) const;
+
     process::Future<process::http::Response> attachContainerOutput(
         const mesos::agent::Call& call,
         ContentType contentType,
         ContentType acceptType,
         const Option<std::string>& principal) const;
+
+    process::Future<process::http::Response> _attachContainerOutput(
+        const mesos::agent::Call& call,
+        ContentType contentType,
+        ContentType acceptType) const;
 
     Slave* slave;
 

@@ -3711,7 +3711,16 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   EXPECT_CALL(mockContainerizer, recover(_))
     .WillOnce(Return(Future<Nothing>(Nothing())));
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &mockContainerizer);
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Disable authorization in the agent.
+  flags.acls = None();
+
+  Try<Owned<cluster::Slave>> slave =
+      StartSlave(
+          &detector,
+          &mockContainerizer,
+          flags);
 
   ASSERT_SOME(slave);
 
@@ -3757,7 +3766,16 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
   EXPECT_CALL(mockContainerizer, recover(_))
     .WillOnce(Return(Future<Nothing>(Nothing())));
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &mockContainerizer);
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Disable authorization in the agent.
+  flags.acls = None();
+
+  Try<Owned<cluster::Slave>> slave =
+      StartSlave(
+          &detector,
+          &mockContainerizer,
+          flags);
 
   ASSERT_SOME(slave);
 

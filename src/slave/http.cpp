@@ -2312,23 +2312,12 @@ Future<Response> Slave::Http::killNestedContainer(
 }
 
 
-Future<Response> Slave::Http::attachContainerInput(
+Future<Response> Slave::Http::_attachContainerInput(
     const mesos::agent::Call& call,
     Owned<Reader<mesos::agent::Call>>&& decoder,
     ContentType contentType,
-    ContentType acceptType,
-    const Option<string>& principal) const
+    ContentType acceptType) const
 {
-  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, call.type());
-  CHECK(call.has_attach_container_input());
-
-  if (call.attach_container_input().type() !=
-      mesos::agent::Call::AttachContainerInput::CONTAINER_ID) {
-    return BadRequest(
-        "Expecting 'attach_container_input.type' to be CONTAINER_ID");
-  }
-
-  CHECK(call.attach_container_input().has_container_id());
   const ContainerID& containerId = call.attach_container_input().container_id();
 
   Pipe pipe;
@@ -2387,6 +2376,82 @@ Future<Response> Slave::Http::attachContainerInput(
 
       return connection.send(request);
     });
+}
+
+
+Future<Response> Slave::Http::attachContainerInput(
+    const mesos::agent::Call& call,
+    Owned<Reader<mesos::agent::Call>>&& decoder,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, call.type());
+  CHECK(call.has_attach_container_input());
+
+  if (call.attach_container_input().type() !=
+      mesos::agent::Call::AttachContainerInput::CONTAINER_ID) {
+    return BadRequest(
+        "Expecting 'attach_container_input.type' to be CONTAINER_ID");
+  }
+
+  CHECK(call.attach_container_input().has_container_id());
+
+  Option<Framework*> framework;
+  Option<Executor*> executor;
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    executor =
+        slave->locateExecutor(call.attach_container_input().container_id());
+    if (executor.get() != nullptr) {
+      framework = slave->frameworks[executor.get()->frameworkId];
+    } else {
+      framework = nullptr;
+    }
+
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::ATTACH_CONTAINER_INPUT);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(),
+    [this, call, decoder, contentType, acceptType, executor, framework](
+        const Owned<ObjectApprover>& attachInputApprover) -> Future<Response> {
+      if (executor.isSome() && executor.get() == nullptr){
+        return NotFound(
+            "Container " +
+            stringify(call.attach_container_input().container_id()) +
+            " cannot be found");
+      }
+
+      ObjectApprover::Object object;
+      if (executor.isSome()) {
+        object.executor_info = &(executor.get()->info);
+      }
+      if (framework.isSome()) {
+        object.framework_info = &(framework.get()->info);
+      }
+
+      Try<bool> approved = attachInputApprover.get()->approved(object);
+
+      if (approved.isError()) {
+        return Failure(approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      Owned<Reader<mesos::agent::Call>> decoder_ = decoder;
+
+      return _attachContainerInput(
+          call, std::move(decoder_), contentType, acceptType);
+  }));
 }
 
 
@@ -2550,15 +2615,11 @@ Future<Response> Slave::Http::launchNestedContainerSession(
 }
 
 
-Future<Response> Slave::Http::attachContainerOutput(
+Future<Response> Slave::Http::_attachContainerOutput(
     const mesos::agent::Call& call,
     ContentType contentType,
-    ContentType acceptType,
-    const Option<string>& principal) const
+    ContentType acceptType) const
 {
-  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
-  CHECK(call.has_attach_container_output());
-
   const ContainerID& containerId =
     call.attach_container_output().container_id();
 
@@ -2636,6 +2697,70 @@ Future<Response> Slave::Http::attachContainerOutput(
           return ok;
         });
     });
+}
+
+
+Future<Response> Slave::Http::attachContainerOutput(
+    const mesos::agent::Call& call,
+    ContentType contentType,
+    ContentType acceptType,
+    const Option<string>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
+  CHECK(call.has_attach_container_output());
+
+  Future<Owned<ObjectApprover>> approver;
+  Option<Framework*> framework;
+  Option<Executor*> executor;
+
+  if (slave->authorizer.isSome()) {
+    executor =
+        slave->locateExecutor(call.attach_container_output().container_id());
+    if (executor.get() != nullptr) {
+      framework = slave->frameworks[executor.get()->frameworkId];
+    } else {
+      framework = nullptr;
+    }
+
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::ATTACH_CONTAINER_OUTPUT);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(),
+    [this, call, contentType, acceptType, executor, framework](
+        const Owned<ObjectApprover>& attachOutputApprover) -> Future<Response> {
+      if (executor.isSome() && executor.get() == nullptr) {
+        return NotFound(
+            "Container " +
+            stringify(call.attach_container_output().container_id()) +
+            " cannot be found");
+      }
+
+      ObjectApprover::Object object;
+      if (executor.isSome()) {
+        object.executor_info = &(executor.get()->info);
+      }
+      if (framework.isSome()) {
+        object.framework_info = &(framework.get()->info);
+      }
+
+      Try<bool> approved = attachOutputApprover.get()->approved(object);
+
+      if (approved.isError()) {
+        return Failure(approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      return _attachContainerOutput(call, contentType, acceptType);
+  }));
 }
 
 } // namespace slave {

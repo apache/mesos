@@ -6215,6 +6215,25 @@ double Slave::_resources_revocable_percent(const string& name)
 }
 
 
+Executor* Slave::locateExecutor(const ContainerID& containerId) const
+{
+  // Locate the executor (for now we just loop since we don't
+  // index based on container id and this likely won't have a
+  // significant performance impact due to the low number of
+  // executors per-agent).
+  // TODO(adam-mesos): Support more levels of nesting.
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->containerId == containerId ||
+          executor->containerId == containerId.parent()) {
+        return executor;
+      }
+    }
+  }
+  return nullptr;
+}
+
+
 Framework::Framework(
     Slave* _slave,
     const Flags& slaveFlags,
