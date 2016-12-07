@@ -127,7 +127,7 @@ message PromiseRequest {
 // Represents a promise response corresponding to a promise request.
 // The kind of the response is given by the "type" field:
 //
-//   1. IGNORE: The recipient of the promise request was not in VOTING
+//   1. IGNORED: The recipient of the promise request was not in VOTING
 //      state, so it ignored the request.
 //   2. REJECT: The recipient of the proposal has already promised a
 //      proposer with a higher proposal number. This is called a
@@ -137,7 +137,7 @@ message PromiseRequest {
 // Before 0.26, we only sent responses for cases 2 and 3, so the
 // 'okay' field was used to distinguish these responses. For backward
 // compatibility, we continue setting 'okay' to false for both cases 1
-// and 2; this means old masters will treat IGNORE as a NACK: this
+// and 2; this means old masters will treat IGNORED as a NACK: this
 // might result in demoting the current coordinator, but that should
 // be tolerable. TODO(neilc): Remove 'okay' in 0.27.
 //
@@ -151,7 +151,9 @@ message PromiseResponse {
   enum Type {
     ACCEPT = 1;
     REJECT = 2;
-    IGNORE = 3;
+    // NOTE: Change in tense here is to avoid name collisions with
+    // Windows headers.
+    IGNORED = 3;
   }
 
   required bool okay = 1; // DEPRECATED
@@ -180,7 +182,7 @@ message WriteRequest {
 // Represents a write response corresponding to a write request. The
 // kind of the response is given by the "type" field:
 //
-//   1. IGNORE: The recipient of the write request was not in VOTING
+//   1. IGNORED: The recipient of the write request was not in VOTING
 //      state, so it ignored the request.
 //   2. REJECT: The recipient of the proposal has already promised a
 //      proposer with a higher proposal number. This is called a
@@ -190,7 +192,7 @@ message WriteRequest {
 // Before 0.26, we only sent responses for cases 2 and 3, so the
 // 'okay' field was used to distinguish these responses. For backward
 // compatibility, we continue setting 'okay' to false for both cases 1
-// and 2; this means old masters will treat IGNORE as a NACK: this
+// and 2; this means old masters will treat IGNORED as a NACK: this
 // might result in demoting the current coordinator, but that should
 // be tolerable. TODO(neilc): Remove 'okay' in 0.27.
 //
@@ -202,7 +204,9 @@ message WriteResponse {
   enum Type {
     ACCEPT = 1;
     REJECT = 2;
-    IGNORE = 3;
+    // NOTE: Change in tense here is to avoid name collisions with
+    // Windows headers.
+    IGNORED = 3;
   }
 
   required bool okay = 1; // DEPRECATED

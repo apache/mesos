@@ -559,7 +559,7 @@ TEST_F(ReplicaTest, NonVoting)
 
   AWAIT_READY(promiseResponse_);
   PromiseResponse promiseResponse = promiseResponse_.get();
-  EXPECT_EQ(PromiseResponse::IGNORE, promiseResponse.type());
+  EXPECT_EQ(PromiseResponse::IGNORED, promiseResponse.type());
   EXPECT_FALSE(promiseResponse.okay());
   EXPECT_EQ(2u, promiseResponse.proposal());
 
@@ -574,7 +574,7 @@ TEST_F(ReplicaTest, NonVoting)
 
   AWAIT_READY(writeResponse_);
   WriteResponse writeResponse = writeResponse_.get();
-  EXPECT_EQ(WriteResponse::IGNORE, writeResponse.type());
+  EXPECT_EQ(WriteResponse::IGNORED, writeResponse.type());
   EXPECT_FALSE(writeResponse.okay());
   EXPECT_EQ(3u, writeResponse.proposal());
   EXPECT_EQ(1u, writeResponse.position());

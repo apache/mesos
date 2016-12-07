@@ -195,7 +195,7 @@ Future<Option<uint64_t>> CoordinatorProcess::checkPromisePhase(
   CHECK(response.has_type());
 
   switch (response.type()) {
-  case PromiseResponse::IGNORE:
+  case PromiseResponse::IGNORED:
     // A quorum of replicas ignored the request, but it can be
     // retried.
     return None();
