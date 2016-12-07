@@ -455,6 +455,67 @@ class IOSwitchboardTest
   : public ContainerizerTest<slave::MesosContainerizer> {};
 
 
+TEST_F(IOSwitchboardTest, ContainerAttach)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
+  flags.io_switchboard_enable_server = true;
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  ExecutorInfo executorInfo = createExecutorInfo(
+      "executor",
+      "sleep 1000",
+      "cpus:1");
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executorInfo,
+      directory.get(),
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<http::Connection> connection = containerizer->attach(containerId);
+  AWAIT_READY(connection);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  Future<bool> destroy = containerizer->destroy(containerId);
+  AWAIT_READY(destroy);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
 // The test verifies the output redirection of the container with TTY
 // allocated for the container.
 TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)

@@ -29,10 +29,12 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/limiter.hpp>
 #include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/reap.hpp>
+#include <process/shared.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/hashmap.hpp>
@@ -74,10 +76,13 @@ using std::string;
 using process::ErrnoFailure;
 using process::Failure;
 using process::Future;
+using process::loop;
 using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::RateLimiter;
+using process::Shared;
 using process::Subprocess;
 
 using std::list;
@@ -613,9 +618,8 @@ Future<http::Connection> IOSwitchboard::connect(
     return Failure("Not supported in local mode");
   }
 
-  if (!flags.io_switchboard_enable_server) {
-    return Failure("Support for running an io switchboard"
-                   " server was disabled by the agent");
+  if (!infos.contains(containerId)) {
+    return Failure("IO switchboard server was disabled for this container");
   }
 
   // Get the io switchboard address from the `containerId`.
@@ -629,12 +633,31 @@ Future<http::Connection> IOSwitchboard::connect(
 
   if (!address.isSome()) {
     return Failure("Failed to get the io switchboard address"
-                   " " + (address.isError()
-                          ? address.error()
-                          : "No address found"));
+                   ": " + (address.isError() ? address.error() : "Not found"));
   }
 
-  return http::connect(address.get());
+  // Wait for the server to create the domain socket file.
+  Shared<RateLimiter> limiter(new RateLimiter(1, Milliseconds(10)));
+
+  return loop(
+      self(),
+      [=]() {
+        return limiter->acquire();
+      },
+      [=](const Nothing&) {
+        return infos.contains(containerId) && !os::exists(address->path());
+      })
+    .then(defer(self(), [=]() -> Future<http::Connection> {
+      if (!infos.contains(containerId)) {
+        return Failure("Container has or is being destroyed");
+      }
+
+      // TODO(jieyu): We might still get a connection refused error
+      // here because the server might not have started listening on
+      // the socket yet. Consider retrying if 'http::connect' failed
+      // with ECONNREFUSED.
+      return http::connect(address.get());
+    }));
 #endif // __WINDOWS__
 }
 
