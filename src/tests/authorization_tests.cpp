@@ -258,7 +258,7 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
   {
     authorization::Request request;
     request.set_action(authorization::RUN_TASK);
-    request.mutable_subject()->set_value("foo");;
+    request.mutable_subject()->set_value("foo");
 
     FrameworkInfo frameworkInfo;
     frameworkInfo.set_user("user2");

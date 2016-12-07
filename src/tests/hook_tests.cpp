@@ -389,7 +389,7 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
   // remove-executor hook.
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));;
+    .WillOnce(FutureSatisfy(&shutdown));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
