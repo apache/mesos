@@ -18,6 +18,7 @@
 #include <process/io.hpp>
 #include <process/owned.hpp>
 
+#include <stout/abort.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
@@ -50,9 +51,7 @@ static void sigtermHandler(int sig)
   ::close(unblockFds[1]);
 
   if (write == -1) {
-    const char error[] = "Failed to terminate io switchboard gracefully\n";
-    ::write(STDERR_FILENO, error, sizeof(error));
-    ::_exit(EXIT_FAILURE);
+    ABORT("Failed to terminate io switchboard gracefully");
   }
 }
 
