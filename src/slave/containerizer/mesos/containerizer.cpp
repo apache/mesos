@@ -757,9 +757,18 @@ Future<Nothing> MesosContainerizerProcess::recover(
     containers_[containerId] = container;
 
     // Add recoverable nested containers to the list of 'ContainerState'.
+    //
+    // TODO(klueska): The final check in the if statement makes sure
+    // that this container was not marked for forcible destruction on
+    // recover. We currently only support 'destroy-on-recovery'
+    // semantics for nested `DEBUG` containers. If we ever support it
+    // on other types of containers, we may need duplicate this logic
+    // elsewhere.
     if (containerId.has_parent() &&
         alive.contains(getRootContainerId(containerId)) &&
-        pid.isSome()) {
+        pid.isSome() &&
+        !containerizer::paths::getContainerForceDestroyOnRecovery(
+            flags.runtime_dir, containerId)) {
       CHECK_SOME(directory);
       ContainerState state =
         protobuf::slave::createContainerState(
@@ -1029,6 +1038,21 @@ Future<bool> MesosContainerizerProcess::launch(
     return Failure(
         "Failed to make the containerizer runtime directory"
         " '" + runtimePath + "': " + mkdir.error());
+  }
+
+  // If we are launching a `DEBUG` container,
+  // checkpoint a file to mark it as destroy-on-recovery.
+  if (containerConfig.has_container_class() &&
+      containerConfig.container_class() == ContainerClass::DEBUG) {
+    const string path =
+      containerizer::paths::getContainerForceDestroyOnRecoveryPath(
+          flags.runtime_dir, containerId);
+
+    Try<Nothing> checkpointed = slave::state::checkpoint(path, "");
+    if (checkpointed.isError()) {
+      return Failure("Failed to checkpoint file to mark DEBUG container"
+                     " as 'destroy-on-recovery'");
+    }
   }
 
   Owned<Container> container(new Container());
