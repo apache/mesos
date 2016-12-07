@@ -524,6 +524,14 @@
   jira_user: ronald.petty
   reviewboard_user: ronald.petty
 
+- name: Ryuichi Okumura
+  affiliations:
+    - {organization: Yahoo Japan Corporation}
+  emails:
+    - okuryu@okuryu.com
+  jira_user: okuryu
+  reviewboard_user: okuryu
+
 - name: Stephen Hankinson
   affiliations:
     - {organization: Affinio Inc.}
