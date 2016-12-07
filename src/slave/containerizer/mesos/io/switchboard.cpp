@@ -537,6 +537,29 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
                    " " + mkdir.error());
   }
 
+  // Prepare the environment for the io switchboard server process.
+  // We inherit agent environment variables except for those
+  // LIBPROCESS or MESOS prefixed environment variables since io
+  // switchboard server process does not rely on those environment
+  // variables.
+  map<string, string> environment;
+  foreachpair (const string& key, const string& value, os::environment()) {
+    if (!strings::startsWith(key, "LIBPROCESS_") &&
+        !strings::startsWith(key, "MESOS_")) {
+      environment.emplace(key, value);
+    }
+  }
+
+  // TODO(jieyu): This is to make sure the libprocess of the io
+  // switchboard can properly initialize and find the IP. Since we
+  // don't need to use the TCP socket for communication, it's OK to
+  // use a local address. Consider disable TCP socket in libprocess if
+  // libprocess supports that.
+  environment.emplace("LIBPROCESS_IP", "127.0.0.1");
+
+  // TODO(jieyu): Consider making this configurable.
+  environment.emplace("LIBPROCESS_NUM_WORKER_THREADS", "8");
+
   // Launch the io switchboard server process.
   // We `dup()` the `stdout` and `stderr` passed to us by the
   // container logger over the `stdout` and `stderr` of the io
@@ -550,7 +573,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       loggerInfo.out,
       loggerInfo.err,
       &switchboardFlags,
-      map<string, string>(),
+      environment,
       None(),
       {},
       {Subprocess::ChildHook::SETSID(),
