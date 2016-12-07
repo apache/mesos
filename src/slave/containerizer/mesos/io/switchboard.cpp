@@ -1119,6 +1119,11 @@ void IOSwitchboardServerProcess::finalize()
 {
   foreach (HttpConnection& connection, outputConnections) {
     connection.close();
+
+    // It is possible that the read end of the pipe has not yet
+    // finished processing the data. We wait here for the reader
+    // to signal that is has finished reading.
+    connection.closed().await();
   }
 
   if (failure.isSome()) {
