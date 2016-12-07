@@ -7030,15 +7030,26 @@ void Master::addFramework(Framework* framework)
       .onAny(defer(self(), &Self::exited, framework->id(), http));
   }
 
-  const string& role = framework->info.role();
-  CHECK(isWhitelistedRole(role))
-    << "Unknown role " << role
-    << " of framework " << *framework;
+  auto addFrameworkRole = [this](Framework* framework, const string& role) {
+    CHECK(isWhitelistedRole(role))
+      << "Unknown role '" << role << "'"
+      << " of framework " << *framework;
 
-  if (!activeRoles.contains(role)) {
-    activeRoles[role] = new Role();
+    if (!activeRoles.contains(role)) {
+      activeRoles[role] = new Role();
+    }
+    activeRoles.at(role)->addFramework(framework);
+  };
+
+  if (protobuf::frameworkHasCapability(
+          framework->info,
+          FrameworkInfo::Capability::MULTI_ROLE)) {
+    foreach (const string& role, framework->info.roles()) {
+      addFrameworkRole(framework, role);
+    }
+  } else {
+    addFrameworkRole(framework, framework->info.role());
   }
-  activeRoles[role]->addFramework(framework);
 
   // There should be no offered resources yet!
   CHECK_EQ(Resources(), framework->totalOfferedResources);
@@ -7321,15 +7332,26 @@ void Master::removeFramework(Framework* framework)
 
   framework->unregisteredTime = Clock::now();
 
-  const string& role = framework->info.role();
-  CHECK(activeRoles.contains(role))
-    << "Unknown role " << role
-    << " of framework " << *framework;
+  auto removeFrameworkRole = [this](Framework* framework, const string& role) {
+    CHECK(isWhitelistedRole(role))
+      << "Unknown role '" << role << "'"
+      << " of framework " << *framework;
 
-  activeRoles[role]->removeFramework(framework);
-  if (activeRoles[role]->frameworks.empty()) {
-    delete activeRoles[role];
-    activeRoles.erase(role);
+    activeRoles[role]->removeFramework(framework);
+    if (activeRoles[role]->frameworks.empty()) {
+      delete activeRoles[role];
+      activeRoles.erase(role);
+    }
+  };
+
+  if (protobuf::frameworkHasCapability(
+          framework->info,
+          FrameworkInfo::Capability::MULTI_ROLE)) {
+    foreach (const string& role, framework->info.roles()) {
+      removeFrameworkRole(framework, role);
+    }
+  } else {
+    removeFrameworkRole(framework, framework->info.role());
   }
 
   // TODO(anand): This only works for pid based frameworks. We would
