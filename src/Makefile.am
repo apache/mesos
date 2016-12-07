@@ -1543,7 +1543,8 @@ nobase_dist_pkgdata_DATA +=						\
 # Need to distribute/install webui images.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/ico/favicon.ico					\
-  webui/master/static/img/loading.gif
+  webui/master/static/img/loading.gif					\
+  webui/master/static/img/mesos_logo.png
 
 # Need to distribute/install webui fonts.
 nobase_dist_pkgdata_DATA +=						\
