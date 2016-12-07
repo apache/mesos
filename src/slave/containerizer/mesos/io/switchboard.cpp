@@ -560,6 +560,9 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // TODO(jieyu): Consider making this configurable.
   environment.emplace("LIBPROCESS_NUM_WORKER_THREADS", "8");
 
+  VLOG(1) << "Launching '" << IOSwitchboardServer::NAME << "' with flags '"
+          << switchboardFlags << "' for container " << containerId;
+
   // Launch the io switchboard server process.
   // We `dup()` the `stdout` and `stderr` passed to us by the
   // container logger over the `stdout` and `stderr` of the io
@@ -586,6 +589,10 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     return Failure("Failed to create io switchboard"
                    " server process: " + child.error());
   }
+
+  LOG(INFO) << "Created I/O switchboard server (pid: " << child->pid()
+            << ") listening on socket file '" << switchboardFlags.socket_path
+            << "' for container " << containerId;
 
   close(ioSwitchboardFds);
 
@@ -642,7 +649,7 @@ Future<http::Connection> IOSwitchboard::connect(
   }
 
   if (!infos.contains(containerId)) {
-    return Failure("IO switchboard server was disabled for this container");
+    return Failure("I/O switchboard server was disabled for this container");
   }
 
   // Get the io switchboard address from the `containerId`.
@@ -708,7 +715,7 @@ Future<ContainerLimitation> IOSwitchboard::watch(
   Future<Option<int>> status = infos[containerId]->status;
 
   return status
-    .then([](const Option<int>& status) {
+    .then([containerId](const Option<int>& status) {
       if (status.isNone()) {
         return Future<ContainerLimitation>();
       }
@@ -731,6 +738,9 @@ Future<ContainerLimitation> IOSwitchboard::watch(
             "'IOSwitchboard' exited with signal:"
             " " + stringify(strsignal(WTERMSIG(status.get()))));
       }
+
+      LOG(ERROR) << "Unexpected termination of I/O switchboard server: "
+                 << limitation.message() << " for container " << containerId;
 
       return Future<ContainerLimitation>(limitation);
     });
@@ -777,11 +787,18 @@ Future<Nothing> IOSwitchboard::cleanup(
   // TODO(klueska): Send a message over the io switchboard server's
   // domain socket instead of using a signal.
   if (pid.isSome()) {
+    LOG(INFO) << "Sending SIGTERM to I/O switchboard server (pid: "
+              << pid.get() << ") since container " << containerId
+              << " is being destroyed";
+
     os::kill(pid.get(), SIGTERM);
   }
 
   return status
     .then(defer(self(), [this, containerId]() {
+      LOG(INFO) << "I/O switchboard server process for container "
+                << containerId << " has terminated";
+
       // Best effort removal of the unix domain socket file created for
       // this container's `IOSwitchboardServer`. If it hasn't been
       // checkpointed yet, or the socket file itself hasn't been created,
