@@ -18,6 +18,7 @@
 #define __PROTOBUF_UTILS_HPP__
 
 #include <initializer_list>
+#include <set>
 #include <string>
 
 #include <sys/stat.h>
@@ -200,6 +201,14 @@ mesos::master::Event createAgentRemoved(const SlaveID& slaveId);
 
 } // namespace event {
 } // namespace master {
+
+namespace framework {
+
+// Helper to get roles from FrameworkInfo based on the
+// presence of the MULTI_ROLE capability.
+std::set<std::string> getRoles(const FrameworkInfo& frameworkInfo);
+
+} // namespace framework {
 
 } // namespace protobuf {
 } // namespace internal {

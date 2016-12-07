@@ -48,6 +48,7 @@
 
 #include "messages/messages.hpp"
 
+using std::set;
 using std::string;
 
 using google::protobuf::RepeatedPtrField;
@@ -553,6 +554,23 @@ mesos::master::Event createAgentRemoved(const SlaveID& slaveId)
 
 } // namespace event {
 } // namespace master {
+
+namespace framework {
+
+set<string> getRoles(const FrameworkInfo& frameworkInfo)
+{
+  if (protobuf::frameworkHasCapability(
+          frameworkInfo,
+          FrameworkInfo::Capability::MULTI_ROLE)) {
+    return set<string>(
+        frameworkInfo.roles().begin(),
+        frameworkInfo.roles().end());
+  } else {
+    return {frameworkInfo.role()};
+  }
+}
+
+} // namespace framework {
 
 } // namespace protobuf {
 } // namespace internal {
