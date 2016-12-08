@@ -2779,7 +2779,9 @@ void Master::_subscribe(
         removeInverseOffer(inverseOffer, true); // Rescind.
       }
 
-      // TODO(bmahler): Shouldn't this re-link with the scheduler?
+      // Relink to the framework and mark it connected. Relinking
+      // might be necessary if the framework link previously broke.
+      link(framework->pid.get());
       framework->connected = true;
 
       // Reactivate the framework.
