@@ -76,14 +76,23 @@ public:
       const std::string& sandboxDirectory,
       const Option<std::string>& user)
   {
-    // Inherit most, but not all of the agent's environment.
-    // Since the subprocess links to libmesos, it will need some of the
-    // same environment used to launch the agent (also uses libmesos).
-    // The libprocess port is explicitly removed because this
-    // will conflict with the already-running agent.
-    std::map<std::string, std::string> environment = os::environment();
-    environment.erase("LIBPROCESS_PORT");
-    environment.erase("LIBPROCESS_ADVERTISE_PORT");
+    // Prepare the environment for the container logger subprocess.
+    // We inherit agent environment variables except for those
+    // LIBPROCESS or MESOS prefixed environment variables. See MESOS-6747.
+    std::map<std::string, std::string> environment;
+
+    foreachpair (
+        const std::string& key, const std::string& value, os::environment()) {
+      if (!strings::startsWith(key, "LIBPROCESS_") &&
+          !strings::startsWith(key, "MESOS_")) {
+        environment.emplace(key, value);
+      }
+    }
+
+    // Make sure the libprocess of the subprocess can properly
+    // initialize and find the IP. Since we don't need to use the TCP
+    // socket for communication, it's OK to use a local address.
+    environment.emplace("LIBPROCESS_IP", "127.0.0.1");
 
     // Use the number of worker threads for libprocess that was passed
     // in through the flags.
