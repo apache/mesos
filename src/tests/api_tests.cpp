@@ -3473,7 +3473,7 @@ TEST_P(AgentAPITest, NestedContainerLaunchFalse)
 
   Future<hashset<ContainerID>> containerIds = containerizer.containers();
   AWAIT_READY(containerIds);
-  EXPECT_EQ(1u, containerIds->size());
+  ASSERT_EQ(1u, containerIds->size());
 
   // Try to launch an "unsupported" container.
   v1::ContainerID containerId;
@@ -3596,7 +3596,7 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
 
   Future<hashset<ContainerID>> containerIds = containerizer.containers();
   AWAIT_READY(containerIds);
-  EXPECT_EQ(1u, containerIds->size());
+  ASSERT_EQ(1u, containerIds->size());
 
   // Launch a nested container and wait for it to finish.
   v1::ContainerID containerId;
@@ -3713,7 +3713,7 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionAttachFailure)
 
   Future<hashset<ContainerID>> containerIds = containerizer.containers();
   AWAIT_READY(containerIds);
-  EXPECT_EQ(1u, containerIds->size());
+  ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -3741,7 +3741,7 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionAttachFailure)
   // Attach failure should result in the destruction of nested container.
   containerIds = containerizer.containers();
   AWAIT_READY(containerIds);
-  EXPECT_EQ(1u, containerIds->size());
+  ASSERT_EQ(1u, containerIds->size());
   EXPECT_FALSE(containerIds->contains(devolve(containerId)));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -4044,7 +4044,7 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
 
   Future<hashset<ContainerID>> containerIds = containerizer->containers();
   AWAIT_READY(containerIds);
-  EXPECT_EQ(1u, containerIds->size());
+  ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
   containerId.set_value(UUID::random().toString());
