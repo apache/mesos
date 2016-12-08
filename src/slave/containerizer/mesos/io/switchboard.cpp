@@ -71,8 +71,12 @@ namespace http = process::http;
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
 
+using std::list;
+using std::map;
 using std::string;
+using std::vector;
 
+using process::await;
 using process::ErrnoFailure;
 using process::Failure;
 using process::Future;
@@ -84,11 +88,6 @@ using process::Promise;
 using process::RateLimiter;
 using process::Shared;
 using process::Subprocess;
-
-using std::list;
-using std::map;
-using std::string;
-using std::vector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerClass;
@@ -185,7 +184,11 @@ Future<Nothing> IOSwitchboard::recover(
 
     infos[containerId] = Owned<Info>(new Info(
       pid.get(),
-      process::reap(pid.get())));
+      process::reap(pid.get()).onAny(defer(
+          PID<IOSwitchboard>(this),
+          &IOSwitchboard::reaped,
+          containerId,
+          lambda::_1))));
   }
 
   // Recover the io switchboards from any orphaned containers.
@@ -208,7 +211,11 @@ Future<Nothing> IOSwitchboard::recover(
     if (pid.isSome()) {
       infos[orphan] = Owned<Info>(new Info(
         pid.get(),
-        process::reap(pid.get())));
+        process::reap(pid.get()).onAny(defer(
+            PID<IOSwitchboard>(this),
+            &IOSwitchboard::reaped,
+            orphan,
+            lambda::_1))));
     } else {
       // If we were not able to retrieve the checkpointed pid, we
       // still need to populate our info struct (but with a pid value
@@ -631,7 +638,11 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // Build an info struct for this container.
   infos[containerId] = Owned<Info>(new Info(
     child->pid(),
-    process::reap(child->pid())));
+    process::reap(child->pid()).onAny(defer(
+        PID<IOSwitchboard>(this),
+        &IOSwitchboard::reaped,
+        containerId,
+        lambda::_1))));
 
   return launchInfo;
 #endif // __WINDOWS__
@@ -712,38 +723,7 @@ Future<ContainerLimitation> IOSwitchboard::watch(
     return Future<ContainerLimitation>();
   }
 
-  Future<Option<int>> status = infos[containerId]->status;
-
-  return status
-    .then([containerId](const Option<int>& status) {
-      if (status.isNone()) {
-        return Future<ContainerLimitation>();
-      }
-
-      if (status.isSome() &&
-          WIFEXITED(status.get()) &&
-          WEXITSTATUS(status.get()) == 0) {
-        return Future<ContainerLimitation>();
-      }
-
-      ContainerLimitation limitation;
-      limitation.set_reason(TaskStatus::REASON_IO_SWITCHBOARD_EXITED);
-
-      if (WIFEXITED(status.get())) {
-        limitation.set_message(
-            "'IOSwitchboard' exited with status:"
-            " " + stringify(WEXITSTATUS(status.get())));
-      } else if (WIFSIGNALED(status.get())) {
-        limitation.set_message(
-            "'IOSwitchboard' exited with signal:"
-            " " + stringify(strsignal(WTERMSIG(status.get()))));
-      }
-
-      LOG(ERROR) << "Unexpected termination of I/O switchboard server: "
-                 << limitation.message() << " for container " << containerId;
-
-      return Future<ContainerLimitation>(limitation);
-    });
+  return infos[containerId]->limitation.future();
 #endif // __WINDOWS__
 }
 
@@ -786,7 +766,7 @@ Future<Nothing> IOSwitchboard::cleanup(
   //
   // TODO(klueska): Send a message over the io switchboard server's
   // domain socket instead of using a signal.
-  if (pid.isSome()) {
+  if (pid.isSome() && status.isPending()) {
     LOG(INFO) << "Sending SIGTERM to I/O switchboard server (pid: "
               << pid.get() << ") since container " << containerId
               << " is being destroyed";
@@ -794,35 +774,88 @@ Future<Nothing> IOSwitchboard::cleanup(
     os::kill(pid.get(), SIGTERM);
   }
 
-  return status
-    .then(defer(self(), [this, containerId]() {
-      LOG(INFO) << "I/O switchboard server process for container "
-                << containerId << " has terminated";
+  // NOTE: We use 'await' here so that we can handle the FAILED and
+  // DISCARDED cases as well.
+  return await(list<Future<Option<int>>>{status}).then(
+      defer(self(), [this, containerId]() -> Future<Nothing> {
+        // Best effort removal of the unix domain socket file created for
+        // this container's `IOSwitchboardServer`. If it hasn't been
+        // checkpointed yet, or the socket file itself hasn't been created,
+        // we simply continue without error.
+        Result<unix::Address> address =
+          containerizer::paths::getContainerIOSwitchboardAddress(
+              flags.runtime_dir, containerId);
 
-      // Best effort removal of the unix domain socket file created for
-      // this container's `IOSwitchboardServer`. If it hasn't been
-      // checkpointed yet, or the socket file itself hasn't been created,
-      // we simply continue without error.
-      Result<unix::Address> address =
-        containerizer::paths::getContainerIOSwitchboardAddress(
-            flags.runtime_dir, containerId);
-
-      if (address.isSome()) {
-        Try<Nothing> rm = os::rm(address->path());
-        if (rm.isError()) {
-          LOG(ERROR) << "Failed to remove unix domain socket file"
-                     << " '" << address->path() << "' for container"
-                     << " '" << containerId << "': " << rm.error();
+        if (address.isSome()) {
+          Try<Nothing> rm = os::rm(address->path());
+          if (rm.isError()) {
+            LOG(ERROR) << "Failed to remove unix domain socket file"
+                       << " '" << address->path() << "' for container"
+                       << " '" << containerId << "': " << rm.error();
+          }
         }
-      }
 
-      return Nothing();
-    }));
+        return Nothing();
+      }));
 #endif // __WINDOWS__
 }
 
 
 #ifndef __WINDOWS__
+void IOSwitchboard::reaped(
+    const ContainerID& containerId,
+    const Future<Option<int>>& future)
+{
+  // NOTE: If reaping of the server process failed, we simply
+  // return here because it is unknown to us whether we should
+  // destroy the container or not.
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to reap the I/O switchboard server: "
+               << (future.isFailed() ? future.failure() : "discarded");
+    return;
+  }
+
+  const Option<int>& status = future.get();
+
+  // No need to do anything if the I/O switchboard server terminates
+  // normally, or its terminal status is unknown. Only initiate the
+  // destroy of the container if we know for sure that the I/O
+  // switchboard server terminates unexpectedly.
+  if (status.isNone()) {
+    LOG(INFO) << "I/O switchboard server process for container "
+              << containerId << " has terminated (status=N/A)";
+    return;
+  } else if (WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0) {
+    LOG(INFO) << "I/O switchboard server process for container "
+              << containerId << " has terminated (status=0)";
+    return;
+  }
+
+  // No need to proceed if the container has or is being destroyed.
+  if (!infos.contains(containerId)) {
+    return;
+  }
+
+  ContainerLimitation limitation;
+  limitation.set_reason(TaskStatus::REASON_IO_SWITCHBOARD_EXITED);
+
+  if (WIFEXITED(status.get())) {
+    limitation.set_message(
+        "'IOSwitchboard' exited with status:"
+        " " + stringify(WEXITSTATUS(status.get())));
+  } else if (WIFSIGNALED(status.get())) {
+    limitation.set_message(
+        "'IOSwitchboard' exited with signal:"
+        " " + stringify(strsignal(WTERMSIG(status.get()))));
+  }
+
+  infos[containerId]->limitation.set(limitation);
+
+  LOG(ERROR) << "Unexpected termination of I/O switchboard server: "
+             << limitation.message() << " for container " << containerId;
+}
+
+
 const char IOSwitchboardServer::NAME[]          = "mesos-io-switchboard";
 
 

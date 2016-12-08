@@ -87,6 +87,7 @@ private:
 
     Option<pid_t> pid;
     process::Future<Option<int>> status;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
   IOSwitchboard(
@@ -98,6 +99,12 @@ private:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
+
+#ifndef __WINDOWS__
+  void reaped(
+      const ContainerID& containerId,
+      const process::Future<Option<int>>& future);
+#endif // __WINDOWS__
 
   Flags flags;
   bool local;
