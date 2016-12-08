@@ -2194,11 +2194,9 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   // Step 3: Start a scheduler.
   StandaloneMasterDetector schedDetector(master.get()->pid);
   MockScheduler sched;
-  TestingMesosSchedulerDriver driver(
-      &sched, &schedDetector, DEFAULT_FRAMEWORK_INFO);
+  TestingMesosSchedulerDriver driver(&sched, &schedDetector);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

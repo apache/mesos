@@ -2030,8 +2030,6 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   // updated FrameworkInfo and wait until it gets a registered
   // callback.
 
-  MockScheduler sched2;
-
   FrameworkInfo finfo2 = DEFAULT_FRAMEWORK_INFO;
   finfo2.mutable_id()->MergeFrom(frameworkId.get());
   auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
@@ -2042,6 +2040,7 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   finfo2.set_hostname("myHostname");
   finfo2.mutable_labels()->add_labels()->CopyFrom(createLabel("baz", "qux"));
 
+  MockScheduler sched2;
   MesosSchedulerDriver driver2(
       &sched2, finfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2075,14 +2074,12 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object state = parse.get();
   EXPECT_EQ(1u, state.values.count("frameworks"));
-  JSON::Array frameworks =
-    state.values["frameworks"].as<JSON::Array>();
+  JSON::Array frameworks = state.values["frameworks"].as<JSON::Array>();
   EXPECT_EQ(1u, frameworks.values.size());
   JSON::Object framework = frameworks.values.front().as<JSON::Object>();
 
