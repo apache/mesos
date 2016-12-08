@@ -81,6 +81,7 @@ nobase_include_HEADERS =			\
   stout/os/killtree.hpp				\
   stout/os/linux.hpp				\
   stout/os/ls.hpp				\
+  stout/os/lseek.hpp				\
   stout/os/mkdir.hpp				\
   stout/os/mkdtemp.hpp				\
   stout/os/mktemp.hpp				\

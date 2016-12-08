@@ -53,6 +53,7 @@
 #include <stout/os/getenv.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/lseek.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/mkdtemp.hpp>
 #include <stout/os/mktemp.hpp>
