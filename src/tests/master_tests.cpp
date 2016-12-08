@@ -3188,11 +3188,16 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
   driver.start();
 
-  // Wait until the master fully processes framework registration
-  // before shutting it down.
+  // Wait until the master registers the framework and sends an offer,
+  // before we shutdown the framework.
   AWAIT_READY(registered);
+  AWAIT_READY(offers);
 
   driver.stop();
   driver.join();
