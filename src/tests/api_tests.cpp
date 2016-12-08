@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <tuple>
+
 #include <mesos/http.hpp>
 
 #include <mesos/v1/resources.hpp>
@@ -47,6 +49,10 @@
 
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
+
 #include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -65,6 +71,8 @@ using mesos::internal::evolve;
 
 using mesos::internal::recordio::Reader;
 
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
 using mesos::internal::protobuf::maintenance::createSchedule;
@@ -78,6 +86,8 @@ using process::Owned;
 using process::Promise;
 
 using recordio::Decoder;
+
+using std::tuple;
 
 using testing::_;
 using testing::AtMost;
@@ -2225,6 +2235,49 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(ContentType::PROTOBUF, ContentType::JSON));
 
 
+// Reads `ProcessIO::Data` records from the pipe `reader` until EOF is reached
+// and returns the merged stdout and stderr.
+// NOTE: It ignores any `ProcessIO::Control` records.
+static Future<tuple<string, string>> getProcessIOData(
+    ContentType contentType,
+    http::Pipe::Reader reader)
+{
+  return reader.readAll()
+    .then([contentType](const string& data) -> Future<tuple<string, string>> {
+      string stdoutReceived;
+      string stderrReceived;
+
+      ::recordio::Decoder<v1::agent::ProcessIO> decoder(lambda::bind(
+          deserialize<v1::agent::ProcessIO>, contentType, lambda::_1));
+
+      Try<std::deque<Try<v1::agent::ProcessIO>>> records =
+        decoder.decode(data);
+
+      if (records.isError()) {
+        return process::Failure(records.error());
+      }
+
+      while(!records->empty()) {
+        Try<v1::agent::ProcessIO> record = records->front();
+        records->pop_front();
+
+        if (record.isError()) {
+          return process::Failure(record.error());
+        }
+
+        if (record->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
+          stdoutReceived += record->data().data();
+        } else if (record->data().type() ==
+            v1::agent::ProcessIO::Data::STDERR) {
+          stderrReceived += record->data().data();
+        }
+      }
+
+      return std::make_tuple(stdoutReceived, stderrReceived);
+    });
+}
+
+
 TEST_P(AgentAPITest, GetFlags)
 {
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
@@ -3879,6 +3932,254 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
   }
+}
+
+
+class AgentAPIStreamingTest
+  : public MesosTest,
+    public WithParamInterface<ContentType> {};
+
+
+// These tests are parameterized by the content type of the
+// streaming HTTP request.
+INSTANTIATE_TEST_CASE_P(
+    ContentType,
+    AgentAPIStreamingTest,
+    ::testing::Values(
+        ContentType::STREAMING_PROTOBUF, ContentType::STREAMING_JSON));
+
+
+// This test launches a child container with the 'cat' command as the
+// entrypoint and attaches to its STDOUT via the attach output call.
+// It then verifies that any data streamed to the container via the
+// attach input call is received by the client on the output stream.
+TEST_P(AgentAPIStreamingTest, AttachContainerInput)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo taskInfo = createTask(offer, "sleep 1000");
+
+  driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  EXPECT_EQ(1u, containerIds->size());
+
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(containerIds->begin()->value());
+
+  // Launch the child container and then attach to it's output.
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER);
+
+    call.mutable_launch_nested_container()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    call.mutable_launch_nested_container()->mutable_command()
+      ->CopyFrom(v1::createCommandInfo("cat"));
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(ContentType::PROTOBUF, call),
+        stringify(ContentType::PROTOBUF));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+
+  ContentType contentType = GetParam();
+
+  Option<http::Pipe::Reader> output;
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
+
+    call.mutable_attach_container_output()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::streaming::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        stringify(ContentType::PROTOBUF));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+    ASSERT_SOME(response->reader);
+
+    output = response->reader.get();
+  }
+
+  string data =
+    "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
+    "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim "
+    "ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut "
+    "aliquip ex ea commodo consequat. Duis aute irure dolor in "
+    "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+    "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in "
+    "culpa qui officia deserunt mollit anim id est laborum.";
+
+  while (Bytes(data.size()) < Megabytes(1)) {
+    data.append(data);
+  }
+
+  http::Pipe pipe;
+  http::Pipe::Writer writer = pipe.writer();
+  http::Pipe::Reader reader = pipe.reader();
+
+  ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+      serialize, contentType, lambda::_1));
+
+  // Prepare the data that needs to be streamed to the entrypoint
+  // of the container.
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    v1::agent::Call::AttachContainerInput* attach =
+      call.mutable_attach_container_input();
+
+    attach->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+    attach->mutable_container_id()->CopyFrom(containerId);
+
+    writer.write(encoder.encode(call));
+  }
+
+  size_t offset = 0;
+  size_t chunkSize = 4096;
+  while (offset < data.length()) {
+    string dataChunk = data.substr(offset, chunkSize);
+    offset += chunkSize;
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    v1::agent::Call::AttachContainerInput* attach =
+      call.mutable_attach_container_input();
+
+    attach->set_type(v1::agent::Call::AttachContainerInput::PROCESS_IO);
+
+    v1::agent::ProcessIO* processIO = attach->mutable_process_io();
+    processIO->set_type(v1::agent::ProcessIO::DATA);
+    processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
+    processIO->mutable_data()->set_data(dataChunk);
+
+    writer.write(encoder.encode(call));
+  }
+
+  // Signal `EOF` to the 'cat' command.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    v1::agent::Call::AttachContainerInput* attach =
+      call.mutable_attach_container_input();
+
+    attach->set_type(v1::agent::Call::AttachContainerInput::PROCESS_IO);
+
+    v1::agent::ProcessIO* processIO = attach->mutable_process_io();
+    processIO->set_type(v1::agent::ProcessIO::DATA);
+    processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
+    processIO->mutable_data()->set_data("");
+
+    writer.write(encoder.encode(call));
+  }
+
+  writer.close();
+
+  // TODO(anand): Add a `post()` overload that handles request streaming.
+  {
+    http::URL agent = http::URL(
+        "http",
+        slave.get()->pid.address.ip,
+        slave.get()->pid.address.port,
+        slave.get()->pid.id +
+        "/api/v1");
+
+    Future<http::Connection> _connection = http::connect(agent);
+    AWAIT_READY(_connection);
+
+    http::Connection connection = _connection.get(); // Remove const.
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+    headers["Content-Type"] = stringify(contentType);
+
+    http::Request request;
+    request.url = agent;
+    request.method = "POST";
+    request.type = http::Request::PIPE;
+    request.reader = reader;
+    request.headers = headers;
+
+    Future<http::Response> response = connection.send(request);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+
+  ASSERT_SOME(output);
+
+  Future<tuple<string, string>> received =
+    getProcessIOData(contentType, output.get());
+
+  AWAIT_READY(received);
+
+  string stdoutReceived;
+  string stderrReceived;
+
+  tie(stdoutReceived, stderrReceived) = received.get();
+
+  ASSERT_TRUE(stderrReceived.empty());
+  ASSERT_EQ(data, stdoutReceived);
 }
 
 } // namespace tests {
