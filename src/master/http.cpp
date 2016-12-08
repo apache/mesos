@@ -3212,9 +3212,9 @@ Future<vector<string>> Master::Http::_roles(
       // role whitelist has been configured, we use that list of names.
       // When using implicit roles, the right behavior is a bit more
       // subtle. There are no constraints on possible role names, so we
-      // instead list all the "interesting" roles: the default role ("*"),
-      // all roles with one or more registered frameworks, and all roles
-      // with a non-default weight or quota.
+      // instead list all the "interesting" roles: all roles with one or
+      // more registered frameworks, and all roles with a non-default
+      // weight or quota.
       //
       // NOTE: we use a `std::set` to store the role names to ensure a
       // deterministic output order.
@@ -3223,7 +3223,6 @@ Future<vector<string>> Master::Http::_roles(
         const hashset<string>& whitelist = master->roleWhitelist.get();
         roleList.insert(whitelist.begin(), whitelist.end());
       } else {
-        roleList.insert("*"); // Default role.
         roleList.insert(
             master->activeRoles.keys().begin(),
             master->activeRoles.keys().end());
