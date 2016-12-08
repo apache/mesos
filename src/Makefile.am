@@ -2227,6 +2227,7 @@ mesos_tests_SOURCES =						\
   tests/persistent_volume_endpoints_tests.cpp			\
   tests/persistent_volume_tests.cpp				\
   tests/protobuf_io_tests.cpp					\
+  tests/protobuf_utils_tests.cpp				\
   tests/rate_limiting_tests.cpp					\
   tests/reconciliation_tests.cpp				\
   tests/registrar_tests.cpp					\

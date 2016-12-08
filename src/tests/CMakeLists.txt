@@ -137,6 +137,7 @@ if (NOT WIN32)
     persistent_volume_endpoints_tests.cpp
     persistent_volume_tests.cpp
     protobuf_io_tests.cpp
+    protobuf_utils_tests.cpp
     rate_limiting_tests.cpp
     reconciliation_tests.cpp
     registrar_tests.cpp
