@@ -590,6 +590,12 @@ protected:
         decline->add_offer_ids()->CopyFrom(offer.id());
 
         mesos->send(call);
+
+        call.Clear();
+        call.set_type(Call::SUPPRESS);
+        call.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+
+        mesos->send(call);
       }
     }
   }
