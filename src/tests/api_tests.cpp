@@ -3976,6 +3976,119 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionWithTTY)
 }
 
 
+// This test verifies that the nested container session is destroyed
+// upon a client disconnection.
+TEST_P(AgentAPITest, LaunchNestedContainerSessionDisconnected)
+{
+  ContentType contentType = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  // Launch a nested container session that runs `cat` so that it never exits.
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
+
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(containerIds->begin()->value());
+
+  v1::agent::Call call;
+  call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+
+  call.mutable_launch_nested_container_session()->mutable_container_id()
+    ->CopyFrom(containerId);
+
+  call.mutable_launch_nested_container_session()->mutable_command()->set_value(
+      "cat");
+
+  // TODO(vinod): Ideally, we can use `http::post` here but we cannot currently
+  // because the caller currently doesn't have a way to disconnect the
+  // connection (e.g., by closing the response reader pipe).
+  http::URL agent = http::URL(
+      "http",
+      slave.get()->pid.address.ip,
+      slave.get()->pid.address.port,
+      slave.get()->pid.id +
+      "/api/v1");
+
+  Future<http::Connection> _connection = http::connect(agent);
+  AWAIT_READY(_connection);
+
+  http::Connection connection = _connection.get(); // Remove const.
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+  headers["Content-Type"] = stringify(contentType);
+
+  http::Request request;
+  request.url = agent;
+  request.method = "POST";
+  request.headers = headers;
+  request.body = serialize(contentType, call);
+
+  Future<http::Response> response = connection.send(request, true);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  ASSERT_EQ(stringify(contentType), response->headers.at("Content-Type"));
+  ASSERT_EQ(http::Response::PIPE, response->type);
+
+  // Disconnect the launch connection. This should
+  // result in the nested container being destroyed.
+  AWAIT_READY(connection.disconnect());
+
+  AWAIT_READY(containerizer->wait(devolve(containerId)));
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_P(AgentAPITest, AttachContainerOutputFailure)
 {
   ContentType contentType = GetParam();
