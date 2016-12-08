@@ -1659,6 +1659,7 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
   masterFlags.registry_max_agent_count = 1;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);

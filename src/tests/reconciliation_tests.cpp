@@ -445,7 +445,9 @@ TEST_F(ReconciliationTest, UnknownKillTask)
 TEST_F(ReconciliationTest, RecoveredAgent)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<Owned<cluster::Master>> master = StartMaster();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
@@ -529,7 +531,9 @@ TEST_F(ReconciliationTest, RecoveredAgent)
 TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<Owned<cluster::Master>> master = StartMaster();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
@@ -1134,6 +1138,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 TEST_F(ReconciliationTest, PartitionedAgentThenMasterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);

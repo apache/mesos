@@ -617,6 +617,8 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
 {
   // Start a master with `--weights` flag.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   masterFlags.weights = UPDATED_WEIGHTS1;
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);

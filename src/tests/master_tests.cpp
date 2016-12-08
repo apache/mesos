@@ -477,7 +477,10 @@ TEST_F(MasterTest, KillUnknownTask)
 
 TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -546,7 +549,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
     .WillOnce(FutureSatisfy(&disconnected));
 
   // Restart master.
-  master = StartMaster();
+  master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Intercept the first registrar operation that is attempted; this
@@ -2094,6 +2097,8 @@ TEST_F(MasterTest, RecoveredSlaveCanReregister)
 {
   // Step 1: Start a master.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -2183,6 +2188,8 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
 {
   // Step 1: Start a master.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -2325,6 +2332,8 @@ TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -2401,6 +2410,8 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
