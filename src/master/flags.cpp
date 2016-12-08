@@ -37,7 +37,7 @@ mesos::internal::master::Flags::Flags()
       "hostname",
       "The hostname the master should advertise in ZooKeeper.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the agent binds to; unless the user explicitly prevents\n"
+      "that the master advertises; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 

@@ -44,7 +44,7 @@ mesos::internal::slave::Flags::Flags()
       "hostname",
       "The hostname the agent should report.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the agent binds to; unless the user explicitly prevents\n"
+      "that the agent advertises; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
