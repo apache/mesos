@@ -5534,9 +5534,9 @@ void Master::__reregisterSlave(
   foreach (const FrameworkID& frameworkId, ids) {
     Framework* framework = getFramework(frameworkId);
 
-    // TODO(neilc): It doesn't seem useful to send the PIDs of
-    // frameworks that are not connected.
-    if (framework != nullptr) {
+    // We don't need to send the PIDs of disconnected frameworks to
+    // re-registering slaves.
+    if (framework != nullptr && framework->connected()) {
       UpdateFrameworkMessage message;
       message.mutable_framework_id()->MergeFrom(framework->id());
 
