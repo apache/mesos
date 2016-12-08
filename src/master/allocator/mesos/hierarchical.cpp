@@ -223,6 +223,7 @@ void HierarchicalAllocatorProcess::addFramework(
     bool active)
 {
   CHECK(initialized);
+  CHECK(!frameworks.contains(frameworkId));
 
   const string& role = frameworkInfo.role();
 
