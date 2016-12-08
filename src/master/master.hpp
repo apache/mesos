@@ -2178,11 +2178,21 @@ private:
 };
 
 
-// Information about a connected or completed framework.
 // TODO(bmahler): Keeping the task and executor information in sync
 // across the Slave and Framework structs is error prone!
 struct Framework
 {
+  enum State
+  {
+    // Framework is currently connected. Note that frameworks must
+    // also be `active` to be eligible to receive offers.
+    CONNECTED,
+
+    // Framework was previously connected to this master. A framework
+    // becomes disconnected when there is a socket error.
+    DISCONNECTED
+  };
+
   Framework(Master* const _master,
             const Flags& masterFlags,
             const FrameworkInfo& _info,
@@ -2191,7 +2201,7 @@ struct Framework
     : master(_master),
       info(_info),
       pid(_pid),
-      connected(true),
+      state(CONNECTED),
       active(true),
       registeredTime(time),
       reregisteredTime(time),
@@ -2205,7 +2215,7 @@ struct Framework
     : master(_master),
       info(_info),
       http(_http),
-      connected(true),
+      state(CONNECTED),
       active(true),
       registeredTime(time),
       reregisteredTime(time),
@@ -2263,7 +2273,7 @@ struct Framework
   template <typename Message>
   void send(const Message& message)
   {
-    if (!connected) {
+    if (!connected()) {
       LOG(WARNING) << "Master attempted to send message to disconnected"
                    << " framework " << *this;
     }
@@ -2482,13 +2492,13 @@ struct Framework
 
   // Closes the HTTP connection and stops the heartbeat.
   //
-  // TODO(vinod): Currently 'connected' variable is set separately
+  // TODO(vinod): Currently `state` variable is set separately
   // from this method. We need to make sure these are in sync.
   void closeHttpConnection()
   {
     CHECK_SOME(http);
 
-    if (connected && !http.get().close()) {
+    if (connected() && !http.get().close()) {
       LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
     }
 
@@ -2515,6 +2525,8 @@ struct Framework
     process::spawn(heartbeater.get().get());
   }
 
+  bool connected() const { return state == CONNECTED; }
+
   Master* const master;
 
   FrameworkInfo info;
@@ -2526,12 +2538,14 @@ struct Framework
   Option<HttpConnection> http;
   Option<process::UPID> pid;
 
-  // Framework becomes disconnected when the socket closes.
-  bool connected;
+  State state;
 
   // Framework becomes deactivated when it is disconnected or
   // the master receives a DeactivateFrameworkMessage.
   // No offers will be made to a deactivated framework.
+  //
+  // TODO(neilc): Consider replacing this with an additional
+  // `state` enumeration value (MESOS-6719).
   bool active;
 
   process::Time registeredTime;

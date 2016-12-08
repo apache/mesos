@@ -134,7 +134,7 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
   if (master->activeRoles.contains(role)) {
     Role* roleState = master->activeRoles[role];
     foreachvalue (const Framework* framework, roleState->frameworks) {
-      if (framework->connected && framework->active) {
+      if (framework->connected() && framework->active) {
         ++frameworksInRole;
       }
     }

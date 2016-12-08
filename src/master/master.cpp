@@ -1953,7 +1953,7 @@ void Master::_markUnreachableAfterFailover(
 void Master::sendSlaveLost(const SlaveInfo& slaveInfo)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (!framework->connected) {
+    if (!framework->connected()) {
       continue;
     }
 
@@ -2189,7 +2189,7 @@ void Master::receive(
   // is no way for driver based frameworks to detect this in the absence
   // of periodic heartbeat events. We send an error message to the framework
   // causing the scheduler driver to abort when this happens.
-  if (!framework->connected) {
+  if (!framework->connected()) {
     const string error = "Framework disconnected";
 
     LOG(INFO) << "Refusing " << call.type() << " call from framework "
@@ -2841,7 +2841,7 @@ void Master::_subscribe(
       // Relink to the framework and mark it connected. Relinking
       // might be necessary if the framework link previously broke.
       link(framework->pid.get());
-      framework->connected = true;
+      framework->state = Framework::State::CONNECTED;
 
       // Reactivate the framework.
       // NOTE: We do this after recovering resources (above) so that
@@ -2962,7 +2962,7 @@ void Master::disconnect(Framework* framework)
 
   LOG(INFO) << "Disconnecting framework " << *framework;
 
-  framework->connected = false;
+  framework->state = Framework::State::DISCONNECTED;
 
   if (framework->pid.isSome()) {
     // Remove the framework from authenticated. This is safe because
@@ -5824,7 +5824,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 
   // A framework might not have re-registered upon a master failover or
   // got disconnected.
-  if (framework != nullptr && framework->connected) {
+  if (framework != nullptr && framework->connected()) {
     forward(update, pid, framework);
   } else {
     validStatusUpdate = false;
@@ -6469,7 +6469,7 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
 {
   Framework* framework = getFramework(frameworkId);
 
-  if (framework != nullptr && !framework->connected) {
+  if (framework != nullptr && !framework->connected()) {
     // If the re-registration time has not changed, then the framework
     // has not re-registered within the failover timeout.
     if (framework->reregisteredTime == reregisteredTime) {
@@ -7092,7 +7092,7 @@ void Master::failoverFramework(Framework* framework, const HttpConnection& http)
   // This is safe to do even if it is a retry because the framework is expected
   // to close the old connection (and hence not receive any more responses)
   // before sending subscription request on a new connection.
-  if (framework->connected) {
+  if (framework->connected()) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
     framework->send(message);
@@ -7144,7 +7144,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   //          scheduler as it is necessarily dead.
   //      2.2 This is a duplicate message. In this case, the scheduler
   //          has not failed over, so we do not want to shut it down.
-  if (oldPid != newPid && framework->connected) {
+  if (oldPid != newPid && framework->connected()) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
     framework->send(message);
@@ -7194,7 +7194,7 @@ void Master::_failoverFramework(Framework* framework)
   }
 
   // Reconnect and reactivate the framework.
-  framework->connected = true;
+  framework->state = Framework::State::CONNECTED;
 
   // Reactivate the framework.
   // NOTE: We do this after recovering resources (above) so that
@@ -8183,7 +8183,7 @@ double Master::_frameworks_connected()
 {
   double count = 0.0;
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (framework->connected) {
+    if (framework->connected()) {
       count++;
     }
   }
@@ -8195,7 +8195,7 @@ double Master::_frameworks_disconnected()
 {
   double count = 0.0;
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (!framework->connected) {
+    if (!framework->connected()) {
       count++;
     }
   }

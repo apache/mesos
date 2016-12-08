@@ -837,7 +837,7 @@ Future<Response> Master::Http::scheduler(
         "`FrameworkInfo`");
   }
 
-  if (!framework->connected) {
+  if (!framework->connected()) {
     return Forbidden("Framework is not subscribed");
   }
 
@@ -1376,7 +1376,7 @@ mesos::master::Response::GetFrameworks::Framework model(
   _framework.mutable_framework_info()->CopyFrom(framework.info);
 
   _framework.set_active(framework.active);
-  _framework.set_connected(framework.connected);
+  _framework.set_connected(framework.connected());
 
   int64_t time = framework.registeredTime.duration().ns();
   if (time != 0) {
