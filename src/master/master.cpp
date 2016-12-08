@@ -2142,6 +2142,8 @@ void Master::drop(
     const Offer::Operation& operation,
     const string& message)
 {
+  CHECK_NOTNULL(framework);
+
   // TODO(jieyu): Increment a metric.
 
   // NOTE: There is no direct feedback to the framework when an
@@ -3150,6 +3152,8 @@ Future<bool> Master::authorizeTask(
     const TaskInfo& task,
     Framework* framework)
 {
+  CHECK_NOTNULL(framework);
+
   if (authorizer.isNone()) {
     return true; // Authorization is disabled.
   }
@@ -7150,6 +7154,8 @@ void Master::activateRecoveredFramework(
 
 void Master::failoverFramework(Framework* framework, const HttpConnection& http)
 {
+  CHECK_NOTNULL(framework);
+
   // Notify the old connected framework that it has failed over.
   // This is safe to do even if it is a retry because the framework is expected
   // to close the old connection (and hence not receive any more responses)
@@ -7194,6 +7200,8 @@ void Master::failoverFramework(Framework* framework, const HttpConnection& http)
 // event of a scheduler failover.
 void Master::failoverFramework(Framework* framework, const UPID& newPid)
 {
+  CHECK_NOTNULL(framework);
+
   const Option<UPID> oldPid = framework->pid;
 
   // There are a few failover cases to consider:
