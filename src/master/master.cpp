@@ -7240,9 +7240,6 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 void Master::_failoverFramework(Framework* framework)
 {
   // Remove the framework's offers (if they weren't removed before).
-  // We do this after we have updated the pid and sent the framework
-  // registered message so that the allocator can immediately re-offer
-  // these resources to this framework if it wants.
   foreach (Offer* offer, utils::copy(framework->offers)) {
     allocator->recoverResources(
         offer->framework_id(), offer->slave_id(), offer->resources(), None());
