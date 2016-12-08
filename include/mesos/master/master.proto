@@ -320,6 +320,13 @@ message Response {
       required bool active = 2;
       required bool connected = 3;
 
+      // If true, this framework was previously subscribed but hasn't
+      // yet re-subscribed after a master failover. Recovered frameworks
+      // are only reported if one or more agents running a task or
+      // executor for the framework have re-registered after master
+      // failover.
+      required bool recovered = 11;
+
       optional TimeInfo registered_time = 4;
       optional TimeInfo reregistered_time = 5;
       optional TimeInfo unregistered_time = 6;
@@ -338,8 +345,14 @@ message Response {
     // Frameworks that have been teared down.
     repeated Framework completed_frameworks = 2;
 
-    // Frameworks that have previously subscribed but haven't yet subscribed
-    // after a master failover.
+    // This field previously contained frameworks that previously
+    // subscribed but haven't yet re-subscribed after a master failover.
+    // As of Mesos 1.2, this field will always be empty; recovered
+    // frameworks are now reported in the `frameworks` list with the
+    // `recovered` field set to true.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated FrameworkInfo recovered_frameworks = 3;
   }
 
@@ -353,6 +366,11 @@ message Response {
     }
 
     repeated Executor executors = 1;
+
+    // As of Mesos 1.2, this field will always be empty.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated Executor orphan_executors = 2;
   }
 
@@ -372,8 +390,10 @@ message Response {
     // acknowledged by the scheduler.
     repeated Task completed_tasks = 3;
 
-    // Tasks belonging to frameworks that have not yet re-subscribed with
-    // master (e.g., immediately after master failover).
+    // As of Mesos 1.2, this field will always be empty.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated Task orphan_tasks = 4;
   }
 

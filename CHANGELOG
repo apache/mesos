@@ -5,6 +5,13 @@ Additional API Changes:
   * [MESOS-6675] - Changed the allocator API to support adding inactive
     frameworks. Custom allocator implementations will need to be updated.
 
+  * [MESOS-6419] - When a framework re-registers after master failover,
+    it is only allowed to change certain fields in its FrameworkInfo.
+    For example, changing "failover_timeout" is allowed, but changing
+    "role" is not. In previous Mesos releases, the same restrictions on
+    changes to FrameworkInfo were only enforced after framework
+    failover, not master failover.
+
 
 Release Notes - Mesos - Version 1.1.1 (WIP)
 -------------------------------------------

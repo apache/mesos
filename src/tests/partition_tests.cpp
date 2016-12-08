@@ -718,9 +718,10 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 
 
 // This test causes a slave to be partitioned while it is running a
-// task for a PARTITION_AWARE scheduler. The scheduler disconnects
+// task for a PARTITION_AWARE framework. The scheduler is shutdown
 // before the partition heals. Right now, the task is left running as
-// an orphan; once MESOS-4659 is fixed, the task should be shutdown.
+// an orphan; when MESOS-6602 is fixed, the task will be shutdown when
+// the agent re-registers.
 TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
@@ -829,21 +830,19 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   AWAIT_READY(slaveLost);
 
   // Disconnect the scheduler. The default `failover_timeout` is 0, so
-  // the framework's tasks should be shutdown when the slave
-  // reregisters, but this is currently not implemented (MESOS-4659).
+  // the framework's tasks should be shutdown when the slave reregisters.
   driver.stop();
   driver.join();
 
-  // Simulate a master loss event at the slave and then cause the
-  // slave to reregister with the master.
-  detector.appoint(None());
-
+  // Cause the slave to re-register with the master.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
   detector.appoint(master.get()->pid);
 
   AWAIT_READY(slaveReregistered);
+
+  Clock::resume();
 
   // Check if `task` is still running by querying master's state endpoint.
   Future<Response> response = process::http::get(
@@ -855,33 +854,42 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  JSON::Object state = parse.get();
-  JSON::Array completedFrameworks =
-    state.values["completed_frameworks"].as<JSON::Array>();
+  JSON::Array unregisteredFrameworks =
+    parse->values["unregistered_frameworks"].as<JSON::Array>();
 
-  EXPECT_EQ(1u, completedFrameworks.values.size());
+  // TODO(neilc): When MESOS-6602 is fixed, this should be empty.
+  EXPECT_EQ(1u, unregisteredFrameworks.values.size());
+
+  EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+  EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+  JSON::Array completedFrameworks =
+    parse->values["completed_frameworks"].as<JSON::Array>();
+
+  ASSERT_EQ(1u, completedFrameworks.values.size());
 
   JSON::Object jsonFramework =
     completedFrameworks.values.front().as<JSON::Object>();
 
-  JSON::String jsonFrameworkId = jsonFramework.values["id"].as<JSON::String>();
+  EXPECT_EQ(
+      frameworkId.get(),
+      jsonFramework.values["id"].as<JSON::String>().value);
 
-  EXPECT_EQ(frameworkId.get(), jsonFrameworkId.value);
+  EXPECT_TRUE(jsonFramework.values["tasks"].as<JSON::Array>().values.empty());
 
-  // TODO(neilc): Update this when MESOS-4659 is fixed.
-  JSON::Array orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
+  JSON::Array completedTasks =
+    jsonFramework.values["completed_tasks"].as<JSON::Array>();
 
-  EXPECT_EQ(1u, orphanTasks.values.size());
+  ASSERT_EQ(1u, completedTasks.values.size());
 
-  JSON::Object jsonTask = orphanTasks.values.front().as<JSON::Object>();
-  JSON::String jsonTaskId = jsonTask.values["id"].as<JSON::String>();
+  JSON::Object completedTask = completedTasks.values.front().as<JSON::Object>();
 
-  EXPECT_EQ(task.task_id(), jsonTaskId.value);
-
-  Clock::resume();
+  EXPECT_EQ(
+      "TASK_UNREACHABLE",
+      completedTask.values["state"].as<JSON::String>().value);
 }
 
 

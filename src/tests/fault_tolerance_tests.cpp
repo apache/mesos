@@ -873,6 +873,8 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   JSON::Object framework = frameworks.values.front().as<JSON::Object>();
 
   EXPECT_TRUE(framework.values["active"].as<JSON::Boolean>().value);
+  EXPECT_TRUE(framework.values["connected"].as<JSON::Boolean>().value);
+  EXPECT_FALSE(framework.values["recovered"].as<JSON::Boolean>().value);
 
   EXPECT_EQ(
       static_cast<int64_t>(registerTime.secs()),
@@ -2121,6 +2123,126 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+}
+
+
+// This test verifies that when a framework re-registers after master
+// failover with an updated FrameworkInfo, the updated FrameworkInfo
+// is reflected in the master.
+TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnMasterFailover)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_name("Framework 1");
+  frameworkInfo1.set_failover_timeout(1000);
+  frameworkInfo1.set_checkpoint(true);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(offer, "sleep 60");
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  driver1.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+
+  AWAIT_READY(statusUpdateAck);
+
+  // Stop the master.
+  master->reset();
+
+  // While the master is down, shutdown the first framework.
+  driver1.stop();
+  driver1.join();
+
+  // Restart master; ensure the agent re-registers before the second
+  // scheduler connects. This ensures the first framework's
+  // FrameworkInfo is recovered from the re-registering agent.
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), _, slave.get()->pid);
+
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(slaveReregistered);
+
+  // Connect a new scheduler that uses the same framework ID but a
+  // different `FrameworkInfo`. Note that updating the `checkpoint`
+  // field is NOT supported, so we expect the master to ignore the
+  // updated version of this field.
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.mutable_id()->MergeFrom(frameworkId.get());
+  frameworkInfo2.set_name("Framework 2");
+  frameworkInfo2.set_failover_timeout(2000);
+  frameworkInfo2.set_checkpoint(false);
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  driver2.start();
+
+  AWAIT_READY(sched2Registered);
+
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+  ASSERT_EQ(1u, frameworks.values.size());
+
+  JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+  EXPECT_EQ(frameworkId.get(), framework.values["id"].as<JSON::String>().value);
+  EXPECT_EQ("Framework 2", framework.values["name"].as<JSON::String>().value);
+  EXPECT_EQ(2000, framework.values["failover_timeout"].as<JSON::Number>());
+  EXPECT_TRUE(framework.values["checkpoint"].as<JSON::Boolean>().value);
+
+  driver2.stop();
+  driver2.join();
 }
 
 } // namespace tests {

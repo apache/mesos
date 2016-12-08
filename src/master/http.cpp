@@ -380,6 +380,8 @@ static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
   writer->field("hostname", framework.info.hostname());
   writer->field("webui_url", framework.info.webui_url());
   writer->field("active", framework.active);
+  writer->field("connected", framework.connected());
+  writer->field("recovered", framework.recovered());
 }
 
 
@@ -1343,8 +1345,12 @@ Future<Response> Master::Http::frameworks(
               }
             });
 
-        // Model all currently unregistered frameworks. This can happen
-        // when a framework has yet to re-register after master failover.
+        // Model all unregistered frameworks. Such frameworks are only
+        // possible if the cluster contains pre-1.0 agents.
+        //
+        // TODO(neilc): Remove this once we break compatibility with
+        // pre-1.0 agents.
+        //
         // TODO(vinod): Need to filter these frameworks based on authorization!
         // See TODO in `state()` for further details.
         writer->field("unregistered_frameworks", [this](
@@ -1377,6 +1383,7 @@ mesos::master::Response::GetFrameworks::Framework model(
 
   _framework.set_active(framework.active);
   _framework.set_connected(framework.connected());
+  _framework.set_recovered(framework.recovered());
 
   int64_t time = framework.registeredTime.duration().ns();
   if (time != 0) {
@@ -1473,33 +1480,6 @@ mesos::master::Response::GetFrameworks Master::Http::_getFrameworks(
     }
 
     getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework));
-  }
-
-  foreachvalue (const Slave* slave, master->slaves.registered) {
-    foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-      if (!master->frameworks.registered.contains(frameworkId)) {
-        // TODO(haosdent): This logic should be simplified after
-        // a deprecation cycle starting with 1.0 as after that
-        // we can rely on `master->frameworks.recovered` containing
-        // all FrameworkInfos.
-        // Until then there are 3 cases:
-        // - No authorization enabled: show all orphaned frameworks.
-        // - Authorization enabled, but no FrameworkInfo present:
-        //   do not show orphaned frameworks.
-        // - Authorization enabled, FrameworkInfo present: filter
-        //   based on `approveViewFrameworkInfo`.
-        if (master->authorizer.isSome() &&
-           (!master->frameworks.recovered.contains(frameworkId) ||
-            !approveViewFrameworkInfo(
-                frameworksApprover,
-                master->frameworks.recovered[frameworkId]))) {
-          continue;
-        }
-
-        getFrameworks.add_recovered_frameworks()->CopyFrom(
-            master->frameworks.recovered[frameworkId]);
-      }
-    }
   }
 
   return getFrameworks;
@@ -1602,7 +1582,11 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
     }
   }
 
-  // Orphan executors.
+  // Orphan executors. Such executors are only possible if the cluster
+  // contains pre-1.0 agents.
+  //
+  // TODO(neilc): Remove this once we break compatibility with pre-1.0
+  // agents.
   foreachvalue (const Slave* slave, master->slaves.registered) {
     typedef hashmap<ExecutorID, ExecutorInfo> ExecutorMap;
     foreachpair (const FrameworkID& frameworkId,
@@ -1610,22 +1594,11 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
                  slave->executors) {
       foreachvalue (const ExecutorInfo& executorInfo, executors) {
         if (!master->frameworks.registered.contains(frameworkId)) {
-          // TODO(haosdent): This logic should be simplified after
-          // a deprecation cycle starting with 1.0 as after that
-          // we can rely on `master->frameworks.recovered` containing
-          // all FrameworkInfos.
-          // Until then there are 3 cases:
-          // - No authorization enabled: show all orphaned executors.
-          // - Authorization enabled, but no FrameworkInfo present:
-          //   do not show orphaned executors.
-          // - Authorization enabled, FrameworkInfo present: filter
-          //   based on `approveViewExecutorInfo`.
-          if (master->authorizer.isSome() &&
-             (!master->frameworks.recovered.contains(frameworkId) ||
-              !approveViewExecutorInfo(
-                  executorsApprover,
-                  executorInfo,
-                  master->frameworks.recovered[frameworkId]))) {
+          // If authorization is enabled, do not show any orphaned
+          // executors. We need the executor's FrameworkInfo to
+          // authorize it, but if we had its FrameworkInfo, it would
+          // not be orphaned.
+          if (master->authorizer.isSome()) {
             continue;
           }
 
@@ -2706,33 +2679,24 @@ Future<Response> Master::Http::state(
               }
             });
 
-        // Model all of the orphan tasks.
+        // Model all of the orphan tasks. Such tasks are only possible
+        // if the cluster contains pre-1.0 agents.
+        //
+        // TODO(neilc): Remove this once we break compatibility with
+        // pre-1.0 agents.
         writer->field("orphan_tasks", [this, &tasksApprover](
             JSON::ArrayWriter* writer) {
-          // Find those orphan tasks.
           foreachvalue (const Slave* slave, master->slaves.registered) {
             typedef hashmap<TaskID, Task*> TaskMap;
             foreachvalue (const TaskMap& tasks, slave->tasks) {
               foreachvalue (const Task* task, tasks) {
-                CHECK_NOTNULL(task);
                 const FrameworkID& frameworkId = task->framework_id();
                 if (!master->frameworks.registered.contains(frameworkId)) {
-                  // TODO(joerg84): This logic should be simplified after
-                  // a deprecation cycle starting with 1.0 as after that
-                  // we can rely on 'master->frameworks.recovered' containing
-                  // all FrameworkInfos.
-                  // Until then there are 3 cases:
-                  // - No authorization enabled: show all orphaned tasks.
-                  // - Authorization enabled, but no FrameworkInfo present:
-                  //   do not show orphaned tasks.
-                  // - Authorization enabled, FrameworkInfo present: filter
-                  //   based on 'approveViewTask'.
-                  if (master->authorizer.isSome() &&
-                     (!master->frameworks.recovered.contains(frameworkId) ||
-                      !approveViewTask(
-                          tasksApprover,
-                          *task,
-                          master->frameworks.recovered[frameworkId]))) {
+                  // If authorization is enabled, do not show any
+                  // orphan tasks. We need the task's FrameworkInfo to
+                  // authorize it, but if we had its FrameworkInfo, it
+                  // would not be an orphan.
+                  if (master->authorizer.isSome()) {
                     continue;
                   }
 
@@ -2743,8 +2707,12 @@ Future<Response> Master::Http::state(
           }
         });
 
-        // Model all currently unregistered frameworks. This can happen
-        // when a framework has yet to re-register after master failover.
+        // Model all unregistered frameworks. Such frameworks are only
+        // possible if the cluster contains pre-1.0 agents.
+        //
+        // TODO(neilc): Remove this once we break compatibility with
+        // pre-1.0 agents.
+        //
         // TODO(vinod): Need to filter these frameworks based on authorization!
         // See the TODO above for "orphan_tasks" for further details.
         writer->field("unregistered_frameworks", [this](
@@ -3830,30 +3798,22 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
     }
   }
 
-  // Orphan tasks.
+  // Orphan tasks. Such tasks are only possible if the cluster
+  // contains pre-1.0 agents.
+  //
+  // TODO(neilc): Remove this once we break compatibility with pre-1.0
+  // agents.
   foreachvalue (const Slave* slave, master->slaves.registered) {
     typedef hashmap<TaskID, Task*> TaskMap;
     foreachvalue (const TaskMap& tasks, slave->tasks) {
       foreachvalue (const Task* task, tasks) {
-        CHECK_NOTNULL(task);
         const FrameworkID& frameworkId = task->framework_id();
         if (!master->frameworks.registered.contains(frameworkId)) {
-          // TODO(joerg84): This logic should be simplified after
-          // a deprecation cycle starting with 1.0 as after that
-          // we can rely on `master->frameworks.recovered` containing
-          // all FrameworkInfos.
-          // Until then there are 3 cases:
-          // - No authorization enabled: show all orphaned tasks.
-          // - Authorization enabled, but no FrameworkInfo present:
-          //   do not show orphaned tasks.
-          // - Authorization enabled, FrameworkInfo present: filter
-          //   based on `approveViewTask`.
-          if (master->authorizer.isSome() &&
-             (!master->frameworks.recovered.contains(frameworkId) ||
-              !approveViewTask(
-                  tasksApprover,
-                  *task,
-                  master->frameworks.recovered[frameworkId]))) {
+          // If authorization is enabled, do not show any orphan
+          // tasks. We need the task's FrameworkInfo to authorize it,
+          // but if we had its FrameworkInfo, it would not be an
+          // orphan.
+          if (master->authorizer.isSome()) {
             continue;
           }
 

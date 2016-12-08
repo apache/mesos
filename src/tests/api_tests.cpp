@@ -241,6 +241,7 @@ TEST_P(MasterAPITest, GetFrameworks)
   ASSERT_FALSE(frameworks.frameworks(0).framework_info().checkpoint());
   ASSERT_TRUE(frameworks.frameworks(0).active());
   ASSERT_TRUE(frameworks.frameworks(0).connected());
+  ASSERT_FALSE(frameworks.frameworks(0).recovered());
 
   driver.stop();
   driver.join();

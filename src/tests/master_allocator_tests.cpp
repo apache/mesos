@@ -1528,6 +1528,13 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
       .WillOnce(DoAll(InvokeAddSlave(&allocator2),
                       FutureSatisfy(&addSlave)));
 
+    // Expect the framework to be added but to be inactive when the
+    // agent re-registers, until the framework re-registers below.
+    Future<Nothing> addFramework;
+    EXPECT_CALL(allocator2, addFramework(_, _, _, false))
+      .WillOnce(DoAll(InvokeAddFramework(&allocator2),
+                      FutureSatisfy(&addFramework)));
+
     Try<Owned<cluster::Master>> master2 = this->StartMaster(&allocator2);
     ASSERT_SOME(master2);
 
@@ -1535,12 +1542,18 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     slaveDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(addSlave);
+    AWAIT_READY(addFramework);
 
     EXPECT_CALL(sched, disconnected(_));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
-    EXPECT_CALL(allocator2, addFramework(_, _, _, _));
+    // Because the framework was re-added above, we expect to only
+    // activate the framework when it re-registers.
+    EXPECT_CALL(allocator2, addFramework(_, _, _, _))
+      .Times(0);
+
+    EXPECT_CALL(allocator2, activateFramework(_));
 
     Future<vector<Offer>> resourceOffers2;
     EXPECT_CALL(sched, resourceOffers(&driver, _))

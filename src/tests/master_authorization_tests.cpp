@@ -2147,9 +2147,11 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
 
 
 // This test verifies that authorization based endpoint filtering
-// works correctly on the /state endpoint with orphaned tasks.
-// Both default users are allowed to to view high level frameworks, but only
-// one is allowed to view the tasks.
+// works correctly on the /state endpoint with orphaned tasks.  Both
+// default users are allowed to to view high level frameworks, but
+// only one is allowed to view the tasks. Although the tasks are
+// "orphaned" (in the sense that their framework has not yet
+// re-registered), they are now reported under the "tasks" key.
 TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
 {
   ACLs acls;
@@ -2242,7 +2244,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-    // Wait until TASK_RUNNING of the task is received.
+  // Wait until TASK_RUNNING of the task is received.
   AWAIT_READY(statusUpdate);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
@@ -2279,8 +2281,18 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
+
+    // The "orphan_tasks" array should be empty, regardless of authorization.
     ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
-    EXPECT_EQ(1u, tasks.values["orphan_tasks"].as<JSON::Array>().values.size());
+    EXPECT_TRUE(tasks.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    ASSERT_TRUE(tasks.values["frameworks"].is<JSON::Array>());
+
+    JSON::Array frameworks = tasks.values["frameworks"].as<JSON::Array>();
+    EXPECT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+    EXPECT_EQ(1u, framework.values["tasks"].as<JSON::Array>().values.size());
   }
 
   // Retrieve endpoint with the user allowed to view the framework,
@@ -2299,8 +2311,18 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
+
+    // The "orphan_tasks" array should be empty, regardless of authorization.
     ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
     EXPECT_TRUE(tasks.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    ASSERT_TRUE(tasks.values["frameworks"].is<JSON::Array>());
+
+    JSON::Array frameworks = tasks.values["frameworks"].as<JSON::Array>();
+    EXPECT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
   }
 
   EXPECT_CALL(exec, shutdown(_))
