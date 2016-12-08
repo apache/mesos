@@ -62,6 +62,7 @@ set(NVML_INCLUDE_DIR        ${NVML_ROOT})
 set(PICOJSON_INCLUDE_DIR    ${PICOJSON_ROOT})
 
 if (WIN32)
+  set(APR_INCLUDE_DIR      ${LIBAPR_ROOT}/include ${LIBAPR_ROOT}-build)
   set(CURL_INCLUDE_DIR     ${CURL_ROOT}/include)
   set(GLOG_INCLUDE_DIR     ${GLOG_ROOT}/src/windows)
   set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_ROOT}/src)
