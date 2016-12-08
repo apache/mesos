@@ -299,7 +299,7 @@ TEST_F(ResourceOffersTest, Request)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _))
+  EXPECT_CALL(allocator, addFramework(_, _, _, _))
     .Times(1);
 
   Future<Nothing> registered;

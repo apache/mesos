@@ -219,7 +219,8 @@ void HierarchicalAllocatorProcess::recover(
 void HierarchicalAllocatorProcess::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const hashmap<SlaveID, Resources>& used)
+    const hashmap<SlaveID, Resources>& used,
+    bool active)
 {
   CHECK(initialized);
 
@@ -274,7 +275,11 @@ void HierarchicalAllocatorProcess::addFramework(
 
   LOG(INFO) << "Added framework " << frameworkId;
 
-  allocate();
+  if (active) {
+    allocate();
+  } else {
+    deactivateFramework(frameworkId);
+  }
 }
 
 

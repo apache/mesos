@@ -39,7 +39,7 @@ namespace tests {
 
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
-// EXPECT_CALL(allocator, addFramework(_, _, _))
+// EXPECT_CALL(allocator, addFramework(_, _, _, _))
 //   .WillOnce(DoAll(InvokeAddFramework(&allocator),
 //                   FutureSatisfy(&addFramework)));
 
@@ -57,7 +57,7 @@ ACTION_P(InvokeRecover, allocator)
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real->addFramework(arg0, arg1, arg2);
+  allocator->real->addFramework(arg0, arg1, arg2, arg3);
 }
 
 
@@ -239,9 +239,9 @@ public:
     EXPECT_CALL(*this, recover(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, addFramework(_, _, _))
+    ON_CALL(*this, addFramework(_, _, _, _))
       .WillByDefault(InvokeAddFramework(this));
-    EXPECT_CALL(*this, addFramework(_, _, _))
+    EXPECT_CALL(*this, addFramework(_, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeFramework(_))
@@ -372,10 +372,11 @@ public:
       const int expectedAgentCount,
       const hashmap<std::string, Quota>&));
 
-  MOCK_METHOD3(addFramework, void(
+  MOCK_METHOD4(addFramework, void(
       const FrameworkID&,
       const FrameworkInfo&,
-      const hashmap<SlaveID, Resources>&));
+      const hashmap<SlaveID, Resources>&,
+      bool active));
 
   MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));

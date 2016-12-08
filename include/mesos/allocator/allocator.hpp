@@ -123,11 +123,14 @@ public:
    *     account for these resources when updating the allocation of this
    *     framework. The allocator should avoid double accounting when yet
    *     unknown agents are added later in `addSlave()`.
+   *
+   * @param active Whether the framework is initially activated.
    */
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const hashmap<SlaveID, Resources>& used) = 0;
+      const hashmap<SlaveID, Resources>& used,
+      bool active) = 0;
 
   /**
    * Removes a framework from the Mesos cluster. It is up to an allocator to

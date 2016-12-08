@@ -7059,7 +7059,8 @@ void Master::addFramework(Framework* framework)
   allocator->addFramework(
       framework->id(),
       framework->info,
-      framework->usedResources);
+      framework->usedResources,
+      framework->active);
 
   // Export framework metrics if a principal is specified in `FrameworkInfo`.
 
