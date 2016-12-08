@@ -3976,8 +3976,6 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionWithTTY)
 }
 
 
-// TODO(vinod): Update the test when mesos containerizer
-// adds support for `attach`.
 TEST_P(AgentAPITest, AttachContainerOutputFailure)
 {
   ContentType contentType = GetParam();
