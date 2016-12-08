@@ -680,6 +680,15 @@ on this system (e.g., musl), a separate FTS package must be installed.
 # (--disable-bundled).
 
 
+# On OS X, if `--with-apr` was not provided, we try to use an available
+# brew installed version.
+if test -z "`echo $with_apr`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions apr`"; then
+  with_apr=`brew --prefix apr`/libexec
+fi
+
 # Check if libapr-1 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include/apr-1 and /lib path
 # suffixes. We include /include/apr-1 because we include <apr*>
