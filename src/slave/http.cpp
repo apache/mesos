@@ -366,14 +366,14 @@ Future<Response> Slave::Http::api(
   };
 
   ContentType acceptType;
-  if (request.acceptsMediaType(APPLICATION_STREAMING_PROTOBUF)) {
-    acceptType = ContentType::STREAMING_PROTOBUF;
-  } else if (request.acceptsMediaType(APPLICATION_STREAMING_JSON)) {
-    acceptType = ContentType::STREAMING_JSON;
-  } else if (request.acceptsMediaType(APPLICATION_JSON)) {
+  if (request.acceptsMediaType(APPLICATION_JSON)) {
     acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
     acceptType = ContentType::PROTOBUF;
+  } else if (request.acceptsMediaType(APPLICATION_STREAMING_JSON)) {
+    acceptType = ContentType::STREAMING_JSON;
+  } else if (request.acceptsMediaType(APPLICATION_STREAMING_PROTOBUF)) {
+    acceptType = ContentType::STREAMING_PROTOBUF;
   } else {
     return NotAcceptable(
         string("Expecting 'Accept' to allow ") +

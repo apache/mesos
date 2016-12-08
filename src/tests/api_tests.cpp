@@ -3935,6 +3935,42 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
 }
 
 
+// This test verifies that the default 'Accept-Type' for the
+// Agent API endpoint is `APPLICATION_JSON`.
+TEST_P(AgentAPITest, DefaultAccept)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = "*/*";
+
+  v1::agent::Call call;
+  call.set_type(v1::agent::Call::GET_STATE);
+
+  ContentType contentType = GetParam();
+
+  Future<http::Response> response = http::post(
+      slave.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+}
+
+
 class AgentAPIStreamingTest
   : public MesosTest,
     public WithParamInterface<ContentType> {};
