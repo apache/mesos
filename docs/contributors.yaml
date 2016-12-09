@@ -75,6 +75,14 @@
   jira_user: anandmazumdar
   reviewboard_user: anandmazumdar
 
+- name: Andrew Schwartzmeyer
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - andrew@schwartzmeyer.com
+  jira_user: andschwa
+  reviewboard_user: andschwa
+
 - name: Andrey Dyatlov
   affiliations:
     - {organization: Mesosphere}
