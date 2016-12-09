@@ -68,12 +68,12 @@ inline void close(
 
 // Retrieves system environment in a `std::map`, ignoring
 // the current process's environment variables.
-inline Option<map<string, string>> getSystemEnvironment()
+inline Option<std::map<std::string, std::string>> getSystemEnvironment()
 {
   std::wstring_convert<std::codecvt<wchar_t, char, mbstate_t>,
     wchar_t> converter;
 
-  map<string, string> systemEnvironment;
+  std::map<std::string, std::string> systemEnvironment;
   wchar_t* environmentEntry = nullptr;
 
   // Get the system environment.
@@ -129,27 +129,32 @@ inline Option<map<string, string>> getSystemEnvironment()
 // `env` and are generally necessary in order to launch things on Windows.
 //
 // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
-inline Option<string> createProcessEnvironment(
-    const Option<map<string, string>>& env)
+inline Option<std::string> createProcessEnvironment(
+    const Option<std::map<std::string, std::string>>& env)
 {
   if (env.isNone() || (env.isSome() && env.get().size() == 0)) {
     return None();
   }
 
-  Option<map<string, string>> systemEnvironment = getSystemEnvironment();
+  Option<std::map<std::string, std::string>> systemEnvironment =
+    getSystemEnvironment();
 
   // The system environment must be non-empty.
   // No subprocesses will be able to launch if the system environment is blank.
   CHECK(systemEnvironment.isSome() && systemEnvironment.get().size() > 0);
 
-  map<string, string> combinedEnvironment = env.get();
+  std::map<std::string, std::string> combinedEnvironment = env.get();
 
-  foreachpair(const string& key, const string& value, systemEnvironment.get()) {
+  foreachpair (const std::string& key,
+               const std::string& value,
+               systemEnvironment.get()) {
     combinedEnvironment[key] = value;
   }
 
-  string environmentString;
-  foreachpair (const string& key, const string& value, combinedEnvironment) {
+  std::string environmentString;
+  foreachpair (const std::string& key,
+               const std::string& value,
+               combinedEnvironment) {
     environmentString += key + '=' + value + '\0';
   }
 
@@ -158,15 +163,15 @@ inline Option<string> createProcessEnvironment(
 
 
 inline Try<PROCESS_INFORMATION> createChildProcess(
-    const string& path,
-    const vector<string>& argv,
-    const Option<map<string, string>>& environment,
+    const std::string& path,
+    const std::vector<std::string>& argv,
+    const Option<std::map<std::string, std::string>>& environment,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
     const OutputFileDescriptors stderrfds)
 {
   // Construct the environment that will be passed to `CreateProcess`.
-  Option<string> environmentString = createProcessEnvironment(environment);
+  Option<std::string> environmentString = createProcessEnvironment(environment);
   const char* processEnvironment = environmentString.isNone()
     ? nullptr
     : environmentString.get().c_str();
@@ -196,7 +201,7 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
   // to have been already quoted correctly before we generate `command`.
   // Incorrectly-quoted command arguments will probably lead the child process
   // to terminate with an error. See also NOTE on `process::subprocess`.
-  string command = strings::join(" ", argv);
+  std::string command = strings::join(" ", argv);
 
   // Escape the quotes in `command`.
   //
