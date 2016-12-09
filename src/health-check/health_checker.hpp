@@ -33,6 +33,7 @@
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stopwatch.hpp>
 
 #include "messages/messages.hpp"
 
@@ -107,7 +108,9 @@ private:
   void success();
 
   void performSingleCheck();
-  void processCheckResult(const process::Future<Nothing>& future);
+  void processCheckResult(
+      const Stopwatch& stopwatch,
+      const process::Future<Nothing>& future);
 
   process::Future<Nothing> commandHealthCheck();
 
