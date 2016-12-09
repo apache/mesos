@@ -209,6 +209,10 @@ check must be interpreted by an executor:
   `delay_seconds`, i.e., setting `grace_period_seconds` < `delay_seconds` has
   no effect.
 
+**NOTE:** Since each time a health check is performed a helper command is
+launched (see [limitations](#current-limitations)), setting `timeout_seconds`
+to a small value, e.g., `<5s`, may lead to intermittent failures.
+
 As an example, the code below specifies a task which is a Docker container with
 a simple HTTP server listening on port `8080` and an HTTP health check that
 should be performed every second starting from the task launch and allows
@@ -274,7 +278,9 @@ and its tasks are in the same network namespace.
 respective framework's documentation.
 
 Regardless of executor, all resources used to health check a task are accounted
-towards task's resource allocation.
+towards task's resource allocation. Hence it is a good idea to add some extra
+resources, e.g., 0.05 cpu and 32MB mem, to the task definition if a Mesos-native
+health check is specified.
 
 
 <a name="current-limitations"></a>
@@ -297,6 +303,9 @@ towards task's resource allocation.
   [MESOS-6117](https://issues.apache.org/jira/browse/MESOS-6117)).
 * Only a single health check per task is allowed (see
   [MESOS-5962](https://issues.apache.org/jira/browse/MESOS-5962)).
+* Each time a health check runs, [a helper command is launched](#under-the-hood).
+  This introduces some run-time overhead (see
+  [MESOS-6766](https://issues.apache.org/jira/browse/MESOS-6766)).
 * A task without a health check may be indistinguishable from a task with a
   health check but still in a grace period. An extra state should be introduced
   (see [MESOS-6417](https://issues.apache.org/jira/browse/MESOS-6417)).

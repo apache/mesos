@@ -429,6 +429,8 @@ Future<Nothing> HealthCheckerProcess::httpHealthCheck()
     url
   };
 
+  // TODO(alexr): Consider launching the helper binary once per task lifetime,
+  // see MESOS-6766.
   Try<Subprocess> s = subprocess(
       HTTP_CHECK_COMMAND,
       argv,
@@ -553,6 +555,8 @@ Future<Nothing> HealthCheckerProcess::tcpHealthCheck()
     "--port=" + stringify(tcp.port())
   };
 
+  // TODO(alexr): Consider launching the helper binary once per task lifetime,
+  // see MESOS-6766.
   Try<Subprocess> s = subprocess(
       tcpConnectPath,
       tcpConnectArguments,
