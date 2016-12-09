@@ -15,12 +15,20 @@
 
 #include <string>
 
+#include <stout/os/getenv.hpp>
+
 
 namespace os {
 
+// Attempts to resolve the system-designated temporary directory before
+// back on a sensible default. On POSIX platforms, this involves checking
+// the POSIX-standard `TMPDIR` environment variable before falling
+// back to `/tmp`.
 inline std::string temp()
 {
-  return "/tmp";
+  Option<std::string> tmpdir = os::getenv("TMPDIR");
+
+  return tmpdir.getOrElse("/tmp");
 }
 
 } // namespace os {

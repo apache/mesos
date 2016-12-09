@@ -20,12 +20,15 @@
 
 namespace os {
 
+// Attempts to resolve the system-designated temporary directory before
+// falling back to a sensible default. On Windows, this involves checking
+// (in this order) environment variables for `TMP`, `TEMP`, and `USERPROFILE`
+// followed by the Windows directory (`::GetTimePath`).  In the unlikely event
+// where none of these are found, this function returns the current directory.
 inline std::string temp()
 {
-  // Get temp folder for current user.
   char temp_folder[MAX_PATH + 2];
   if (::GetTempPath(MAX_PATH + 2, temp_folder) == 0) {
-    // Failed, try current folder.
     if (::GetCurrentDirectory(MAX_PATH + 2, temp_folder) == 0) {
       // Failed, use relative path.
       return ".";
