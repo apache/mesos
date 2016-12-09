@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include <process/address.hpp>
 #include <process/future.hpp>
@@ -72,7 +74,9 @@ using process::Owned;
 
 using testing::Eq;
 
+using std::map;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {

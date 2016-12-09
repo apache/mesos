@@ -16,6 +16,7 @@
 
 #include <google/protobuf/repeated_field.h>
 
+#include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -59,6 +60,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using std::string;
 using std::vector;
 
 using testing::_;

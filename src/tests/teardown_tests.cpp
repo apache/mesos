@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
@@ -50,6 +52,8 @@ using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
+
+using std::vector;
 
 using testing::_;
 

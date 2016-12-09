@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -56,6 +57,7 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+using std::vector;
 
 using testing::AtMost;
 using testing::DoAll;

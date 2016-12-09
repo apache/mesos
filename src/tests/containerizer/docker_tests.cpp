@@ -14,6 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
+#include <string>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <process/future.hpp>
@@ -37,6 +41,7 @@ using namespace process;
 
 using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {

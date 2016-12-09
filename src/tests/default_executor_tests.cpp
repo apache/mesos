@@ -64,6 +64,7 @@ using process::http::Response;
 using std::pair;
 using std::set;
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::DoAll;

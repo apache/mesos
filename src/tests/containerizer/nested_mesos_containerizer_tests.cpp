@@ -16,6 +16,7 @@
 
 #include <sys/wait.h>
 
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -67,6 +68,7 @@ using mesos::slave::ContainerTermination;
 using process::Future;
 using process::Owned;
 
+using std::map;
 using std::ostringstream;
 using std::string;
 using std::vector;

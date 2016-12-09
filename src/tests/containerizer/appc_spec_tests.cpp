@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
@@ -21,6 +23,8 @@
 #include <mesos/appc/spec.hpp>
 
 #include "tests/mesos.hpp"
+
+using std::string;
 
 namespace spec = ::appc::spec;
 

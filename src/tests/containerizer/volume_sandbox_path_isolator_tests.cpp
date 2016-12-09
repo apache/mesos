@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
+#include <string>
+
 #include <stout/gtest.hpp>
 
 #include <process/future.hpp>
@@ -32,6 +35,7 @@ using mesos::internal::slave::state::SlaveState;
 
 using mesos::slave::ContainerTermination;
 
+using std::map;
 using std::string;
 
 namespace mesos {

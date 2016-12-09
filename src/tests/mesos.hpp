@@ -559,7 +559,7 @@ inline TVolume createVolumeFromDockerImage(
 template <typename TContainerInfo, typename TVolume, typename TImage>
 inline TContainerInfo createContainerInfo(
     const Option<std::string> imageName = None(),
-    const vector<TVolume>& volumes = {})
+    const std::vector<TVolume>& volumes = {})
 {
   TContainerInfo info;
   info.set_type(TContainerInfo::MESOS);
@@ -1089,7 +1089,7 @@ inline Volume createVolumeFromDockerImage(Args&&... args)
 // We specify the argument to allow brace initialized construction.
 inline ContainerInfo createContainerInfo(
     const Option<std::string> imageName = None(),
-    const vector<Volume>& volumes = {})
+    const std::vector<Volume>& volumes = {})
 {
   return common::createContainerInfo<ContainerInfo, Volume, Image>(
       imageName,
@@ -1293,7 +1293,7 @@ inline mesos::v1::Volume createVolumeFromDockerImage(Args&&... args)
 // We specify the argument to allow brace initialized construction.
 inline mesos::v1::ContainerInfo createContainerInfo(
     const Option<std::string> imageName = None(),
-    const vector<mesos::v1::Volume>& volumes = {})
+    const std::vector<mesos::v1::Volume>& volumes = {})
 {
   return common::createContainerInfo<
       mesos::v1::ContainerInfo, mesos::v1::Volume, mesos::v1::Image>(

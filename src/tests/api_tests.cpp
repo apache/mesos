@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
 #include <tuple>
 
 #include <mesos/http.hpp>
@@ -87,7 +88,9 @@ using process::Promise;
 
 using recordio::Decoder;
 
+using std::string;
 using std::tuple;
+using std::vector;
 
 using testing::_;
 using testing::AtMost;

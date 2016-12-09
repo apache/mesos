@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <set>
+#include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -61,6 +62,7 @@ using process::Future;
 using process::Owned;
 
 using std::set;
+using std::string;
 using std::vector;
 
 using testing::_;
