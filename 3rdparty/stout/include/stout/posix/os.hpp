@@ -362,21 +362,6 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
 }
 
 
-// Looks in the environment variables for the specified key and
-// returns a string representation of its value. If no environment
-// variable matching key is found, None() is returned.
-inline Option<std::string> getenv(const std::string& key)
-{
-  char* value = ::getenv(key.c_str());
-
-  if (value == nullptr) {
-    return None();
-  }
-
-  return std::string(value);
-}
-
-
 // Creates a tar 'archive' with gzip compression, of the given 'path'.
 inline Try<Nothing> tar(const std::string& path, const std::string& archive)
 {

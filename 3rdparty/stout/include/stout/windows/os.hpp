@@ -489,32 +489,6 @@ inline Try<UTSInfo> uname()
 }
 
 
-// Looks in the environment variables for the specified key and
-// returns a string representation of its value. If no environment
-// variable matching key is found, None() is returned.
-inline Option<std::string> getenv(const std::string& key)
-{
-  DWORD buffer_size = ::GetEnvironmentVariable(key.c_str(), nullptr, 0);
-  if (buffer_size == 0) {
-    return None();
-  }
-
-  std::unique_ptr<char[]> environment(new char[buffer_size]);
-
-  DWORD value_size =
-    ::GetEnvironmentVariable(key.c_str(), environment.get(), buffer_size);
-
-  if (value_size == 0) {
-    // If `value_size == 0` here, that probably means the environment variable
-    // was deleted between when we checked and when we allocated the buffer. We
-    // report `None` to indicate the environment variable was not found.
-    return None();
-  }
-
-  return std::string(environment.get());
-}
-
-
 inline tm* gmtime_r(const time_t* timep, tm* result)
 {
   return ::gmtime_s(result, timep) == ERROR_SUCCESS ? result : nullptr;
