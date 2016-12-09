@@ -90,7 +90,7 @@ endif (WIN32)
 # libraries, we might as well move them to a library folder.)
 if (NOT WIN32)
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --prefix=${GLOG_LIB_ROOT})
-  set(GLOG_BUILD_CMD   make)
+  set(GLOG_BUILD_CMD   make libglog.la)
   set(GLOG_INSTALL_CMD make install)
   # Patch glog to deal with a problem that appears when compiling on clang
   # under the C++11 standard. cf. MESOS-860, MESOS-966.

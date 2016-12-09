@@ -197,9 +197,11 @@ $(LIB_GLOG): $(GLOG)-build-stamp
 # build glog against a system installed gtest (there's no reason to
 # "test" glog and it's highly likely it will cause a compilation bug
 # when building with clang).
+# We explicitly build only libglog.la as it is the artifact we depend
+# on. This e.g., avoids building glog-internal tests.
 $(GLOG)-build-stamp: $(GLOG)-stamp
 	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS)
+          $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS) libglog.la
 	touch $@
 
 ALL_LOCAL += $(LIB_GLOG)
