@@ -125,6 +125,7 @@ using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::PID;
 using process::Time;
 using process::UPID;
 

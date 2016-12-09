@@ -84,11 +84,15 @@ using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Mesos;
 
 using process::Clock;
+using process::Failure;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 using process::Promise;
 using process::UPID;
+
+using process::filter;
 
 using process::http::InternalServerError;
 using process::http::OK;

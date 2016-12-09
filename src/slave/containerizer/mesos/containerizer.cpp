@@ -105,9 +105,12 @@ using process::collect;
 using process::dispatch;
 using process::defer;
 
+using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Shared;
+using process::Subprocess;
 
 using process::http::Connection;
 

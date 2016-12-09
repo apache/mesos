@@ -37,10 +37,11 @@
 #include <mesos/v1/executor/executor.hpp>
 
 #include <process/collect.hpp>
+#include <process/future.hpp>
 #include <process/help.hpp>
 #include <process/http.hpp>
-#include <process/logging.hpp>
 #include <process/limiter.hpp>
+#include <process/logging.hpp>
 #include <process/owned.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -80,6 +81,7 @@ using process::AUTHENTICATION;
 using process::AUTHORIZATION;
 using process::Clock;
 using process::DESCRIPTION;
+using process::Failure;
 using process::Future;
 using process::HELP;
 using process::Logging;
@@ -381,7 +383,7 @@ Future<Response> Slave::Http::api(
         APPLICATION_STREAMING_JSON + " or "  + APPLICATION_STREAMING_PROTOBUF);
   }
 
-  CHECK_EQ(http::Request::PIPE, request.type);
+  CHECK_EQ(Request::PIPE, request.type);
   CHECK_SOME(request.reader);
 
   if (requestStreaming(contentType)) {

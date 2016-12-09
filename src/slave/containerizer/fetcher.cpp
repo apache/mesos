@@ -47,8 +47,12 @@ using std::vector;
 
 using mesos::fetcher::FetcherInfo;
 
+using process::async;
+
+using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Subprocess;
 
 namespace mesos {
 namespace internal {
