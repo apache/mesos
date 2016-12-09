@@ -2661,6 +2661,10 @@ inline std::ostream& operator<<(
 // Information about an active role.
 struct Role
 {
+  Role() = delete;
+
+  Role(const std::string& _role) : role(_role) {}
+
   void addFramework(Framework* framework)
   {
     frameworks[framework->id()] = framework;
@@ -2674,13 +2678,31 @@ struct Role
   Resources resources() const
   {
     Resources resources;
+
+    auto allocatedTo = [](const std::string& role) {
+      return [role](const Resource& resource) {
+        return resource.allocation_info().role() == role;
+      };
+    };
+
     foreachvalue (Framework* framework, frameworks) {
-      resources += framework->totalUsedResources;
-      resources += framework->totalOfferedResources;
+      // TODO(jay_guo): MULTI_ROLE is handled as a special case because
+      // the `Resource.allocation_info.role` is not yet populated. Once
+      // the support is complete, we do not need the `else` logic here.
+      if (protobuf::frameworkHasCapability(
+              framework->info, FrameworkInfo::Capability::MULTI_ROLE)) {
+        resources += framework->totalUsedResources.filter(allocatedTo(role));
+        resources += framework->totalOfferedResources.filter(allocatedTo(role));
+      } else {
+        resources += framework->totalUsedResources;
+        resources += framework->totalOfferedResources;
+      }
     }
 
     return resources;
   }
+
+  const std::string role;
 
   // NOTE: The dynamic role/quota relation is stored in and administrated
   // by the master. There is no direct representation of quota information

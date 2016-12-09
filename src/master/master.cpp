@@ -6992,7 +6992,7 @@ void Master::addFramework(Framework* framework)
       << " of framework " << *framework;
 
     if (!activeRoles.contains(role)) {
-      activeRoles[role] = new Role();
+      activeRoles[role] = new Role(role);
     }
     activeRoles.at(role)->addFramework(framework);
   };
