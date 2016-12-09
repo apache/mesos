@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <process/address.hpp>
+#include <process/clock.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -77,6 +78,7 @@ using std::string;
 using std::vector;
 
 using process::await;
+using process::Clock;
 using process::ErrnoFailure;
 using process::Failure;
 using process::Future;
@@ -764,14 +766,25 @@ Future<Nothing> IOSwitchboard::cleanup(
   // process, we might be sending SIGTERM to a random process. This
   // could be a problem under high load.
   //
+  // TODO(jieyu): We give the I/O switchboard server a grace period to
+  // wait for the connection from the containerizer. This is for the
+  // case where the container itself is short lived (e.g., a DEBUG
+  // container does an 'ls' and exits). For that case, we still want
+  // the subsequent attach output call to get the output from that
+  // container.
+  //
   // TODO(klueska): Send a message over the io switchboard server's
   // domain socket instead of using a signal.
   if (pid.isSome() && status.isPending()) {
-    LOG(INFO) << "Sending SIGTERM to I/O switchboard server (pid: "
-              << pid.get() << ") since container " << containerId
-              << " is being destroyed";
+    Clock::timer(Seconds(5), [pid, status, containerId]() {
+      if (status.isPending()) {
+        LOG(INFO) << "Sending SIGTERM to I/O switchboard server (pid: "
+                  << pid.get() << ") since container " << containerId
+                  << " is being destroyed";
 
-    os::kill(pid.get(), SIGTERM);
+        os::kill(pid.get(), SIGTERM);
+      }
+    });
   }
 
   // NOTE: We use 'await' here so that we can handle the FAILED and
