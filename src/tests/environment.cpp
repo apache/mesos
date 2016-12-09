@@ -49,6 +49,7 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/shell.hpp>
+#include <stout/os/temp.hpp>
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
@@ -901,14 +902,10 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
     testName = strings::remove(testName, "DISABLED_", strings::PREFIX);
   }
 
-  Option<string> tmpdir = os::getenv("TMPDIR");
-
-  if (tmpdir.isNone()) {
-    tmpdir = "/tmp";
-  }
+  const string tmpdir = os::temp();
 
   const string& path =
-    path::join(tmpdir.get(), strings::join("_", testCase, testName, "XXXXXX"));
+    path::join(tmpdir, strings::join("_", testCase, testName, "XXXXXX"));
 
   Try<string> mkdtemp = os::mkdtemp(path);
   if (mkdtemp.isSome()) {
