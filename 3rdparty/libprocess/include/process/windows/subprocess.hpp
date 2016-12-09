@@ -33,11 +33,6 @@
 
 #include <userEnv.h>
 
-using std::map;
-using std::string;
-using std::vector;
-
-
 namespace process {
 
 using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
