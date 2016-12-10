@@ -238,8 +238,19 @@ struct FrameworkWriter
     writer->field("user", framework_->info.user());
     writer->field("failover_timeout", framework_->info.failover_timeout());
     writer->field("checkpoint", framework_->info.checkpoint());
-    writer->field("role", framework_->info.role());
     writer->field("hostname", framework_->info.hostname());
+
+    // For multi-role frameworks the `role` field will be unset.
+    // Note that we could set `roles` here both both cases, which
+    // would make tooling simpler (only need to look for `roles`).
+    // However, we opted to just mirror the protobuf akin to how
+    // generic protobuf -> JSON translation works.
+    if (protobuf::frameworkHasCapability(
+            framework_->info, FrameworkInfo::Capability::MULTI_ROLE)) {
+      writer->field("roles", framework_->info.roles());
+    } else {
+      writer->field("role", framework_->info.role());
+    }
 
     writer->field("executors", [this](JSON::ArrayWriter* writer) {
       foreachvalue (Executor* executor, framework_->executors) {
