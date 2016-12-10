@@ -205,6 +205,18 @@ template <typename T1, typename T2>
 #endif // __WINDOWS__
 
 
+// Creates a gtest `TEST_P` that is disabled on Windows.
+// TODO(greggomann): Remove after temporarily-disabled tests are fixed on
+// Windows. See MESOS-6392.
+#ifndef __WINDOWS__
+#define TEST_P_TEMP_DISABLED_ON_WINDOWS(test_case_name, test_name) \
+  TEST_P(test_case_name, test_name)
+#else
+#define TEST_P_TEMP_DISABLED_ON_WINDOWS(test_case_name, test_name) \
+  TEST_P(test_case_name, DISABLED_##test_name)
+#endif // __WINDOWS__
+
+
 // NOTE: On Windows, the closest equivalent to `sleep` is `timeout`.
 // Unfortunately, `timeout` requires an interactive terminal, otherwise
 // it errors out immediately. Instead, we use `ping` against localhost
