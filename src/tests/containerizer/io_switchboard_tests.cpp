@@ -118,7 +118,7 @@ TEST_F(IOSwitchboardServerTest, RedirectLog)
 
   string socketPath = path::join(
       sandbox.get(),
-      "mesos-io-switchboard-" + UUID::random().toString());
+      "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -226,7 +226,7 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
 
   string socketPath = path::join(
       sandbox.get(),
-      "mesos-io-switchboard-" + UUID::random().toString());
+      "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -348,7 +348,7 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
 
   string socketPath = path::join(
       sandbox.get(),
-      "mesos-io-switchboard-" + UUID::random().toString());
+      "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
