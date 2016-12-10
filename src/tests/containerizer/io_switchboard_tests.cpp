@@ -464,7 +464,6 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-  flags.io_switchboard_enable_server = true;
 
   Fetcher fetcher;
 
@@ -492,6 +491,10 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
       "executor",
       "sleep 1000",
       "cpus:1");
+
+  // Request a tty for the container to enable attaching.
+  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+  executorInfo.mutable_container()->mutable_tty_info();
 
   Future<bool> launch = containerizer->launch(
       containerId,
@@ -527,7 +530,6 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-  flags.io_switchboard_enable_server = true;
 
   Fetcher fetcher;
 
@@ -593,7 +595,6 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-  flags.io_switchboard_enable_server = true;
 
   Fetcher fetcher;
 
@@ -621,6 +622,10 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
       "executor",
       "sleep 1000",
       "cpus:1");
+
+  // Request a tty for the container to start the switchboard server.
+  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+  executorInfo.mutable_container()->mutable_tty_info();
 
   Future<bool> launch = containerizer->launch(
       containerId,
@@ -664,7 +669,6 @@ TEST_F(IOSwitchboardTest, RecoverThenKillSwitchboardContainerDestroyed)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-  flags.io_switchboard_enable_server = true;
 
   Fetcher fetcher;
 
@@ -707,11 +711,13 @@ TEST_F(IOSwitchboardTest, RecoverThenKillSwitchboardContainerDestroyed)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  // Launch a task.
+  // Launch a task with tty to start the switchboard server.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  task.mutable_container()->set_type(ContainerInfo::MESOS);
+  task.mutable_container()->mutable_tty_info();
 
   // Drop the status update from the slave to the master so the
-  // scheduler never recieves the first task update.
+  // scheduler never receives the first task update.
   Future<StatusUpdateMessage> update =
     DROP_PROTOBUF(StatusUpdateMessage(), slave.get()->pid, master.get()->pid);
 

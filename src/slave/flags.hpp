@@ -70,7 +70,6 @@ public:
 #ifndef __WINDOWS__
   bool switch_user;
 #endif // __WINDOWS__
-  bool io_switchboard_enable_server;
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration registration_backoff_factor;
   Duration authentication_backoff_factor;

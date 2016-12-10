@@ -4324,8 +4324,8 @@ INSTANTIATE_TEST_CASE_P(
         ContentType::STREAMING_PROTOBUF, ContentType::STREAMING_JSON));
 
 
-// This test launches a child container with the 'cat' command as the
-// entrypoint and attaches to its STDOUT via the attach output call.
+// This test launches a child container with TTY and the 'cat' command
+// as the entrypoint and attaches to its STDOUT via the attach output call.
 // It then verifies that any data streamed to the container via the
 // attach input call is received by the client on the output stream.
 TEST_P(AgentAPIStreamingTest, AttachContainerInput)
@@ -4385,7 +4385,7 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
   containerId.set_value(UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
-  // Launch the child container and then attach to it's output.
+  // Launch the child container with TTY and then attach to it's output.
 
   {
     v1::agent::Call call;
@@ -4396,6 +4396,12 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
 
     call.mutable_launch_nested_container()->mutable_command()
       ->CopyFrom(v1::createCommandInfo("cat"));
+
+    call.mutable_launch_nested_container()->mutable_container()
+      ->set_type(mesos::v1::ContainerInfo::MESOS);
+
+    call.mutable_launch_nested_container()->mutable_container()
+      ->mutable_tty_info();
 
     Future<http::Response> response = http::post(
         slave.get()->pid,
@@ -4441,11 +4447,10 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
     "aliquip ex ea commodo consequat. Duis aute irure dolor in "
     "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
     "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in "
-    "culpa qui officia deserunt mollit anim id est laborum.";
+    "culpa qui officia deserunt mollit anim id est laborum.\n";
 
-  while (Bytes(data.size()) < Megabytes(1)) {
-    data.append(data);
-  }
+  // Terminal transforms "\n" to "\r\n".
+  string stdoutExpected = strings::trim(data) + "\r\n";
 
   http::Pipe pipe;
   http::Pipe::Writer writer = pipe.writer();
@@ -4492,7 +4497,7 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
     writer.write(encoder.encode(call));
   }
 
-  // Signal `EOF` to the 'cat' command.
+  // Signal `EOT` to the terminal so that it sends `EOF` to `cat` command.
   {
     v1::agent::Call call;
     call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
@@ -4505,7 +4510,7 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
     v1::agent::ProcessIO* processIO = attach->mutable_process_io();
     processIO->set_type(v1::agent::ProcessIO::DATA);
     processIO->mutable_data()->set_type(v1::agent::ProcessIO::Data::STDIN);
-    processIO->mutable_data()->set_data("");
+    processIO->mutable_data()->set_data("\x04");
 
     writer.write(encoder.encode(call));
   }
@@ -4553,8 +4558,11 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
 
   tie(stdoutReceived, stderrReceived) = received.get();
 
+  // `stdoutExpected` appears twice in stdout because the terminal in raw mode
+  // echoes the data once and `cat` outputs it once.
+  ASSERT_EQ(stdoutExpected + stdoutExpected, stdoutReceived);
+
   ASSERT_TRUE(stderrReceived.empty());
-  ASSERT_EQ(data, stdoutReceived);
 }
 
 

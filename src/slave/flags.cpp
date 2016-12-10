@@ -262,17 +262,6 @@ mesos::internal::slave::Flags::Flags()
       "NOTE: This feature is not yet supported on Windows agent, and\n"
       "therefore the flag currently does not exist on that platform.",
       true);
-
-  add(&Flags::io_switchboard_enable_server,
-      "io_switchboard_enable_server",
-      "If set to `true`, the agent will launch a per-container sidecar\n"
-      "process that runs an HTTP serve to handle incoming\n"
-      "'ATTACH_CONTAINER_INPUT' and 'ATTACH_CONTAINER_OUTPUT' calls on\n"
-      "behalf of a container. If set to 'false', this functionality\n"
-      "will not be available. The default is 'false'.\n"
-      "NOTE: This feature is not yet supported on Windows agent, and\n"
-      "therefore the flag currently does not exist on that platform.",
-      false);
 #endif // __WINDOWS__
 
   add(&Flags::frameworks_home,

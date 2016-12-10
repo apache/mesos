@@ -164,8 +164,8 @@ Future<Nothing> IOSwitchboard::recover(
 
     // If we don't have a checkpoint directory created for this
     // container's io switchboard, there is nothing to recover. This
-    // can only happen for legacy containers, containers that were
-    // launched with `--io_switchboard_enable_server=false`.
+    // can only happen for containers that were launched with `DEFAULT`
+    // ContainerClass *and* no `TTYInfo` set.
     if (!os::exists(path)) {
       continue;
     }
@@ -285,27 +285,18 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerLogger::SubprocessInfo& loggerInfo)
 {
   // On windows, we do not yet support running an io switchboard
-  // server, so we must error out if the agent
-  // `io_switchboard_enable_server` flag is enabled.
+  // server, so we must error out if it is required.
 #ifdef __WINDOWS__
-  if (flags.io_switchboard_enable_server) {
+  if (IOSwitchboardServer::isRequired(containerConfig)) {
       return Failure(
-          "Setting the agent flag"
-          " '--io_switchboard_enable_server=true'"
-          " is not supported on windows");
+          "IO Switchboard server is not supported on windows");
   }
 #endif
 
   bool hasTTY = containerConfig.has_container_info() &&
                 containerConfig.container_info().has_tty_info();
 
-  if (!flags.io_switchboard_enable_server) {
-    // TTY support requires I/O switchboard server so that stdio can
-    // be properly redirected to logger.
-    if (hasTTY) {
-      return Failure("TTY support requires I/O switchboard server");
-    }
-
+  if (!IOSwitchboardServer::isRequired(containerConfig)) {
     ContainerLaunchInfo launchInfo;
 
     ContainerIO* out = launchInfo.mutable_out();
