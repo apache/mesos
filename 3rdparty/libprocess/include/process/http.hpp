@@ -981,7 +981,8 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 
 // Asynchronously sends an HTTP POST request to the specified URL
@@ -1002,7 +1003,8 @@ Future<Response> post(
     const Option<std::string>& path = None(),
     const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
-    const Option<std::string>& contentType = None());
+    const Option<std::string>& contentType = None(),
+    const Option<std::string>& scheme = None());
 
 
 /**
@@ -1026,12 +1028,14 @@ Future<Response> requestDelete(
  * @param path The optional path to be be deleted. If not send the
      request is send to the process directly.
  * @param headers Optional headers for the request.
+ * @param scheme Optional scheme for the request.
  * @return A future with the HTTP response.
  */
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 
 namespace streaming {
@@ -1052,7 +1056,8 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 // Asynchronously sends an HTTP POST request to the specified URL
 // and returns the HTTP response of type 'PIPE' once the response
@@ -1073,7 +1078,8 @@ Future<Response> post(
     const Option<std::string>& path = None(),
     const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
-    const Option<std::string>& contentType = None());
+    const Option<std::string>& contentType = None(),
+    const Option<std::string>& scheme = None());
 
 } // namespace streaming {
 

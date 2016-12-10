@@ -1864,7 +1864,7 @@ Request createRequest(
   const Option<string>& body,
   const Option<string>& contentType)
 {
-  string scheme = enableSSL ? "https" : "http";
+  const string scheme = enableSSL ? "https" : "http";
   URL url(scheme, net::IP(upid.address.ip), upid.address.port, upid.id);
 
   if (path.isSome()) {
@@ -1917,9 +1917,14 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -1977,9 +1982,14 @@ Future<Response> post(
     const Option<string>& path,
     const Option<Headers>& headers,
     const Option<string>& body,
-    const Option<string>& contentType)
+    const Option<string>& contentType,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -2010,9 +2020,14 @@ Future<Response> requestDelete(
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<string>& path,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(joerg84): Handle 'query' and/or 'fragment' in 'path'.
@@ -2048,9 +2063,14 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -2108,9 +2128,14 @@ Future<Response> post(
     const Option<string>& path,
     const Option<Headers>& headers,
     const Option<string>& body,
-    const Option<string>& contentType)
+    const Option<string>& contentType,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
