@@ -1465,8 +1465,9 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
           }
           case agent::ProcessIO::DATA: {
             // Receiving a `DATA` message with length 0 indicates
-            // `EOF` so we should close `stdinToFd`.
-            if (message.data().data().length() == 0) {
+            // `EOF`, so we should close `stdinToFd` if there is no tty.
+            // If tty is enabled, the client is expected to send `EOT` instead.
+            if (!tty && message.data().data().length() == 0) {
               os::close(stdinToFd);
               return true;
             }
