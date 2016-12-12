@@ -763,6 +763,7 @@ int MesosContainerizerLaunch::execute()
 
   // If we get here, the execle call failed.
   cerr << "Failed to execute command: " << os::strerror(errno) << endl;
+  exitWithStatus(EXIT_FAILURE);
   UNREACHABLE();
 }
 
