@@ -504,7 +504,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   ioSwitchboardFds.insert(stderrFromFd);
 
   // Set up our flags to send to the io switchboard server process.
-  IOSwitchboardServerFlags switchboardFlags;
+  IOSwitchboardServer::Flags switchboardFlags;
   switchboardFlags.tty = hasTTY;
   switchboardFlags.stdin_to_fd = stdinToFd;
   switchboardFlags.stdout_from_fd = stdoutFromFd;

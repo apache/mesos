@@ -58,7 +58,7 @@ static void sigtermHandler(int sig)
 
 int main(int argc, char** argv)
 {
-  IOSwitchboardServerFlags flags;
+  IOSwitchboardServer::Flags flags;
 
   // Load and validate flags from the environment and command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
