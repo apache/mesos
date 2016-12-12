@@ -36,6 +36,7 @@
 #include <process/process.hpp>
 #include <process/reap.hpp>
 #include <process/shared.hpp>
+#include <process/socket.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/hashmap.hpp>
@@ -90,6 +91,8 @@ using process::Promise;
 using process::RateLimiter;
 using process::Shared;
 using process::Subprocess;
+
+using process::network::internal::SocketImpl;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerClass;
@@ -690,7 +693,7 @@ Future<http::Connection> IOSwitchboard::connect(
       // here because the server might not have started listening on
       // the socket yet. Consider retrying if 'http::connect' failed
       // with ECONNREFUSED.
-      return http::connect(address.get());
+      return http::connect(address.get(), http::Scheme::HTTP);
     }));
 #endif // __WINDOWS__
 }
@@ -970,7 +973,7 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
     const string& socketPath,
     bool waitForConnection)
 {
-  Try<unix::Socket> socket = unix::Socket::create();
+  Try<unix::Socket> socket = unix::Socket::create(SocketImpl::Kind::POLL);
   if (socket.isError()) {
     return Error("Failed to create socket: " + socket.error());
   }

@@ -260,7 +260,9 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
   Try<unix::Address> address = unix::Address::create(socketPath);
   ASSERT_SOME(address);
 
-  Future<http::Connection> _connection = http::connect(address.get());
+  Future<http::Connection> _connection = http::connect(
+      address.get(), http::Scheme::HTTP);
+
   AWAIT_READY(_connection);
   http::Connection connection = _connection.get();
 
@@ -394,7 +396,9 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
   Try<unix::Address> address = unix::Address::create(socketPath);
   ASSERT_SOME(address);
 
-  Future<http::Connection> _connection = http::connect(address.get());
+  Future<http::Connection> _connection = http::connect(
+      address.get(), http::Scheme::HTTP);
+
   AWAIT_READY(_connection);
   http::Connection connection = _connection.get();
 
