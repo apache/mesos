@@ -2360,7 +2360,7 @@ Future<Response> Slave::Http::_attachContainerInput(
       request.type = Request::PIPE;
       request.reader = reader;
       request.headers = {{"Content-Type", stringify(contentType)},
-                         {"Accept-Type", stringify(acceptType)}};
+                         {"Accept", stringify(acceptType)}};
 
       // See comments in `attachContainerOutput()` for the reasoning
       // behind these values.

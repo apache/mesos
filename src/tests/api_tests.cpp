@@ -4274,7 +4274,7 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
 }
 
 
-// This test verifies that the default 'Accept-Type' for the
+// This test verifies that the default 'Accept' for the
 // Agent API endpoint is `APPLICATION_JSON`.
 TEST_P(AgentAPITest, DefaultAccept)
 {
