@@ -62,19 +62,33 @@ int main(int argc, char** argv)
 
   // Load and validate flags from the environment and command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
-
   if (load.isError()) {
     EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
   // Verify non-optional flags have valid values.
-  if (flags.stdin_to_fd == -1 ||
-      flags.stdout_from_fd == -1 ||
-      flags.stdout_to_fd == -1 ||
-      flags.stderr_from_fd == -1 ||
-      flags.stderr_to_fd == -1 ||
-      flags.socket_path == "") {
-    EXIT(EXIT_FAILURE) << "Illegal value in flags: " << stringify(flags);
+  if (flags.stdin_to_fd.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--stdin_to_fd' is missing");
+  }
+
+  if (flags.stdout_from_fd.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--stdout_from_fd' is missing");
+  }
+
+  if (flags.stdout_to_fd.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--stdout_to_fd' is missing");
+  }
+
+  if (flags.stderr_from_fd.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--stderr_from_fd' is missing");
+  }
+
+  if (flags.stderr_to_fd.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--stderr_to_fd' is missing");
+  }
+
+  if (flags.socket_path.isNone()) {
+    EXIT(EXIT_FAILURE) << flags.usage("'--socket_path' is missing");
   }
 
   Try<Nothing> pipe = os::pipe(unblockFds);
@@ -90,12 +104,12 @@ int main(int argc, char** argv)
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       flags.tty,
-      flags.stdin_to_fd,
-      flags.stdout_from_fd,
-      flags.stdout_to_fd,
-      flags.stderr_from_fd,
-      flags.stderr_to_fd,
-      flags.socket_path,
+      flags.stdin_to_fd.get(),
+      flags.stdout_from_fd.get(),
+      flags.stdout_to_fd.get(),
+      flags.stderr_from_fd.get(),
+      flags.stderr_to_fd.get(),
+      flags.socket_path.get(),
       flags.wait_for_connection,
       flags.heartbeat_interval);
 

@@ -595,7 +595,8 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   }
 
   LOG(INFO) << "Created I/O switchboard server (pid: " << child->pid()
-            << ") listening on socket file '" << switchboardFlags.socket_path
+            << ") listening on socket file '"
+            << switchboardFlags.socket_path.get()
             << "' for container " << containerId;
 
   close(ioSwitchboardFds);
@@ -612,7 +613,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       flags.runtime_dir, containerId);
 
   Try<Nothing> checkpointed = slave::state::checkpoint(
-      path, switchboardFlags.socket_path);
+      path, switchboardFlags.socket_path.get());
 
   if (checkpointed.isError()) {
     close(openedFds);

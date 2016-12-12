@@ -157,30 +157,25 @@ public:
 
       add(&Flags::stdin_to_fd,
           "stdin_to_fd",
-          "The file descriptor where incoming stdin data should be written.",
-          -1);
+          "The file descriptor where incoming stdin data should be written.");
 
       add(&Flags::stdout_from_fd,
           "stdout_from_fd",
-          "The file descriptor that should be read to consume stdout data.",
-          -1);
+          "The file descriptor that should be read to consume stdout data.");
 
       add(&Flags::stdout_to_fd,
           "stdout_to_fd",
           "A file descriptor where data read from\n"
-          "'stdout_from_fd' should be redirected to.",
-          -1);
+          "'stdout_from_fd' should be redirected to.");
 
       add(&Flags::stderr_from_fd,
           "stderr_from_fd",
-          "The file descriptor that should be read to consume stderr data.",
-          -1);
+          "The file descriptor that should be read to consume stderr data.");
 
       add(&Flags::stderr_to_fd,
           "stderr_to_fd",
           "A file descriptor where data read from\n"
-          "'stderr_from_fd' should be redirected to.",
-          -1);
+          "'stderr_from_fd' should be redirected to.");
 
       add(&Flags::wait_for_connection,
           "wait_for_connection",
@@ -191,8 +186,7 @@ public:
       add(&Flags::socket_path,
           "socket_address",
           "The path of the unix domain socket this\n"
-          "io switchboard should attach itself to.",
-          "");
+          "io switchboard should attach itself to.");
 
       add(&Flags::heartbeat_interval,
           "heartbeat_interval",
@@ -201,12 +195,12 @@ public:
     }
 
     bool tty;
-    int stdin_to_fd;
-    int stdout_from_fd;
-    int stdout_to_fd;
-    int stderr_from_fd;
-    int stderr_to_fd;
-    std::string socket_path;
+    Option<int> stdin_to_fd;
+    Option<int> stdout_from_fd;
+    Option<int> stdout_to_fd;
+    Option<int> stderr_from_fd;
+    Option<int> stderr_to_fd;
+    Option<std::string> socket_path;
     bool wait_for_connection;
     Option<Duration> heartbeat_interval;
   };
