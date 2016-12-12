@@ -366,31 +366,6 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-#ifdef __linux__
-  if (flags.namespace_mnt_target.isSome()) {
-    string path = path::join(
-        "/proc",
-        stringify(flags.namespace_mnt_target.get()),
-        "ns",
-        "mnt");
-
-    Try<Nothing> setns = ns::setns(path, "mnt", false);
-    if (setns.isError()) {
-      cerr << "Failed to enter mount namespace: "
-           << setns.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
-
-  if (flags.unshare_namespace_mnt) {
-    if (unshare(CLONE_NEWNS) != 0) {
-      cerr << "Failed to unshare mount namespace: "
-           << os::strerror(errno) << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
-#endif // __linux__
-
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.
   foreach (const CommandInfo& command, launchInfo.pre_exec_commands()) {
@@ -504,6 +479,31 @@ int MesosContainerizerLaunch::execute()
   if (launchInfo.has_capabilities()) {
     cerr << "Capabilities are not supported on non Linux system" << endl;
     exitWithStatus(EXIT_FAILURE);
+  }
+#endif // __linux__
+
+#ifdef __linux__
+  if (flags.namespace_mnt_target.isSome()) {
+    string path = path::join(
+        "/proc",
+        stringify(flags.namespace_mnt_target.get()),
+        "ns",
+        "mnt");
+
+    Try<Nothing> setns = ns::setns(path, "mnt", false);
+    if (setns.isError()) {
+      cerr << "Failed to enter mount namespace: "
+           << setns.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+
+  if (flags.unshare_namespace_mnt) {
+    if (unshare(CLONE_NEWNS) != 0) {
+      cerr << "Failed to unshare mount namespace: "
+           << os::strerror(errno) << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
   }
 #endif // __linux__
 
