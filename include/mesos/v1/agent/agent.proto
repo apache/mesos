@@ -365,10 +365,16 @@ message ProcessIO {
     enum Type {
       UNKNOWN = 0;
       TTY_INFO = 1;
+      HEARTBEAT = 2;
+    }
+
+    message Heartbeat {
+      optional DurationInfo interval = 1;
     }
 
     optional Type type = 1;
     optional TTYInfo tty_info = 2;
+    optional Heartbeat heartbeat = 3;
   }
 
   optional Type type = 1;

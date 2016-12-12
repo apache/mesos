@@ -138,7 +138,8 @@ public:
       int stderrFromFd,
       int stderrToFd,
       const std::string& socketPath,
-      bool waitForConnection = false);
+      bool waitForConnection = false,
+      Option<Duration> heartbeatInterval = None());
 
   ~IOSwitchboardServer();
 
@@ -177,7 +178,8 @@ private:
       int stderrFromFd,
       int stderrToFd,
       const process::network::unix::Socket& socket,
-      bool waitForConnection);
+      bool waitForConnection,
+      Option<Duration> heartbeatInterval);
 
   process::Owned<IOSwitchboardServerProcess> process;
 };
@@ -248,6 +250,11 @@ struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
         "The path of the unix domain socket this\n"
         "io switchboard should attach itself to.",
         "");
+
+    add(&IOSwitchboardServerFlags::heartbeat_interval,
+        "heartbeat_interval",
+        "A heartbeat interval (e.g. '5secs', '10mins') for messages to\n"
+        "be sent to any open 'ATTACH_CONTAINER_OUTPUT' connections.");
   }
 
   bool tty;
@@ -258,6 +265,7 @@ struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
   int stderr_to_fd;
   std::string socket_path;
   bool wait_for_connection;
+  Option<Duration> heartbeat_interval;
 };
 #endif // __WINDOWS__
 

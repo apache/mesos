@@ -96,7 +96,8 @@ int main(int argc, char** argv)
       flags.stderr_from_fd,
       flags.stderr_to_fd,
       flags.socket_path,
-      flags.wait_for_connection);
+      flags.wait_for_connection,
+      flags.heartbeat_interval);
 
   if (server.isError()) {
     EXIT(EXIT_FAILURE) << "Failed to create the io switchboard server:"
