@@ -264,6 +264,14 @@ mesos::internal::slave::Flags::Flags()
       true);
 #endif // __WINDOWS__
 
+  add(&Flags::http_heartbeat_interval,
+      "http_heartbeat_interval",
+      "This flag sets a heartbeat interval (e.g. '5secs', '10mins') for\n"
+      "messages to be sent over persistent connections made against\n"
+      "the agent HTTP API. Currently, this only applies to the\n"
+      "'LAUNCH_NESTED_CONTAINER_SESSION' and 'ATTACH_CONTAINER_OUTPUT' calls.",
+      Seconds(30));
+
   add(&Flags::frameworks_home,
       "frameworks_home",
       "Directory path prepended to relative executor URIs", "");
