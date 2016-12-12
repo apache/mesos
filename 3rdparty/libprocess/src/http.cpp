@@ -1318,9 +1318,24 @@ Future<Nothing> Connection::disconnected()
 }
 
 
-Future<Connection> connect(const network::Address& address)
+Future<Connection> connect(const network::Address& address, Scheme scheme)
 {
-  Try<network::Socket> socket = network::Socket::create(address.family());
+  SocketImpl::Kind kind;
+
+  switch (scheme) {
+    case Scheme::HTTP:
+      kind = SocketImpl::Kind::POLL;
+      break;
+#ifdef USE_SSL_SOCKET
+    case Scheme::HTTPS:
+      kind = SocketImpl::Kind::SSL;
+      break;
+#endif
+  }
+
+  Try<network::Socket> socket = network::Socket::create(
+      address.family(), kind);
+
   if (socket.isError()) {
     return Failure("Failed to create socket: " + socket.error());
   }
@@ -1360,36 +1375,20 @@ Future<Connection> connect(const URL& url)
 
   address.port = url.port.get();
 
-  // TODO(benh): Reuse `connect(address)` once it supports SSL.
-  Try<network::Socket> socket = [&url]() -> Try<network::Socket> {
-    // Default to 'http' if no scheme was specified.
-    if (url.scheme.isNone() || url.scheme == string("http")) {
-      return network::Socket::create(
-          network::Address::Family::INET,
-          SocketImpl::Kind::POLL);
-    }
-
-    if (url.scheme == string("https")) {
-#ifdef USE_SSL_SOCKET
-      return network::Socket::create(
-          network::Address::Family::INET,
-          SocketImpl::Kind::SSL);
-#else
-      return Error("'https' scheme requires SSL enabled");
-#endif
-    }
-
-    return Error("Unsupported URL scheme");
-  }();
-
-  if (socket.isError()) {
-    return Failure("Failed to create socket: " + socket.error());
+  // Default to 'http' if no scheme was specified.
+  if (url.scheme.isNone() || url.scheme == string("http")) {
+    return connect(address, Scheme::HTTP);
   }
 
-  return socket->connect(address)
-    .then([socket]() {
-      return Connection(socket.get());
-    });
+  if (url.scheme == string("https")) {
+#ifdef USE_SSL_SOCKET
+    return connect(address, Scheme::HTTPS);
+#else
+    return Failure("'https' scheme requires SSL enabled");
+#endif
+  }
+
+  return Failure("Unsupported URL scheme");
 }
 
 

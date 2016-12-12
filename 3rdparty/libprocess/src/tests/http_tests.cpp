@@ -1885,7 +1885,8 @@ TEST_F(HttpServeTest, Pipelining)
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address);
+  Future<http::Connection> connect =
+    http::connect(address, http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1988,7 +1989,8 @@ TEST_F(HttpServeTest, Discard)
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address);
+  Future<http::Connection> connect =
+    http::connect(address, http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -2056,7 +2058,8 @@ TEST_F(HttpServeTest, Unix)
 
   Future<unix::Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect =
+    http::connect(address.get(), http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();

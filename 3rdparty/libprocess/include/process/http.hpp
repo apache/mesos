@@ -51,6 +51,15 @@ template <typename T>
 class Future;
 
 namespace http {
+
+enum class Scheme {
+  HTTP,
+#ifdef USE_SSL_SOCKET
+  HTTPS
+#endif
+};
+
+
 namespace authentication {
 
 class Authenticator;
@@ -850,7 +859,8 @@ public:
 
 private:
   Connection(const network::Socket& s);
-  friend Future<Connection> connect(const network::Address& address);
+  friend Future<Connection> connect(
+      const network::Address& address, Scheme scheme);
   friend Future<Connection> connect(const URL&);
 
   // Forward declaration.
@@ -860,11 +870,7 @@ private:
 };
 
 
-// TODO(benh): Currently we don't support SSL for this version of
-// connect. We should support this, perhaps with an enum or a bool and
-// then update the `connect(URL)` variant to just call this function
-// instead.
-Future<Connection> connect(const network::Address& address);
+Future<Connection> connect(const network::Address& address, Scheme scheme);
 
 
 Future<Connection> connect(const URL& url);
