@@ -359,6 +359,14 @@
   jira_user: js84
   reviewboard_user: joerg84
 
+- name: John Kordich
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - johnkord@microsoft.com
+  jira_user: johnkord
+  reviewboard_user: johnkord
+
 - name: Jojy Varghese
   affiliations:
     - {organization: Mesosphere}
