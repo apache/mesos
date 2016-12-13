@@ -374,7 +374,10 @@ TEST_P(DefaultExecutorTest, KillTask)
     call.set_type(Call::ACKNOWLEDGE);
 
     Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(taskInfo1.task_id());
+
+    acknowledge->mutable_task_id()->CopyFrom(
+        runningUpdate1->status().task_id());
+
     acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
     acknowledge->set_uuid(runningUpdate1->status().uuid());
 
@@ -387,7 +390,10 @@ TEST_P(DefaultExecutorTest, KillTask)
     call.set_type(Call::ACKNOWLEDGE);
 
     Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(taskInfo2.task_id());
+
+    acknowledge->mutable_task_id()->CopyFrom(
+        runningUpdate2->status().task_id());
+
     acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
     acknowledge->set_uuid(runningUpdate2->status().uuid());
 
