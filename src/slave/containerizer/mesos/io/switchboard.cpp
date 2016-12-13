@@ -810,6 +810,23 @@ Future<Nothing> IOSwitchboard::cleanup(
 }
 
 
+bool IOSwitchboard::requiresServer(const ContainerConfig& containerConfig)
+{
+  if (containerConfig.has_container_info() &&
+      containerConfig.container_info().has_tty_info()) {
+    return true;
+  }
+
+  if (containerConfig.has_container_class() &&
+      containerConfig.container_class() ==
+        mesos::slave::ContainerClass::DEBUG) {
+    return true;
+  }
+
+  return false;
+}
+
+
 #ifndef __WINDOWS__
 void IOSwitchboard::reaped(
     const ContainerID& containerId,
