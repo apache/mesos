@@ -37,6 +37,10 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/hashset.hpp>
+#include <stout/json.hpp>
+#include <stout/none.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -5008,10 +5012,14 @@ TEST_F(SlaveTest, RunTaskGroup)
   AWAIT_READY(launchGroupEvent);
 
   ASSERT_EQ(2, launchGroupEvent->task_group().tasks().size());
-  EXPECT_EQ(taskInfo1.task_id(),
-            launchGroupEvent->task_group().tasks(0).task_id());
-  EXPECT_EQ(taskInfo2.task_id(),
-            launchGroupEvent->task_group().tasks(1).task_id());
+
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+
+  const hashset<v1::TaskID> launchedTasks{
+      launchGroupEvent->task_group().tasks(0).task_id(),
+      launchGroupEvent->task_group().tasks(1).task_id()};
+
+  EXPECT_EQ(tasks, launchedTasks);
 
   EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
@@ -5146,6 +5154,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
   taskGroup.add_tasks()->CopyFrom(taskInfo2);
 
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -5202,11 +5212,12 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   AWAIT_READY(update1);
   AWAIT_READY(update2);
 
-  EXPECT_EQ(TASK_KILLED, update1->status().state());
-  EXPECT_EQ(taskInfo1.task_id(), update1->status().task_id());
+  const hashset<v1::TaskID> killedTasks{
+    update1->status().task_id(), update2->status().task_id()};
 
+  EXPECT_EQ(TASK_KILLED, update1->status().state());
   EXPECT_EQ(TASK_KILLED, update2->status().state());
-  EXPECT_EQ(taskInfo2.task_id(), update2->status().task_id());
+  EXPECT_EQ(tasks, killedTasks);
 
   terminate(slave);
   wait(slave);
@@ -5418,6 +5429,8 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   taskGroup.add_tasks()->CopyFrom(taskInfo2);
   taskGroup.add_tasks()->CopyFrom(taskInfo3);
 
+  const hashset<v1::TaskID> tasks{taskInfo2.task_id(), taskInfo3.task_id()};
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -5468,11 +5481,12 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   AWAIT_READY(update1);
   AWAIT_READY(update2);
 
-  EXPECT_EQ(TASK_KILLED, update1->status().state());
-  EXPECT_EQ(taskInfo2.task_id(), update1->status().task_id());
+  const hashset<v1::TaskID> killedTasks{
+    update1->status().task_id(), update2->status().task_id()};
 
+  EXPECT_EQ(TASK_KILLED, update1->status().state());
   EXPECT_EQ(TASK_KILLED, update2->status().state());
-  EXPECT_EQ(taskInfo3.task_id(), update2->status().task_id());
+  EXPECT_EQ(tasks, killedTasks);
 
   EXPECT_CALL(*executor, subscribed(_, _));
 
