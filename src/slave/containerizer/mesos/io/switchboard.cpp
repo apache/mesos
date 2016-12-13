@@ -1517,7 +1517,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
 
         switch (message.type()) {
           case agent::ProcessIO::CONTROL: {
-            switch (message.type()) {
+            switch (message.control().type()) {
               case agent::ProcessIO::Control::TTY_INFO: {
                 // TODO(klueska): Return a failure if the container we are
                 // attaching to does not have a tty associated with it.
