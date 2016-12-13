@@ -290,7 +290,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // On windows, we do not yet support running an io switchboard
   // server, so we must error out if it is required.
 #ifdef __WINDOWS__
-  if (IOSwitchboardServer::isRequired(containerConfig)) {
+  if (IOSwitchboard::requiresServer(containerConfig)) {
       return Failure(
           "IO Switchboard server is not supported on windows");
   }
@@ -299,7 +299,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   bool hasTTY = containerConfig.has_container_info() &&
                 containerConfig.container_info().has_tty_info();
 
-  if (!IOSwitchboardServer::isRequired(containerConfig)) {
+  if (!IOSwitchboard::requiresServer(containerConfig)) {
     ContainerLaunchInfo launchInfo;
 
     ContainerIO* out = launchInfo.mutable_out();
