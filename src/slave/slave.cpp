@@ -221,9 +221,14 @@ void Slave::initialize()
 #ifdef __linux__
   // Move the slave into its own cgroup for each of the specified
   // subsystems.
+  //
   // NOTE: Any subsystem configuration is inherited from the mesos
   // root cgroup for that subsystem, e.g., by default the memory
   // cgroup will be unlimited.
+  //
+  // TODO(jieyu): Make sure the corresponding cgroup isolator is
+  // enabled so that the container processes are moved to different
+  // cgroups than the agent cgroup.
   if (flags.agent_subsystems.isSome()) {
     foreach (const string& subsystem,
             strings::tokenize(flags.agent_subsystems.get(), ",")) {
