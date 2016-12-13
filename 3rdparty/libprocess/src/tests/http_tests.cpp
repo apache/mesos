@@ -200,14 +200,23 @@ public:
 };
 
 
+// NOTE: We don't simply `#ifdef` out the `string("https")` argument inside
+// the `INSTANTIATE_TEST_CASE_P` because the `#ifdef` would not be required
+// to expand. In particular, it would break the build with MSVC.
+#ifdef USE_SSL_SOCKET
 INSTANTIATE_TEST_CASE_P(
     Scheme,
     HTTPTest,
     ::testing::Values(
-#ifdef USE_SSL_SOCKET
         string("https"),
-#endif // USE_SSL_SOCKET
         string("http")));
+#else
+INSTANTIATE_TEST_CASE_P(
+    Scheme,
+    HTTPTest,
+    ::testing::Values(
+        string("http")));
+#endif // USE_SSL_SOCKET
 
 
 // TODO(vinod): Use AWAIT_EXPECT_RESPONSE_STATUS_EQ in the tests.
