@@ -1033,6 +1033,114 @@ TEST_F(IOSwitchboardTest, RecoverThenKillSwitchboardContainerDestroyed)
   driver.stop();
   driver.join();
 }
+
+
+// This test verifies that a container can be attached after a slave restart.
+TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu";
+#ifdef __linux__
+  flags.agent_subsystems = None();
+#endif
+
+  Fetcher fetcher;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  Future<Nothing> _ack =
+    FUTURE_DISPATCH(_, &slave::Slave::_statusUpdateAcknowledgement);
+
+  // Launch a task with tty to start the switchboard server.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  task.mutable_container()->set_type(ContainerInfo::MESOS);
+  task.mutable_container()->mutable_tty_info();
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_ack);
+
+  // Restart the slave with a new containerizer.
+  slave.get()->terminate();
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &slave::Slave::_recover);
+
+  create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Wait until containerizer is recovered.
+  AWAIT_READY(_recover);
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId;
+  containerId.set_value(containers->begin()->value());
+
+  Future<http::Connection> connection = containerizer->attach(containerId);
+  AWAIT_READY(connection);
+
+  driver.stop();
+  driver.join();
+}
+
 #endif // __WINDOWS__
 
 } // namespace tests {
