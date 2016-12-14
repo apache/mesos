@@ -169,7 +169,8 @@ Future<Nothing> OverlayBackendProcess::provision(
   Try<Nothing> symlink = ::fs::symlink(tempDir, tempLink);
   if (symlink.isError()) {
     return Failure(
-        "Failed to create symlink '" + tempLink + "' -> '" + tempDir + "'");
+        "Failed to create symlink '" + tempLink +
+        "' -> '" + tempDir + "': " + symlink.error());
   }
 
   VLOG(1) << "Created symlink '" << tempLink << "' -> '" << tempDir << "'";
