@@ -755,9 +755,36 @@ Future<Response> Slave::Http::getFlags(
 {
   CHECK_EQ(agent::Call::GET_FLAGS, call.type());
 
-  return OK(serialize(acceptType,
-                      evolve<v1::agent::Response::GET_FLAGS>(_flags())),
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_FLAGS);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(),
+      [this, acceptType](
+          const Owned<ObjectApprover>& approver) -> Future<Response> {
+        Try<bool> approved = approver->approved(ObjectApprover::Object());
+
+        if (approved.isError()) {
+          return InternalServerError(approved.error());
+        } else if (!approved.get()) {
+          return Forbidden();
+        }
+
+        return OK(
+            serialize(
+                acceptType, evolve<v1::agent::Response::GET_FLAGS>(_flags())),
             stringify(acceptType));
+      }));
 }
 
 
