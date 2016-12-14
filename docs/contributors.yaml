@@ -504,6 +504,14 @@
   jira_user: mcypark
   reviewboard_user: mcypark
 
+- name: Miguel Bernadin
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - miguel.bernadin@gmail.com
+  jira_user: bernadinm
+  reviewboard_user: bernadinm
+
 - name: Neil Conway
   affiliations:
     - {organization: Mesosphere}
