@@ -1919,6 +1919,105 @@ TYPED_TEST(AuthorizationTest, ViewFramework)
 }
 
 
+// This tests the authorization of requests to ViewContainer.
+TYPED_TEST(AuthorizationTest, ViewContainer)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can view no containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // "bar" principal can see containers running under user "bar".
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_users()->add_values("bar");
+  }
+
+  {
+    // "ops" principal can see all containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("ops");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // No one else can view any containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Create FrameworkInfo with a generic user as object to be authorized.
+  FrameworkInfo frameworkInfo;
+  {
+    frameworkInfo.set_user("user");
+    frameworkInfo.set_name("f");
+  }
+
+  // Create FrameworkInfo with user "bar" as object to be authorized.
+  FrameworkInfo frameworkInfoBar;
+  {
+    frameworkInfoBar.set_user("bar");
+    frameworkInfoBar.set_name("f");
+  }
+
+  // Principal "foo" cannot view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" cannot view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "ops" can view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can view containers running with user "bar".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfoBar);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+}
+
+
 // This tests the authorization of requests to ViewTasks.
 TYPED_TEST(AuthorizationTest, ViewTask)
 {
@@ -3818,6 +3917,59 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
     mesos::ACL::ViewFlags* acl = invalid.add_view_flags();
     acl->mutable_principals()->add_values("foo");
     acl->mutable_flags()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+TYPED_TEST(AuthorizationTest, SetLogLevel)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can set log level.
+    mesos::ACL::SetLogLevel* acl = acls.add_set_log_level();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_level()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can set log level.
+    mesos::ACL::SetLogLevel* acl = acls.add_set_log_level();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_level()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::SET_LOG_LEVEL);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::SET_LOG_LEVEL);
+    request.mutable_subject()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Test that no authorizer is created with invalid ACLs.
+  {
+    ACLs invalid;
+
+    mesos::ACL::SetLogLevel* acl = invalid.add_set_log_level();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_level()->add_values("yoda");
 
     Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
     EXPECT_ERROR(create);

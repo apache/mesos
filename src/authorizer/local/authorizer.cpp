@@ -487,6 +487,26 @@ public:
 
           break;
         }
+        case authorization::VIEW_CONTAINER: {
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          if (object->executor_info != nullptr &&
+              object->executor_info->command().has_user()) {
+            aclObject.add_values(object->executor_info->command().user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          } else if (object->framework_info != nullptr &&
+              object->framework_info->has_user()) {
+            aclObject.add_values(object->framework_info->user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          }
+
+          break;
+        }
+        case authorization::SET_LOG_LEVEL: {
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          break;
+        }
         case authorization::UNKNOWN:
           LOG(WARNING) << "Authorization for action '" << action_
                        << "' is not defined and therefore not authorized";
@@ -1005,6 +1025,28 @@ private:
 
         return acls_;
         break;
+      case authorization::SET_LOG_LEVEL:
+        foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.level();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
+      case authorization::VIEW_CONTAINER:
+        foreach (const ACL::ViewContainer& acl, acls.view_containers()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
       case authorization::LAUNCH_NESTED_CONTAINER:
         return Error("Extracting ACLs for launching nested containers requires "
@@ -1076,6 +1118,12 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
     if (acl.flags().type() == ACL::Entity::SOME) {
       return Error("acls.view_flags type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
+    if (acl.level().type() == ACL::Entity::SOME) {
+      return Error("acls.set_log_level type must be either NONE or ANY");
     }
   }
 

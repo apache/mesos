@@ -174,6 +174,13 @@ enum Action {
 
   // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
   ATTACH_CONTAINER_OUTPUT = 24;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  VIEW_CONTAINER = 25;
+
+  // This action will not fill in any object fields, since a principal is
+  // either allowed to change the log level or he is unauthorized.
+  SET_LOG_LEVEL = 26;
 }
 
 

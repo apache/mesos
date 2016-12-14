@@ -345,6 +345,28 @@ message ACL {
     // nested containers can be waited on.
     required Entity users = 2;
   }
+
+  // Which principals are authorized to see the container metadata of a
+  // container whose executor is running as the given operating system user.
+  message ViewContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // container metadata can viewed.
+    required Entity users = 2;
+  }
+
+  // Which principals are authorized to change the log level of the
+  // master/agent.
+  message SetLogLevel {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity level = 2;
+  }
 }
 
 
@@ -408,4 +430,6 @@ message ACLs {
       launch_nested_container_sessions_under_parent_with_user = 28;
   repeated ACL.AttachContainerInput attach_containers_input = 29;
   repeated ACL.AttachContainerOutput attach_containers_output = 30;
+  repeated ACL.ViewContainer view_containers = 31;
+  repeated ACL.SetLogLevel set_log_level = 32;
 }
