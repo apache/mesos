@@ -341,10 +341,15 @@ public:
 
   Future<Socket> accept()
   {
+    // NOTE: We save a reference to the listening socket itself
+    // (i.e., 'this') so that we don't close the listening socket
+    // while 'accept' is in flight.
+    std::shared_ptr<SocketImpl> self = impl->shared_from_this();
+
     return impl->accept()
-      // TODO(benh): Use && for `impl` here!
-      .then([](const std::shared_ptr<SocketImpl>& impl) {
-        return Socket(impl);
+      // TODO(benh): Use && for `accepted` here!
+      .then([self](const std::shared_ptr<SocketImpl>& accepted) {
+        return Socket(accepted);
       });
   }
 
