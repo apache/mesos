@@ -568,7 +568,7 @@ TEST_F(CniIsolatorTest, ROOT_EnvironmentLibprocessIP)
   const string command =
       R"~(
       #!/bin/sh
-      if [ x"$LIBPROCESS_IP" == x"0.0.0.0" ]; then
+      if [ x"$LIBPROCESS_IP" = x"0.0.0.0" ]; then
         exit 0
       else
         exit 1
