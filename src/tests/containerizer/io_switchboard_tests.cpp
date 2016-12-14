@@ -16,6 +16,7 @@
 
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <process/clock.hpp>
@@ -78,6 +79,7 @@ using testing::Eq;
 
 using std::map;
 using std::string;
+using std::tuple;
 using std::vector;
 
 namespace mesos {
@@ -85,7 +87,77 @@ namespace internal {
 namespace tests {
 
 #ifndef __WINDOWS__
-class IOSwitchboardServerTest : public TemporaryDirectoryTest {};
+class IOSwitchboardServerTest : public TemporaryDirectoryTest
+{
+protected:
+  // Helper that sends `ATTACH_CONTAINER_OUTPUT` request on the given
+  // `connection` and returns the response.
+  //
+  // TODO(vinod): Make this function more generic (e.g., sends any `Call`).
+  Future<http::Response> attachOutput(
+      const ContainerID& containerId,
+      http::Connection connection)
+  {
+    Call call;
+    call.set_type(Call::ATTACH_CONTAINER_OUTPUT);
+
+    Call::AttachContainerOutput* attach =
+      call.mutable_attach_container_output();
+
+    attach->mutable_container_id()->CopyFrom(containerId);
+
+    http::Request request;
+    request.method = "POST";
+    request.url.domain = "";
+    request.url.path = "/";
+    request.keepAlive = true;
+    request.headers["Accept"] = APPLICATION_STREAMING_JSON;
+    request.headers["Content-Type"] = APPLICATION_JSON;
+    request.body = stringify(JSON::protobuf(call));
+
+    return connection.send(request, true);
+  }
+
+  // Reads `ProcessIO::Data` records from the pipe `reader` until EOF is reached
+  // and returns the merged stdout and stderr.
+  // NOTE: It ignores any `ProcessIO::Control` records.
+  //
+  // TODO(vinod): Merge this with the identically named helper in api_tests.cpp.
+  Future<tuple<string, string>> getProcessIOData(http::Pipe::Reader reader)
+  {
+    return reader.readAll()
+      .then([](const string& data) -> Future<tuple<string, string>> {
+        string stdoutReceived;
+        string stderrReceived;
+
+        ::recordio::Decoder<agent::ProcessIO> decoder(lambda::bind(
+            deserialize<agent::ProcessIO>, ContentType::JSON, lambda::_1));
+
+        Try<std::deque<Try<agent::ProcessIO>>> records = decoder.decode(data);
+
+        if (records.isError()) {
+          return process::Failure(records.error());
+        }
+
+        while(!records->empty()) {
+          Try<agent::ProcessIO> record = records->front();
+          records->pop_front();
+
+          if (record.isError()) {
+            return process::Failure(record.error());
+          }
+
+          if (record->data().type() == agent::ProcessIO::Data::STDOUT) {
+            stdoutReceived += record->data().data();
+          } else if (record->data().type() == agent::ProcessIO::Data::STDERR) {
+            stderrReceived += record->data().data();
+          }
+        }
+
+        return std::make_tuple(stdoutReceived, stderrReceived);
+      });
+  }
+};
 
 
 TEST_F(IOSwitchboardServerTest, RedirectLog)
@@ -244,76 +316,37 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
 
   Future<Nothing> runServer = server.get()->run();
 
-  Call call;
-  call.set_type(Call::ATTACH_CONTAINER_OUTPUT);
-
-  Call::AttachContainerOutput* attach = call.mutable_attach_container_output();
-  attach->mutable_container_id()->set_value(UUID::random().toString());
-
-  http::Request request;
-  request.method = "POST";
-  request.url.domain = "";
-  request.url.path = "/";
-  request.keepAlive = true;
-  request.headers["Accept"] = APPLICATION_STREAMING_JSON;
-  request.headers["Content-Type"] = APPLICATION_JSON;
-  request.body = stringify(JSON::protobuf(call));
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   Try<unix::Address> address = unix::Address::create(socketPath);
   ASSERT_SOME(address);
 
-  Future<http::Connection> _connection = http::connect(
-      address.get(), http::Scheme::HTTP);
+  Future<http::Connection> _connection =
+    http::connect(address.get(), http::Scheme::HTTP);
 
   AWAIT_READY(_connection);
   http::Connection connection = _connection.get();
 
-  Future<http::Response> response = connection.send(request, true);
+  Future<http::Response> response = attachOutput(containerId, connection);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_SOME(response.get().reader);
 
-  Option<http::Pipe::Reader> reader = response.get().reader;
-  ASSERT_SOME(reader);
+  Future<tuple<string, string>> received =
+    getProcessIOData(response->reader.get());
 
-  auto deserializer = [](const string& body) {
-    Try<JSON::Value> value = JSON::parse(body);
-    Try<agent::ProcessIO> parse =
-      ::protobuf::parse<agent::ProcessIO>(value.get());
-    return parse;
-  };
+  AWAIT_READY(received);
 
-  recordio::Reader<agent::ProcessIO> responseDecoder(
-      ::recordio::Decoder<agent::ProcessIO>(deserializer),
-      reader.get());
+  string stdoutReceived;
+  string stderrReceived;
 
-  string stdoutReceived = "";
-  string stderrReceived = "";
+  tie(stdoutReceived, stderrReceived) = received.get();
 
-  while (true) {
-    Future<Result<agent::ProcessIO>> _message = responseDecoder.read();
-    AWAIT_READY(_message);
-
-    if (_message->isNone()) {
-      break;
-    }
-
-    ASSERT_SOME(_message.get());
-
-    agent::ProcessIO message = _message.get().get();
-
-    ASSERT_EQ(agent::ProcessIO::DATA, message.type());
-
-    ASSERT_TRUE(message.data().type() == agent::ProcessIO::Data::STDOUT ||
-                message.data().type() == agent::ProcessIO::Data::STDERR);
-
-    if (message.data().type() == agent::ProcessIO::Data::STDOUT) {
-      stdoutReceived += message.data().data();
-    } else if (message.data().type() == agent::ProcessIO::Data::STDERR) {
-      stderrReceived += message.data().data();
-    }
-  }
+  EXPECT_EQ(data, stdoutReceived);
+  EXPECT_EQ(data, stderrReceived);
 
   AWAIT_READY(connection.disconnect());
   AWAIT_READY(connection.disconnected());
@@ -323,9 +356,6 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
   os::close(nullFd.get());
   os::close(stdoutFd.get());
   os::close(stderrFd.get());
-
-  EXPECT_EQ(data, stdoutReceived);
-  EXPECT_EQ(data, stderrReceived);
 }
 
 
