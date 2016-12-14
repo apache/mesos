@@ -42,6 +42,7 @@
 #include <process/http.hpp>
 #include <process/limiter.hpp>
 #include <process/logging.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -85,6 +86,7 @@ using process::Failure;
 using process::Future;
 using process::HELP;
 using process::Logging;
+using process::loop;
 using process::Owned;
 using process::TLDR;
 
@@ -2582,25 +2584,23 @@ Future<Response> Slave::Http::attachContainerInput(
 // TODO(vinod): Move this to libprocess if this is more generally useful.
 Future<Nothing> connect(Pipe::Reader reader, Pipe::Writer writer)
 {
-  return reader.read()
-    .then([reader, writer](const Future<string>& chunk) mutable
-        -> Future<Nothing> {
-      if (!chunk.isReady()) {
-        return process::Failure(
-            chunk.isFailed() ? chunk.failure() : "discarded");
-      }
+  return loop(
+      None(),
+      [=]() mutable {
+        return reader.read();
+      },
+      [=](const string& chunk) mutable -> Future<bool> {
+        if (chunk.empty()) {
+          // EOF case.
+          return false;
+        }
 
-      if (chunk->empty()) {
-        // EOF case.
-        return Nothing();
-      }
+        if (!writer.write(chunk)) {
+          return Failure("Write failed to the pipe");
+        }
 
-      if (!writer.write(chunk.get())) {
-        return process::Failure("Write failed to the pipe");
-      }
-
-      return connect(reader, writer);
-    });
+        return true;
+      });
 }
 
 
