@@ -1810,12 +1810,12 @@ Future<Response> Slave::Http::containers(
       principal)
     .then(defer(
         slave->self(),
-        [this, request](bool authorized) -> Future<Response> {
+        [this, request, principal](bool authorized) -> Future<Response> {
           if (!authorized) {
             return Forbidden();
           }
 
-          return _containers(request);
+          return _containers(request, principal);
         }));
 }
 
@@ -1823,54 +1823,90 @@ Future<Response> Slave::Http::containers(
 Future<Response> Slave::Http::getContainers(
     const agent::Call& call,
     ContentType acceptType,
-    const Option<string>& printcipal) const
+    const Option<string>& principal) const
 {
   CHECK_EQ(agent::Call::GET_CONTAINERS, call.type());
 
-  return __containers()
-      .then([acceptType](const Future<JSON::Array>& result)
-          -> Future<Response> {
-        if (!result.isReady()) {
-          LOG(WARNING) << "Could not collect container status and statistics: "
-                       << (result.isFailed()
-                            ? result.failure()
-                            : "Discarded");
-          return result.isFailed()
-            ? InternalServerError(result.failure())
-            : InternalServerError();
-        }
+  Future<Owned<ObjectApprover>> approver;
 
-        return OK(
-            serialize(
-                acceptType,
-                evolve<v1::agent::Response::GET_CONTAINERS>(result.get())),
-            stringify(acceptType));
-      });
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_CONTAINER);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(), [this](
+    const Owned<ObjectApprover>& approver) {
+        return __containers(approver);
+    })).then([acceptType](const Future<JSON::Array>& result)
+        -> Future<Response> {
+      if (!result.isReady()) {
+        LOG(WARNING) << "Could not collect container status and statistics: "
+                     << (result.isFailed()
+                          ? result.failure()
+                          : "Discarded");
+        return result.isFailed()
+          ? InternalServerError(result.failure())
+          : InternalServerError();
+      }
+
+      return OK(
+          serialize(
+              acceptType,
+              evolve<v1::agent::Response::GET_CONTAINERS>(result.get())),
+          stringify(acceptType));
+    });
 }
 
 
-Future<Response> Slave::Http::_containers(const Request& request) const
+Future<Response> Slave::Http::_containers(
+    const Request& request,
+    const Option<string>& principal) const
 {
-  return __containers()
-      .then([request](const Future<JSON::Array>& result) -> Future<Response> {
-        if (!result.isReady()) {
-          LOG(WARNING) << "Could not collect container status and statistics: "
-                       << (result.isFailed()
-                            ? result.failure()
-                            : "Discarded");
+  Future<Owned<ObjectApprover>> approver;
 
-          return result.isFailed()
-            ? InternalServerError(result.failure())
-            : InternalServerError();
-        }
+  if (slave->authorizer.isSome()) {
+    authorization::Subject subject;
+    if (principal.isSome()) {
+      subject.set_value(principal.get());
+    }
 
-        return process::http::OK(
-            result.get(), request.url.query.get("jsonp"));
-      });
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_CONTAINER);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(), [this](
+    const Owned<ObjectApprover>& approver) {
+      return __containers(approver);
+     }))
+     .then([request](const Future<JSON::Array>& result) -> Future<Response> {
+       if (!result.isReady()) {
+         LOG(WARNING) << "Could not collect container status and statistics: "
+                      << (result.isFailed()
+                           ? result.failure()
+                           : "Discarded");
+
+         return result.isFailed()
+           ? InternalServerError(result.failure())
+           : InternalServerError();
+       }
+
+       return process::http::OK(
+           result.get(), request.url.query.get("jsonp"));
+     });
 }
 
 
-Future<JSON::Array> Slave::Http::__containers() const
+Future<JSON::Array> Slave::Http::__containers(
+    Option<Owned<ObjectApprover>> approver) const
 {
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
   list<Future<ContainerStatus>> statusFutures;
@@ -1887,16 +1923,34 @@ Future<JSON::Array> Slave::Http::__containers() const
       const ExecutorInfo& info = executor->info;
       const ContainerID& containerId = executor->containerId;
 
-      JSON::Object entry;
-      entry.values["framework_id"] = info.framework_id().value();
-      entry.values["executor_id"] = info.executor_id().value();
-      entry.values["executor_name"] = info.name();
-      entry.values["source"] = info.source();
-      entry.values["container_id"] = containerId.value();
+      Try<bool> authorized = true;
 
-      metadata->push_back(entry);
-      statusFutures.push_back(slave->containerizer->status(containerId));
-      statsFutures.push_back(slave->containerizer->usage(containerId));
+      if (approver.isSome()) {
+        ObjectApprover::Object object;
+        object.executor_info = &info;
+        object.framework_info = &(framework->info);
+
+        authorized = approver.get()->approved(object);
+
+        if (authorized.isError()) {
+          LOG(WARNING) << "Error during ViewContainer authorization: "
+                       << authorized.error();
+          authorized = false;
+        }
+      }
+
+      if (authorized.get()) {
+        JSON::Object entry;
+        entry.values["framework_id"] = info.framework_id().value();
+        entry.values["executor_id"] = info.executor_id().value();
+        entry.values["executor_name"] = info.name();
+        entry.values["source"] = info.source();
+        entry.values["container_id"] = containerId.value();
+
+        metadata->push_back(entry);
+        statusFutures.push_back(slave->containerizer->status(containerId));
+        statsFutures.push_back(slave->containerizer->usage(containerId));
+      }
     }
   }
 
