@@ -2673,6 +2673,10 @@ Future<Response> Slave::Http::launchNestedContainerSession(
       return attachContainerOutput(call, contentType, acceptType, principal)
         .then(defer(slave->self(),
                     [=](const Response& response) -> Future<Response> {
+          if (response.status != OK().status) {
+            return response;
+          }
+
           Pipe pipe;
           Pipe::Writer writer = pipe.writer();
 
