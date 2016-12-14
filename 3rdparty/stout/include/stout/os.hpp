@@ -48,9 +48,9 @@
 #include <stout/os/chroot.hpp>
 #include <stout/os/dup.hpp>
 #include <stout/os/exists.hpp>
-#include <stout/os/int_fd.hpp>
 #include <stout/os/fcntl.hpp>
 #include <stout/os/getenv.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/lseek.hpp>
@@ -59,6 +59,7 @@
 #include <stout/os/mktemp.hpp>
 #include <stout/os/os.hpp>
 #include <stout/os/pagesize.hpp>
+#include <stout/os/pipe.hpp>
 #include <stout/os/process.hpp>
 #include <stout/os/rename.hpp>
 #include <stout/os/rm.hpp>

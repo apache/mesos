@@ -451,16 +451,6 @@ inline Try<std::string> var()
 }
 
 
-// Create pipes for interprocess communication.
-inline Try<Nothing> pipe(int pipe_fd[2])
-{
-  if (::pipe(pipe_fd) == -1) {
-    return ErrnoError();
-  }
-  return Nothing();
-}
-
-
 inline Try<Nothing> dup2(int oldFd, int newFd)
 {
   while (::dup2(oldFd, newFd) == -1) {
