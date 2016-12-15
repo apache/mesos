@@ -119,7 +119,7 @@ public:
 
     // Disconnect all active connections used for waiting on child
     // containers.
-    foreach (Connection connection, waiting.values()) {
+    foreachvalue (Connection connection, waiting) {
       connection.disconnect();
     }
 

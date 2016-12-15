@@ -277,7 +277,7 @@ void Fetcher::kill(const ContainerID& containerId)
 
 FetcherProcess::~FetcherProcess()
 {
-  foreach (const ContainerID& containerId, subprocessPids.keys()) {
+  foreachkey (const ContainerID& containerId, subprocessPids) {
     kill(containerId);
   }
 }
