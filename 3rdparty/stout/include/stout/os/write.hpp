@@ -82,6 +82,14 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
   return result;
 }
 
+
+// NOTE: This overload is necessary to disambiguate between arguments
+// of type `HANDLE` (`typedef void*`) and `char*` on Windows.
+inline Try<Nothing> write(const char* path, const std::string& message)
+{
+  return write(std::string(path), message);
+}
+
 } // namespace os {
 
 
