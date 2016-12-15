@@ -853,10 +853,6 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
       "sleep 1000",
       "cpus:1");
 
-  // Request a tty for the container to start the switchboard server.
-  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
-  executorInfo.mutable_container()->mutable_tty_info();
-
   Future<bool> launch = containerizer->launch(
       containerId,
       None(),
@@ -869,14 +865,29 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
   AWAIT_ASSERT_TRUE(launch);
 
+  ContainerID childContainerId;
+  childContainerId.mutable_parent()->CopyFrom(containerId);
+  childContainerId.set_value(UUID::random().toString());
+
+  launch = containerizer->launch(
+      childContainerId,
+      createCommandInfo("sleep 1000"),
+      None(),
+      None(),
+      state.id,
+      mesos::slave::ContainerClass::DEBUG);
+
+  AWAIT_ASSERT_TRUE(launch);
+
   Result<pid_t> pid = paths::getContainerIOSwitchboardPid(
-        flags.runtime_dir, containerId);
+        flags.runtime_dir, childContainerId);
 
   ASSERT_SOME(pid);
 
   ASSERT_EQ(0, os::kill(pid.get(), SIGKILL));
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(childContainerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -887,6 +898,16 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   ASSERT_TRUE(wait.get()->reasons().size() == 1);
   ASSERT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED,
             wait.get()->reasons().Get(0));
+
+  wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 }
 
 
