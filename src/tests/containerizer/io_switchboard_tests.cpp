@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include <process/clock.hpp>
 #include <process/address.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -69,6 +70,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerTermination;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 
@@ -327,6 +329,115 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
 }
 
 
+TEST_F(IOSwitchboardServerTest, SendHeartbeat)
+{
+  // We use a pipe in this test to prevent the switchboard from
+  // reading EOF on its `stdoutFromFd` until we are ready for the
+  // switchboard to terminate.
+  int stdoutPipe[2];
+
+  Try<Nothing> pipe = os::pipe(stdoutPipe);
+  ASSERT_SOME(pipe);
+
+  Try<int> nullFd = os::open("/dev/null", O_RDWR);
+  ASSERT_SOME(nullFd);
+
+  Duration heartbeat = Milliseconds(10);
+
+  string socketPath = path::join(
+      sandbox.get(),
+      "mesos-io-switchboard-" + UUID::random().toString());
+
+  Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
+      false,
+      nullFd.get(),
+      stdoutPipe[0],
+      nullFd.get(),
+      nullFd.get(),
+      nullFd.get(),
+      socketPath,
+      false,
+      heartbeat);
+
+  ASSERT_SOME(server);
+
+  Future<Nothing> runServer = server.get()->run();
+
+  Call call;
+  call.set_type(Call::ATTACH_CONTAINER_OUTPUT);
+
+  Call::AttachContainerOutput* attach = call.mutable_attach_container_output();
+  attach->mutable_container_id()->set_value(UUID::random().toString());
+
+  http::Request request;
+  request.method = "POST";
+  request.url.domain = "";
+  request.url.path = "/";
+  request.keepAlive = true;
+  request.headers["Accept"] = APPLICATION_STREAMING_JSON;
+  request.headers["Content-Type"] = APPLICATION_JSON;
+  request.body = stringify(JSON::protobuf(call));
+
+  Try<unix::Address> address = unix::Address::create(socketPath);
+  ASSERT_SOME(address);
+
+  Future<http::Connection> _connection =
+    http::connect(address.get(), http::Scheme::HTTP);
+
+  AWAIT_READY(_connection);
+  http::Connection connection = _connection.get();
+
+  Future<http::Response> response = connection.send(request, true);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
+
+  Option<http::Pipe::Reader> reader = response.get().reader;
+  ASSERT_SOME(reader);
+
+  auto deserializer = [](const string& body) {
+    return deserialize<agent::ProcessIO>(ContentType::STREAMING_JSON, body);
+  };
+
+  recordio::Reader<agent::ProcessIO> responseDecoder(
+      ::recordio::Decoder<agent::ProcessIO>(deserializer),
+      reader.get());
+
+  // Wait for 5 heartbeat messages.
+  Clock::pause();
+
+  for (int i = 0; i < 5; i++) {
+    Future<Result<agent::ProcessIO>> _message = responseDecoder.read();
+
+    // Advance the clock by the heartbeat interval.
+    Clock::advance(heartbeat);
+
+    // Expect for the message to have been received by now.
+    ASSERT_SOME(_message.get());
+
+    agent::ProcessIO message = _message.get().get();
+
+    EXPECT_EQ(agent::ProcessIO::CONTROL, message.type());
+
+    EXPECT_TRUE(message.control().type() ==
+                agent::ProcessIO::Control::HEARTBEAT);
+  }
+
+  // Closing the write end of the pipe will trigger the switchboard
+  // to shutdown and close any outstanding connections.
+  os::close(stdoutPipe[1]);
+
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
+
+  AWAIT_ASSERT_READY(runServer);
+
+  os::close(stdoutPipe[0]);
+  os::close(nullFd.get());
+}
+
+
 TEST_F(IOSwitchboardServerTest, AttachInput)
 {
   // We use a pipe in this test to prevent the switchboard from
@@ -456,6 +567,112 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
   ASSERT_SOME(stdinData);
 
   EXPECT_EQ(data, stdinData.get());
+}
+
+
+TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
+{
+  // We use a pipe in this test to prevent the switchboard from
+  // reading EOF on its `stdoutFromFd` until we are ready for the
+  // switchboard to terminate.
+  int stdoutPipe[2];
+
+  Try<Nothing> pipe = os::pipe(stdoutPipe);
+  ASSERT_SOME(pipe);
+
+  Try<int> nullFd = os::open("/dev/null", O_RDWR);
+  ASSERT_SOME(nullFd);
+
+  string socketPath = path::join(
+      sandbox.get(),
+      "mesos-io-switchboard-" + UUID::random().toString());
+
+  Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
+      false,
+      nullFd.get(),
+      stdoutPipe[0],
+      nullFd.get(),
+      nullFd.get(),
+      nullFd.get(),
+      socketPath,
+      false);
+
+  ASSERT_SOME(server);
+
+  Future<Nothing> runServer = server.get()->run();
+
+  http::Pipe requestPipe;
+  http::Pipe::Reader reader = requestPipe.reader();
+  http::Pipe::Writer writer = requestPipe.writer();
+
+  http::Request request;
+  request.method = "POST";
+  request.type = http::Request::PIPE;
+  request.reader = reader;
+  request.url.domain = "";
+  request.url.path = "/";
+  request.keepAlive = true;
+  request.headers["Accept"] = APPLICATION_JSON;
+  request.headers["Content-Type"] = APPLICATION_STREAMING_JSON;
+
+  Try<unix::Address> address = unix::Address::create(socketPath);
+  ASSERT_SOME(address);
+
+  Future<http::Connection> _connection =
+    http::connect(address.get(), http::Scheme::HTTP);
+
+  AWAIT_READY(_connection);
+  http::Connection connection = _connection.get();
+
+  Future<http::Response> response = connection.send(request);
+
+  ::recordio::Encoder<mesos::agent::Call> encoder(lambda::bind(
+        serialize, ContentType::STREAMING_JSON, lambda::_1));
+
+  Call call;
+  call.set_type(Call::ATTACH_CONTAINER_INPUT);
+
+  Call::AttachContainerInput* attach = call.mutable_attach_container_input();
+  attach->set_type(Call::AttachContainerInput::CONTAINER_ID);
+  attach->mutable_container_id()->set_value(UUID::random().toString());
+
+  writer.write(encoder.encode(call));
+
+  // Send 5 heartbeat messages.
+  Duration heartbeat = Milliseconds(10);
+
+  for (int i = 0; i < 5; i ++) {
+    Call::AttachContainerInput* attach = call.mutable_attach_container_input();
+    attach->set_type(Call::AttachContainerInput::PROCESS_IO);
+
+    ProcessIO* message = attach->mutable_process_io();
+    message->set_type(agent::ProcessIO::CONTROL);
+    message->mutable_control()->set_type(
+        agent::ProcessIO::Control::HEARTBEAT);
+    message->mutable_control()->mutable_heartbeat()
+        ->mutable_interval()->set_nanoseconds(heartbeat.ns());
+
+    writer.write(encoder.encode(call));
+
+    Clock::advance(heartbeat);
+  }
+
+  writer.close();
+
+  // All we need to verify is that the server didn't blow up as a
+  // result of receiving the heartbeats.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
+
+  // Closing the write end of `stdoutPipe`
+  // will trigger the switchboard to exit.
+  os::close(stdoutPipe[1]);
+  AWAIT_ASSERT_READY(runServer);
+
+  os::close(stdoutPipe[0]);
+  os::close(nullFd.get());
 }
 
 
