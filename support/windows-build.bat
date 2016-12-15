@@ -49,7 +49,7 @@ REM Generate the Visual Studio solution.
 REM You can pass in other flags by setting `OTHER_CMAKE_OPTIONS` before
 REM calling the script. For example, the ASF CI will add `-DPATCHEXE_PATH=...`
 REM because the path to GNU Patch is not the default.
-cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 %OTHER_CMAKE_OPTIONS%
+cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM NOTE: We pass in the build option `/p:PreferredToolArchitecture=x64`

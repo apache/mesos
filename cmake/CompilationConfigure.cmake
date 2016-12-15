@@ -49,6 +49,19 @@ option(
   "Use libevent instead of libev as the core event loop implementation"
   FALSE)
 
+option(
+  HAS_AUTHENTICATION
+  "Build Mesos against authentication libraries"
+  TRUE)
+
+if (WIN32 AND HAS_AUTHENTICATION)
+  message(
+    FATAL_ERROR
+    "Windows builds of Mesos currently do not support agent to master "
+    "authentication. To build without this capability, pass "
+    "`-HAS_AUTHENTICATION=0` as an argument when you run CMake.")
+endif (WIN32 AND HAS_AUTHENTICATION)
+
 # If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against
 # the specified dependency repository.  This is especially useful for
 # Windows builds, because building on MSVC 1900 requires newer versions
@@ -148,16 +161,6 @@ if (NOT WIN32)
   set(LIBEXEC_INSTALL_DIR     ${EXEC_INSTALL_PREFIX}/libexec)
   set(PKG_LIBEXEC_INSTALL_DIR ${LIBEXEC_INSTALL_DIR}/mesos)
   set(LIB_INSTALL_DIR         ${EXEC_INSTALL_PREFIX}/libmesos)
-
-  # TODO(hausdorff): Remove our hard dependency on SASL, as some platforms
-  # (namely Windows) will not support it in the forseeable future. As a
-  # stop-gap, we conditionally compile the code in libmesos that depends on
-  # SASL, by always setting `HAS_AUTHENTICATION` on non-Windows platforms, and
-  # never setting it on Windows platforms. This means that non-Windows builds
-  # of libmesos will still take a hard dependency on SASL, while Windows builds
-  # won't. Currently, the dependency is still assumed throughout the tests,
-  # though the plan is to remove this hard dependency as well. See MESOS-5450.
-  add_definitions(-DHAS_AUTHENTICATION=1)
 endif (NOT WIN32)
 
 
@@ -224,6 +227,14 @@ endif (WIN32)
 
 # GLOBAL CONFIGURATION.
 #######################
+if (HAS_AUTHENTICATION)
+  # NOTE: This conditional is required. It is not sufficient to set
+  # `-DHAS_AUTHENTICATION=${HAS_AUTHENTICATION}`, as this will define the
+  # symbol, and our intention is to only define it if the CMake variable
+  # `HAS_AUTHENTICATION` is set.
+  add_definitions(-DHAS_AUTHENTICATION=1)
+endif (HAS_AUTHENTICATION)
+
 # Enable the INT64 support for PicoJSON.
 add_definitions(-DPICOJSON_USE_INT64)
 
