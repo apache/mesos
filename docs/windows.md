@@ -41,9 +41,7 @@ Following are the instructions for stock Windows 10 and Windows Server 2012 or n
     $ .\bootstrap.bat
 
     # Generate the solution and build.
-    $ mkdir build
-    $ cd build
-    $ cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1
+    $ .\support\windows-build.bat
 
     # After generating the Visual Studio solution you can use the IDE to open
     # the project and skip the next step. In this case it is recommended to set
