@@ -445,6 +445,12 @@ inline Option<std::string> which(
 }
 
 
+inline Try<std::string> var()
+{
+  return "/var";
+}
+
+
 // Create pipes for interprocess communication.
 inline Try<Nothing> pipe(int pipe_fd[2])
 {
