@@ -121,6 +121,15 @@ public:
     keys_.clear();
   }
 
+  // Support for iteration; this allows using `foreachpair` and
+  // related constructs. Note that these iterate over the map in
+  // insertion order.
+  typename list::iterator begin() { return entries_.begin(); }
+  typename list::iterator end() { return entries_.end(); }
+
+  typename list::const_iterator begin() const { return entries_.cbegin(); }
+  typename list::const_iterator end() const { return entries_.cend(); }
+
 private:
   list entries_; // Key-value pairs ordered by insertion order.
   map keys_; // Map from key to "pointer" to key's location in list.
