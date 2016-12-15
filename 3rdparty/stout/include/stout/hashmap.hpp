@@ -19,8 +19,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include <boost/get_pointer.hpp>
-
 #include "foreach.hpp"
 #include "hashset.hpp"
 #include "none.hpp"
