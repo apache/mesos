@@ -10,8 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <stdint.h>
-
 #include <list>
 #include <string>
 
@@ -72,12 +70,7 @@ TEST(LinkedHashmapTest, Keys)
 {
   LinkedHashMap<string, int> map;
 
-  list<string> keys;
-  keys.push_back("foo");
-  keys.push_back("bar");
-  keys.push_back("food");
-  keys.push_back("rad");
-  keys.push_back("cat");
+  list<string> keys = {"foo", "bar", "food", "rad", "cat"};
 
   // Insert keys into the map.
   foreach (const string& key, keys) {
