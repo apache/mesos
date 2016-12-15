@@ -217,22 +217,29 @@ mesos::internal::slave::Flags::Flags()
       "not across reboots). This directory will be cleared on reboot.\n"
       "(Example: `/var/run/mesos`)",
       []() -> string {
+        Try<std::string> var = os::var();
+        if (var.isSome()) {
 #ifdef __WINDOWS__
-        // TODO(josephw): After adding a platform-dependent helper
-        // for determining the "var" directory, consider removing
-        // this `#ifdef`.
-        return path::join(os::temp(), "mesos", "runtime");
+          const std::string prefix(var.get());
 #else
-        Result<string> user = os::user();
-        CHECK_SOME(user);
-
-        // TODO(andschwa): Check for permissions instead of user.
-        if (user.get() == "root") {
-          return path::join("/var", "run", "mesos");
-        } else {
-          return path::join(os::temp(), "mesos", "runtime");
-        }
+          const std::string prefix(path::join(var.get(), "run"));
 #endif // __WINDOWS__
+
+          // We check for access on the prefix because the remainder
+          // of the directory structure is created by the agent later.
+          Try<bool> access = os::access(prefix, R_OK | W_OK);
+          if (access.isSome() && access.get()) {
+#ifdef __WINDOWS__
+            return path::join(prefix, "mesos", "runtime");
+#else
+            return path::join(prefix, "mesos");
+#endif // __WINDOWS__
+          }
+        }
+
+        // We provide a fallback path for ease of use in case `os::var()`
+        // errors or if the directory is not accessible.
+        return path::join(os::temp(), "mesos", "runtime");
       }());
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
