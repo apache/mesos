@@ -231,12 +231,12 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreach (const Call::Update& update, updates.values()) {
+    foreachvalue (const Call::Update& update, updates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 
     // Send the unacknowledged tasks.
-    foreach (const TaskInfo& task, tasks.values()) {
+    foreachvalue (const TaskInfo& task, tasks) {
       subscribe->add_unacknowledged_tasks()->MergeFrom(task);
     }
 
@@ -498,7 +498,7 @@ protected:
     list<Connection> connections = _connections.get();
     CHECK_EQ(containers.size(), connections.size());
 
-    foreach (const ContainerID& containerId, containers.keys()) {
+    foreachkey (const ContainerID& containerId, containers) {
       CHECK(!waiting.contains(containerId));
 
       __wait(connectionId.get(),
@@ -735,7 +735,7 @@ protected:
     }
 
     list<Future<Nothing>> killing;
-    foreach (const ContainerID& containerId, containers.keys()) {
+    foreachkey (const ContainerID& containerId, containers) {
       killing.push_back(kill(connection.get(), containerId));
     }
 
@@ -809,7 +809,7 @@ protected:
     LOG(INFO) << "Received kill for task '" << taskId << "'";
 
     bool found = false;
-    foreach (const TaskID& taskId_, containers.values()) {
+    foreachvalue (const TaskID& taskId_, containers) {
       if (taskId_ == taskId) {
         found = true;
         break;
@@ -876,8 +876,10 @@ private:
     // Fill the container ID associated with this task.
     // TODO(jieyu): Consider maintain a hashmap between TaskID to
     // ContainerID so that we don't have to loop through all tasks.
-    foreach (const ContainerID& containerId, containers.keys()) {
-      if (containers[containerId] == taskId) {
+    foreachpair (const ContainerID& containerId,
+                 const TaskID& containerTaskId,
+                 containers) {
+      if (containerTaskId == taskId) {
         ContainerStatus* containerStatus = status.mutable_container_status();
         containerStatus->mutable_container_id()->CopyFrom(containerId);
         break;

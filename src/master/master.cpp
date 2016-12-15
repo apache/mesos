@@ -1727,7 +1727,9 @@ void Master::doRegistryGc()
   TimeInfo currentTime = protobuf::getCurrentTime();
   hashset<SlaveID> toRemove;
 
-  foreach (const SlaveID& slave, slaves.unreachable.keys()) {
+  foreachpair (const SlaveID& slave,
+               const TimeInfo& unreachableTime,
+               slaves.unreachable) {
     // Count-based GC.
     CHECK(toRemove.size() <= unreachableCount);
 
@@ -1738,7 +1740,6 @@ void Master::doRegistryGc()
     }
 
     // Age-based GC.
-    const TimeInfo& unreachableTime = slaves.unreachable[slave];
     Duration age = Nanoseconds(
         currentTime.nanoseconds() - unreachableTime.nanoseconds());
 

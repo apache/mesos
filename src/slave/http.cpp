@@ -173,7 +173,7 @@ struct ExecutorWriter
     }
 
     writer->field("tasks", [this](JSON::ArrayWriter* writer) {
-      foreach (Task* task, executor_->launchedTasks.values()) {
+      foreachvalue (Task* task, executor_->launchedTasks) {
         if (!approveViewTask(taskApprover_, *task, framework_->info)) {
           continue;
         }
@@ -183,7 +183,7 @@ struct ExecutorWriter
     });
 
     writer->field("queued_tasks", [this](JSON::ArrayWriter* writer) {
-      foreach (const TaskInfo& task, executor_->queuedTasks.values()) {
+      foreachvalue (const TaskInfo& task, executor_->queuedTasks) {
         if (!approveViewTaskInfo(taskApprover_, task, framework_->info)) {
           continue;
         }
@@ -203,9 +203,7 @@ struct ExecutorWriter
 
       // NOTE: We add 'terminatedTasks' to 'completed_tasks' for
       // simplicity.
-      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-      // supports it.
-      foreach (Task* task, executor_->terminatedTasks.values()) {
+      foreachvalue (Task* task, executor_->terminatedTasks) {
         if (!approveViewTask(taskApprover_, *task, framework_->info)) {
           continue;
         }
@@ -1569,7 +1567,7 @@ agent::Response::GetTasks Slave::Http::_getTasks(
                const Framework* framework,
                executors) {
     // Queued tasks.
-    foreach (const TaskInfo& taskInfo, executor->queuedTasks.values()) {
+    foreachvalue (const TaskInfo& taskInfo, executor->queuedTasks) {
       // Skip unauthorized tasks.
       if (!approveViewTaskInfo(tasksApprover, taskInfo, framework->info)) {
         continue;
@@ -1582,7 +1580,7 @@ agent::Response::GetTasks Slave::Http::_getTasks(
     }
 
     // Launched tasks.
-    foreach (Task* task, executor->launchedTasks.values()) {
+    foreachvalue (Task* task, executor->launchedTasks) {
       CHECK_NOTNULL(task);
       // Skip unauthorized tasks.
       if (!approveViewTask(tasksApprover, *task, framework->info)) {
@@ -1593,7 +1591,7 @@ agent::Response::GetTasks Slave::Http::_getTasks(
     }
 
     // Terminated tasks.
-    foreach (Task* task, executor->terminatedTasks.values()) {
+    foreachvalue (Task* task, executor->terminatedTasks) {
       CHECK_NOTNULL(task);
       // Skip unauthorized tasks.
       if (!approveViewTask(tasksApprover, *task, framework->info)) {

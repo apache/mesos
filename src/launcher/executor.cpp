@@ -325,7 +325,7 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreach (const Call::Update& update, updates.values()) {
+    foreachvalue (const Call::Update& update, updates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 

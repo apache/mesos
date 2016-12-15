@@ -292,16 +292,12 @@ protected:
     message.mutable_framework_id()->MergeFrom(frameworkId);
 
     // Send all unacknowledged updates.
-    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-    // supports it.
-    foreach (const StatusUpdate& update, updates.values()) {
+    foreachvalue (const StatusUpdate& update, updates) {
       message.add_updates()->MergeFrom(update);
     }
 
     // Send all unacknowledged tasks.
-    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-    // supports it.
-    foreach (const TaskInfo& task, tasks.values()) {
+    foreachvalue (const TaskInfo& task, tasks) {
       message.add_tasks()->MergeFrom(task);
     }
 
