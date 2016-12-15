@@ -91,6 +91,11 @@ set(MESOS_TESTS_SRC
   authentication_tests.cpp
   )
 
+set(MESOS_TESTS_SRC
+  ${MESOS_TESTS_SRC}
+  common/recordio_tests.cpp
+  )
+
 if (NOT WIN32)
   set(MESOS_TESTS_SRC
     ${MESOS_TESTS_SRC}
@@ -168,7 +173,6 @@ if (NOT WIN32)
     ${MESOS_TESTS_SRC}
     common/command_utils_tests.cpp
     common/http_tests.cpp
-    common/recordio_tests.cpp
     common/type_utils_tests.cpp
     )
 

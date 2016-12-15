@@ -177,8 +177,8 @@ TEST(RecordIOTransformTest, EndOfFile)
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
-  process::Owned<internal::recordio::Reader<string>> reader(
-    new internal::recordio::Reader<string>(
+  process::Owned<mesos::internal::recordio::Reader<string>> reader(
+    new mesos::internal::recordio::Reader<string>(
         ::recordio::Decoder<string>(strings::lower),
         pipeA.reader()));
 
@@ -186,7 +186,7 @@ TEST(RecordIOTransformTest, EndOfFile)
 
   auto trim = [](const string& str) { return strings::trim(str); };
 
-  Future<Nothing> transform = internal::recordio::transform<string>(
+  Future<Nothing> transform = mesos::internal::recordio::transform<string>(
       std::move(reader), trim, pipeB.writer());
 
   Future<string> future = pipeB.reader().readAll();
@@ -217,8 +217,8 @@ TEST(RecordIOTransformTest, ReaderWriterEndFail)
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
-  process::Owned<internal::recordio::Reader<string>> reader(
-    new internal::recordio::Reader<string>(
+  process::Owned<mesos::internal::recordio::Reader<string>> reader(
+    new mesos::internal::recordio::Reader<string>(
         ::recordio::Decoder<string>(strings::lower),
         pipeA.reader()));
 
@@ -226,7 +226,7 @@ TEST(RecordIOTransformTest, ReaderWriterEndFail)
 
   auto trim = [](const string& str) { return strings::trim(str); };
 
-  Future<Nothing> transform = internal::recordio::transform<string>(
+  Future<Nothing> transform = mesos::internal::recordio::transform<string>(
       std::move(reader), trim, pipeB.writer());
 
   Future<string> future = pipeB.reader().readAll();
@@ -254,8 +254,8 @@ TEST(RecordIOTransformTest, WriterReadEndFail)
   process::http::Pipe pipeA;
   pipeA.writer().write(data);
 
-  process::Owned<internal::recordio::Reader<string>> reader(
-    new internal::recordio::Reader<string>(
+  process::Owned<mesos::internal::recordio::Reader<string>> reader(
+    new mesos::internal::recordio::Reader<string>(
         ::recordio::Decoder<string>(strings::lower),
         pipeA.reader()));
 
@@ -265,7 +265,7 @@ TEST(RecordIOTransformTest, WriterReadEndFail)
 
   pipeB.reader().close();
 
-  Future<Nothing> transform = internal::recordio::transform<string>(
+  Future<Nothing> transform = mesos::internal::recordio::transform<string>(
       std::move(reader), trim, pipeB.writer());
 
   pipeA.writer().close();
