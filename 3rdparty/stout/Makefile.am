@@ -12,6 +12,24 @@
 
 # Makefile for stout.
 
+# Enable common (and some language specific) warnings.
+AM_CXXFLAGS = -Wall
+# Warn when a comparison is made between signed and unsigned values.
+AM_CXXFLAGS += -Wsign-compare
+# Warn about use of format functions that can produce security issues.
+AM_CXXFLAGS += -Wformat-security
+
+# We will also have much more hardened/secured binaries and libraries.
+if ENABLE_HARDENING
+# Protect many of the functions with stack guards
+# (either -fstack-protector-strong or -fstack-protector depending on compiler support).
+AM_CXXFLAGS += @STACK_PROTECTOR@
+# Better protect against potential buffer overflow attacks.
+AM_CXXFLAGS += -D_FORTIFY_SOURCE=2
+# Produce position independent code when appropriate.
+AM_CXXFLAGS += -fPIC -fPIE
+endif
+
 AUTOMAKE_OPTIONS = foreign
 
 if STANDALONE_STOUT
