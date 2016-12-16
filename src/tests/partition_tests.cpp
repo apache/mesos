@@ -237,6 +237,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&unreachableStatus));
 
+  // We expect to get a `slaveLost` callback, even though this
+  // scheduler is partition-aware.
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
@@ -377,8 +379,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&lostStatus));
 
-  // Note that we expect to get `slaveLost` callbacks in both
-  // schedulers, regardless of PARTITION_AWARE.
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
@@ -971,7 +971,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
 
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  // Notify the slave about the new master and wait for it to reregister.
+  // Notify the slave about the new master and wait for it to
+  // reregister. The task on the agent should continue running,
+  // because the master has failed over.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 

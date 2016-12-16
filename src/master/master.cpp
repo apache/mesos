@@ -5453,10 +5453,12 @@ void Master::_reregisterSlave(
 
   ++metrics->slave_reregistrations;
 
-  // Check whether this master was the one that removed the
-  // reregistering agent from the cluster originally. This is false
-  // if the master has failed over since the agent was removed, for
-  // example.
+  // Check if this master was the one that removed the reregistering
+  // agent from the cluster originally. This is false if the master
+  // has failed over since the agent was removed, for example. Since
+  // `removed` is a cache, we might mistakenly think the master has
+  // failed over and neglect to remove non-partition-aware frameworks
+  // on reregistering agents, but that should be rare in practice.
   bool slaveWasRemoved = slaves.removed.get(slave->id).isSome();
 
   slaves.removed.erase(slave->id);
