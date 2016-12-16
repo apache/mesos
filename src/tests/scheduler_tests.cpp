@@ -255,7 +255,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
 
 // This test verifies that the scheduler can subscribe after a master failover.
-TEST_P(SchedulerTest, MasterFailover)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1798,16 +1798,27 @@ public:
 };
 
 
+// NOTE: `#ifdef`'ing out the argument `string("https")` argument causes a
+// build break on Windows, because the preprocessor is not required to to
+// process the text it expands.
+#ifdef USE_SSL_SOCKET
 INSTANTIATE_TEST_CASE_P(
     ContentTypeAndSSLConfig,
     SchedulerSSLTest,
     ::testing::Combine(
         ::testing::Values(ContentType::PROTOBUF, ContentType::JSON),
         ::testing::Values(
-#ifdef USE_SSL_SOCKET
             string("https"),
-#endif // USE_SSL_SOCKET
             string("http"))));
+#else
+INSTANTIATE_TEST_CASE_P(
+    ContentTypeAndSSLConfig,
+    SchedulerSSLTest,
+    ::testing::Combine(
+        ::testing::Values(ContentType::PROTOBUF, ContentType::JSON),
+        ::testing::Values(
+            string("http"))));
+#endif // USE_SSL_SOCKET
 
 
 // Tests that a scheduler can subscribe, run a task, and then tear itself down.

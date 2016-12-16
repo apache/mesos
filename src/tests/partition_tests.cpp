@@ -165,7 +165,7 @@ TEST_F(PartitionTest, PartitionedSlave)
 // This test checks that a slave can reregister with the master after
 // a partition, and that PARTITION_AWARE tasks running on the slave
 // continue to run.
-TEST_F(PartitionTest, ReregisterSlavePartitionAware)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
 {
   Clock::pause();
 
@@ -309,7 +309,7 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
 // This test checks that a slave can reregister with the master after
 // a partition, and that non-PARTITION_AWARE tasks running on the
 // slave are shutdown.
-TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 {
   Clock::pause();
 
@@ -470,7 +470,9 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
 // not. Both tasks should survive the reregistration of the partitioned
 // agent: we allow the non-partition-aware task to continue running for
 // backward compatibility with the "non-strict" Mesos 1.0 behavior.
-TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    PartitionTest,
+    PartitionedSlaveReregistrationMasterFailover)
 {
   Clock::pause();
 
@@ -722,7 +724,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 // before the partition heals. Right now, the task is left running as
 // an orphan; when MESOS-6602 is fixed, the task will be shutdown when
 // the agent re-registers.
-TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
 
@@ -896,7 +898,7 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
 // This test checks that the master handles a slave that becomes
 // partitioned while running a task that belongs to a disconnected
 // framework.
-TEST_F(PartitionTest, DisconnectedFramework)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -1054,7 +1056,7 @@ TEST_F(PartitionTest, DisconnectedFramework)
 // master (e.g., because of a spurious Zk leader flap at the slave),
 // the master does not kill any tasks on the slave, even if those
 // tasks are not PARTITION_AWARE.
-TEST_F(PartitionTest, SpuriousSlaveReregistration)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
 {
   Clock::pause();
 
@@ -1155,7 +1157,7 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
 // master's POV). In prior Mesos versions, the master would shutdown
 // the slave in this situation. In Mesos >= 1.1, the master will drop
 // the status update; the slave will eventually try to reregister.
-TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
 {
   Clock::pause();
 
@@ -1427,7 +1429,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 // This test checks that the master correctly garbage collects
 // information about unreachable agents from the registry using the
 // count-based GC criterion.
-TEST_F(PartitionTest, RegistryGcByCount)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
@@ -1654,7 +1656,7 @@ TEST_F(PartitionTest, RegistryGcByCount)
 // would be annoying to do by creating slaves and simulating network
 // partitions; instead we add agents to the unreachable list by
 // directly applying registry operations.
-TEST_F(PartitionTest, RegistryGcByCountManySlaves)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
@@ -1776,7 +1778,7 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
 // 900 secs (15 mins):  GC runs, nothing discarded
 // 1800 secs (30 mins): GC runs, slave1 is discarded
 // 2700 secs (45 mins): GC runs, slave2 is discarded
-TEST_F(PartitionTest, RegistryGcByAge)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_gc_interval = Minutes(15);
@@ -2031,7 +2033,7 @@ TEST_F(PartitionTest, RegistryGcByAge)
 // configure GC to only keep a single agent. Concurrently with GC
 // running, we arrange for one of those agents to reregister with the
 // master.
-TEST_F(PartitionTest, RegistryGcRace)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_max_agent_count = 1;
@@ -2429,7 +2431,7 @@ class OneWayPartitionTest : public MesosTest {};
 // This test verifies that if master --> slave socket closes and the
 // slave is not aware of it (i.e., one way network partition), slave
 // will re-register with the master.
-TEST_F(OneWayPartitionTest, MasterToSlave)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -2481,7 +2483,7 @@ TEST_F(OneWayPartitionTest, MasterToSlave)
 // framework is not aware of it (i.e., one way network partition), all
 // subsequent calls from the framework after the master has marked it as
 // disconnected would result in an error message causing the framework to abort.
-TEST_F(OneWayPartitionTest, MasterToScheduler)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToScheduler)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -93,7 +93,7 @@ protected:
 };
 
 
-TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_ValidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -112,7 +112,7 @@ TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
 }
 
 
-TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvalidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -130,7 +130,7 @@ TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
 
 
 // This test verifies invoking 'fetch' by plugin name.
-TEST_F(CurlFetcherPluginTest, CURL_InvokeFetchByName)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvokeFetchByName)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -178,10 +178,13 @@ public:
         "fi\n"
         "cp $3 $4\n"));
 
-    // Make sure the script has execution permission.
+    // Make sure the script has execution permission. On Windows, we always
+    // have permission.
+#ifndef __WINDOWS__
     ASSERT_SOME(os::chmod(
         hadoop,
         S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+#endif // __WINDOWS__
   }
 
 protected:
@@ -189,6 +192,9 @@ protected:
 };
 
 
+// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
+// MESOS-5460.
+#ifndef __WINDOWS__
 TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
 {
   string file = path::join(os::getcwd(), "file");
@@ -209,8 +215,12 @@ TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
 
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
+#endif // __WINDOWS__
 
 
+// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
+// MESOS-5460.
+#ifndef __WINDOWS__
 TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
 {
   URI uri = uri::hdfs(path::join(os::getcwd(), "non-exist"));
@@ -225,8 +235,12 @@ TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
+#endif // __WINDOWS__
 
 
+// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
+// MESOS-5460.
+#ifndef __WINDOWS__
 // This test verifies invoking 'fetch' by plugin name.
 TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
 {
@@ -248,6 +262,7 @@ TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
 
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
+#endif // __WINDOWS__
 
 
 // TODO(jieyu): Expose this constant so that other docker related
@@ -370,6 +385,9 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
 class CopyFetcherPluginTest : public TemporaryDirectoryTest {};
 
 
+// TODO(hausdorff): Enable this test on Windows. `/dev/null` does not exist on
+// Windows, causing this to fail.
+#ifndef __WINDOWS__
 // Tests CopyFetcher plugin for fetching a valid file.
 TEST_F(CopyFetcherPluginTest, FetchExistingFile)
 {
@@ -391,6 +409,7 @@ TEST_F(CopyFetcherPluginTest, FetchExistingFile)
   // Validate the fetched file's content.
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
+#endif // __WINDOWS__
 
 
 // Negative test case that tests CopyFetcher plugin for a non-exiting file.
@@ -410,7 +429,7 @@ TEST_F(CopyFetcherPluginTest, FetchNonExistingFile)
 
 
 // This test verifies invoking 'fetch' by plugin name.
-TEST_F(CopyFetcherPluginTest, InvokeFetchByName)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CopyFetcherPluginTest, InvokeFetchByName)
 {
   const string file = path::join(os::getcwd(), "file");
 

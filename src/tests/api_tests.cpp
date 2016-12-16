@@ -788,7 +788,7 @@ TEST_P(MasterAPITest, SetLoggingLevel)
 
 // This test verifies if we can retrieve the file listing for a directory
 // in the master.
-TEST_P(MasterAPITest, ListFiles)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, ListFiles)
 {
   Files files;
 
@@ -2508,7 +2508,7 @@ TEST_P(AgentAPITest, SetLoggingLevel)
 
 // This test verifies if we can retrieve the file listing for a directory
 // in an agent.
-TEST_P(AgentAPITest, ListFiles)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, ListFiles)
 {
   Files files;
 
@@ -2842,7 +2842,7 @@ TEST_P(AgentAPITest, ReadFileInvalidPath)
 }
 
 
-TEST_P(AgentAPITest, GetFrameworks)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2945,7 +2945,7 @@ TEST_P(AgentAPITest, GetFrameworks)
 }
 
 
-TEST_P(AgentAPITest, GetExecutors)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3052,7 +3052,7 @@ TEST_P(AgentAPITest, GetExecutors)
 }
 
 
-TEST_P(AgentAPITest, GetTasks)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3178,7 +3178,7 @@ TEST_P(AgentAPITest, GetTasks)
 }
 
 
-TEST_P(AgentAPITest, GetState)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3429,7 +3429,7 @@ TEST_P(AgentAPITest, NestedContainerKillNotFound)
 // When containerizer returns false from launching a nested
 // container, it is considered a bad request (e.g. image
 // type is not supported).
-TEST_P(AgentAPITest, NestedContainerLaunchFalse)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunchFalse)
 {
   ContentType contentType = GetParam();
 
@@ -3552,7 +3552,7 @@ TEST_P(AgentAPITest, NestedContainerLaunchGrandchildNotSupported)
 }
 
 
-TEST_P(AgentAPITest, NestedContainerLaunch)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunch)
 {
   ContentType contentType = GetParam();
 
@@ -3671,7 +3671,9 @@ TEST_P(AgentAPITest, NestedContainerLaunch)
 // This test verifies that launch nested container session fails when
 // attaching to the output of the container fails. Consequently, the
 // launched container should be destroyed.
-TEST_P(AgentAPITest, LaunchNestedContainerSessionAttachFailure)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPITest,
+    LaunchNestedContainerSessionAttachFailure)
 {
   ContentType contentType = GetParam();
 
@@ -3754,7 +3756,7 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionAttachFailure)
 
 // This test verifies that launching a nested container session results
 // in stdout and stderr being streamed correctly.
-TEST_P(AgentAPITest, LaunchNestedContainerSession)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
 {
   ContentType contentType = GetParam();
 
@@ -3863,7 +3865,9 @@ TEST_P(AgentAPITest, LaunchNestedContainerSession)
 
 // This test verifies that launching a nested container session with `TTYInfo`
 // results in stdout and stderr being streamed to the client as stdout.
-TEST_P(AgentAPITest, LaunchNestedContainerSessionWithTTY)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPITest,
+    LaunchNestedContainerSessionWithTTY)
 {
   ContentType contentType = GetParam();
 
@@ -3978,7 +3982,9 @@ TEST_P(AgentAPITest, LaunchNestedContainerSessionWithTTY)
 
 // This test verifies that the nested container session is destroyed
 // upon a client disconnection.
-TEST_P(AgentAPITest, LaunchNestedContainerSessionDisconnected)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPITest,
+    LaunchNestedContainerSessionDisconnected)
 {
   ContentType contentType = GetParam();
 
@@ -4328,7 +4334,7 @@ INSTANTIATE_TEST_CASE_P(
 // as the entrypoint and attaches to its STDOUT via the attach output call.
 // It then verifies that any data streamed to the container via the
 // attach input call is received by the client on the output stream.
-TEST_P(AgentAPIStreamingTest, AttachContainerInput)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest, AttachContainerInput)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -4570,7 +4576,9 @@ TEST_P(AgentAPIStreamingTest, AttachContainerInput)
 // entrypoint and verifies that any data streamed to the container via
 // an ATTACH_CONTAINER_INPUT call is received by the client on the
 // output stream.
-TEST_P(AgentAPIStreamingTest, AttachInputToNestedContainerSession)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPIStreamingTest,
+    AttachInputToNestedContainerSession)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

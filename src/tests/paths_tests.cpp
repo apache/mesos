@@ -103,7 +103,7 @@ TEST_F(PathsTest, CreateExecutorDirectory)
 }
 
 
-TEST_F(PathsTest, ParseExecutorRunPath)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PathsTest, ParseExecutorRunPath)
 {
   string goodDir = paths::getExecutorRunPath(
       rootDir,

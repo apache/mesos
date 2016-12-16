@@ -154,6 +154,7 @@ typedef ::testing::Types<HierarchicalDRFAllocator,
 TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);
 
 
+#ifndef __WINDOWS__
 // Checks that in a cluster with one slave and one framework, all of
 // the slave's resources are offered to the framework.
 TYPED_TEST(MasterAllocatorTest, SingleFramework)
@@ -196,6 +197,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   driver.stop();
   driver.join();
 }
+#endif // __WINDOWS__
 
 
 // Checks that when a task is launched with fewer resources than what
@@ -1579,6 +1581,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 }
 
 
+#ifndef __WINDOWS__
 // This test ensures that resource allocation is correctly rebalanced
 // according to the updated weights.
 TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
@@ -1738,6 +1741,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   driver2.stop();
   driver2.join();
 }
+#endif // __WINDOWS__
 
 } // namespace tests {
 } // namespace internal {

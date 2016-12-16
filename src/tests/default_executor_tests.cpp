@@ -100,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(
 
 
 // This test verifies that the default executor can launch a task group.
-TEST_P(DefaultExecutorTest, TaskRunning)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -242,7 +242,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_P(DefaultExecutorTest, KillTask)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -439,7 +439,9 @@ TEST_P(DefaultExecutorTest, KillTask)
 // This test verifies that if the default executor receives a
 // non-zero exit status code for a task in the task group, it
 // kills all the other tasks (default restart policy).
-TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorTest,
+    KillTaskGroupOnTaskFailure)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -626,7 +628,7 @@ TEST_F(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
 // Verifies that a task in a task group with an executor is accepted
 // during `TaskGroupInfo` validation.
-TEST_P(DefaultExecutorTest, TaskUsesExecutor)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskUsesExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -267,7 +267,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
 
 // This test checks that the "/roles" endpoint returns the expected
 // information when there are no active roles.
-TEST_F(RoleTest, EndpointEmpty)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -369,7 +369,7 @@ TEST_F(RoleTest, EndpointNoFrameworks)
 // This test checks that when using implicit roles, the "/roles"
 // endpoint shows roles that have a configured weight even if they
 // have no registered frameworks.
-TEST_F(RoleTest, EndpointImplicitRolesWeights)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.weights = "roleX=5,roleY=4";
@@ -473,7 +473,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 // This test checks that when using implicit roles, the "/roles"
 // endpoint shows roles that have a configured quota even if they have
 // no registered frameworks.
-TEST_F(RoleTest, EndpointImplicitRolesQuotas)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -571,7 +571,9 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
 
 // This test ensures that master adds/removes all roles of
 // a multi-role framework when it registers/terminates.
-TEST_F(RoleTest, AddAndRemoveFrameworkWithMultipleRoles)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    RoleTest,
+    AddAndRemoveFrameworkWithMultipleRoles)
 {
   // When we test removeFramework later in this test, we have to
   // be sure the teardown call is processed completely before

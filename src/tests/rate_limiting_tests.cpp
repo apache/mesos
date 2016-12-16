@@ -84,7 +84,7 @@ public:
 // Verify that message counters for a framework are added when a
 // framework registers, removed when it terminates and count messages
 // correctly when it is given unlimited rate.
-TEST_F(RateLimitingTest, NoRateLimiting)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, NoRateLimiting)
 {
   // Give the framework unlimited rate explicitly by specifying a
   // RateLimit entry without 'qps'
@@ -203,7 +203,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
 
 // Verify that a framework is being correctly throttled at the
 // configured rate.
-TEST_F(RateLimitingTest, RateLimitingEnabled)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, RateLimitingEnabled)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -327,7 +327,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 // Verify that framework message counters and rate limiters work with
 // frameworks of different principals which are throttled at
 // different rates.
-TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, DifferentPrincipalFrameworks)
 {
   master::Flags flags = CreateMasterFlags();
 
@@ -571,7 +571,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 // Verify that if multiple frameworks use the same principal, they
 // share the same counters, are throtted at the same rate and
 // removing one framework doesn't remove the counters.
-TEST_F(RateLimitingTest, SamePrincipalFrameworks)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SamePrincipalFrameworks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -728,7 +728,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 
 // Verify that when a scheduler fails over, the new scheduler
 // instance continues to use the same counters and RateLimiter.
-TEST_F(RateLimitingTest, SchedulerFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SchedulerFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -906,7 +906,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 }
 
 
-TEST_F(RateLimitingTest, CapacityReached)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, CapacityReached)
 {
   master::Flags flags = CreateMasterFlags();
   RateLimits limits;

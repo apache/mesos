@@ -58,7 +58,9 @@ namespace tests {
 class ResourceOffersTest : public MesosTest {};
 
 
-TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    ResourceOffersTest,
+    ResourceOfferWithMultipleSlaves)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -232,7 +232,7 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
 // status is reflected in the status updates sent as reconciliation
 // answers, and in the state endpoint of both the master and the
 // agent.
-TEST_F(HealthCheckTest, HealthyTask)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -588,7 +588,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
 
 // Same as above, but use the non-shell version of the health command.
-TEST_F(HealthCheckTest, HealthyTaskNonShell)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskNonShell)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -644,7 +644,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
 // This test creates a task whose health flaps, and verifies that the
 // health status updates are sent to the framework scheduler.
-TEST_F(HealthCheckTest, HealthStatusChange)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthStatusChange)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -876,7 +876,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 
 // This test ensures that a task is killed if the number of maximum
 // health check failures is reached.
-TEST_F(HealthCheckTest, ConsecutiveFailures)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ConsecutiveFailures)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -953,7 +953,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
 
 // Tests that the task's env variables are copied to the env used to
 // execute COMMAND health checks.
-TEST_F(HealthCheckTest, EnvironmentSetup)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, EnvironmentSetup)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1006,7 +1006,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 
 
 // Tests that health check failures are ignored during the grace period.
-TEST_F(HealthCheckTest, GracePeriod)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, GracePeriod)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1062,7 +1062,7 @@ TEST_F(HealthCheckTest, GracePeriod)
 
 // This test creates a task with a health check command that will time
 // out, and verifies that the health check is retried after the timeout.
-TEST_F(HealthCheckTest, CheckCommandTimeout)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, CheckCommandTimeout)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1122,7 +1122,9 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
 // Tests the transition from healthy to unhealthy within the grace period, to
 // make sure that failures within the grace period aren't ignored if they come
 // after a success.
-TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest,
+    HealthyToUnhealthyTransitionWithinGracePeriod)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1201,7 +1203,7 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
 
 
 // Tests a healthy non-contained task via HTTP.
-TEST_F(HealthCheckTest, HealthyTaskViaHTTP)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1283,7 +1285,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaHTTP)
 // with the difference being the health check type is not set.
 //
 // TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
-TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1360,7 +1362,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
 //
 // NOTE: This test is almost identical to HealthyTaskViaHTTP
 // with the difference being TCP health check.
-TEST_F(HealthCheckTest, HealthyTaskViaTCP)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaTCP)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);

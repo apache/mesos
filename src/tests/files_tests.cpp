@@ -238,7 +238,7 @@ TEST_F(FilesTest, ReadTest)
 }
 
 
-TEST_F(FilesTest, ResolveTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FilesTest, ResolveTest)
 {
   Files files;
   process::UPID upid("files", process::address());
@@ -317,7 +317,7 @@ TEST_F(FilesTest, ResolveTest)
 }
 
 
-TEST_F(FilesTest, BrowseTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FilesTest, BrowseTest)
 {
   Files files;
   process::UPID upid("files", process::address());

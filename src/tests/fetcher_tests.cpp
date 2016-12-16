@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <map>
 #include <string>
@@ -35,6 +37,8 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/permissions.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
 #include <mesos/type_utils.hpp>
@@ -69,7 +73,7 @@ namespace tests {
 class FetcherTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(FetcherTest, FileURI)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, FileURI)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -100,9 +104,11 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
+// TODO(hausdorff): `os::getuid` does not exist on Windows.
+#ifndef __WINDOWS__
 // Tests that non-root users are unable to fetch root-protected files on the
 // local filesystem.
-TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ROOT_RootProtectedFileURI)
 {
   const string user = "nobody";
   ASSERT_SOME(os::getuid(user));
@@ -136,9 +142,10 @@ TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
       slaveId,
       flags));
 }
+#endif // __WINDOWS__
 
 
-TEST_F(FetcherTest, CustomOutputFileSubdirectory)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, CustomOutputFileSubdirectory)
 {
   string testFile = path::join(os::getcwd(), "test");
   EXPECT_SOME(os::write(testFile, "data"));
@@ -172,7 +179,7 @@ TEST_F(FetcherTest, CustomOutputFileSubdirectory)
 // Negative test: invalid custom URI output file. If the user specifies a
 // path for the file saved in the sandbox that has a directory component,
 // it must be a relative path.
-TEST_F(FetcherTest, AbsoluteCustomSubdirectoryFails)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, AbsoluteCustomSubdirectoryFails)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -208,7 +215,7 @@ TEST_F(FetcherTest, AbsoluteCustomSubdirectoryFails)
 // Negative test: invalid user name. Copied from FileTest, so this
 // normally would succeed, but here a bogus user name is specified.
 // So we check for fetch failure.
-TEST_F(FetcherTest, InvalidUser)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, InvalidUser)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -248,7 +255,7 @@ TEST_F(FetcherTest, InvalidUser)
 
 // Negative test: URI leading to non-existing file. Copied from FileTest,
 // but here the resource is missing. So we check for fetch failure.
-TEST_F(FetcherTest, NonExistingFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NonExistingFile)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -303,7 +310,7 @@ TEST_F(FetcherTest, MalformedURI)
 }
 
 
-TEST_F(FetcherTest, AbsoluteFilePath)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, AbsoluteFilePath)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -334,7 +341,7 @@ TEST_F(FetcherTest, AbsoluteFilePath)
 }
 
 
-TEST_F(FetcherTest, RelativeFilePath)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, RelativeFilePath)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -409,7 +416,7 @@ public:
 };
 
 
-TEST_F(FetcherTest, OSNetUriTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, OSNetUriTest)
 {
   Http http;
 
@@ -454,7 +461,7 @@ TEST_F(FetcherTest, OSNetUriTest)
 // characters. This was added as a verification for MESOS-2862.
 //
 // TODO(hartem): This test case should be merged with the previous one.
-TEST_F(FetcherTest, OSNetUriSpaceTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, OSNetUriSpaceTest)
 {
   Http http;
 
@@ -498,7 +505,7 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
 }
 
 
-TEST_F(FetcherTest, FileLocalhostURI)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, FileLocalhostURI)
 {
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -529,7 +536,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
 }
 
 
-TEST_F(FetcherTest, NoExtractNotExecutable)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
@@ -568,7 +575,7 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
 }
 
 
-TEST_F(FetcherTest, NoExtractExecutable)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractExecutable)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
@@ -608,7 +615,7 @@ TEST_F(FetcherTest, NoExtractExecutable)
 }
 
 
-TEST_F(FetcherTest, ExtractNotExecutable)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractNotExecutable)
 {
   // First construct a temporary file that can be fetched and archived with tar
   // gzip.
@@ -660,8 +667,9 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   EXPECT_FALSE(permissions.get().others.x);
 }
 
+
 // Tests extracting tar file with extension .tar.
-TEST_F(FetcherTest, ExtractTar)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractTar)
 {
   // First construct a temporary file that can be fetched and archived with
   // tar.
@@ -705,7 +713,7 @@ TEST_F(FetcherTest, ExtractTar)
 }
 
 
-TEST_F(FetcherTest, ExtractGzipFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractGzipFile)
 {
   // First construct a temporary file that can be fetched and archived with
   // gzip.
@@ -744,7 +752,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
 }
 
 
-TEST_F(FetcherTest, UNZIP_ExtractFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UNZIP_ExtractFile)
 {
   // Construct a tmp file that can be fetched and archived with zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -797,7 +805,7 @@ TEST_F(FetcherTest, UNZIP_ExtractFile)
 }
 
 
-TEST_F(FetcherTest, UNZIP_ExtractInvalidFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UNZIP_ExtractInvalidFile)
 {
   // Construct a tmp file that can be filled with broken zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -851,7 +859,9 @@ TEST_F(FetcherTest, UNZIP_ExtractInvalidFile)
 }
 
 
-TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    FetcherTest,
+    UNZIP_ExtractFileWithDuplicatedEntries)
 {
   // Construct a tmp file that can be filled with zip containing
   // duplicates.
@@ -907,7 +917,7 @@ TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
 }
 
 
-TEST_F(FetcherTest, UseCustomOutputFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UseCustomOutputFile)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
@@ -946,7 +956,7 @@ TEST_F(FetcherTest, UseCustomOutputFile)
 }
 
 
-TEST_F(FetcherTest, CustomGzipOutputFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, CustomGzipOutputFile)
 {
   // First construct a temporary file that can be fetched.
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
@@ -986,6 +996,8 @@ TEST_F(FetcherTest, CustomGzipOutputFile)
 }
 
 
+// TODO(hausdorff): `os::chmod` does not exist on Windows.
+#ifndef __WINDOWS__
 // Tests fetching via the local HDFS client. Since we cannot rely on
 // Hadoop being installed, we use our own mock version that works on
 // the local file system only, but this lets us exercise the exact
@@ -1074,6 +1086,7 @@ TEST_F(FetcherTest, HdfsURI)
   // Proof that hdfs fetching worked.
   EXPECT_TRUE(os::exists(localFile));
 }
+#endif // __WINDOWS__
 
 } // namespace tests {
 } // namespace internal {

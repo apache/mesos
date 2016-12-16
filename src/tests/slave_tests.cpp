@@ -14,7 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // !__WINDOWS__
 
 #include <algorithm>
 #include <map>
@@ -185,7 +187,7 @@ TEST_F(SlaveTest, Shutdown)
 // This test verifies that the slave rejects duplicate terminal
 // status updates for tasks before the first terminal update is
 // acknowledged.
-TEST_F(SlaveTest, DuplicateTerminalUpdateBeforeAck)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DuplicateTerminalUpdateBeforeAck)
 {
   Clock::pause();
 
@@ -293,7 +295,7 @@ TEST_F(SlaveTest, DuplicateTerminalUpdateBeforeAck)
 }
 
 
-TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -389,6 +391,7 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 }
 
 
+#ifndef __WINDOWS__
 // This test verifies that mesos agent gets notified of task
 // launch failure triggered by the executor register timeout
 // caused by slow URI fetching.
@@ -515,6 +518,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   driver.stop();
   driver.join();
 }
+#endif // !__WINDOWS__
 
 
 // This test verifies that when an executor terminates before
@@ -594,7 +598,7 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 // mesos-executor args. For more details of this see MESOS-1873.
 //
 // This assumes the ability to execute '/bin/echo --author'.
-TEST_F(SlaveTest, CommandTaskWithArguments)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -675,7 +679,7 @@ TEST_F(SlaveTest, CommandTaskWithArguments)
 // Tests that task's kill policy grace period does not extend the time
 // a task responsive to SIGTERM needs to exit and the terminal status
 // to be delivered to the master.
-TEST_F(SlaveTest, CommandTaskWithKillPolicy)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithKillPolicy)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1038,6 +1042,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 }
 
 
+#ifndef __WINDOWS__
 // This test runs a command _with_ the command user field set. The
 // command will verify the assumption that the command is run as the
 // specified user. We use (and assume the presence) of the
@@ -1183,6 +1188,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   driver.stop();
   driver.join();
 }
+#endif // !__WINDOWS__
 
 
 // This test ensures that a status update acknowledgement from a
@@ -1418,7 +1424,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
 }
 
 
-TEST_F(SlaveTest, StateEndpoint)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StateEndpoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1623,7 +1629,9 @@ TEST_F(SlaveTest, StateEndpoint)
 
 // This test checks that when a slave is in RECOVERING state it responds
 // to HTTP requests for "/state" endpoint with ServiceUnavailable.
-TEST_F(SlaveTest, StateEndpointUnavailableDuringRecovery)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest,
+    StateEndpointUnavailableDuringRecovery)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1937,7 +1945,7 @@ TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
 // This is an end-to-end test that verifies that the slave returns the
 // correct ResourceUsage based on the currently running executors, and
 // the values returned by the /monitor/statistics endpoint are as expected.
-TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StatisticsEndpointRunningExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2666,7 +2674,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 
 // This test ensures that the slave will re-register with the master
 // if it does not receive any pings after registering.
-TEST_F(SlaveTest, PingTimeoutNoPings)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, PingTimeoutNoPings)
 {
   // Set shorter ping timeout values.
   master::Flags masterFlags = CreateMasterFlags();
@@ -2717,7 +2725,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
 
 // This test ensures that the slave will re-register with the master
 // if it stops receiving pings.
-TEST_F(SlaveTest, PingTimeoutSomePings)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, PingTimeoutSomePings)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -2947,6 +2955,7 @@ TEST_F(SlaveTest, CancelSlaveRemoval)
 }
 
 
+#ifndef __WINDOWS__
 // This test checks that the master behaves correctly when a slave
 // fails health checks, but concurrently the slave unregisters from
 // the master.
@@ -3022,8 +3031,10 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   driver.stop();
   driver.join();
 }
+#endif // !__WINDOWS__
 
 
+#ifndef __WINDOWS__
 // This test checks that the master behaves correctly when a slave
 // fails health checks and is in the process of being marked
 // unreachable in the registry, but concurrently the slave unregisters
@@ -3134,6 +3145,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
   driver.stop();
   driver.join();
 }
+#endif // !__WINDOWS__
 
 
 // This test checks that the master behaves correctly when a slave is
@@ -3613,7 +3625,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
 
 // This test verifies that when a slave re-registers with the master
 // it correctly includes the latest and status update task states.
-TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ReregisterWithStatusUpdateTaskState)
 {
   // Start a master.
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -4286,7 +4298,7 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
 
 // Test that we can set the executors environment variables and it
 // won't inhert the slaves.
-TEST_F(SlaveTest, ExecutorEnvironmentVariables)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -4605,7 +4617,7 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
 // Ensures that the slave can restart when there is an empty
 // framework pid. Executor messages should go through the
 // master (instead of directly to the scheduler!).
-TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -5226,7 +5238,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
 
 // This test verifies that the agent correctly populates the
 // command info for default executor.
-TEST_F(SlaveTest, DefaultExecutorCommandInfo)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -5519,7 +5531,9 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
 
 
 // Test the max_completed_executors_per_framework flag.
-TEST_F(SlaveTest, MaxCompletedExecutorsPerFrameworkFlag)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest,
+    MaxCompletedExecutorsPerFrameworkFlag)
 {
   Clock::pause();
 

@@ -89,7 +89,7 @@ vector<TaskInfo> createTasks(const Offer& offer)
 class StatusUpdateManagerTest: public MesosTest {};
 
 
-TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(StatusUpdateManagerTest, CheckpointStatusUpdate)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

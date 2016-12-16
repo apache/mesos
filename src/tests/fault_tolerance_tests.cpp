@@ -107,7 +107,7 @@ class FaultToleranceTest : public MesosTest {};
 // failed over master gets a registered callback.
 // Note that this behavior might change in the future and
 // the scheduler might receive a re-registered callback.
-TEST_F(FaultToleranceTest, MasterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, MasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -733,7 +733,9 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 }
 
 
-TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    FaultToleranceTest,
+    FrameworkReliableRegistration)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -783,7 +785,7 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 }
 
 
-TEST_F(FaultToleranceTest, FrameworkReregister)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 {
   // NOTE: We do not use `StartMaster()` because we need to access flags later.
   master::Flags masterFlags = CreateMasterFlags();
@@ -2126,7 +2128,9 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 // This test verifies that when a framework re-registers after master
 // failover with an updated FrameworkInfo, the updated FrameworkInfo
 // is reflected in the master.
-TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnMasterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    FaultToleranceTest,
+    UpdateFrameworkInfoOnMasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

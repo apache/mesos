@@ -123,7 +123,7 @@ protected:
 
 
 // Test varioud hook install/uninstall mechanisms.
-TEST_F(HookTest, HookLoading)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, HookLoading)
 {
   // Installing unknown hooks should fail.
   EXPECT_ERROR(HookManager::initialize("Unknown Hook"));
@@ -146,7 +146,7 @@ TEST_F(HookTest, HookLoading)
 
 // Test that the label decorator hook hangs a new label off the
 // taskinfo message during master launch task.
-TEST_F(HookTest, VerifyMasterLaunchTaskHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifyMasterLaunchTaskHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -229,7 +229,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 // This test forces a `SlaveLost` event. When this happens, we expect the
 // `masterSlaveLostHook` to be invoked and await an internal libprocess event
 // to trigger in the module code.
-TEST_F(HookTest, MasterSlaveLostHookTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, MasterSlaveLostHookTest)
 {
   Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
 
@@ -280,7 +280,9 @@ TEST_F(HookTest, MasterSlaveLostHookTest)
 // Test hook adds a new environment variable "FOO" to the executor
 // with a value "bar". We validate the hook by verifying the value
 // of this environment variable.
-TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HookTest,
+    VerifySlaveExecutorEnvironmentDecorator)
 {
   const string& directory = os::getcwd(); // We're inside a temporary sandbox.
   Fetcher fetcher;
@@ -340,7 +342,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 // Test executor environment decorator hook and remove executor hook
 // for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -425,7 +427,7 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 // with two labels ("foo":"bar" and "bar":"baz") is launched and will
 // get modified by the slave hook to strip the "foo":"bar" pair and
 // add a new "baz":"qux" pair.
-TEST_F(HookTest, VerifySlaveRunTaskHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveRunTaskHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -514,7 +516,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
 // "bar":"baz") is sent from the executor. The labels get modified by
 // the slave hook to strip the "foo":"bar" pair and/ add a new
 // "baz":"qux" pair.
-TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveTaskStatusDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1070,7 +1072,9 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
 
 // Test that the changes made by the resources decorator hook are correctly
 // propagated to the resource offer.
-TEST_F(HookTest, VerifySlaveResourcesAndAttributesDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HookTest,
+    VerifySlaveResourcesAndAttributesDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -87,7 +87,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // This test ensures that the command executor does not send
 // TASK_KILLING to frameworks that do not support the capability.
-TEST_P(CommandExecutorTest, NoTaskKillingCapability)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, NoTaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -149,7 +149,10 @@ TEST_P(CommandExecutorTest, NoTaskKillingCapability)
 
 // This test ensures that the command executor sends TASK_KILLING
 // to frameworks that support the capability.
-TEST_P(CommandExecutorTest, TaskKillingCapability)
+// TODO(hausdorff): Enable test. The executor tests use the replicated log
+// by default. This is not currently supported on Windows, so they will all
+// fail until that changes.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, TaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -218,6 +221,9 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 }
 
 
+// TODO(hausdorff): Kill policy helpers are not yet enabled on Windows. See
+// MESOS-6698.
+#ifndef __WINDOWS__
 // This test ensures that a task will transition straight from `TASK_KILLING` to
 // `TASK_KILLED`, even if the health check begins to fail during the kill policy
 // grace period.
@@ -327,6 +333,7 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   driver.stop();
   driver.join();
 }
+#endif // !__WINDOWS__
 
 
 class HTTPCommandExecutorTest
@@ -335,7 +342,7 @@ class HTTPCommandExecutorTest
 
 // This test ensures that the HTTP command executor can self terminate
 // after it gets the ACK for the terminal status update from agent.
-TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -415,7 +422,9 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
 // This test ensures that driver based schedulers using explicit
 // acknowledgements can acknowledge status updates sent from
 // HTTP based executors.
-TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HTTPCommandExecutorTest,
+    ExplicitAcknowledgements)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

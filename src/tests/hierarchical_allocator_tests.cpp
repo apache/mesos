@@ -1638,7 +1638,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 // with identical allocations, but we update the allocator in different order
 // for each framework. We expect the fair shares of the frameworks to be
 // identical, which we implicitly check by subsequent allocations.
-TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, NoDoubleAccounting)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -2103,7 +2103,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
 // This test verifies, that the free pool (what is left after all quotas
 // are satisfied) is allocated according to the DRF algorithm across the roles
 // which do not have quota set.
-TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, DRFWithQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -2810,7 +2810,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
 
 // This test checks that total and allocator resources
 // are correctly reflected in the metrics endpoint.
-TEST_F(HierarchicalAllocatorTest, ResourceMetrics)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, ResourceMetrics)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -2904,7 +2904,7 @@ TEST_F(HierarchicalAllocatorTest, ResourceMetricsUninitialized)
 
 // This test checks that the number of times the allocation
 // algorithm has run is correctly reflected in the metric.
-TEST_F(HierarchicalAllocatorTest, AllocationRunsMetric)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, AllocationRunsMetric)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -2943,7 +2943,9 @@ TEST_F(HierarchicalAllocatorTest, AllocationRunsMetric)
 
 // This test checks that the allocation run timer
 // metrics are reported in the metrics endpoint.
-TEST_F(HierarchicalAllocatorTest, AllocationRunTimerMetrics)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HierarchicalAllocatorTest,
+    AllocationRunTimerMetrics)
 {
   Clock::pause();
 
@@ -3016,7 +3018,9 @@ TEST_F(HierarchicalAllocatorTest, AllocationRunTimerMetrics)
 
 // This test checks that per-role active offer filter metrics
 // are correctly reported in the metrics endpoint.
-TEST_F(HierarchicalAllocatorTest, ActiveOfferFiltersMetrics)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HierarchicalAllocatorTest,
+    ActiveOfferFiltersMetrics)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -3107,7 +3111,7 @@ TEST_F(HierarchicalAllocatorTest, ActiveOfferFiltersMetrics)
 
 
 // Verifies that per-role dominant share metrics are correctly reported.
-TEST_F(HierarchicalAllocatorTest, DominantShareMetrics)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, DominantShareMetrics)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -3205,7 +3209,9 @@ TEST_F(HierarchicalAllocatorTest, DominantShareMetrics)
 
 // Verifies that per-role dominant share metrics are correctly
 // reported when resources are excluded from fair sharing.
-TEST_F(HierarchicalAllocatorTest, DominantShareMetricsWithFairnessExclusion)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HierarchicalAllocatorTest,
+    DominantShareMetricsWithFairnessExclusion)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
