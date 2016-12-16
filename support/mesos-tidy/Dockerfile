@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 MAINTAINER The Apache Mesos Developers <dev@mesos.apache.org>
 
 WORKDIR /tmp/build
@@ -30,9 +30,9 @@ RUN apt-get install -qy --no-install-recommends \
   apt-get clean
 
 RUN \
-  git clone --depth 1 -b release_38 http://llvm.org/git/llvm /tmp/llvm && \
-  git clone --depth 1 -b release_38 http://llvm.org/git/clang /tmp/llvm/tools/clang && \
-  git clone --depth 1 -b mesos_38 http://github.com/mesos/clang-tools-extra.git /tmp/llvm/tools/clang/tools/extra && \
+  git clone --depth 1 -b release_39 http://llvm.org/git/llvm /tmp/llvm && \
+  git clone --depth 1 -b mesos_39 http://github.com/mesos/clang.git /tmp/llvm/tools/clang && \
+  git clone --depth 1 -b mesos_39 http://github.com/mesos/clang-tools-extra.git /tmp/llvm/tools/clang/tools/extra && \
   \
   cmake /tmp/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/ && \
   make -j $(nproc) install && \
@@ -69,10 +69,11 @@ RUN apt-get install -qy \
   libevent-dev \
   libsasl2-dev \
   libsasl2-modules \
+  libssl-dev \
   libsvn-dev \
   libtool \
   maven \
-  openjdk-7-jdk \
+  openjdk-8-jdk \
   zlib1g-dev && \
   apt-get clean
 
