@@ -1445,7 +1445,8 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     }
 
     // Add completed frameworks.
-    foreach (const Owned<Framework>& completedFramework, completedFrameworks) {
+    foreachvalue (const Owned<Framework>& completedFramework,
+                  completedFrameworks) {
       VLOG(1) << "Reregistering completed framework "
                 << completedFramework->id();
 
@@ -1618,17 +1619,15 @@ void Slave::run(
       framework->checkpointFramework();
     }
 
-    // Is this same framework in completedFrameworks? If so, move the completed
-    // executors to this framework and remove it from that list.
-    // TODO(brenden): Consider using stout/cache.hpp instead of boost
-    // circular_buffer.
-    for (auto it = completedFrameworks.begin(); it != completedFrameworks.end();
-         ++it) {
-      if ((*it)->id() == frameworkId) {
-        framework->completedExecutors = (*it)->completedExecutors;
-        completedFrameworks.erase(it);
-        break;
-      }
+    // Does this framework ID already exist in `completedFrameworks`?
+    // If so, move the completed executors of the old framework to
+    // this new framework and remove the old completed framework.
+    if (completedFrameworks.contains(frameworkId)) {
+      Owned<Framework>& completedFramework =
+        completedFrameworks.at(frameworkId);
+
+      framework->completedExecutors = completedFramework->completedExecutors;
+      completedFrameworks.erase(frameworkId);
     }
   }
 
@@ -4894,7 +4893,7 @@ void Slave::removeFramework(Framework* framework)
   frameworks.erase(framework->id());
 
   // Pass ownership of the framework pointer.
-  completedFrameworks.push_back(Owned<Framework>(framework));
+  completedFrameworks.set(framework->id(), Owned<Framework>(framework));
 
   if (state == TERMINATING && frameworks.empty()) {
     terminate(self());

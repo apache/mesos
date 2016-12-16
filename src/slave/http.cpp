@@ -1242,8 +1242,8 @@ Future<Response> Slave::Http::state(
             "completed_frameworks",
             [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
-          foreach (const Owned<Framework>& framework,
-                   slave->completedFrameworks) {
+          foreachvalue (const Owned<Framework>& framework,
+                        slave->completedFrameworks) {
             // Skip unauthorized frameworks.
             if (!approveViewFrameworkInfo(
                     frameworksApprover, framework->info)) {
@@ -1317,7 +1317,7 @@ agent::Response::GetFrameworks Slave::Http::_getFrameworks(
       ->CopyFrom(framework->info);
   }
 
-  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
+  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;
@@ -1394,7 +1394,7 @@ agent::Response::GetExecutors Slave::Http::_getExecutors(
     frameworks.push_back(framework);
   }
 
-  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
+  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;
@@ -1508,7 +1508,7 @@ agent::Response::GetTasks Slave::Http::_getTasks(
     frameworks.push_back(framework);
   }
 
-  foreach (const Owned<Framework>& framework, slave->completedFrameworks) {
+  foreachvalue (const Owned<Framework>& framework, slave->completedFrameworks) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;

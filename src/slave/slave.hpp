@@ -52,6 +52,7 @@
 #include <process/protobuf.hpp>
 #include <process/shared.hpp>
 
+#include <stout/boundedhashmap.hpp>
 #include <stout/bytes.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
@@ -761,7 +762,7 @@ private:
 
   hashmap<FrameworkID, Framework*> frameworks;
 
-  boost::circular_buffer<process::Owned<Framework>> completedFrameworks;
+  BoundedHashMap<FrameworkID, process::Owned<Framework>> completedFrameworks;
 
   mesos::master::detector::MasterDetector* detector;
 
