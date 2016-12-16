@@ -111,6 +111,7 @@ if (WIN32)
     ${ZLIB_LFLAG}
     ws2_32
     Mswsock
+    Secur32
     )
 else (WIN32)
   set(STOUT_LIBS

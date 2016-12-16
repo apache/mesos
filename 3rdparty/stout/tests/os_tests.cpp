@@ -719,6 +719,19 @@ TEST_F(OsTest, User)
 #endif // __WINDOWS__
 
 
+TEST_F(OsTest, TrivialUser)
+{
+  const Result<string> user1 = os::user();
+  ASSERT_SOME(user1);
+  ASSERT_NE("", user1.get());
+
+#ifdef __WINDOWS__
+  const Result<string> user2 = os::user(INT_MAX);
+  ASSERT_ERROR(user2);
+#endif // __WINDOWS__
+}
+
+
 // TODO(hausdorff): Look into enabling this on Windows. Right now,
 // `LD_LIBRARY_PATH` doesn't exist on Windows, so `setPaths` doesn't work. See
 // MESOS-5940.

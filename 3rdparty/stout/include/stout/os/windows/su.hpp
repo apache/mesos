@@ -18,6 +18,7 @@
 #define __STOUT_OS_WINDOWS_SU_HPP__
 
 #include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
@@ -25,6 +26,22 @@
 #include <stout/try.hpp>
 
 #include <stout/windows.hpp>
+
+// Include for `GetUserNameEx`. `SECURITY_WIN32` or `SECURITY_KERNEL` must be
+// defined to include `SecExt.h`, which defines `GetUserNameEx` (the choice
+// depends on whether you want the functions defined to be usermode or kernel
+// operations). We include `security.h` instead of `SecExt.h` because comments
+// in this header indicate that it should only be included from `security.h`.
+// Finally, we `#undef` to avoid accidentally interfering with Windows headers
+// that might be sensitive to `SECURITY_WIN32`.
+#if defined(SECURITY_WIN32) || defined(SECURITY_KERNEL)
+#include <security.h>
+#else
+#define SECURITY_WIN32
+#include <security.h>
+#undef SECURITY_WIN32
+#endif // SECURITY_WIN32 || SECURITY_KERNEL
+
 
 namespace os {
 
@@ -50,9 +67,32 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None()) = delete;
 inline Result<gid_t> getgid(const Option<std::string>& user = None()) = delete;
 
 
+// Returns the SAM account name for the current user. This username is
+// unprocessed, meaning it contains punctuation, possibly including '\'.
+// NOTE: The `uid` parameter is unsupported on Windows, and will result in an
+// error.
 inline Result<std::string> user(Option<uid_t> uid = None())
 {
-  return WindowsError(ERROR_NOT_SUPPORTED);
+  if (uid.isSome()) {
+    return Error(
+        "os::user: Retrieving user information via uid "
+        "is not supported on Windows");
+  }
+
+  EXTENDED_NAME_FORMAT username_format = NameSamCompatible;
+  ULONG buffer_size = 0;
+  if (::GetUserNameEx(username_format, nullptr, &buffer_size) == FALSE) {
+    if (::GetLastError() != ERROR_MORE_DATA) {
+      return WindowsError("os::user: Failed to get buffer size for username");
+    }
+  }
+
+  std::vector<TCHAR> user_name(buffer_size);
+  if (::GetUserNameEx(username_format, &user_name[0], &buffer_size) == FALSE) {
+    return WindowsError("os::user: Failed to get username from OS");
+  }
+
+  return std::string(&user_name[0]);
 }
 
 
