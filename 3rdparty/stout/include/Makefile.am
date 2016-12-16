@@ -16,6 +16,7 @@ nobase_include_HEADERS =			\
   stout/adaptor.hpp				\
   stout/attributes.hpp				\
   stout/base64.hpp				\
+  stout/boundedhashmap.hpp			\
   stout/bits.hpp				\
   stout/bytes.hpp				\
   stout/cache.hpp				\
