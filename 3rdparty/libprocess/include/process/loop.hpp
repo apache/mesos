@@ -161,7 +161,7 @@ public:
     // something like `atomic_load` and `atomic_store` with
     // `shared_ptr` so that we can swap the current future(s)
     // atomically.
-    promise.future().onDiscard([weak_self, this]() {
+    promise.future().onDiscard([weak_self]() {
       auto self = weak_self.lock();
       if (self) {
         // We need to make a copy of the current `discard` function so
@@ -170,8 +170,8 @@ public:
         // callbacks that we have added in `run` to execute which may
         // deadlock attempting to re-acquire `mutex`!
         std::function<void()> f = []() {};
-        synchronized (mutex) {
-          f = discard;
+        synchronized (self->mutex) {
+          f = self->discard;
         }
         f();
       }
@@ -179,8 +179,8 @@ public:
 
     if (pid.isSome()) {
       // Start the loop using `pid` as the execution context.
-      dispatch(pid.get(), [self, this]() {
-        run(iterate());
+      dispatch(pid.get(), [self]() {
+        self->run(self->iterate());
       });
     } else {
       run(iterate());
@@ -210,17 +210,17 @@ public:
           return;
         }
       } else {
-        auto continuation = [self, this](const Future<bool>& condition) {
+        auto continuation = [self](const Future<bool>& condition) {
           if (condition.isReady()) {
             if (condition.get()) {
-              run(iterate());
+              self->run(self->iterate());
             } else {
-              promise.set(Nothing());
+              self->promise.set(Nothing());
             }
           } else if (condition.isFailed()) {
-            promise.fail(condition.failure());
+            self->promise.fail(condition.failure());
           } else if (condition.isDiscarded()) {
-            promise.discard();
+            self->promise.discard();
           }
         };
 
@@ -232,7 +232,7 @@ public:
 
         if (!promise.future().hasDiscard()) {
           synchronized (mutex) {
-            discard = [=]() mutable { condition.discard(); };
+            self->discard = [=]() mutable { condition.discard(); };
           }
         }
 
@@ -249,13 +249,13 @@ public:
       }
     }
 
-    auto continuation = [self, this](const Future<T>& next) {
+    auto continuation = [self](const Future<T>& next) {
       if (next.isReady()) {
-        run(next);
+        self->run(next);
       } else if (next.isFailed()) {
-        promise.fail(next.failure());
+        self->promise.fail(next.failure());
       } else if (next.isDiscarded()) {
-        promise.discard();
+        self->promise.discard();
       }
     };
 
