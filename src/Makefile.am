@@ -85,21 +85,43 @@ EXTRA_DIST =
 PHONY_TARGETS =
 LDADD =
 
+# Produce position independent executables so that we better take advantage of ASLR.
+AM_LDFLAGS = -pie
+
 # Use -Wl,--as-needed to AM_LDFLAGS since we link against all the
 # libraries programs may depend upon, not the exact one. --as-needed
 # causes the linker to only link to the ones a program actually uses,
 # not the full list on the command line.
 if OS_LINUX
-AM_LDFLAGS=-Wl,--as-needed
+AM_LDFLAGS += -Wl,--as-needed
 endif
 
 # Add compiler and linker flags for pthreads.
 AM_CXXFLAGS = $(PTHREAD_CFLAGS)
+
+# Enable common (and some language specific) warnings.
+AM_CXXFLAGS += -Wall
+# Warn when a comparison is made between signed and unsigned values.
+AM_CXXFLAGS += -Wsign-compare
+# Warn about use of format functions that can produce security issues.
+AM_CXXFLAGS += -Wformat-security
+
+# We will also have much more hardened/secured binaries and libraries.
+if ENABLE_HARDENING
+# Protect many of the functions with stack guards
+# (either -fstack-protector-strong or -fstack-protector depending on compiler support).
+AM_CXXFLAGS += @STACK_PROTECTOR@
+# Better protect against potential buffer overflow attacks.
+AM_CXXFLAGS += -D_FORTIFY_SOURCE=2
+# Produce position independent code when appropriate.
+AM_CXXFLAGS += -fPIC -fPIE
+endif
+
 AM_LIBS = $(PTHREAD_LIBS)
 
 # Setup CPPFLAGS that are used for most source files.
 MESOS_CPPFLAGS = $(AM_CPPFLAGS)
-MESOS_CPPFLAGS += -Wall -Werror -Wsign-compare
+MESOS_CPPFLAGS += -Werror
 MESOS_CPPFLAGS += -DLIBDIR=\"$(libdir)\"
 MESOS_CPPFLAGS += -DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -DPKGDATADIR=\"$(pkgdatadir)\"
