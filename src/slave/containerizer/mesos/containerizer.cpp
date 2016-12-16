@@ -308,11 +308,16 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __WINDOWS__
 
 #ifdef __linux__
+    {"cgroups/blkio", &CgroupsIsolatorProcess::create},
     {"cgroups/cpu", &CgroupsIsolatorProcess::create},
+    {"cgroups/cpuset", &CgroupsIsolatorProcess::create},
     {"cgroups/devices", &CgroupsIsolatorProcess::create},
+    {"cgroups/hugetlb", &CgroupsIsolatorProcess::create},
     {"cgroups/mem", &CgroupsIsolatorProcess::create},
     {"cgroups/net_cls", &CgroupsIsolatorProcess::create},
+    {"cgroups/net_prio", &CgroupsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsIsolatorProcess::create},
+    {"cgroups/pids", &CgroupsIsolatorProcess::create},
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},

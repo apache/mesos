@@ -77,12 +77,17 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 
   // Multimap: isolator name -> subsystem name.
   multihashmap<string, string> isolatorMap = {
+    {"blkio", CGROUP_SUBSYSTEM_BLKIO_NAME},
     {"cpu", CGROUP_SUBSYSTEM_CPU_NAME},
     {"cpu", CGROUP_SUBSYSTEM_CPUACCT_NAME},
+    {"cpuset", CGROUP_SUBSYSTEM_CPUSET_NAME},
     {"devices", CGROUP_SUBSYSTEM_DEVICES_NAME},
+    {"hugetlb", CGROUP_SUBSYSTEM_HUGETLB_NAME},
     {"mem", CGROUP_SUBSYSTEM_MEMORY_NAME},
     {"net_cls", CGROUP_SUBSYSTEM_NET_CLS_NAME},
+    {"net_prio", CGROUP_SUBSYSTEM_NET_PRIO_NAME},
     {"perf_event", CGROUP_SUBSYSTEM_PERF_EVENT_NAME},
+    {"pids", CGROUP_SUBSYSTEM_PIDS_NAME},
   };
 
   foreach (string isolator, strings::tokenize(flags.isolation, ",")) {

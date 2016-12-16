@@ -20,12 +20,17 @@
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystem.hpp"
 
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/cpuset.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/devices.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/hugetlb.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/memory.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/net_prio.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/subsystems/pids.hpp"
 
 using mesos::slave::ContainerLimitation;
 
@@ -45,12 +50,17 @@ Try<Owned<Subsystem>> Subsystem::create(
 {
   hashmap<string, Try<Owned<Subsystem>>(*)(const Flags&, const string&)>
     creators = {
+    {CGROUP_SUBSYSTEM_BLKIO_NAME, &BlkioSubsystem::create},
     {CGROUP_SUBSYSTEM_CPU_NAME, &CpuSubsystem::create},
     {CGROUP_SUBSYSTEM_CPUACCT_NAME, &CpuacctSubsystem::create},
+    {CGROUP_SUBSYSTEM_CPUSET_NAME, &CpusetSubsystem::create},
     {CGROUP_SUBSYSTEM_DEVICES_NAME, &DevicesSubsystem::create},
+    {CGROUP_SUBSYSTEM_HUGETLB_NAME, &HugetlbSubsystem::create},
     {CGROUP_SUBSYSTEM_MEMORY_NAME, &MemorySubsystem::create},
     {CGROUP_SUBSYSTEM_NET_CLS_NAME, &NetClsSubsystem::create},
+    {CGROUP_SUBSYSTEM_NET_PRIO_NAME, &NetPrioSubsystem::create},
     {CGROUP_SUBSYSTEM_PERF_EVENT_NAME, &PerfEventSubsystem::create},
+    {CGROUP_SUBSYSTEM_PIDS_NAME, &PidsSubsystem::create},
   };
 
   if (!creators.contains(name)) {
