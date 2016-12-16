@@ -177,6 +177,7 @@ message Call {
     repeated MachineID machines = 1;
   }
 
+  // Sets the quota for resources to be used by a particular role.
   message SetQuota {
     required quota.QuotaRequest quota_request = 1;
   }
