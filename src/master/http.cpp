@@ -25,8 +25,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/array.hpp>
-
 #include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -284,13 +282,13 @@ struct FullFrameworkWriter {
     });
 
     writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
-      foreach (const std::shared_ptr<Task>& task, framework_->completedTasks) {
+      foreach (const Owned<Task>& task, framework_->completedTasks) {
         // Skip unauthorized tasks.
         if (!approveViewTask(taskApprover_, *task.get(), framework_->info)) {
           continue;
         }
 
-        writer->element(*task);
+        writer->element(*task.get());
       }
     });
 
@@ -1343,8 +1341,8 @@ Future<Response> Master::Http::frameworks(
             "completed_frameworks",
             [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
-              foreach (const std::shared_ptr<Framework>& framework,
-                       master->frameworks.completed) {
+              foreachvalue (const Owned<Framework>& framework,
+                            master->frameworks.completed) {
                 // Skip unauthorized frameworks.
                 if (!approveViewFrameworkInfo(
                         frameworksApprover, framework->info)) {
@@ -1487,14 +1485,14 @@ mesos::master::Response::GetFrameworks Master::Http::_getFrameworks(
     getFrameworks.add_frameworks()->CopyFrom(model(*framework));
   }
 
-  foreach (const std::shared_ptr<Framework>& framework,
-           master->frameworks.completed) {
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;
     }
 
-    getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework));
+    getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework.get()));
   }
 
   return getFrameworks;
@@ -1564,8 +1562,8 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
     frameworks.push_back(framework);
   }
 
-  foreach (const std::shared_ptr<Framework>& framework,
-           master->frameworks.completed) {
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;
@@ -2681,9 +2679,8 @@ Future<Response> Master::Http::state(
             "completed_frameworks",
             [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
-              foreach (
-                  const std::shared_ptr<Framework>& framework,
-                  master->frameworks.completed) {
+              foreachvalue (const Owned<Framework>& framework,
+                            master->frameworks.completed) {
                 // Skip unauthorized frameworks.
                 if (!approveViewFrameworkInfo(
                     frameworksApprover, framework->info)) {
@@ -2826,7 +2823,7 @@ public:
         slavesToFrameworks[task->slave_id()].insert(frameworkId);
       }
 
-      foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
+      foreach (const Owned<Task>& task, framework->completedTasks) {
         frameworksToSlaves[frameworkId].insert(task->slave_id());
         slavesToFrameworks[task->slave_id()].insert(frameworkId);
       }
@@ -2942,9 +2939,9 @@ public:
         slaveTaskSummaries[task->slave_id()].count(*task);
       }
 
-      foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
-        frameworkTaskSummaries[frameworkId].count(*task);
-        slaveTaskSummaries[task->slave_id()].count(*task);
+      foreach (const Owned<Task>& task, framework->completedTasks) {
+        frameworkTaskSummaries[frameworkId].count(*task.get());
+        slaveTaskSummaries[task->slave_id()].count(*task.get());
       }
     }
   }
@@ -3645,8 +3642,8 @@ Future<Response> Master::Http::tasks(
         frameworks.push_back(framework);
       }
 
-      foreach (const std::shared_ptr<Framework>& framework,
-               master->frameworks.completed) {
+      foreachvalue (const Owned<Framework>& framework,
+                    master->frameworks.completed) {
         // Skip unauthorized frameworks.
         if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
           continue;
@@ -3667,7 +3664,7 @@ Future<Response> Master::Http::tasks(
 
           tasks.push_back(task);
         }
-        foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
+        foreach (const Owned<Task>& task, framework->completedTasks) {
           // Skip unauthorized tasks.
           if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
             continue;
@@ -3767,8 +3764,8 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
     frameworks.push_back(framework);
   }
 
-  foreach (const std::shared_ptr<Framework>& framework,
-           master->frameworks.completed) {
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
     // Skip unauthorized frameworks.
     if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
       continue;
@@ -3806,7 +3803,7 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
     }
 
     // Completed tasks.
-    foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
+    foreach (const Owned<Task>& task, framework->completedTasks) {
       // Skip unauthorized tasks.
       if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
         continue;

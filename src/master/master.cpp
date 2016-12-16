@@ -6951,7 +6951,8 @@ void Master::reconcileKnownSlave(
   //
   // TODO(vinod): Revisit this when registrar is in place. It would
   // likely involve storing this information in the registrar.
-  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
+  foreachvalue (const Owned<Framework>& framework,
+                frameworks.completed) {
     if (slaveTasks.contains(framework->id())) {
       LOG(WARNING) << "Agent " << *slave
                    << " re-registered with completed framework " << *framework
@@ -7448,8 +7449,8 @@ void Master::removeFramework(Framework* framework)
   frameworks.registered.erase(framework->id());
   allocator->removeFramework(framework->id());
 
-  // The completedFramework buffer now owns the framework pointer.
-  frameworks.completed.push_back(shared_ptr<Framework>(framework));
+  // The framework pointer is now owned by `frameworks.completed`.
+  frameworks.completed.set(framework->id(), Owned<Framework>(framework));
 }
 
 
@@ -8139,13 +8140,7 @@ void Master::removeInverseOffer(InverseOffer* inverseOffer, bool rescind)
 
 bool Master::isCompletedFramework(const FrameworkID& frameworkId)
 {
-  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
-    if (framework->id() == frameworkId) {
-      return true;
-    }
-  }
-
-  return false;
+  return frameworks.completed.contains(frameworkId);
 }
 
 

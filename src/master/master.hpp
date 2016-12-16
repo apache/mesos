@@ -52,6 +52,7 @@
 
 #include <process/metrics/counter.hpp>
 
+#include <stout/boundedhashmap.hpp>
 #include <stout/cache.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -1764,7 +1765,7 @@ private:
 
     hashmap<FrameworkID, Framework*> registered;
 
-    boost::circular_buffer<std::shared_ptr<Framework>> completed;
+    BoundedHashMap<FrameworkID, process::Owned<Framework>> completed;
 
     // Principals of frameworks keyed by PID.
     // NOTE: Multiple PIDs can map to the same principal. The
@@ -2320,8 +2321,12 @@ struct Framework
 
   void addCompletedTask(const Task& task)
   {
-    // TODO(adam-mesos): Check if completed task already exists.
-    completedTasks.push_back(std::shared_ptr<Task>(new Task(task)));
+    // TODO(neilc): We currently allow frameworks to reuse the task
+    // IDs of completed tasks (although this is discouraged). This
+    // means that there might be multiple completed tasks with the
+    // same task ID. We should consider rejecting attempts to reuse
+    // task IDs (MESOS-6779).
+    completedTasks.push_back(process::Owned<Task>(new Task(task)));
   }
 
   void removeTask(Task* task)
@@ -2589,10 +2594,7 @@ struct Framework
 
   hashmap<TaskID, Task*> tasks;
 
-  // NOTE: We use a shared pointer for Task because clang doesn't like
-  // Boost's implementation of circular_buffer with Task (Boost
-  // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
+  boost::circular_buffer<process::Owned<Task>> completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 
