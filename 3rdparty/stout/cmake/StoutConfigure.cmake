@@ -79,10 +79,8 @@ endif (WIN32)
 ########################################################################
 set(STOUT_LIB_DIRS
   ${STOUT_LIB_DIRS}
-  ${APR_LIBS}
   ${GLOG_LIB_DIR}
   ${PROTOBUF_LIB_DIR}
-  ${SVN_LIBS}
   )
 
 if (WIN32)
@@ -99,6 +97,7 @@ endif (WIN32)
 set(STOUT_LIBS
   ${STOUT_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${APR_LIBS}
   ${CURL_LFLAG}
   ${GLOG_LFLAG}
   ${SVN_LIBS}

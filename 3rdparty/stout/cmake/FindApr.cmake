@@ -46,24 +46,31 @@ unset(APR_INCLUDE_DIR)
 unset(APR_LIBS)
 unset(APR_FOUND)
 
+# NOTE: If this fails, stderr is ignored, and the output variable is empty.
+# This has no deleterious effect our path search.
+execute_process(
+  COMMAND brew --prefix apr
+  OUTPUT_VARIABLE APR_PREFIX
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 set(POSSIBLE_APR_INCLUDE_DIRS
   ${POSSIBLE_APR_INCLUDE_DIRS}
-  /opt/homebrew/opt/apr/include/apr-1
+  ${APR_PREFIX}/libexec/include/apr-1
   /usr/local/include/apr-1
   /usr/local/include/apr-1.0
+  /usr/local/apr/include/apr-1
   /usr/include/apr-1
   /usr/include/apr-1.0
-  /usr/local/apr/include/apr-1
   )
 
 set(APR_LIB_NAMES ${APR_LIB_NAMES} apr-1)
 
 set(POSSIBLE_APR_LIB_DIRS
   ${POSSIBLE_APR_LIB_DIRS}
-  /usr/lib
-  /usr/local/lib
+  ${APR_PREFIX}/libexec/lib
   /usr/local/apr/lib
-  /opt/homebrew/opt/apr/lib
+  /usr/local/lib
+  /usr/lib
   )
 
 # SEARCH FOR APR LIBRARIES.
@@ -73,7 +80,7 @@ find_path(APR_INCLUDE_DIR apr.h ${POSSIBLE_APR_INCLUDE_DIRS})
 find_library(
   APR_LIB
   NAMES ${APR_LIB_NAMES}
-  PATHS ${POSSIBLE_APR_LIB_DIRS}
+  HINTS ${POSSIBLE_APR_LIB_DIRS}
   )
 
 # Did we find the include directory?
@@ -125,24 +132,31 @@ mark_as_advanced(
 # CONFIGURE THE APR-UTIL SEARCH. Specify what we're looking for, and which
 # directories we're going to look through to find them.
 #############################################################################
+# NOTE: If this fails, stderr is ignored, and the output variable is empty.
+# This has no deleterious effect our path search.
+execute_process(
+  COMMAND brew --prefix apr-util
+  OUTPUT_VARIABLE APR_UTIL_PREFIX
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 set(POSSIBLE_APRUTIL_INCLUDE_DIRS
   ${POSSIBLE_APRUTIL_INCLUDE_DIRS}
-  /opt/homebrew/opt/apr-util/include/apr-1
+  ${APR_UTIL_PREFIX}/libexec/include/apr-1
+  /usr/local/apr/include/apr-1
   /usr/local/include/apr-1
   /usr/local/include/apr-1.0
   /usr/include/apr-1
   /usr/include/apr-1.0
-  /usr/local/apr/include/apr-1
   )
 
 set(APRUTIL_LIB_NAMES ${APRUTIL_LIB_NAMES} aprutil-1)
 
-set(POSSIBLE_APRURIL_LIB_DIRS
-  ${POSSIBLE_APRURIL_LIB_DIRS}
-  /usr/lib
-  /usr/local/lib
+set(POSSIBLE_APRUTIL_LIB_DIRS
+  ${POSSIBLE_APRUTIL_LIB_DIRS}
+  ${APR_UTIL_PREFIX}/libexec/lib
   /usr/local/apr/lib
-  /opt/homebrew/opt/apr-util/lib
+  /usr/local/lib
+  /usr/lib
   )
 
 # SEARCH FOR APR-UTIL LIBRARIES.
@@ -152,7 +166,7 @@ find_path(APRUTIL_INCLUDE_DIR apu.h ${POSSIBLE_APRUTIL_INCLUDE_DIRS})
 find_library(
   APRUTIL_LIB
   NAMES ${APRUTIL_LIB_NAMES}
-  PATHS ${POSSIBLE_APRUTIL_LIB_DIRS}
+  HINTS ${POSSIBLE_APRUTIL_LIB_DIRS}
   )
 
 # Did we find the include directory?
