@@ -1396,34 +1396,36 @@ namespace internal {
 
 Future<Nothing> send(network::Socket socket, Encoder* encoder)
 {
-  size_t* size = new size_t();
-  return [=]() {
-    switch (encoder->kind()) {
-      case Encoder::DATA: {
-        const char* data = static_cast<DataEncoder*>(encoder)->next(size);
-        return socket.send(data, *size);
-      }
-      case Encoder::FILE: {
-        off_t offset = 0;
-        int fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
-        return socket.sendfile(fd, offset, *size);
-      }
-    }
-  }()
-  .then([=](size_t length) -> Future<Nothing> {
-    // Update the encoder with the amount sent.
-    encoder->backup(*size - length);
+  size_t* size = new size_t(0);
+  return loop(
+      None(),
+      [=]() {
+        switch (encoder->kind()) {
+          case Encoder::DATA: {
+            const char* data = static_cast<DataEncoder*>(encoder)->next(size);
+            return socket.send(data, *size);
+          }
+          case Encoder::FILE: {
+            off_t offset = 0;
+            int fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
+            return socket.sendfile(fd, offset, *size);
+          }
+        }
+      },
+      [=](size_t length) -> ControlFlow<Nothing> {
+        // Update the encoder with the amount sent.
+        encoder->backup(*size - length);
 
-    // See if there is any more of the message to send.
-    if (encoder->remaining() != 0) {
-      return send(socket, encoder);
-    }
+        // See if there is any more of the message to send.
+        if (encoder->remaining() != 0) {
+          return Continue();
+        }
 
-    return Nothing();
-  })
-  .onAny([=]() {
-    delete size;
-  });
+        return Break();
+      })
+    .onAny([=]() {
+      delete size;
+    });
 }
 
 
@@ -1515,36 +1517,40 @@ Future<Nothing> stream(
     const network::Socket& socket,
     http::Pipe::Reader reader)
 {
-  return reader.read()
-    .then([=](const string& data) mutable {
-      bool finished = false;
+  return loop(
+      None(),
+      [=]() mutable {
+        return reader.read();
+      },
+      [=](const string& data) mutable {
+        bool finished = false;
 
-      ostringstream out;
+        ostringstream out;
 
-      if (data.empty()) {
-        // Finished reading.
-        out << "0\r\n" << "\r\n";
-        finished = true;
-      } else {
-        out << std::hex << data.size() << "\r\n";
-        out << data;
-        out << "\r\n";
-      }
+        if (data.empty()) {
+          // Finished reading.
+          out << "0\r\n" << "\r\n";
+          finished = true;
+        } else {
+          out << std::hex << data.size() << "\r\n";
+          out << data;
+          out << "\r\n";
+        }
 
-      Encoder* encoder = new DataEncoder(out.str());
+        Encoder* encoder = new DataEncoder(out.str());
 
-      return send(socket, encoder)
-        .onAny([=]() {
-          delete encoder;
-        })
-        .then([=]() mutable -> Future<Nothing> {
-          if (!finished) {
-            return stream(socket, reader);
-          }
+        return send(socket, encoder)
+          .onAny([=]() {
+            delete encoder;
+          })
+          .then([=]() mutable -> ControlFlow<Nothing> {
+            if (!finished) {
+              return Continue();
+            }
 
-          return Nothing();
-        });
-    });
+            return Break();
+          });
+      });
 }
 
 
