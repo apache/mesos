@@ -53,6 +53,30 @@ namespace mesos {
 /////////////////////////////////////////////////
 
 bool operator==(
+    const Resource::AllocationInfo& left,
+    const Resource::AllocationInfo& right)
+{
+  if (left.has_role() != right.has_role()) {
+    return false;
+  }
+
+  if (left.has_role() && left.role() != right.role()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator!=(
+    const Resource::AllocationInfo& left,
+    const Resource::AllocationInfo& right)
+{
+  return !(left == right);
+}
+
+
+bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
@@ -185,6 +209,16 @@ bool operator==(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
+    return false;
+  }
+
   // Check ReservationInfo.
   if (left.has_reservation() != right.has_reservation()) {
     return false;
@@ -255,6 +289,16 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
+    return false;
+  }
+
   // Check ReservationInfo.
   if (left.has_reservation() != right.has_reservation()) {
     return false;
@@ -320,6 +364,16 @@ static bool subtractable(const Resource& left, const Resource& right)
   if (left.name() != right.name() ||
       left.type() != right.type() ||
       left.role() != right.role()) {
+    return false;
+  }
+
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
     return false;
   }
 

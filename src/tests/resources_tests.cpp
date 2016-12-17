@@ -2768,6 +2768,49 @@ static Resource createAllocatedResource(
 }
 
 
+TEST(AllocatedResourcesTest, Equality)
+{
+  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
+  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+
+  EXPECT_EQ(cpus1, cpus1);
+  EXPECT_NE(cpus1, cpus2);
+}
+
+
+TEST(AllocatedResourcesTest, Contains)
+{
+  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
+  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+
+  EXPECT_TRUE((cpus1 + cpus2).contains(cpus1));
+  EXPECT_TRUE((cpus1 + cpus2).contains(cpus2));
+}
+
+
+TEST(AllocatedResourcesTest, Addition)
+{
+  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
+  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+
+  EXPECT_EQ(2u, (cpus1 + cpus2).size());
+  EXPECT_SOME_EQ(2.0, (cpus1 + cpus2).cpus());
+}
+
+
+TEST(AllocatedResourcesTest, Subtraction)
+{
+  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
+  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+
+  EXPECT_TRUE((cpus1 - cpus1).empty());
+  EXPECT_TRUE((cpus2 - cpus2).empty());
+
+  EXPECT_EQ(cpus1, cpus1 - cpus2);
+  EXPECT_EQ(cpus2, cpus2 - cpus1);
+}
+
+
 TEST(AllocatedResourcesTest, Allocations)
 {
   Resources cpus1 = createAllocatedResource("cpus", "1", "*");
