@@ -374,6 +374,10 @@ public:
   // Returns the non-shared resources.
   Resources nonShared() const;
 
+  // Returns the per-role allocations within these resource objects.
+  // This must be called only when the resources are allocated!
+  hashmap<std::string, Resources> allocations() const;
+
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified (role, reservation) pair. This is used to cross

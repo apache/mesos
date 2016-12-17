@@ -2753,6 +2753,42 @@ TEST(SharedResourcesTest, Filter)
 }
 
 
+// Helper for creating an allocated resource, indicating resource
+// that has been allocated to a framework.
+//
+// TODO(bmahler): Inroduce `Resources::allocate` to remove this helper.
+static Resource createAllocatedResource(
+    const string& name,
+    const string& value,
+    const string& role)
+{
+  Resource resource = Resources::parse(name, value, role).get();
+  resource.mutable_allocation_info()->set_role(role);
+  return resource;
+}
+
+
+TEST(AllocatedResourcesTest, Allocations)
+{
+  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
+  Resources cpus2 = createAllocatedResource("cpus", "2", "role2");
+  Resources cpus3 = createAllocatedResource("cpus", "3", "role3");
+
+  Resources mem1 = createAllocatedResource("mem", "1024", "*");
+  Resources mem2 = createAllocatedResource("mem", "2048", "role2");
+  Resources mem3 = createAllocatedResource("mem", "3096", "role3");
+
+  Resources resources = cpus1 + cpus2 + cpus3 + mem1 + mem2 + mem3;
+
+  hashmap<string, Resources> allocations = resources.allocations();
+
+  EXPECT_EQ(3u, allocations.size());
+  EXPECT_EQ(cpus1 + mem1, allocations["*"]);
+  EXPECT_EQ(cpus2 + mem2, allocations["role2"]);
+  EXPECT_EQ(cpus3 + mem3, allocations["role3"]);
+}
+
+
 struct ScalarArithmeticParameter
 {
   Resources resources;

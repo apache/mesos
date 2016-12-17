@@ -1073,6 +1073,22 @@ Resources Resources::nonShared() const
 }
 
 
+hashmap<string, Resources> Resources::allocations() const
+{
+  hashmap<string, Resources> result;
+
+  foreach (const Resource_& resource_, resources) {
+    // We require that this is called only when
+    // the resources are allocated.
+    CHECK(resource_.resource.has_allocation_info());
+    CHECK(resource_.resource.allocation_info().has_role());
+    result[resource_.resource.allocation_info().role()].add(resource_);
+  }
+
+  return result;
+}
+
+
 Try<Resources> Resources::flatten(
     const string& role,
     const Option<Resource::ReservationInfo>& reservation) const
