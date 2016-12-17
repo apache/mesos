@@ -1111,7 +1111,7 @@ Future<Nothing> IOSwitchboardServerProcess::run()
       Future<Nothing> stdoutRedirect = process::io::redirect(
           stdoutFromFd,
           stdoutToFd,
-          4096,
+          process::io::BUFFERED_READ_SIZE,
           {defer(self(),
                  &Self::outputHook,
                  lambda::_1,
@@ -1129,7 +1129,7 @@ Future<Nothing> IOSwitchboardServerProcess::run()
         stderrRedirect = process::io::redirect(
             stderrFromFd,
             stderrToFd,
-            4096,
+            process::io::BUFFERED_READ_SIZE,
             {defer(self(),
                    &Self::outputHook,
                    lambda::_1,
