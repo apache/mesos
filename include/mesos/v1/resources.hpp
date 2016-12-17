@@ -344,6 +344,14 @@ public:
   // - If the resource is not in the Resources object, the count is 0.
   size_t count(const Resource& that) const;
 
+  // Allocates the resources to the given role (by setting the
+  // `AllocationInfo.role`). Any existing allocation will be
+  // over-written.
+  void allocate(const std::string& role);
+
+  // Unallocates the resources.
+  void unallocate();
+
   // Filter resources based on the given predicate.
   Resources filter(
       const lambda::function<bool(const Resource&)>& predicate) const;

@@ -2753,25 +2753,13 @@ TEST(SharedResourcesTest, Filter)
 }
 
 
-// Helper for creating an allocated resource, indicating resource
-// that has been allocated to a framework.
-//
-// TODO(bmahler): Inroduce `Resources::allocate` to remove this helper.
-static Resource createAllocatedResource(
-    const string& name,
-    const string& value,
-    const string& role)
-{
-  Resource resource = Resources::parse(name, value, role).get();
-  resource.mutable_allocation_info()->set_role(role);
-  return resource;
-}
-
-
 TEST(AllocatedResourcesTest, Equality)
 {
-  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
-  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+  Resources cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resources cpus2 = Resources::parse("cpus", "1", "*").get();
+
+  cpus1.allocate("role1");
+  cpus2.allocate("role2");
 
   EXPECT_EQ(cpus1, cpus1);
   EXPECT_NE(cpus1, cpus2);
@@ -2780,8 +2768,11 @@ TEST(AllocatedResourcesTest, Equality)
 
 TEST(AllocatedResourcesTest, Contains)
 {
-  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
-  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+  Resources cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resources cpus2 = Resources::parse("cpus", "1", "*").get();
+
+  cpus1.allocate("role1");
+  cpus2.allocate("role2");
 
   EXPECT_TRUE((cpus1 + cpus2).contains(cpus1));
   EXPECT_TRUE((cpus1 + cpus2).contains(cpus2));
@@ -2790,8 +2781,11 @@ TEST(AllocatedResourcesTest, Contains)
 
 TEST(AllocatedResourcesTest, Addition)
 {
-  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
-  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+  Resources cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resources cpus2 = Resources::parse("cpus", "1", "*").get();
+
+  cpus1.allocate("role1");
+  cpus2.allocate("role2");
 
   EXPECT_EQ(2u, (cpus1 + cpus2).size());
   EXPECT_SOME_EQ(2.0, (cpus1 + cpus2).cpus());
@@ -2800,8 +2794,11 @@ TEST(AllocatedResourcesTest, Addition)
 
 TEST(AllocatedResourcesTest, Subtraction)
 {
-  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
-  Resources cpus2 = createAllocatedResource("cpus", "1", "role1");
+  Resources cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resources cpus2 = Resources::parse("cpus", "1", "*").get();
+
+  cpus1.allocate("role1");
+  cpus2.allocate("role2");
 
   EXPECT_TRUE((cpus1 - cpus1).empty());
   EXPECT_TRUE((cpus2 - cpus2).empty());
@@ -2813,13 +2810,25 @@ TEST(AllocatedResourcesTest, Subtraction)
 
 TEST(AllocatedResourcesTest, Allocations)
 {
-  Resources cpus1 = createAllocatedResource("cpus", "1", "*");
-  Resources cpus2 = createAllocatedResource("cpus", "2", "role2");
-  Resources cpus3 = createAllocatedResource("cpus", "3", "role3");
+  // Unreserved resources can be allocated to any role (including *).
+  Resources cpus1 = Resources::parse("cpus", "1", "*").get();
+  Resources mem1 = Resources::parse("mem", "1024", "*").get();
 
-  Resources mem1 = createAllocatedResource("mem", "1024", "*");
-  Resources mem2 = createAllocatedResource("mem", "2048", "role2");
-  Resources mem3 = createAllocatedResource("mem", "3096", "role3");
+  cpus1.allocate("*");
+  mem1.allocate("*");
+
+  Resources cpus2 = Resources::parse("cpus", "2", "*").get();
+  Resources mem2 = Resources::parse("mem", "2048", "*").get();
+
+  cpus2.allocate("role1");
+  mem2.allocate("role1");
+
+  // Reserved resources are allocated to the reserved role.
+  Resources cpus3 = Resources::parse("cpus", "3", "role2").get();
+  Resources mem3 = Resources::parse("mem", "3096", "role2").get();
+
+  cpus3.allocate("role2");
+  mem3.allocate("role2");
 
   Resources resources = cpus1 + cpus2 + cpus3 + mem1 + mem2 + mem3;
 
@@ -2827,8 +2836,14 @@ TEST(AllocatedResourcesTest, Allocations)
 
   EXPECT_EQ(3u, allocations.size());
   EXPECT_EQ(cpus1 + mem1, allocations["*"]);
-  EXPECT_EQ(cpus2 + mem2, allocations["role2"]);
-  EXPECT_EQ(cpus3 + mem3, allocations["role3"]);
+  EXPECT_EQ(cpus2 + mem2, allocations["role1"]);
+  EXPECT_EQ(cpus3 + mem3, allocations["role2"]);
+
+  // Test unallocation.
+  cpus1.unallocate();
+
+  Resource r = *cpus1.begin();
+  EXPECT_FALSE(r.has_allocation_info());
 }
 
 

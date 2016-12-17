@@ -1067,6 +1067,24 @@ size_t Resources::count(const Resource& that) const
 }
 
 
+void Resources::allocate(const string& role)
+{
+  foreach (Resource_& resource_, resources) {
+    resource_.resource.mutable_allocation_info()->set_role(role);
+  }
+}
+
+
+void Resources::unallocate()
+{
+  foreach (Resource_& resource_, resources) {
+    if (resource_.resource.has_allocation_info()) {
+      resource_.resource.clear_allocation_info();
+    }
+  }
+}
+
+
 Resources Resources::filter(
     const lambda::function<bool(const Resource&)>& predicate) const
 {
