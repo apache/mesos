@@ -79,6 +79,9 @@ using std::string;
 using std::vector;
 
 using process::await;
+using process::Break;
+using process::Continue;
+using process::ControlFlow;
 using process::Clock;
 using process::ErrnoFailure;
 using process::Failure;
@@ -683,8 +686,11 @@ Future<http::Connection> IOSwitchboard::connect(
       [=]() {
         return limiter->acquire();
       },
-      [=](const Nothing&) {
-        return infos.contains(containerId) && !os::exists(address->path());
+      [=](const Nothing&) -> ControlFlow<Nothing> {
+        if (infos.contains(containerId) && !os::exists(address->path())) {
+          return Continue();
+        }
+        return Break();
       })
     .then(defer(self(), [=]() -> Future<http::Connection> {
       if (!infos.contains(containerId)) {
@@ -1482,22 +1488,19 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
 
   // Loop through each record and process it. Return a proper
   // response once the last record has been fully processed.
-  Owned<http::Response> response(new http::Response());
-
   return loop(
       self(),
       [=]() {
         return reader->read();
       },
-      [=](const Result<agent::Call>& record) -> Future<bool> {
+      [=](const Result<agent::Call>& record)
+          -> Future<ControlFlow<http::Response>> {
         if (record.isNone()) {
-          *response = http::OK();
-          return false;
+          return Break(http::OK());
         }
 
         if (record.isError()) {
-          *response = http::BadRequest(record.error());
-          return false;
+          return Break(http::BadRequest(record.error()));
         }
 
         // Should have already been validated by the agent.
@@ -1508,8 +1511,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
         // Validate the rest of the `AttachContainerInput` message.
         Option<Error> error = validate(record->attach_container_input());
         if (error.isSome()) {
-          *response = http::BadRequest(error->message);
-          return false;
+          return Break(http::BadRequest(error->message));
         }
 
         const agent::ProcessIO& message =
@@ -1529,17 +1531,16 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
                     message.control().tty_info().window_size().columns());
 
                 if (window.isError()) {
-                  *response = http::BadRequest(
-                      "Unable to set the window size: "  + window.error());
-                  return false;
+                  return Break(http::BadRequest(
+                      "Unable to set the window size: " + window.error()));
                 }
 
-                return true;
+                return Continue();
               }
               case agent::ProcessIO::Control::HEARTBEAT: {
                 // For now, we ignore any interval information
                 // sent along with the heartbeat.
-                return true;
+                return Continue();
               }
               default: {
                 UNREACHABLE();
@@ -1552,7 +1553,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
             // If tty is enabled, the client is expected to send `EOT` instead.
             if (!tty && message.data().data().length() == 0) {
               os::close(stdinToFd);
-              return true;
+              return Continue();
             }
 
             // Write the STDIN data to `stdinToFd`. If there is a
@@ -1561,34 +1562,30 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
             // terminate the process. We don't terminate the process
             // here because we want to propagate an `InternalServerError`
             // back to the client.
-            Owned<Promise<bool>> condition(new Promise<bool>());
-
-            process::io::write(stdinToFd, message.data().data())
-              .onAny(defer(self(), [this, condition, response](
-                  const Future<Nothing>& future) {
-                if (future.isReady()) {
-                  condition->set(true);
-                  return;
-                }
-
+            return process::io::write(stdinToFd, message.data().data())
+              .then(defer(self(), [=](const Nothing&)
+                  -> ControlFlow<http::Response> {
+                return Continue();
+              }))
+              // TODO(benh):
+              // .recover(defer(self(), [=](...) {
+              //   failure = Failure("Failed writing to stdin: discarded");
+              //   return Break(http::InternalServerError(failure->message));
+              // }))
+              .repair(defer(self(), [=](
+                  const Future<ControlFlow<http::Response>>& future)
+                  -> ControlFlow<http::Response> {
                 failure = Failure(
-                    "Failed writing to stdin:"
-                    " " + (future.isFailed() ? future.failure() : "discarded"));
-
-                *response = http::InternalServerError(failure->message);
-
-                condition->set(false);
+                    "Failed writing to stdin: " + future.failure());
+                return Break(http::InternalServerError(failure->message));
               }));
-
-            return condition->future();
           }
           default: {
             UNREACHABLE();
           }
         }
       })
-    .then(defer(self(), [this, response](
-        const Future<Nothing> future) -> http::Response {
+    .then(defer(self(), [=](const http::Response& response) {
       // Reset `inputConnected` to allow future input connections.
       inputConnected = false;
 
@@ -1599,7 +1596,7 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
         terminate(self(), false);
       }
 
-      return *response;
+      return response;
     }));
 }
 

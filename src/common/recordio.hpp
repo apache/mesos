@@ -119,10 +119,11 @@ process::Future<Nothing> transform(
       [=]() {
         return reader->read();
       },
-      [=](const Result<T>& record) mutable -> process::Future<bool> {
+      [=](const Result<T>& record) mutable
+        -> process::Future<process::ControlFlow<Nothing>> {
         // This could happen if EOF is sent by the writer.
         if (record.isNone()) {
-          return false;
+          return process::Break();
         }
 
         // This could happen if there is a de-serialization error.
@@ -136,7 +137,7 @@ process::Future<Nothing> transform(
           return process::Failure("Write failed to the pipe");
         }
 
-        return true;
+        return process::Continue();
       });
 }
 

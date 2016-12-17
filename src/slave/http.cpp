@@ -80,6 +80,9 @@ using mesos::slave::ContainerTermination;
 
 using process::AUTHENTICATION;
 using process::AUTHORIZATION;
+using process::Break;
+using process::Continue;
+using process::ControlFlow;
 using process::Clock;
 using process::DESCRIPTION;
 using process::Failure;
@@ -2587,17 +2590,17 @@ Future<Nothing> connect(Pipe::Reader reader, Pipe::Writer writer)
       [=]() mutable {
         return reader.read();
       },
-      [=](const string& chunk) mutable -> Future<bool> {
+      [=](const string& chunk) mutable -> Future<ControlFlow<Nothing>> {
         if (chunk.empty()) {
           // EOF case.
-          return false;
+          return Break();
         }
 
         if (!writer.write(chunk)) {
           return Failure("Write failed to the pipe");
         }
 
-        return true;
+        return Continue();
       });
 }
 
