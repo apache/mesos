@@ -13,6 +13,7 @@
 # Headers.
 nobase_include_HEADERS =		\
   process/address.hpp			\
+  process/after.hpp			\
   process/authenticator.hpp		\
   process/async.hpp			\
   process/check.hpp			\
