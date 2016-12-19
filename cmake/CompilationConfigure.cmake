@@ -59,7 +59,7 @@ if (WIN32 AND HAS_AUTHENTICATION)
     FATAL_ERROR
     "Windows builds of Mesos currently do not support agent to master "
     "authentication. To build without this capability, pass "
-    "`-HAS_AUTHENTICATION=0` as an argument when you run CMake.")
+    "`-DHAS_AUTHENTICATION=0` as an argument when you run CMake.")
 endif (WIN32 AND HAS_AUTHENTICATION)
 
 # If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against
