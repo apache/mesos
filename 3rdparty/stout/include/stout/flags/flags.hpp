@@ -836,7 +836,7 @@ inline Try<Warnings> FlagsBase::load(
 }
 
 
-inline std::string FlagsBase::usage( const Option<std::string>& message) const
+inline std::string FlagsBase::usage(const Option<std::string>& message) const
 {
   const int PAD = 5;
 
