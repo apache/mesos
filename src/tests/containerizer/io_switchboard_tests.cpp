@@ -190,9 +190,7 @@ TEST_F(IOSwitchboardServerTest, RedirectLog)
 
   ASSERT_SOME(stderrFd);
 
-  string socketPath = path::join(
-      sandbox.get(),
-      "mesos-io-switchboard");
+  string socketPath = path::join(sandbox.get(), "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -298,9 +296,7 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
   stderrFd = os::open(stderrPath, O_RDONLY);
   ASSERT_SOME(stderrFd);
 
-  string socketPath = path::join(
-      sandbox.get(),
-      "mesos-io-switchboard");
+  string socketPath = path::join(sandbox.get(), "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -374,9 +370,7 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
 
   Duration heartbeat = Milliseconds(10);
 
-  string socketPath = path::join(
-      sandbox.get(),
-      "mesos-io-switchboard-" + UUID::random().toString());
+  string socketPath = path::join(sandbox.get(), "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -489,9 +483,7 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
 
   ASSERT_SOME(stdinFd);
 
-  string socketPath = path::join(
-      sandbox.get(),
-      "mesos-io-switchboard");
+  string socketPath = path::join(sandbox.get(), "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
@@ -613,9 +605,7 @@ TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
   Try<int> nullFd = os::open("/dev/null", O_RDWR);
   ASSERT_SOME(nullFd);
 
-  string socketPath = path::join(
-      sandbox.get(),
-      "mesos-io-switchboard-" + UUID::random().toString());
+  string socketPath = path::join(sandbox.get(), "mesos-io-switchboard");
 
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       false,
