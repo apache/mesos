@@ -23,14 +23,15 @@
 #include <vector>
 
 #include <process/address.hpp>
+#include <process/after.hpp>
 #include <process/clock.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
+#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
-#include <process/limiter.hpp>
 #include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -79,6 +80,7 @@ using std::map;
 using std::string;
 using std::vector;
 
+using process::after;
 using process::await;
 using process::Break;
 using process::Continue;
@@ -92,7 +94,6 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
-using process::RateLimiter;
 using process::Shared;
 using process::Subprocess;
 
@@ -680,12 +681,10 @@ Future<http::Connection> IOSwitchboard::connect(
   }
 
   // Wait for the server to create the domain socket file.
-  Shared<RateLimiter> limiter(new RateLimiter(1, Milliseconds(10)));
-
   return loop(
       self(),
-      [=]() {
-        return limiter->acquire();
+      []() {
+        return after(Milliseconds(10));
       },
       [=](const Nothing&) -> ControlFlow<Nothing> {
         if (infos.contains(containerId) && !os::exists(address->path())) {
