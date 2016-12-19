@@ -338,11 +338,6 @@ public:
 
     explicit Reader(const std::shared_ptr<Data>& _data) : data(_data) {}
 
-    // Continuation for `readAll()`.
-    static Future<std::string> _readAll(
-        Pipe::Reader reader,
-        const std::shared_ptr<std::string>& buffer);
-
     std::shared_ptr<Data> data;
   };
 

@@ -427,26 +427,22 @@ Future<string> Pipe::Reader::read()
 
 Future<string> Pipe::Reader::readAll()
 {
+  Pipe::Reader reader = *this;
+
   std::shared_ptr<string> buffer(new string());
 
-  return _readAll(*this, buffer);
-}
-
-
-Future<string> Pipe::Reader::_readAll(
-    Pipe::Reader reader,
-    const std::shared_ptr<string>& buffer)
-{
-  return reader.read()
-    .then([reader, buffer](const string& read) -> Future<string> {
-      if (read.empty()) { // EOF.
-        return std::move(*buffer);
-      }
-
-      buffer->append(read);
-
-      return _readAll(reader, buffer);
-    });
+  return loop(
+      None(),
+      [=]() mutable {
+        return reader.read();
+      },
+      [=](const string& data) -> ControlFlow<string> {
+        if (data.empty()) { // EOF.
+          return Break(std::move(*buffer));
+        }
+        buffer->append(data);
+        return Continue();
+      });
 }
 
 
