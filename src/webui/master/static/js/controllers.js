@@ -563,18 +563,14 @@
 
       $http.jsonp('//' + host + '/metrics/snapshot?jsonp=JSON_CALLBACK')
         .success(function (response) {
-          if (!$scope.state) {
-            $scope.state = {};
-          }
-
-          $scope.state.staging_tasks = response['slave/tasks_staging'];
-          $scope.state.starting_tasks = response['slave/tasks_starting'];
-          $scope.state.running_tasks = response['slave/tasks_running'];
-          $scope.state.killing_tasks = response['slave/tasks_killing'];
-          $scope.state.finished_tasks = response['slave/tasks_finished'];
-          $scope.state.killed_tasks = response['slave/tasks_killed'];
-          $scope.state.failed_tasks = response['slave/tasks_failed'];
-          $scope.state.lost_tasks = response['slave/tasks_lost'];
+          $scope.staging_tasks = response['slave/tasks_staging'];
+          $scope.starting_tasks = response['slave/tasks_starting'];
+          $scope.running_tasks = response['slave/tasks_running'];
+          $scope.killing_tasks = response['slave/tasks_killing'];
+          $scope.finished_tasks = response['slave/tasks_finished'];
+          $scope.killed_tasks = response['slave/tasks_killed'];
+          $scope.failed_tasks = response['slave/tasks_failed'];
+          $scope.lost_tasks = response['slave/tasks_lost'];
         })
         .error(function(reason) {
           $scope.alert_message = 'Failed to get agent metrics: ' + reason;
