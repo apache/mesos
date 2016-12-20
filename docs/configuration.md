@@ -505,8 +505,9 @@ checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
   <td>
 The timeout within which all agents are expected to re-register
 when a new master is elected as the leader. Agents that do not
-re-register within the timeout will be removed from the registry
-and will be shutdown if they attempt to communicate with master.
+re-register within the timeout will be marked unreachable in the
+registry; if/when the agent re-registers with the master, any
+non-partition-aware tasks running on the agent will be terminated.
 <b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
   </td>
 </tr>
