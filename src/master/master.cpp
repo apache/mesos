@@ -4661,9 +4661,6 @@ void Master::killTask(
     const FrameworkID& frameworkId,
     const TaskID& taskId)
 {
-  LOG(INFO) << "Asked to kill task " << taskId
-            << " of framework " << frameworkId;
-
   Framework* framework = getFramework(frameworkId);
 
   if (framework == nullptr) {
@@ -4693,11 +4690,14 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
 {
   CHECK_NOTNULL(framework);
 
-  ++metrics->messages_kill_task;
-
   const TaskID& taskId = kill.task_id();
   const Option<SlaveID> slaveId =
     kill.has_slave_id() ? Option<SlaveID>(kill.slave_id()) : None();
+
+  LOG(INFO) << "Processing KILL call for task '" << taskId << "'"
+            << " of framework " << *framework;
+
+  ++metrics->messages_kill_task;
 
   if (framework->pendingTasks.contains(taskId)) {
     // Remove from pending tasks.
@@ -5938,11 +5938,17 @@ void Master::shutdown(
     return;
   }
 
-  Slave* slave = slaves.registered.get(shutdown.slave_id());
+  const SlaveID& slaveId = shutdown.slave_id();
+  const ExecutorID& executorId = shutdown.executor_id();
+
+  Slave* slave = slaves.registered.get(slaveId);
   CHECK_NOTNULL(slave);
 
+  LOG(INFO) << "Processing SHUTDOWN call for executor '" << executorId
+            << "' of framework " << *framework << " on agent " << slaveId;
+
   ShutdownExecutorMessage message;
-  message.mutable_executor_id()->CopyFrom(shutdown.executor_id());
+  message.mutable_executor_id()->CopyFrom(executorId);
   message.mutable_framework_id()->CopyFrom(framework->id());
   send(slave->pid, message);
 }
