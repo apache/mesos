@@ -29,6 +29,10 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#ifdef __WINDOWS__
+#include <process/windows/winsock.hpp>
+#endif // __WINDOWS__
+
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
@@ -670,6 +674,11 @@ private:
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+#ifdef __WINDOWS__
+  // Initialize the Windows socket stack.
+  process::Winsock winsock;
+#endif // __WINDOWS__
 
   mesos::internal::docker::Flags flags;
 
