@@ -126,8 +126,9 @@ mesos::internal::master::Flags::Flags()
       flags::DeprecatedName("slave_reregister_timeout"),
       "The timeout within which all agents are expected to re-register\n"
       "when a new master is elected as the leader. Agents that do not\n"
-      "re-register within the timeout will be removed from the registry\n"
-      "and will be shutdown if they attempt to communicate with master.\n"
+      "re-register within the timeout will be marked unreachable in the\n"
+      "registry; if/when the agent re-registers with the master, any\n"
+      "non-partition-aware tasks running on the agent will be terminated.\n"
       "NOTE: This value has to be at least " +
         stringify(MIN_AGENT_REREGISTER_TIMEOUT) + ".",
       MIN_AGENT_REREGISTER_TIMEOUT);
