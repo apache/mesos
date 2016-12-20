@@ -94,6 +94,14 @@ const string DOCKER_NAME_SEPERATOR = ".";
 const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
 
 
+#ifdef __WINDOWS__
+const string MESOS_DOCKER_EXECUTOR = "mesos-docker-executor.exe";
+#else
+const string MESOS_DOCKER_EXECUTOR = "mesos-docker-executor";
+#endif // __WINDOWS__
+
+
+
 // Parse the ContainerID from a Docker container and return None if
 // the container was not launched from Mesos.
 Option<ContainerID> parse(const Docker::Container& container)
@@ -359,7 +367,7 @@ DockerContainerizerProcess::Container::create(
     newCommandInfo.set_shell(false);
 
     newCommandInfo.set_value(
-        path::join(flags.launcher_dir, "mesos-docker-executor"));
+        path::join(flags.launcher_dir, MESOS_DOCKER_EXECUTOR));
 
     // Stringify the flags as arguments.
     // This minimizes the need for escaping flag values.
@@ -1402,7 +1410,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   }
 
   vector<string> argv;
-  argv.push_back("mesos-docker-executor");
+  argv.push_back(MESOS_DOCKER_EXECUTOR);
 
   Future<Nothing> allocateGpus = Nothing();
 
@@ -1476,7 +1484,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     // container (to distinguish it from Docker containers not created
     // by Mesos).
     Try<Subprocess> s = subprocess(
-        path::join(flags.launcher_dir, "mesos-docker-executor"),
+        path::join(flags.launcher_dir, MESOS_DOCKER_EXECUTOR),
         argv,
         Subprocess::PIPE(),
         subprocessInfo.out,
