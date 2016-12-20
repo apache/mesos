@@ -659,7 +659,12 @@ mesos::internal::slave::Flags::Flags()
       "sandbox_directory",
       "The absolute path for the directory in the container where the\n"
       "sandbox is mapped to.\n",
-      "/mnt/mesos/sandbox");
+#ifndef __WINDOWS__
+      "/mnt/mesos/sandbox"
+#else
+      "C:\\mesos\\sandbox"
+#endif // __WINDOWS__
+      );
 
   add(&Flags::default_container_info,
       "default_container_info",
