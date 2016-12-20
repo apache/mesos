@@ -331,14 +331,6 @@ decltype(strerror_s(buffer, length, errnum))
 // maintain the code. It is an explicit marker that we are using the compiler
 // to guarantee that the return type is identical to whatever is in the Windows
 // implementation of the standard.
-inline auto write(int fd, const void* buffer, size_t count) ->
-decltype(_write(fd, buffer, static_cast<unsigned int>(count)))
-{
-  return _write(fd, buffer, static_cast<unsigned int>(count));
-}
-
-
-
 inline auto chdir(const char* path) ->
 decltype(_chdir(path))
 {
@@ -346,7 +338,7 @@ decltype(_chdir(path))
 }
 
 
-inline char * getcwd(char* path, size_t maxlen)
+inline char* getcwd(char* path, size_t maxlen)
 {
   CHECK_LE(maxlen, INT_MAX);
   return _getcwd(path, static_cast<int>(maxlen));

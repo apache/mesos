@@ -32,6 +32,7 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/process.hpp>
 
@@ -42,7 +43,7 @@ inline Result<Process> process(pid_t pid)
   std::string fn = "/proc/" + stringify(pid) + "/status";
   struct pstatus pstatus;
 
-  Try<int> fd = os::open(fn, O_RDONLY);
+  Try<int_fd> fd = os::open(fn, O_RDONLY);
   if (fd.isError()) {
     return ErrnoError("Cannot open " + fn);
   }

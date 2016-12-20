@@ -18,8 +18,10 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/socket.hpp>
+
 #ifdef __WINDOWS__
 #include <stout/os/windows/write.hpp>
 #else
@@ -30,7 +32,7 @@
 namespace os {
 
 // Write out the string to the file at the current fd position.
-inline Try<Nothing> write(int fd, const std::string& message)
+inline Try<Nothing> write(int_fd fd, const std::string& message)
 {
   size_t offset = 0;
 
@@ -38,13 +40,13 @@ inline Try<Nothing> write(int fd, const std::string& message)
     ssize_t length =
       os::write(fd, message.data() + offset, message.length() - offset);
 
+    if (length < 0) {
 #ifdef __WINDOWS__
       int error = WSAGetLastError();
 #else
       int error = errno;
 #endif // __WINDOWS__
 
-    if (length < 0) {
       // TODO(benh): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK).
       if (net::is_restartable_error(error)) {
         continue;
@@ -63,7 +65,7 @@ inline Try<Nothing> write(int fd, const std::string& message)
 // open and closing the file.
 inline Try<Nothing> write(const std::string& path, const std::string& message)
 {
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

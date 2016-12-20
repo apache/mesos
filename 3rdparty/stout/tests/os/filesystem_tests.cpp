@@ -24,6 +24,7 @@
 
 #include <stout/os/find.hpp>
 #include <stout/os/getcwd.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/read.hpp>
@@ -371,7 +372,7 @@ TEST_F(FsTest, Close)
 
   // Open a file, and verify that writing to that file descriptor succeeds
   // before we close it, and fails after.
-  const Try<int> open_valid_fd = os::open(testfile, O_RDWR);
+  const Try<int_fd> open_valid_fd = os::open(testfile, O_RDWR);
   ASSERT_SOME(open_valid_fd);
   ASSERT_SOME(os::write(open_valid_fd.get(), test_message1));
 

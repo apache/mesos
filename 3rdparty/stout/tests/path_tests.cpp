@@ -19,6 +19,7 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/getcwd.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/rm.hpp>
 #include <stout/os/touch.hpp>
@@ -204,7 +205,7 @@ TEST_F(PathFileTest, ImplicitConversion)
   ASSERT_TRUE(os::exists(testfile));
 
   // Open and close the file.
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       testfile,
       O_RDONLY,
       S_IRUSR | S_IRGRP | S_IROTH);

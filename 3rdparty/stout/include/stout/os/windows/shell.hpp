@@ -122,9 +122,9 @@ inline int spawn(
     const std::string& command,
     const std::vector<std::string>& arguments)
 {
-  return ::_spawnvp(_P_WAIT, command.c_str(), os::raw::Argv(arguments));
+  return static_cast<int>(
+      ::_spawnvp(_P_WAIT, command.c_str(), os::raw::Argv(arguments)));
 }
-
 
 // On Windows, the `_spawnlp` call creates a new process.
 // In order to emulate the semantics of `execlp`, we spawn with `_P_WAIT`,

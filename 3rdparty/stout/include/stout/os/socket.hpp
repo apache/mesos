@@ -16,6 +16,8 @@
 #include <stout/error.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/int_fd.hpp>
+
 #ifdef __WINDOWS__
 #include <stout/os/windows/socket.hpp>
 #else
@@ -26,12 +28,10 @@ namespace net {
 
 // Returns a socket file descriptor for the specified options.
 // NOTE: on OS X, the returned socket will have the SO_NOSIGPIPE option set.
-inline Try<int> socket(int family, int type, int protocol)
+inline Try<int_fd> socket(int family, int type, int protocol)
 {
-  // TODO(dpravat): Since Windows sockets are 64bit values,
-  // an additional patch is required to avoid the truncation.
-  int s;
-  if ((s = ::socket(family, type, protocol)) == -1) {
+  int_fd s;
+  if ((s = ::socket(family, type, protocol)) < 0) {
     return ErrnoError();
   }
 

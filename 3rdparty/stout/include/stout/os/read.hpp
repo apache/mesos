@@ -32,7 +32,9 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
+#include <stout/os/int_fd.hpp>
 #include <stout/os/socket.hpp>
+
 #ifdef __WINDOWS__
 #include <stout/os/windows/read.hpp>
 #else
@@ -45,7 +47,7 @@ namespace os {
 // Reads 'size' bytes from a file from its current offset.
 // If EOF is encountered before reading 'size' bytes then the result
 // will contain the bytes read and a subsequent read will return None.
-inline Result<std::string> read(int fd, size_t size)
+inline Result<std::string> read(int_fd fd, size_t size)
 {
   char* buffer = new char[size];
   size_t offset = 0;

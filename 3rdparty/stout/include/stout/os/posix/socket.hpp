@@ -22,6 +22,7 @@
 namespace net {
 
 // Import `socket` functions into `net::` namespace.
+using ::accept;
 using ::bind;
 using ::connect;
 using ::recv;
@@ -53,7 +54,7 @@ inline bool is_inprogress_error(int error)
 inline bool is_socket(int fd)
 {
   struct stat statbuf;
-  if (fstat(fd, &statbuf) < 0) {
+  if (::fstat(fd, &statbuf) < 0) {
     return false;
   }
 

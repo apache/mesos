@@ -59,6 +59,7 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 
 
@@ -138,7 +139,7 @@ inline Try<int> download(const std::string& url, const std::string& path)
 {
   initialize();
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_CREAT | O_WRONLY | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -159,7 +160,13 @@ inline Try<int> download(const std::string& url, const std::string& path)
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, nullptr);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
 
-  FILE* file = fdopen(fd.get(), "w");
+  // We don't bother introducing a `os::fdopen` since this is the only place
+  // we use `fdopen` in the entire codebase as of writing this comment.
+#ifdef __WINDOWS__
+  FILE* file = ::_fdopen(fd->crt(), "w");
+#else
+  FILE* file = ::fdopen(fd.get(), "w");
+#endif
   if (file == nullptr) {
     curl_easy_cleanup(curl);
     os::close(fd.get());

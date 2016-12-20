@@ -18,6 +18,7 @@
 
 #include <stout/os/close.hpp>
 #include <stout/os/exists.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/utime.hpp>
 
@@ -31,7 +32,7 @@ namespace os {
 inline Try<Nothing> touch(const std::string& path)
 {
   if (!os::exists(path)) {
-    Try<int> fd = os::open(
+    Try<int_fd> fd = os::open(
         path,
         O_RDWR | O_CREAT,
         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

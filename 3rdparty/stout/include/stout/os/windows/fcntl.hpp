@@ -20,12 +20,12 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/socket.hpp>
-
+#include <stout/os/windows/fd.hpp>
 
 namespace os {
 
 // NOTE: This is not supported on Windows.
-inline Try<Nothing> cloexec(int fd)
+inline Try<Nothing> cloexec(const WindowsFD& fd)
 {
   LOG(WARNING) << "`os::cloexec` has been called, but is a no-op on Windows";
   return Nothing();
@@ -33,7 +33,7 @@ inline Try<Nothing> cloexec(int fd)
 
 
 // NOTE: This is not supported on Windows.
-inline Try<Nothing> unsetCloexec(int fd)
+inline Try<Nothing> unsetCloexec(const WindowsFD& fd)
 {
   LOG(WARNING) << "`os::unsetCloexec` has been called, "
                << "but is a no-op on Windows";
@@ -42,52 +42,38 @@ inline Try<Nothing> unsetCloexec(int fd)
 }
 
 
-// NOTE: This is not supported on Windows.
-inline Try<bool> isCloexec(int fd)
+inline Try<bool> isCloexec(const WindowsFD& fd)
 {
   LOG(WARNING) << "`os::isCloexec` has been called, but is a stub on Windows";
   return true;
 }
 
 
-inline Try<Nothing> nonblock(int fd)
+inline Try<Nothing> nonblock(const WindowsFD& fd)
 {
-  if (net::is_socket(fd)) {
-    const u_long non_block_mode = 1;
-    u_long mode = non_block_mode;
-
-    int result = ioctlsocket(fd, FIONBIO, &mode);
-    if (result != NO_ERROR) {
-      return WindowsSocketError();
+  switch (fd.type()) {
+    case WindowsFD::FD_CRT:
+    case WindowsFD::FD_HANDLE: {
+      /* Do nothing. */
+      break;
     }
-  } else {
-    // Extract handle from file descriptor.
-    HANDLE handle = reinterpret_cast<HANDLE>(::_get_osfhandle(fd));
-    if (handle == INVALID_HANDLE_VALUE) {
-      return WindowsError("Failed to get `HANDLE` for file descriptor");
-    }
+    case WindowsFD::FD_SOCKET: {
+      const u_long non_block_mode = 1;
+      u_long mode = non_block_mode;
 
-    if (GetFileType(handle) == FILE_TYPE_PIPE) {
-      DWORD pipe_mode = PIPE_NOWAIT;
-      if (SetNamedPipeHandleState(handle, &pipe_mode, nullptr, nullptr)) {
-        return WindowsError();
+      int result = ioctlsocket(fd, FIONBIO, &mode);
+      if (result != NO_ERROR) {
+        return WindowsSocketError();
       }
+      break;
     }
   }
-
   return Nothing();
 }
 
 
-inline Try<Nothing> nonblock(HANDLE handle)
-{
-  return nonblock(
-      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY));
-}
-
-
 // NOTE: This is not supported on Windows.
-inline Try<bool> isNonblock(int fd)
+inline Try<bool> isNonblock(const WindowsFD& fd)
 {
   LOG(WARNING) << "`os::isNonblock` has been called, but is a stub on Windows";
   return true;

@@ -20,13 +20,15 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/windows/fd.hpp>
+
 
 namespace os {
 
 // Identical in functionality to POSIX standard `ftruncate`.
-inline Try<Nothing> ftruncate(int fd, __int64 length)
+inline Try<Nothing> ftruncate(const WindowsFD& fd, __int64 length)
 {
-  if (::_chsize_s(fd, length) != 0) {
+  if (::_chsize_s(fd.crt(), length) != 0) {
     return ErrnoError(
       "Failed to truncate file at file descriptor '" + stringify(fd) + "' to " +
       stringify(length) + " bytes.");

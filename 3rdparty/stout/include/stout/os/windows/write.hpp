@@ -17,43 +17,30 @@
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/windows.hpp> // For order-dependent networking headers.
 
 #include <stout/os/socket.hpp>
+#include <stout/os/windows/fd.hpp>
 
 
 namespace os {
 
-// Forward declaration for an OS-agnostic `write`.
-inline Try<Nothing> write(int fd, const std::string& message);
-
-
-inline ssize_t write(int fd, const void* data, size_t size)
+inline ssize_t write(const WindowsFD& fd, const void* data, size_t size)
 {
   CHECK_LE(size, INT_MAX);
 
-  if (net::is_socket(fd)) {
-    return net::send(fd, (const char*) data, size, 0);
+  switch (fd.type()) {
+    case WindowsFD::FD_CRT:
+    case WindowsFD::FD_HANDLE: {
+      return ::_write(fd.crt(), data, static_cast<unsigned int>(size));
+    }
+    case WindowsFD::FD_SOCKET: {
+      return ::send(fd, (const char*)data, static_cast<int>(size), 0);
+    }
   }
 
-  return ::_write(fd, data, static_cast<unsigned int>(size));
-}
-
-
-inline ssize_t write(HANDLE handle, const void* data, size_t size)
-{
-  return ::os::write(
-      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDWR),
-      data,
-      size);
-}
-
-
-inline Try<Nothing> write(HANDLE handle, const std::string& message)
-{
-  return ::os::write(
-      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDWR),
-      message);
+  UNREACHABLE();
 }
 
 } // namespace os {

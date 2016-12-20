@@ -45,6 +45,8 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
+#include <stout/os/int_fd.hpp>
+#include <stout/os/lseek.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/write.hpp>
@@ -60,7 +62,7 @@ namespace protobuf {
 // first writing out the length of the protobuf followed by the
 // contents.
 // NOTE: On error, this may have written partial data to the file.
-inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
+inline Try<Nothing> write(int_fd fd, const google::protobuf::Message& message)
 {
   if (!message.IsInitialized()) {
     return Error(message.InitializationErrorString() +
@@ -76,26 +78,16 @@ inline Try<Nothing> write(int fd, const google::protobuf::Message& message)
     return Error("Failed to write size: " + result.error());
   }
 
+#ifdef __WINDOWS__
+  if (!message.SerializeToFileDescriptor(fd.crt())) {
+#else
   if (!message.SerializeToFileDescriptor(fd)) {
+#endif
     return Error("Failed to write/serialize message");
   }
 
   return Nothing();
 }
-
-
-#ifdef __WINDOWS__
-// NOTE: Ordinarily this would go in a Windows-specific header; we put it here
-// to avoid complex forward declarations.
-inline Try<Nothing> write(
-    HANDLE handle,
-    const google::protobuf::Message& message)
-{
-  return write(
-      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_WRONLY), message);
-}
-#endif // __WINDOWS__
-
 
 // Write out the given sequence of protobuf messages to the
 // specified file descriptor by repeatedly invoking write
@@ -103,8 +95,7 @@ inline Try<Nothing> write(
 // NOTE: On error, this may have written partial data to the file.
 template <typename T>
 Try<Nothing> write(
-    int fd,
-    const google::protobuf::RepeatedPtrField<T>& messages)
+    int_fd fd, const google::protobuf::RepeatedPtrField<T>& messages)
 {
   foreach (const T& message, messages) {
     Try<Nothing> result = write(fd, message);
@@ -127,7 +118,7 @@ Try<Nothing> write(const std::string& path, const T& t)
   operation_flags |= _O_BINARY;
 #endif // __WINDOWS__
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       operation_flags,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -158,7 +149,7 @@ inline Try<Nothing> append(
   operation_flags |= _O_BINARY;
 #endif // __WINDOWS__
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       operation_flags,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -214,16 +205,18 @@ namespace internal {
 template <typename T>
 struct Read
 {
-  Result<T> operator()(int fd, bool ignorePartial, bool undoFailed)
+  Result<T> operator()(int_fd fd, bool ignorePartial, bool undoFailed)
   {
     off_t offset = 0;
 
     if (undoFailed) {
       // Save the offset so we can re-adjust if something goes wrong.
-      offset = lseek(fd, 0, SEEK_CUR);
-      if (offset == -1) {
-        return ErrnoError("Failed to lseek to SEEK_CUR");
+      Try<off_t> lseek = os::lseek(fd, offset, SEEK_CUR);
+      if (lseek.isError()) {
+        return Error(lseek.error());
       }
+
+      offset = lseek.get();
     }
 
     uint32_t size;
@@ -231,7 +224,7 @@ struct Read
 
     if (result.isError()) {
       if (undoFailed) {
-        lseek(fd, offset, SEEK_SET);
+        os::lseek(fd, offset, SEEK_SET);
       }
       return Error("Failed to read size: " + result.error());
     } else if (result.isNone()) {
@@ -240,7 +233,7 @@ struct Read
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.
-        lseek(fd, offset, SEEK_SET);
+        os::lseek(fd, offset, SEEK_SET);
       }
       if (ignorePartial) {
         return None();
@@ -260,14 +253,14 @@ struct Read
     if (result.isError()) {
       if (undoFailed) {
         // Restore the offset to before the size read.
-        lseek(fd, offset, SEEK_SET);
+        os::lseek(fd, offset, SEEK_SET);
       }
       return Error("Failed to read message: " + result.error());
     } else if (result.isNone() || result.get().size() < size) {
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.
-        lseek(fd, offset, SEEK_SET);
+        os::lseek(fd, offset, SEEK_SET);
       }
       if (ignorePartial) {
         return None();
@@ -287,7 +280,7 @@ struct Read
     if (!message.ParseFromZeroCopyStream(&stream)) {
       if (undoFailed) {
         // Restore the offset to before the size read.
-        lseek(fd, offset, SEEK_SET);
+        os::lseek(fd, offset, SEEK_SET);
       }
       return Error("Failed to deserialize message");
     }
@@ -306,7 +299,7 @@ template <typename T>
 struct Read<google::protobuf::RepeatedPtrField<T>>
 {
   Result<google::protobuf::RepeatedPtrField<T>> operator()(
-      int fd, bool ignorePartial, bool undoFailed)
+      int_fd fd, bool ignorePartial, bool undoFailed)
   {
     google::protobuf::RepeatedPtrField<T> result;
     for (;;) {
@@ -337,27 +330,10 @@ struct Read<google::protobuf::RepeatedPtrField<T>>
 // If 'undoFailed' is true, failed read attempts will restore the file
 // read/write file offset towards the initial callup position.
 template <typename T>
-Result<T> read(int fd, bool ignorePartial = false, bool undoFailed = false)
+Result<T> read(int_fd fd, bool ignorePartial = false, bool undoFailed = false)
 {
   return internal::Read<T>()(fd, ignorePartial, undoFailed);
 }
-
-
-#ifdef __WINDOWS__
-// NOTE: Ordinarily this would go in a Windows-specific header; we put it here
-// to avoid complex forward declarations.
-template <typename T>
-Result<T> read(
-    HANDLE handle,
-    bool ignorePartial = false,
-    bool undoFailed = false)
-{
-  return read<T>(
-      _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDONLY),
-      ignorePartial,
-      undoFailed);
-}
-#endif // __WINDOWS__
 
 
 // A wrapper function that wraps the above read() with open and
@@ -372,7 +348,7 @@ Result<T> read(const std::string& path)
   operation_flags |= _O_BINARY;
 #endif // __WINDOWS__
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       operation_flags,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);

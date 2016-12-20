@@ -20,18 +20,14 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/os/windows/fd.hpp>
+
 
 namespace os {
 
-inline Try<Nothing> fsync(int fd)
+inline Try<Nothing> fsync(const WindowsFD& fd)
 {
-  const HANDLE handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
-  if (handle == INVALID_HANDLE_VALUE) {
-    return WindowsError(
-        "os::fsync: Could not get handle for given file descriptor");
-  }
-
-  if (!FlushFileBuffers(handle)) {
+  if (!FlushFileBuffers(fd)) {
     return WindowsError(
         "os::fsync: Could not flush file buffers for given file descriptor");
   }
