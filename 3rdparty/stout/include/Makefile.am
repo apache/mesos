@@ -75,6 +75,7 @@ nobase_include_HEADERS =			\
   stout/os/fsync.hpp				\
   stout/os/ftruncate.hpp			\
   stout/os/getcwd.hpp				\
+  stout/os/int_fd.hpp				\
   stout/os/kill.hpp				\
   stout/os/killtree.hpp				\
   stout/os/linux.hpp				\
@@ -142,6 +143,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/close.hpp			\
   stout/os/windows/exists.hpp			\
   stout/os/windows/fcntl.hpp			\
+  stout/os/windows/fd.hpp			\
   stout/os/windows/fork.hpp			\
   stout/os/windows/fsync.hpp			\
   stout/os/windows/ftruncate.hpp		\
