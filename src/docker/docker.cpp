@@ -804,11 +804,16 @@ Future<Option<int>> Docker::run(
 
   if (commandInfo.shell()) {
     // We override the entrypoint if shell is enabled because we
-    // assume the user intends to run the command within /bin/sh
+    // assume the user intends to run the command within a shell
     // and not the default entrypoint of the image. View MESOS-1770
     // for more details.
     argv.push_back("--entrypoint");
+
+#ifdef __WINDOWS__
+    argv.push_back("cmd");
+#else
     argv.push_back("/bin/sh");
+#endif // __WINDOWS__
   }
 
   argv.push_back("--name");
@@ -820,10 +825,15 @@ Future<Option<int>> Docker::run(
       return Failure("Shell specified but no command value provided");
     }
 
-    // Adding -c here because Docker cli only supports a single word
-    // for overriding entrypoint, so adding the -c flag for /bin/sh
-    // as part of the command.
+    // The Docker CLI only supports a single word for overriding the
+    // entrypoint, so we must specify `-c` (or `/c` on Windows)
+    // for the other parts of the command.
+#ifdef __WINDOWS__
+    argv.push_back("/c");
+#else
     argv.push_back("-c");
+#endif // __WINDOWS__
+
     argv.push_back(commandInfo.value());
   } else {
     if (commandInfo.has_value()) {
