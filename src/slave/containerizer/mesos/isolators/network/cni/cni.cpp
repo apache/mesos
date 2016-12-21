@@ -81,7 +81,7 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     return new MesosIsolator(Owned<MesosIsolatorProcess>(
         new NetworkCniIsolatorProcess(
             flags,
-            hashmap<string, NetworkConfigInfo>())));
+            hashmap<string, string>())));
   }
 
   // Check for root permission.
@@ -105,76 +105,12 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
         flags.network_cni_config_dir.get() + "' does not exist");
   }
 
-  Try<list<string>> entries = os::ls(flags.network_cni_config_dir.get());
-  if (entries.isError()) {
-    return Error(
-        "Unable to list the CNI network configuration directory '" +
-        flags.network_cni_config_dir.get() + "': " + entries.error());
-  }
+  Try<hashmap<string, string>> networkConfigs = loadNetworkConfigs(
+      flags.network_cni_config_dir.get(),
+      flags.network_cni_plugins_dir.get());
 
-  hashmap<string, NetworkConfigInfo> networkConfigs;
-  foreach (const string& entry, entries.get()) {
-    const string path = path::join(flags.network_cni_config_dir.get(), entry);
-
-    // Ignore directory entries.
-    if (os::stat::isdir(path)) {
-      continue;
-    }
-
-    Try<string> read = os::read(path);
-    if (read.isError()) {
-      return Error(
-          "Failed to read CNI network configuration file '" +
-          path + "': " + read.error());
-    }
-
-    Try<spec::NetworkConfig> parse = spec::parseNetworkConfig(read.get());
-    if (parse.isError()) {
-      return Error(
-          "Failed to parse CNI network configuration file '" +
-          path + "': " + parse.error());
-    }
-
-    const spec::NetworkConfig& networkConfig = parse.get();
-    const string& name = networkConfig.name();
-    if (networkConfigs.contains(name)) {
-      return Error(
-          "Multiple CNI network configuration files have same name: " + name);
-    }
-
-    const string& type = networkConfig.type();
-
-    Option<string> plugin = os::which(
-        type,
-        flags.network_cni_plugins_dir.get());
-
-    if (plugin.isNone()) {
-      return Error(
-          "Failed to find CNI plugin '" + type +
-          "' used by CNI network configuration file '" + path + "'");
-    }
-
-    if (networkConfig.has_ipam()) {
-      const string& ipamType = networkConfig.ipam().type();
-
-      Option<string> ipam = os::which(
-          ipamType,
-          flags.network_cni_plugins_dir.get());
-
-      if (ipam.isNone()) {
-        return Error(
-            "Failed to find CNI IPAM plugin '" + ipamType +
-            "' used by CNI network configuration file '" + path + "'");
-      }
-    }
-
-    networkConfigs[name] = NetworkConfigInfo{path, networkConfig};
-  }
-
-  if (networkConfigs.size() == 0) {
-    return Error(
-        "Unable to find any valid CNI network configuration files under '" +
-        flags.network_cni_config_dir.get() + "'");
+  if (networkConfigs.isError()) {
+    return Error("Unable to load CNI config: " + networkConfigs.error());
   }
 
   // Create the CNI network information root directory if it does not exist.
@@ -301,9 +237,95 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new NetworkCniIsolatorProcess(
           flags,
-          networkConfigs,
+          networkConfigs.get(),
           rootDir.get(),
           flags.network_cni_plugins_dir.get())));
+}
+
+
+Try<hashmap<string, string>> NetworkCniIsolatorProcess::loadNetworkConfigs(
+    const string& configDir,
+    const string& pluginDir)
+{
+  hashmap<string, string> networkConfigs;
+
+  Try<list<string>> entries = os::ls(configDir);
+  if (entries.isError()) {
+    return Error(
+        "Unable to list the CNI network configuration directory '" +
+        configDir + "': " + entries.error());
+  }
+
+  foreach (const string& entry, entries.get()) {
+    const string path = path::join(configDir, entry);
+
+    // Ignore directory entries.
+    if (os::stat::isdir(path)) {
+      continue;
+    }
+
+    Try<string> read = os::read(path);
+    if (read.isError()) {
+      // In case of an error we log and skip to the next entry.
+      LOG(ERROR) << "Failed to read CNI network configuration file '"
+                 << path << "': " << read.error();
+
+      continue;
+    }
+
+    Try<spec::NetworkConfig> parse = spec::parseNetworkConfig(read.get());
+    if (parse.isError()) {
+      LOG(ERROR) << "Failed to parse CNI network configuration file '"
+                 << path << "': " << parse.error();
+      continue;
+    }
+
+    const spec::NetworkConfig& networkConfig = parse.get();
+    const string& name = networkConfig.name();
+    if (networkConfigs.contains(name)) {
+      LOG(ERROR) << "Multiple network configuration for a CNI network is not "
+                 << "allowed. Skipping configuration file '"
+                 << path << " since network "
+                 << name << " already exists";
+      continue;
+    }
+
+    const string& type = networkConfig.type();
+
+    Option<string> plugin = os::which(
+        type,
+        pluginDir);
+
+    if (plugin.isNone()) {
+      LOG(ERROR) << "Skipping network '" << networkConfig.name()
+                 << "' , from configuration file '" << path << "', "
+                 << "since we failed to find CNI plugin '" << type
+                 << "' used by this network.";
+
+      continue;
+    }
+
+    if (networkConfig.has_ipam()) {
+      const string& ipamType = networkConfig.ipam().type();
+
+      Option<string> ipam = os::which(
+          ipamType,
+          pluginDir);
+
+      if (ipam.isNone()) {
+        LOG(ERROR) << "Skipping network '" << networkConfig.name()
+                   << "' , from configuration file '" << path << "', "
+                   << "since we failed to find IPAM plugin '" << ipamType
+                   << "' used by this network.";
+
+        continue;
+      }
+    }
+
+    networkConfigs[name] = path;
+  }
+
+  return networkConfigs;
 }
 
 
@@ -1094,21 +1116,21 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   // Inject Mesos metadata to the network configuration JSON that will
   // be passed to the plugin. Currently, we only pass in NetworkInfo
   // for the given network.
-  const NetworkConfigInfo& networkConfig =
+  const string& cniConfigPath =
     networkConfigs[containerNetwork.networkName];
 
-  Try<string> read = os::read(networkConfig.path);
+  Try<string> read = os::read(cniConfigPath);
   if (read.isError()) {
     return Failure(
         "Failed to read CNI network configuration file: '" +
-        networkConfig.path + "': " + read.error());
+        cniConfigPath + "': " + read.error());
   }
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
   if (parse.isError()) {
     return Failure(
         "Failed to parse CNI network configuration file: '" +
-        networkConfig.path + "': " + parse.error());
+        cniConfigPath  + "': " + parse.error());
   }
 
   JSON::Object networkConfigJson = parse.get();
@@ -1119,7 +1141,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   if (_args.isError()) {
     return Failure(
         "Invalid 'args' found in CNI network configuration file '" +
-        networkConfig.path + "': " + _args.error());
+        cniConfigPath  + "': " + _args.error());
   }
 
   JSON::Object args = _args.isSome() ? _args.get() : JSON::Object();
@@ -1139,6 +1161,29 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   args.values["org.apache.mesos"] = mesos;
   networkConfigJson.values["args"] = args;
 
+  // Invoke the CNI plugin.
+  //
+  // NOTE: We want to execute only the plugin found in the `pluginDir`
+  // path specified by the operator.
+  Result<JSON::String> _plugin = networkConfigJson.at<JSON::String>("type");
+  if (!_plugin.isSome()) {
+    return Failure(
+        "Could not find the CNI plugin to use for network " +
+        networkName + " with CNI configuration '" + cniConfigPath  +
+        (_plugin.isNone() ? "'" : ("': " + _plugin.error())));
+  }
+
+  Option<string> plugin = os::which(
+      _plugin->value,
+      pluginDir.get());
+
+  if (plugin.isNone()) {
+    return Failure(
+        "Unable to find the plugin " + _plugin->value +
+        " required to attach " + stringify(containerId) +
+        " to network '" + networkName + "'");
+  }
+
   // Checkpoint the network configuration JSON. We will use
   // the same JSON during cleanup.
   const string networkConfigPath = paths::getNetworkConfigPath(
@@ -1155,21 +1200,6 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         stringify(networkConfigJson) + "': " + write.error());
   }
 
-  // Invoke the CNI plugin.
-  //
-  // NOTE: We want to execute only the plugin found in the `pluginDir`
-  // path specified by the operator.
-  Option<string> plugin = os::which(
-      networkConfig.config.type(),
-      pluginDir.get());
-
-  if (plugin.isNone()) {
-    return Failure(
-        "Unable to find the plugin " + networkConfig.config.type() +
-        " required to attach " + stringify(containerId) +
-        " to network '" + networkName + "'");
-  }
-
   VLOG(1) << "Invoking CNI plugin '" << plugin.get()
           << "' with network configuration '" << stringify(networkConfigJson)
           << "' to attach container " << containerId << " to network '"
@@ -1177,7 +1207,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
 
   Try<Subprocess> s = subprocess(
       plugin.get(),
-      {networkConfig.config.type()},
+      {plugin.get()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
@@ -1491,19 +1521,39 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
       containerId.value(),
       networkName);
 
-  const NetworkConfigInfo& networkConfig = networkConfigs[networkName];
+  Try<string> read = os::read(networkConfigPath);
+  if (read.isError()) {
+    return Failure(
+        "Could not detach the container " + stringify(containerId) +
+        " since we cannot read its checkpoitned CNI config: " + read.error());
+  }
+
+  Try<JSON::Object> networkConfigJson = JSON::parse<JSON::Object>(read.get());
+  if (networkConfigJson.isError()) {
+    return Failure(
+        "Failed to parse CNI network configuration file: '" +
+        networkConfigPath + "': " + networkConfigJson.error());
+  }
+
+  Result<JSON::String> _plugin = networkConfigJson->at<JSON::String>("type");
+  if (!_plugin.isSome()) {
+    return Failure(
+        "Could not find the CNI plugin to use for network " +
+        networkName + " with CNI configuration '" + networkConfigPath +
+        (_plugin.isNone() ? "'" : ("': " + _plugin.error())));
+  }
 
   // Invoke the CNI plugin.
   //
   // NOTE: We want to execute only the plugin found in the `pluginDir`
   // path specified by the operator.
   Option<string> plugin = os::which(
-      networkConfig.config.type(),
+      _plugin->value,
       pluginDir.get());
 
   if (plugin.isNone()) {
     return Failure(
-        "Unable to find the plugin " + networkConfig.config.type() +
+        "Unable to find the plugin " + _plugin->value +
         " required to detach " + stringify(containerId) +
         " to network '" + networkName + "'");
   }
@@ -1515,7 +1565,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
 
   Try<Subprocess> s = subprocess(
       plugin.get(),
-      {networkConfig.config.type()},
+      {plugin.get()},
       Subprocess::PATH(networkConfigPath),
       Subprocess::PIPE(),
       Subprocess::PIPE(),

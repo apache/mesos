@@ -72,15 +72,6 @@ public:
       const ContainerID& containerId);
 
 private:
-  struct NetworkConfigInfo
-  {
-    // Path to CNI network configuration file.
-    std::string path;
-
-    // Protobuf of CNI network configuration.
-    cni::spec::NetworkConfig config;
-  };
-
   struct ContainerNetwork
   {
     // CNI network name.
@@ -117,9 +108,19 @@ private:
     Option<std::string> rootfs;
   };
 
+  // Reads each CNI config present in `configDir`, validates if the
+  // `plugin` is present in the search path associated with
+  // `pluginDir` and adds the CNI network config to `networkConfigs`
+  // if the validation passes. If there is an error while reading the
+  // CNI config, or if the plugin is not found, we log an error and the
+  // CNI network config is not added to `networkConfigs`.
+  static Try<hashmap<std::string, std::string>> loadNetworkConfigs(
+      const std::string& configDir,
+      const std::string& pluginDir);
+
   NetworkCniIsolatorProcess(
       const Flags& _flags,
-      const hashmap<std::string, NetworkConfigInfo>& _networkConfigs,
+      const hashmap<std::string, std::string>& _networkConfigs,
       const Option<std::string>& _rootDir = None(),
       const Option<std::string>& _pluginDir = None())
     : ProcessBase(process::ID::generate("mesos-network-cni-isolator")),
@@ -173,8 +174,9 @@ private:
 
   const Flags flags;
 
-  // CNI network configurations keyed by network name.
-  hashmap<std::string, NetworkConfigInfo> networkConfigs;
+  // A map storing the path to CNI network configuration files keyed
+  // on the network name.
+  hashmap<std::string, std::string> networkConfigs;
 
   // CNI network information root directory.
   const Option<std::string> rootDir;
