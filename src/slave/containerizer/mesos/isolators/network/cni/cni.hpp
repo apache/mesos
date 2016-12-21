@@ -172,6 +172,21 @@ private:
       const ContainerID& containerId,
       const std::list<process::Future<Nothing>>& detaches);
 
+  // Searches the `networkConfigs` hashmap for a CNI network. If the
+  // hashmap doesn't contain the network, will try to load all the CNI
+  // configs from `flags.network_cni_config_dir`, and will then
+  // perform another search of the `networkConfigs` hashmap to see if
+  // the missing network was present on disk.
+  Try<JSON::Object> getNetworkConfigJSON(const std::string& network);
+
+  // Given a network name and the path for the CNI network
+  // configuration file, reads the file, parses the JSON and
+  // validates the name of the network to which this configuration
+  // file belongs.
+  Try<JSON::Object> getNetworkConfigJSON(
+      const std::string& network,
+      const std::string& path);
+
   const Flags flags;
 
   // A map storing the path to CNI network configuration files keyed
