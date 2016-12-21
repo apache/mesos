@@ -17,6 +17,9 @@
 
 #include <string>
 
+#include <stout/error.hpp>
+#include <stout/try.hpp>
+
 
 namespace os {
 

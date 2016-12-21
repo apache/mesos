@@ -17,8 +17,6 @@
 #ifndef __STOUT_OS_POSIX_SU_HPP__
 #define __STOUT_OS_POSIX_SU_HPP__
 
-#include <string>
-
 #include <errno.h>
 #include <grp.h>
 #include <limits.h>
@@ -26,6 +24,9 @@
 #include <unistd.h>
 
 #include <sys/syscall.h>
+
+#include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/none.hpp>

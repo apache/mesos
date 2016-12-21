@@ -13,6 +13,7 @@
 #ifndef __STOUT_OS_POSIX_SOCKET_HPP__
 #define __STOUT_OS_POSIX_SOCKET_HPP__
 
+#include <errno.h>
 #include <unistd.h>
 
 #include <sys/socket.h>
