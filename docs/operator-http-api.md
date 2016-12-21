@@ -10,21 +10,21 @@ Mesos 1.0.0 added **experimental** support for v1 Operator HTTP API.
 
 ## Overview
 
-The base URL at `/api/v1` is utilized as the single endpoint on both masters and agents for performing operator related operations.
+Both masters and agents provide the `/api/v1` endpoint as the base URL for performing operator-related operations.
 
-Similar to the [Scheduler](scheduler-http-api.md) and [Executor](executor-http-api.md) HTTP APIs, the endpoints only accept HTTP POST requests. The request body should be encoded in JSON (**Content-Type: application/json**) or protobuf (**Content-Type: application/x-protobuf**).
+Similar to the [Scheduler](scheduler-http-api.md) and [Executor](executor-http-api.md) HTTP APIs, the operator endpoints only accept HTTP POST requests. The request body should be encoded in JSON (**Content-Type: application/json**) or Protobuf (**Content-Type: application/x-protobuf**).
 
-For requests that Mesos can answer synchronously and immediately, an HTTP response with status **200 OK**, possibly including response body encoded in JSON or Protobuf is sent. The encoding depends on the **Accept** header present in the request (default is JSON). Also, note that responses will be gzip compressed if **Accept-Encoding** header is set to "gzip".
+For requests that Mesos can answer synchronously and immediately, an HTTP response will be sent with status **200 OK**, possibly including a response body encoded in JSON or Protobuf. The encoding depends on the **Accept** header present in the request (the default encoding is JSON). Responses will be gzip compressed if the **Accept-Encoding** header is set to "gzip".
 
-For requests that require the master to process the request asynchronously (e.g., `RESERVE_RESOURCES`), an HTTP response with status **202 Accepted** is sent. For the requests that result in a never ending stream of events (`SUBSCRIBE`), a streaming HTTP response with [RecordIO](scheduler-http-api.md#recordio-response-format) encoding is sent. Currently, gzip compression is not supported for streaming response.
+For requests that require asynchronous processing (e.g., `RESERVE_RESOURCES`), an HTTP response will be sent with status **202 Accepted**. For requests that result in a stream of events (`SUBSCRIBE`), a streaming HTTP response with [RecordIO](scheduler-http-api.md#recordio-response-format) encoding is sent. Currently, gzip compression is not supported for streaming responses.
 
 ## Master API
 
-This API contains all the calls accepted by the master. The canonical source of this information is [master.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/master/master.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). These calls are typically made by human operators, tooling or services (e.g., Mesos WebUI). While schedulers can make these calls as well, it is expected for those to use the [Scheduler HTTP API](scheduler-http-api.md).
+This API contains all the calls accepted by the master. The canonical source of this information is [master.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/master/master.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). These calls are typically made by human operators, tooling or services (e.g., Mesos WebUI). While schedulers can make these calls as well, schedulers are expected to use the [Scheduler HTTP API](scheduler-http-api.md).
 
 ## Agent API
 
-This API contains all the calls accepted by the agent. The canonical source of this information is [agent.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/agent/agent.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). These calls are typically made by human operators, tooling or services (e.g., Mesos WebUI). While executors can make these calls as well, it is expected for those to use the [Executor HTTP API](executor-http-api.md).
+This API contains all the calls accepted by the agent. The canonical source of this information is [agent.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/agent/agent.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). These calls are typically made by human operators, tooling or services (e.g., Mesos WebUI). While executors can make these calls as well, executors are expected to use the [Executor HTTP API](executor-http-api.md).
 
 
 ## Calls and Responses
@@ -43,7 +43,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”		: “GET_VERSION”
+  “type”        : “GET_VERSION”
 }
 
 
@@ -54,10 +54,10 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”    : GET_VERSION,
+  "type"    : "GET_VERSION",
 
-  “get_version” : {
-    “version_info” : {
+  "get_version" : {
+    "version_info" : {
       "version" : "1.0.0",
       "build_date" : "2016-06-24 23:18:37",
       "build_time" : 1466810317,
@@ -80,16 +80,13 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”		: “SET_LOGGING_LEVEL”,
+  "type"        : "SET_LOGGING_LEVEL",
 
- “set_logging_level” : {
-
-    “level” : 1,
-
+  "set_logging_level" : {
+    "level" : 1,
     "duration" : {
       "nanoseconds" : 1224553
     }
-
   }
 }
 
@@ -113,7 +110,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "type": "SUBSCRIBE",
+  "type": "SUBSCRIBE"
 }
 
 SUBSCRIBE Response Event (JSON):
@@ -127,11 +124,8 @@ Transfer-Encoding: chunked
   "type": "SUBSCRIBED",
 
   "subscribed" : {
-
     "get_state" : {...}
-
   }
-
 }
 <more events>
 ```

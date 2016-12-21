@@ -222,30 +222,35 @@ def dump_index_markdown(master_help, agent_help):
 
 Below is a list of HTTP endpoints available for a given Mesos process.
 
-Depending on your configuration, some subset of these endpoints will
-be available on your Mesos master or agent. Additionally, a `/help`
+Depending on your configuration, some subset of these endpoints will be
+available on your Mesos master or agent. Additionally, a `/help`
 endpoint will be available that displays help similar to what you see
 below.
 
-** NOTE: ** The documentation for these endpoints is auto-generated
-from strings stored in the Mesos source code. See
-support/generate-endpoint-help.py.
+** NOTE: ** If you are using Mesos 1.1 or later, we recommend using the
+new [v1 Operator HTTP API](../operator-http-api.md) instead of the
+unversioned REST endpoints listed below. These endpoints will be
+deprecated in the future.
+
+
+** NOTE: ** The documentation for these endpoints is auto-generated from
+the Mesos source code. See `support/generate-endpoint-help.py`.
 
 ## Master Endpoints ##
 
-Below is a set of endpoints available on a Mesos master. These
-endpoints are reachable at the address http://ip:port/endpoint.
+Below are the endpoints that are available on a Mesos master. These
+endpoints are reachable at the address `http://ip:port/endpoint`.
 
-For example, http://master.com:5050/files/browse
+For example, `http://master.com:5050/files/browse`.
 
 %s
 
 ## Agent Endpoints ##
 
-Below is a set of endpoints available on a Mesos agent. These
-endpoints are reachable at the address http://ip:port/endpoint.
+Below are the endpoints that are available on a Mesos agent. These
+endpoints are reachable at the address `http://ip:port/endpoint`.
 
-For example, http://agent.com:5051/files/browse
+For example, `http://agent.com:5051/files/browse`.
 
 %s
 """
