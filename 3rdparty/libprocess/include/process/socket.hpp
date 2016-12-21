@@ -26,6 +26,7 @@
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
@@ -400,6 +401,7 @@ public:
         case Shutdown::WRITE: return SHUT_WR;
         case Shutdown::READ_WRITE: return SHUT_RDWR;
       }
+      UNREACHABLE();
     }();
 
     return impl->shutdown(how);

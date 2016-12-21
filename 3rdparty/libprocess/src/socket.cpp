@@ -22,6 +22,7 @@
 #include <process/ssl/flags.hpp>
 
 #include <stout/os.hpp>
+#include <stout/unreachable.hpp>
 
 #ifdef USE_SSL_SOCKET
 #include "libevent_ssl_socket.hpp"
@@ -44,6 +45,7 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int s, Kind kind)
       return LibeventSSLSocketImpl::create(s);
 #endif
   }
+  UNREACHABLE();
 }
 
 
@@ -58,6 +60,7 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(
       case Address::Family::UNIX: return AF_UNIX;
 #endif // __WINDOWS__
     }
+    UNREACHABLE();
   }();
 
   // Supported in Linux >= 2.6.27.
