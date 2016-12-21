@@ -390,7 +390,7 @@ public:
   void checkDiskUsage();
 
   // Recovers the slave, status update manager and isolator.
-  process::Future<Nothing> recover(const Result<state::State>& state);
+  process::Future<Nothing> recover(const Try<state::State>& state);
 
   // This is called after 'recover()'. If 'flags.reconnect' is
   // 'reconnect', the slave attempts to reconnect to any old live

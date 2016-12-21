@@ -52,19 +52,18 @@ using std::string;
 using std::max;
 
 
-Result<State> recover(const string& rootDir, bool strict)
+Try<State> recover(const string& rootDir, bool strict)
 {
   LOG(INFO) << "Recovering state from '" << rootDir << "'";
+
+  State state;
 
   // We consider the absence of 'rootDir' to mean that this is either
   // the first time this slave was started or this slave was started after
   // an upgrade (--recover=cleanup).
   if (!os::exists(rootDir)) {
-    return None();
+    return state;
   }
-
-  // Now, start to recover state from 'rootDir'.
-  State state;
 
   // Recover resources regardless whether the host has rebooted.
   Try<ResourcesState> resources = ResourcesState::recover(rootDir, strict);

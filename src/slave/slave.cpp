@@ -5181,18 +5181,14 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
 }
 
 
-Future<Nothing> Slave::recover(const Result<state::State>& state)
+Future<Nothing> Slave::recover(const Try<state::State>& state)
 {
   if (state.isError()) {
     return Failure(state.error());
   }
 
-  Option<ResourcesState> resourcesState;
-  Option<SlaveState> slaveState;
-  if (state.isSome()) {
-    resourcesState = state.get().resources;
-    slaveState = state.get().slave;
-  }
+  Option<ResourcesState> resourcesState = state->resources;
+  Option<SlaveState> slaveState = state->slave;
 
   // Recover checkpointed resources.
   // NOTE: 'resourcesState' is None if the slave rootDir does not
