@@ -85,8 +85,7 @@ EXTRA_DIST =
 PHONY_TARGETS =
 LDADD =
 
-# Produce position independent executables so that we better take advantage of ASLR.
-AM_LDFLAGS = -pie
+AM_LDFLAGS =
 
 # Use -Wl,--as-needed to AM_LDFLAGS since we link against all the
 # libraries programs may depend upon, not the exact one. --as-needed
@@ -108,6 +107,8 @@ AM_CXXFLAGS += -Wformat-security
 
 # We will also have much more hardened/secured binaries and libraries.
 if ENABLE_HARDENING
+# Produce position independent executables so that we better take advantage of ASLR.
+AM_LDFLAGS += -pie
 # Protect many of the functions with stack guards
 # (either -fstack-protector-strong or -fstack-protector depending on compiler support).
 AM_CXXFLAGS += @STACK_PROTECTOR@
