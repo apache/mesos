@@ -75,11 +75,14 @@ Try<State> recover(const string& rootDir, bool strict)
   // resources checkpoint file.
   state.resources = resources.get();
 
-  // Did the machine reboot? No need to recover slave state if the
-  // machine has rebooted.
-  if (os::exists(paths::getBootIdPath(rootDir))) {
-    Try<string> read = os::read(paths::getBootIdPath(rootDir));
-    if (read.isSome()) {
+  // If the machine has rebooted, skip recovering slave state.
+  const string& bootIdPath = paths::getBootIdPath(rootDir);
+  if (os::exists(bootIdPath)) {
+    Try<string> read = os::read(bootIdPath);
+    if (read.isError()) {
+      LOG(WARNING) << "Failed to read '"
+                   << bootIdPath << "': " << read.error();
+    } else {
       Try<string> id = os::bootId();
       CHECK_SOME(id);
 
