@@ -25,8 +25,6 @@ if ENABLE_HARDENING
 # Protect many of the functions with stack guards
 # (either -fstack-protector-strong or -fstack-protector depending on compiler support).
 AM_CXXFLAGS += @STACK_PROTECTOR@
-# Better protect against potential buffer overflow attacks.
-AM_CXXFLAGS += -D_FORTIFY_SOURCE=2
 # Produce position independent code when appropriate.
 AM_CXXFLAGS += -fPIC -fPIE
 endif
