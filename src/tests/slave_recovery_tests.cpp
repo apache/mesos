@@ -242,6 +242,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   // Capture the executor pids.
   AWAIT_READY(registerExecutorMessage);
+
   RegisterExecutorMessage registerExecutor;
   registerExecutor.ParseFromString(registerExecutorMessage.get().body);
   ExecutorID executorId = registerExecutor.executor_id();
@@ -400,9 +401,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  // Capture the executor pid.
   AWAIT_READY(registerExecutor);
-  UPID executorPid = registerExecutor.get().from;
 
   // Wait for the status update drop.
   AWAIT_READY(update);
@@ -774,8 +773,8 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   slave.get()->terminate();
 
-  Future<Message> reregisterExecutorMessage =
-    FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
+  Future<ReregisterExecutorMessage> reregister =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -791,15 +790,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   ASSERT_SOME(slave);
 
   // Ensure the executor re-registers.
-  AWAIT_READY(reregisterExecutorMessage);
-  UPID executorPid = reregisterExecutorMessage.get().from;
-
-  ReregisterExecutorMessage reregister;
-  reregister.ParseFromString(reregisterExecutorMessage.get().body);
+  AWAIT_READY(reregister);
 
   // Executor should inform about the unacknowledged update.
-  EXPECT_EQ(1, reregister.updates_size());
-  const StatusUpdate& update = reregister.updates(0);
+  ASSERT_EQ(1, reregister->updates_size());
+  const StatusUpdate& update = reregister->updates(0);
   EXPECT_EQ(task.task_id(), update.status().task_id());
   EXPECT_EQ(TASK_RUNNING, update.status().state());
 
@@ -982,7 +977,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   // Stop the slave before the executor is registered.
   AWAIT_READY(registerExecutor);
-  UPID executorPid = registerExecutor.get().from;
 
   slave.get()->terminate();
 
@@ -1230,12 +1224,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   slave::state::FrameworkState frameworkState =
     state.get().slave.get().frameworks.get(frameworkId.get()).get();
 
-  EXPECT_EQ(1u, frameworkState.executors.size());
+  ASSERT_EQ(1u, frameworkState.executors.size());
 
   slave::state::ExecutorState executorState =
     frameworkState.executors.begin()->second;
 
-  EXPECT_EQ(1u, executorState.runs.size());
+  ASSERT_EQ(1u, executorState.runs.size());
 
   slave::state::RunState runState = executorState.runs.begin()->second;
 
@@ -2304,34 +2298,35 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
   // Capture the slave and framework ids.
-  SlaveID slaveId = offers1.get()[0].slave_id();
+  SlaveID slaveId1 = offers1.get()[0].slave_id();
   FrameworkID frameworkId = offers1.get()[0].framework_id();
 
   Future<Message> registerExecutorMessage =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  Future<Nothing> status;
+  Future<Nothing> runningStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureSatisfy(&status))
+    .WillOnce(FutureSatisfy(&runningStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers1.get()[0].id(), {task});
 
   // Capture the executor ID and PID.
   AWAIT_READY(registerExecutorMessage);
+
   RegisterExecutorMessage registerExecutor;
   registerExecutor.ParseFromString(registerExecutorMessage.get().body);
   ExecutorID executorId = registerExecutor.executor_id();
   UPID executorPid = registerExecutorMessage.get().from;
 
   // Wait for TASK_RUNNING update.
-  AWAIT_READY(status);
+  AWAIT_READY(runningStatus);
 
   // Capture the container ID.
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *containers.get().begin();
 
@@ -2341,7 +2336,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   // reboot.
   string pidPath = paths::getForkedPidPath(
         paths::getMetaRootDir(flags.work_dir),
-        slaveId,
+        slaveId1,
         frameworkId,
         executorId,
         containerId);
@@ -2364,8 +2359,8 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
       paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
       "rebooted! ;)"));
 
-  Future<RegisterSlaveMessage> registerSlave =
-    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+  Future<SlaveRegisteredMessage> slaveRegistered =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
   _containerizer = TypeParam::create(flags, true, &fetcher);
@@ -2380,12 +2375,24 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(registerSlave);
+  AWAIT_READY(slaveRegistered);
+
+  SlaveID slaveId2 = slaveRegistered.get().slave_id();
+
+  EXPECT_NE(slaveId1, slaveId2);
 
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
+
+  // The old agent ID is not removed (MESOS-5396).
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(0, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(0, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_registered"]);
 
   driver.stop();
   driver.join();
@@ -2442,8 +2449,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   SlaveID slaveId = offers1.get()[0].slave_id();
   FrameworkID frameworkId = offers1.get()[0].framework_id();
 
-  Future<Message> registerExecutorMessage =
-    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+  Future<RegisterExecutorMessage> registerExecutor =
+    FUTURE_PROTOBUF(RegisterExecutorMessage(), _, _);
 
   Future<Nothing> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2452,12 +2459,9 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   driver.launchTasks(offers1.get()[0].id(), {task});
 
-  // Capture the executor id and pid.
-  AWAIT_READY(registerExecutorMessage);
-  RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
-  ExecutorID executorId = registerExecutor.executor_id();
-  UPID executorPid = registerExecutorMessage.get().from;
+  // Capture the executor id.
+  AWAIT_READY(registerExecutor);
+  ExecutorID executorId = registerExecutor->executor_id();
 
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
@@ -2819,11 +2823,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  // Capture the executor pid.
   AWAIT_READY(registerExecutorMessage);
-  RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
-  UPID executorPid = registerExecutorMessage.get().from;
 
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
@@ -2831,7 +2831,9 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
 
-  slave.get()->terminate();
+  UPID slavePid = slave.get()->pid;
+
+  slave->reset();
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2840,7 +2842,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   // Spoof the registration attempt of a slave that failed recovery.
   // We do this because simply restarting the slave will result in a slave
   // with a different pid than the previous one.
-  post(slave.get()->pid, master.get()->pid, registerSlaveMessage.get());
+  post(slavePid, master.get()->pid, registerSlaveMessage.get());
 
   // Scheduler should get a TASK_LOST message.
   AWAIT_READY(status2);
@@ -2848,6 +2850,14 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_EQ(TASK_LOST, status2.get().state());
   EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2.get().source());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status2.get().reason());
+
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+  EXPECT_EQ(0, stats.values["master/slave_unreachable_scheduled"]);
+  EXPECT_EQ(0, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_registered"]);
 
   driver.stop();
   driver.join();
@@ -3202,12 +3212,12 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   slave::state::FrameworkState frameworkState =
     state.get().slave.get().frameworks.get(frameworkId.get()).get();
 
-  EXPECT_EQ(1u, frameworkState.executors.size());
+  ASSERT_EQ(1u, frameworkState.executors.size());
 
   slave::state::ExecutorState executorState =
     frameworkState.executors.begin()->second;
 
-  EXPECT_EQ(1u, executorState.runs.size());
+  ASSERT_EQ(1u, executorState.runs.size());
 
   slave::state::RunState runState = executorState.runs.begin()->second;
 
@@ -3796,7 +3806,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   ASSERT_SOME(slave1);
 
   AWAIT_READY(offers1);
-  EXPECT_EQ(1u, offers1.get().size());
+  ASSERT_FALSE(offers1->empty());
 
   // Launch a long running task in the first slave.
   TaskInfo task1 = createTask(offers1.get()[0], "sleep 1000");
@@ -3837,7 +3847,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_EQ(1u, offers2.get().size());
+  ASSERT_FALSE(offers2->empty());
 
   // Launch a long running task in each slave.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
@@ -4102,7 +4112,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -4194,7 +4204,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -4300,7 +4310,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 

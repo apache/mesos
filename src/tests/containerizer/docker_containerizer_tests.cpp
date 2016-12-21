@@ -2691,7 +2691,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   // Ensure the executor re-registers.
   AWAIT_READY(reregisterExecutorMessage);
-  UPID executorPid = reregisterExecutorMessage.get().from;
 
   ReregisterExecutorMessage reregister;
   reregister.ParseFromString(reregisterExecutorMessage.get().body);
@@ -2880,7 +2879,6 @@ TEST_F(DockerContainerizerTest,
 
   // Ensure the executor re-registers.
   AWAIT_READY(reregisterExecutorMessage);
-  UPID executorPid = reregisterExecutorMessage.get().from;
 
   ReregisterExecutorMessage reregister;
   reregister.ParseFromString(reregisterExecutorMessage.get().body);
