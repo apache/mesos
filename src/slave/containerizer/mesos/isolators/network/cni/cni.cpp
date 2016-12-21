@@ -243,93 +243,6 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
 }
 
 
-Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
-    const string& network,
-    const string& path)
-{
-  Try<string> read = os::read(path);
-  if (read.isError()) {
-    return Error(
-        "Failed to read CNI network configuration file: '" +
-        path + "': " + read.error());
-  }
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
-  if (parse.isError()) {
-    return Error(
-        "Failed to parse CNI network configuration file: '" +
-        path + "': " + parse.error());
-  }
-
-  Result<JSON::String> name = parse->at<JSON::String>("name");
-  if (!name.isSome()) {
-    return Error(
-        "Cannot determine the 'name' of the CNI network for this "
-        "configuration " +
-        (name.isNone() ? "'" : ("': " + name.error())));
-  }
-
-  // Verify the configuration is for this network
-  if (network != name->value) {
-    return Error(
-        "The current CNI configuration network('" + name->value +
-        "') does not match the network name: '" + network + "'");
-  }
-
-  return parse;
-}
-
-
-Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
-    const string& network)
-{
-  if (networkConfigs.contains(network)) {
-    // Make sure the JSON is valid.
-    Try<JSON::Object> config = getNetworkConfigJSON(
-        network,
-        networkConfigs[network]);
-
-    if (config.isError()) {
-      LOG(WARNING) << "Removing the network '" << network
-                   << "' from cache due to failure to validate "
-                   << "the configuration: " << config.error();
-
-      networkConfigs.erase(network);
-
-      // Fall-through and do a reload.
-    } else {
-      return config;
-    }
-  }
-
-  // Cache-miss.
-  Try<hashmap<string, string>> _networkConfigs = loadNetworkConfigs(
-      flags.network_cni_config_dir.get(),
-      flags.network_cni_plugins_dir.get());
-
-  if (_networkConfigs.isError()) {
-      return Error(
-          "Encountered error while loading CNI config during "
-          "a cache-miss for CNI network '" + network +"': " +
-          _networkConfigs.error());
-  }
-
-  networkConfigs = _networkConfigs.get();
-
-  // Do another search.
-  if (networkConfigs.contains(network)) {
-    // This is a best-effort retrieval of the CNI network config. So
-    // if it fails in this attempt just return the `Error` instead of
-    // trying to erase the network from cache. Deletion of the
-    // network, in case of an error, will happen on its own in the
-    // next attempt.
-    return getNetworkConfigJSON(network, networkConfigs[network]);
-  }
-
-  return Error("Unknown CNI network '" + network + "'");
-}
-
-
 Try<hashmap<string, string>> NetworkCniIsolatorProcess::loadNetworkConfigs(
     const string& configDir,
     const string& pluginDir)
@@ -1727,6 +1640,93 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
       "The CNI plugin '" + plugin + "' failed to detach container " +
       stringify(containerId) + " from CNI network '" + networkName +
       "': stdout='" + output.get() + "', stderr='" + error.get() + "'");
+}
+
+
+Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
+    const string& network,
+    const string& path)
+{
+  Try<string> read = os::read(path);
+  if (read.isError()) {
+    return Error(
+        "Failed to read CNI network configuration file: '" +
+        path + "': " + read.error());
+  }
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(read.get());
+  if (parse.isError()) {
+    return Error(
+        "Failed to parse CNI network configuration file: '" +
+        path + "': " + parse.error());
+  }
+
+  Result<JSON::String> name = parse->at<JSON::String>("name");
+  if (!name.isSome()) {
+    return Error(
+        "Cannot determine the 'name' of the CNI network for this "
+        "configuration " +
+        (name.isNone() ? "'" : ("': " + name.error())));
+  }
+
+  // Verify the configuration is for this network
+  if (network != name->value) {
+    return Error(
+        "The current CNI configuration network('" + name->value +
+        "') does not match the network name: '" + network + "'");
+  }
+
+  return parse;
+}
+
+
+Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
+    const string& network)
+{
+  if (networkConfigs.contains(network)) {
+    // Make sure the JSON is valid.
+    Try<JSON::Object> config = getNetworkConfigJSON(
+        network,
+        networkConfigs[network]);
+
+    if (config.isError()) {
+      LOG(WARNING) << "Removing the network '" << network
+                   << "' from cache due to failure to validate "
+                   << "the configuration: " << config.error();
+
+      networkConfigs.erase(network);
+
+      // Fall-through and do a reload.
+    } else {
+      return config;
+    }
+  }
+
+  // Cache-miss.
+  Try<hashmap<string, string>> _networkConfigs = loadNetworkConfigs(
+      flags.network_cni_config_dir.get(),
+      flags.network_cni_plugins_dir.get());
+
+  if (_networkConfigs.isError()) {
+      return Error(
+          "Encountered error while loading CNI config during "
+          "a cache-miss for CNI network '" + network +"': " +
+          _networkConfigs.error());
+  }
+
+  networkConfigs = _networkConfigs.get();
+
+  // Do another search.
+  if (networkConfigs.contains(network)) {
+    // This is a best-effort retrieval of the CNI network config. So
+    // if it fails in this attempt just return the `Error` instead of
+    // trying to erase the network from cache. Deletion of the
+    // network, in case of an error, will happen on its own in the
+    // next attempt.
+    return getNetworkConfigJSON(network, networkConfigs[network]);
+  }
+
+  return Error("Unknown CNI network '" + network + "'");
 }
 
 
