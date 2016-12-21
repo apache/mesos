@@ -439,10 +439,6 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
 
   hashmap<string, ContainerNetwork> containerNetworks;
   foreach (const string& networkName, networkNames.get()) {
-    if (!networkConfigs.contains(networkName)) {
-      return Error("Unknown CNI network name '" + networkName + "'");
-    }
-
     Try<list<string>> interfaces = paths::getInterfaces(
         rootDir.get(),
         containerId.value(),
