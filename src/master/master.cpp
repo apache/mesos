@@ -1861,7 +1861,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     const string failure = "Agent removal rate limit acquisition failed";
 
     acquire
-      .then(defer(self(), &Self::markUnreachableAfterFailover, slave))
+      .then(defer(self(), &Self::markUnreachableAfterFailover, slave.info()))
       .onFailed(lambda::bind(fail, failure, lambda::_1))
       .onDiscarded(lambda::bind(fail, failure, "discarded"));
 
@@ -1870,13 +1870,13 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 }
 
 
-Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
+Nothing Master::markUnreachableAfterFailover(const SlaveInfo& slave)
 {
   // The slave might have reregistered while we were waiting to
   // acquire the rate limit.
-  if (!slaves.recovered.contains(slave.info().id())) {
+  if (!slaves.recovered.contains(slave.id())) {
     LOG(INFO) << "Canceling transition of agent "
-              << slave.info().id() << " (" << slave.info().hostname() << ")"
+              << slave.id() << " (" << slave.hostname() << ")"
               << " to unreachable because it re-registered";
 
     ++metrics->slave_unreachable_canceled;
@@ -1884,17 +1884,17 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
   }
 
   // The slave might be in the process of reregistering.
-  if (slaves.reregistering.contains(slave.info().id())) {
+  if (slaves.reregistering.contains(slave.id())) {
     LOG(INFO) << "Canceling transition of agent "
-              << slave.info().id() << " (" << slave.info().hostname() << ")"
+              << slave.id() << " (" << slave.hostname() << ")"
               << " to unreachable because it is re-registering";
 
     ++metrics->slave_unreachable_canceled;
     return Nothing();
   }
 
-  LOG(WARNING) << "Agent " << slave.info().id()
-               << " (" << slave.info().hostname() << ") did not re-register"
+  LOG(WARNING) << "Agent " << slave.id()
+               << " (" << slave.hostname() << ") did not re-register"
                << " within " << flags.agent_reregister_timeout
                << " after master failover; marking it unreachable";
 
@@ -1902,13 +1902,13 @@ Nothing Master::markUnreachableAfterFailover(const Registry::Slave& slave)
 
   TimeInfo unreachableTime = protobuf::getCurrentTime();
 
-  slaves.markingUnreachable.insert(slave.info().id());
+  slaves.markingUnreachable.insert(slave.id());
 
   registrar->apply(Owned<Operation>(
-          new MarkSlaveUnreachable(slave.info(), unreachableTime)))
+          new MarkSlaveUnreachable(slave, unreachableTime)))
     .onAny(defer(self(),
                  &Self::_markUnreachableAfterFailover,
-                 slave.info(),
+                 slave,
                  unreachableTime,
                  lambda::_1));
 
