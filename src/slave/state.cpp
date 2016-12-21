@@ -28,14 +28,17 @@
 #include <stout/numify.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/bootid.hpp>
 #include <stout/os/close.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/ftruncate.hpp>
+#include <stout/os/ls.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
+#include <stout/os/stat.hpp>
 
 #include "messages/messages.hpp"
 
@@ -48,8 +51,8 @@ namespace slave {
 namespace state {
 
 using std::list;
-using std::string;
 using std::max;
+using std::string;
 
 
 Try<State> recover(const string& rootDir, bool strict)

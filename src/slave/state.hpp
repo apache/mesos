@@ -28,12 +28,11 @@
 
 #include <process/pid.hpp>
 
-#include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
-#include <stout/strings.hpp>
+#include <stout/try.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
