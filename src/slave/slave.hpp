@@ -796,6 +796,9 @@ private:
   // the master.
   process::Timer pingTimer;
 
+  // Timer for triggering agent (re)registration after detecting a new master.
+  process::Timer agentRegistrationTimer;
+
   // Root meta directory containing checkpointed data.
   const std::string metaDir;
 

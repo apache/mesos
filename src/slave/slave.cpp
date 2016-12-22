@@ -923,6 +923,11 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 
     LOG(INFO) << "New master detected at " << master.get();
 
+    // Cancel the pending registration timer to avoid spurious attempts
+    // at reregistration. `Clock::cancel` is idempotent, so this call
+    // is safe even if no timer is active or pending.
+    Clock::cancel(agentRegistrationTimer);
+
     if (state == TERMINATING) {
       LOG(INFO) << "Skipping registration because agent is terminating";
       return;
@@ -1133,6 +1138,11 @@ void Slave::registered(
       }
 
       state = RUNNING;
+
+      // Cancel the pending registration timer to avoid spurious attempts
+      // at reregistration. `Clock::cancel` is idempotent, so this call
+      // is safe even if no timer is active or pending.
+      Clock::cancel(agentRegistrationTimer);
 
       statusUpdateManager->resume(); // Resume status updates.
 
@@ -1493,7 +1503,11 @@ void Slave::doReliableRegistration(Duration maxBackoff)
   VLOG(1) << "Will retry registration in " << delay << " if necessary";
 
   // Backoff.
-  process::delay(delay, self(), &Slave::doReliableRegistration, maxBackoff * 2);
+  agentRegistrationTimer = process::delay(
+      delay,
+      self(),
+      &Slave::doReliableRegistration,
+      maxBackoff * 2);
 }
 
 

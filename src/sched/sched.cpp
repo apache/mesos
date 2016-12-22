@@ -336,6 +336,11 @@ protected:
       LOG(INFO) << "New master detected at " << master.get().pid();
       link(master.get().pid());
 
+      // Cancel the pending registration timer to avoid spurious attempts
+      // at reregistration. `Clock::cancel` is idempotent, so this call
+      // is safe even if no timer is active or pending.
+      Clock::cancel(frameworkRegistrationTimer);
+
 #ifdef HAS_AUTHENTICATION
       if (credential.isSome()) {
         // Authenticate with the master.
@@ -560,6 +565,11 @@ protected:
         }
 
         const FrameworkID& frameworkId = event.subscribed().framework_id();
+
+        // Cancel the pending registration timer to avoid spurious attempts
+        // at reregistration. `Clock::cancel` is idempotent, so this call
+        // is safe even if no timer is active or pending.
+        Clock::cancel(frameworkRegistrationTimer);
 
         // We match the existing registration semantics of the
         // driver, except for the 3rd case in MESOS-786 (since
@@ -859,7 +869,7 @@ protected:
     VLOG(1) << "Will retry registration in " << delay << " if necessary";
 
     // Backoff.
-    process::delay(
+    frameworkRegistrationTimer = process::delay(
         delay, self(), &Self::doReliableRegistration, maxBackoff * 2);
   }
 
@@ -1654,6 +1664,9 @@ private:
   MasterDetector* detector;
 
   const internal::scheduler::Flags flags;
+
+  // Timer for triggering registration of the framework with the master.
+  process::Timer frameworkRegistrationTimer;
 
   hashmap<OfferID, hashmap<SlaveID, UPID>> savedOffers;
   hashmap<SlaveID, UPID> savedSlavePids;

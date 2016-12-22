@@ -969,6 +969,13 @@ TEST_F(ReservationTest, MasterFailover)
   // slave will do a re-registration.
   detector.appoint(master2.get()->pid);
 
+  // Ensure agent registration is processed.
+  Clock::pause();
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  Clock::resume();
+
   // Wait for slave to confirm re-registration.
   AWAIT_READY(slaveReregistered);
 
