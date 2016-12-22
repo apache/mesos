@@ -1475,6 +1475,19 @@ ostream& operator<<(ostream& stream, const Volume& volume)
   return stream;
 }
 
+ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
+{
+  switch (source.type()) {
+  case Resource::DiskInfo::Source::MOUNT:
+    stream << ":mount:" << source.mount().root();
+    break;
+  case Resource::DiskInfo::Source::PATH:
+    stream << ":path:" << source.path().root();
+    break;
+  }
+
+  return stream;
+}
 
 ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
 {
@@ -1484,6 +1497,10 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
 
   if (disk.has_volume()) {
     stream << ":" << disk.volume();
+  }
+
+  if (disk.has_source()) {
+    stream << ":" << disk.source();
   }
 
   return stream;
