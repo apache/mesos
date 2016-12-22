@@ -940,11 +940,9 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 
     if (credential.isSome()) {
       // Authenticate with the master.
-      // TODO(adam-mesos): Consider adding an initial delay like we do
-      // for registration, to combat thundering herds on master failover.
       // TODO(vinod): Consider adding an "AUTHENTICATED" state to the
       // slave instead of "authenticate" variable.
-      authenticate();
+      delay(duration, self(), &Slave::authenticate);
     } else {
       // Proceed with registration without authentication.
       LOG(INFO) << "No credentials provided."
