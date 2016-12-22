@@ -2443,12 +2443,13 @@ endif
 #    path.
 #
 # TODO(tomxing): Remove this target once the
-# slave->agent rename is complete(MESOS-3782 & MESOS-5230).
+# slave->agent rename is complete (MESOS-3782 & MESOS-5230).
 copy-template-and-create-symlink:
-	cp $(DESTDIR)/$(pkgsysconfdir)/mesos-agent-env.sh.template \
-	  $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template &&\
-	cd $(DESTDIR)/$(includedir)/mesos && \
-	ln -sf agent slave
+	cd $(DESTDIR)/$(pkgsysconfdir) && \
+	  $(LN_S) mesos-agent-env.sh.template mesos-slave-env.sh.template
+	cd $(DESTDIR)/$(includedir)/mesos && $(LN_S) agent slave
+
+PHONY_TARGETS += copy-template-and-create-symlink
 
 # Install compatibility symlinks for modules that used to be in $(LIBDIR)
 # but are now in $(PKGMODULEDIR). We use install-data-hook because it
