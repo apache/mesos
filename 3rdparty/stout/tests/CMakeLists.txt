@@ -100,4 +100,4 @@ add_dependencies(${STOUT_TESTS_TARGET} ${STOUT_TEST_DEPENDENCIES})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME StoutTests COMMAND ./${STOUT_TESTS_TARGET})
+add_test(NAME StoutTests COMMAND ${STOUT_TESTS_TARGET})
