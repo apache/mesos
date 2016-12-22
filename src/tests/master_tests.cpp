@@ -2201,7 +2201,8 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
 
   // Step 2: Start a slave.
   StandaloneMasterDetector slaveDetector(master.get()->pid);
-  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector, agentFlags);
   ASSERT_SOME(slave);
 
   // Step 3: Start a scheduler.
@@ -2299,6 +2300,7 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
 
   slaveDetector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregisteredMessage);
 
   // The task should have returned to TASK_RUNNING. This is true even
@@ -2492,6 +2494,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregisteredMessage);
 
   // Satisfy the rate limit permit. Ensure a removal does not occur!

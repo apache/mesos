@@ -491,6 +491,8 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   driver.start();
 
   // Initially the framework will get all regular resources.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers1);
   EXPECT_NE(0u, offers1->size());
   EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
@@ -605,6 +607,8 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithDecreasedRevocable)
   driver.start();
 
   // Initially the framework will get all regular resources.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers1);
   EXPECT_NE(0u, offers1->size());
   EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
@@ -855,26 +859,27 @@ TEST_F(OversubscriptionTest, Reregistration)
 {
   loadFixedResourceEstimatorModule("cpus(*):2");
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.resource_estimator = FIXED_RESOURCE_ESTIMATOR_NAME;
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resource_estimator = FIXED_RESOURCE_ESTIMATOR_NAME;
 
   Future<Nothing> slaveRecover = FUTURE_DISPATCH(_, &Slave::recover);
 
   StandaloneMasterDetector detector;
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRecover);
 
   // Advance the clock for the slave to compute an estimate.
   Clock::pause();
-  Clock::advance(flags.oversubscribed_resources_interval);
+  Clock::advance(agentFlags.oversubscribed_resources_interval);
   Clock::settle();
 
   // Start a master, we expect the slave to send the update
   // message after registering!
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegistered =
@@ -885,6 +890,7 @@ TEST_F(OversubscriptionTest, Reregistration)
 
   detector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegistered);
   AWAIT_READY(update);
 
@@ -899,6 +905,8 @@ TEST_F(OversubscriptionTest, Reregistration)
 
   detector.appoint(master.get()->pid);
 
+  // Clock::settle();
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
   AWAIT_READY(update);
 }

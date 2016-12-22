@@ -851,6 +851,9 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  // Advance clock to trigger agent registration befor we HTTP POST.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
 
   Resources volume = createPersistentVolume(
@@ -886,7 +889,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   driver.start();
 
   Clock::settle();
-  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
 
@@ -912,7 +915,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, destroyResponse);
 
   Clock::settle();
-  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(rescindedOfferId);
 
@@ -1055,6 +1058,9 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  // Advance clock to trigger agent registration befor we HTTP POST.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
   // The failed creation attempt.
   {
     Resources volume = createPersistentVolume(
@@ -1111,7 +1117,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   driver.start();
 
   Clock::settle();
-  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
 
@@ -1270,6 +1276,9 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  // Advance clock to trigger agent registration befor we HTTP POST.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
   Resources volume = createPersistentVolume(
       Megabytes(64),
       "role1",
@@ -1315,7 +1324,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
   driver.start();
 
   Clock::settle();
-  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
 

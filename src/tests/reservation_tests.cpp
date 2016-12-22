@@ -1763,6 +1763,8 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   Clock::advance(masterFlags.allocation_interval);
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -1943,6 +1945,8 @@ TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
@@ -2046,6 +2050,8 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());

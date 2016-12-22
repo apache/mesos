@@ -1471,6 +1471,11 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  // Advance the clock to trigger both agent registration and a batch
+  // allocation.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
 
   Resources dynamicallyReservedWithNoPrincipal = unreserved.flatten(

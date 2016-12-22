@@ -626,6 +626,12 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   // slave will do a re-registration.
   detector.appoint(master.get()->pid);
 
+  // Ensure that agent re-registration occurs.
+  Clock::pause();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  Clock::resume();
+
   AWAIT_READY(slaveReregistered);
 
   AWAIT_READY(offers2);
@@ -766,6 +772,9 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   driver.start();
 
   AWAIT_READY(frameworkId);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
@@ -1038,6 +1047,9 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver1.start();
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers1);
   EXPECT_FALSE(offers1.get().empty());

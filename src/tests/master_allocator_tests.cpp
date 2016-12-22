@@ -1615,6 +1615,12 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
 
     Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
     ASSERT_SOME(slave);
+
+    // Advance clock to force agents to register.
+    Clock::advance(flags.authentication_backoff_factor);
+    Clock::advance(flags.registration_backoff_factor);
+    Clock::settle();
+
     slaves.push_back(slave.get());
     AWAIT_READY(addSlave);
   }

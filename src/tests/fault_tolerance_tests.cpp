@@ -795,7 +795,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 
   StandaloneMasterDetector slaveDetector(master.get()->pid);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector, agentFlags);
   ASSERT_SOME(slave);
 
   // Create a detector for the scheduler driver because we want the
@@ -815,9 +816,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
   // (re-)registration should occur.
   Clock::pause();
 
-  process::Time registerTime = Clock::now();
-
   driver.start();
+
+  // Trigger authentication, registration, and offers to the agent.
+  // Once we advance the clock, taking `Clock::now` gives us the
+  // precise registration time.
+  Clock::advance(agentFlags.authentication_backoff_factor);
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  process::Time registerTime = Clock::now();
 
   AWAIT_READY(resourceOffers);
 

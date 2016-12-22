@@ -1024,14 +1024,17 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 {
   // Start a master.
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Start a slave.
+  slave::Flags agentFlags = CreateSlaveFlags();
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
   StandaloneMasterDetector slaveDetector(master.get()->pid);
-  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector, &containerizer);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&slaveDetector, &containerizer, agentFlags);
   ASSERT_SOME(slave);
 
   // Start a scheduler.
@@ -1062,6 +1065,11 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   // Pause the clock to avoid status update retries.
   Clock::pause();
+
+  // Advance clock to trigger agent registration and offers.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
 
   // Wait until TASK_RUNNING is sent to the master.
   AWAIT_READY(statusUpdateMessage);
