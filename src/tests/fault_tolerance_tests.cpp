@@ -839,7 +839,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 
   Future<Nothing> resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureSatisfy(&resourceOffers2));
+    .WillOnce(FutureSatisfy(&resourceOffers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(AtMost(1));
