@@ -176,9 +176,15 @@ private:
   static hashmap<std::string, Parameters> moduleParameters;
 
   // A list of dynamic libraries to keep the object from getting
-  // destructed. Destroying the DynamicLibrary object could result in
-  // unloading the library from the process memory.
-  static hashmap<std::string, process::Owned<DynamicLibrary>> dynamicLibraries;
+  // destructed.
+  // NOTE: We do leak loaded dynamic libraries. This is to allow
+  // modules to make use of e.g., libprocess which otherwise could
+  // lead to situations where libprocess (which we depend on ourself)
+  // is unloaded before the destructor of below `static` is called.
+  // Unloading the dynamic library could then lead to the linker
+  // attempting to unload the libprocess loaded from the module which
+  // is not there anymore.
+  static hashmap<std::string, DynamicLibrary*> dynamicLibraries;
 
   // Module to library name mapping.
   static hashmap<std::string, std::string> moduleLibraries;

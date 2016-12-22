@@ -53,7 +53,7 @@ hashmap<string, string> ModuleManager::kindToVersion;
 hashmap<string, ModuleBase*> ModuleManager::moduleBases;
 hashmap<string, Parameters> ModuleManager::moduleParameters;
 hashmap<string, string> ModuleManager::moduleLibraries;
-hashmap<string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
+hashmap<string, DynamicLibrary*> ModuleManager::dynamicLibraries;
 
 
 void ModuleManager::initialize()
@@ -288,7 +288,7 @@ Try<Nothing> ModuleManager::loadManifest(const Modules& modules)
               "': " + result.error());
         }
 
-        dynamicLibraries[libraryName] = dynamicLibrary;
+        dynamicLibraries[libraryName] = dynamicLibrary.release();
       }
 
       // Load module manifests.
