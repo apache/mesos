@@ -22,6 +22,7 @@ All Issues:
   * [MESOS-6002] - The whiteout file cannot be removed correctly using aufs backend.
   * [MESOS-6142] - Frameworks may RESERVE for an arbitrary role.
   * [MESOS-6360] - The handling of whiteout files in provisioner is not correct.
+  * [MESOS-6411] - Add documentation for CNI port-mapper plugin.
   * [MESOS-6526] - `mesos-containerizer launch --environment` exposes executor env vars in `ps`.
   * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets
 
