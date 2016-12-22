@@ -3443,8 +3443,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunchFalse)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
+  slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer);
+    StartSlave(detector.get(), &containerizer, agentFlags);
 
   ASSERT_SOME(slave);
 
@@ -3468,6 +3469,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunchFalse)
     .Times(1);
 
   driver.start();
+
+  // Trigger authentication and registration for the agent.
+  Clock::advance(agentFlags.authentication_backoff_factor);
+  Clock::advance(agentFlags.registration_backoff_factor);
 
   AWAIT_READY(executorRegistered);
 
@@ -3566,8 +3571,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunch)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
+  slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer);
+    StartSlave(detector.get(), &containerizer, agentFlags);
 
   ASSERT_SOME(slave);
 
@@ -3591,6 +3597,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunch)
     .Times(1);
 
   driver.start();
+
+  // Trigger authentication and registration for the agent.
+  Clock::advance(agentFlags.authentication_backoff_factor);
+  Clock::advance(agentFlags.registration_backoff_factor);
 
   AWAIT_READY(executorRegistered);
 
@@ -3687,8 +3697,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
+  slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer);
+    StartSlave(detector.get(), &containerizer, agentFlags);
 
   ASSERT_SOME(slave);
 
@@ -3710,6 +3721,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(exec, launchTask(_, _));
 
   driver.start();
+
+  // Trigger authentication and registration for the agent.
+  Clock::advance(agentFlags.authentication_backoff_factor);
+  Clock::advance(agentFlags.registration_backoff_factor);
 
   AWAIT_READY(executorRegistered);
 
