@@ -94,7 +94,7 @@ using std::string;
 using std::vector;
 
 
-class Flags : public slave::Flags
+class Flags : public virtual slave::Flags
 {
 public:
   Flags()

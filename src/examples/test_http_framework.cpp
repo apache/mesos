@@ -377,7 +377,7 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 }
 
 
-class Flags : public mesos::internal::logging::Flags
+class Flags : public virtual mesos::internal::logging::Flags
 {
 public:
   Flags()
