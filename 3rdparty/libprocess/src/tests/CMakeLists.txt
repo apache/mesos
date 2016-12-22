@@ -84,4 +84,4 @@ add_dependencies(${PROCESS_TESTS_TARGET} test-linkee)
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME ProcessTests COMMAND ./${PROCESS_TESTS_TARGET})
+add_test(NAME ProcessTests COMMAND ${PROCESS_TESTS_TARGET})
