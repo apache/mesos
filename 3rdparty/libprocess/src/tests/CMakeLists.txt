@@ -64,7 +64,7 @@ include_directories(${PROCESS_TEST_INCLUDE_DIRS})
 ###########################################################################
 link_directories(${PROCESS_TEST_LIB_DIRS})
 
-# THE PROCESS TEST EXECUTABLE (generates, e.g., process_tests, etc., on Linux).
+# THE PROCESS TEST EXECUTABLE (generates, e.g., libprocess-tests, etc., on Linux).
 ###############################################################################
 add_executable(${PROCESS_TESTS_TARGET} ${PROCESS_TESTS_SRC})
 

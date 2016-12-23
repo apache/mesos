@@ -17,7 +17,7 @@
 include(StoutTestsConfigure)
 
 set(
-  PROCESS_TESTS_TARGET process_tests
+  PROCESS_TESTS_TARGET libprocess-tests
   CACHE STRING "Target we use to refer to tests for the process library")
 
 # DEFINE PROCESS TEST LIBRARY DEPENDENCIES. Tells the process library build
