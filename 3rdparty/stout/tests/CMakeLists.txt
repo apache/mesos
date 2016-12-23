@@ -86,7 +86,7 @@ include_directories(${STOUT_TEST_INCLUDE_DIRS})
 ###########################################################################
 link_directories(${STOUT_TEST_LIB_DIRS})
 
-# THE STOUT TEST EXECUTABLE (generates, e.g., stout_tests, etc., on Linux).
+# THE STOUT TEST EXECUTABLE (generates, e.g., stout-tests, etc., on Linux).
 ###########################################################################
 add_executable(${STOUT_TESTS_TARGET} ${STOUT_TESTS_SRC})
 

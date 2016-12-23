@@ -32,7 +32,7 @@
 #     having to also export the variables for test-only dependencies.
 
 set(
-  STOUT_TESTS_TARGET stout_tests
+  STOUT_TESTS_TARGET stout-tests
   CACHE STRING "Target we use to refer to tests for the stout library")
 
 # COMPILER CONFIGURATION.
