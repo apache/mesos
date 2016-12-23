@@ -229,7 +229,7 @@ include_directories(${MESOS_TESTS_INCLUDE_DIRS})
 ######################################################################
 link_directories(${MESOS_TESTS_LIB_DIRS})
 
-# THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout_tests, etc., on Linux).
+# THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout-tests, etc., on Linux).
 #################################$###############################################
 add_executable(${MESOS_TESTS_TARGET} ${MESOS_TESTS_SRC})
 add_executable(${TEST_HELPER_TARGET} ${TEST_HELPER_SRC})
