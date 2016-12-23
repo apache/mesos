@@ -110,7 +110,7 @@ public:
       const ContainerID& containerId)
   {
     return ContainerStatus();
-  };
+  }
 
   // Clean up a terminated container. This is called after the
   // executor and all processes in the container have terminated.
