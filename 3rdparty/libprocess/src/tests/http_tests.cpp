@@ -55,7 +55,9 @@
 #include "encoder.hpp"
 
 namespace authentication = process::http::authentication;
+namespace ID = process::ID;
 namespace http = process::http;
+namespace inet = process::network::inet;
 namespace inet4 = process::network::inet4;
 namespace network = process::network;
 #ifndef __WINDOWS__
@@ -82,9 +84,6 @@ using process::READONLY_HTTP_AUTHENTICATION_REALM;
 using process::READWRITE_HTTP_AUTHENTICATION_REALM;
 
 using process::http::URL;
-
-using process::network::inet::Address;
-using process::network::inet::Socket;
 
 using std::string;
 using std::vector;
@@ -238,10 +237,10 @@ TEST_P(HTTPTest, Endpoints)
   Http http;
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
-  Try<Socket> create = Socket::create();
+  Try<inet::Socket> create = inet::Socket::create();
   ASSERT_SOME(create);
 
-  Socket socket = create.get();
+  inet::Socket socket = create.get();
 
   AWAIT_READY(socket.connect(http.process->self().address));
 
@@ -2097,13 +2096,13 @@ class HttpServeTest : public TemporaryDirectoryTest {};
 
 TEST_F(HttpServeTest, Pipelining)
 {
-  Try<Socket> server = Socket::create();
+  Try<inet::Socket> server = inet::Socket::create();
   ASSERT_SOME(server);
 
   ASSERT_SOME(server->bind(inet4::Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> any_address = server->address();
+  Try<inet::Address> any_address = server->address();
   ASSERT_SOME(any_address);
 
   // Connect to the IP from the libprocess library, but use the port
@@ -2116,9 +2115,9 @@ TEST_F(HttpServeTest, Pipelining)
   // invalid address, except when used to resolve a host's address
   // for the first time.
   // See: https://tools.ietf.org/html/rfc1122#section-3.2.1.3
-  Address address(process::address().ip, any_address->port);
+  inet::Address address(process::address().ip, any_address->port);
 
-  Future<Socket> accept = server->accept();
+  Future<inet::Socket> accept = server->accept();
 
   Future<http::Connection> connect =
     http::connect(address, http::Scheme::HTTP);
@@ -2127,7 +2126,7 @@ TEST_F(HttpServeTest, Pipelining)
   http::Connection connection = connect.get();
 
   AWAIT_READY(accept);
-  Socket socket = accept.get();
+  inet::Socket socket = accept.get();
 
   class Handler
   {
@@ -2205,13 +2204,13 @@ TEST_F(HttpServeTest, Pipelining)
 
 TEST_F(HttpServeTest, Discard)
 {
-  Try<Socket> server = Socket::create();
+  Try<inet::Socket> server = inet::Socket::create();
   ASSERT_SOME(server);
 
   ASSERT_SOME(server->bind(inet4::Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> any_address = server->address();
+  Try<inet::Address> any_address = server->address();
   ASSERT_SOME(any_address);
 
   // Connect to the IP from the libprocess library, but use the port
@@ -2220,9 +2219,9 @@ TEST_F(HttpServeTest, Discard)
   // socket above.
   //
   // See the comment in `HttpServeTest.Pipelining` for more details.
-  Address address(process::address().ip, any_address->port);
+  inet::Address address(process::address().ip, any_address->port);
 
-  Future<Socket> accept = server->accept();
+  Future<inet::Socket> accept = server->accept();
 
   Future<http::Connection> connect =
     http::connect(address, http::Scheme::HTTP);
@@ -2231,7 +2230,7 @@ TEST_F(HttpServeTest, Discard)
   http::Connection connection = connect.get();
 
   AWAIT_READY(accept);
-  Socket socket = accept.get();
+  inet::Socket socket = accept.get();
 
   class Handler
   {
