@@ -647,3 +647,104 @@ TEST(FutureTest, AbandonedChain)
 
   AWAIT_EXPECT_ABANDONED(future);
 }
+
+
+TEST(FutureTest, RecoverDiscarded)
+{
+  Promise<int> promise;
+
+  Future<string> future = promise.future()
+    .then([]() -> string {
+      return "hello";
+    })
+    .recover([](const Future<string>&) -> string {
+      return "world";
+    });
+
+  promise.discard();
+
+  AWAIT_EQ("world", future);
+}
+
+
+TEST(FutureTest, RecoverFailed)
+{
+  Promise<int> promise;
+
+  Future<string> future = promise.future()
+    .then([]() -> string {
+      return "hello";
+    })
+    .recover([](const Future<string>&) -> string {
+      return "world";
+    });
+
+  promise.fail("Failure");
+
+  AWAIT_EQ("world", future);
+}
+
+
+TEST(FutureTest, RecoverAbandoned)
+{
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  Future<string> future = promise->future()
+    .then([]() -> string {
+      return "hello";
+    })
+    .recover([](const Future<string>&) -> string {
+      return "world";
+    });
+
+  promise.reset();
+
+  AWAIT_EQ("world", future);
+}
+
+
+// Tests that we don't propagate a discard through a `recover()` but a
+// discard can still be called and propagate later.
+TEST(FutureTest, RecoverDiscard)
+{
+  Promise<int> promise1;
+  Promise<string> promise2;
+  Promise<string> promise3;
+  Promise<string> promise4;
+
+  Future<string> future = promise1.future()
+    .then([]() -> string {
+      return "hello";
+    })
+    .recover([&](const Future<string>&) {
+      return promise2.future()
+        .then([&]() {
+          return promise3.future()
+            .then([&]() {
+              return promise4.future();
+            });
+        });
+    });
+
+  future.discard();
+
+  promise1.discard();
+
+  EXPECT_FALSE(promise2.future().hasDiscard());
+
+  promise2.set(string("not world"));
+
+  EXPECT_FALSE(promise3.future().hasDiscard());
+
+  promise3.set(string("also not world"));
+
+  EXPECT_FALSE(promise4.future().hasDiscard());
+
+  future.discard();
+
+  EXPECT_TRUE(promise4.future().hasDiscard());
+
+  promise4.set(string("world"));
+
+  AWAIT_EQ("world", future);
+}

@@ -438,6 +438,19 @@ public:
     return then(std::forward<F>(f), Prefer());
   }
 
+  // Installs callbacks that get executed if this future is abandoned,
+  // is discarded, or failed.
+  template <typename F>
+  Future<T> recover(F&& f) const;
+
+  template <typename F>
+  Future<T> recover(_Deferred<F>&& deferred) const
+  {
+    return recover(
+        std::move(deferred)
+          .operator std::function<Future<T>(const Future<T>&)>());
+  }
+
   // TODO(benh): Considering adding a `rescue` function for rescuing
   // abandoned futures.
 
@@ -670,6 +683,8 @@ public:
   Future<T> future() const;
 
 private:
+  template <typename U>
+  friend class Future;
   template <typename U>
   friend void internal::discarded(Future<U> future);
 
@@ -1576,6 +1591,48 @@ Future<X> Future<T>::then(lambda::function<X(const T&)> f) const
 
   onAbandoned([=]() {
     promise->future().abandon();
+  });
+
+  // Propagate discarding up the chain. To avoid cyclic dependencies,
+  // we keep a weak future in the callback.
+  promise->future().onDiscard(
+      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+
+  return promise->future();
+}
+
+
+template <typename T>
+template <typename F>
+Future<T> Future<T>::recover(F&& f) const
+{
+  std::shared_ptr<Promise<T>> promise(new Promise<T>());
+
+  const Future<T> future = *this;
+
+  onAny([=]() {
+    if (future.isDiscarded() || future.isFailed()) {
+      // We reset `discard` so that if a future gets returned from
+      // `f(future)` we won't immediately discard it! We still want to
+      // let the future get discarded later, however, hence if it gets
+      // set again in the future it'll propagate to the returned
+      // future.
+      synchronized (promise->f.data->lock) {
+        promise->f.data->discard = false;
+      }
+
+      promise->set(f(future));
+    } else {
+      promise->associate(future);
+    }
+  });
+
+  onAbandoned([=]() {
+    // See comment above for why we reset `discard` here.
+    synchronized (promise->f.data->lock) {
+      promise->f.data->discard = false;
+    }
+    promise->set(f(future));
   });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
