@@ -25,6 +25,7 @@ All Issues:
   * [MESOS-6411] - Add documentation for CNI port-mapper plugin.
   * [MESOS-6526] - `mesos-containerizer launch --environment` exposes executor env vars in `ps`.
   * [MESOS-6571] - Add "--task" flag to mesos-execute.
+  * [MESOS-6597] - Include v1 Operator API protos in generated JAR and python packages.
   * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets.
   * [MESOS-6676] - Always re-link with scheduler during re-registration.
 
