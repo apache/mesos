@@ -10,15 +10,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <string>
+
 #include <process/collect.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/stringify.hpp>
 
 using process::Future;
 using process::Promise;
 
 using std::list;
+using std::string;
 
 TEST(CollectTest, Ready)
 {
@@ -241,4 +245,67 @@ TEST(AwaitTest, DiscardPropagation)
 
   AWAIT_DISCARDED(future1);
   AWAIT_DISCARDED(future2);
+}
+
+
+TEST(AwaitTest, AwaitSingleDiscard)
+{
+  Promise<int> promise;
+
+  auto bar = [&]() {
+    return promise.future();
+  };
+
+  auto foo = [&]() {
+    return await(bar())
+      .then([](const Future<int>& f) {
+        return f
+          .then([](int i) {
+            return stringify(i);
+          });
+      });
+  };
+
+  Future<string> future = foo();
+
+  future.discard();
+
+  AWAIT_DISCARDED(future);
+
+  EXPECT_TRUE(promise.future().hasDiscard());
+}
+
+
+TEST(AwaitTest, AwaitSingleAbandon)
+{
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  auto bar = [&]() {
+    return promise->future();
+  };
+
+  auto foo = [&]() {
+    return await(bar())
+      .then([](const Future<int>& f) {
+        return f
+          .then([](int i) {
+            return stringify(i);
+          });
+      });
+  };
+
+  // There is a race from the time that we reset the promise to when
+  // the await process is terminated so we need to use Future::recover
+  // to properly handle this case.
+  Future<string> future = foo()
+    .recover([](const Future<string>& f) -> Future<string> {
+      if (f.isAbandoned()) {
+        return "hello";
+      }
+      return f;
+    });
+
+  promise.reset();
+
+  AWAIT_EQ("hello", future);
 }
