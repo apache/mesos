@@ -24,6 +24,7 @@ All Issues:
   * [MESOS-6360] - The handling of whiteout files in provisioner is not correct.
   * [MESOS-6411] - Add documentation for CNI port-mapper plugin.
   * [MESOS-6526] - `mesos-containerizer launch --environment` exposes executor env vars in `ps`.
+  * [MESOS-6571] - Add "--task" flag to mesos-execute.
   * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets.
   * [MESOS-6676] - Always re-link with scheduler during re-registration.
 
