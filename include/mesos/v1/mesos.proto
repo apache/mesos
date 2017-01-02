@@ -1684,9 +1684,8 @@ message TaskStatus {
   // to a valid RFC-4122 UUID if using the HTTP API.
   optional bytes uuid = 11;
 
-  // Describes whether the task has been determined to be healthy
-  // (true) or unhealthy (false) according to the HealthCheck field in
-  // the command info.
+  // Describes whether the task has been determined to be healthy (true) or
+  // unhealthy (false) according to the `health_check` field in `TaskInfo`.
   optional bool healthy = 8;
 
   // Labels are free-form key value pairs which are exposed through
