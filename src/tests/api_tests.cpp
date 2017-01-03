@@ -1467,6 +1467,108 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
 }
 
 
+// This test verifies that recovered but yet to reregister agents are returned
+// in `recovered_agents` field of `GetAgents` response.
+TEST_P(MasterAPITest, GetRecoveredAgents)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  v1::AgentID agentId = evolve(slaveRegisteredMessage.get().slave_id());
+
+  // Ensure that the agent is present in `GetAgent.agents` while
+  // `GetAgents.recovered_agents` is empty.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+    ContentType contentType = GetParam();
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
+    ASSERT_EQ(1, v1Response.get().get_agents().agents_size());
+    ASSERT_EQ(agentId,
+              v1Response.get().get_agents().agents(0).agent_info().id());
+    ASSERT_EQ(0, v1Response.get().get_agents().recovered_agents_size());
+  }
+
+  // Stop the slave while the master is down.
+  master->reset();
+  slave.get()->terminate();
+  slave->reset();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Ensure that the agent is present in `GetAgents.recovered_agents`
+  // while `GetAgents.agents` is empty.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+    ContentType contentType = GetParam();
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
+    ASSERT_EQ(0u, v1Response.get().get_agents().agents_size());
+    ASSERT_EQ(1u, v1Response.get().get_agents().recovered_agents_size());
+    ASSERT_EQ(agentId, v1Response.get().get_agents().recovered_agents(0).id());
+  }
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  // Start the agent to make it re-register with the master.
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // After the agent has successfully re-registered with the master,
+  // the `GetAgents.recovered_agents` field would be empty.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+    ContentType contentType = GetParam();
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response.get().IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
+    ASSERT_EQ(1u, v1Response.get().get_agents().agents_size());
+    ASSERT_EQ(0u, v1Response.get().get_agents().recovered_agents_size());
+  }
+}
+
+
 // This test tries to verify that a client subscribed to the 'api/v1'
 // endpoint is able to receive `TASK_ADDED`/`TASK_UPDATED` events.
 TEST_P(MasterAPITest, Subscribe)

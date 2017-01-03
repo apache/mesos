@@ -4047,6 +4047,151 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 }
 
 
+// This test verifies that recovered but yet to reregister agents are returned
+// in `recovered_slaves` field of `/state` and `/slaves` endpoints.
+TEST_F(MasterTest, RecoveredSlaves)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  SlaveID slaveID = slaveRegisteredMessage.get().slave_id();
+
+  // Stop the slave while the master is down.
+  master->reset();
+  slave.get()->terminate();
+  slave->reset();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Ensure that the agent is present in `recovered_slaves` field
+  // while `slaves` field is empty in both `/state` and `/slaves`
+  // endpoints.
+
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+        APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+
+    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    ASSERT_SOME(array1);
+    EXPECT_EQ(0u, array1.get().values.size());
+
+    Result<JSON::Array> array2 =
+      parse.get().find<JSON::Array>("recovered_slaves");
+
+    ASSERT_SOME(array2);
+    EXPECT_EQ(1u, array2.get().values.size());
+  }
+
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);;
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+        APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+
+    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    ASSERT_SOME(array1);
+    EXPECT_EQ(0u, array1.get().values.size());
+
+    Result<JSON::Array> array2 =
+      parse.get().find<JSON::Array>("recovered_slaves");
+
+    ASSERT_SOME(array2);
+    EXPECT_EQ(1u, array2.get().values.size());
+  }
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  // Start the agent to make it re-register with the master.
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // After the agent has successfully re-registered with the master, the
+  // `recovered_slaves` field would be empty in both `/state` and `slave`
+  // endpoints.
+
+  {
+    Future<Response> response1 = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+        APPLICATION_JSON, "Content-Type", response1);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1.get().body);
+    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    ASSERT_SOME(array1);
+    EXPECT_EQ(1u, array1.get().values.size());
+
+    Result<JSON::Array> array2 =
+      parse.get().find<JSON::Array>("recovered_slaves");
+    ASSERT_SOME(array2);
+    EXPECT_EQ(0u, array2.get().values.size());
+  }
+
+  {
+    Future<Response> response1 = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+        APPLICATION_JSON, "Content-Type", response1);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1.get().body);
+    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    ASSERT_SOME(array1);
+    EXPECT_EQ(1u, array1.get().values.size());
+
+    Result<JSON::Array> array2 =
+      parse.get().find<JSON::Array>("recovered_slaves");
+    ASSERT_SOME(array2);
+    EXPECT_EQ(0u, array2.get().values.size());
+  }
+}
+
+
 // This test verifies that executor labels are
 // exposed in the master's state endpoint.
 TEST_F(MasterTest, ExecutorLabels)
