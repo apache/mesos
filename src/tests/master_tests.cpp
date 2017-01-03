@@ -5813,9 +5813,20 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
     EXPECT_FALSE(framework.values["recovered"].as<JSON::Boolean>().value);
     EXPECT_EQ(0u, framework.values["unregistered_time"].as<JSON::Number>());
 
-    EXPECT_EQ(
-        static_cast<int64_t>(reregisterTime.secs()),
-        framework.values["registered_time"].as<JSON::Number>().as<int64_t>());
+    // Even with a paused clock, the value of `registered_time` and
+    // `reregistered_time` from the state endpoint can differ slightly
+    // from the actual start time since the value went through a
+    // number of conversions (`double` to `string` to `JSON::Value`).
+    // Since `Clock::now` is a floating point value, the actual
+    // maximal possible difference between the real and observed value
+    // depends on both the mantissa and the exponent of the compared
+    // values; for simplicity we compare with an epsilon of `1` which
+    // allows for e.g., changes in the integer part of values close to
+    // an integer value.
+    EXPECT_NEAR(
+        reregisterTime.secs(),
+        framework.values["registered_time"].as<JSON::Number>().as<double>(),
+        1);
 
     // The state endpoint does not return "reregistered_time" if it is
     // the same as "registered_time".

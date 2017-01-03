@@ -1495,15 +1495,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StateEndpoint)
   EXPECT_EQ(build::TIME, state.values["build_time"]);
   EXPECT_EQ(build::USER, state.values["build_user"]);
 
-  // Even with a paused clock, the value of `start_time` from the state endpoint
-  // can differ slightly from the actual start time since the value went through
-  // a number of conversions (`double` to `string` to `JSON::Value`).
-  // Since `Clock::now` is a floating point value, the actual maximal
-  // possible difference between the real and observed value depends
-  // on an e.g., both the mantissa and the exponent of the compared
-  // values; for simplicity we compare with an epsilon of `1` which
-  // allows for e.g., changes in the integer part of values close to
-  // an integer value.
+  // Even with a paused clock, the value of `start_time` from the
+  // state endpoint can differ slightly from the actual start time
+  // since the value went through a number of conversions (`double` to
+  // `string` to `JSON::Value`).  Since `Clock::now` is a floating
+  // point value, the actual maximal possible difference between the
+  // real and observed value depends on both the mantissa and the
+  // exponent of the compared values; for simplicity we compare with
+  // an epsilon of `1` which allows for e.g., changes in the integer
+  // part of values close to an integer value.
   ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
   EXPECT_NEAR(
       Clock::now().secs(),

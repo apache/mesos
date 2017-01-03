@@ -887,14 +887,26 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
   EXPECT_TRUE(framework.values["connected"].as<JSON::Boolean>().value);
   EXPECT_FALSE(framework.values["recovered"].as<JSON::Boolean>().value);
 
-  EXPECT_EQ(
-      static_cast<int64_t>(registerTime.secs()),
-      framework.values["registered_time"].as<JSON::Number>().as<int64_t>());
+  // Even with a paused clock, the value of `registered_time` and
+  // `reregistered_time` from the state endpoint can differ slightly
+  // from the actual start time since the value went through a number
+  // of conversions (`double` to `string` to `JSON::Value`).  Since
+  // `Clock::now` is a floating point value, the actual maximal
+  // possible difference between the real and observed value depends
+  // on both the mantissa and the exponent of the compared values; for
+  // simplicity we compare with an epsilon of `1` which allows for
+  // e.g., changes in the integer part of values close to an integer
+  // value.
+  EXPECT_NEAR(
+      registerTime.secs(),
+      framework.values["registered_time"].as<JSON::Number>().as<double>(),
+      1);
 
   ASSERT_NE(0, framework.values.count("reregistered_time"));
-  EXPECT_EQ(
-      static_cast<int64_t>(reregisterTime.secs()),
-      framework.values["reregistered_time"].as<JSON::Number>().as<int64_t>());
+  EXPECT_NEAR(
+      reregisterTime.secs(),
+      framework.values["reregistered_time"].as<JSON::Number>().as<double>(),
+      1);
 
   driver.stop();
   driver.join();
