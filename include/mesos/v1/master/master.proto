@@ -310,6 +310,9 @@ message Response {
 
     // Registered agents.
     repeated Agent agents = 1;
+
+    // Agents which are recovered from registry but not reregistered yet.
+    repeated AgentInfo recovered_agents = 2;
   }
 
   // Information about all the frameworks known to the master at the current
