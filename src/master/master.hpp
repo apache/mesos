@@ -1646,7 +1646,7 @@ private:
     // failover. Slaves are removed from this collection when they
     // either re-register with the master or are marked unreachable
     // because they do not re-register before `recoveredTimer` fires.
-    hashset<SlaveID> recovered;
+    hashmap<SlaveID, SlaveInfo> recovered;
 
     // Slaves that are in the process of registering.
     hashset<process::UPID> registering;

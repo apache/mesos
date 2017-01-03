@@ -1578,7 +1578,7 @@ Future<Nothing> Master::recover()
 Future<Nothing> Master::_recover(const Registry& registry)
 {
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
-    slaves.recovered.insert(slave.info().id());
+    slaves.recovered.put(slave.info().id(), slave.info());
   }
 
   foreach (const Registry::UnreachableSlave& unreachable,
@@ -1830,7 +1830,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       << " there were " << slaves.recovered.size()
       << " (" << removalPercentage * 100 << "%) agents recovered from the"
       << " registry that did not re-register: \n"
-      << stringify(slaves.recovered) << "\n "
+      << stringify(slaves.recovered.keys()) << "\n "
       << " The configured removal limit is " << limit * 100 << "%. Please"
       << " investigate or increase this limit to proceed further";
   }
