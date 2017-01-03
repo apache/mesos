@@ -349,9 +349,9 @@ static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
 {
   const Slave& slave = summary;
 
-  writer->field("id", slave.id.value());
+  json(writer, slave.info);
+
   writer->field("pid", string(slave.pid));
-  writer->field("hostname", slave.info.hostname());
   writer->field("registered_time", slave.registeredTime.secs());
 
   if (slave.reregisteredTime.isSome()) {
@@ -365,7 +365,6 @@ static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
   writer->field("reserved_resources", totalResources.reservations());
   writer->field("unreserved_resources", totalResources.unreserved());
 
-  writer->field("attributes", Attributes(slave.info.attributes()));
   writer->field("active", slave.active);
   writer->field("version", slave.version);
 }
