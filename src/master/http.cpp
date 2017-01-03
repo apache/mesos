@@ -2316,6 +2316,10 @@ mesos::master::Response::GetAgents Master::Http::_getAgents() const
     agent->CopyFrom(protobuf::master::event::createAgentResponse(*slave));
   }
 
+  foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
+    getAgents.add_recovered_agents()->CopyFrom(slaveInfo);
+  }
+
   return getAgents;
 }
 
