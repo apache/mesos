@@ -680,8 +680,15 @@ TEST_F(OsTest, User)
   ASSERT_SOME(gid);
   EXPECT_SOME_EQ(gid.get(), os::getgid(user.get()));
 
+  // A random UUID is an invalid username on some platforms. Some
+  // versions of Linux (e.g., RHEL7) treat invalid usernames
+  // differently from valid-but-not-found usernames.
   EXPECT_NONE(os::getuid(UUID::random().toString()));
   EXPECT_NONE(os::getgid(UUID::random().toString()));
+
+  // A username that is valid but that is unlikely to exist.
+  EXPECT_NONE(os::getuid("zzzvaliduserzzz"));
+  EXPECT_NONE(os::getgid("zzzvaliduserzzz"));
 
   EXPECT_SOME(os::su(user.get()));
   EXPECT_ERROR(os::su(UUID::random().toString()));

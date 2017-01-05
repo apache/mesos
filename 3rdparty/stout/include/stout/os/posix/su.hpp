@@ -44,9 +44,6 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
     return ::getuid();
   }
 
-  struct passwd passwd;
-  struct passwd* result = nullptr;
-
   int size = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (size == -1) {
     // Initial value for buffer size.
@@ -54,39 +51,53 @@ inline Result<uid_t> getuid(const Option<std::string>& user = None())
   }
 
   while (true) {
+    struct passwd pwd;
+    struct passwd* result;
     char* buffer = new char[size];
 
-    if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
-      // The usual interpretation of POSIX is that getpwnam_r will
-      // return 0 but set result == nullptr if the user is not found.
+    if (getpwnam_r(user->c_str(), &pwd, buffer, size, &result) == 0) {
+      // Per POSIX, if the user name is not found, `getpwnam_r` returns
+      // zero and sets `result` to the null pointer. (Linux behaves
+      // differently for invalid user names; see below).
       if (result == nullptr) {
         delete[] buffer;
         return None();
       }
 
-      uid_t uid = passwd.pw_uid;
+      // Entry found.
+      uid_t uid = pwd.pw_uid;
       delete[] buffer;
       return uid;
     } else {
-      // RHEL7 (and possibly other systems) will return non-zero and
-      // set one of the following errors for "The given name or uid
-      // was not found." See 'man getpwnam_r'. We only check for the
-      // errors explicitly listed, and do not consider the ellipsis.
-      if (errno == ENOENT ||
-          errno == ESRCH ||
-          errno == EBADF ||
-          errno == EPERM) {
-        delete[] buffer;
+      delete[] buffer;
+
+      if (errno == ERANGE) {
+        // Buffer too small; enlarge it and retry.
+        size *= 2;
+        continue;
+      }
+
+      // According to POSIX, a non-zero return value from `getpwnam_r`
+      // indicates an error. However, some versions of glibc return
+      // non-zero and set errno to ENOENT, ESRCH, EBADF, EPERM,
+      // EINVAL, or other values if the user name was invalid and/or
+      // not found. POSIX and Linux manpages also list certain errno
+      // values (e.g., EIO, EMFILE) as definitely indicating an error.
+      //
+      // Hence, we check for those specific error values and return an
+      // error to the caller; for any errno value not in that list, we
+      // assume the user name wasn't found.
+      //
+      // TODO(neilc): Consider retrying on EINTR.
+      if (errno != EIO &&
+          errno != EINTR &&
+          errno != EMFILE &&
+          errno != ENFILE &&
+          errno != ENOMEM) {
         return None();
       }
 
-      if (errno != ERANGE) {
-        delete[] buffer;
-        return ErrnoError("Failed to get username information");
-      }
-      // getpwnam_r set ERANGE so try again with a larger buffer.
-      size *= 2;
-      delete[] buffer;
+      return ErrnoError("Failed to get username information");
     }
   }
 
@@ -110,9 +121,6 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
     return ::getgid();
   }
 
-  struct passwd passwd;
-  struct passwd* result = nullptr;
-
   int size = sysconf(_SC_GETPW_R_SIZE_MAX);
   if (size == -1) {
     // Initial value for buffer size.
@@ -120,39 +128,53 @@ inline Result<gid_t> getgid(const Option<std::string>& user = None())
   }
 
   while (true) {
+    struct passwd pwd;
+    struct passwd* result;
     char* buffer = new char[size];
 
-    if (getpwnam_r(user.get().c_str(), &passwd, buffer, size, &result) == 0) {
-      // The usual interpretation of POSIX is that getpwnam_r will
-      // return 0 but set result == nullptr if the group is not found.
+    if (getpwnam_r(user->c_str(), &pwd, buffer, size, &result) == 0) {
+      // Per POSIX, if the user name is not found, `getpwnam_r` returns
+      // zero and sets `result` to the null pointer. (Linux behaves
+      // differently for invalid user names; see below).
       if (result == nullptr) {
         delete[] buffer;
         return None();
       }
 
-      gid_t gid = passwd.pw_gid;
+      // Entry found.
+      gid_t gid = pwd.pw_gid;
       delete[] buffer;
       return gid;
     } else {
-      // RHEL7 (and possibly other systems) will return non-zero and
-      // set one of the following errors for "The given name or uid
-      // was not found." See 'man getpwnam_r'. We only check for the
-      // errors explicitly listed, and do not consider the ellipsis.
-      if (errno == ENOENT ||
-          errno == ESRCH ||
-          errno == EBADF ||
-          errno == EPERM) {
-        delete[] buffer;
+      delete[] buffer;
+
+      if (errno == ERANGE) {
+        // Buffer too small; enlarge it and retry.
+        size *= 2;
+        continue;
+      }
+
+      // According to POSIX, a non-zero return value from `getpwnam_r`
+      // indicates an error. However, some versions of glibc return
+      // non-zero and set errno to ENOENT, ESRCH, EBADF, EPERM,
+      // EINVAL, or other values if the user name was invalid and/or
+      // not found. POSIX and Linux manpages also list certain errno
+      // values (e.g., EIO, EMFILE) as definitely indicating an error.
+      //
+      // Hence, we check for those specific error values and return an
+      // error to the caller; for any errno value not in that list, we
+      // assume the user name wasn't found.
+      //
+      // TODO(neilc): Consider retrying on EINTR.
+      if (errno != EIO &&
+          errno != EINTR &&
+          errno != EMFILE &&
+          errno != ENFILE &&
+          errno != ENOMEM) {
         return None();
       }
 
-      if (errno != ERANGE) {
-        delete[] buffer;
-        return ErrnoError("Failed to get username information");
-      }
-      // getpwnam_r set ERANGE so try again with a larger buffer.
-      size *= 2;
-      delete[] buffer;
+      return ErrnoError("Failed to get username information");
     }
   }
 
@@ -264,13 +286,12 @@ inline Result<std::string> user(Option<uid_t> uid = None())
     size = 1024;
   }
 
-  struct passwd passwd;
-  struct passwd* result = nullptr;
-
   while (true) {
+    struct passwd pwd;
+    struct passwd* result;
     char* buffer = new char[size];
 
-    if (getpwuid_r(uid.get(), &passwd, buffer, size, &result) == 0) {
+    if (getpwuid_r(uid.get(), &pwd, buffer, size, &result) == 0) {
       // getpwuid_r will return 0 but set result == nullptr if the uid is
       // not found.
       if (result == nullptr) {
@@ -278,18 +299,18 @@ inline Result<std::string> user(Option<uid_t> uid = None())
         return None();
       }
 
-      std::string user(passwd.pw_name);
+      std::string user(pwd.pw_name);
       delete[] buffer;
       return user;
     } else {
+      delete[] buffer;
+
       if (errno != ERANGE) {
-        delete[] buffer;
         return ErrnoError();
       }
 
       // getpwuid_r set ERANGE so try again with a larger buffer.
       size *= 2;
-      delete[] buffer;
     }
   }
 }
