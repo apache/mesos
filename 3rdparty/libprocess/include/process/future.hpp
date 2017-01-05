@@ -1334,7 +1334,7 @@ void expired(
     const lambda::function<Future<T>(const Future<T>&)>& f,
     const std::shared_ptr<Latch>& latch,
     const std::shared_ptr<Promise<T>>& promise,
-    const Future<T>& future)
+    const WeakFuture<T>& weak_future)
 {
   if (latch->trigger()) {
     // Note that we don't bother checking if 'future' has been
@@ -1344,7 +1344,14 @@ void expired(
     // if the future has been discarded and rather than hiding a
     // non-deterministic bug we always call 'f' if the timer has
     // expired.
-    promise->associate(f(future));
+    Option<Future<T>> future = weak_future.get();
+    if (future.isSome()) {
+      promise->associate(f(future.get()));
+    } else {
+      // The original future may be out of scope, but the caller of
+      // after may still hold a reference to the promise's future.
+      promise->associate(f(promise->future()));
+    }
   }
 }
 
@@ -1435,19 +1442,21 @@ Future<T> Future<T>::after(
   std::shared_ptr<Promise<T>> promise(new Promise<T>());
 
   // Set up a timer to invoke the callback if this future has not
-  // completed. Note that we do not pass a weak reference for this
-  // future as we don't want the future to get cleaned up and then
-  // have the timer expire.
+  // completed. A weak reference is needed to avoid memory leaks
+  // when storing the timer inside the future onAny callbacks vector.
+  // If the future has been cleaned, we use the `promise` future
+  // instead.
+  WeakFuture<T> weak_future(*this);
   Timer timer = Clock::timer(
       duration,
-      lambda::bind(&internal::expired<T>, f, latch, promise, *this));
+      lambda::bind(&internal::expired<T>, f, latch, promise, weak_future));
 
   onAny(lambda::bind(&internal::after<T>, latch, promise, timer, lambda::_1));
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscard(
-      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+      lambda::bind(&internal::discard<T>, weak_future));
 
   return promise->future();
 }
