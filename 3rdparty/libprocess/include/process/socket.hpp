@@ -410,12 +410,16 @@ public:
     return impl->shutdown(how);
   }
 
-  // Support implicit conversion of any `Socket<AddressType>` to a
-  // `Socket<network::Address>`.
+  // Support implicit "up" conversion of any `Socket<AddressType>` to
+  // a `Socket<network::Address>`.
   operator Socket<network::Address>() const
   {
     return Socket<network::Address>(impl);
   }
+
+  // Support implicit "down" conversion to a `Try` for safety.
+  template <typename T>
+  operator Try<Socket<T>>() const;
 
 private:
   // Necessary to support the implicit conversion operator from any
@@ -431,6 +435,10 @@ private:
 };
 
 } // namespace internal {
+
+
+// TODO(benh): Add std::hash overload for Socket and then remove the
+// automatic conversion to int that Socket has above.
 
 
 using Socket = network::internal::Socket<network::Address>;
@@ -467,6 +475,18 @@ inline Try<Socket<network::Address>> Socket<network::Address>::create(
 
 
 template <>
+template <typename T>
+Socket<network::Address>::operator Try<Socket<T>>() const
+{
+  Try<T> t = convert<T>(address());
+  if (t.isError()) {
+    return Error("Could not convert address: " + t.error());
+  }
+  return Socket<T>(impl);
+}
+
+
+template <>
 inline Try<Socket<inet::Address>> Socket<inet::Address>::create(
     SocketImpl::Kind kind)
 {
@@ -487,6 +507,11 @@ Try<Socket<inet::Address>> Socket<inet::Address>::create(
     SocketImpl::Kind kind) = delete;
 
 
+template <>
+template <typename T>
+Socket<inet::Address>::operator Try<Socket<T>>() const = delete;
+
+
 #ifndef __WINDOWS__
 template <>
 inline Try<Socket<unix::Address>> Socket<unix::Address>::create(
@@ -505,6 +530,11 @@ template <>
 Try<Socket<unix::Address>> Socket<unix::Address>::create(
     Address::Family family,
     SocketImpl::Kind kind) = delete;
+
+
+template <>
+template <typename T>
+Socket<unix::Address>::operator Try<Socket<T>>() const = delete;
 #endif // __WINDOWS__
 
 } // namespace internal {
