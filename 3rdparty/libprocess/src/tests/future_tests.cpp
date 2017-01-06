@@ -21,6 +21,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 using process::Clock;
@@ -39,6 +40,81 @@ TEST(FutureTest, Future)
   promise.set(true);
   ASSERT_TRUE(promise.future().isReady());
   EXPECT_TRUE(promise.future().get());
+}
+
+
+TEST(FutureTest, Stringify)
+{
+  Future<bool> future;
+  EXPECT_EQ("Abandoned", stringify(future));
+
+  {
+    Owned<Promise<bool>> promise(new Promise<bool>());
+    future = promise->future();
+    promise.reset();
+    EXPECT_EQ("Abandoned", stringify(future));
+  }
+
+  {
+    Owned<Promise<bool>> promise(new Promise<bool>());
+    future = promise->future();
+    promise->future().discard();
+    promise.reset();
+    EXPECT_EQ("Abandoned (with discard)", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    EXPECT_EQ("Pending", stringify(future));
+    promise.future().discard();
+    EXPECT_EQ("Pending (with discard)", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.set(true);
+    EXPECT_EQ("Ready", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.future().discard();
+    promise.set(true);
+    EXPECT_EQ("Ready (with discard)", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.fail("Failure");
+    EXPECT_EQ("Failed: Failure", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.future().discard();
+    promise.fail("Failure");
+    EXPECT_EQ("Failed (with discard): Failure", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.discard();
+    EXPECT_EQ("Discarded", stringify(future));
+  }
+
+  {
+    Promise<bool> promise;
+    future = promise.future();
+    promise.future().discard();
+    promise.discard();
+    EXPECT_EQ("Discarded (with discard)", stringify(future));
+  }
 }
 
 

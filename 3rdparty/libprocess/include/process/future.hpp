@@ -18,6 +18,7 @@
 #include <atomic>
 #include <list>
 #include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
+#include <ostream>
 #include <set>
 #include <type_traits>
 #include <utility>
@@ -482,6 +483,8 @@ private:
   friend class Future;
   friend class Promise<T>;
   friend class WeakFuture<T>;
+  template <typename U>
+  friend std::ostream& operator<<(std::ostream&, const Future<U>&);
 
   enum State
   {
@@ -1792,6 +1795,34 @@ bool Future<T>::fail(const std::string& _message)
   }
 
   return result;
+}
+
+
+template <typename T>
+std::ostream& operator<<(std::ostream& stream, const Future<T>& future)
+{
+  const std::string suffix = future.data->discard ? " (with discard)" : "";
+
+  switch (future.data->state) {
+    case Future<T>::PENDING:
+      if (future.data->abandoned) {
+        return stream << "Abandoned" << suffix;
+      }
+      return stream << "Pending" << suffix;
+
+    case Future<T>::READY:
+      // TODO(benh): Stringify `Future<T>::get()` if it can be
+      // stringified (will need to be SFINAE'ed appropriately).
+      return stream << "Ready" << suffix;
+
+    case Future<T>::FAILED:
+      return stream << "Failed" << suffix << ": " << future.failure();
+
+    case Future<T>::DISCARDED:
+      return stream << "Discarded" << suffix;
+  }
+
+  return stream;
 }
 
 
