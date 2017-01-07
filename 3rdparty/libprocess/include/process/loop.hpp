@@ -319,6 +319,10 @@ public:
       dispatch(pid.get(), [self]() {
         self->run(self->iterate());
       });
+
+      // TODO(benh): Link with `pid` so that we can discard or abandon
+      // the promise in the event `pid` terminates and didn't discard
+      // us so that we can avoid any leaks (memory or otherwise).
     } else {
       run(iterate());
     }
