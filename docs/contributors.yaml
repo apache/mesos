@@ -500,7 +500,6 @@
     - {organization: Mesosphere}
   emails:
     - mpark@apache.org
-    - mcypark@gmail.com
   jira_user: mcypark
   reviewboard_user: mcypark
 
@@ -537,7 +536,7 @@
     - zhangqxa@cn.ibm.com
   jira_user: qianzhang
   reviewboard_user: qianzhang
-  
+
 - name: Ronald Petty
   affiliations:
     - {organization: RX-M}
