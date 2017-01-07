@@ -272,13 +272,17 @@ TEST(FutureTest, After3)
     // The original future disappears here. After this call the
     // original future goes out of scope and should not be reachable
     // anymore.
-    future = future.after(
-        Milliseconds(1), [](const Future<Nothing>&) { return Nothing(); });
+    future = future
+      .after(Milliseconds(1), [](Future<Nothing> f) {
+        f.discard();
+        return Nothing();
+      });
 
     AWAIT_READY(future);
   }
 
   EXPECT_NONE(weak_future.get());
+  EXPECT_FALSE(future.hasDiscard());
 }
 
 

@@ -1334,9 +1334,16 @@ void expired(
     const lambda::function<Future<T>(const Future<T>&)>& f,
     const std::shared_ptr<Latch>& latch,
     const std::shared_ptr<Promise<T>>& promise,
-    const WeakFuture<T>& weak_future)
+    const std::shared_ptr<Option<Timer>>& timer,
+    const Future<T>& future)
 {
   if (latch->trigger()) {
+    // If this callback executed first (i.e., we triggered the latch)
+    // then we want to clear out the timer so that we don't hold a
+    // circular reference to `future` in it's own `onAny`
+    // callbacks. See the comment in `Future::after`.
+    *timer = None();
+
     // Note that we don't bother checking if 'future' has been
     // discarded (i.e., 'future.isDiscarded()' returns true) since
     // there is a race between when we make that check and when we
@@ -1344,14 +1351,7 @@ void expired(
     // if the future has been discarded and rather than hiding a
     // non-deterministic bug we always call 'f' if the timer has
     // expired.
-    Option<Future<T>> future = weak_future.get();
-    if (future.isSome()) {
-      promise->associate(f(future.get()));
-    } else {
-      // The original future may be out of scope, but the caller of
-      // after may still hold a reference to the promise's future.
-      promise->associate(f(promise->future()));
-    }
+    promise->associate(f(future));
   }
 }
 
@@ -1360,12 +1360,22 @@ template <typename T>
 void after(
     const std::shared_ptr<Latch>& latch,
     const std::shared_ptr<Promise<T>>& promise,
-    const Timer& timer,
+    const std::shared_ptr<Option<Timer>>& timer,
     const Future<T>& future)
 {
   CHECK(!future.isPending());
   if (latch->trigger()) {
-    Clock::cancel(timer);
+    // If this callback executes first (i.e., we triggered the latch)
+    // it must be the case that `timer` is still some and we can try
+    // and cancel the timer.
+    CHECK_SOME(*timer);
+    Clock::cancel(timer->get());
+
+    // We also force the timer to get deallocated so that there isn't
+    // a cicular reference of the timer with itself which keeps around
+    // a reference to the original future.
+    *timer = None();
+
     promise->associate(future);
   }
 }
@@ -1441,22 +1451,41 @@ Future<T> Future<T>::after(
   std::shared_ptr<Latch> latch(new Latch());
   std::shared_ptr<Promise<T>> promise(new Promise<T>());
 
+  // We need to control the lifetime of the timer we create below so
+  // that we can force the timer to get deallocated after it
+  // expires. The reason we want to force the timer to get deallocated
+  // after it expires is because the timer's lambda has a copy of
+  // `this` (i.e., a Future) and it's stored in the `onAny` callbacks
+  // of `this` thus creating a circular reference. By storing a
+  // `shared_ptr<Option<Timer>>` we're able to set the option to none
+  // after the timer expires which will deallocate our copy of the
+  // timer and leave the `Option<Timer>` stored in the lambda of the
+  // `onAny` callback as none. Note that this is safe because the
+  // `Latch` makes sure that only one of the callbacks will manipulate
+  // the `shared_ptr<Option<Timer>>` so there isn't any concurrency
+  // issues we have to worry about.
+  std::shared_ptr<Option<Timer>> timer(new Option<Timer>());
+
   // Set up a timer to invoke the callback if this future has not
-  // completed. A weak reference is needed to avoid memory leaks
-  // when storing the timer inside the future onAny callbacks vector.
-  // If the future has been cleaned, we use the `promise` future
-  // instead.
-  WeakFuture<T> weak_future(*this);
-  Timer timer = Clock::timer(
+  // completed. Note that we do not pass a weak reference for this
+  // future as we don't want the future to get cleaned up and then
+  // have the timer expire because then we wouldn't have a valid
+  // future that we could pass to `f`! The reference to `this` that is
+  // captured in the timer will get removed by setting the
+  // `Option<Timer>` to none (see comment above) either if the timer
+  // expires or if `this` completes and we cancel the timer (see
+  // `internal::expired` and `internal::after` callbacks for where we
+  // force the deallocation of our copy of the timer).
+  *timer = Clock::timer(
       duration,
-      lambda::bind(&internal::expired<T>, f, latch, promise, weak_future));
+      lambda::bind(&internal::expired<T>, f, latch, promise, timer, *this));
 
   onAny(lambda::bind(&internal::after<T>, latch, promise, timer, lambda::_1));
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscard(
-      lambda::bind(&internal::discard<T>, weak_future));
+      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
   return promise->future();
 }
