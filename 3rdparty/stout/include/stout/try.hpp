@@ -58,7 +58,10 @@ public:
   // We don't need to implement these because we are leveraging
   // Option<T>.
   Try(const Try& that) = default;
+  Try(Try&& that) = default;
+
   ~Try() = default;
+
   Try& operator=(const Try& that) = default;
   Try& operator=(Try&& that) = default;
 
