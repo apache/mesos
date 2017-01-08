@@ -1634,16 +1634,11 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
                   -> ControlFlow<http::Response> {
                 return Continue();
               }))
-              // TODO(benh):
-              // .recover(defer(self(), [=](...) {
-              //   failure = Failure("Failed writing to stdin: discarded");
-              //   return Break(http::InternalServerError(failure->message));
-              // }))
-              .repair(defer(self(), [=](
+              .recover(defer(self(), [=](
                   const Future<ControlFlow<http::Response>>& future)
                   -> ControlFlow<http::Response> {
                 failure = Failure(
-                    "Failed writing to stdin: " + future.failure());
+                    "Failed writing to stdin: " + stringify(future));
                 return Break(http::InternalServerError(failure->message));
               }));
           }
