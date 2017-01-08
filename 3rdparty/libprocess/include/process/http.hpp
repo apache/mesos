@@ -1018,30 +1018,130 @@ template <typename F>
 Future<Nothing> serve(const network::Socket& s, F&& f)
 {
   return internal::serve(
-      s, std::function<Future<Response>(const Request&)>(std::forward<F>(f)));
+      s,
+      std::function<Future<Response>(const Request&)>(std::forward<F>(f)));
 }
 
 
-// TODO(benh): Eventually we probably want something like a `Server`
-// that will handle accepting new sockets and then calling `serve`. It
-// would also be valuable to introduce shutdown semantics that are
-// better than the current discard semantics on `serve`. For example:
-//
-// class Server
-// {
-//   struct ShutdownOptions
-//   {
-//     // During the grace period, no new connections will
-//     // be accepted. Existing connections will be closed
-//     // when currently received requests have been handled.
-//     // The server will shut down reads on each connection
-//     // to prevent new requests from arriving.
-//     Duration gracePeriod;
-//   };
-//
-//   // Shuts down the server.
-//   Future<Nothing> shutdown(Sever::ShutdownOptions options);
-// };
+// Forward declaration.
+class ServerProcess;
+
+
+class Server
+{
+public:
+  // Options for creating a server.
+  //
+  // NOTE: until GCC 5.0 default member initializers prevented the
+  // class from being an aggregate which prevented you from being able
+  // to use aggregate initialization, thus we introduce and use
+  // `DEFAULT_CREATE_OPTIONS` for the default parameter of `create`.
+  struct CreateOptions
+  {
+    Scheme scheme;
+    size_t backlog;
+  };
+
+  static CreateOptions DEFAULT_CREATE_OPTIONS()
+  {
+    return {
+      /* .scheme = */ Scheme::HTTP,
+      /* .backlog = */ 16384,
+    };
+  };
+
+  // Options for stopping a server.
+  //
+  // NOTE: see note above as to why we have `DEFAULT_STOP_OPTIONS`.
+  struct StopOptions
+  {
+    // During the grace period:
+    //   * No new sockets will be accepted (but on OS X they'll still queue).
+    //   * Existing sockets will be shut down for reads to prevent new
+    //     requests from arriving.
+    //   * Existing sockets will be shut down after already received
+    //     requests have their responses sent.
+    // After the grace period connections will be forcibly shut down.
+    Duration grace_period;
+  };
+
+  static StopOptions DEFAULT_STOP_OPTIONS()
+  {
+    return {
+      /* .grace_period = */ Seconds(0),
+    };
+  };
+
+  static Try<Server> create(
+      network::Socket socket,
+      std::function<Future<Response>(
+          const network::Socket& socket,
+          const Request&)>&& f,
+      const CreateOptions& options = DEFAULT_CREATE_OPTIONS());
+
+  template <typename F>
+  static Try<Server> create(
+      network::Socket socket,
+      F&& f,
+      const CreateOptions& options = DEFAULT_CREATE_OPTIONS())
+  {
+    return create(
+        std::move(socket),
+        std::function<Future<Response>(
+            const network::Socket&,
+            const Request&)>(std::forward<F>(f)),
+        options);
+  }
+
+  static Try<Server> create(
+      const network::Address& address,
+      std::function<Future<Response>(
+          const network::Socket&,
+          const Request&)>&& f,
+      const CreateOptions& options = DEFAULT_CREATE_OPTIONS());
+
+  template <typename F>
+  static Try<Server> create(
+      const network::Address& address,
+      F&& f,
+      const CreateOptions& options = DEFAULT_CREATE_OPTIONS())
+  {
+    return create(
+        address,
+        std::function<Future<Response>(
+            const network::Socket&,
+            const Request&)>(std::forward<F>(f)),
+        options);
+  }
+
+  // Movable but not copyable, not assignable.
+  Server(Server&& that) = default;
+  Server(const Server&) = delete;
+  Server& operator=(const Server&) = delete;
+
+  ~Server();
+
+  // Runs the server, returns nothing after the server has been
+  // stopped or a failure if one occured.
+  Future<Nothing> run();
+
+  // Returns after the server has been stopped and all existing
+  // connections have been closed.
+  Future<Nothing> stop(const StopOptions& options = DEFAULT_STOP_OPTIONS());
+
+  // Returns the bound address of the server.
+  Try<network::Address> address() const;
+
+private:
+  Server(
+      network::Socket&& socket,
+      std::function<Future<Response>(
+          const network::Socket&,
+          const Request&)>&& f);
+
+  network::Socket socket;
+  Owned<ServerProcess> process;
+};
 
 
 // Create a http Request from the specified parameters.

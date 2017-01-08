@@ -55,8 +55,8 @@
 #include "encoder.hpp"
 
 namespace authentication = process::http::authentication;
-namespace ID = process::ID;
 namespace http = process::http;
+namespace ID = process::ID;
 namespace inet = process::network::inet;
 namespace inet4 = process::network::inet4;
 namespace network = process::network;
@@ -2332,3 +2332,233 @@ TEST_F(HttpServeTest, Unix)
   AWAIT_READY(serve);
 }
 #endif // __WINDOWS__
+
+
+// Ensures that the server does not re-order responses if handlers
+// complete the responses out of order.
+TEST(HttpServerTest, Pipeline)
+{
+  class Handler
+  {
+  public:
+    MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+  } handler;
+
+  Try<http::Server> server = http::Server::create(
+      inet4::Address::ANY_ANY(),
+      [&](const network::Socket&, const http::Request& request) {
+        return handler.handle(request);
+      });
+
+  ASSERT_SOME(server);
+
+  Future<Nothing> run = server->run();
+
+  Try<inet::Address> address =
+    network::convert<inet::Address>(server->address());
+
+  ASSERT_SOME(address);
+
+  Future<http::Connection> connect =
+    http::connect(address.get(), http::Scheme::HTTP);
+
+  AWAIT_ASSERT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  Promise<http::Response> promise1;
+  Future<http::Request> request1;
+
+  Promise<http::Response> promise2;
+  Future<http::Request> request2;
+
+  Promise<http::Response> promise3;
+  Future<http::Request> request3;
+
+  EXPECT_CALL(handler, handle(_))
+    .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())))
+    .WillOnce(DoAll(FutureArg<0>(&request2), Return(promise2.future())))
+    .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
+    .WillRepeatedly(Return(http::OK()));
+
+  http::URL url("http", address->hostname().get(), address->port, "/");
+
+  http::Request request;
+  request.method = "GET";
+  request.url = url;
+  request.keepAlive = true;
+
+  Future<http::Response> response1 = connection.send(request);
+  Future<http::Response> response2 = connection.send(request);
+  Future<http::Response> response3 = connection.send(request);
+
+  AWAIT_EXPECT_READY(request1);
+  AWAIT_EXPECT_READY(request2);
+  AWAIT_EXPECT_READY(request3);
+
+  ASSERT_TRUE(response1.isPending());
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise3.set(http::OK("3"));
+
+  ASSERT_TRUE(response1.isPending());
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise1.set(http::OK("1"));
+
+  AWAIT_ASSERT_READY(response1);
+  EXPECT_EQ("1", response1->body);
+
+  ASSERT_TRUE(response2.isPending());
+  ASSERT_TRUE(response3.isPending());
+
+  promise2.set(http::OK("2"));
+
+  AWAIT_ASSERT_READY(response2);
+  EXPECT_EQ("2", response2->body);
+
+  AWAIT_ASSERT_READY(response3);
+  EXPECT_EQ("3", response3->body);
+
+  AWAIT_READY(connection.disconnect());
+
+  ASSERT_TRUE(run.isPending());
+
+  AWAIT_EXPECT_READY(server->stop());
+
+  AWAIT_EXPECT_READY(run);
+}
+
+
+// Tests that we can't stop a server that's not running.
+TEST(HttpServerTest, StopNotRunning)
+{
+  class Handler
+  {
+  public:
+    MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+  } handler;
+
+  Try<http::Server> server = http::Server::create(
+      inet4::Address::ANY_ANY(),
+      [&](const network::Socket&, const http::Request& request) {
+        return handler.handle(request);
+      });
+
+  ASSERT_SOME(server);
+
+  AWAIT_EXPECT_FAILED(server->stop());
+}
+
+
+// Tests that we can discard a server that we started running and it
+// will return a failure after the server has stopped.
+TEST(HttpServerTest, Discard)
+{
+  class Handler
+  {
+  public:
+    MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+  } handler;
+
+  Try<http::Server> server = http::Server::create(
+      inet4::Address::ANY_ANY(),
+      [&](const network::Socket&, const http::Request& request) {
+        return handler.handle(request);
+      });
+
+  ASSERT_SOME(server);
+
+  EXPECT_CALL(handler, handle(_))
+    .Times(0);
+
+  Future<Nothing> run = server->run();
+
+  Try<inet::Address> address =
+    network::convert<inet::Address>(server->address());
+
+  ASSERT_SOME(address);
+
+  // NOTE: we can't guarantee that after the call to `server->run()`
+  // the server is actually running because the actor might not yet
+  // have received the asynchronous dispatch. Thus, we need some
+  // happens before guarantee that the server is running which we get
+  // by making a connection. We then use that connection to properly
+  // test that we shutdown each client below.
+  Future<http::Connection> connect =
+    http::connect(address.get(), http::Scheme::HTTP);
+
+  AWAIT_ASSERT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  Future<Nothing> disconnected = connection.disconnected();
+
+  EXPECT_TRUE(disconnected.isPending());
+
+  run.discard();
+
+  AWAIT_EXPECT_READY(disconnected);
+
+  AWAIT_EXPECT_FAILED(run);
+}
+
+
+// Tests that if the server gets finalized due to the process getting
+// cleaned up but nobody called `Server::stop()` then we'll shutdown
+// existing clients and the future returned from `Server::run()` will
+// be abandoned.
+TEST(HttpServerTest, Finalize)
+{
+  Future<Nothing> run = Nothing();
+  Future<Nothing> disconnected = Nothing();
+
+  {
+    class Handler
+    {
+    public:
+      MOCK_METHOD1(handle, Future<http::Response>(const http::Request&));
+    } handler;
+
+    Try<http::Server> server = http::Server::create(
+        inet4::Address::ANY_ANY(),
+        [&](const network::Socket&, const http::Request& request) {
+          return handler.handle(request);
+        });
+
+    ASSERT_SOME(server);
+
+    EXPECT_CALL(handler, handle(_))
+      .Times(0);
+
+    run = server->run();
+
+    Try<inet::Address> address =
+      network::convert<inet::Address>(server->address());
+
+    ASSERT_SOME(address);
+
+    // NOTE: we can't guarantee that after the call to `server->run()`
+    // the server is actually running because the actor might not yet
+    // have received the asynchronous dispatch. Thus, we need some
+    // happens before guarantee that the server is running which we
+    // get by making a connection. We then use that connection to
+    // properly test that we shutdown each client below.
+    Future<http::Connection> connect =
+      http::connect(address.get(), http::Scheme::HTTP);
+
+    AWAIT_ASSERT_READY(connect);
+
+    http::Connection connection = connect.get();
+
+    disconnected = connection.disconnected();
+
+    EXPECT_TRUE(disconnected.isPending());
+  }
+
+  AWAIT_EXPECT_READY(disconnected);
+
+  AWAIT_EXPECT_ABANDONED(run);
+}
