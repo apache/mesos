@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <stout/check.hpp>
@@ -30,9 +31,12 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include "common/validation.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/paths.hpp"
+#include "slave/validation.hpp"
 
 using std::list;
 using std::string;
@@ -456,6 +460,11 @@ string getPersistentVolumePath(
   CHECK(volume.has_disk());
   CHECK(volume.disk().has_persistence());
 
+  // Additionally check that the role and the persistent ID are valid
+  // before using them to construct a directory path.
+  CHECK_NONE(roles::validate(volume.role()));
+  CHECK_NONE(common::validation::validateID(volume.disk().persistence().id()));
+
   // If no `source` is provided in `DiskInfo` volumes are mapped into
   // the `rootDir`.
   if (!volume.disk().has_source()) {
@@ -494,6 +503,14 @@ string createExecutorDirectory(
     const ContainerID& containerId,
     const Option<string>& user)
 {
+  // These IDs should be valid as they are either assigned by the
+  // master/agent or validated by the master but we do a sanity check
+  // here before using them to create a directory.
+  CHECK_NONE(common::validation::validateSlaveID(slaveId));
+  CHECK_NONE(common::validation::validateFrameworkID(frameworkId));
+  CHECK_NONE(common::validation::validateExecutorID(executorId));
+  CHECK_NONE(slave::validation::container::validateContainerId(containerId));
+
   const string directory =
     getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, containerId);
 
@@ -552,6 +569,10 @@ string createSlaveDirectory(
     const string& rootDir,
     const SlaveID& slaveId)
 {
+  // `slaveId` should be valid because it's assigned by the master but
+  // we do a sanity check here before using it to create a directory.
+  CHECK_NONE(common::validation::validateSlaveID(slaveId));
+
   const string directory = getSlavePath(rootDir, slaveId);
 
   Try<Nothing> mkdir = os::mkdir(directory);
