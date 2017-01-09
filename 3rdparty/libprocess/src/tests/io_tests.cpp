@@ -323,7 +323,7 @@ TEST_F(IOTest, Redirect)
   ASSERT_SOME(os::nonblock(pipes[1]));
 
   // Set up a redirect hook to also accumlate the data that we splice.
-  string accumulated = "";
+  string accumulated;
   lambda::function<void(const string&)> hook =
     [&accumulated](const string& data) {
       accumulated += data;

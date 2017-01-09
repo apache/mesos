@@ -199,7 +199,7 @@ Try<URL> URL::parse(const string& urlString)
   const string scheme = strings::lower(urlString.substr(0, schemePos));
   const string urlPath = urlString.substr(schemePos + 3);
 
-  size_t pathPos = urlPath.find_first_of("/");
+  size_t pathPos = urlPath.find_first_of('/');
   if (pathPos == 0) {
     return Error("Host not found in url");
   }
