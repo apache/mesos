@@ -1424,13 +1424,6 @@ mesos_master_SOURCES = master/main.cpp
 mesos_master_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_master_LDADD = libmesos.la $(LDADD)
 
-# TODO(tomxing): Remove this binary once the
-# slave->agent rename is complete(MESOS-3782).
-sbin_PROGRAMS += mesos-slave
-mesos_slave_SOURCES = slave/main.cpp
-mesos_slave_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_slave_LDADD = libmesos.la $(LDADD)
-
 bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
 mesos_local_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2466,11 +2459,15 @@ install-data-hook: copy-template-and-create-symlink
 		done;						\
 	done
 
+install-exec-hook:
+	cd $(DESTDIR)/$(sbindir) && $(LN_S) mesos-agent mesos-slave
+
 # TODO(tomxing): Remove this hook once the
 # slave->agent rename is complete(MESOS-3782 & MESOS 5230).
 uninstall-hook:
-	rm -f $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template &&\
+	rm -f $(DESTDIR)/$(pkgsysconfdir)/mesos-slave-env.sh.template
 	rm -f $(DESTDIR)/$(includedir)/mesos/slave
+	rm -f $(DESTDIR)/$(sbindir)/mesos-slave
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
