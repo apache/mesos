@@ -5126,8 +5126,8 @@ void Slave::registerExecutorTimeout(
       // Ignore the registration timeout.
       break;
     case Executor::REGISTERING: {
-      LOG(INFO) << "Terminating executor '" << *executor
-                << "' because it did not register within "
+      LOG(INFO) << "Terminating executor " << *executor
+                << " because it did not register within "
                 << flags.executor_registration_timeout;
 
       // Immediately kill the executor.
