@@ -209,7 +209,7 @@ inline Try<std::string> compress(
 
   // Build up the compressed result.
   Bytef buffer[GZIP_BUFFER_SIZE];
-  std::string result = "";
+  std::string result;
   do {
     stream.next_out = buffer;
     stream.avail_out = GZIP_BUFFER_SIZE;

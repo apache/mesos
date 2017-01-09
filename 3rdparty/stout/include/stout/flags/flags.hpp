@@ -597,7 +597,7 @@ inline Try<Warnings> FlagsBase::load(
     std::string name;
     Option<std::string> value = None();
 
-    size_t eq = arg.find_first_of("=");
+    size_t eq = arg.find_first_of('=');
     if (eq == std::string::npos && arg.find("--no-") == 0) { // --no-name
       name = arg.substr(2);
     } else if (eq == std::string::npos) {                    // --name
@@ -653,7 +653,7 @@ inline Try<Warnings> FlagsBase::load(
     std::string name;
     Option<std::string> value = None();
 
-    size_t eq = arg.find_first_of("=");
+    size_t eq = arg.find_first_of('=');
     if (eq == std::string::npos && arg.find("--no-") == 0) { // --no-name
       name = arg.substr(2);
     } else if (eq == std::string::npos) {                    // --name
