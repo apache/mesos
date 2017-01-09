@@ -202,6 +202,8 @@ public:
     T t;
   };
 
+  ControlFlow(Statement s, Option<T> t) : s(s), t(std::move(t)) {}
+
   Statement statement() const { return s; }
 
   T& value() & { return t.get(); }
@@ -210,14 +212,6 @@ public:
   const T&& value() const && { return t.get(); }
 
 private:
-  template <typename U>
-  friend class ControlFlow<U>::Continue;
-  template <typename U>
-  friend class ControlFlow<U>::Break;
-
-  ControlFlow(Statement s, Option<T> t)
-    : s(s), t(std::move(t)) {}
-
   Statement s;
   Option<T> t;
 };
