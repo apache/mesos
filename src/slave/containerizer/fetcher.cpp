@@ -133,11 +133,11 @@ Try<string> Fetcher::basename(const string& uri)
     // ftp://, ftps://, hdfs://, hftp://, s3://, s3n://.
 
     string path = uri.substr(index + 3);
-    if (!strings::contains(path, "/") || path.size() <= path.find("/") + 1) {
+    if (!strings::contains(path, "/") || path.size() <= path.find('/') + 1) {
       return Error("Malformed URI (missing path): " + uri);
     }
 
-    return path.substr(path.find_last_of("/") + 1);
+    return path.substr(path.find_last_of('/') + 1);
   }
   return Path(uri).basename();
 }

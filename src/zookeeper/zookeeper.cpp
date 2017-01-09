@@ -260,7 +260,7 @@ public:
     // because, it doesn't return the expected path when a path ends
     // with "/". For example, to create path "/a/b/", we want to
     // recursively create "/a/b", instead of just creating "/a".
-    const string& parent = path.substr(0, path.find_last_of("/"));
+    const string& parent = path.substr(0, path.find_last_of('/'));
     if (!parent.empty()) {
       return create(parent, "", acl, 0, result, true)
         .then(defer(self(),

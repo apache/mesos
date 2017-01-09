@@ -661,12 +661,12 @@ Try<vector<Resource>> Resources::fromSimpleString(
 
     string name;
     string role;
-    size_t openParen = pair[0].find("(");
+    size_t openParen = pair[0].find('(');
     if (openParen == string::npos) {
       name = strings::trim(pair[0]);
       role = defaultRole;
     } else {
-      size_t closeParen = pair[0].find(")");
+      size_t closeParen = pair[0].find(')');
       if (closeParen == string::npos || closeParen < openParen) {
         return Error(
             "Bad value for resources, mismatched parentheses in " + token);

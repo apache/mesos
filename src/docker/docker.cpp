@@ -532,7 +532,7 @@ Future<Option<int>> Docker::run(
     }
   }
 
-  string environmentVariables = "";
+  string environmentVariables;
 
   if (env.isSome()) {
     foreachpair (const string& key, const string& value, env.get()) {

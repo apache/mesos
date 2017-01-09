@@ -502,11 +502,11 @@ Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
   if (code == ZNONODE) {
     // Create directory path znodes as necessary.
     CHECK(znode.size() == 0 || znode.at(znode.size() - 1) != '/');
-    size_t index = znode.find("/", 0);
+    size_t index = znode.find('/', 0);
 
     while (index < string::npos) {
       // Get out the prefix to create.
-      index = znode.find("/", index + 1);
+      index = znode.find('/', index + 1);
       string prefix = znode.substr(0, index);
 
       // Create the znode (even if it already exists).
