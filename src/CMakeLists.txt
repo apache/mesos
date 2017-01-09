@@ -228,6 +228,7 @@ set(COMMON_SRC
   common/resources_utils.cpp
   common/roles.cpp
   common/type_utils.cpp
+  common/validation.cpp
   common/values.cpp
   )
 

@@ -840,6 +840,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/resources_utils.cpp						\
   common/roles.cpp							\
   common/type_utils.cpp							\
+  common/validation.cpp							\
   common/values.cpp							\
   docker/docker.cpp							\
   docker/spec.cpp							\
@@ -966,6 +967,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/recordio.hpp							\
   common/resources_utils.hpp						\
   common/status_utils.hpp						\
+  common/validation.hpp							\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\
