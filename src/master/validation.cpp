@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
+#include "master/validation.hpp"
+
 #include <string>
 #include <vector>
 
@@ -31,11 +32,11 @@
 #include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/validation.hpp"
 
 #include "health-check/health_checker.hpp"
 
 #include "master/master.hpp"
-#include "master/validation.hpp"
 
 using std::string;
 using std::vector;
@@ -46,15 +47,6 @@ namespace mesos {
 namespace internal {
 namespace master {
 namespace validation {
-
-// A helper function which returns true if the given character is not
-// suitable for an ID.
-static bool invalidCharacter(char c)
-{
-  return iscntrl(c) || c == '/' || c == '\\';
-}
-
-
 namespace master {
 namespace call {
 
@@ -506,12 +498,12 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
         return Error("Expecting 'host_path' to be unset for persistent volume");
       }
 
-      // Ensure persistence ID does not have invalid characters.
-      //
-      // TODO(bmahler): Validate against empty id!
-      string id = resource.disk().persistence().id();
-      if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
-        return Error("Persistence ID '" + id + "' contains invalid characters");
+      // Ensure persistence ID meets common ID requirements.
+      Option<Error> error =
+        common::validation::validateID(resource.disk().persistence().id());
+      if (error.isSome()) {
+        return Error("Invalid persistence ID for persistent volume: " +
+                     error->message);
       }
     } else if (resource.disk().has_volume()) {
       return Error("Non-persistent volume not supported");
@@ -787,18 +779,11 @@ namespace task {
 
 namespace internal {
 
-// Validates that a task id is valid, i.e., contains only valid
-// characters.
 Option<Error> validateTaskID(const TaskInfo& task)
 {
-  const string& id = task.task_id().value();
-
-  // TODO(bmahler): Validate against empty id!
-  if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
-    return Error("TaskID '" + id + "' contains invalid characters");
-  }
-
-  return None();
+  // Delegate to the common TaskID validation. Here we wrap
+  // around it to be consistent with other task validators.
+  return common::validation::validateTaskID(task.task_id());
 }
 
 

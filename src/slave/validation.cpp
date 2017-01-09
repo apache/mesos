@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cctype>
+#include "slave/validation.hpp"
+
 #include <string>
 
 #include <mesos/agent/agent.hpp>
@@ -23,9 +24,7 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
-#include <stout/os/constants.hpp>
-
-#include "slave/validation.hpp"
+#include "common/validation.hpp"
 
 using std::string;
 
@@ -38,7 +37,15 @@ namespace container {
 
 Option<Error> validateContainerId(const ContainerID& containerId)
 {
-  // Slashes are disallowed as these IDs are mapped to directories.
+  const string& id = containerId.value();
+
+  // Check common Mesos ID rules.
+  Option<Error> error = common::validation::validateID(id);
+  if (error.isSome()) {
+    return Error(error->message);
+  }
+
+  // Check ContainerID specific rules.
   //
   // Periods are disallowed because our string representation of
   // ContainerID uses periods: <uuid>.<child>.<grandchild>.
@@ -46,23 +53,9 @@ Option<Error> validateContainerId(const ContainerID& containerId)
   //
   // Spaces are disallowed as they can render logs confusing and
   // need escaping on terminals when dealing with paths.
-  //
-  // TODO(bmahler): Add common/validation.hpp to share ID validation.
-  // Note that this however is slightly stricter than other IDs in
-  // that we do not allow periods or spaces.
   auto invalidCharacter = [](char c) {
-    return iscntrl(c) ||
-      c == os::POSIX_PATH_SEPARATOR ||
-      c == os::WINDOWS_PATH_SEPARATOR ||
-      c == '.' ||
-      c == ' ';
+    return  c == '.' || c == ' ';
   };
-
-  const string& id = containerId.value();
-
-  if (id.empty()) {
-    return Error("'ContainerID.value' must be non-empty");
-  }
 
   if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
     return Error("'ContainerID.value' '" + id + "'"
