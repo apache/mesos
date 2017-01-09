@@ -499,7 +499,6 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 
   // Wait for slave registration.
   AWAIT_READY(slaveRegisteredMessage);
-  const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector);

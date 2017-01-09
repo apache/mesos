@@ -519,7 +519,6 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
