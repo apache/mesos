@@ -76,10 +76,9 @@ using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::protobuf::createLabel;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::Containerizer;
-using mesos::internal::slave::MesosContainerizerProcess;
 
 using mesos::master::contender::MASTER_CONTENDER_ZK_SESSION_TIMEOUT;
 
