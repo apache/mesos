@@ -285,8 +285,6 @@ TEST(ProcessTest, Process_BENCHMARK_ClientServer)
 
   terminate(server);
   wait(server);
-
-  return;
 }
 
 
