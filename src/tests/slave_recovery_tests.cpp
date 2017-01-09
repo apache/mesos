@@ -187,12 +187,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -368,12 +367,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -456,12 +454,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
     this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -739,12 +736,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -834,12 +830,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
     this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -947,12 +942,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1060,12 +1054,11 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1170,12 +1163,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1314,12 +1306,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1444,12 +1435,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1537,12 +1527,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1632,12 +1621,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
     this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1734,12 +1722,11 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1836,12 +1823,11 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Disable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(false);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -1948,12 +1934,11 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Disable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(false);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2038,12 +2023,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
     this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2154,12 +2138,11 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2275,12 +2258,11 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2423,12 +2405,11 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2558,12 +2539,11 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2678,12 +2658,11 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2787,12 +2766,11 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   AWAIT_READY(registerSlaveMessage);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -2905,12 +2883,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   AWAIT_READY(registerSlaveMessage);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3006,12 +2983,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   AWAIT_READY(registerSlaveMessage);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3147,14 +3123,13 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing and partition-awareness for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::PARTITION_AWARE);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3318,11 +3293,10 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler.
-  MockScheduler sched1;
-
   FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
   framework1.set_checkpoint(true);
 
+  MockScheduler sched1;
   MesosSchedulerDriver driver1(
       &sched1, framework1, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3357,12 +3331,11 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
-  MockScheduler sched2;
-
   FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
   framework2.set_checkpoint(true);
 
+  MockScheduler sched2;
   MesosSchedulerDriver driver2(
       &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3470,12 +3443,11 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   TestingMesosSchedulerDriver driver(
       &sched, detector.get(), frameworkInfo);
 
@@ -3609,13 +3581,11 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Framework 1.
-  MockScheduler sched1;
-
-  // Enable checkpointing for the framework.
+  // Framework 1. Enable checkpointing.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_checkpoint(true);
 
+  MockScheduler sched1;
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3650,13 +3620,11 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement1);
 
-  // Framework 2.
-  MockScheduler sched2;
-
-  // Enable checkpointing for the framework.
+  // Framework 2. Enable checkpointing.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_checkpoint(true);
 
+  MockScheduler sched2;
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -3958,12 +3926,11 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
     this->StartSlave(detector.get(), &containerizer1, flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -4061,12 +4028,11 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -4164,20 +4130,19 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
-  // Scheduler expectations.
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillRepeatedly(Return());
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
+  // Scheduler expectations.
   EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
 
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -4270,20 +4235,19 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
     this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-
-  // Scheduler expectations.
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillRepeatedly(Return());
-
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
+  MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
+  // Scheduler expectations.
   EXPECT_CALL(sched, registered(_, _, _));
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
 
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
