@@ -113,9 +113,6 @@
 #include "gate.hpp"
 #include "process_reference.hpp"
 
-namespace firewall = process::firewall;
-namespace metrics = process::metrics;
-
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::Accepted;

@@ -52,7 +52,6 @@
 #include "encoder.hpp"
 
 namespace authentication = process::http::authentication;
-namespace ID = process::ID;
 namespace http = process::http;
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
