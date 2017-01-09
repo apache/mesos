@@ -4273,6 +4273,13 @@ void Slave::executorMessage(
 }
 
 
+// NOTE: The agent will respond to pings from the master even if it is
+// not in the RUNNING state. This is because agent recovery might take
+// longer than the master's ping timeout. We don't want to cause
+// cluster churn by marking such agents unreachable. If the master
+// sees a broken agent socket, it waits `agent_reregister_timeout` for
+// the agent to re-register, which implies that recovery should finish
+// within that (more generous) timeout.
 void Slave::ping(const UPID& from, bool connected)
 {
   VLOG(1) << "Received ping from " << from;

@@ -124,8 +124,9 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::agent_reregister_timeout,
       "agent_reregister_timeout",
       flags::DeprecatedName("slave_reregister_timeout"),
-      "The timeout within which all agents are expected to re-register\n"
-      "when a new master is elected as the leader. Agents that do not\n"
+      "The timeout within which an agent is expected to re-register.\n"
+      "Agents re-register when they become disconnected from the master\n"
+      "or when a new master is elected as the leader. Agents that do not\n"
       "re-register within the timeout will be marked unreachable in the\n"
       "registry; if/when the agent re-registers with the master, any\n"
       "non-partition-aware tasks running on the agent will be terminated.\n"
@@ -467,7 +468,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::agent_ping_timeout,
       "agent_ping_timeout",
       flags::DeprecatedName("slave_ping_timeout"),
-      "The timeout within which each agent is expected to respond to a\n"
+      "The timeout within which an agent is expected to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
       "max_agent_ping_timeouts ping retries will be asked to shutdown.\n"
       "NOTE: The total ping timeout (`agent_ping_timeout` multiplied by\n"

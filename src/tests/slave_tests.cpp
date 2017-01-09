@@ -3041,7 +3041,10 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   EXPECT_CALL(*master.get()->registrar.get(), apply(_))
     .Times(0);
 
-  process::dispatch(master.get()->pid, &Master::markUnreachable, slaveId);
+  process::dispatch(master.get()->pid,
+                    &Master::markUnreachable,
+                    slaveId,
+                    "dummy test case dispatch");
 
   Clock::settle();
   Clock::resume();

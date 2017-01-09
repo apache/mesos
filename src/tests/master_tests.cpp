@@ -63,6 +63,8 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
+
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
@@ -77,7 +79,9 @@ using mesos::internal::master::allocator::MesosAllocatorProcess;
 using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::GarbageCollectorProcess;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
 using mesos::master::contender::MASTER_CONTENDER_ZK_SESSION_TIMEOUT;
@@ -5986,6 +5990,330 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
     EXPECT_TRUE(completedFrameworks.values.empty());
   }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// In this test, an agent restarts, responds to pings, but does not
+// re-register with the master; the master should mark the agent
+// unreachable after waiting for `agent_reregister_timeout`. In
+// practice, this typically happens because agent recovery hangs; to
+// simplify the test case, we instead drop the agent -> master
+// re-registration message.
+TEST_F(MasterTest, AgentRestartNoReregister)
+{
+  // We disable agent authentication to simplify the messages we need
+  // to drop to prevent agent re-registration below.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_agents = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.credential = None();
+
+  mesos::internal::slave::Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(agentFlags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // We use the same UPID when we restart the agent below, so that the
+  // agent continues to receive pings from the master before it
+  // successfully re-registers.
+  const string agentPid = "agent";
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Start a partition-aware scheduler with checkpointing.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(offer, "sleep 100");
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+
+  const SlaveID slaveId = runningStatus->slave_id();
+
+  AWAIT_READY(statusUpdateAck);
+
+  Clock::pause();
+
+  // Terminate the agent abruptly. This causes the master -> agent
+  // socket to break on the master side.
+  slave.get()->terminate();
+
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Future<ReregisterSlaveMessage> reregisterSlave1 =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  Future<PingSlaveMessage> ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
+  Future<PongSlaveMessage> pong = FUTURE_PROTOBUF(PongSlaveMessage(), _, _);
+
+  _containerizer = MesosContainerizer::create(agentFlags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  // Restart the agent using the same UPID.
+  slave = StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Wait for the executor to re-register.
+  AWAIT_READY(reregisterExecutorMessage);
+
+  // The agent waits for the executor reregister timeout to expire,
+  // even if all executors have re-reregistered.
+  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::settle();
+
+  // Agent will try to re-register after completing recovery; prevent
+  // this from succeeding by dropping the re-reregistration message.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(reregisterSlave1);
+
+  // Drop subsequent re-registration attempts, until we allow
+  // re-registration to succeed below.
+  DROP_PROTOBUFS(ReregisterSlaveMessage(), _, _);
+
+  // The agent should receive pings from the master and reply to them.
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(ping);
+  AWAIT_READY(pong);
+
+  EXPECT_FALSE(ping->connected());
+
+  // If the agent hasn't recovered within `agent_reregister_timeout`,
+  // the master should mark it unreachable.
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Future<TaskStatus> unreachableStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&unreachableStatus));
+
+  Duration elapsedTime =
+    masterFlags.agent_ping_timeout + slave::EXECUTOR_REREGISTER_TIMEOUT;
+
+  Duration remainingReregisterTime =
+    masterFlags.agent_reregister_timeout - elapsedTime;
+
+  Clock::advance(remainingReregisterTime);
+
+  TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  AWAIT_READY(slaveLost);
+
+  AWAIT_READY(unreachableStatus);
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_EQ(unreachableTime, unreachableStatus->unreachable_time());
+
+  // Allow agent re-registration to succeed.
+  Future<ReregisterSlaveMessage> reregisterSlave2 =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  Future<SlaveReregisteredMessage> slaveReregistered =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+
+  AWAIT_READY(reregisterSlave2);
+  AWAIT_READY(slaveReregistered);
+
+  Clock::resume();
+
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate));
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(reconcileUpdate);
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(0, stats.values["master/recovery_slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals"]);
+  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// When removing agents that haven't re-registered after a socket
+// error (see notes in `AgentRestartNoReregister`) above, this test
+// checks that the master respects the agent removal rate limit.
+TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
+{
+  // Start a master.
+  auto slaveRemovalLimiter = std::make_shared<MockRateLimiter>();
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master =
+    StartMaster(slaveRemovalLimiter, masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  mesos::internal::slave::Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(agentFlags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // We use the same UPID when we restart the agent below, so that the
+  // agent continues to receive pings from the master before it
+  // successfully re-registers.
+  const string agentPid = "agent";
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Nothing> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _));
+
+  Clock::pause();
+
+  // Terminate the agent abruptly. This causes the master -> agent
+  // socket to break on the master side.
+  slave.get()->terminate();
+
+  Future<ReregisterSlaveMessage> reregisterSlave =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  Future<PingSlaveMessage> ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
+  Future<PongSlaveMessage> pong = FUTURE_PROTOBUF(PongSlaveMessage(), _, _);
+
+  _containerizer = MesosContainerizer::create(agentFlags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  // Restart the agent using the same UPID.
+  slave = StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Agent will try to re-register after completing recovery; prevent
+  // this from succeeding by dropping the re-reregistration message.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(reregisterSlave);
+
+  // Drop subsequent re-registration attempts.
+  DROP_PROTOBUFS(ReregisterSlaveMessage(), _, _);
+
+  // The agent should receive pings from the master and reply to them.
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(ping);
+  AWAIT_READY(pong);
+
+  EXPECT_FALSE(ping->connected());
+
+  // Return a pending future from the rate limiter.
+  Future<Nothing> acquire;
+  Promise<Nothing> promise;
+  EXPECT_CALL(*slaveRemovalLimiter, acquire())
+    .WillOnce(DoAll(FutureSatisfy(&acquire),
+                    Return(promise.future())));
+
+  // If the agent hasn't recovered within `agent_reregister_timeout`,
+  // the master should start to mark it unreachable, once permitted by
+  // the rate limiter.
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  Duration remainingReregisterTime =
+    masterFlags.agent_reregister_timeout - masterFlags.agent_ping_timeout;
+
+  Clock::advance(remainingReregisterTime);
+
+  // The master should attempt to acquire a permit.
+  AWAIT_READY(acquire);
+
+  // The slave should not be removed before the permit is satisfied;
+  // that means the scheduler shouldn't receive `slaveLost` yet.
+  Clock::settle();
+  ASSERT_TRUE(slaveLost.isPending());
+
+  // Once the permit is satisfied, the `slaveLost` scheduler callback
+  // should be invoked.
+  promise.set(Nothing());
+  AWAIT_READY(slaveLost);
 
   driver.stop();
   driver.join();

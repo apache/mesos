@@ -254,7 +254,10 @@ protected:
     if (future.isReady()) {
       ++metrics->slave_unreachable_completed;
 
-      dispatch(master, &Master::markUnreachable, slaveId);
+      dispatch(master,
+               &Master::markUnreachable,
+               slaveId,
+               "health check timed out");
     } else if (future.isDiscarded()) {
       LOG(INFO) << "Canceling transition of agent " << slaveId
                 << " to UNREACHABLE because a pong was received!";
@@ -1289,6 +1292,23 @@ void Master::exited(const UPID& pid)
           removeFramework(slave, framework);
         }
       }
+
+      // If the master -> agent socket breaks, we expect that either
+      // (a) the agent will fail to respond to pings and be marked
+      // unreachable, or (b) the agent will receive a ping, notice the
+      // master thinks it is disconnected, and then re-register. There
+      // is a third possibility: if the agent restarts but hangs
+      // during agent recovery, it will respond to pings but never
+      // attempt to re-register (MESOS-6286).
+      //
+      // To handle this case, we expect that an agent whose socket has
+      // broken will re-register within `agent_reregister_timeout`. If
+      // the agent doesn't re-register, it is marked unreachable.
+      slave->reregistrationTimer =
+        delay(flags.agent_reregister_timeout,
+              self(),
+              &Master::agentReregisterTimeout,
+              slave->id);
     } else {
       // NOTE: A duplicate exited() event is possible for a slave
       // because its PID doesn't change on restart. See MESOS-675
@@ -1297,6 +1317,59 @@ void Master::exited(const UPID& pid)
                    << "agent " << *slave;
     }
   }
+}
+
+
+void Master::agentReregisterTimeout(const SlaveID& slaveId)
+{
+  Slave* slave = slaves.registered.get(slaveId);
+
+  // The slave might have been removed or re-registered concurrently
+  // with the timeout expiring.
+  if (slave == nullptr || slave->connected) {
+    return;
+  }
+
+  // Remove the slave in a rate limited manner, similar to how the
+  // SlaveObserver removes slaves.
+  Future<Nothing> acquire = Nothing();
+
+  if (slaves.limiter.isSome()) {
+      LOG(INFO) << "Scheduling removal of agent "
+                << *slave
+                << "; did not re-register within "
+                << flags.agent_reregister_timeout << " after disconnecting";
+
+      acquire = slaves.limiter.get()->acquire();
+  }
+
+  acquire
+    .then(defer(self(), &Self::_agentReregisterTimeout, slaveId));
+
+  ++metrics->slave_unreachable_scheduled;
+}
+
+
+Nothing Master::_agentReregisterTimeout(const SlaveID& slaveId)
+{
+  Slave* slave = slaves.registered.get(slaveId);
+
+  // The slave might have been removed or re-registered while we were
+  // waiting to acquire the rate limit.
+  if (slave == nullptr || slave->connected) {
+    ++metrics->slave_unreachable_canceled;
+    return Nothing();
+  }
+
+  ++metrics->slave_unreachable_completed;
+
+  markUnreachable(
+      slaveId,
+      "agent did not re-register within " +
+      stringify(flags.agent_reregister_timeout) +
+      " after disconnecting");
+
+  return Nothing();
 }
 
 
@@ -5352,8 +5425,12 @@ void Master::reregisterSlave(
     // offers include the recovered resources initially on this
     // slave.
     if (!slave->connected) {
+      CHECK(slave->reregistrationTimer.isSome());
+      Clock::cancel(slave->reregistrationTimer.get());
+
       slave->connected = true;
       dispatch(slave->observer, &SlaveObserver::reconnect);
+
       slave->active = true;
       allocator->activateSlave(slave->id);
     }
@@ -5956,7 +6033,7 @@ void Master::shutdown(
 
 // TODO(neilc): Refactor to reduce code duplication with
 // `Master::removeSlave`.
-void Master::markUnreachable(const SlaveID& slaveId)
+void Master::markUnreachable(const SlaveID& slaveId, const string& message)
 {
   Slave* slave = slaves.registered.get(slaveId);
 
@@ -5971,11 +6048,14 @@ void Master::markUnreachable(const SlaveID& slaveId)
   }
 
   if (slaves.markingUnreachable.contains(slaveId)) {
-    // Possible if marking the slave unreachable in the registry takes
+    // We might already be marking this slave unreachable. This is
+    // possible if marking the slave unreachable in the registry takes
     // a long time. While the registry operation is in progress, the
     // `SlaveObserver` will continue to ping the slave; if the slave
     // fails another health check, the `SlaveObserver` will trigger
-    // another attempt to mark it unreachable.
+    // another attempt to mark it unreachable. Also possible if
+    // `agentReregisterTimeout` marks the slave unreachable
+    // concurrently with the slave observer doing so.
     LOG(WARNING) << "Not marking agent " << slaveId
                  << " unreachable because another unreachable"
                  << " transition is already in progress";
@@ -5989,7 +6069,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
   }
 
   LOG(INFO) << "Marking agent " << *slave
-            << " unreachable: health check timed out";
+            << " unreachable: " << message;
 
   CHECK(!slaves.unreachable.contains(slaveId));
   CHECK(slaves.removed.get(slaveId).isNone());
@@ -6010,6 +6090,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
                  &Self::_markUnreachable,
                  slave,
                  unreachableTime,
+                 message,
                  lambda::_1));
 }
 
@@ -6017,6 +6098,7 @@ void Master::markUnreachable(const SlaveID& slaveId)
 void Master::_markUnreachable(
     Slave* slave,
     const TimeInfo& unreachableTime,
+    const string& message,
     const Future<bool>& registrarResult)
 {
   CHECK_NOTNULL(slave);
@@ -6037,7 +6119,7 @@ void Master::_markUnreachable(
 
   LOG(INFO) << "Marked agent " << slave->info.id() << " ("
             << slave->info.hostname() << ") unreachable: "
-            << "health check timed out";
+            << message;
 
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
@@ -6085,7 +6167,7 @@ void Master::_markUnreachable(
           newTaskState,
           TaskStatus::SOURCE_MASTER,
           None(),
-          "Agent " + slave->info.hostname() + " is unreachable",
+          "Agent " + slave->info.hostname() + " is unreachable: " + message,
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?
               Option<ExecutorID>(task->executor_id()) : None()),

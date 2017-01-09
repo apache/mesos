@@ -12,6 +12,15 @@ Additional API Changes:
     changes to FrameworkInfo were only enforced after framework
     failover, not master failover.
 
+  * [MESOS-6286] - If an agent restarts but fails to complete recovery
+    within `agent_reregister_timeout`, the master will now mark the
+    agent as unreachable. This mainly changes behavior in two
+    situations: (a) the master will now be more robust if agent recovery
+    hangs indefinitely (e.g., due to a container being in a bad state),
+    and (b) if agent recovery takes a very long time (e.g., because the
+    agent's work directory contains a large number of completed tasks),
+    the master might now mark an agent unreachable that would previously
+    have been able to eventually recover successfully.
 
 Release Notes - Mesos - Version 1.1.1 (WIP)
 -------------------------------------------

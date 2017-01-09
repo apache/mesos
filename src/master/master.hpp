@@ -154,7 +154,12 @@ struct Slave
     }
   }
 
-  ~Slave() {}
+  ~Slave()
+  {
+    if (reregistrationTimer.isSome()) {
+      process::Clock::cancel(reregistrationTimer.get());
+    }
+  }
 
   Task* getTask(const FrameworkID& frameworkId, const TaskID& taskId)
   {
@@ -306,6 +311,14 @@ struct Slave
   // future this might also happen via HTTP endpoint.
   // No offers will be made for a deactivated slave.
   bool active;
+
+  // Timer for marking slaves unreachable that become disconnected and
+  // don't re-register. This timeout is larger than the slave
+  // observer's timeout, so typically the slave observer will be the
+  // one to mark such slaves unreachable; this timer is a backup for
+  // when a slave responds to pings but does not re-register (e.g.,
+  // because agent recovery has hung).
+  Option<process::Timer> reregistrationTimer;
 
   // Executors running on this slave.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo>> executors;
@@ -527,7 +540,9 @@ public:
       const MachineID& machineId,
       const Option<Unavailability>& unavailability);
 
-  void markUnreachable(const SlaveID& slaveId);
+  void markUnreachable(
+      const SlaveID& slaveId,
+      const std::string& message);
 
   void authenticate(
       const process::UPID& from,
@@ -578,6 +593,9 @@ protected:
 
   // Invoked upon noticing a subscriber disconnection.
   void exited(const UUID& id);
+
+  void agentReregisterTimeout(const SlaveID& slaveId);
+  Nothing _agentReregisterTimeout(const SlaveID& slaveId);
 
   // Invoked when the message is ready to be executed after
   // being throttled.
@@ -706,6 +724,7 @@ protected:
   void _markUnreachable(
       Slave* slave,
       const TimeInfo& unreachableTime,
+      const std::string& message,
       const process::Future<bool>& registrarResult);
 
   // Mark a slave as unreachable in the registry. Called when the slave
