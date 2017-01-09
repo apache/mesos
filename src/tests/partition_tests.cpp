@@ -2487,8 +2487,8 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
 class OneWayPartitionTest : public MesosTest {};
 
 
-// This test verifies that if master --> slave socket closes and the
-// slave is not aware of it (i.e., one way network partition), slave
+// This test verifies that if the master --> slave socket closes and
+// the slave is unaware of it (i.e., one-way network partition), slave
 // will re-register with the master.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 {
@@ -2497,12 +2497,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  Future<Message> slaveRegisteredMessage =
-    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Ensure a ping reaches the slave.
-  Future<Message> ping = FUTURE_MESSAGE(
-      Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<PingSlaveMessage> ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
 
   slave::Flags agentFlags = CreateSlaveFlags();
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -2512,27 +2511,31 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
   AWAIT_READY(slaveRegisteredMessage);
 
   AWAIT_READY(ping);
+  EXPECT_TRUE(ping->connected());
 
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
+  Clock::pause();
+
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
-  // it until the next ping is received.
-  process::inject::exited(slaveRegisteredMessage.get().to, master.get()->pid);
+  // until it receives the next ping message.
+  process::inject::exited(slave.get()->pid, master.get()->pid);
 
   // Wait until master deactivates the slave.
   AWAIT_READY(deactivateSlave);
 
+  ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
+
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Ensure the slave observer marked the slave as deactivated.
-  Clock::pause();
-  Clock::settle();
-
   // Let the slave observer send the next ping.
   Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(ping);
+  EXPECT_FALSE(ping->connected());
 
   // Slave should re-register.
   Clock::resume();
