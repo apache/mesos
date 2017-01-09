@@ -5300,8 +5300,6 @@ void Master::reregisterSlave(
   if (slave != nullptr) {
     CHECK(!slaves.recovered.contains(slaveInfo.id()));
 
-    slave->reregisteredTime = Clock::now();
-
     // NOTE: This handles the case where a slave tries to
     // re-register with an existing master (e.g. because of a
     // spurious Zookeeper session expiration or after the slave
@@ -5340,8 +5338,10 @@ void Master::reregisterSlave(
     slave->pid = from;
     link(slave->pid);
 
-    // Update slave's version after re-registering successfully.
+    // Update slave's version and re-registration timestamp after
+    // re-registering successfully.
     slave->version = version;
+    slave->reregisteredTime = Clock::now();
 
     // Reconcile tasks between master and slave, and send the
     // `SlaveReregisteredMessage`.
