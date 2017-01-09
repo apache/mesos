@@ -6106,8 +6106,7 @@ void Master::_markUnreachable(
   slaves.markingUnreachable.erase(slave->info.id());
 
   if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to mark agent " << slave->info.id()
-               << " (" << slave->info.hostname() << ")"
+    LOG(FATAL) << "Failed to mark agent " << *slave
                << " unreachable in the registry: "
                << registrarResult.failure();
   }
@@ -6117,9 +6116,7 @@ void Master::_markUnreachable(
   // `MarkSlaveUnreachable` registry operation should never fail.
   CHECK(registrarResult.get());
 
-  LOG(INFO) << "Marked agent " << slave->info.id() << " ("
-            << slave->info.hostname() << ") unreachable: "
-            << message;
+  LOG(INFO) << "Marked agent " << *slave << " unreachable: " << message;
 
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
@@ -7769,19 +7766,17 @@ void Master::_removeSlave(
   CHECK(!registrarResult.isDiscarded());
 
   if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to remove agent " << slave->info.id()
-               << " (" << slave->info.hostname() << ")"
+    LOG(FATAL) << "Failed to remove agent " << *slave
                << " from the registrar: " << registrarResult.failure();
   }
 
   // Should not happen: the master will only try to remove agents that
   // are currently admitted.
   CHECK(registrarResult.get())
-    << "Agent " << slave->info.id() << " (" << slave->info.hostname() << ") "
+    << "Agent " << *slave
     << "already removed from the registrar";
 
-  LOG(INFO) << "Removed agent " << slave->info.id() << " ("
-            << slave->info.hostname() << "): " << removalCause;
+  LOG(INFO) << "Removed agent " << *slave << ": " << removalCause;
 
   ++metrics->slave_removals;
   if (reason.isSome()) {
@@ -8586,7 +8581,7 @@ void Slave::addTask(Task* task)
 
   LOG(INFO) << "Adding task " << taskId
             << " with resources " << task->resources()
-            << " on agent " << id << " (" << info.hostname() << ")";
+            << " on agent " << *this;
 }
 
 
