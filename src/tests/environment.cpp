@@ -493,7 +493,7 @@ private:
 class SupportedFilesystemTestFilter : public TestFilter
 {
 public:
-  explicit SupportedFilesystemTestFilter(const string fsname)
+  explicit SupportedFilesystemTestFilter(const string& fsname)
   {
 #ifdef __linux__
     Try<bool> check = fs::supported(fsname);

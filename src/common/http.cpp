@@ -144,7 +144,7 @@ bool requestStreaming(ContentType contentType)
 static JSON::Value value(
     const string& name,
     const Value::Type& type,
-    Resources resources)
+    const Resources& resources)
 {
   switch (type) {
     case Value::SCALAR:

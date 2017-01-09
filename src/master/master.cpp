@@ -4254,7 +4254,7 @@ void Master::_accept(
                          << "'HealthCheck' without specifying 'type' will be "
                          << "deprecated in Mesos 2.0";
 
-            HealthCheck healthCheck = task.health_check();
+            const HealthCheck& healthCheck = task.health_check();
             if (healthCheck.has_command() && !healthCheck.has_http()) {
               task_.mutable_health_check()->set_type(HealthCheck::COMMAND);
             } else if (healthCheck.has_http() && !healthCheck.has_command()) {

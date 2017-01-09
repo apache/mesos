@@ -101,7 +101,7 @@ public:
       const string& _master,
       const FrameworkInfo& _framework,
       const ExecutorInfo& _executor,
-      const Option<Credential> _credential)
+      const Option<Credential>& _credential)
     : state(DISCONNECTED),
       master(_master),
       framework(_framework),

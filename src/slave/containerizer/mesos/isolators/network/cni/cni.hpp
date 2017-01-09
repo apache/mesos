@@ -91,7 +91,7 @@ private:
   struct Info
   {
     Info (const hashmap<std::string, ContainerNetwork>& _containerNetworks,
-          const Option<std::string> _rootfs = None())
+          const Option<std::string>& _rootfs = None())
       : containerNetworks (_containerNetworks),
         rootfs(_rootfs) {}
 

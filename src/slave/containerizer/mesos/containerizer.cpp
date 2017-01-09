@@ -683,7 +683,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   // Recover the executor containers from 'SlaveState'.
   hashset<ContainerID> alive;
   foreach (const ContainerState& state, recoverable) {
-    ContainerID containerId = state.container_id();
+    const ContainerID& containerId = state.container_id();
     alive.insert(containerId);
 
     // Contruct the structure for containers from the 'SlaveState'

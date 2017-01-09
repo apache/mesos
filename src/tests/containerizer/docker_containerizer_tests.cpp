@@ -224,7 +224,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -352,7 +352,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -472,7 +472,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -624,7 +624,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -750,7 +750,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -1019,7 +1019,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -1591,9 +1591,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers.get().size());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   Resource volume = createPersistentVolume(
     Megabytes(64),
