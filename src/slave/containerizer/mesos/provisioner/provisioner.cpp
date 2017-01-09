@@ -43,8 +43,6 @@
 
 using namespace process;
 
-namespace spec = docker::spec;
-
 using std::list;
 using std::string;
 using std::vector;

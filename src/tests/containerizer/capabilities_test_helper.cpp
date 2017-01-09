@@ -35,8 +35,6 @@
 
 #include "tests/containerizer/capabilities_test_helper.hpp"
 
-namespace capabilities = mesos::internal::capabilities;
-
 using std::cerr;
 using std::set;
 using std::endl;

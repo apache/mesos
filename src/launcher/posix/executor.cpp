@@ -26,16 +26,8 @@
 
 #include "launcher/posix/executor.hpp"
 
-#ifdef __linux__
-#include "linux/fs.hpp"
-#endif
-
 #include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
-
-#ifdef __linux__
-namespace fs = mesos::internal::fs;
-#endif
 
 using process::Subprocess;
 

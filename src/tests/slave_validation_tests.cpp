@@ -28,7 +28,6 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
-namespace agent = mesos::agent;
 namespace validation = mesos::internal::slave::validation;
 
 using mesos::internal::slave::Slave;

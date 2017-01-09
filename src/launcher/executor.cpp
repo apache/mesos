@@ -72,10 +72,6 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
-#ifdef __linux__
-#include "linux/fs.hpp"
-#endif
-
 #include "executor/v0_v1executor.hpp"
 
 #include "health-check/health_checker.hpp"
@@ -87,10 +83,6 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
-
-#ifdef __linux__
-namespace fs = mesos::internal::fs;
-#endif
 
 using namespace mesos::internal::slave;
 

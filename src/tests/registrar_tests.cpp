@@ -100,7 +100,6 @@ namespace internal {
 namespace tests {
 
 namespace quota = mesos::internal::master::quota;
-namespace weights = mesos::internal::master::weights;
 
 namespace authentication = process::http::authentication;
 

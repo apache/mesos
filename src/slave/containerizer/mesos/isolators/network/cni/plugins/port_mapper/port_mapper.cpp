@@ -25,7 +25,6 @@
 #include "slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp"
 
 namespace io = process::io;
-namespace spec = mesos::internal::slave::cni::spec;
 
 using std::cerr;
 using std::endl;

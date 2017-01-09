@@ -51,7 +51,6 @@
 
 namespace http = process::http;
 namespace paths = mesos::internal::slave::appc::paths;
-namespace slave = mesos::internal::slave;
 
 using std::list;
 using std::string;
