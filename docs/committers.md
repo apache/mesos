@@ -257,6 +257,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>haosdent</td>
       <td>haosdent@apache.org</td>
     </tr>
+    <tr>
+      <td>+8</td>
+      <td>Guangya Liu</td>
+      <td>IBM</td>
+      <td>gyliu513</td>
+      <td>gyliu@apache.org</td>
+    </tr>
   </tbody>
 </table>
 
