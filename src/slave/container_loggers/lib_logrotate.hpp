@@ -63,7 +63,7 @@ struct LoggerFlags : public virtual flags::FlagsBase
         "    <logrotate_stdout_options>\n"
         "    size <max_stdout_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this module.");
+        "NOTE: The 'size' option will be overridden by this module.");
 
     add(&LoggerFlags::max_stderr_size,
         "max_stderr_size",
@@ -81,7 +81,7 @@ struct LoggerFlags : public virtual flags::FlagsBase
         "    <logrotate_stderr_options>\n"
         "    size <max_stderr_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this module.");
+        "NOTE: The 'size' option will be overridden by this module.");
   }
 
   static Option<Error> validateSize(const Bytes& value)

@@ -28,7 +28,7 @@ namespace tests {
 // Provides a mock Isolator that by default expects calls to
 // Isolator::prepare, Isolator::isolate, Isolator::watch, and
 // Isolator::cleanup and simply returns "nothing" as appropriate for
-// each call. This behavior can be overriden by adding EXPECT_CALL as
+// each call. This behavior can be overridden by adding EXPECT_CALL as
 // necessary. For example, if you don't expect any calls to
 // Isolator::cleanup you can do:
 //

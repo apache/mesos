@@ -23,7 +23,7 @@ TAG=mesos-tidy-`date +%s`-$RANDOM
 # images on DockerHub and use them.
 docker build --no-cache=true -t $TAG mesos-tidy/
 
-# Configure how checks are run. These variables can be overriden by setting the
+# Configure how checks are run. These variables can be overridden by setting the
 # respective environment variables before invoking this script.
 # TODO(bbannier): Enable more upstream checks by default, e.g., from the Google set.
 CHECKS=${CHECKS:-'-*,mesos-*'}

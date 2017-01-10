@@ -124,7 +124,7 @@ setting the `--container_logger` Agent flag to
   [logrotate_stdout_options]
   size [max_stdout_size]
 }</pre>
-      NOTE: The <code>size</code> option will be overriden by this module.
+      NOTE: The <code>size</code> option will be overridden by this module.
     </td>
   </tr>
 

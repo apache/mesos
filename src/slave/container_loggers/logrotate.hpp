@@ -74,7 +74,7 @@ struct Flags : public virtual flags::FlagsBase
         "    <logrotate_options>\n"
         "    size <max_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this command.");
+        "NOTE: The 'size' option will be overridden by this command.");
 
     add(&Flags::log_filename,
         "log_filename",

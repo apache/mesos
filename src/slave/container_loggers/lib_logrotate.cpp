@@ -103,11 +103,11 @@ public:
     // Copy the global rotation flags.
     // These will act as the defaults in case the executor environment
     // overrides a subset of them.
-    LoggerFlags overridenFlags;
-    overridenFlags.max_stdout_size = flags.max_stdout_size;
-    overridenFlags.logrotate_stdout_options = flags.logrotate_stdout_options;
-    overridenFlags.max_stderr_size = flags.max_stderr_size;
-    overridenFlags.logrotate_stderr_options = flags.logrotate_stderr_options;
+    LoggerFlags overriddenFlags;
+    overriddenFlags.max_stdout_size = flags.max_stdout_size;
+    overriddenFlags.logrotate_stdout_options = flags.logrotate_stdout_options;
+    overriddenFlags.max_stderr_size = flags.max_stderr_size;
+    overriddenFlags.logrotate_stderr_options = flags.logrotate_stderr_options;
 
     // Check for overrides of the rotation settings in the
     // `ExecutorInfo`s environment variables.
@@ -129,7 +129,7 @@ public:
       }
 
       // We will error out if there are unknown flags with the same prefix.
-      Try<flags::Warnings> load = overridenFlags.load(executorEnvironment);
+      Try<flags::Warnings> load = overriddenFlags.load(executorEnvironment);
 
       if (load.isError()) {
         return Failure(
@@ -169,8 +169,8 @@ public:
 
     // Spawn a process to handle stdout.
     mesos::internal::logger::rotate::Flags outFlags;
-    outFlags.max_size = overridenFlags.max_stdout_size;
-    outFlags.logrotate_options = overridenFlags.logrotate_stdout_options;
+    outFlags.max_size = overriddenFlags.max_stdout_size;
+    outFlags.logrotate_options = overriddenFlags.logrotate_stdout_options;
     outFlags.log_filename = path::join(sandboxDirectory, "stdout");
     outFlags.logrotate_path = flags.logrotate_path;
     outFlags.user = user;
@@ -227,8 +227,8 @@ public:
 
     // Spawn a process to handle stderr.
     mesos::internal::logger::rotate::Flags errFlags;
-    errFlags.max_size = overridenFlags.max_stderr_size;
-    errFlags.logrotate_options = overridenFlags.logrotate_stderr_options;
+    errFlags.max_size = overriddenFlags.max_stderr_size;
+    errFlags.logrotate_options = overriddenFlags.logrotate_stderr_options;
     errFlags.log_filename = path::join(sandboxDirectory, "stderr");
     errFlags.logrotate_path = flags.logrotate_path;
     errFlags.user = user;
