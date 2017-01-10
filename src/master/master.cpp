@@ -3924,15 +3924,14 @@ void Master::_accept(
           drop(framework,
                operation,
                "Authorization of principal '" + framework->info.principal() +
-               "' to reserve resources failed: " +
-               authorization.failure());
+               "' to reserve resources failed: " + authorization.failure());
 
           continue;
         } else if (!authorization.get()) {
           drop(framework,
                operation,
                "Not authorized to reserve resources as '" +
-                 framework->info.principal() + "'");
+               framework->info.principal() + "'");
 
           continue;
         }
