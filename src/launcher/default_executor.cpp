@@ -652,27 +652,33 @@ protected:
       update(taskId, taskState, message, None());
     }
 
-    LOG(INFO) << "Successfully waited for child container " << containerId
-              << " of task '" << taskId << "'"
-              << " in state " << stringify(taskState);
-
     CHECK(containers.contains(containerId));
     containers.erase(containerId);
 
-    // The default restart policy for a task group is to kill all the
-    // remaining child containers if one of them terminated with a
-    // non-zero exit code. Ignore if a shutdown is in progress.
-    if (!shuttingDown && taskState == TASK_FAILED) {
-      LOG(ERROR)
-        << "Child container " << containerId << " terminated with status "
-        << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
-      shutdown();
-      return;
-    }
+    LOG(INFO)
+      << "Child container " << containerId << " of task '" << taskId
+      << "' in state " << stringify(taskState) << " terminated with status "
+      << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
 
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
       __shutdown();
+    }
+
+    // Ignore if the executor is already in the process of shutting down.
+    if (shuttingDown) {
+      return;
+    }
+
+    // The default restart policy for a task group is to kill all the
+    // remaining child containers if one of them terminated with a
+    // non-zero exit code.
+    if (taskState == TASK_FAILED) {
+      // Kill all the other active containers.
+      //
+      // TODO(anand): Invoke `kill()` once per active container
+      // instead of directly invoking `shutdown()`.
+      shutdown();
     }
   }
 
