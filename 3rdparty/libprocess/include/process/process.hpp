@@ -99,7 +99,7 @@ protected:
    * Invoked when a process is terminated.
    *
    * **NOTE**: this does not get invoked automatically if
-   * `process::ProcessBase::visit(const TerminateEvent&)` is overriden.
+   * `process::ProcessBase::visit(const TerminateEvent&)` is overridden.
    */
   virtual void finalize() {}
 
