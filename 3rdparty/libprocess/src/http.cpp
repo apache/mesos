@@ -191,7 +191,7 @@ Try<URL> URL::parse(const string& urlString)
 {
   // TODO(tnachen): Consider using C++11 regex support instead.
 
-  size_t schemePos = urlString.find_first_of("://");
+  size_t schemePos = urlString.find("://");
   if (schemePos == string::npos) {
     return Error("Missing scheme in url string");
   }
