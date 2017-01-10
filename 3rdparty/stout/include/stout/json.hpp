@@ -36,6 +36,7 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/numify.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
@@ -661,54 +662,34 @@ inline bool operator!=(const Value& lhs, const Value& rhs)
 
 inline std::ostream& operator<<(std::ostream& stream, const String& string)
 {
-  // TODO(benh): This escaping DOES NOT handle unicode, it encodes as ASCII.
-  // See RFC4627 for the JSON string specificiation.
-  return stream << picojson::value(string.value).serialize();
+  return stream << jsonify(string.value);
 }
 
 
 inline std::ostream& operator<<(std::ostream& stream, const Number& number)
 {
   switch (number.type) {
-    case Number::FLOATING: {
-      // Prints a floating point value, with the specified precision, see:
-      // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
-      // Additionally ensures that a decimal point is in the output.
-      char buffer[50] {}; // More than long enough for the specified precision.
-      snprintf(
-          buffer,
-          sizeof(buffer),
-          "%#.*g",
-          std::numeric_limits<double>::digits10,
-          number.value);
-
-      // Get rid of excess trailing zeroes before outputting.
-      // Otherwise, printing 1.0 would result in "1.00000000000000".
-      // NOTE: valid JSON numbers cannot end with a '.'.
-      std::string trimmed = strings::trim(buffer, strings::SUFFIX, "0");
-      return stream << trimmed << (trimmed.back() == '.' ? "0" : "");
-    }
+    case Number::FLOATING:
+      stream << jsonify(number.value);
+      break;
     case Number::SIGNED_INTEGER:
-      return stream << number.signed_integer;
+      stream << jsonify(number.signed_integer);
+      break;
     case Number::UNSIGNED_INTEGER:
-      return stream << number.unsigned_integer;
-
-    // NOTE: By not setting a default we leverage the compiler
-    // errors when the enumeration is augmented to find all
-    // the cases we need to provide.
+      stream << jsonify(number.unsigned_integer);
+      break;
   }
-
-  UNREACHABLE();
+  return stream;
 }
 
 
+// TODO(mpark): Extend `jsonify` to be usable for this implementation.
 inline std::ostream& operator<<(std::ostream& stream, const Object& object)
 {
   stream << "{";
-  std::map<std::string, Value>::const_iterator iterator;
-  iterator = object.values.begin();
+  auto iterator = object.values.begin();
   while (iterator != object.values.end()) {
-    stream << String((*iterator).first) << ":" << (*iterator).second;
+    stream << jsonify(iterator->first) << ":" << iterator->second;
     if (++iterator != object.values.end()) {
       stream << ",";
     }
@@ -718,11 +699,11 @@ inline std::ostream& operator<<(std::ostream& stream, const Object& object)
 }
 
 
+// TODO(mpark): Extend `jsonify` to be usable for this implementation.
 inline std::ostream& operator<<(std::ostream& stream, const Array& array)
 {
   stream << "[";
-  std::vector<Value>::const_iterator iterator;
-  iterator = array.values.begin();
+  auto iterator = array.values.begin();
   while (iterator != array.values.end()) {
     stream << *iterator;
     if (++iterator != array.values.end()) {
@@ -736,7 +717,7 @@ inline std::ostream& operator<<(std::ostream& stream, const Array& array)
 
 inline std::ostream& operator<<(std::ostream& stream, const Boolean& boolean)
 {
-  return stream << (boolean.value ? "true" : "false");
+  return stream << jsonify(boolean.value);
 }
 
 
