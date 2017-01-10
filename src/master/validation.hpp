@@ -119,6 +119,8 @@ namespace executor {
 // Functions in this namespace are only exposed for testing.
 namespace internal {
 
+Option<Error> validateExecutorID(const ExecutorInfo& executor);
+
 // Validates that fields are properly set depending on the type of the executor.
 Option<Error> validateType(const ExecutorInfo& executor);
 

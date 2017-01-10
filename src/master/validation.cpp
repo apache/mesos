@@ -620,6 +620,14 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 namespace executor {
 namespace internal {
 
+Option<Error> validateExecutorID(const ExecutorInfo& executor)
+{
+  // Delegate to the common ExecutorID validation. Here we wrap
+  // around it to be consistent with other executor validators.
+  return common::validation::validateExecutorID(executor.executor_id());
+}
+
+
 Option<Error> validateType(const ExecutorInfo& executor)
 {
   switch (executor.type()) {
@@ -753,6 +761,7 @@ Option<Error> validate(
 
   vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(internal::validateType, executor),
+    lambda::bind(internal::validateExecutorID, executor),
     lambda::bind(internal::validateFrameworkID, executor, framework),
     lambda::bind(internal::validateShutdownGracePeriod, executor),
     lambda::bind(internal::validateResources, executor),

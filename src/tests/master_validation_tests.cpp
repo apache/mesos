@@ -1730,6 +1730,38 @@ TEST_F(ExecutorValidationTest, ExecutorType)
 }
 
 
+TEST_F(ExecutorValidationTest, ExecutorID)
+{
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("abc");
+
+    EXPECT_NONE(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("");
+
+    EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("ab c");
+
+    EXPECT_NONE(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("ab/c");
+
+    EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
+  }
+}
+
+
 class TaskGroupValidationTest : public MesosTest {};
 
 
