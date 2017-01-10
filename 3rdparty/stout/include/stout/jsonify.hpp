@@ -13,6 +13,9 @@
 #ifndef __STOUT_JSONIFY__
 #define __STOUT_JSONIFY__
 
+#include <xlocale.h>
+
+#include <clocale>
 #include <cstddef>
 #include <functional>
 #include <ostream>
@@ -21,6 +24,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <stout/check.hpp>
 #include <stout/result_of.hpp>
 #include <stout/strings.hpp>
 
@@ -49,6 +53,32 @@ JSON::Proxy jsonify(const T&);
 
 namespace JSON {
 
+namespace internal {
+
+class ClassicLocale
+{
+public:
+  ClassicLocale()
+  {
+    c_locale_ = newlocale(LC_NUMERIC_MASK, "C", nullptr);
+    original_locale_ = uselocale(c_locale_);
+  }
+
+  ~ClassicLocale()
+  {
+    uselocale(original_locale_);
+    CHECK(c_locale_ != 0);
+    freelocale(c_locale_);
+  }
+
+private:
+  locale_t original_locale_;
+  locale_t c_locale_;
+};
+
+} // namespace internal {
+
+
 // The result of `jsonify`. This is a light-weight proxy object that can either
 // be implicitly converted to a `std::string`, or directly inserted into an
 // output stream.
@@ -62,6 +92,9 @@ class Proxy
 public:
   operator std::string() &&
   {
+    // Needed to set C locale and therefore creating proper JSON output.
+    internal::ClassicLocale guard;
+
     std::ostringstream stream;
     stream << std::move(*this);
     return stream.str();
@@ -94,6 +127,9 @@ private:
 
 inline std::ostream& operator<<(std::ostream& stream, Proxy&& that)
 {
+  // Needed to set C locale and therefore creating proper JSON output.
+  internal::ClassicLocale guard;
+
   that.write_(&stream);
   return stream;
 }
