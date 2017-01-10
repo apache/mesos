@@ -984,6 +984,7 @@ private:
   bool waitForConnection;
   Option<Duration> heartbeatInterval;
   bool inputConnected;
+  Future<unix::Socket> accept;
   Promise<Nothing> promise;
   Promise<Nothing> startRedirect;
   // The following must be a `std::list`
@@ -1216,6 +1217,10 @@ Future<Nothing> IOSwitchboardServerProcess::unblock()
 
 void IOSwitchboardServerProcess::finalize()
 {
+  // Discard the server socket's `accept` future so that we do not
+  // maintain a reference to the socket, which would cause a leak.
+  accept.discard();
+
   foreach (HttpConnection& connection, outputConnections) {
     connection.close();
 
@@ -1257,7 +1262,10 @@ void IOSwitchboardServerProcess::heartbeatLoop()
 
 void IOSwitchboardServerProcess::acceptLoop()
 {
-  socket.accept()
+  // Store the server socket's `accept` future so that we can discard
+  // it during process finalization. Otherwise, we would maintain a
+  // reference to the socket, causing a leak.
+  accept = socket.accept()
     .onAny(defer(self(), [this](const Future<unix::Socket>& socket) {
       if (!socket.isReady()) {
         failure = Failure("Failed trying to accept connection");
