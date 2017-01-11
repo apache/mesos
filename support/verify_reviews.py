@@ -6,6 +6,7 @@
 import atexit
 import json
 import os
+import platform
 import subprocess
 import sys
 import urllib
@@ -76,7 +77,7 @@ def api(url, data=None):
 
 def apply_review(review_id):
     print "Applying review %s" % review_id
-    shell("./support/apply-review.sh -n -r %s" % review_id)
+    shell("python support/apply-reviews.py -n -r %s" % review_id)
 
 
 def apply_reviews(review_request, reviews):
@@ -132,25 +133,33 @@ def verify_review(review_request):
 
         reviews.reverse() # Reviews are applied in the reverse order.
 
-        # Launch docker build script.
+        command = ""
+        if platform.system() == 'Windows':
+            command = "support\\windows-build.bat"
 
-        # TODO(jojy): Launch 'docker_build.sh' in subprocess so that
-        # verifications can be run in parallel for various configurations.
-        configuration = ("export "
-                         "OS='ubuntu:14.04' "
-                         "BUILDTOOL='autotools' "
-                         "COMPILER='gcc' "
-                         "CONFIGURATION='--verbose' "
-                         "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
+            # There is no equivalent to `tee` on Windows.
+            subprocess.check_call(
+                ['cmd', '/c', '%s 2>&1 > %s' % (command, build_output)])
+        else:
+            # Launch docker build script.
 
-        command = "%s; ./support/docker_build.sh" % configuration
+            # TODO(jojy): Launch 'docker_build.sh' in subprocess so that
+            # verifications can be run in parallel for various configurations.
+            configuration = ("export "
+                             "OS='ubuntu:14.04' "
+                             "BUILDTOOL='autotools' "
+                             "COMPILER='gcc' "
+                             "CONFIGURATION='--verbose' "
+                             "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
+
+            command = "%s; ./support/docker_build.sh" % configuration
 
 
-        # `tee` the output so that the console can log the whole build output.
-        # `pipefail` ensures that the exit status of the build command is
-        # preserved even after tee'ing.
-        subprocess.check_call(['bash', '-c', 'set -o pipefail; %s 2>&1 | tee %s'
-                               % (command, build_output)])
+            # `tee` the output so that the console can log the whole build output.
+            # `pipefail` ensures that the exit status of the build command is
+            # preserved even after tee'ing.
+            subprocess.check_call(['bash', '-c', 'set -o pipefail; %s 2>&1 | tee %s'
+                                   % (command, build_output)])
 
         # Success!
         post_review(
@@ -163,6 +172,11 @@ def verify_review(review_request):
         # output from `build_output` file. For all other command failures read
         # the output from `e.output`.
         output = open(build_output).read() if os.path.exists(build_output) else e.output
+
+        if platform.system() == 'Windows':
+            # We didn't output anything during the build (because `tee`
+            # doesn't exist), so we print the output to stdout upon error.
+            print output
 
         # Truncate the output when posting the review as it can be very large.
         output = output if len(output) <= REVIEW_SIZE else "...<truncated>...\n" + output[-REVIEW_SIZE:]
