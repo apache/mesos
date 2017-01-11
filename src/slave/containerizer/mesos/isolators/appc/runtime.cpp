@@ -33,6 +33,8 @@
 using std::list;
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -270,16 +272,10 @@ Result<CommandInfo> AppcRuntimeIsolatorProcess::getLaunchCommand(
   if (app.exec_size() > 0) {
     command.set_value(app.exec(0));
 
+    const RepeatedPtrField<string> arguments = command.arguments();
     command.clear_arguments();
     command.add_arguments(app.exec(0));
-
-    if (!containerConfig.has_task_info()) {
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.executor_info().command().arguments());
-    } else {
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.task_info().command().arguments());
-    }
+    command.mutable_arguments()->MergeFrom(arguments);
 
     if (command.arguments_size() == 1) {
       for (int i = 1; i < app.exec_size(); i++) {
