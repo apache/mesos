@@ -4451,7 +4451,10 @@ INSTANTIATE_TEST_CASE_P(
 // as the entrypoint and attaches to its STDOUT via the attach output call.
 // It then verifies that any data streamed to the container via the
 // attach input call is received by the client on the output stream.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest, AttachContainerInput)
+//
+// TODO(alexr): Enable this test once MESOS-6780 is resolved.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
+                                DISABLED_AttachContainerInput)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -4693,9 +4696,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest, AttachContainerInput)
 // entrypoint and verifies that any data streamed to the container via
 // an ATTACH_CONTAINER_INPUT call is received by the client on the
 // output stream.
+//
+// TODO(alexr): Enable this test once MESOS-6913 is resolved.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     AgentAPIStreamingTest,
-    AttachInputToNestedContainerSession)
+    DISABLED_AttachInputToNestedContainerSession)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

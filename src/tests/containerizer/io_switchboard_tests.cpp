@@ -462,7 +462,8 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
 }
 
 
-TEST_F(IOSwitchboardServerTest, AttachInput)
+// TODO(alexr): Enable this test once MESOS-6912 is resolved.
+TEST_F(IOSwitchboardServerTest, DISABLED_AttachInput)
 {
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
