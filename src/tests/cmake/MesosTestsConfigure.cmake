@@ -26,13 +26,17 @@ set(
 
 # COMPILER CONFIGURATION.
 #########################
-if (WIN32)
-  STRING(REGEX REPLACE "/" "\\\\" CURRENT_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR})
-  STRING(REGEX REPLACE "/" "\\\\" CURRENT_CMAKE_BUILD_DIR ${CMAKE_BINARY_DIR})
-else (WIN32)
-  set(CURRENT_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR})
-  set(CURRENT_CMAKE_BUILD_DIR ${CMAKE_BINARY_DIR})
-endif (WIN32)
+# NOTE: On Windows, these paths should be Windows-style, with '\' characters
+# separating path components. Unfortunately, CMake does not escape these
+# slashes in path strings, so when we pass them as preprocessor flags,
+# a string like `C:\src` will look to the standard Windows API like a
+# string with an escaped '\s' character.
+#
+# On the other hand, Windows APIs are happy to take Unix-style paths as
+# arguments. So, to unblock making the agent tests work, we simply use
+# Unix paths here.
+set(CURRENT_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+set(CURRENT_CMAKE_BUILD_DIR ${CMAKE_BINARY_DIR})
 
 add_definitions(-DSOURCE_DIR="${CURRENT_CMAKE_SOURCE_DIR}")
 add_definitions(-DBUILD_DIR="${CURRENT_CMAKE_BUILD_DIR}")
