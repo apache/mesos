@@ -37,4 +37,4 @@ if [ -n "$ADDED_OR_MODIFIED" ]; then
 fi
 
 # Check that the commits are properly split between mesos, libprocess and stout.
-git diff --cached --name-only --diff-filter=AMD | xargs ./support/mesos_split.py || exit 1
+git diff --cached --name-only --diff-filter=AMD | xargs ./support/mesos-split.py || exit 1
