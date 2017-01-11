@@ -905,7 +905,16 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
   const string tmpdir = os::temp();
 
   const string& path =
+#ifndef __WINDOWS__
     path::join(tmpdir, strings::join("_", testCase, testName, "XXXXXX"));
+#else
+    // TODO(hausdorff): When we resolve MESOS-5849, we should change
+    // this back to the same path as the Unix version. This is
+    // currently necessary to make the sandbox path short enough to
+    // avoid the infamous Windows path length errors, which would
+    // normally cause many of our tests to fail.
+    path::join(tmpdir, "XXXXXX");
+#endif // !__WINDOWS__
 
   Try<string> mkdtemp = os::mkdtemp(path);
   if (mkdtemp.isSome()) {
