@@ -150,6 +150,11 @@ private:
   Owned<SendRequest> send_request;
   Owned<ConnectRequest> connect_request;
 
+  // Indicates whether or not an EOF has been received on this socket.
+  // Our accesses to this member are not synchronized because they all
+  // occur within the event loop, which runs on a single thread.
+  bool received_eof = false;
+
   // This is a weak pointer to 'this', i.e., ourselves, this class
   // instance. We need this for our event loop callbacks because it's
   // possible that we'll actually want to cleanup this socket impl
