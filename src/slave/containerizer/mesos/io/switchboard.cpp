@@ -1593,7 +1593,9 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
           }
         }
       })
-    .then(defer(self(), [=](const http::Response& response) {
+    // We explicitly specify the return type to avoid a type deduction
+    // issue in some versions of clang. See MESOS-2943.
+    .then(defer(self(), [=](const http::Response& response) -> http::Response {
       // Reset `inputConnected` to allow future input connections.
       inputConnected = false;
 
