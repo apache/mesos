@@ -80,6 +80,16 @@ REM Build everything else.
 msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m
 if %errorlevel% neq 0 exit /b %errorlevel%
 
+REM Due to how Mesos uses and creates symlinks, the next test suite
+REM will only pass when run as an Administrator. The following command
+REM is a read-only command that only passes for Administrators.
+REM See: https://technet.microsoft.com/en-us/library/bb490711.aspx
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Administrator permissions not detected.  Skipping Mesos tests...
+    goto :eof
+)
+
 REM Run mesos tests.
 "src/mesos-tests.exe" --verbose
 if %errorlevel% neq 0 exit /b %errorlevel%
