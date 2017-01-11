@@ -35,14 +35,7 @@ namespace process {
 namespace io {
 namespace internal {
 
-enum ReadFlags
-{
-  NONE = 0,
-  PEEK
-};
-
-
-Future<size_t> read(int fd, void* data, size_t size, ReadFlags flags = NONE)
+Future<size_t> read(int fd, void* data, size_t size)
 {
   // TODO(benh): Let the system calls do what ever they're supposed to
   // rather than return 0 here?
@@ -60,20 +53,7 @@ Future<size_t> read(int fd, void* data, size_t size, ReadFlags flags = NONE)
         // would block for non-deterministically long periods of
         // time. This may be fixed in a newer version of libev (we use
         // 3.8 at the time of writing this comment).
-        ssize_t length = [=]() {
-          switch (flags) {
-            case PEEK:
-              // In case `fd` is not a socket os::recv() will fail
-              // with ENOTSOCK and the error will be returned.
-              //
-              // NOTE: We cast to `char*` here because the function
-              // prototypes on Windows use `char*` instead of `void*`.
-              return net::recv(fd, (char*) data, size, MSG_PEEK);
-            case NONE:
-              return os::read(fd, data, size);
-          }
-        }();
-
+        ssize_t length = os::read(fd, data, size);
         if (length < 0) {
 #ifdef __WINDOWS__
           int error = WSAGetLastError();
@@ -191,54 +171,6 @@ Future<size_t> write(int fd, const void* data, size_t size)
   }
 
   return internal::write(fd, data, size);
-}
-
-
-Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
-{
-  process::initialize();
-
-  // Make sure that the buffer is large enough.
-  if (size < limit) {
-    return Failure("Expected a large enough data buffer");
-  }
-
-  // Get our own copy of the file descriptor so that we're in control
-  // of the lifetime and don't crash if/when someone by accidently
-  // closes the file descriptor before discarding this future. We can
-  // also make sure it's non-blocking and will close-on-exec. Start by
-  // checking we've got a "valid" file descriptor before dup'ing.
-  if (fd < 0) {
-    return Failure(os::strerror(EBADF));
-  }
-
-  fd = dup(fd);
-  if (fd == -1) {
-    return Failure(ErrnoError("Failed to duplicate file descriptor"));
-  }
-
-  // Set the close-on-exec flag.
-  Try<Nothing> cloexec = os::cloexec(fd);
-  if (cloexec.isError()) {
-    os::close(fd);
-    return Failure(
-        "Failed to set close-on-exec on duplicated file descriptor: " +
-        cloexec.error());
-  }
-
-  // Make the file descriptor non-blocking.
-  Try<Nothing> nonblock = os::nonblock(fd);
-  if (nonblock.isError()) {
-    os::close(fd);
-    return Failure(
-        "Failed to make duplicated file descriptor non-blocking: " +
-        nonblock.error());
-  }
-
-  return internal::read(fd, data, limit, internal::PEEK)
-    .onAny([fd]() {
-      os::close(fd);
-    });
 }
 
 
@@ -501,30 +433,6 @@ Future<Nothing> redirect(
       hooks);
 }
 #endif // __WINDOWS__
-
-
-// TODO(hartem): Most of the boilerplate code here is the same as
-// in io::read, so this needs to be refactored.
-Future<string> peek(int fd, size_t limit)
-{
-  process::initialize();
-
-  if (limit > BUFFERED_READ_SIZE) {
-    return Failure("Expected the number of bytes to be less than " +
-                   stringify(BUFFERED_READ_SIZE));
-  }
-
-  // TODO(benh): Wrap up this data as a struct, use 'Owner'.
-  boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
-
-  return io::peek(fd, data.get(), BUFFERED_READ_SIZE, limit)
-    .then([=](size_t length) -> Future<string> {
-      // At this point we have to return whatever data we were able to
-      // peek, because we cannot rely on peeking across message
-      // boundaries.
-      return string(data.get(), length);
-    });
-}
 
 } // namespace io {
 } // namespace process {

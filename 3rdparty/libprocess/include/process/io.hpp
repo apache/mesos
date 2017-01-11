@@ -141,58 +141,6 @@ Future<Nothing> redirect(
     const std::vector<lambda::function<void(const std::string&)>>& hooks = {});
 #endif // __WINDOWS__
 
-
-/**
- * Performs a single non-blocking peek by polling on the specified
- * file descriptor until any data can be be peeked.
- *
- * The future will become ready when some data is peeked (may be less
- * than specified by the limit). A failure will be returned if an error
- * is detected. If end-of-file is reached, value zero will be returned.
- *
- * **NOTE**: This function is inspired by the MSG_PEEK flag of recv()
- * in that it does not remove the peeked data from the queue. Thus, a
- * subsequent io::read or io::peek() call will return the same data.
- *
- * TODO(hartem): This function will currently return an error if fd
- * is not a socket descriptor. Chnages need to be made to support
- * ordinary files and pipes as well.
- *
- * @param fd socket descriptor.
- * @param data buffer to which peek'd bytes will be copied.
- * @param size size of the buffer.
- * @param limit maximum number of bytes to peek.
- * @return The number of bytes peeked.
- *     A failure will be returned if an error is detected.
- */
-Future<size_t> peek(int fd, void* data, size_t size, size_t limit);
-
-
-/**
- * A more convenient version of io::peek that does not require
- * allocating the buffer.
- *
- * **NOTE**: this function treats the limit parameter merely as an
- * upper bound for the size of the data to peek. It does not wait
- * until the specified amount of bytes is peeked. It returns as soon
- * as some amount of data becomes available.
- * It cannot concatenate data from subsequent peeks because MSG_PEEK
- * has known limitations when it comes to spanning message boundaries.
- *
- * **NOTE**: this function will return an error if the limit is
- * greater than the internal peek buffer size (64k as of writing this
- * comment, io::BUFFERED_READ_SIZE. The caller should use the overlaod
- * of io::peek that allows to supply a bigger buffer.
- * TODO(hartem): It will be possible to fix this once SO_PEEK_OFF
- * (introduced in 3.4 kernels) becomes universally available.
- *
- * @param fd socket descriptor.
- * @param limit maximum number of bytes to peek.
- * @return Peeked bytes.
- *     A failure will be returned if an error is detected.
- */
-Future<std::string> peek(int fd, size_t limit);
-
 } // namespace io {
 } // namespace process {
 
