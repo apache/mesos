@@ -416,7 +416,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
           v1::createTaskGroupInfo({taskInfo}))));
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
   EXPECT_TRUE(updateRunning->status().has_timestamp());
 
@@ -425,7 +425,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
     .WillOnce(FutureArg<1>(&updateFinished));
 
   AWAIT_READY(updateFinished);
-  ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
   EXPECT_TRUE(updateFinished->status().has_timestamp());
 }
@@ -536,7 +536,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
           v1::createTaskGroupInfo({taskInfo}))));
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
   EXPECT_TRUE(updateRunning->status().has_timestamp());
 
@@ -545,7 +545,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
     .WillOnce(FutureArg<1>(&updateFinished));
 
   AWAIT_READY(updateFinished);
-  ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
   EXPECT_TRUE(updateFinished->status().has_timestamp());
 }
@@ -657,7 +657,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
           v1::createTaskGroupInfo({taskInfo}))));
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
   EXPECT_TRUE(updateRunning->status().has_timestamp());
 
@@ -666,7 +666,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
     .WillOnce(FutureArg<1>(&updateFinished));
 
   AWAIT_READY(updateFinished);
-  ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
   EXPECT_TRUE(updateFinished->status().has_timestamp());
 }
