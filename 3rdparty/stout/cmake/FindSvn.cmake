@@ -35,10 +35,13 @@
 # CONFIGURE OUR SEARCH. Specify what we're looking for, and which directories
 # we're going to look through to find them.
 #############################################################################
+if (SVN_FOUND)
+  return()
+endif (SVN_FOUND)
+
 unset(SVN_LIB)
 unset(SVN_INCLUDE_DIR)
 unset(SVN_LIBS)
-unset(SVN_FOUND)
 
 set(POSSIBLE_SVN_INCLUDE_DIRECTORIES
   ${POSSIBLE_SVN_INCLUDE_DIRECTORIES}
@@ -111,6 +114,8 @@ else ((NUM_FOUND_LIBS AND (NUM_REQD_LIBS EQUAL NUM_FOUND_LIBS)) AND
   endif (Svn_FIND_REQUIRED)
 endif ((NUM_FOUND_LIBS AND (NUM_REQD_LIBS EQUAL NUM_FOUND_LIBS)) AND
        SVN_INCLUDE_DIR_FOUND)
+
+set(SVN_FOUND 1)
 
 # Export variables.
 mark_as_advanced(

@@ -39,12 +39,15 @@
 # CONFIGURE THE APR SEARCH. Specify what we're looking for, and which directories
 # we're going to look through to find them.
 #############################################################################
+if (APR_FOUND)
+  return()
+endif (APR_FOUND)
+
 unset(APRUTIL_LIB)
 unset(APRUTIL_INCLUDE_DIR)
 unset(APR_LIB)
 unset(APR_INCLUDE_DIR)
 unset(APR_LIBS)
-unset(APR_FOUND)
 
 # NOTE: If this fails, stderr is ignored, and the output variable is empty.
 # This has no deleterious effect our path search.
