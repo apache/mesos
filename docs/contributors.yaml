@@ -564,6 +564,14 @@
   jira_user: shankinson
   reviewboard_user: shankinson
 
+- name: Thomas Maurice
+  affiliations:
+    - {organization: Criteo}
+  emails:
+    - thomas@maurice.fr
+    - t.maurice@criteo.com
+  reviewboard_user: tmaurice
+
 - name: Till Toenshoff
   affiliations:
     - {organization: Mesosphere}
