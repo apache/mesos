@@ -429,21 +429,21 @@ inline Try<pid_t> clone(
   // allocate the stack here in order to keep the call to os::clone
   // async signal safe, since otherwise it would be doing the dynamic
   // allocation itself).
-  os::Stack stack;
-  stack.size = 8 * 1024 * 1024,
-  stack.address =
-    new unsigned long long[stack.size / sizeof(unsigned long long)];
+  Try<os::Stack> stack = os::Stack::create(os::Stack::DEFAULT_SIZE);
+  if (stack.isError()) {
+    return Error("Failed to allocate stack: " + stack.error());
+  }
 
   pid_t child = fork();
   if (child < 0) {
-    delete[] stack.address;
+    stack->deallocate();
     close(fds.values());
     ::close(sockets[0]);
     ::close(sockets[1]);
     return ErrnoError();
   } else if (child > 0) {
     // Parent.
-    delete[] stack.address;
+    stack->deallocate();
 
     close(fds.values());
     ::close(sockets[1]);
@@ -597,7 +597,7 @@ inline Try<pid_t> clone(
       return f();
     },
     flags,
-    stack);
+    stack.get());
 
     ::close(sockets[1]);
 
