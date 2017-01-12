@@ -1011,7 +1011,7 @@ Future<bool> MesosContainerizerProcess::launch(
       containerInfo->CopyFrom(taskInfo->container());
 
       if (taskInfo->container().mesos().has_image()) {
-        // For command tasks, We need to set the command executor user
+        // For command tasks, we need to set the command executor user
         // as root as it needs to perform chroot (even when
         // switch_user is set to false).
         containerConfig.mutable_command_info()->set_user("root");
@@ -2118,7 +2118,7 @@ Future<bool> MesosContainerizerProcess::destroy(
   LOG(INFO) << "Destroying container " << containerId << " in "
             << container->state << " state";
 
-  // NOTE: We save the preivous state so that '_destroy' can properly
+  // NOTE: We save the previous state so that '_destroy' can properly
   // cleanup based on the previous state of the container.
   State previousState = container->state;
 
