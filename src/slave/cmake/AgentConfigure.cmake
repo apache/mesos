@@ -16,11 +16,6 @@
 
 include(StoutConfigure)
 
-if (NOT WIN32)
-  find_package(Apr REQUIRED)
-  find_package(Svn REQUIRED)
-endif (NOT WIN32)
-
 set(LOGROTATE_CONTAINER_LOGGER_TARGET logrotate_container_logger
   CACHE STRING "Library containing the logrotate container logger."
   )

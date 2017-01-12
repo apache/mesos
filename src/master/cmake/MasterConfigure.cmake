@@ -16,11 +16,6 @@
 
 include(StoutConfigure)
 
-if (NOT WIN32)
-  find_package(Apr REQUIRED)
-  find_package(Svn REQUIRED)
-endif (NOT WIN32)
-
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
