@@ -474,20 +474,10 @@ if (LINUX)
   set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
 endif (LINUX)
 
-# TODO(hausdorff): (MESOS-5455) These are placeholder values. Transition away
-# from them.
-set(BUILD_DATE "\"2016-3-3 10:20\"")
-set(BUILD_TIME "\"1111100\"")
-set(BUILD_USER "\"frank\"")
-set(BUILD_FLAGS "\"\"")
-set(BUILD_JAVA_JVM_LIBRARY "")
-
 # Include source for Windows build.
 if (WIN32)
   set(MESOS_SRC ${MESOS_SRC} ${WIN32_SRC})
 endif (WIN32)
-
-add_definitions(-DUSE_STATIC_LIB -DBUILD_DATE=${BUILD_DATE} -DBUILD_TIME=${BUILD_TIME} -DBUILD_USER=${BUILD_USER} -DBUILD_FLAGS=${BUILD_FLAGS} -DBUILD_JAVA_JVM_LIBRARY="")
 
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
