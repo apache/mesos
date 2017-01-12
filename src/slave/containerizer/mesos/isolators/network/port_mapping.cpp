@@ -125,8 +125,8 @@ namespace slave {
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 
 // Linux traffic control is a combination of queueing disciplines,
-// filters and classes organized as a tree for the ingress (tx) and
-// egress (rx) flows for each interface. Each container provides two
+// filters and classes organized as a tree for the ingress (rx) and
+// egress (tx) flows for each interface. Each container provides two
 // networking interfaces, a virtual eth0 and a loopback interface. The
 // flow of packets from the external network to container is shown
 // below:
@@ -162,7 +162,7 @@ static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 // network flows along the reverse path [4,5,6]. Loopback traffic is
 // directed to the corresponding Ethernet interface, either [7,10] or
 // [8,9] where the same destination port routing can be applied as to
-// external traffic. We use traffic control filters at several of the
+// external traffic. We use traffic control filters on several of the
 // interfaces to create these packet paths.
 //
 // Linux provides only a very simple topology for ingress interfaces.
