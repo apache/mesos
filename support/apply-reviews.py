@@ -147,10 +147,30 @@ def ssl_create_default_context():
 
 def fetch_patch():
   """Fetches a patch from Review Board or GitHub."""
-  r = urllib2.urlopen(patch_url(), context=ssl_create_default_context())
+  if platform.system() == 'Windows':
+    r = urllib2.urlopen(patch_url(), context=ssl_create_default_context())
 
-  with open('%s.patch' % patch_id(), 'w') as patch:
-    patch.write(r.read())
+    with open('%s.patch' % patch_id(), 'w') as patch:
+      patch.write(r.read())
+  else:
+    # NOTE: SSL contexts are only supported in Python 2.7.9+. The version
+    # of Python running on the non-Windows ASF CI machines is sometimes older.
+    # Hence, we fall back to `wget` on non-Windows machines.
+    cmd = ' '.join(['wget',
+                   '--no-check-certificate',
+                   '--no-verbose',
+                   '-O '
+                   '{review_id}.patch',
+                   '{url}'])\
+                   .format(review_id=patch_id(), url=patch_url())
+
+    # In case of github we always need to fetch the patch to extract username
+    # and email, so we ignore the dry_run option by setting the second parameter
+    # to False.
+    if options['github']:
+      shell(cmd, False)
+    else:
+      shell(cmd, options['dry_run'])
 
 
 def patch_id():
