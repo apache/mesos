@@ -87,7 +87,7 @@ REM See: https://technet.microsoft.com/en-us/library/bb490711.aspx
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Administrator permissions not detected.  Skipping Mesos tests...
-    goto :eof
+    exit /b 0
 )
 
 REM Run mesos tests.
