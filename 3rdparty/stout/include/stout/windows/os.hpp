@@ -16,8 +16,8 @@
 #include <direct.h>
 #include <io.h>
 #include <Psapi.h>
-#include <shlobj.h>
 #include <TlHelp32.h>
+#include <Userenv.h>
 
 #include <sys/utime.h>
 
@@ -724,27 +724,24 @@ inline Try<Nothing> kill_job(pid_t pid)
 
 inline Try<std::string> var()
 {
-  wchar_t* var_folder = nullptr;
-
-  // Retrieves the directory of `ProgramData` using the default options.
-  // NOTE: The location of `ProgramData` is fixed and so does not
-  // depend on the current user.
-  if (::SHGetKnownFolderPath(
-          FOLDERID_ProgramData,
-          KF_FLAG_DEFAULT,
-          nullptr,
-          &var_folder) // `PWSTR` is `typedef wchar_t*`.
-      != S_OK) {
-    return WindowsError("os::var: Call to `SHGetKnownFolderPath` failed");
+  // Get the `ProgramData` path. First, find the size of the output buffer.
+  // This size includes the null-terminating character.
+  DWORD size = 0;
+  if (::GetAllUsersProfileDirectoryW(nullptr, &size)) {
+    // The expected behavior here is for the function to "fail"
+    // and return `false`, and `size` receives necessary buffer size.
+    return WindowsError(
+        "os::var: `GetAllUsersProfileDirectory` succeeded unexpectedly");
   }
 
-  // Convert `wchar_t*` to `wstring`.
-  std::wstring wvar_folder(var_folder);
+  std::vector<wchar_t> var_folder(size);
+  if (!::GetAllUsersProfileDirectoryW(&var_folder[0], &size)) {
+    return WindowsError(
+        "os::var: `GetAllUsersProfileDirectory` failed");
+  }
 
-  // Free the buffer allocated by `SHGetKnownFolderPath`.
-  CoTaskMemFree(static_cast<void*>(var_folder));
-
-  // Convert UTF-16 `wstring` to UTF-8 `string`.
+  // Convert UTF-16 `wchar[]` to UTF-8 `string`.
+  std::wstring wvar_folder(&var_folder[0]);
   std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
   return converter.to_bytes(wvar_folder);
 }
