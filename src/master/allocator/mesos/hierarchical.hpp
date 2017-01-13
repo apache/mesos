@@ -32,6 +32,8 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "master/allocator/mesos/allocator.hpp"
 #include "master/allocator/mesos/metrics.hpp"
 
@@ -283,15 +285,7 @@ protected:
     // Whether the framework suppresses offers.
     bool suppressed;
 
-    // Whether the framework desires revocable resources.
-    bool revocable;
-
-    // Whether the framework is aware of GPU resources. See
-    // the documentation for the GPU_RESOURCES Capability.
-    bool gpuAware;
-
-    // Whether the framework desires shared resources.
-    bool shared;
+    protobuf::framework::Capabilities capabilities;
 
     // Active offer and inverse offer filters for the framework.
     hashmap<SlaveID, hashset<OfferFilter*>> offerFilters;

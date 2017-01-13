@@ -47,6 +47,8 @@ using process::Future;
 using process::Owned;
 using process::Timeout;
 
+using mesos::internal::protobuf::framework::Capabilities;
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -263,16 +265,8 @@ void HierarchicalAllocatorProcess::addFramework(
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
   frameworks[frameworkId].suppressed = false;
-
-  // Set the framework capabilities that this allocator cares about.
-  frameworks[frameworkId].revocable = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-
-  frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
-
-  frameworks[frameworkId].shared = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::SHARED_RESOURCES);
+  frameworks[frameworkId].capabilities =
+    Capabilities(frameworkInfo.capabilities());
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -405,15 +399,8 @@ void HierarchicalAllocatorProcess::updateFramework(
   // progress on allowing these fields to be updated.
   CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
 
-  // Update the framework capabilities that this allocator cares about.
-  frameworks[frameworkId].revocable = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-
-  frameworks[frameworkId].gpuAware = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::GPU_RESOURCES);
-
-  frameworks[frameworkId].shared = protobuf::frameworkHasCapability(
-      frameworkInfo, FrameworkInfo::Capability::SHARED_RESOURCES);
+  frameworks[frameworkId].capabilities =
+    Capabilities(frameworkInfo.capabilities());
 }
 
 
@@ -1415,7 +1402,7 @@ void HierarchicalAllocatorProcess::allocate(
         // Only offer resources from slaves that have GPUs to
         // frameworks that are capable of receiving GPUs.
         // See MESOS-5634.
-        if (!frameworks[frameworkId].gpuAware &&
+        if (!frameworks[frameworkId].capabilities.gpuResources &&
             slaves[slaveId].total.gpus().getOrElse(0) > 0) {
           continue;
         }
@@ -1431,7 +1418,7 @@ void HierarchicalAllocatorProcess::allocate(
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.
-        if (frameworks[frameworkId].shared) {
+        if (frameworks[frameworkId].capabilities.sharedResources) {
           available += slaves[slaveId].total.shared();
           if (offeredSharedResources.contains(slaveId)) {
             available -= offeredSharedResources[slaveId];
@@ -1571,7 +1558,7 @@ void HierarchicalAllocatorProcess::allocate(
         // Only offer resources from slaves that have GPUs to
         // frameworks that are capable of receiving GPUs.
         // See MESOS-5634.
-        if (!frameworks[frameworkId].gpuAware &&
+        if (!frameworks[frameworkId].capabilities.gpuResources &&
             slaves[slaveId].total.gpus().getOrElse(0) > 0) {
           continue;
         }
@@ -1587,7 +1574,7 @@ void HierarchicalAllocatorProcess::allocate(
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.
-        if (frameworks[frameworkId].shared) {
+        if (frameworks[frameworkId].capabilities.sharedResources) {
           available += slaves[slaveId].total.shared();
           if (offeredSharedResources.contains(slaveId)) {
             available -= offeredSharedResources[slaveId];
@@ -1628,7 +1615,7 @@ void HierarchicalAllocatorProcess::allocate(
         }
 
         // Remove revocable resources if the framework has not opted for them.
-        if (!frameworks[frameworkId].revocable) {
+        if (!frameworks[frameworkId].capabilities.revocableResources) {
           resources = resources.nonRevocable();
         }
 
