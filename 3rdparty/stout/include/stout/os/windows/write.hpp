@@ -40,7 +40,7 @@ inline ssize_t write(int fd, const void* data, size_t size)
 }
 
 
-inline ssize_t read(HANDLE handle, const void* data, size_t size)
+inline ssize_t write(HANDLE handle, const void* data, size_t size)
 {
   return ::os::write(
       _open_osfhandle(reinterpret_cast<intptr_t>(handle), O_RDWR),
