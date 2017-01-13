@@ -128,14 +128,10 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
         }
 
         if (_bev != nullptr) {
-          SSL* ssl = bufferevent_openssl_get_ssl(_bev);
-          // Workaround for SSL shutdown, see http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html // NOLINT
-          SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
-          SSL_shutdown(ssl);
-
           // NOTE: Removes all future callbacks using 'this->bev'.
           bufferevent_disable(_bev, EV_READ | EV_WRITE);
 
+          SSL* ssl = bufferevent_openssl_get_ssl(_bev);
           SSL_free(ssl);
           bufferevent_free(_bev);
         }
@@ -154,7 +150,7 @@ void LibeventSSLSocketImpl::initialize()
 }
 
 
-Try<Nothing> LibeventSSLSocketImpl::shutdown()
+Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
 {
   // Nothing to do if this socket was never initialized.
   synchronized (lock) {
@@ -196,6 +192,11 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown()
             request->promise
               .set(bufferevent_read(self->bev, request->data, request->size));
           }
+
+          // Workaround for SSL shutdown, see http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html // NOLINT
+          SSL* ssl = bufferevent_openssl_get_ssl(self->bev);
+          SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
+          SSL_shutdown(ssl);
         }
       },
       DISALLOW_SHORT_CIRCUIT);

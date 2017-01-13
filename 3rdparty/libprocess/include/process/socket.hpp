@@ -181,8 +181,8 @@ public:
   virtual Future<Nothing> send(const std::string& data);
 
   /**
-   * Shutdown the receive-side of the socket. No further data can be
-   * received from the socket.
+   * Shuts down the socket. Accepts an integer which specifies the
+   * shutdown mode.
    */
   virtual Try<Nothing> shutdown(int how)
   {
