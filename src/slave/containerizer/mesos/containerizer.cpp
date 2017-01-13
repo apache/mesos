@@ -160,7 +160,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     flags_.isolation = "posix/cpu,posix/mem";
 #else
     flags_.isolation = "windows/cpu";
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
   } else if (flags.isolation == "cgroups") {
     LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
                  << "please update your flags to"
@@ -181,7 +181,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     flags_.isolation += ",filesystem/posix";
 #else
     flags_.isolation += ",filesystem/windows";
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
   }
 
   if (strings::contains(flags_.isolation, "posix/disk")) {

@@ -24,7 +24,7 @@
 
 #ifndef __WINDOWS__
 #include <mesos/log/log.hpp>
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 #include <mesos/allocator/allocator.hpp>
 
@@ -233,7 +233,7 @@ Try<process::Owned<Master>> Master::start(
     }
 #else
     return Error("Windows does not support replicated log");
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
   }
 
   // Create the registry's storage backend.
@@ -244,7 +244,7 @@ Try<process::Owned<Master>> Master::start(
     master->storage.reset(new mesos::state::LogStorage(master->log.get()));
 #else
     return Error("Windows does not support replicated log");
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
   } else {
     return Error(

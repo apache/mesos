@@ -826,7 +826,7 @@ void Environment::SetUp()
   if (!GTEST_IS_THREADSAFE) {
     EXIT(EXIT_FAILURE) << "Testing environment is not thread safe, bailing!";
   }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 }
 
 
@@ -914,7 +914,7 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
     // avoid the infamous Windows path length errors, which would
     // normally cause many of our tests to fail.
     path::join(tmpdir, "XXXXXX");
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
   Try<string> mkdtemp = os::mkdtemp(path);
   if (mkdtemp.isSome()) {

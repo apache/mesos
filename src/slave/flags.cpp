@@ -108,7 +108,7 @@ mesos::internal::slave::Flags::Flags()
       "posix/cpu,posix/mem"
 #else
       "windows/cpu"
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
       );
 
   add(&Flags::launcher,

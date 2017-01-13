@@ -16,7 +16,7 @@
 
 #ifndef __WINDOWS__
 #include <unistd.h>
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 #include <algorithm>
 #include <map>
@@ -526,7 +526,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   driver.stop();
   driver.join();
 }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 
 // This test verifies that when an executor terminates before
@@ -1196,7 +1196,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   driver.stop();
   driver.join();
 }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 
 // This test ensures that a status update acknowledgement from a
@@ -3052,7 +3052,7 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   driver.stop();
   driver.join();
 }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 
 #ifndef __WINDOWS__
@@ -3166,7 +3166,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
   driver.stop();
   driver.join();
 }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 
 // This test checks that the master behaves correctly when a slave is

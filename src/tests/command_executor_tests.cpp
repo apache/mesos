@@ -333,7 +333,7 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   driver.stop();
   driver.join();
 }
-#endif // !__WINDOWS__
+#endif // __WINDOWS__
 
 
 class HTTPCommandExecutorTest
