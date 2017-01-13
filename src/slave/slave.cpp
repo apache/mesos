@@ -2138,8 +2138,7 @@ void Slave::__run(
       // been terminated. If the framework is not partition-aware,
       // we send TASK_LOST instead for backward compatibility.
       mesos::TaskState taskState = TASK_GONE;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
@@ -2429,8 +2428,7 @@ void Slave::killTask(
     // launched on this slave. If the framework is not partition-aware,
     // we send TASK_LOST for backward compatibility.
     mesos::TaskState taskState = TASK_DROPPED;
-    if (!protobuf::frameworkHasCapability(
-            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+    if (!framework->capabilities.partitionAware) {
       taskState = TASK_LOST;
     }
 
@@ -3657,8 +3655,7 @@ void Slave::_reregisterExecutor(
       // been terminated. If the framework is not partition-aware,
       // we send TASK_LOST instead for backward compatibility.
       mesos::TaskState taskState = TASK_GONE;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
@@ -4049,8 +4046,7 @@ void Slave::__statusUpdate(
       // been terminated. If the framework is not partition-aware,
       // we send TASK_LOST instead for backward compatibility.
       mesos::TaskState taskState = TASK_GONE;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
@@ -6249,6 +6245,7 @@ Framework::Framework(
   : state(RUNNING),
     slave(_slave),
     info(_info),
+    capabilities(_info.capabilities()),
     pid(_pid),
     completedExecutors(slaveFlags.max_completed_executors_per_framework) {}
 

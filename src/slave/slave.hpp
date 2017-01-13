@@ -1069,6 +1069,8 @@ struct Framework
 
   const FrameworkInfo info;
 
+  protobuf::framework::Capabilities capabilities;
+
   // Frameworks using the scheduler driver will have a 'pid',
   // which allows us to send executor messages directly to the
   // driver. Frameworks using the HTTP API (in 0.24.0) will

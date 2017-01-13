@@ -3605,8 +3605,7 @@ void Master::accept(
                  << "': " << error.get().message;
 
     TaskState newTaskState = TASK_DROPPED;
-    if (!protobuf::frameworkHasCapability(
-            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+    if (!framework->capabilities.partitionAware) {
       newTaskState = TASK_LOST;
     }
 
@@ -3811,8 +3810,7 @@ void Master::_accept(
 
   if (slave == nullptr || !slave->connected) {
     TaskState newTaskState = TASK_DROPPED;
-    if (!protobuf::frameworkHasCapability(
-            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+    if (!framework->capabilities.partitionAware) {
       newTaskState = TASK_LOST;
     }
 
@@ -7085,9 +7083,7 @@ void Master::addFramework(Framework* framework)
     activeRoles.at(role)->addFramework(framework);
   };
 
-  if (protobuf::frameworkHasCapability(
-          framework->info,
-          FrameworkInfo::Capability::MULTI_ROLE)) {
+  if (framework->capabilities.multiRole) {
     foreach (const string& role, framework->info.roles()) {
       addFrameworkRole(framework, role);
     }
@@ -7502,9 +7498,7 @@ void Master::removeFramework(Framework* framework)
     }
   };
 
-  if (protobuf::frameworkHasCapability(
-          framework->info,
-          FrameworkInfo::Capability::MULTI_ROLE)) {
+  if (framework->capabilities.multiRole) {
     foreach (const string& role, framework->info.roles()) {
       removeFrameworkRole(framework, role);
     }

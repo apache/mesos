@@ -237,8 +237,7 @@ struct FullFrameworkWriter {
     // would make tooling simpler (only need to look for `roles`).
     // However, we opted to just mirror the protobuf akin to how
     // generic protobuf -> JSON translation works.
-    if (protobuf::frameworkHasCapability(
-            framework_->info, FrameworkInfo::Capability::MULTI_ROLE)) {
+    if (framework_->capabilities.multiRole) {
       writer->field("roles", framework_->info.roles());
     } else {
       writer->field("role", framework_->info.role());

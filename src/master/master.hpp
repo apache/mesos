@@ -2246,6 +2246,7 @@ struct Framework
             const process::Time& time = process::Clock::now())
     : master(_master),
       info(_info),
+      capabilities(_info.capabilities()),
       pid(_pid),
       state(CONNECTED),
       active(true),
@@ -2260,6 +2261,7 @@ struct Framework
             const process::Time& time = process::Clock::now())
     : master(_master),
       info(_info),
+      capabilities(_info.capabilities()),
       http(_http),
       state(CONNECTED),
       active(true),
@@ -2272,6 +2274,7 @@ struct Framework
             const FrameworkInfo& _info)
     : master(_master),
       info(_info),
+      capabilities(_info.capabilities()),
       state(RECOVERED),
       active(false),
       completedTasks(masterFlags.max_completed_tasks_per_framework) {}
@@ -2591,6 +2594,8 @@ struct Framework
   Master* const master;
 
   FrameworkInfo info;
+
+  protobuf::framework::Capabilities capabilities;
 
   // Frameworks can either be connected via HTTP or by message passing
   // (scheduler driver). At most one of `http` and `pid` will be set
