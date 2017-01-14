@@ -1259,15 +1259,20 @@ protected:
 private:
   static Future<Nothing> _send(network::Socket socket, Pipe::Reader reader)
   {
-    return reader.read()
-      .then([socket, reader](const string& data) mutable -> Future<Nothing> {
-        if (data.empty()) {
-          return Nothing(); // EOF.
-        }
-
-        return socket.send(data)
-          .then(lambda::bind(_send, socket, reader));
-      });
+    return loop(
+        None(),
+        [=]() mutable {
+          return reader.read();
+        },
+        [=](const string& data) mutable -> Future<ControlFlow<Nothing>> {
+          if (data.empty()) {
+            return Break(); // EOF.
+          }
+          return socket.send(data)
+            .then([]() -> ControlFlow<Nothing> {
+              return Continue();
+            });
+        });
   }
 
   void read()
