@@ -152,7 +152,7 @@ def verify_review(review_request):
                              "CONFIGURATION='--verbose' "
                              "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
 
-            command = "%s; ./support/docker_build.sh" % configuration
+            command = "%s; ./support/docker-build.sh" % configuration
 
 
             # `tee` the output so that the console can log the whole build output.
