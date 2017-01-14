@@ -1000,9 +1000,6 @@ ostream& operator<<(ostream& stream, const URL& url)
 
 namespace internal {
 
-void _encode(Pipe::Reader reader, Pipe::Writer writer); // Forward declaration.
-
-
 // Encodes the request by writing into a pipe, the caller can
 // read the encoded data from the returned read end of the pipe.
 // A pipe is used since the request body can be a pipe and must
@@ -1098,38 +1095,38 @@ Pipe::Reader encode(const Request& request)
     case Request::PIPE:
       CHECK_SOME(request.reader);
       CHECK(request.body.empty());
-      _encode(request.reader.get(), writer);
+      Pipe::Reader requestReader = request.reader.get();
+      loop(None(),
+           [=]() mutable {
+             return requestReader.read();
+           },
+           [=](const string& chunk) mutable -> ControlFlow<Nothing> {
+             if (chunk.empty()) {
+               // EOF case.
+               writer.write("0\r\n\r\n");
+               writer.close();
+               return Break();
+             }
+
+             std::ostringstream out;
+             out << std::hex << chunk.size() << "\r\n";
+             out << chunk;
+             out << "\r\n";
+
+             writer.write(out.str());
+
+             return Continue();
+           })
+        .onDiscarded([=]() mutable {
+          writer.fail("discarded");
+        })
+        .onFailed([=](const string& failure) mutable {
+          writer.fail(failure);
+        });
       break;
   }
 
   return reader;
-}
-
-
-void _encode(Pipe::Reader reader, Pipe::Writer writer)
-{
-  reader.read()
-    .onAny([reader, writer](const Future<string>& chunk) mutable {
-      if (!chunk.isReady()) {
-        writer.fail(chunk.isFailed() ? chunk.failure() : "discarded");
-        return;
-      }
-
-      if (chunk->empty()) {
-        // EOF case.
-        writer.write("0\r\n\r\n");
-        writer.close();
-        return;
-      }
-
-      std::ostringstream out;
-      out << std::hex << chunk->size() << "\r\n";
-      out << chunk.get();
-      out << "\r\n";
-
-      writer.write(out.str());
-      _encode(reader, writer);
-    });
 }
 
 
