@@ -5028,11 +5028,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
 // entrypoint and verifies that any data streamed to the container via
 // an ATTACH_CONTAINER_INPUT call is received by the client on the
 // output stream.
-//
-// TODO(alexr): Enable this test once MESOS-6913 is resolved.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     AgentAPIStreamingTest,
-    DISABLED_AttachInputToNestedContainerSession)
+    AttachInputToNestedContainerSession)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
