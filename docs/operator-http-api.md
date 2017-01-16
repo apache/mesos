@@ -73,7 +73,7 @@ Content-Type: application/json
 ```
 SET_LOGGING_LEVEL HTTP Request (JSON):
 
-POST /api/v1/  HTTP/1.1
+POST /api/v1  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
@@ -103,7 +103,7 @@ Currently, the only call that results in a streaming response is the `SUBSCRIBE`
 ```
 SUBSCRIBE Request (JSON):
 
-POST /api/v1/executor  HTTP/1.1
+POST /api/v1  HTTP/1.1
 
 Host: agenthost:5051
 Content-Type: application/json
