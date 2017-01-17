@@ -132,7 +132,8 @@ struct Slave
       connected(true),
       active(true),
       checkpointedResources(_checkpointedResources),
-      observer(nullptr)
+      observer(nullptr),
+      capabilities(_info.capabilities())
   {
     CHECK(_info.has_id());
 
@@ -365,6 +366,9 @@ struct Slave
   Resources totalResources;
 
   SlaveObserver* observer;
+
+  // Agent capabilities.
+  protobuf::slave::Capabilities capabilities;
 
 private:
   Slave(const Slave&);              // No copying.

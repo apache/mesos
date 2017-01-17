@@ -121,6 +121,29 @@ FileInfo createFileInfo(const std::string& path, const struct stat& s);
 
 namespace slave {
 
+struct Capabilities
+{
+  Capabilities() = default;
+
+  template <typename Iterable>
+  Capabilities(const Iterable& capabilities)
+  {
+    foreach (const SlaveInfo::Capability& capability, capabilities) {
+      switch (capability.type()) {
+        case SlaveInfo::Capability::UNKNOWN:
+          break;
+        case SlaveInfo::Capability::MULTI_ROLE:
+          multiRole = true;
+          break;
+      }
+    }
+  }
+
+  // See mesos.proto for the meaning of agent capabilities.
+  bool multiRole = false;
+};
+
+
 mesos::slave::ContainerLimitation createContainerLimitation(
     const Resources& resources,
     const std::string& message,
