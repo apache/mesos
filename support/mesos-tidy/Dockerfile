@@ -42,22 +42,6 @@ RUN \
   rm -rf /tmp/llvm && \
   rm -rf /tmp/build
 
-# Install Bear.
-RUN apt-get install -qy \
-  curl && \
-  apt-get clean
-
-RUN \
-  curl -k -O https://codeload.github.com/rizsotto/Bear/tar.gz/2.2.0 && \
-  tar xzf 2.2.0 && \
-  rm 2.2.0 && \
-  cd Bear-2.2.0/ && \
-  cmake . -DCMAKE_INSTALL_PREFIX=/opt && \
-  make -j $(nproc) install && \
-  \
-  cd / && \
-  rm -rf Bear-2.2.0
-
 ENV PATH /opt/bin:$PATH
 
 # Install Mesos dependencies

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +16,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+set -o pipefail
+
 SRCDIR=/tmp/SRC
 
 # Prepare sources
-git clone --depth 1 file:///SRC "${SRCDIR}" || exit 1
-(cd ${SRCDIR} && ./bootstrap) || exit 1
+git clone --depth 1 file:///SRC "${SRCDIR}"
+(cd "${SRCDIR}" && ./bootstrap)
 
 # Configure sources
-${SRCDIR}/configure ${CONFIGURE_FLAGS} || exit 1
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+      ${CONFIGURE_FLAGS} \
+      "${SRCDIR}"
 
-# Build sources
-bear make -j $(nproc) tests || exit 1
+# Build the external dependencies.
+# TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
+cmake --build 3rdparty --target boost-1.53.0 -- -j $(nproc)
+cmake --build 3rdparty --target elfio-3.2 -- -j $(nproc)
+cmake --build 3rdparty --target glog-0.3.3 -- -j $(nproc)
+cmake --build 3rdparty --target gmock-1.7.0 -- -j $(nproc)
+cmake --build 3rdparty --target http_parser-2.6.2 -- -j $(nproc)
+
+# TODO(mpark): The `|| true` is a hack to try both `libev` and `libevent` and
+#              use whichever one happens to be configured. This would also go
+#              away with MESOS-6924.
+cmake --build 3rdparty --target libev-4.22 -- -j $(nproc) || true
+cmake --build 3rdparty --target libevent-2.1.5-beta -- -j $(nproc) || true
+
+cmake --build 3rdparty --target leveldb-1.4 -- -j $(nproc)
+cmake --build 3rdparty --target nvml-352.79 -- -j $(nproc)
+cmake --build 3rdparty --target picojson-1.3.0 -- -j $(nproc)
+cmake --build 3rdparty --target protobuf-2.6.1 -- -j $(nproc)
+cmake --build 3rdparty --target zookeeper-3.4.8 -- -j $(nproc)
+
+# Generate the protobuf definitions.
+# TODO(mpark): Use a protobuf generation target once MESOS-6925 is resolved.
+cmake --build . --target mesos-protobufs -- -j $(nproc)
 
 # TODO(bbannier): Use a less restrictive `grep` pattern and `header-filter`
 # once MESOS-6115 is fixed.
