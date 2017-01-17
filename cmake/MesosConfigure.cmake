@@ -140,6 +140,10 @@ if (NOT WIN32)
   set(
     MESOS_IO_SWITCHBOARD mesos-io-switchboard
     CACHE STRING "Target for the IO switchboard")
+
+  set(
+    MESOS_CNI_PORT_MAPPER mesos-cni-port-mapper
+    CACHE STRING "Target for the CNI port-mapper plugin")
 endif (NOT WIN32)
 
 set(
