@@ -554,6 +554,11 @@ void Slave::initialize()
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)
     .operator std::function<void(StatusUpdate)>());
 
+  // We pause the status update manager so that it doesn't forward any updates
+  // while the slave is still recovering. It is unpaused/resumed when the slave
+  // (re-)registers with the master.
+  statusUpdateManager->pause();
+
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
   // checkDiskUsage, to make disabling this feature easy (e.g by specifying
