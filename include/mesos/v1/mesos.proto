@@ -691,6 +691,31 @@ message AgentInfo {
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional AgentID id = 6;
+
+  message Capability {
+    enum Type {
+      // This must be the first enum value in this list, to
+      // ensure that if 'type' is not set, the default value
+      // is UNKNOWN. This enables enum values to be added
+      // in a backwards-compatible way. See: MESOS-4997.
+      UNKNOWN = 0;
+
+      // This expresses the ability for the agent to be able
+      // to launch tasks of a 'multi-role' framework.
+      //
+      // NOTE: The implementation for supporting multiple
+      // roles is not complete, DO NOT USE THIS.
+      MULTI_ROLE = 1; // EXPERIMENTAL.
+    }
+
+    // Enum fields should be optional, see: MESOS-4997.
+    optional Type type = 1;
+  }
+
+  // This field allows an agent to advertise its set of
+  // capabilities (e.g., ability to launch tasks of 'multi-role'
+  // frameworks).
+  repeated Capability capabilities = 9;
 }
 
 
