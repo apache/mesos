@@ -1201,7 +1201,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent status update.
+    .WillRepeatedly(Return()); // Ignore subsequent status updates.
 
   // Now shut down the executor, when the slave is down.
   // TODO(qianzhang): Once MESOS-5220 is resolved, we should send a SHUTDOWN
@@ -1348,7 +1348,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent status updates.
 
   // Now shut down the executor, when the slave is down.
   process::post(executorPid, ShutdownExecutorMessage());
