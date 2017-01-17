@@ -56,16 +56,14 @@ Future<size_t> read(int fd, void* data, size_t size)
         ssize_t length = os::read(fd, data, size);
         if (length < 0) {
 #ifdef __WINDOWS__
-          int error = WSAGetLastError();
+          WindowsSocketError error;
 #else
-          int error = errno;
+          ErrnoError error;
 #endif // __WINDOWS__
 
-          if (!net::is_restartable_error(error) &&
-              !net::is_retryable_error(error)) {
-            // TODO(benh): Confirm that `os::strerror` does the right
-            // thing for `error` on Windows.
-            return Failure(os::strerror(error));
+          if (!net::is_restartable_error(error.code) &&
+              !net::is_retryable_error(error.code)) {
+            return Failure(error.message);
           }
 
           return None();
@@ -102,16 +100,14 @@ Future<size_t> write(int fd, const void* data, size_t size)
 
         if (length < 0) {
 #ifdef __WINDOWS__
-          int error = WSAGetLastError();
+          WindowsSocketError error;
 #else
-          int error = errno;
+          ErrnoError error;
 #endif // __WINDOWS__
 
-          if (!net::is_restartable_error(error) &&
-              !net::is_retryable_error(error)) {
-            // TODO(benh): Confirm that `os::strerror` does the right
-            // thing for `error` on Windows.
-            return Failure(os::strerror(error));
+          if (!net::is_restartable_error(error.code) &&
+              !net::is_retryable_error(error.code)) {
+            return Failure(error.message);
           }
 
           return None();
