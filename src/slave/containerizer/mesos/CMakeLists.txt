@@ -30,6 +30,7 @@ if (NOT WIN32)
   set(MESOS_CNI_PORT_MAPPER_SRC
     ${MESOS_CNI_PORT_MAPPER_SRC}
     isolators/network/cni/plugins/port_mapper/main.cpp
+    isolators/network/cni/plugins/port_mapper/port_mapper.cpp
     )
 endif (NOT WIN32)
 
