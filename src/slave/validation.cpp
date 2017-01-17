@@ -342,7 +342,7 @@ Option<Error> validate(const mesos::executor::Call& call)
         return Error("Expecting 'uuid' to be present");
       }
 
-      Try<UUID> uuid = UUID::fromBytes(status.uuid()).get();
+      Try<UUID> uuid = UUID::fromBytes(status.uuid());
       if (uuid.isError()) {
         return uuid.error();
       }

@@ -646,6 +646,34 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
   }
 
+  // We send a Call Update message with an invalid UUID.
+  // This should result in failed validation.
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("call_level_executor_id");
+
+    v1::TaskStatus* status = call.mutable_update()->mutable_status();
+
+    status->set_uuid("dummy_uuid");
+    status->mutable_task_id()->set_value("dummy_task_id");
+    status->set_state(mesos::v1::TaskState::TASK_STARTING);
+    status->set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get()->pid,
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
   // We send a Call Update message with a TASK_STAGING
   // status update. This should fail validation.
   {
