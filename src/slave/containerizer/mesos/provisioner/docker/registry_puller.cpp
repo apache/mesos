@@ -217,7 +217,9 @@ Future<vector<string>> RegistryPullerProcess::pull(
 
     manifestUri = uri::docker::manifest(
         reference.repository(),
-        (reference.has_tag() ? reference.tag() : "latest"),
+        (reference.has_digest()
+          ? reference.digest()
+          : (reference.has_tag() ? reference.tag() : "latest")),
         spec::getRegistryHost(reference.registry()),
         scheme.get(),
         port.isSome() ? port.get() : Option<int>());
@@ -232,7 +234,9 @@ Future<vector<string>> RegistryPullerProcess::pull(
 
     manifestUri = uri::docker::manifest(
         reference.repository(),
-        (reference.has_tag() ? reference.tag() : "latest"),
+        (reference.has_digest()
+          ? reference.digest()
+          : (reference.has_tag() ? reference.tag() : "latest")),
         registry,
         defaultRegistryUrl.scheme,
         port);

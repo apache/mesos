@@ -749,6 +749,88 @@ TEST_P(ProvisionerDockerWhiteoutTest, ROOT_INTERNET_CURL_Whiteout)
   driver.join();
 }
 
+
+// This test verifies that Docker image can be pulled from the
+// repository by digest.
+TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ImageDigest)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/bin' is not in the PATH by default.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/ls");
+  command.add_arguments("ls");
+  command.add_arguments("-al");
+  command.add_arguments("/");
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  // NOTE: We use the digest of the 'alpine:2.7' image because it has a
+  // Schema 1 manifest (the only manifest schema that we currently support).
+  const string digest =
+    "sha256:9f08005dff552038f0ad2f46b8e65ff3d25641747d3912e3ea8da6785046561a";
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("library/alpine@" + digest);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
 #endif
 
 } // namespace tests {

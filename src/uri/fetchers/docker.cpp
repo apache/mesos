@@ -473,6 +473,19 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
 
   CHECK_EQ(response.type, http::Response::BODY);
 
+  // Check if we got a V2 Schema 1 manifest.
+  // TODO(ipronin): We have to support Schema 2 manifests to be able to use
+  // digests for pulling images that were pushed with Docker 1.10+ to
+  // Registry 2.3+.
+  Option<string> contentType = response.headers.get("Content-Type");
+  if (contentType.isSome() &&
+      !strings::startsWith(
+          contentType.get(),
+          "application/vnd.docker.distribution.manifest.v1")) {
+    return Failure(
+        "Unsupported manifest MIME type: " + contentType.get());
+  }
+
   Try<spec::v2::ImageManifest> manifest = spec::v2::parse(response.body);
   if (manifest.isError()) {
     return Failure("Failed to parse the image manifest: " + manifest.error());

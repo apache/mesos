@@ -90,7 +90,9 @@ ostream& operator<<(ostream& stream, const ImageReference& reference)
     stream << reference.repository();
   }
 
-  if (reference.has_tag()) {
+  if (reference.has_digest()) {
+    stream << "@" << reference.digest();
+  } else if (reference.has_tag()) {
     stream << ":" << reference.tag();
   }
 
