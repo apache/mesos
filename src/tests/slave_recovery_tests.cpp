@@ -2809,18 +2809,16 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
 
-  UPID slavePid = slave.get()->pid;
-
-  slave->reset();
-
   Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&lostStatus));
 
+  slave.get()->terminate();
+
   // Spoof the registration attempt of a slave that failed recovery.
   // We do this because simply restarting the slave will result in a slave
   // with a different pid than the previous one.
-  post(slavePid, master.get()->pid, registerSlaveMessage.get());
+  post(slave.get()->pid, master.get()->pid, registerSlaveMessage.get());
 
   // Scheduler should get a TASK_LOST update.
   AWAIT_READY(lostStatus);
@@ -2828,6 +2826,10 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_EQ(TASK_LOST, lostStatus->state());
   EXPECT_EQ(TaskStatus::SOURCE_MASTER, lostStatus->source());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+
+  // TODO(neilc): We need to destroy the slave here to avoid the
+  // metrics request hanging (MESOS-6231).
+  slave->reset();
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/tasks_lost"]);
