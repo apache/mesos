@@ -1327,8 +1327,8 @@ Try<FrameworkID> getFrameworkId(Master* master, const OfferID& offerId)
 
 
 Option<Error> validateOfferIds(
-    Master* master,
-    const RepeatedPtrField<OfferID>& offerIds)
+    const RepeatedPtrField<OfferID>& offerIds,
+    Master* master)
 {
   foreach (const OfferID& offerId, offerIds) {
     Offer* offer = getOffer(master, offerId);
@@ -1342,8 +1342,8 @@ Option<Error> validateOfferIds(
 
 
 Option<Error> validateInverseOfferIds(
-    Master* master,
-    const RepeatedPtrField<OfferID>& offerIds)
+    const RepeatedPtrField<OfferID>& offerIds,
+    Master* master)
 {
   foreach (const OfferID& offerId, offerIds) {
     InverseOffer* inverseOffer = getInverseOffer(master, offerId);
@@ -1451,7 +1451,7 @@ Option<Error> validate(
 
   vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(validateUniqueOfferID, offerIds),
-    lambda::bind(validateOfferIds, master, offerIds),
+    lambda::bind(validateOfferIds, offerIds, master),
     lambda::bind(validateFramework, offerIds, master, framework),
     lambda::bind(validateSlave, offerIds, master)
   };
@@ -1477,7 +1477,7 @@ Option<Error> validateInverseOffers(
 
   vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(validateUniqueOfferID, offerIds),
-    lambda::bind(validateInverseOfferIds, master, offerIds),
+    lambda::bind(validateInverseOfferIds, offerIds, master),
     lambda::bind(validateFramework, offerIds, master, framework),
     lambda::bind(validateSlave, offerIds, master)
   };
