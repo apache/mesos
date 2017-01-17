@@ -54,6 +54,7 @@
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "decoder.hpp"
 #include "encoder.hpp"
@@ -1407,6 +1408,7 @@ Future<Nothing> send(network::Socket socket, Encoder* encoder)
             return socket.sendfile(fd, offset, *size);
           }
         }
+        UNREACHABLE();
       },
       [=](size_t length) -> ControlFlow<Nothing> {
         // Update the encoder with the amount sent.
@@ -1639,6 +1641,7 @@ Future<Nothing> send(
                 case Response::BODY:
                 case Response::NONE: return send(socket, response, request);
               }
+              UNREACHABLE();
             }()
             .then([=]() -> ControlFlow<Nothing> {
               // Persist the connection if the request expects it and
