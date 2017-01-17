@@ -2784,7 +2784,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -2795,16 +2795,16 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   Future<Message> registerExecutorMessage =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  Future<Nothing> status;
+  Future<Nothing> runningStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureSatisfy(&status));
+    .WillOnce(FutureSatisfy(&runningStatus));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(registerExecutorMessage);
 
   // Wait for TASK_RUNNING update.
-  AWAIT_READY(status);
+  AWAIT_READY(runningStatus);
 
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
@@ -2813,21 +2813,21 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   slave->reset();
 
-  Future<TaskStatus> status2;
+  Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&lostStatus));
 
   // Spoof the registration attempt of a slave that failed recovery.
   // We do this because simply restarting the slave will result in a slave
   // with a different pid than the previous one.
   post(slavePid, master.get()->pid, registerSlaveMessage.get());
 
-  // Scheduler should get a TASK_LOST message.
-  AWAIT_READY(status2);
+  // Scheduler should get a TASK_LOST update.
+  AWAIT_READY(lostStatus);
 
-  EXPECT_EQ(TASK_LOST, status2.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status2.get().reason());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, lostStatus->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/tasks_lost"]);
