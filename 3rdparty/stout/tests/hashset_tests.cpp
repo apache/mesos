@@ -155,4 +155,9 @@ TEST(HashsetTest, Union)
   ASSERT_TRUE(hs3.contains(3));
   ASSERT_TRUE(hs3.contains(4));
   ASSERT_TRUE(hs3.contains(5));
+
+  hashset<int> hs4 = hs1;
+  hs4 |= hs2;
+
+  ASSERT_EQ(hs3, hs4);
 }
