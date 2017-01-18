@@ -259,7 +259,7 @@ class GarbageCollectorIntegrationTest : public MesosTest {};
 
 // This test ensures that garbage collection removes
 // the slave working directory after a slave restart.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Restart)
+TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -373,9 +373,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Restart)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    GarbageCollectorIntegrationTest,
-    ExitedFramework)
+TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -495,7 +493,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, ExitedExecutor)
+TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -605,7 +603,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, ExitedExecutor)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, DiskUsage)
+TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -729,7 +727,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, DiskUsage)
 // This test verifies that the launch of new executor will result in
 // an unschedule of the framework work directory created by an old
 // executor.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Unschedule)
+TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
