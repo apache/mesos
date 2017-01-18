@@ -89,10 +89,31 @@ inline Try<Nothing> recursive_remove_directory(
     // Path to remove.
     const std::string current_absolute_path = current_path + current_file;
 
-    const bool is_directory = os::stat::isdir(current_absolute_path);
+    Try<bool> is_reparse_point =
+      ::internal::windows::reparse_point_attribute_set(current_absolute_path);
 
-    // Delete current path, whether it's a directory, file, or symlink.
-    if (is_directory) {
+    // Delete current path, whether it's a symlink, directory, or file.
+    if (!is_reparse_point.isError() && is_reparse_point.get()) {
+      // NOTE: This is a best-effort attempt to delete symlinks even when they
+      // are "hanging" (i.e., when the target has since been deleted). We call
+      // both `RemoveDirectory` and `DeleteFile` here because we are not sure
+      // whether the deleted target was a directory or a file, which in general
+      // is hard to determine on Windows.
+      //
+      // If either `RemoveDirectory` or `DeleteFile` succeeds, the reparse
+      // point has been successfully removed, and we report success.
+      const BOOL rmdir = ::RemoveDirectory(current_absolute_path.c_str());
+
+      if (rmdir == FALSE) {
+        const BOOL rm = ::DeleteFile(current_absolute_path.c_str());
+
+        if (rm == FALSE) {
+          return WindowsError(
+              "Failed to remove reparse point at '" +
+              current_absolute_path + "'");
+        }
+      }
+    } else if (os::stat::isdir(current_absolute_path)) {
       Try<Nothing> removed = recursive_remove_directory(
           current_absolute_path, true, continueOnError);
 
@@ -105,7 +126,6 @@ inline Try<Nothing> recursive_remove_directory(
         }
       }
     } else {
-      // NOTE: this also handles symbolic links.
       if (::remove(current_absolute_path.c_str()) != 0) {
         if (continueOnError) {
           LOG(WARNING)

@@ -299,6 +299,26 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, RemoveDirectoryNoTargetSymbolicLink)
 }
 
 
+// This test verifies that `rmdir` can remove a directory with a
+// "hanging" symlink whose target has been deleted.
+TEST_F(RmdirTest, RemoveDirectoryHangingSymlink)
+{
+  const string newDirectory = path::join(os::getcwd(), "newDirectory");
+  ASSERT_SOME(os::mkdir(newDirectory));
+
+  const string link = path::join(newDirectory, "link");
+
+  // Create a hanging symlink to a directory.
+  ASSERT_SOME(os::mkdir("tmp"));
+  ASSERT_SOME(fs::symlink("tmp", link));
+  ASSERT_SOME(os::rmdir("tmp"));
+
+  // Remove the parent directory to exercise the recursive deletion path of
+  // `os::rmdir`.
+  EXPECT_SOME(os::rmdir(newDirectory));
+}
+
+
 // This test verifies that `rmdir` will only remove the symbolic link and not
 // the target directory.
 TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetDirectory)
