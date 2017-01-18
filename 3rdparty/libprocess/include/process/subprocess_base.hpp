@@ -293,6 +293,7 @@ public:
    * NOTE: Discarding this future has no effect on the subprocess!
    *
    * @return Future from doing a process::reap of this subprocess.
+   *     Note that process::reap never fails or discards this future.
    */
   Future<Option<int>> status() const { return data->status; }
 
