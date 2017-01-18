@@ -5852,15 +5852,6 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
     return;
   }
 
-  Try<UUID> uuid = UUID::fromBytes(update.uuid());
-  if (uuid.isError()) {
-    LOG(WARNING) << "Ignoring status update "
-                 << " from agent " << *slave
-                 << ": " << uuid.error();
-    ++metrics->invalid_status_updates;
-    return;
-  }
-
   LOG(INFO) << "Status update " << update << " from agent " << *slave;
 
   // We ensure that the uuid of task status matches the update's uuid, in case
