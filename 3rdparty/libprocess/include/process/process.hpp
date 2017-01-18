@@ -526,8 +526,11 @@ bool initialize(
 
 /**
  * Clean up the library.
+ *
+ * @param finalize_wsa Whether the Windows socket stack should be cleaned
+ *     up for the entire process. Has no effect outside of Windows.
  */
-void finalize();
+void finalize(bool finalize_wsa = false);
 
 
 /**
