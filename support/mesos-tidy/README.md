@@ -1,17 +1,14 @@
-clang-tidy docker image for Mesos
-=================================
+# `clang-tidy` docker image for Mesos
 
-This directory contains tooling to build a docker image to run
-clang-tidy checks over a Mesos repository. It uses a [version of
-clang-tidy](https://github.com/mesos/clang-tools-extra/tree/mesos_38)
-augmented with Mesos-specific checks.
+This directory contains tooling to build a docker image to run `clang-tidy`
+checks over a Mesos repository. It uses a
+[customized version of `clang-tidy`][custom-clang-tidy] which is augmented with
+Mesos-specific checks.
 
-*IMPORTANT*: This directory is for maintainers of `mesos-tidy` checks.
-Users should reach for `support/mesos-tidy.sh`.
+__IMPORTANT__: This directory is intended for maintainers of `mesos-tidy`
+checks. Users should reach for `support/mesos-tidy.sh`.
 
-
-Building the docker image
--------------------------
+## Building the docker image
 
 Building the image involves compiling a Mesos-flavored version of
 `clang-tidy`, installing Mesos dependencies, and installation of tools
@@ -19,31 +16,35 @@ to drive check invocations.
 
 The image can be built with
 
-    $ docker build -t mesos-tidy .
+```bash
+$ docker build -t mesos-tidy .
+```
 
-A pre-built image is available via Docker Hub as `mesosphere/mesos-tidy`.
+A pre-built image is available via Docker Hub as `mesos/mesos-tidy`.
 
-
-Running checks
---------------
+## Running checks
 
 To run checks over a Mesos checkout invoke
 
-    $ docker run \
-        -v <MESOS_CHECKOUT>:/SRC \
-        [-e CHECKS=<CHECKS>] \
-        [-e CONFIGURE_FLAGS=<CONFIGURE_FLAGS>] \
-        --rm \
-        mesos-tidy
+```bash
+$ docker run \
+      --rm \
+      -v <MESOS_CHECKOUT>:/SRC \
+      [-e CHECKS=<CHECKS>] \
+      [-e CMAKE_ARGS=<CMAKE_ARGS>] \
+      mesos-tidy
+```
 
-Here `MESOS_CHECKOUT` points to a git checkout of the Mesos source
-tree.
+Here `MESOS_CHECKOUT` points to a git checkout of the Mesos source tree.
 
-Additional configure parameters can be passed to the `./configure`
-invocation of Mesos via `CONFIGURE_FLAGS`. By default, `./configure`
-will be invoked without arguments.
+Additional configure parameters can be passed to the `cmake` invocation of Mesos
+via `CMAKE_ARGS`. By default, `cmake` will be invoked with
+`-DCMAKE_BUILD_TYPE=Release` and `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
 
 Optionally, the set of checks to perform can be specified in a
-clang-tidy check regex via `CHECKS`.
+`clang-tidy` check regex via `CHECKS`.
 
 Results from 3rdparty external dependencies are filtered from the result set.
+
+
+[custom-clang-tidy]: https://github.com/mesos/clang-tools-extra/tree/mesos_39

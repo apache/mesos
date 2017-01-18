@@ -40,5 +40,5 @@ docker run \
   --rm \
   -v "${MESOS_DIR}":/SRC:Z \
   -e CHECKS="${CHECKS}" \
-  -e CONFIGURE_FLAGS="${CONFIGURE_FLAGS}" \
+  -e CMAKE_ARGS="${CMAKE_ARGS}" \
   mesos/mesos-tidy

@@ -28,7 +28,7 @@ git clone --depth 1 file:///SRC "${SRCDIR}"
 # Configure sources
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      ${CONFIGURE_FLAGS} \
+      ${CMAKE_ARGS} \
       "${SRCDIR}"
 
 # Build the external dependencies.
