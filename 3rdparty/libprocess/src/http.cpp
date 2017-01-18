@@ -763,25 +763,24 @@ Try<vector<Response>> decodeResponses(const string& s)
 {
   ResponseDecoder decoder;
 
-  deque<http::Response*> responses = decoder.decode(s.data(), s.length());
+  vector<Response> result;
 
-  if (decoder.failed()) {
+  auto appendResult = [&result](const deque<http::Response*>& responses) {
     foreach (Response* response, responses) {
+      result.push_back(*response);
       delete response;
     }
+  };
 
+  appendResult(decoder.decode(s.data(), s.length()));
+  appendResult(decoder.decode("", 0));
+
+  if (decoder.failed()) {
     return Error("Decoding failed");
   }
 
-  if (responses.empty()) {
+  if (result.empty()) {
     return Error("No response decoded");
-  }
-
-  vector<Response> result;
-
-  foreach (Response* response, responses) {
-    result.push_back(*response);
-    delete response;
   }
 
   return result;
