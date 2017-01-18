@@ -191,15 +191,19 @@ static Try<string> copyFile(
     const string& sourcePath,
     const string& destinationPath)
 {
-  const string command = "cp '" + sourcePath + "' '" + destinationPath + "'";
+  int status = os::spawn("cp", {"cp", sourcePath, destinationPath});
 
-  LOG(INFO) << "Copying resource with command:" << command;
-
-  int status = os::system(command);
-  if (status != 0) {
-    return Error("Failed to copy with command '" + command +
-                 "', exit status: " + stringify(status));
+  if (status == -1) {
+    return ErrnoError("Failed to copy '" + sourcePath + "'");
   }
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+    return Error(
+        "Failed to copy '" + sourcePath + "': " + WSTRINGIFY(status));
+  }
+
+  LOG(INFO) << "Copied resource '" << sourcePath
+            << "' to '" << destinationPath << "'";
 
   return destinationPath;
 }
