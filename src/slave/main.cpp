@@ -30,10 +30,7 @@
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <process/owned.hpp>
-
-#ifdef __WINDOWS__
-#include <process/windows/winsock.hpp>
-#endif // __WINDOWS__
+#include <process/process.hpp>
 
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
@@ -178,11 +175,6 @@ int main(int argc, char** argv)
   //
   // TODO(avinash): Add more comments discussing the rationale behind for this
   // particular component ordering.
-
-#ifdef __WINDOWS__
-  // Initialize the Windows socket stack.
-  process::Winsock winsock;
-#endif
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -467,5 +459,6 @@ int main(int argc, char** argv)
     delete authorizer_.get();
   }
 
+  process::finalize(true);
   return EXIT_SUCCESS;
 }

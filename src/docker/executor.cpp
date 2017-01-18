@@ -29,10 +29,6 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#ifdef __WINDOWS__
-#include <process/windows/winsock.hpp>
-#endif // __WINDOWS__
-
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
@@ -675,10 +671,7 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-#ifdef __WINDOWS__
-  // Initialize the Windows socket stack.
-  process::Winsock winsock;
-#endif // __WINDOWS__
+  process::initialize();
 
   mesos::internal::docker::Flags flags;
 
@@ -812,5 +805,8 @@ int main(int argc, char** argv)
       taskEnvironment);
 
   mesos::MesosExecutorDriver driver(&executor);
-  return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
+  bool success = driver.run() == mesos::DRIVER_STOPPED;
+
+  process::finalize(true);
+  return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -43,10 +43,6 @@
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
-#ifdef __WINDOWS__
-#include <process/windows/winsock.hpp> // WSAStartup code.
-#endif // __WINDOWS__
-
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/json.hpp>
@@ -866,9 +862,7 @@ int main(int argc, char** argv)
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
 
-#ifdef __WINDOWS__
-  process::Winsock winsock;
-#endif
+  process::initialize();
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
@@ -936,6 +930,8 @@ int main(int argc, char** argv)
 
   process::spawn(executor.get());
   process::wait(executor.get());
+  executor.reset();
 
+  process::finalize(true);
   return EXIT_SUCCESS;
 }
