@@ -1058,6 +1058,8 @@ public:
 
 int main(int argc, char** argv)
 {
+  process::initialize();
+
   Flags flags;
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
@@ -1137,6 +1139,8 @@ int main(int argc, char** argv)
 
   process::spawn(executor.get());
   process::wait(executor.get());
+
+  process::finalize(true);
 
   return EXIT_SUCCESS;
 }
