@@ -61,6 +61,7 @@ using authentication::Authenticator;
 using authentication::AuthenticationResult;
 using authentication::BasicAuthenticator;
 
+using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -2078,8 +2079,11 @@ TEST_F(HttpServeTest, Unix)
 
   Future<Nothing> serve = http::serve(
     socket,
-    [](const http::Request& request) {
-      CHECK_SOME(request.reader);
+    [](const http::Request& request) -> Future<http::Response> {
+      if (request.reader.isNone()) {
+        return Failure("Request reader is not set");
+      }
+
       http::Pipe::Reader reader = request.reader.get(); // Remove const.
 
       return reader.readAll()
