@@ -52,6 +52,10 @@ bool valid(const std::set<std::string>& events);
 bool supported();
 
 
+// Returns the detected perf version. Exposed for testing.
+process::Future<Version> version();
+
+
 // Note: The parse function is exposed to allow testing of the
 // multiple supported perf stat output formats.
 Try<hashmap<std::string, mesos::PerfStatistics>> parse(

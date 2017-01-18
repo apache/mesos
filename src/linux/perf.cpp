@@ -24,6 +24,7 @@
 
 #include <list>
 #include <sstream>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -199,11 +200,20 @@ Future<Version> version()
 
   return output
     .then([](const string& output) -> Future<Version> {
-      string trimmed = strings::trim(output);
+      string trimmed = strings::remove(
+          strings::trim(output), "perf version ", strings::PREFIX);
+
+      // `perf` may have a version like "4.8.16.300.fc25.x86_64.ge69a".
+      // We really only care about the first 3 components, which show
+      // the software release of the perf package.
+      vector<string> components = strings::split(trimmed, ".");
+      if (components.size() > 3) {
+        components.resize(3);
+        trimmed = strings::join(".", components);
+      }
 
       // Trim off the leading 'perf version ' text to convert.
-      return Version::parse(
-          strings::remove(trimmed, "perf version ", strings::PREFIX));
+      return Version::parse(trimmed);
     });
 };
 

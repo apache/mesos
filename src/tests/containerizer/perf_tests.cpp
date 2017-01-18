@@ -24,6 +24,7 @@
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
 #include "linux/perf.hpp"
@@ -119,6 +120,19 @@ TEST_F(PerfTest, Parse)
 
   parse = perf::parse("1,unknown-field", Version(3, 12, 0));
   EXPECT_ERROR(parse);
+}
+
+
+// Test whether we can parse the perf version. Note that this avoids
+// the "PERF_" filter to verify that we can parse the version even if
+// the version check performed in the test filter fails.
+TEST_F(PerfTest, Version)
+{
+  Option<string> perf = os::which("perf");
+
+  if (perf.isSome()) {
+    AWAIT_READY(perf::version());
+  }
 }
 
 } // namespace tests {
