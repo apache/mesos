@@ -45,12 +45,14 @@ RUN \
 ENV PATH /opt/bin:$PATH
 
 # Install Mesos dependencies
+# TODO(mpark): Remove `libssl-dev` from this list once `MESOS-6942` is resolved.
 RUN apt-get install -qy \
   autoconf \
   libapr1-dev \
   libcurl4-nss-dev \
   libsasl2-dev \
   libsasl2-modules \
+  libssl-dev \
   libsvn-dev \
   libtool \
   zlib1g-dev && \
