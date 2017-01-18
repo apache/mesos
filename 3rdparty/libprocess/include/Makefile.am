@@ -71,5 +71,4 @@ nobase_include_HEADERS =		\
   process/timeout.hpp			\
   process/timer.hpp			\
   process/timeseries.hpp		\
-  process/windows/subprocess.hpp	\
-  process/windows/winsock.hpp
+  process/windows/subprocess.hpp
