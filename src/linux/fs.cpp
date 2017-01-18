@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "linux/fs.hpp"
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,9 +41,10 @@
 #include <stout/os.hpp>
 
 #include <stout/os/read.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
-#include "linux/fs.hpp"
+#include "common/status_utils.hpp"
 
 using std::list;
 using std::set;
@@ -421,6 +424,24 @@ Try<Nothing> unmountAll(const string& target, int flags)
       Try<Nothing> unmount = fs::unmount(entry.dir, flags);
       if (unmount.isError()) {
         return unmount;
+      }
+
+      // This normally should not fail even if the entry is not in
+      // mtab or mtab doesn't exist or is not writable. However we
+      // still catch the error here in case there's an error somewhere
+      // else while running this command.
+      // TODO(xujyan): Consider using `setmntent(3)` to implement this.
+      int status = os::spawn("umount", {"umount", "--fake", entry.dir});
+
+      const string message =
+        "Failed to clean up '" + entry.dir + "' in /etc/mtab";
+
+      if (status == -1) {
+        return ErrnoError(message);
+      }
+
+      if (!WSUCCEEDED(status)) {
+        return Error(message + ": " + WSTRINGIFY(status));
       }
     }
   }
