@@ -91,9 +91,11 @@ private:
   struct Info
   {
     Info (const hashmap<std::string, ContainerNetwork>& _containerNetworks,
-          const Option<std::string>& _rootfs = None())
+          const Option<std::string>& _rootfs = None(),
+          const Option<std::string>& _hostname = None())
       : containerNetworks (_containerNetworks),
-        rootfs(_rootfs) {}
+        rootfs(_rootfs),
+        hostname(_hostname) {}
 
     // CNI network information keyed by network name.
     //
@@ -105,7 +107,9 @@ private:
 
     // Rootfs of the container file system. In case the container uses
     // the host file system, this will be `None`.
-    Option<std::string> rootfs;
+    const Option<std::string> rootfs;
+
+    const Option<std::string> hostname;
   };
 
   // Reads each CNI config present in `configDir`, validates if the
