@@ -165,6 +165,25 @@ static Future<http::Response> curl(
       Try<vector<http::Response>> responses =
         http::decodeResponses(output.get());
 
+      // TODO(nfnt): If we're behing a proxy, curl will use 'HTTP
+      // CONNECT tunneling' to access HTTPS. The HTTP parser will
+      // put the actual response(s) to the body of the 'CONNECT'
+      // response. Therefore, in that case, we'll parse the body of
+      // 'CONNECT' response again. See MESOS-6010 for more details.
+      bool hasProxy =
+        os::getenv("https_proxy").isSome() ||
+        os::getenv("HTTPS_PROXY").isSome();
+
+      if (hasProxy && responses.isSome() && responses->size() == 1) {
+        const http::Response& response = responses->back();
+
+        if (response.code == 200 &&
+            !response.headers.contains("Content-Length") &&
+            response.headers.get("Transfer-Encoding") != Some("chunked")) {
+          responses = http::decodeResponses(response.body);
+        }
+      }
+
       if (responses.isError()) {
         return Failure(
             "Failed to decode HTTP responses: " + responses.error() +
