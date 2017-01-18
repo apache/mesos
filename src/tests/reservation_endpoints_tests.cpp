@@ -842,7 +842,7 @@ TEST_F(ReservationEndpointsTest, InvalidResource)
   // This resource is marked for the default "*" role and it also has a
   // `ReservationInfo`, which is not allowed.
   Try<Resource> resource = Resources::parse("cpus", "4", "*");
-  CHECK_SOME(resource);
+  ASSERT_SOME(resource);
   resource->mutable_reservation()->CopyFrom(
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
@@ -861,7 +861,7 @@ TEST_F(ReservationEndpointsTest, InvalidResource)
       process::http::post(master.get()->pid, "reserve", headers, body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    CHECK_EQ(response->body,
+    ASSERT_EQ(response->body,
              "Invalid reservation: role \"*\" cannot be dynamically reserved");
   }
 
@@ -870,7 +870,7 @@ TEST_F(ReservationEndpointsTest, InvalidResource)
       process::http::post(master.get()->pid, "unreserve", headers, body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    CHECK_EQ(response->body,
+    ASSERT_EQ(response->body,
              "Invalid reservation: role \"*\" cannot be dynamically reserved");
   }
 }

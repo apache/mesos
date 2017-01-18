@@ -398,7 +398,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
     EXPECT_TRUE(os::exists(volume1Path));
 
     Try<list<string>> files = ::fs::list(path::join(volume1Path, "*"));
-    CHECK_SOME(files);
+    ASSERT_SOME(files);
     EXPECT_EQ(0u, files.get().size());
   } else {
     EXPECT_FALSE(os::exists(volume1Path));

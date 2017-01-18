@@ -425,7 +425,9 @@ Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
            (offers.isFailed() ? offers.failure() : "discarded"));
   }
 
-  CHECK_NE(0u, offers.get().size());
+  if (offers->empty()) {
+    return Error("Received empty list of offers");
+  }
   const Offer offer = offers.get()[0];
 
   TaskInfo task;
@@ -1062,7 +1064,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedConcurrent)
   Try<vector<Task>> tasks = launchTasks(commandInfos);
   ASSERT_SOME(tasks);
 
-  CHECK_EQ(countTasks, tasks.get().size());
+  ASSERT_EQ(countTasks, tasks.get().size());
 
   // Having paused the HTTP server, ensure that FetcherProcess::_fetch()
   // has been called for each task, which means that all tasks are competing
@@ -1171,7 +1173,7 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
   Try<vector<Task>> tasks = launchTasks(commandInfos);
   ASSERT_SOME(tasks);
 
-  CHECK_EQ(3u, tasks.get().size());
+  ASSERT_EQ(3u, tasks.get().size());
 
   // Having paused the HTTP server, ensure that FetcherProcess::_fetch()
   // has been called for each task, which means that all tasks are competing
@@ -1472,7 +1474,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   // We have put a file of size 'COMMAND_SCRIPT.size()' in the cache
   // with space 'COMMAND_SCRIPT.size() + growth'. So we must have 'growth'
   // space left.
-  CHECK_EQ(Bytes(growth), fetcherProcess->availableCacheSpace());
+  ASSERT_EQ(Bytes(growth), fetcherProcess->availableCacheSpace());
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
   ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
@@ -1519,7 +1521,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
             fetcherInfo1.get().items(0).action());
 
   // The cache must now be full.
-  CHECK_EQ(Bytes(0u), fetcherProcess->availableCacheSpace());
+  ASSERT_EQ(Bytes(0u), fetcherProcess->availableCacheSpace());
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
   ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));

@@ -319,7 +319,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -431,7 +431,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   Try<MesosContainerizer*> _containerizer = MesosContainerizer::create(
       flags, true, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -620,7 +620,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -896,7 +896,7 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   StandaloneMasterDetector detector;
@@ -979,7 +979,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1012,8 +1012,8 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
   Result<string> user = os::user();
-  CHECK_SOME(user) << "Failed to get current user name"
-                   << (user.isError() ? ": " + user.error() : "");
+  ASSERT_SOME(user) << "Failed to get current user name"
+                    << (user.isError() ? ": " + user.error() : "");
 
   const string helper = getTestHelperPath("test-helper");
 
@@ -1079,7 +1079,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1120,8 +1120,8 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
       offers.get()[0].resources());
 
   Result<string> user = os::user();
-  CHECK_SOME(user) << "Failed to get current user name"
-                   << (user.isError() ? ": " + user.error() : "");
+  ASSERT_SOME(user) << "Failed to get current user name"
+                    << (user.isError() ? ": " + user.error() : "");
   // Current user should be root.
   EXPECT_EQ("root", user.get());
 

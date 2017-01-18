@@ -1091,7 +1091,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   // The framework should not be PARTITION_AWARE, since tasks started
   // by PARTITION_AWARE frameworks will never be killed on reregistration.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  CHECK(!protobuf::frameworkHasCapability(
+  ASSERT_FALSE(protobuf::frameworkHasCapability(
       frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE));
 
   MockScheduler sched;
@@ -1468,7 +1468,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   const Duration health_check_duration =
     masterFlags.agent_ping_timeout * masterFlags.max_agent_ping_timeouts;
 
-  CHECK(masterFlags.registry_gc_interval >= health_check_duration * 2);
+  ASSERT_GE(masterFlags.registry_gc_interval, health_check_duration * 2);
 
   // Pause the clock before starting the master. This ensures that we
   // know precisely when the GC timer will fire.

@@ -89,11 +89,12 @@ namespace tests {
 class MasterQuotaTest : public MesosTest
 {
 protected:
-  MasterQuotaTest()
+  virtual void SetUp()
   {
+    MesosTest::SetUp();
     // We reuse default agent resources and expect them to be sufficient.
     defaultAgentResources = Resources::parse(defaultAgentResourcesString).get();
-    CHECK(defaultAgentResources.contains(Resources::parse(
+    ASSERT_TRUE(defaultAgentResources.contains(Resources::parse(
           "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]").get()));
   }
 

@@ -52,11 +52,11 @@ public:
     persistenceId = "persistenceId1";
 
     Try<string> path = os::mkdtemp();
-    CHECK_SOME(path) << "Failed to mkdtemp";
+    ASSERT_SOME(path) << "Failed to mkdtemp";
     rootDir = path.get();
 
     path = os::mkdtemp();
-    CHECK_SOME(path) << "Failed to mkdtemp";
+    ASSERT_SOME(path) << "Failed to mkdtemp";
     diskSourceDir = path.get();
 
     imageType = Image::APPC;

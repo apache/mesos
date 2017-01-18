@@ -355,7 +355,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   StandaloneMasterDetector detector(master.get()->pid);

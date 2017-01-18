@@ -81,15 +81,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveText)
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
-  CHECK_SOME(fd);
+  ASSERT_SOME(fd);
 
   string credentials =
     DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
 
-  CHECK_SOME(os::write(fd.get(), credentials))
+  ASSERT_SOME(os::write(fd.get(), credentials))
       << "Failed to write credentials to '" << path << "'";
 
-  CHECK_SOME(os::close(fd.get()));
+  ASSERT_SOME(os::close(fd.get()));
 
   map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 
@@ -125,7 +125,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveJSON)
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
-  CHECK_SOME(fd);
+  ASSERT_SOME(fd);
 
   // This unit tests our capacity to process JSON credentials without
   // using our protobuf tools.
@@ -139,10 +139,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveJSON)
   JSON::Object credentials;
   credentials.values["credentials"] = array;
 
-  CHECK_SOME(os::write(fd.get(), stringify(credentials)))
+  ASSERT_SOME(os::write(fd.get(), stringify(credentials)))
       << "Failed to write credentials to '" << path << "'";
 
-  CHECK_SOME(os::close(fd.get()));
+  ASSERT_SOME(os::close(fd.get()));
 
   map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 

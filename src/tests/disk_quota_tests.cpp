@@ -263,7 +263,7 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
 
   Try<Resources> initialResources =
     Resources::parse(slaveFlags.resources.get());
-  CHECK_SOME(initialResources);
+  ASSERT_SOME(initialResources);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);

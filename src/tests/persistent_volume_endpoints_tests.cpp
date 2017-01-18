@@ -495,7 +495,7 @@ TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
 
   // This volume has role "*", which is not allowed.
   Try<Resource> disk = Resources::parse("disk", "64", "*");
-  CHECK_SOME(disk);
+  ASSERT_SOME(disk);
   Resource volume = createPersistentVolume(
       disk.get(),
       "id1",
@@ -519,7 +519,7 @@ TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
         body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    CHECK_EQ(response->body,
+    ASSERT_EQ(response->body,
              "Invalid reservation: role \"*\" cannot be dynamically reserved");
   }
 
@@ -531,7 +531,7 @@ TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
         body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    CHECK_EQ(response->body,
+    ASSERT_EQ(response->body,
              "Invalid reservation: role \"*\" cannot be dynamically reserved");
   }
 }
