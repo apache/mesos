@@ -723,6 +723,102 @@ TEST_F(OsTest, User)
   EXPECT_SOME(os::setgroups(gids.get(), uid.get()));
   EXPECT_SOME(os::setuid(uid.get()));
 }
+
+
+TEST_F(OsTest, Chown)
+{
+  using os::stat::DO_NOT_FOLLOW_SYMLINK;
+
+  Result<uid_t> uid = os::getuid();
+  ASSERT_SOME(uid);
+
+  // 'chown' requires root permission.
+  if (uid.get() != 0) {
+    return;
+  }
+
+  // In the following tests, we chown to an artitrary UID. There is
+  // no special significance to the value 9.
+
+  // Set up a simple directory hierarchy.
+  EXPECT_SOME(os::mkdir("chown/one/two/three"));
+  EXPECT_SOME(os::touch("chown/one/file"));
+  EXPECT_SOME(os::touch("chown/one/two/file"));
+  EXPECT_SOME(os::touch("chown/one/two/three/file"));
+
+  // Make a symlink back to the top of the tree so we can verify
+  // that it isn't followed.
+  EXPECT_SOME(fs::symlink("../../../../chown", "chown/one/two/three/link"));
+
+  // Make a symlink to the middle of the tree and verify that chowning the
+  // symlink does not chown that subtree.
+  EXPECT_SOME(fs::symlink("chown/one/two", "two.link"));
+  EXPECT_SOME(os::chown(9, 9, "two.link", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("two.link", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three/file", DO_NOT_FOLLOW_SYMLINK));
+
+  // Recursively chown the whole tree.
+  EXPECT_SOME(os::chown(9, 9, "chown", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u,
+      os::stat::uid("chown/one/two/three/file", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u,
+      os::stat::uid("chown/one/two/three/link", DO_NOT_FOLLOW_SYMLINK));
+
+  // Chown the subtree with the embedded link back and verify that it
+  // doesn't follow back to the top of the tree.
+  EXPECT_SOME(os::chown(0, 0, "chown/one/two/three", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three/link", DO_NOT_FOLLOW_SYMLINK));
+
+  // Verify that non-recursive chown changes the directory and not
+  // its contents.
+  EXPECT_SOME(os::chown(0, 0, "chown/one", false));
+  EXPECT_SOME_EQ(0u, os::stat::uid("chown/one", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown/one/file", DO_NOT_FOLLOW_SYMLINK));
+}
+
+
+TEST_F(OsTest, ChownNoAccess)
+{
+  Result<uid_t> uid = os::getuid();
+  Result<gid_t> gid = os::getgid();
+
+  ASSERT_SOME(uid);
+  ASSERT_SOME(gid);
+
+  // This test requires that we not be root, since root will
+  // bypass access checks.
+  if (uid.get() == 0) {
+    return;
+  }
+
+  ASSERT_SOME(os::mkdir("one/two"));
+
+  // Chown to ourself should be a noop.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one/two", true));
+
+  ASSERT_SOME(os::chmod("one/two", 0));
+
+  // Recursive chown should now fail to fully recurse due to
+  // the lack of permission on "one/two".
+  EXPECT_ERROR(os::chown(uid.get(), gid.get(), "one", true));
+  EXPECT_ERROR(os::chown(uid.get(), gid.get(), "one/two", true));
+
+  // A non-recursive should succeed when the child is not traversable.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one", false));
+
+  // A non-recursive should succeed on the non-traversable child too.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one/two", false));
+
+  // Restore directory access so the rmdir can work.
+  ASSERT_SOME(os::chmod("one/two", 0755));
+}
 #endif // __WINDOWS__
 
 
