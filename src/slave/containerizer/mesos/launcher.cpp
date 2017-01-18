@@ -112,6 +112,8 @@ Try<pid_t> PosixLauncher::fork(
     parentHooks.emplace_back(Subprocess::ParentHook(
         &systemd::mesos::extendLifetime));
   }
+#elif defined(__WINDOWS__)
+  parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
 #endif // __linux__
 
   Try<Subprocess> child = subprocess(

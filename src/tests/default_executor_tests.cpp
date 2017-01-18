@@ -100,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(
 
 
 // This test verifies that the default executor can launch a task group.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskRunning)
+TEST_P(DefaultExecutorTest, TaskRunning)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -177,7 +177,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskRunning)
   const SlaveID slaveId = devolve(offer.agent_id());
 
   v1::TaskInfo taskInfo =
-    evolve(createTask(slaveId, resources, "sleep 1000"));
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
@@ -242,7 +242,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskRunning)
 // This test verifies that if the default executor is asked
 // to kill a task from a task group, it kills all tasks in
 // the group and sends TASK_KILLED updates for them.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, KillTask)
+TEST_P(DefaultExecutorTest, KillTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -321,10 +321,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, KillTask)
   const SlaveID slaveId = devolve(offer.agent_id());
 
   v1::TaskInfo taskInfo1 =
-    evolve(createTask(slaveId, resources, "sleep 1000"));
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
   v1::TaskInfo taskInfo2 =
-    evolve(createTask(slaveId, resources, "sleep 1000"));
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
@@ -439,9 +439,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, KillTask)
 // This test verifies that if the default executor receives a
 // non-zero exit status code for a task in the task group, it
 // kills all the other tasks (default restart policy).
-TEST_P_TEMP_DISABLED_ON_WINDOWS(
-    DefaultExecutorTest,
-    KillTaskGroupOnTaskFailure)
+TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -523,7 +521,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     evolve(createTask(slaveId, resources, "exit 1"));
 
   v1::TaskInfo taskInfo2 =
-    evolve(createTask(slaveId, resources, "sleep 1000"));
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
   const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
 
@@ -628,7 +626,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
 // Verifies that a task in a task group with an executor is accepted
 // during `TaskGroupInfo` validation.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskUsesExecutor)
+TEST_P(DefaultExecutorTest, TaskUsesExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -705,7 +703,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskUsesExecutor)
   const SlaveID slaveId = devolve(offer.agent_id());
 
   v1::TaskInfo taskInfo =
-    evolve(createTask(slaveId, resources, "sleep 1000"));
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
   taskInfo.mutable_executor()->CopyFrom(evolve(executorInfo));
 
@@ -806,12 +804,12 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   v1::TaskInfo task1 = v1::createTask(
       offer.agent_id(),
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      v1::createCommandInfo("sleep 1000"));
+      v1::createCommandInfo(SLEEP_COMMAND(1000)));
 
   v1::TaskInfo task2 = v1::createTask(
       offer.agent_id(),
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      v1::createCommandInfo("sleep 1000"));
+      v1::createCommandInfo(SLEEP_COMMAND(1000)));
 
   Future<Event::Update> updateRunning1;
   Future<Event::Update> updateRunning2;

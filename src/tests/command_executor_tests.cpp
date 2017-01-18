@@ -87,7 +87,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // This test ensures that the command executor does not send
 // TASK_KILLING to frameworks that do not support the capability.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, NoTaskKillingCapability)
+TEST_P(CommandExecutorTest, NoTaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -121,7 +121,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, NoTaskKillingCapability)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "sleep 1000");
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -152,7 +152,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, NoTaskKillingCapability)
 // TODO(hausdorff): Enable test. The executor tests use the replicated log
 // by default. This is not currently supported on Windows, so they will all
 // fail until that changes.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, TaskKillingCapability)
+TEST_P(CommandExecutorTest, TaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -192,7 +192,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(CommandExecutorTest, TaskKillingCapability)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-       "sleep 1000");
+       SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -422,9 +422,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 // This test ensures that driver based schedulers using explicit
 // acknowledgements can acknowledge status updates sent from
 // HTTP based executors.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    HTTPCommandExecutorTest,
-    ExplicitAcknowledgements)
+TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -461,7 +459,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "sleep 1000");
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
