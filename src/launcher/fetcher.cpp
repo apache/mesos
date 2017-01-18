@@ -15,8 +15,10 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <process/owned.hpp>
+#include <process/subprocess.hpp>
 
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -29,6 +31,8 @@
 #include <mesos/mesos.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
+
+#include "common/status_utils.hpp"
 
 #include "hdfs/hdfs.hpp"
 
@@ -45,6 +49,7 @@ using namespace mesos;
 using namespace mesos::internal;
 
 using std::string;
+using std::vector;
 
 using mesos::fetcher::FetcherInfo;
 
@@ -59,7 +64,12 @@ static Try<bool> extract(
     const string& sourcePath,
     const string& destinationDirectory)
 {
-  string command;
+  Try<Nothing> result = Nothing();
+
+  Option<Subprocess::IO> in = None();
+  Option<Subprocess::IO> out = None();
+  vector<string> command;
+
   // Extract any .tar, .tgz, tar.gz, tar.bz2 or zip files.
   if (strings::endsWith(sourcePath, ".tar") ||
       strings::endsWith(sourcePath, ".tgz") ||
@@ -68,25 +78,44 @@ static Try<bool> extract(
       strings::endsWith(sourcePath, ".tar.bz2") ||
       strings::endsWith(sourcePath, ".txz") ||
       strings::endsWith(sourcePath, ".tar.xz")) {
-    command = "tar -C '" + destinationDirectory + "' -xf";
+    command = {"tar", "-C", destinationDirectory, "-xf", sourcePath};
   } else if (strings::endsWith(sourcePath, ".gz")) {
     string pathWithoutExtension = sourcePath.substr(0, sourcePath.length() - 3);
     string filename = Path(pathWithoutExtension).basename();
-    command = "gzip -dc > '" + destinationDirectory + "/" + filename + "' <";
+    string destinationPath = path::join(destinationDirectory, filename);
+
+    command = {"gunzip", "-d", "-c"};
+    in = Subprocess::PATH(sourcePath);
+    out = Subprocess::PATH(destinationPath);
   } else if (strings::endsWith(sourcePath, ".zip")) {
-    command = "unzip -o -d '" + destinationDirectory + "'";
+    command = {"unzip", "-o", "-d", destinationDirectory, sourcePath};
   } else {
     return false;
   }
 
-  command += " '" + sourcePath + "'";
+  CHECK_GT(command.size(), 0u);
 
-  LOG(INFO) << "Extracting with command: " << command;
+  Try<Subprocess> extractProcess = subprocess(
+      command[0],
+      command,
+      in.getOrElse(Subprocess::PATH("/dev/null")),
+      out.getOrElse(Subprocess::FD(STDOUT_FILENO)),
+      Subprocess::FD(STDERR_FILENO));
 
-  int status = os::system(command);
-  if (status != 0) {
-    return Error("Failed to extract: command " + command +
-                 " exited with status: " + stringify(status));
+  if (extractProcess.isError()) {
+    return Error(
+        "Failed to extract '" + sourcePath + "': '" +
+        strings::join(" ", command) + "' failed: " +
+        extractProcess.error());
+  }
+
+  // `status()` never fails or gets discarded.
+  int status = extractProcess->status()->get();
+  if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+    return Error(
+        "Failed to extract '" + sourcePath + "': '" +
+        strings::join(" ", command) + "' failed: " +
+        WSTRINGIFY(status));
   }
 
   LOG(INFO) << "Extracted '" << sourcePath << "' into '"
