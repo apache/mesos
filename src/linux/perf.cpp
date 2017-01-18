@@ -316,16 +316,23 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
 
 bool valid(const set<string>& events)
 {
-  ostringstream command;
+  vector<string> argv = {"stat"};
 
-  // Log everything to stderr which is then redirected to /dev/null.
-  command << "perf stat --log-fd 2";
   foreach (const string& event, events) {
-    command << " --event " << event;
+    argv.push_back("--event");
+    argv.push_back(event);
   }
-  command << " true 2>/dev/null";
 
-  return (os::system(command.str()) == 0);
+  argv.push_back("true");
+
+  internal::Perf* perf = new internal::Perf(argv);
+  Future<string> output = perf->output();
+  spawn(perf, true);
+
+  output.await();
+
+  // We don't care about the output, just whether it exited non-zero.
+  return output.isReady();
 }
 
 
