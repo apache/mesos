@@ -1973,7 +1973,7 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    if (os::system("ifconfig lo up") != 0) {
+    if (os::spawn("ifconfig", {"ifconfig", "lo", "up"}) != 0) {
       cerr << "Failed to bring up the loopback interface in the new "
            << "network namespace of pid " << flags.pid.get()
            << ": " << os::strerror(errno) << endl;
