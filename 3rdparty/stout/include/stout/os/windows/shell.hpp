@@ -102,6 +102,12 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 //
 // The returned value from `_spawnlp` represents child exit code when
 // `_P_WAIT` is used.
+//
+// Note: Be cautious about shell injection
+// (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
+// when using this method and use proper validation and sanitization
+// on the `command`. For this reason in general `os::spawn` is
+// preferred if a shell is not required.
 inline int system(const std::string& command)
 {
   return static_cast<int>(::_spawnlp(

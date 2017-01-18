@@ -121,6 +121,12 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 // return -1 on error (e.g., fork/exec/waitpid failed). This function
 // is async signal safe. We return int instead of returning a Try
 // because Try involves 'new', which is not async signal safe.
+//
+// Note: Be cautious about shell injection
+// (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
+// when using this method and use proper validation and sanitization
+// on the `command`. For this reason in general `os::spawn` is
+// preferred if a shell is not required.
 inline int system(const std::string& command)
 {
   pid_t pid = ::fork();
