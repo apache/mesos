@@ -187,7 +187,7 @@ TEST_F(SlaveTest, Shutdown)
 // This test verifies that the slave rejects duplicate terminal
 // status updates for tasks before the first terminal update is
 // acknowledged.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DuplicateTerminalUpdateBeforeAck)
+TEST_F(SlaveTest, DuplicateTerminalUpdateBeforeAck)
 {
   Clock::pause();
 
@@ -352,7 +352,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
   CommandInfo command;
-  command.set_value("sleep 10");
+  command.set_value(SLEEP_COMMAND(10));
 
   task.mutable_command()->MergeFrom(command);
 
@@ -469,7 +469,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
 
   // Using a dummy command value as it's a required field. The
   // command won't be invoked.
-  commandInfo.set_value("sleep 10");
+  commandInfo.set_value(SLEEP_COMMAND(10));
 
   ExecutorID executorId;
   executorId.set_value("test-executor-staging");
@@ -687,7 +687,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
 // Tests that task's kill policy grace period does not extend the time
 // a task responsive to SIGTERM needs to exit and the terminal status
 // to be delivered to the master.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithKillPolicy)
+TEST_F(SlaveTest, CommandTaskWithKillPolicy)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -719,7 +719,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithKillPolicy)
   task.mutable_resources()->MergeFrom(offer.resources());
 
   CommandInfo command;
-  command.set_value("sleep 1000");
+  command.set_value(SLEEP_COMMAND(1000));
   task.mutable_command()->MergeFrom(command);
 
   // Set task's kill policy grace period to a large value.
@@ -762,7 +762,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithKillPolicy)
 
 // Don't let args from the CommandInfo struct bleed over into
 // mesos-executor forking. For more details of this see MESOS-1873.
-TEST_F(SlaveTest, GetExecutorInfo)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
 {
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
@@ -821,7 +821,7 @@ TEST_F(SlaveTest, GetExecutorInfo)
 // Ensure getExecutorInfo for mesos-executor gets the ContainerInfo,
 // if present. This ensures the MesosContainerizer can get the
 // NetworkInfo even when using the command executor.
-TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
 {
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
@@ -1415,7 +1415,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       DEFAULT_EXECUTOR_ID);
 
   driver.launchTasks(offer.id(), {task});
@@ -1432,7 +1432,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StateEndpoint)
+TEST_F(SlaveTest, StateEndpoint)
 {
   master::Flags masterFlags = this->CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -1883,7 +1883,7 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -1959,7 +1959,7 @@ TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
 // This is an end-to-end test that verifies that the slave returns the
 // correct ResourceUsage based on the currently running executors, and
 // the values returned by the /monitor/statistics endpoint are as expected.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StatisticsEndpointRunningExecutor)
+TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1990,7 +1990,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, StatisticsEndpointRunningExecutor)
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:1;mem:32").get(),
-      "sleep 1000");
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -2156,7 +2156,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -2396,13 +2396,13 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithLost)
   tasks.push_back(createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id));
 
   tasks.push_back(createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -2509,13 +2509,13 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithGone)
   tasks.push_back(createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id));
 
   tasks.push_back(createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -2688,7 +2688,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 
 // This test ensures that the slave will re-register with the master
 // if it does not receive any pings after registering.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, PingTimeoutNoPings)
+TEST_F(SlaveTest, PingTimeoutNoPings)
 {
   // Set shorter ping timeout values.
   master::Flags masterFlags = CreateMasterFlags();
@@ -2741,7 +2741,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, PingTimeoutNoPings)
 
 // This test ensures that the slave will re-register with the master
 // if it stops receiving pings.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, PingTimeoutSomePings)
+TEST_F(SlaveTest, PingTimeoutSomePings)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -3646,7 +3646,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
 
 // This test verifies that when a slave re-registers with the master
 // it correctly includes the latest and status update task states.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ReregisterWithStatusUpdateTaskState)
+TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 {
   Clock::pause();
 
@@ -3790,7 +3790,7 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   TaskInfo task = createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:32").get(),
-      "sleep 1000",
+      SLEEP_COMMAND(1000),
       exec.id);
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -3863,7 +3863,10 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+  TaskInfo task = createTask(
+      offers.get()[0],
+      SLEEP_COMMAND(100),
+      DEFAULT_EXECUTOR_ID);
 
   Labels labels1;
   labels1.add_labels()->CopyFrom(createLabel("ACTION", "port:7987 DENY"));
@@ -4165,7 +4168,10 @@ TEST_F(SlaveTest, TaskStatusLabels)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+  TaskInfo task = createTask(
+      offers.get()[0],
+      SLEEP_COMMAND(100),
+      DEFAULT_EXECUTOR_ID);
 
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -4267,7 +4273,10 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+  TaskInfo task = createTask(
+      offers.get()[0],
+      SLEEP_COMMAND(100),
+      DEFAULT_EXECUTOR_ID);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -4705,7 +4714,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(1000));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -5561,9 +5570,7 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
 
 
 // Test the max_completed_executors_per_framework flag.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest,
-    MaxCompletedExecutorsPerFrameworkFlag)
+TEST_F(SlaveTest, MaxCompletedExecutorsPerFrameworkFlag)
 {
   Clock::pause();
 
