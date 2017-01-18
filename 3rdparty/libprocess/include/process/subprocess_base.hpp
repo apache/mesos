@@ -174,6 +174,18 @@ public:
     const lambda::function<Try<Nothing>(pid_t)> parent_setup;
 
     friend class Subprocess;
+
+#ifdef __WINDOWS__
+    /**
+     * A Windows Job Object is used to manage groups of processes, which
+     * we use due to the lack of a process hierarchy (in a UNIX sense)
+     * on Windows.
+     *
+     * This hook places the subprocess into a Job Object, which will allow
+     * us to kill the subprocess and all of its children together.
+     */
+    static ParentHook CREATE_JOB();
+#endif // __WINDOWS__
   };
 
   /**

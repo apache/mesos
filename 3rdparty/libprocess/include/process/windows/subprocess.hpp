@@ -27,6 +27,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/os/close.hpp>
 #include <stout/os/environment.hpp>
@@ -168,7 +169,8 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
     const Option<std::map<std::string, std::string>>& environment,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
-    const OutputFileDescriptors stderrfds)
+    const OutputFileDescriptors stderrfds,
+    const std::vector<Subprocess::ParentHook>& parent_hooks)
 {
   // Construct the environment that will be passed to `CreateProcess`.
   Option<std::string> environmentString = createProcessEnvironment(environment);
@@ -228,7 +230,7 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
       nullptr,                 // Default security attributes.
       nullptr,                 // Default primary thread security attributes.
       TRUE,                    // Inherited parent process handles.
-      0,                       // Normal thread priority.
+      CREATE_SUSPENDED,        // Create process in suspended state.
       (LPVOID)processEnvironment,
       nullptr,                 // Use parent's current directory.
       &startupInfo,            // STARTUPINFO pointer.
@@ -236,6 +238,36 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
 
   if (!createProcessResult) {
     return WindowsError("createChildProcess: failed to call 'CreateProcess'");
+  }
+
+  // Run the parent hooks.
+  const pid_t pid = processInfo.dwProcessId;
+  foreach (const Subprocess::ParentHook& hook, parent_hooks) {
+    Try<Nothing> parentSetup = hook.parent_setup(pid);
+
+    // If the hook callback fails, we shouldn't proceed with the
+    // execution and hence the child process should be killed.
+    if (parentSetup.isError()) {
+      LOG(WARNING)
+        << "Failed to execute Subprocess::ParentHook in parent for child '"
+        << pid << "': " << parentSetup.error();
+
+      // Attempt to kill the process. Since it is still in suspended state, we
+      // do not need to kill any descendents. We also can't use `os::kill_job`
+      // because this process is not in a Job Object unless one of the parent
+      // hooks added it.
+      ::TerminateProcess(processInfo.hProcess, 1);
+
+      return Error(
+          "Failed to execute Subprocess::ParentHook in parent for child '" +
+          stringify(pid) + "': " + parentSetup.error());
+    }
+  }
+
+  // Start child process.
+  if (::ResumeThread(processInfo.hThread) == -1) {
+    return WindowsError("process::createChildProcess: Could not spawn child "
+                        "process");
   }
 
   return processInfo;
