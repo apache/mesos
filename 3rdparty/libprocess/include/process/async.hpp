@@ -18,6 +18,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 
 #include <stout/lambda.hpp>
@@ -155,8 +156,7 @@ private:
 
   AsyncExecutor()
   {
-    process = new AsyncExecutorProcess();
-    spawn(process, true); // Automatically GC.
+    process = spawn(new AsyncExecutorProcess(), true); // Automatically GC.
   }
 
   virtual ~AsyncExecutor() {}
@@ -219,7 +219,7 @@ private:
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
-  AsyncExecutorProcess* process;
+  PID<AsyncExecutorProcess> process;
 };
 
 
