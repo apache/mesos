@@ -101,6 +101,7 @@ StatusUpdate createStatusUpdate(
     const Option<TaskStatus::Reason>& reason,
     const Option<ExecutorID>& executorId,
     const Option<bool>& healthy,
+    const Option<CheckStatusInfo>& checkStatus,
     const Option<Labels>& labels,
     const Option<ContainerStatus>& containerStatus,
     const Option<TimeInfo>& unreachableTime)
@@ -141,6 +142,10 @@ StatusUpdate createStatusUpdate(
 
   if (healthy.isSome()) {
     status->set_healthy(healthy.get());
+  }
+
+  if (checkStatus.isSome()) {
+    status->mutable_check_status()->CopyFrom(checkStatus.get());
   }
 
   if (labels.isSome()) {
@@ -242,16 +247,33 @@ Option<bool> getTaskHealth(const Task& task)
 {
   Option<bool> healthy = None();
   if (task.statuses_size() > 0) {
-    // The statuses list only keeps the most recent TaskStatus for
-    // each state, and appends later states at the end. Thus the last
-    // status is either a terminal state (where health is
-    // irrelevant), or the latest RUNNING status.
+    // The statuses list only keeps the most recent `TaskStatus` for
+    // each state, and appends later statuses at the end. Thus the last
+    // status is either a terminal state (where health is irrelevant),
+    // or the latest TASK_RUNNING status.
     TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
     if (lastStatus.has_healthy()) {
       healthy = lastStatus.healthy();
     }
   }
   return healthy;
+}
+
+
+Option<CheckStatusInfo> getTaskCheckStatus(const Task& task)
+{
+  Option<CheckStatusInfo> checkStatus = None();
+  if (task.statuses_size() > 0) {
+    // The statuses list only keeps the most recent `TaskStatus` for
+    // each state, and appends later statuses at the end. Thus the last
+    // status is either a terminal state (where check is irrelevant),
+    // or the latest TASK_RUNNING status.
+    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
+    if (lastStatus.has_check_status()) {
+      checkStatus = lastStatus.check_status();
+    }
+  }
+  return checkStatus;
 }
 
 

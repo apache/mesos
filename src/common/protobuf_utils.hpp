@@ -80,6 +80,7 @@ StatusUpdate createStatusUpdate(
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),
     const Option<bool>& healthy = None(),
+    const Option<CheckStatusInfo>& checkStatus = None(),
     const Option<Labels>& labels = None(),
     const Option<ContainerStatus>& containerStatus = None(),
     const Option<TimeInfo>& unreachableTime = None());
@@ -98,6 +99,9 @@ Task createTask(
 
 
 Option<bool> getTaskHealth(const Task& task);
+
+
+Option<CheckStatusInfo> getTaskCheckStatus(const Task& task);
 
 
 Option<ContainerStatus> getTaskContainerStatus(const Task& task);
