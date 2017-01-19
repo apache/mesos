@@ -190,7 +190,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -322,7 +322,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -419,7 +419,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -512,7 +512,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -698,7 +698,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   // Task is ready.  Make sure there is exactly 1 container in the hashset.
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   const ContainerID& containerID = *(containers.get().begin());
 
@@ -913,7 +913,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
@@ -1107,7 +1107,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
+  ASSERT_EQ(2u, containers.get().size());
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;
@@ -1265,7 +1265,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
+  ASSERT_EQ(2u, containers.get().size());
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;
@@ -1421,7 +1421,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
+  ASSERT_EQ(2u, containers.get().size());
   EXPECT_TRUE(containers.get().contains(containerId1));
 
   ContainerID containerId2;

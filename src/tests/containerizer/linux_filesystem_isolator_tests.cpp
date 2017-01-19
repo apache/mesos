@@ -1204,7 +1204,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *containers.get().begin();
 
