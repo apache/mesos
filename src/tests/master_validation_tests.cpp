@@ -2526,8 +2526,7 @@ TEST_F(FrameworkInfoValidationTest, MissingMultiRoleCapability)
 }
 
 
-// This test ensures subscription succeeds for multi-role
-// framework when MULTI_ROLE capability is enabled.
+// This test ensures that a multi-role framework can register.
 TEST_F(FrameworkInfoValidationTest, AcceptMultiRoleFramework)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2553,8 +2552,8 @@ TEST_F(FrameworkInfoValidationTest, AcceptMultiRoleFramework)
 }
 
 
-// This test ensures subscription fails for multi-role
-// framework with non-whitelisted role.
+// This test ensures that a multi-role framework using
+// a non-whitelisted role is denied registration.
 TEST_F(FrameworkInfoValidationTest, MultiRoleWhitelist)
 {
   master::Flags masterFlags = CreateMasterFlags();
