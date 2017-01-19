@@ -97,7 +97,8 @@ class ShutdownProcess : public process::Process<ShutdownProcess>
 {
 public:
   explicit ShutdownProcess(const Duration& _gracePeriod)
-    : gracePeriod(_gracePeriod) {}
+    : ProcessBase(generate("__shutdown_executor__")),
+      gracePeriod(_gracePeriod) {}
 
 protected:
   virtual void initialize()
