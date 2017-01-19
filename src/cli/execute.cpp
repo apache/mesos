@@ -37,6 +37,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
@@ -60,6 +61,8 @@ using mesos::internal::devolve;
 
 using mesos::v1::AgentID;
 using mesos::v1::CapabilityInfo;
+using mesos::v1::CheckInfo;
+using mesos::v1::CheckStatusInfo;
 using mesos::v1::CommandInfo;
 using mesos::v1::ContainerInfo;
 using mesos::v1::Credential;
@@ -676,6 +679,33 @@ protected:
     }
     if (status.has_healthy()) {
       cout << "  healthy?: " << status.healthy() << endl;
+    }
+
+    if (status.has_check_status()) {
+      switch (status.check_status().type()) {
+        case CheckInfo::COMMAND: {
+          CHECK(status.check_status().has_command());
+          cout << "  check's last exit code: "
+               << (status.check_status().command().has_exit_code()
+                     ? stringify(status.check_status().command().exit_code())
+                     : "not available") << endl;
+          break;
+        }
+
+        case CheckInfo::HTTP: {
+          CHECK(status.check_status().has_http());
+          cout << "  check's last HTTP status code: "
+               << (status.check_status().http().has_status_code()
+                     ? stringify(status.check_status().http().status_code())
+                     : "not available") << endl;
+          break;
+        }
+
+        case CheckInfo::UNKNOWN: {
+          cout << "'" << CheckInfo::Type_Name(status.check_status().type())
+               << "' is not a valid check type" << endl;
+        }
+      }
     }
 
     if (status.has_uuid()) {
