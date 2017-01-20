@@ -16,6 +16,11 @@ layout: documentation
   Scheduler Library</a></td>
   <td>C++</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/apache/mesos/tree/master/src/java/src/org/apache/mesos/v1/scheduler">
+  Scheduler Adapter (depends on native libmesos)</a></td>
+  <td>Java</td>
+</tr>
 </table>
 
 ### User Contributed
