@@ -151,6 +151,14 @@
   jira_user: bernd-mesos
   reviewboard_user: bernd-mesos
 
+- name: Bruce Merry
+  affiliations:
+    - {organization: SKA South Africa}
+  emails:
+    - bmerry@ska.ac.za
+  jira_user: bmerry
+  reviewboard_user: bmerry
+
 - name: Charles Allen
   affiliations:
     - {organization: Metamarkets}
