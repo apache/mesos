@@ -6478,19 +6478,20 @@ Executor* Framework::getExecutor(const TaskID& taskId)
 
 Executor* Slave::getExecutor(const ContainerID& containerId) const
 {
+  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
   // Locate the executor (for now we just loop since we don't
   // index based on container id and this likely won't have a
   // significant performance impact due to the low number of
   // executors per-agent).
-  // TODO(adam-mesos): Support more levels of nesting.
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      if (executor->containerId == containerId ||
-          executor->containerId == containerId.parent()) {
+      if (rootContainerId == executor->containerId) {
         return executor;
       }
     }
   }
+
   return nullptr;
 }
 

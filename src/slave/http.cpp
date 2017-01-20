@@ -2180,14 +2180,6 @@ Future<Response> Slave::Http::_launchNestedContainer(
     ContentType acceptType,
     const Owned<ObjectApprover>& approver) const
 {
-  // We do not yet support launching containers that are nested
-  // two levels beneath the executor's container.
-  if (containerId.parent().has_parent()) {
-    return NotImplemented(
-        "Only a single level of container nesting is supported currently,"
-        " but 'launch_nested_container.container_id.parent.parent' is set");
-  }
-
   Executor* executor = slave->getExecutor(containerId);
   if (executor == nullptr) {
     return NotFound("Container " + stringify(containerId) + " cannot be found");
