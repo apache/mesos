@@ -31,22 +31,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-ContainerID getRootContainerId(const ContainerID& containerId)
-{
-  ContainerID rootContainerId = containerId;
-  while (rootContainerId.has_parent()) {
-    // NOTE: Looks like protobuf does not handle copying well when
-    // nesting message is involved, because the source and the target
-    // point to the same object. Therefore, we create a temporary
-    // variable and use an extra copy here.
-    ContainerID id = rootContainerId.parent();
-    rootContainerId = id;
-  }
-
-  return rootContainerId;
-}
-
-
 #ifdef __linux__
 // This function can be used to find a new target `pid` for entering
 // the `mnt` namespace of a container (if necessary).

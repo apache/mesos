@@ -119,6 +119,9 @@ TimeInfo getCurrentTime();
 // Helper function that creates a `FileInfo` from data returned by `stat()`.
 FileInfo createFileInfo(const std::string& path, const struct stat& s);
 
+
+ContainerID getRootContainerId(const ContainerID& containerId);
+
 namespace slave {
 
 struct Capabilities

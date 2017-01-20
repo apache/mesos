@@ -27,10 +27,10 @@
 #include <stout/path.hpp>
 #include <stout/net.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
-
-#include "slave/containerizer/mesos/utils.hpp"
 
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 
@@ -593,7 +593,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
           "parent and nested containers.");
     }
 
-    ContainerID rootContainerId = getRootContainerId(containerId);
+    ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
     // NOTE: The `network/cni` isolator checkpoints only the following
     // top-level containers:
@@ -785,7 +785,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     // to which this container belongs. We will use the network files
     // of the top level root container to setup the network files for
     // this nested container.
-    ContainerID rootContainerId = getRootContainerId(containerId);
+    ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
     // Since the nested container joins non-host networks, its root
     // container has to join non-host networks because we have the

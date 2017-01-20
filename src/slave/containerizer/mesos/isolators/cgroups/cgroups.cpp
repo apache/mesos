@@ -28,9 +28,9 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
-#include "linux/cgroups.hpp"
+#include "common/protobuf_utils.hpp"
 
-#include "slave/containerizer/mesos/utils.hpp"
+#include "linux/cgroups.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
@@ -531,7 +531,7 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
 {
   // If we are a nested container, we inherit
   // the cgroup from our root ancestor.
-  ContainerID rootContainerId = getRootContainerId(containerId);
+  ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
   if (!infos.contains(rootContainerId)) {
     return Failure("Failed to isolate the container: Unknown root container");

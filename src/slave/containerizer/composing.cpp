@@ -28,12 +28,12 @@
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "slave/state.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/composing.hpp"
-
-#include "slave/containerizer/mesos/utils.hpp"
 
 using namespace process;
 
@@ -494,7 +494,7 @@ Future<bool> ComposingContainerizerProcess::launch(
           const SlaveID& slaveId,
           const Option<ContainerClass>& containerClass)
 {
-  ContainerID rootContainerId = getRootContainerId(containerId);
+  ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
   if (!containers_.contains(rootContainerId)) {
     return Failure(
