@@ -37,6 +37,7 @@
 #include <mesos/slave/containerizer.hpp>
 
 #include "common/parse.hpp"
+#include "common/status_utils.hpp"
 
 #ifdef __linux__
 #include "linux/capabilities.hpp"
