@@ -2525,8 +2525,7 @@ Future<Response> Slave::Http::attachContainerInput(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    executor =
-        slave->locateExecutor(call.attach_container_input().container_id());
+    executor = slave->getExecutor(call.attach_container_input().container_id());
     if (executor.get() != nullptr) {
       framework = slave->frameworks[executor.get()->frameworkId];
     } else {
@@ -2840,7 +2839,7 @@ Future<Response> Slave::Http::attachContainerOutput(
 
   if (slave->authorizer.isSome()) {
     executor =
-        slave->locateExecutor(call.attach_container_output().container_id());
+      slave->getExecutor(call.attach_container_output().container_id());
     if (executor.get() != nullptr) {
       framework = slave->frameworks[executor.get()->frameworkId];
     } else {
