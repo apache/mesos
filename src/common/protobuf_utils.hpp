@@ -82,7 +82,7 @@ StatusUpdate createStatusUpdate(
     const Option<bool>& healthy = None(),
     const Option<Labels>& labels = None(),
     const Option<ContainerStatus>& containerStatus = None(),
-    const Option<TimeInfo> unreachableTime = None());
+    const Option<TimeInfo>& unreachableTime = None());
 
 
 StatusUpdate createStatusUpdate(

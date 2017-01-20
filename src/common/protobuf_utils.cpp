@@ -106,7 +106,7 @@ StatusUpdate createStatusUpdate(
     const Option<bool>& healthy,
     const Option<Labels>& labels,
     const Option<ContainerStatus>& containerStatus,
-    const Option<TimeInfo> unreachableTime)
+    const Option<TimeInfo>& unreachableTime)
 {
   StatusUpdate update;
 
