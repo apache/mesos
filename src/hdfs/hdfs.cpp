@@ -34,6 +34,7 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/shell.hpp>
 
+#include "common/status_utils.hpp"
 #include "hdfs/hdfs.hpp"
 
 using namespace process;
@@ -156,18 +157,18 @@ Future<bool> HDFS::exists(const string& path)
         return Failure("Failed to reap the subprocess");
       }
 
-      if (WIFEXITED(result.status.get())) {
-        int exitCode = WEXITSTATUS(result.status.get());
-        if (exitCode == 0) {
-          return true;
-        } else if (exitCode == 1) {
-          return false;
-        }
+      if (WSUCCEEDED(result.status.get())) {
+        return true;
+      }
+
+      if (WIFEXITED(result.status.get()) &&
+          WEXITSTATUS(result.status.get()) == 1) {
+        return false;
       }
 
       return Failure(
           "Unexpected result from the subprocess: "
-          "status='" + stringify(result.status.get()) + "', " +
+          "status='" + WSTRINGIFY(result.status.get()) + "', " +
           "stdout='" + result.out + "', " +
           "stderr='" + result.err + "'");
     });

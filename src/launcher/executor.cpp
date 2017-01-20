@@ -635,9 +635,10 @@ private:
       message = "Failed to get exit status for Command";
     } else {
       int status = status_.get().get();
-      CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+        << "Unexpected wait status " << status;
 
-      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+      if (WSUCCEEDED(status)) {
         taskState = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of

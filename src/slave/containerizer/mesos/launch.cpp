@@ -393,9 +393,11 @@ int MesosContainerizerLaunch::execute()
       status = os::spawn(command.value(), args);
     }
 
-    if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+    if (!WSUCCEEDED(status)) {
       cerr << "Failed to execute pre-exec command '"
-           << JSON::protobuf(command) << "'" << endl;
+           << JSON::protobuf(command) << "': "
+           << WSTRINGIFY(status)
+           << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }

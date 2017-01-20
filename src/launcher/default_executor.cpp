@@ -632,9 +632,9 @@ protected:
       taskState = TASK_FAILED;
     } else {
       CHECK(WIFEXITED(status.get()) || WIFSIGNALED(status.get()))
-        << status.get();
+        << "Unexpected wait status " << status.get();
 
-      if (WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0) {
+      if (WSUCCEEDED(status.get())) {
         taskState = TASK_FINISHED;
       } else if (shuttingDown) {
         // Send TASK_KILLED if the task was killed as a result of

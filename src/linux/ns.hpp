@@ -50,6 +50,8 @@
 #include <process/future.hpp>
 #include <process/reap.hpp>
 
+#include "common/status_utils.hpp"
+
 #ifndef CLONE_NEWNS
 #define CLONE_NEWNS 0x00020000
 #endif
@@ -502,10 +504,11 @@ inline Try<pid_t> clone(
       }
     }
 
-    CHECK(WIFEXITED(status) || WIFSIGNALED(status));
+    CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+      << "Unexpected wait status " << status;
 
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-      return Error("Failed to clone");
+    if (!WSUCCEEDED(status)) {
+      return Error("Failed to clone: " + WSTRINGIFY(status));
     }
 
     return pid;

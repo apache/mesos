@@ -111,7 +111,7 @@ static Try<bool> extract(
 
   // `status()` never fails or gets discarded.
   int status = extractProcess->status()->get();
-  if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+  if (!WSUCCEEDED(status)) {
     return Error(
         "Failed to extract '" + sourcePath + "': '" +
         strings::join(" ", command) + "' failed: " +
@@ -197,7 +197,7 @@ static Try<string> copyFile(
     return ErrnoError("Failed to copy '" + sourcePath + "'");
   }
 
-  if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+  if (!WSUCCEEDED(status)) {
     return Error(
         "Failed to copy '" + sourcePath + "': " + WSTRINGIFY(status));
   }

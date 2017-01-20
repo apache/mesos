@@ -59,6 +59,7 @@
 
 #include "common/http.hpp"
 #include "common/recordio.hpp"
+#include "common/status_utils.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
@@ -857,7 +858,7 @@ void IOSwitchboard::reaped(
     LOG(INFO) << "I/O switchboard server process for container "
               << containerId << " has terminated (status=N/A)";
     return;
-  } else if (WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0) {
+  } else if (WSUCCEEDED(status.get())) {
     LOG(INFO) << "I/O switchboard server process for container "
               << containerId << " has terminated (status=0)";
     return;
@@ -870,16 +871,7 @@ void IOSwitchboard::reaped(
 
   ContainerLimitation limitation;
   limitation.set_reason(TaskStatus::REASON_IO_SWITCHBOARD_EXITED);
-
-  if (WIFEXITED(status.get())) {
-    limitation.set_message(
-        "'IOSwitchboard' exited with status:"
-        " " + stringify(WEXITSTATUS(status.get())));
-  } else if (WIFSIGNALED(status.get())) {
-    limitation.set_message(
-        "'IOSwitchboard' exited with signal:"
-        " " + stringify(strsignal(WTERMSIG(status.get()))));
-  }
+  limitation.set_message("'IOSwitchboard' " + WSTRINGIFY(status.get()));
 
   infos[containerId]->limitation.set(limitation);
 

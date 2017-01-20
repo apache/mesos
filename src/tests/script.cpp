@@ -74,9 +74,10 @@ void execute(const string& script)
     // In parent process.
     int status;
     while (wait(&status) != pid || WIFSTOPPED(status));
-    CHECK(WIFEXITED(status) || WIFSIGNALED(status));
+    CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+      << "Unexpected wait status " << status;
 
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    if (!WSUCCEEDED(status)) {
       FAIL() << script << " " << WSTRINGIFY(status);
     }
   } else {

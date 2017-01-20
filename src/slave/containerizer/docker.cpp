@@ -1360,11 +1360,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         inspect.discard();
         promise->fail("Failed to obtain exit status of container");
       } else {
-        bool exitedCleanly =
-          WIFEXITED(run->get()) &&
-          WEXITSTATUS(run->get()) == 0;
-
-        if (!exitedCleanly) {
+        if (!WSUCCEEDED(run->get())) {
           inspect.discard();
           promise->fail("Container " + WSTRINGIFY(run->get()));
         }

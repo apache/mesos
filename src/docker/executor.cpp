@@ -419,9 +419,10 @@ private:
       message = "Failed to get exit status of container";
     } else {
       int status = run->get();
-      CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+        << "Unexpected wait status " << status;
 
-      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+      if (WSUCCEEDED(status)) {
         state = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
