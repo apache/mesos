@@ -325,7 +325,9 @@ public:
     // captured futures longer than necessary.
     //
     // TODO(benh): Use `WeakFuture` in `discard` functions instead.
-    discard = []() {};
+    synchronized (mutex) {
+      discard = []() {};
+    }
 
     while (next.isReady()) {
       Future<ControlFlow<R>> flow = body(next.get());
