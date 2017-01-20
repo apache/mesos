@@ -206,6 +206,68 @@ StatusUpdate createStatusUpdate(
 }
 
 
+TaskStatus createTaskStatus(
+    TaskStatus status,
+    const UUID& uuid,
+    double timestamp,
+    const Option<TaskState>& state,
+    const Option<string>& message,
+    const Option<TaskStatus::Source>& source,
+    const Option<TaskStatus::Reason>& reason,
+    const Option<string>& data,
+    const Option<bool>& healthy,
+    const Option<CheckStatusInfo>& checkStatus,
+    const Option<Labels>& labels,
+    const Option<ContainerStatus>& containerStatus,
+    const Option<TimeInfo>& unreachableTime)
+{
+  status.set_uuid(uuid.toBytes());
+  status.set_timestamp(timestamp);
+
+  if (state.isSome()) {
+    status.set_state(state.get());
+  }
+
+  if (message.isSome()) {
+    status.set_message(message.get());
+  }
+
+  if (source.isSome()) {
+    status.set_source(source.get());
+  }
+
+  if (reason.isSome()) {
+    status.set_reason(reason.get());
+  }
+
+  if (data.isSome()) {
+    status.set_data(data.get());
+  }
+
+  if (healthy.isSome()) {
+    status.set_healthy(healthy.get());
+  }
+
+  if (checkStatus.isSome()) {
+    status.mutable_check_status()->CopyFrom(checkStatus.get());
+  }
+
+  if (labels.isSome()) {
+    status.mutable_labels()->CopyFrom(labels.get());
+  }
+
+  if (containerStatus.isSome()) {
+    status.mutable_container_status()->CopyFrom(containerStatus.get());
+  }
+
+  if (unreachableTime.isSome()) {
+    status.mutable_unreachable_time()->CopyFrom(unreachableTime.get());
+  }
+
+  return status;
+}
+
+
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,
