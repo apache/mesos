@@ -1576,12 +1576,12 @@ void Slave::run(
   LOG(INFO) << "Got assigned " << taskOrTaskGroup(task, taskGroup)
             << " for framework " << frameworkId;
 
-  foreach (const TaskInfo& task, tasks) {
-    if (!(task.slave_id() == info.id())) {
+  foreach (const TaskInfo& _task, tasks) {
+    if (!(_task.slave_id() == info.id())) {
       LOG(WARNING)
         << "Agent " << info.id() << " ignoring running "
-        << taskOrTaskGroup(task, taskGroup) << " because "
-        << "it was intended for old agent " << task.slave_id();
+        << taskOrTaskGroup(_task, taskGroup) << " because "
+        << "it was intended for old agent " << _task.slave_id();
       return;
     }
   }
@@ -1676,8 +1676,8 @@ void Slave::run(
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_run()' is called.
   CHECK_NOTNULL(framework);
-  foreach (const TaskInfo& task, tasks) {
-    framework->pending[executorId][task.task_id()] = task;
+  foreach (const TaskInfo& _task, tasks) {
+    framework->pending[executorId][_task.task_id()] = _task;
   }
 
   // If we are about to create a new executor, unschedule the top
@@ -1726,8 +1726,8 @@ void Slave::_run(
   if (task.isSome()) {
     tasks.push_back(task.get());
   } else {
-    foreach (const TaskInfo& task, taskGroup->tasks()) {
-      tasks.push_back(task);
+    foreach (const TaskInfo& _task, taskGroup->tasks()) {
+      tasks.push_back(_task);
     }
   }
 
@@ -1750,10 +1750,10 @@ void Slave::_run(
   // tasks in the task group have been killed in the interim, we
   // send a TASK_KILLED for all the other tasks in the group.
   bool killed = false;
-  foreach (const TaskInfo& task, tasks) {
+  foreach (const TaskInfo& _task, tasks) {
     if (framework->pending.contains(executorId) &&
-        framework->pending[executorId].contains(task.task_id())) {
-      framework->pending[executorId].erase(task.task_id());
+        framework->pending[executorId].contains(_task.task_id())) {
+      framework->pending[executorId].erase(_task.task_id());
       if (framework->pending[executorId].empty()) {
         framework->pending.erase(executorId);
         // NOTE: Ideally we would perform the following check here:
@@ -1777,11 +1777,11 @@ void Slave::_run(
                  << " of framework " << frameworkId
                  << " because it has been killed in the meantime";
 
-    foreach (const TaskInfo& task, tasks) {
+    foreach (const TaskInfo& _task, tasks) {
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
-          task.task_id(),
+          _task.task_id(),
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
@@ -1827,11 +1827,11 @@ void Slave::_run(
       taskState = TASK_LOST;
     }
 
-    foreach (const TaskInfo& task, tasks) {
+    foreach (const TaskInfo& _task, tasks) {
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
-          task.task_id(),
+          _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
@@ -1863,14 +1863,14 @@ void Slave::_run(
   // may succeed in the event that CheckpointResourcesMessage arrives
   // out of order.
   bool kill = false;
-  foreach (const TaskInfo& task, tasks) {
+  foreach (const TaskInfo& _task, tasks) {
     Resources checkpointedTaskResources =
-      Resources(task.resources()).filter(needCheckpointing);
+      Resources(_task.resources()).filter(needCheckpointing);
 
     foreach (const Resource& resource, checkpointedTaskResources) {
       if (!checkpointedResources.contains(resource)) {
         LOG(WARNING) << "Unknown checkpointed resource " << resource
-                     << " for task " << task
+                     << " for task " << _task
                      << " of framework " << frameworkId;
 
         kill = true;
@@ -1889,11 +1889,11 @@ void Slave::_run(
       taskState = TASK_LOST;
     }
 
-    foreach (const TaskInfo& task, tasks) {
+    foreach (const TaskInfo& _task, tasks) {
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
-          task.task_id(),
+          _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
@@ -1938,11 +1938,11 @@ void Slave::_run(
       taskState = TASK_LOST;
     }
 
-    foreach (const TaskInfo& task, tasks) {
+    foreach (const TaskInfo& _task, tasks) {
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
-          task.task_id(),
+          _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
@@ -2023,11 +2023,11 @@ void Slave::_run(
         taskState = TASK_LOST;
       }
 
-      foreach (const TaskInfo& task, tasks) {
+      foreach (const TaskInfo& _task, tasks) {
         const StatusUpdate update = protobuf::createStatusUpdate(
             frameworkId,
             info.id(),
-            task.task_id(),
+            _task.task_id(),
             taskState,
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
@@ -2040,14 +2040,14 @@ void Slave::_run(
       break;
     }
     case Executor::REGISTERING:
-      foreach (const TaskInfo& task, tasks) {
+      foreach (const TaskInfo& _task, tasks) {
         // Checkpoint the task before we do anything else.
         if (executor->checkpoint) {
-          executor->checkpointTask(task);
+          executor->checkpointTask(_task);
         }
 
         // Queue task if the executor has not yet registered.
-        executor->queuedTasks[task.task_id()] = task;
+        executor->queuedTasks[_task.task_id()] = _task;
       }
 
       if (taskGroup.isSome()) {
@@ -2060,15 +2060,15 @@ void Slave::_run(
 
       break;
     case Executor::RUNNING: {
-      foreach (const TaskInfo& task, tasks) {
+      foreach (const TaskInfo& _task, tasks) {
         // Checkpoint the task before we do anything else.
         if (executor->checkpoint) {
-          executor->checkpointTask(task);
+          executor->checkpointTask(_task);
         }
 
         // Queue task until the containerizer is updated with new
         // resource limits (MESOS-998).
-        executor->queuedTasks[task.task_id()] = task;
+        executor->queuedTasks[_task.task_id()] = _task;
       }
 
       if (taskGroup.isSome()) {
@@ -2086,8 +2086,8 @@ void Slave::_run(
       // upcoming tasks.
       Resources resources = executor->resources;
 
-      foreachvalue (const TaskInfo& task, executor->queuedTasks) {
-        resources += task.resources();
+      foreachvalue (const TaskInfo& _task, executor->queuedTasks) {
+        resources += _task.resources();
       }
 
       containerizer->update(executor->containerId, resources)
