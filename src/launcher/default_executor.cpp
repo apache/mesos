@@ -193,10 +193,11 @@ public:
 
       case Event::ACKNOWLEDGED: {
         // Remove the corresponding update.
-        updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
+        unacknowledgedUpdates.erase(
+            UUID::fromBytes(event.acknowledged().uuid()).get());
 
         // Remove the corresponding task.
-        tasks.erase(event.acknowledged().task_id());
+        unacknowledgedTasks.erase(event.acknowledged().task_id());
         break;
       }
 
@@ -253,12 +254,12 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreachvalue (const Call::Update& update, updates) {
+    foreachvalue (const Call::Update& update, unacknowledgedUpdates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 
     // Send the unacknowledged tasks.
-    foreachvalue (const TaskInfo& task, tasks) {
+    foreachvalue (const TaskInfo& task, unacknowledgedTasks) {
       subscribe->add_unacknowledged_tasks()->MergeFrom(task);
     }
 
@@ -398,7 +399,7 @@ protected:
       const TaskInfo& task = taskGroup.tasks().Get(index++);
       const TaskID& taskId = task.task_id();
 
-      tasks[taskId] = task;
+      unacknowledgedTasks[taskId] = task;
       containers[taskId] = Owned<Container>(
           new Container {containerId, taskId, taskGroup, None(), false, false});
 
@@ -920,7 +921,7 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    updates[uuid] = call.update();
+    unacknowledgedUpdates[uuid] = call.update();
 
     mesos->send(evolve(call));
   }
@@ -1031,8 +1032,12 @@ private:
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
   const string launcherDirectory;
-  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
-  LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
+
+  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+
+  // A task is considered unacknowledged if no status update
+  // acknowledgements have been received for it yet.
+  LinkedHashMap<TaskID, TaskInfo> unacknowledgedTasks;
 
   // Active child containers.
   LinkedHashMap<TaskID, Owned<Container>> containers;

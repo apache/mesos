@@ -143,7 +143,7 @@ public:
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      task(None())
+      unacknowledgedTask(None())
   {
 #ifdef __WINDOWS__
     processHandle = INVALID_HANDLE_VALUE;
@@ -215,15 +215,15 @@ public:
         // NOTE: The executor receives an ACK iff it uses the HTTP library.
         // No ACK will be received if V0ToV1Adapter is used.
         if (mesos::internal::protobuf::isTerminalState(
-            updates[uuid].status().state())) {
+            unacknowledgedUpdates[uuid].status().state())) {
           terminate(self());
         }
 
         // Remove the corresponding update.
-        updates.erase(uuid);
+        unacknowledgedUpdates.erase(uuid);
 
         // Remove the corresponding task.
-        task = None();
+        unacknowledgedTask = None();
         break;
       }
 
@@ -317,13 +317,14 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreachvalue (const Call::Update& update, updates) {
+    foreachvalue (const Call::Update& update, unacknowledgedUpdates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 
     // Send the unacknowledged task.
-    if (task.isSome()) {
-      subscribe->add_unacknowledged_tasks()->MergeFrom(task.get());
+    if (unacknowledgedTask.isSome()) {
+      subscribe->add_unacknowledged_tasks()->MergeFrom(
+          unacknowledgedTask.get());
     }
 
     mesos->send(evolve(call));
@@ -345,14 +346,14 @@ protected:
     }
 
     // Capture the task.
-    task = _task;
+    unacknowledgedTask = _task;
 
     // Capture the TaskID.
-    taskId = task->task_id();
+    taskId = unacknowledgedTask->task_id();
 
     // Capture the kill policy.
-    if (task->has_kill_policy()) {
-      killPolicy = task->kill_policy();
+    if (unacknowledgedTask->has_kill_policy()) {
+      killPolicy = unacknowledgedTask->kill_policy();
     }
 
     // Determine the command to launch the task.
@@ -371,11 +372,11 @@ protected:
       }
 
       command = parse.get();
-    } else if (task->has_command()) {
-      command = task->command();
+    } else if (unacknowledgedTask->has_command()) {
+      command = unacknowledgedTask->command();
     } else {
-      LOG(FATAL) << "Expecting task '" << task->task_id() << "' "
-                 << "to have a command";
+      LOG(FATAL) << "Expecting task '" << unacknowledgedTask->task_id()
+                 << "' to have a command";
     }
 
     // TODO(jieyu): For now, we just fail the executor if the task's
@@ -385,11 +386,11 @@ protected:
     // correct solution is to perform this validation at master side.
     if (command.shell()) {
       CHECK(command.has_value())
-        << "Shell command of task '" << task->task_id()
+        << "Shell command of task '" << unacknowledgedTask->task_id()
         << "' is not specified!";
     } else {
       CHECK(command.has_value())
-        << "Executable of task '" << task->task_id()
+        << "Executable of task '" << unacknowledgedTask->task_id()
         << "' is not specified!";
     }
 
@@ -418,7 +419,7 @@ protected:
       launchEnvironment.MergeFrom(command.environment());
     }
 
-    cout << "Starting task " << task->task_id() << endl;
+    cout << "Starting task " << unacknowledgedTask->task_id() << endl;
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
@@ -446,10 +447,10 @@ protected:
 
     cout << "Forked command at " << pid << endl;
 
-    if (task->has_health_check()) {
+    if (unacknowledgedTask->has_health_check()) {
       vector<string> namespaces;
       if (rootfs.isSome() &&
-          task->health_check().type() == HealthCheck::COMMAND) {
+          unacknowledgedTask->health_check().type() == HealthCheck::COMMAND) {
         // Make sure command health checks are run from the task's mount
         // namespace. Otherwise if rootfs is specified the command binary
         // may not be available in the executor.
@@ -461,10 +462,10 @@ protected:
 
       Try<Owned<checks::HealthChecker>> _checker =
         checks::HealthChecker::create(
-            task->health_check(),
+            unacknowledgedTask->health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
-            task->task_id(),
+            unacknowledgedTask->task_id(),
             pid,
             namespaces);
 
@@ -481,7 +482,7 @@ protected:
     process::reap(pid)
       .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    update(task->task_id(), TASK_RUNNING);
+    update(unacknowledgedTask->task_id(), TASK_RUNNING);
 
     launched = true;
   }
@@ -769,7 +770,7 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    updates[uuid] = call.update();
+    unacknowledgedUpdates[uuid] = call.update();
 
     mesos->send(evolve(call));
   }
@@ -827,8 +828,13 @@ private:
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
-  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
-  Option<TaskInfo> task; // Unacknowledged task.
+
+  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+
+  // `None` if there is either no task yet or no status
+  // update acknowledgements have been received yet.
+  Option<TaskInfo> unacknowledgedTask;
+
   Owned<checks::HealthChecker> checker;
 };
 
