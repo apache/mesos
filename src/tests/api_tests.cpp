@@ -4203,44 +4203,72 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
+// This test verifies that attaching to the output of a container fails if the
+// containerizer doesn't support the operation.
 TEST_P(AgentAPITest, AttachContainerOutputFailure)
 {
   ContentType contentType = GetParam();
 
-  Clock::pause();
-
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
-
-  StandaloneMasterDetector detector;
-  MockContainerizer mockContainerizer;
-
-  EXPECT_CALL(mockContainerizer, recover(_))
-    .WillOnce(Return(Future<Nothing>(Nothing())));
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
 
   // Disable authorization in the agent.
   flags.acls = None();
 
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
   Try<Owned<cluster::Slave>> slave =
-      StartSlave(
-          &detector,
-          &mockContainerizer,
-          flags);
+    StartSlave(detector.get(), &containerizer, flags);
 
   ASSERT_SOME(slave);
 
-  // Wait for the agent to finish recovery.
-  AWAIT_READY(__recover);
-  Clock::settle();
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  Future<hashset<ContainerID>> containerIds = containerizer.containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
 
   v1::agent::Call call;
   call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
 
   call.mutable_attach_container_output()->mutable_container_id()
-    ->set_value(UUID::random().toString());
+    ->set_value(containerIds->begin()->value());
 
-  EXPECT_CALL(mockContainerizer, attach(_))
+  EXPECT_CALL(containerizer, attach(_))
     .WillOnce(Return(process::Failure("Unsupported")));
 
   Future<http::Response> response = http::post(
@@ -4253,41 +4281,70 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("Unsupported", response);
 
-  // The destructor of `cluster::Slave` will try to clean up any
-  // remaining containers by inspecting the result of `containers()`.
-  EXPECT_CALL(mockContainerizer, containers())
-    .WillRepeatedly(Return(hashset<ContainerID>()));
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 }
 
 
+// This test verifies that attaching to the input of a container fails if the
+// containerizer doesn't support the operation.
 TEST_F(AgentAPITest, AttachContainerInputFailure)
 {
-  Clock::pause();
-
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
-
-  StandaloneMasterDetector detector;
-  MockContainerizer mockContainerizer;
-
-  EXPECT_CALL(mockContainerizer, recover(_))
-    .WillOnce(Return(Future<Nothing>(Nothing())));
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
 
   // Disable authorization in the agent.
   flags.acls = None();
 
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
   Try<Owned<cluster::Slave>> slave =
-      StartSlave(
-          &detector,
-          &mockContainerizer,
-          flags);
+    StartSlave(detector.get(), &containerizer, flags);
 
   ASSERT_SOME(slave);
 
-  // Wait for the agent to finish recovery.
-  AWAIT_READY(__recover);
-  Clock::settle();
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  Future<hashset<ContainerID>> containerIds = containerizer.containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
 
   v1::agent::Call call;
   call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
@@ -4296,14 +4353,14 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
         v1::agent::Call::AttachContainerInput::CONTAINER_ID);
 
   call.mutable_attach_container_input()->mutable_container_id()
-    ->set_value(UUID::random().toString());
+    ->set_value(containerIds->begin()->value());
 
   ContentType contentType = ContentType::STREAMING_PROTOBUF;
 
   ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
         serialize, contentType, lambda::_1));
 
-  EXPECT_CALL(mockContainerizer, attach(_))
+  EXPECT_CALL(containerizer, attach(_))
     .WillOnce(Return(process::Failure("Unsupported")));
 
   Future<http::Response> response = http::post(
@@ -4316,10 +4373,11 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("Unsupported", response);
 
-  // The destructor of `cluster::Slave` will try to clean up any
-  // remaining containers by inspecting the result of `containers()`.
-  EXPECT_CALL(mockContainerizer, containers())
-    .WillRepeatedly(Return(hashset<ContainerID>()));
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 }
 
 
