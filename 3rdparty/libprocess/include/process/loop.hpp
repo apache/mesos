@@ -131,9 +131,11 @@ template <typename Iterate,
           typename V = typename CF::ValueType>
 Future<V> loop(Iterate&& iterate, Body&& body)
 {
-  ProcessBase* process = new ProcessBase();
+  // Have libprocess own and free the new `ProcessBase`.
+  UPID process = spawn(new ProcessBase(), true);
+
   return loop<Iterate, Body, T, CF, V>(
-      spawn(process, true), // Have libprocess free `process`.
+      process,
       std::forward<Iterate>(iterate),
       std::forward<Body>(body))
     .onAny([=]() {
