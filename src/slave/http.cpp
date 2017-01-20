@@ -2188,29 +2188,13 @@ Future<Response> Slave::Http::_launchNestedContainer(
         " but 'launch_nested_container.container_id.parent.parent' is set");
   }
 
-  // Locate the executor (for now we just loop since we don't
-  // index based on container id and this likely won't have a
-  // significant performance impact due to the low number of
-  // executors per-agent).
-  // TODO(adam-mesos): Support more levels of nesting.
-  Executor* executor = nullptr;
-  Framework* framework = nullptr;
-  foreachvalue (Framework* framework_, slave->frameworks) {
-    foreachvalue (Executor* executor_, framework_->executors) {
-      if (executor_->containerId == containerId.parent()) {
-        framework = framework_;
-        executor = executor_;
-        break;
-      }
-    }
+  Executor* executor = slave->getExecutor(containerId);
+  if (executor == nullptr) {
+    return NotFound("Container " + stringify(containerId) + " cannot be found");
   }
 
-  // Return a "Bad Request" here rather than "Not Found" since
-  // the executor needs to set parent to its container id.
-  if (executor == nullptr || framework == nullptr) {
-    return BadRequest("Unable to locate executor for parent container"
-                      " " + stringify(containerId.parent()));
-  }
+  Framework* framework = slave->getFramework(executor->frameworkId);
+  CHECK_NOTNULL(framework);
 
   ObjectApprover::Object object;
   object.executor_info = &(executor->info);
@@ -2295,28 +2279,14 @@ Future<Response> Slave::Http::waitNestedContainer(
       const ContainerID& containerId =
         call.wait_nested_container().container_id();
 
-      // Locate the executor (for now we just loop since we don't
-      // index based on container id and this likely won't have a
-      // significant performance impact due to the low number of
-      // executors per-agent).
-      // TODO(adam-mesos): Support more levels of nesting.
-      Executor* executor = nullptr;
-      Framework* framework = nullptr;
-      foreachvalue (Framework* framework_, slave->frameworks) {
-        foreachvalue (Executor* executor_, framework_->executors) {
-          if (executor_->containerId == containerId.parent() ||
-              executor_->containerId == containerId) {
-            framework = framework_;
-            executor = executor_;
-            break;
-          }
-        }
+      Executor* executor = slave->getExecutor(containerId);
+      if (executor == nullptr) {
+        return NotFound(
+            "Container " + stringify(containerId) + " cannot be found");
       }
 
-      if (executor == nullptr || framework == nullptr) {
-        return NotFound("Container " + stringify(containerId) +
-                        " cannot be found");
-      }
+      Framework* framework = slave->getFramework(executor->frameworkId);
+      CHECK_NOTNULL(framework);
 
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
@@ -2386,28 +2356,14 @@ Future<Response> Slave::Http::killNestedContainer(
       const ContainerID& containerId =
         call.kill_nested_container().container_id();
 
-      // Locate the executor (for now we just loop since we don't
-      // index based on container id and this likely won't have a
-      // significant performance impact due to the low number of
-      // executors per-agent).
-      // TODO(adam-mesos): Support more levels of nesting.
-      Executor* executor = nullptr;
-      Framework* framework = nullptr;
-      foreachvalue (Framework* framework_, slave->frameworks) {
-        foreachvalue (Executor* executor_, framework_->executors) {
-          if (executor_->containerId == containerId.parent() ||
-              executor_->containerId == containerId) {
-            framework = framework_;
-            executor = executor_;
-            break;
-          }
-        }
+      Executor* executor = slave->getExecutor(containerId);
+      if (executor == nullptr) {
+        return NotFound(
+            "Container " + stringify(containerId) + " cannot be found");
       }
 
-      if (executor == nullptr || framework == nullptr) {
-        return NotFound("Container " + stringify(containerId) +
-                        " cannot be found");
-      }
+      Framework* framework = slave->getFramework(executor->frameworkId);
+      CHECK_NOTNULL(framework);
 
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
@@ -2520,18 +2476,9 @@ Future<Response> Slave::Http::attachContainerInput(
 
   CHECK(call.attach_container_input().has_container_id());
 
-  Option<Framework*> framework;
-  Option<Executor*> executor;
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    executor = slave->getExecutor(call.attach_container_input().container_id());
-    if (executor.get() != nullptr) {
-      framework = slave->frameworks[executor.get()->frameworkId];
-    } else {
-      framework = nullptr;
-    }
-
     authorization::Subject subject;
     if (principal.isSome()) {
       subject.set_value(principal.get());
@@ -2544,22 +2491,23 @@ Future<Response> Slave::Http::attachContainerInput(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, decoder, contentType, acceptType, executor, framework](
+    [this, call, decoder, contentType, acceptType](
         const Owned<ObjectApprover>& attachInputApprover) -> Future<Response> {
-      if (executor.isSome() && executor.get() == nullptr){
+      const ContainerID& containerId =
+        call.attach_container_input().container_id();
+
+      Executor* executor = slave->getExecutor(containerId);
+      if (executor == nullptr) {
         return NotFound(
-            "Container " +
-            stringify(call.attach_container_input().container_id()) +
-            " cannot be found");
+            "Container " + stringify(containerId) + " cannot be found");
       }
 
+      Framework* framework = slave->getFramework(executor->frameworkId);
+      CHECK_NOTNULL(framework);
+
       ObjectApprover::Object object;
-      if (executor.isSome()) {
-        object.executor_info = &(executor.get()->info);
-      }
-      if (framework.isSome()) {
-        object.framework_info = &(framework.get()->info);
-      }
+      object.executor_info = &(executor->info);
+      object.framework_info = &(framework->info);
 
       Try<bool> approved = attachInputApprover.get()->approved(object);
 
@@ -2834,18 +2782,8 @@ Future<Response> Slave::Http::attachContainerOutput(
   CHECK(call.has_attach_container_output());
 
   Future<Owned<ObjectApprover>> approver;
-  Option<Framework*> framework;
-  Option<Executor*> executor;
 
   if (slave->authorizer.isSome()) {
-    executor =
-      slave->getExecutor(call.attach_container_output().container_id());
-    if (executor.get() != nullptr) {
-      framework = slave->frameworks[executor.get()->frameworkId];
-    } else {
-      framework = nullptr;
-    }
-
     authorization::Subject subject;
     if (principal.isSome()) {
       subject.set_value(principal.get());
@@ -2858,22 +2796,23 @@ Future<Response> Slave::Http::attachContainerOutput(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, contentType, acceptType, executor, framework](
+    [this, call, contentType, acceptType](
         const Owned<ObjectApprover>& attachOutputApprover) -> Future<Response> {
-      if (executor.isSome() && executor.get() == nullptr) {
+      const ContainerID& containerId =
+        call.attach_container_output().container_id();
+
+      Executor* executor = slave->getExecutor(containerId);
+      if (executor == nullptr) {
         return NotFound(
-            "Container " +
-            stringify(call.attach_container_output().container_id()) +
-            " cannot be found");
+            "Container " + stringify(containerId) + " cannot be found");
       }
 
+      Framework* framework = slave->getFramework(executor->frameworkId);
+      CHECK_NOTNULL(framework);
+
       ObjectApprover::Object object;
-      if (executor.isSome()) {
-        object.executor_info = &(executor.get()->info);
-      }
-      if (framework.isSome()) {
-        object.framework_info = &(framework.get()->info);
-      }
+      object.executor_info = &(executor->info);
+      object.framework_info = &(framework->info);
 
       Try<bool> approved = attachOutputApprover.get()->approved(object);
 
