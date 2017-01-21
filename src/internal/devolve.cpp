@@ -20,6 +20,8 @@
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 namespace mesos {
 namespace internal {
 
@@ -99,6 +101,19 @@ InverseOffer devolve(const v1::InverseOffer& inverseOffer)
 Offer devolve(const v1::Offer& offer)
 {
   return devolve<Offer>(offer);
+}
+
+
+Resource devolve(const v1::Resource& resource)
+{
+  return devolve<Resource>(resource);
+}
+
+
+Resources devolve(const v1::Resources& resources)
+{
+  return devolve<Resource>(
+      static_cast<const RepeatedPtrField<v1::Resource>&>(resources));
 }
 
 
