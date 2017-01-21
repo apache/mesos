@@ -32,10 +32,12 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
 #include <stout/os/os.hpp>
+#include <stout/os/getenv.hpp>
 #include <stout/os/process.hpp>
 #include <stout/os/read.hpp>
 
@@ -800,6 +802,22 @@ inline intptr_t fd_to_handle(int in)
 inline int handle_to_fd(intptr_t in, int flags)
 {
   return ::_open_osfhandle(in, flags);
+}
+
+
+// Returns a host-specific default for the `PATH` environment variable, based
+// on the configuration of the host.
+inline std::string host_default_path()
+{
+  // NOTE: On Windows, this code must run on the host where we are
+  // expecting to `exec` the task, because the value of
+  // `%SYSTEMROOT%` is not identical on all platforms.
+  const Option<std::string> systemRootEnv = os::getenv("SYSTEMROOT");
+  const std::string systemRoot = systemRootEnv.isSome()
+    ? systemRootEnv.get()
+    : "C:\\WINDOWS";
+
+  return strings::join(";", systemRoot, path::join(systemRoot, "system32"));
 }
 
 } // namespace os {

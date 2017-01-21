@@ -519,6 +519,14 @@ inline Try<Nothing> setWindowSize(
   return Nothing();
 }
 
+
+// Returns a host-specific default for the `PATH` environment variable, based
+// on the configuration of the host.
+inline std::string host_default_path()
+{
+  return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+}
+
 } // namespace os {
 
 #endif // __STOUT_POSIX_OS_HPP__
