@@ -41,6 +41,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>kapil@apache.org</td>
     </tr>
     <tr>
+      <td>+1</td>
+      <td>Benjamin Bannier</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>bbannier@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Adam B</td>
       <td>Mesosphere</td>
