@@ -1944,6 +1944,10 @@ ostream& operator<<(ostream& stream, const Resource& resource)
 
   stream << ")";
 
+  if (resource.has_allocation_info()) {
+    stream << "(allocated: " << resource.allocation_info().role() << ")";
+  }
+
   if (resource.has_disk()) {
     stream << "[" << resource.disk() << "]";
   }

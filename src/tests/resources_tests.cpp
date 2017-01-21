@@ -814,6 +814,13 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   stream << disk;
   EXPECT_EQ("disk(alice):1", stream.str());
 
+  // Allocated resource.
+  stream.str("");
+  disk.mutable_allocation_info()->set_role("role");
+  stream << disk;
+  EXPECT_EQ("disk(alice)(allocated: role):1", stream.str());
+  disk.clear_allocation_info();
+
   // Standard revocable resource.
   stream.str("");
   disk.mutable_revocable();
