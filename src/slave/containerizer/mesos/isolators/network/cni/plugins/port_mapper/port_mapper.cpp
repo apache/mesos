@@ -510,8 +510,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
   if (value.isSome()) {
     environment["PATH"] = value.get();
   } else {
-    environment["PATH"] =
-      "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    environment["PATH"] = os::host_default_path();
   }
 
   Try<string> temp = os::mktemp();

@@ -677,8 +677,7 @@ int MesosContainerizerLaunch::execute()
     }
 
     if (!environment.contains("PATH")) {
-      environment["PATH"] =
-        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+      environment["PATH"] = os::host_default_path();
     }
 
     envp = os::raw::Envp(environment);

@@ -1127,8 +1127,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   if (value.isSome()) {
     environment["PATH"] = value.get();
   } else {
-    environment["PATH"] =
-        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    environment["PATH"] = os::host_default_path();
   }
 
   // Inject Mesos metadata to the network configuration JSON that will
@@ -1511,8 +1510,7 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
   if (value.isSome()) {
     environment["PATH"] = value.get();
   } else {
-    environment["PATH"] =
-        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    environment["PATH"] = os::host_default_path();
   }
 
   // Use the checkpointed CNI network configuration to call the
