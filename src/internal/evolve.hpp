@@ -22,6 +22,7 @@
 #include <mesos/agent/agent.hpp>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <mesos/master/master.hpp>
 
