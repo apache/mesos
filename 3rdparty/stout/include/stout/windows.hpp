@@ -141,9 +141,7 @@ inline BOOL GetMessage(
 #define O_APPEND _O_APPEND
 #define O_CLOEXEC _O_NOINHERIT
 
-// TODO(hausdorff): (MESOS-3398) Not defined on Windows. This value is
-// temporary.
-#define MAXHOSTNAMELEN 64
+#define MAXHOSTNAMELEN NI_MAXHOST
 
 #define PATH_MAX _MAX_PATH
 
