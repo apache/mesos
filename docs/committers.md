@@ -56,6 +56,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Neil Conway</td>
+      <td>Mesosphere</td>
+      <td>neilc</td>
+      <td>neilc@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Ian Downes</td>
       <td>Twitter</td>
       <td>idownes</td>
