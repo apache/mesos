@@ -193,14 +193,7 @@ const string& NvidiaVolume::CONTAINER_PATH() const
 
 Try<NvidiaVolume> NvidiaVolume::create()
 {
-  // We need root permissions in order to create the volume.
-  Result<string> user = os::user();
-  if (!user.isSome()) {
-    return Error("Failed to determine user: " +
-                 (user.isError() ? user.error() : "username not found"));
-  }
-
-  if (user.get() != "root") {
+  if (geteuid() != 0) {
     return Error("NvidiaVolume::create() requires root privileges");
   }
 

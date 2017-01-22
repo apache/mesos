@@ -63,13 +63,7 @@ public:
 
 Try<Owned<Backend>> BindBackend::create(const Flags&)
 {
-  Result<string> user = os::user();
-  if (!user.isSome()) {
-    return Error("Failed to determine user: " +
-                 (user.isError() ? user.error() : "username not found"));
-  }
-
-  if (user.get() != "root") {
+  if (geteuid() != 0) {
     return Error("BindBackend requires root privileges");
   }
 

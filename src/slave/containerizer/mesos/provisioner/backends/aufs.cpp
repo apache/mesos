@@ -60,17 +60,8 @@ public:
 
 Try<Owned<Backend>> AufsBackend::create(const Flags&)
 {
-  Result<string> user = os::user();
-  if (!user.isSome()) {
-    return Error(
-        "Failed to determine user: " +
-        (user.isError() ? user.error() : "username not found"));
-  }
-
-  if (user.get() != "root") {
-    return Error(
-      "AufsBackend requires root privileges, "
-      "but is running as user " + user.get());
+  if (geteuid() != 0) {
+    return Error("AufsBackend requires root privileges");
   }
 
   return Owned<Backend>(new AufsBackend(
