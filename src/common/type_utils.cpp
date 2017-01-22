@@ -450,6 +450,18 @@ bool operator!=(const TaskStatus& left, const TaskStatus& right)
 }
 
 
+bool operator==(const CheckStatusInfo& left, const CheckStatusInfo& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
+bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right)
+{
+  return !(left == right);
+}
+
+
 ostream& operator<<(std::ostream& stream, const CapabilityInfo& capabilityInfo)
 {
   return stream << JSON::protobuf(capabilityInfo);

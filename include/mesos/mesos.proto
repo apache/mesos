@@ -360,6 +360,77 @@ message FrameworkInfo {
 
 
 /**
+ * Describes a general non-interpreting non-killing check for a task or
+ * executor (or any arbitrary process/command). A type is picked by
+ * specifying one of the optional fields. Specifying more than one type
+ * is an error.
+ *
+ * NOTE: This API is unstable and the related feature is experimental.
+ */
+message CheckInfo {
+  enum Type {
+    UNKNOWN = 0;
+    COMMAND = 1;
+    HTTP = 2;
+
+    // TODO(alexr): Consider supporting TCP checks and custom user checks.
+  }
+
+  // Describes a command check. If applicable, enters mount and/or network
+  // namespaces of the task.
+  message Command {
+    required CommandInfo command = 1;
+  }
+
+  // Describes an HTTP check. Sends a GET request to
+  // http://<host>:port/path. Note that <host> is not configurable and is
+  // resolved automatically to 127.0.0.1.
+  message Http {
+    // Port to send the HTTP request.
+    required uint32 port = 1;
+
+    // HTTP request path.
+    optional string path = 2;
+
+    // TODO(alexr): Add support for HTTP method. While adding POST
+    // and PUT is simple, supporting payload is more involved.
+
+    // TODO(alexr): Add support for custom HTTP headers.
+
+    // TODO(alexr): Consider adding an optional message to describe TLS
+    // options and thus enabling https. Such message might contain certificate
+    // validation, TLS version.
+  }
+
+  // The type of the check.
+  optional Type type = 1;
+
+  // Command check.
+  optional Command command = 2;
+
+  // HTTP check.
+  optional Http http = 3;
+
+  // Amount of time to wait to start checking the
+  // task after it transitions to `TASK_RUNNING`.
+  optional double delay_seconds = 4 [default = 15.0];
+
+  // Interval between check attempts, i.e., amount of time to wait after
+  // the previous check finished or timed out to start the next check.
+  optional double interval_seconds = 5 [default = 10.0];
+
+  // Amount of time to wait for the check to complete. Zero means infinite
+  // timeout.
+  //
+  // After this timeout, the check attempt is aborted and no result is
+  // reported. Note that this may be considered a state change and hence
+  // may trigger a check status change delivery to the corresponding
+  // scheduler. See `CheckStatusInfo` for more details.
+  optional double timeout_seconds = 6 [default = 20.0];
+}
+
+
+/**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A type is picked by specifying one of the
  * optional fields. Specifying more than one type is an error.
@@ -1491,6 +1562,16 @@ message TaskInfo {
   // the executor's responsibility to implement the health checking.
   optional HealthCheck health_check = 8;
 
+  // A general check for the task. Implemented for all built-in executors.
+  // For tasks that specify an executor, it is the executor's responsibility
+  // to implement checking support. Executors should (all built-in executors
+  // will) neither interpret nor act on the check's result.
+  //
+  // NOTE: Check support in built-in executors is experimental.
+  //
+  // TODO(alexr): Consider supporting multiple checks per task.
+  optional CheckInfo check = 13;
+
   // A kill policy for the task. Implemented for executor-less
   // command-based and docker tasks. For tasks that specify an
   // executor, it is the executor's responsibility to implement
@@ -1644,6 +1725,49 @@ enum TaskState {
 
 
 /**
+* Describes the status of a check. Type and the corresponding field, i.e.,
+* `command` or `http` must be set. If the result of the check is not available
+* (e.g., the check timed out), these fields must contain empty messages, i.e.,
+* `exit_code` or `status_code` will be unset.
+*
+* NOTE: This API is unstable and the related feature is experimental.
+*/
+message CheckStatusInfo {
+  message Command {
+    // Exit code of a command check.
+    optional int32 exit_code = 1;
+  }
+
+  message Http {
+    // HTTP status code of an HTTP check.
+    optional uint32 status_code = 1;
+  }
+
+  // TODO(alexr): Consider adding a `data` field, which can contain, e.g.,
+  // truncated stdout/stderr output for command checks or HTTP response body
+  // for HTTP checks. Alternatively, it can be an even shorter `message` field
+  // containing the last line of stdout or Reason-Phrase of the status line of
+  // the HTTP response.
+
+  // The type of the check this status corresponds to.
+  optional CheckInfo.Type type = 1;
+
+  // Status of a command check.
+  optional Command command = 2;
+
+  // Status of an HTTP check.
+  optional Http http = 3;
+
+  // TODO(alexr): Consider introducing a "last changed at" timestamp, since
+  // task status update's timestamp may not correspond to the last check's
+  // state, e.g., for reconciliation.
+
+  // TODO(alexr): Consider introducing a `reason` enum here to explicitly
+  // distinguish between completed, delayed, and timed out checks.
+}
+
+
+/**
  * Describes the current status of a task.
  */
 message TaskStatus {
@@ -1686,6 +1810,7 @@ message TaskStatus {
     REASON_SLAVE_REMOVED = 11;
     REASON_SLAVE_RESTARTED = 12;
     REASON_SLAVE_UNKNOWN = 13;
+    REASON_TASK_CHECK_STATUS_UPDATED = 28;
     REASON_TASK_GROUP_INVALID = 25;
     REASON_TASK_GROUP_UNAUTHORIZED = 26;
     REASON_TASK_INVALID = 14;
@@ -1717,6 +1842,19 @@ message TaskStatus {
   // Describes whether the task has been determined to be healthy (true) or
   // unhealthy (false) according to the `health_check` field in `TaskInfo`.
   optional bool healthy = 8;
+
+  // Contains check status for the check specified in the corresponding
+  // `TaskInfo`. If no check has been specified, this field must be
+  // absent, otherwise it must be present even if the check status is
+  // not available yet. If the status update is triggered for a different
+  // reason than `REASON_TASK_CHECK_STATUS_UPDATED`, this field will contain
+  // the last known value.
+  //
+  // NOTE: A check-related task status update is triggered if and only if
+  // the value or presence of any field in `CheckStatusInfo` changes.
+  //
+  // NOTE: Check support in built-in executors is experimental.
+  optional CheckStatusInfo check_status = 15;
 
   // Labels are free-form key value pairs which are exposed through
   // master and slave endpoints. Labels will not be interpreted or
