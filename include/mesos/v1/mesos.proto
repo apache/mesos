@@ -421,10 +421,13 @@ message HealthCheck {
   // allows doing something similar to the HTTP strategy but
   // encapsulates all the details in a single string field.
 
-  // Amount of time to wait until starting health checking the task.
+  // Amount of time to wait to start health checking
+  // the task after it transitions to `TASK_RUNNING`.
   optional double delay_seconds = 2 [default = 15.0];
 
-  // Interval between health checks.
+  // Interval between health checks, i.e., amount of time to wait after
+  // the previous health check finished or timed out to start the next
+  // health check.
   optional double interval_seconds = 3 [default = 10.0];
 
   // Amount of time to wait for the health check to complete. After this
