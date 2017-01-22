@@ -253,7 +253,7 @@ task.mutable_health_check()->CopyFrom(healthCheck);
 ## Under the Hood
 
 All built-in executors rely on the health checker library, which lives in
-["src/health-check"](https://github.com/apache/mesos/tree/master/src/health-check).
+["src/checks"](https://github.com/apache/mesos/tree/master/src/checks).
 An executor creates an instance of the `HealthChecker` per task and passes the
 health check definition together with extra parameters. In return, the library
 notifies the executor of changes in the task's health status.

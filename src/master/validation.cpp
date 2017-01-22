@@ -31,10 +31,10 @@
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
 
+#include "checks/health_checker.hpp"
+
 #include "common/protobuf_utils.hpp"
 #include "common/validation.hpp"
-
-#include "health-check/health_checker.hpp"
 
 #include "master/master.hpp"
 
@@ -830,7 +830,7 @@ Option<Error> validateKillPolicy(const TaskInfo& task)
 Option<Error> validateHealthCheck(const TaskInfo& task)
 {
   if (task.has_health_check()) {
-    Option<Error> error = health::validation::healthCheck(task.health_check());
+    Option<Error> error = checks::validation::healthCheck(task.health_check());
     if (error.isSome()) {
       return Error("Task uses invalid health check: " + error->message);
     }

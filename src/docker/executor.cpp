@@ -39,13 +39,13 @@
 
 #include <stout/os/killtree.hpp>
 
+#include "checks/health_checker.hpp"
+
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"
 #include "docker/executor.hpp"
-
-#include "health-check/health_checker.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
@@ -526,8 +526,8 @@ private:
       namespaces.push_back("net");
     }
 
-    Try<Owned<health::HealthChecker>> _checker =
-      health::HealthChecker::create(
+    Try<Owned<checks::HealthChecker>> _checker =
+      checks::HealthChecker::create(
           healthCheck,
           launcherDir,
           defer(self(), &Self::taskHealthUpdated, lambda::_1),
@@ -565,7 +565,7 @@ private:
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
-  Owned<health::HealthChecker> checker;
+  Owned<checks::HealthChecker> checker;
   Option<NetworkInfo> containerNetworkInfo;
   Option<pid_t> containerPid;
 };

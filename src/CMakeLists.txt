@@ -253,7 +253,7 @@ set(HDFS_SRC
   )
 
 set(HEALTH_CHECK_SRC
-  health-check/health_checker.cpp
+  checks/health_checker.cpp
   )
 
 set(INTERNAL_SRC
@@ -527,10 +527,10 @@ target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################
+add_subdirectory(checks/)
 add_subdirectory(cli/)
 add_subdirectory(docker/)
 add_subdirectory(examples/)
-add_subdirectory(health-check/)
 add_subdirectory(launcher/)
 add_subdirectory(local/)
 add_subdirectory(log/)

@@ -21,9 +21,9 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
-#include "docker/docker.hpp"
+#include "checks/health_checker.hpp"
 
-#include "health-check/health_checker.hpp"
+#include "docker/docker.hpp"
 
 #include "slave/slave.hpp"
 
@@ -165,7 +165,7 @@ public:
 // This tests ensures `HealthCheck` protobuf is validated correctly.
 TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
 {
-  using namespace mesos::internal::health;
+  using namespace mesos::internal::checks;
 
   // Health check type must be set to a known value.
   {

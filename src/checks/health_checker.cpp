@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "health-check/health_checker.hpp"
+#include "checks/health_checker.hpp"
 
 #include <signal.h>
 #include <stdio.h>
@@ -71,7 +71,7 @@ using std::vector;
 
 namespace mesos {
 namespace internal {
-namespace health {
+namespace checks {
 
 #ifndef __WINDOWS__
 constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect";
@@ -728,6 +728,6 @@ Option<Error> healthCheck(const HealthCheck& check)
 
 } // namespace validation {
 
-} // namespace health {
+} // namespace checks {
 } // namespace internal {
 } // namespace mesos {

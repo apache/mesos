@@ -70,7 +70,7 @@
 
 #include "executor/v0_v1executor.hpp"
 
-#include "health-check/health_checker.hpp"
+#include "checks/health_checker.hpp"
 
 #include "launcher/executor.hpp"
 
@@ -429,8 +429,8 @@ protected:
         namespaces.push_back("mnt");
       }
 
-      Try<Owned<health::HealthChecker>> _checker =
-        health::HealthChecker::create(
+      Try<Owned<checks::HealthChecker>> _checker =
+        checks::HealthChecker::create(
             task->health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
@@ -798,7 +798,7 @@ private:
   Owned<MesosBase> mesos;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   Option<TaskInfo> task; // Unacknowledged task.
-  Owned<health::HealthChecker> checker;
+  Owned<checks::HealthChecker> checker;
 };
 
 } // namespace internal {
