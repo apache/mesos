@@ -2284,6 +2284,21 @@ TEST(ResourcesOperationTest, StrippedResourcesVolume)
 }
 
 
+TEST(ResourcesOperationTest, StrippedResourcesAllocated)
+{
+  Resources allocated = Resources::parse("cpus:1;mem:512").get();
+  allocated.allocate("role");
+
+  Resources stripped = allocated.createStrippedScalarQuantity();
+
+  // Allocation info should be stripped when
+  // converting to a quantity.
+  foreach (const Resource& resource, stripped) {
+    EXPECT_FALSE(resource.has_allocation_info());
+  }
+}
+
+
 TEST(ResourcesOperationTest, StrippedResourcesReserved)
 {
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();

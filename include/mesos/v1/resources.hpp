@@ -404,11 +404,11 @@ public:
   Resources flatten() const;
 
   // Returns a Resources object that contains all the scalar resources
-  // in this object, but with their ReservationInfo and DiskInfo
-  // omitted. Note that the `role` and RevocableInfo, if any, are
-  // preserved. Because we clear ReservationInfo but preserve `role`,
-  // this means that stripping a dynamically reserved resource makes
-  // it effectively statically reserved.
+  // in this object, but with their ReservationInfo, AllocationInfo,
+  // and DiskInfo omitted. Note that the `role` and RevocableInfo,
+  // if any, are preserved. Because we clear ReservationInfo but
+  // preserve `role`, this means that stripping a dynamically
+  // reserved resource makes it effectively statically reserved.
   //
   // This is intended for code that would like to aggregate together
   // Resource values without regard for metadata like whether the
