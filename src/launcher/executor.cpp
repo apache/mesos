@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "launcher/executor.hpp"
+
 #include <signal.h>
 #include <stdio.h>
 
@@ -27,7 +29,6 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
-
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -60,19 +61,17 @@
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 
+#include "checks/health_checker.hpp"
+
 #include "common/http.hpp"
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
-#include "internal/devolve.hpp"
-#include "internal/evolve.hpp"
-
 #include "executor/v0_v1executor.hpp"
 
-#include "checks/health_checker.hpp"
-
-#include "launcher/executor.hpp"
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
 
 #include "logging/logging.hpp"
 
