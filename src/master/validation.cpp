@@ -31,6 +31,7 @@
 #include <stout/none.hpp>
 #include <stout/stringify.hpp>
 
+#include "checks/checker.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/protobuf_utils.hpp"
@@ -827,6 +828,19 @@ Option<Error> validateKillPolicy(const TaskInfo& task)
 }
 
 
+Option<Error> validateCheck(const TaskInfo& task)
+{
+  if (task.has_check()) {
+    Option<Error> error = checks::validation::checkInfo(task.check());
+    if (error.isSome()) {
+      return Error("Task uses invalid check: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validateHealthCheck(const TaskInfo& task)
 {
   if (task.has_health_check()) {
@@ -913,6 +927,7 @@ Option<Error> validateTask(
     lambda::bind(internal::validateUniqueTaskID, task, framework),
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateKillPolicy, task),
+    lambda::bind(internal::validateCheck, task),
     lambda::bind(internal::validateHealthCheck, task),
     lambda::bind(internal::validateResources, task)
   };

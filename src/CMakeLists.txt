@@ -253,6 +253,7 @@ set(HDFS_SRC
   )
 
 set(HEALTH_CHECK_SRC
+  checks/checker.cpp
   checks/health_checker.cpp
   )
 

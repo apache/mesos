@@ -155,6 +155,9 @@ Option<Error> validateTaskAndExecutorResources(const TaskInfo& task);
 // Validates the kill policy of the task.
 Option<Error> validateKillPolicy(const TaskInfo& task);
 
+// Validates the check of the task.
+Option<Error> validateCheck(const TaskInfo& task);
+
 // Validates the health check of the task.
 Option<Error> validateHealthCheck(const TaskInfo& task);
 

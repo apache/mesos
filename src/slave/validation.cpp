@@ -24,6 +24,8 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
+#include "checks/checker.hpp"
+
 #include "common/validation.hpp"
 
 using std::string;
@@ -366,6 +368,15 @@ Option<Error> validate(const mesos::executor::Call& call)
                      call.framework_id().value() +
                      " which is not allowed"
                      );
+      }
+
+      if (status.has_check_status()) {
+        Option<Error> validate =
+          checks::validation::checkStatusInfo(status.check_status());
+
+        if (validate.isSome()) {
+          return validate.get();
+        }
       }
 
       return None();

@@ -832,6 +832,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/acls.cpp							\
   authorizer/authorizer.cpp						\
   authorizer/local/authorizer.cpp					\
+  checks/checker.cpp							\
   checks/health_checker.cpp						\
   common/attributes.cpp							\
   common/command_utils.cpp						\
@@ -959,6 +960,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticator.hpp				\
   authentication/cram_md5/auxprop.hpp					\
   authorizer/local/authorizer.hpp					\
+  checks/checker.hpp							\
   checks/health_checker.hpp						\
   common/build.hpp							\
   common/command_utils.hpp						\
