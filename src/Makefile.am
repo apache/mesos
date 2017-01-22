@@ -2196,6 +2196,7 @@ mesos_tests_SOURCES =						\
   tests/attributes_tests.cpp					\
   tests/authentication_tests.cpp				\
   tests/authorization_tests.cpp					\
+  tests/check_tests.cpp						\
   tests/cluster.cpp						\
   tests/command_executor_tests.cpp				\
   tests/container_logger_tests.cpp				\

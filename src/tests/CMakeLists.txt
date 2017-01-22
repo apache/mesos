@@ -92,6 +92,7 @@ set(MESOS_TESTS_SRC
   api_tests.cpp
   attributes_tests.cpp
   authentication_tests.cpp
+  check_tests.cpp
   command_executor_tests.cpp
   credentials_tests.cpp
   default_executor_tests.cpp
