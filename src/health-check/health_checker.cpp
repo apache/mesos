@@ -196,9 +196,11 @@ HealthCheckerProcess::HealthCheckerProcess(
   CHECK_SOME(create);
   checkGracePeriod = create.get();
 
+  // Zero value means infinite timeout.
   create = Duration::create(check.timeout_seconds());
   CHECK_SOME(create);
-  checkTimeout = create.get();
+  checkTimeout =
+    (create.get() > Duration::zero()) ? create.get() : Duration::max();
 
 #ifdef __linux__
   if (!namespaces.empty()) {

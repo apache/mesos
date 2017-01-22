@@ -431,7 +431,8 @@ message HealthCheck {
   optional double interval_seconds = 3 [default = 10.0];
 
   // Amount of time to wait for the health check to complete. After this
-  // timeout, the health check is aborted and treated as a failure.
+  // timeout, the health check is aborted and treated as a failure. Zero
+  // means infinite timeout.
   optional double timeout_seconds = 4 [default = 20.0];
 
   // Number of consecutive failures until the task is killed by the executor.
