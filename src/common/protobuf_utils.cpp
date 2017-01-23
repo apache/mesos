@@ -348,6 +348,98 @@ Label createLabel(const string& key, const Option<string>& value)
 }
 
 
+void adjustOfferOperation(
+    Offer::Operation* operation,
+    const Resource::AllocationInfo& allocationInfo)
+{
+  auto adjustResources = [](
+      RepeatedPtrField<Resource>* resources,
+      const Resource::AllocationInfo& allocationInfo) {
+    foreach (Resource& resource, *resources) {
+      if (!resource.has_allocation_info()) {
+        resource.mutable_allocation_info()->CopyFrom(allocationInfo);
+      }
+    }
+  };
+
+  switch (operation->type()) {
+    case Offer::Operation::LAUNCH: {
+      Offer::Operation::Launch* launch = operation->mutable_launch();
+
+      foreach (TaskInfo& task, *launch->mutable_task_infos()) {
+        adjustResources(task.mutable_resources(), allocationInfo);
+
+        if (task.has_executor()) {
+          adjustResources(
+              task.mutable_executor()->mutable_resources(),
+              allocationInfo);
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::LAUNCH_GROUP: {
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      if (launchGroup->has_executor()) {
+        adjustResources(
+            launchGroup->mutable_executor()->mutable_resources(),
+            allocationInfo);
+      }
+
+      TaskGroupInfo* taskGroup = launchGroup->mutable_task_group();
+
+      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+        adjustResources(task.mutable_resources(), allocationInfo);
+
+        if (task.has_executor()) {
+          adjustResources(
+              task.mutable_executor()->mutable_resources(),
+              allocationInfo);
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::RESERVE: {
+      adjustResources(
+          operation->mutable_reserve()->mutable_resources(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      adjustResources(
+          operation->mutable_unreserve()->mutable_resources(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::CREATE: {
+      adjustResources(
+          operation->mutable_create()->mutable_volumes(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      adjustResources(
+          operation->mutable_destroy()->mutable_volumes(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::UNKNOWN:
+      break; // No-op.
+  }
+}
+
+
 TimeInfo getCurrentTime()
 {
   TimeInfo timeInfo;

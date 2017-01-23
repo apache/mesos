@@ -24,6 +24,8 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "tests/mesos.hpp"
+
 using std::set;
 using std::string;
 using std::vector;
@@ -59,6 +61,91 @@ TEST(ProtobufUtilTest, GetRoles)
 
     EXPECT_EQ(roles, set<string>({"foo"}));
   }
+}
+
+
+// Tests that offer operations can be adjusted to include
+// the appropriate allocation info, if not already set.
+TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
+{
+  Resources resources = Resources::parse("cpus:1").get();
+
+  Resources allocatedResources = resources;
+  allocatedResources.allocate("role");
+
+  Resource::AllocationInfo allocationInfo;
+  allocationInfo.set_role("role");
+
+  // Test the LAUNCH case. This should be constructing a valid
+  // task and executor, but for now this just sets the resources
+  // in order to verify the allocation info injection.
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  TaskInfo taskInfo;
+  taskInfo.mutable_resources()->CopyFrom(resources);
+  taskInfo.mutable_executor()->CopyFrom(executorInfo);
+
+  Offer::Operation launch = LAUNCH({taskInfo});
+  protobuf::adjustOfferOperation(&launch, allocationInfo);
+
+  ASSERT_EQ(1, launch.launch().task_infos_size());
+
+  EXPECT_EQ(allocatedResources,
+            launch.launch().task_infos(0).resources());
+
+  EXPECT_EQ(allocatedResources,
+            launch.launch().task_infos(0).executor().resources());
+
+  // Test the LAUNCH_GROUP case. This should be constructing a valid
+  // task and executor, but for now this just sets the resources in
+  // order to verify the allocation info injection.
+  TaskGroupInfo taskGroupInfo;
+  taskGroupInfo.add_tasks()->CopyFrom(taskInfo);
+
+  Offer::Operation launchGroup = LAUNCH_GROUP(executorInfo, taskGroupInfo);
+  protobuf::adjustOfferOperation(&launchGroup, allocationInfo);
+
+  ASSERT_EQ(1, launchGroup.launch_group().task_group().tasks_size());
+
+  EXPECT_EQ(allocatedResources,
+            launchGroup.launch_group().task_group().tasks(0).resources());
+
+  EXPECT_EQ(allocatedResources,
+            launchGroup.launch_group().task_group().tasks(0).executor()
+              .resources());
+
+  // Test the RESERVE case. This should be constructing a valid
+  // reservation, but for now this just sets the resources in
+  // order to verify the allocation info injection.
+  Offer::Operation reserve = RESERVE(resources);
+  protobuf::adjustOfferOperation(&reserve, allocationInfo);
+
+  EXPECT_EQ(allocatedResources, reserve.reserve().resources());
+
+  // Test the UNRESERVE case. This should be constructing a valid
+  // reservation, but for now this just sets the resources in
+  // order to verify the allocation info injection.
+  Offer::Operation unreserve = UNRESERVE(resources);
+  protobuf::adjustOfferOperation(&unreserve, allocationInfo);
+
+  EXPECT_EQ(allocatedResources, unreserve.unreserve().resources());
+
+  // Test the CREATE case. This should be constructing a valid
+  // volume, but for now this just sets the resources in order
+  // to verify the allocation info injection.
+  Offer::Operation create = CREATE(resources);
+  protobuf::adjustOfferOperation(&create, allocationInfo);
+
+  EXPECT_EQ(allocatedResources, create.create().volumes());
+
+  // Test the DESTROY case. This should be constructing a valid
+  // volume, but for now this just sets the resources in order
+  // to verify the allocation info injection.
+  Offer::Operation destroy = DESTROY(resources);
+  protobuf::adjustOfferOperation(&destroy, allocationInfo);
+
+  EXPECT_EQ(allocatedResources, destroy.destroy().volumes());
 }
 
 

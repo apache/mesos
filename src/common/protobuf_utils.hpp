@@ -116,6 +116,17 @@ Label createLabel(
     const Option<std::string>& value = None());
 
 
+// Previously, `Resource` did not contain `AllocationInfo`.
+// So for backwards compatibility with old schedulers and
+// tooling, we must allow operations to contain `Resource`s
+// without an `AllocationInfo`. This allows the master to
+// inject the offer's `AllocationInfo` into the operation's
+// resources.
+void adjustOfferOperation(
+    Offer::Operation* operation,
+    const Resource::AllocationInfo& allocationInfo);
+
+
 // Helper function that fills in a TimeInfo from the current time.
 TimeInfo getCurrentTime();
 
