@@ -13,8 +13,6 @@
 
 .navbar .navbar-nav > li > a {
   color: inherit;
-  padding-top: 20px;
-  padding-bottom: 20px;
 }
 
 .navbar .navbar-nav > .active > a,
@@ -22,6 +20,14 @@
 .navbar .navbar-nav > .active > a:hover {
     color: inherit;
     background-color: rgba(255,255,255,.1);
+}
+
+.navbar-brand {
+  padding: 0px 5px;
+}
+
+.navbar-brand > img {
+  height: 100%;
 }
 
 .table thead th {
@@ -174,9 +180,4 @@ a.badge-type:hover {
 .btn-clear:active {
   -webkit-box-shadow: none;
   box-shadow: none;
-}
-
-#logo {
-  margin: -15px -10px;
-  height: 60px;
 }
