@@ -15,8 +15,18 @@
   // specified window_title.
   function pailer(host, path, window_title) {
     var url = '//' + host + '/files/read?path=' + path;
+
+    // The random id would be clean up once the pailer window loads the
+    // URL into its sessionStorage, so the possibility of collisions is
+    // acceptable here.
+    var storageKey = Math.random().toString(36).substr(2, 8);
+
+    // Store the target URL in localStorage which would be used by the
+    // pailer window later.
+    localStorage.setItem(storageKey, url);
+
     var pailer =
-      window.open('/static/pailer.html', url, 'width=580px, height=700px');
+      window.open('/static/pailer.html', storageKey, 'width=580px, height=700px');
 
     // Need to use window.onload instead of document.ready to make
     // sure the title doesn't get overwritten.
