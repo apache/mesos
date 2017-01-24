@@ -116,7 +116,6 @@ TEST(ProtobufUtilTest, FrameworkCapabilities)
   };
 
   set<FrameworkInfo::Capability::Type> expected;
-  protobuf::framework::Capabilities capabilities;
 
   expected = { FrameworkInfo::Capability::REVOCABLE_RESOURCES };
   EXPECT_EQ(expected, backAndForth(expected));
