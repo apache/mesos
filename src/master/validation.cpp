@@ -133,6 +133,9 @@ Option<Error> validate(
     case mesos::master::Call::GET_MASTER:
       return None();
 
+    case mesos::master::Call::SUBSCRIBE:
+      return None();
+
     case mesos::master::Call::RESERVE_RESOURCES: {
       if (!call.has_reserve_resources()) {
         return Error("Expecting 'reserve_resources' to be present");
@@ -212,9 +215,6 @@ Option<Error> validate(
       if (!call.has_remove_quota()) {
         return Error("Expecting 'remove_quota' to be present");
       }
-      return None();
-
-    case mesos::master::Call::SUBSCRIBE:
       return None();
   }
 

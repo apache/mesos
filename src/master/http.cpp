@@ -590,6 +590,9 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::GET_MASTER:
       return getMaster(call, principal, acceptType);
 
+    case mesos::master::Call::SUBSCRIBE:
+      return subscribe(call, principal, acceptType);
+
     case mesos::master::Call::RESERVE_RESOURCES:
       return reserveResources(call, principal, acceptType);
 
@@ -625,9 +628,6 @@ Future<Response> Master::Http::api(
 
     case mesos::master::Call::REMOVE_QUOTA:
       return quotaHandler.remove(call, principal);
-
-    case mesos::master::Call::SUBSCRIBE:
-      return subscribe(call, principal, acceptType);
   }
 
   UNREACHABLE();
