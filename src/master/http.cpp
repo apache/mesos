@@ -3108,7 +3108,11 @@ Future<Response> Master::Http::stateSummary(
               const TaskStateSummary& summary =
                 taskStateSummaries.slave(slave->id);
 
-              // TODO(neilc): Update for new PARTITION_AWARE task statuses.
+              // Certain per-agent status totals will always be zero
+              // (e.g., TASK_ERROR, TASK_UNREACHABLE). We report them
+              // here anyway, for completeness.
+              //
+              // TODO(neilc): Update for TASK_GONE and TASK_GONE_BY_OPERATOR.
               writer->field("TASK_STAGING", summary.staging);
               writer->field("TASK_STARTING", summary.starting);
               writer->field("TASK_RUNNING", summary.running);
@@ -3118,6 +3122,7 @@ Future<Response> Master::Http::stateSummary(
               writer->field("TASK_FAILED", summary.failed);
               writer->field("TASK_LOST", summary.lost);
               writer->field("TASK_ERROR", summary.error);
+              writer->field("TASK_UNREACHABLE", summary.unreachable);
 
               // Add the ids of all the frameworks running on this slave.
               const hashset<FrameworkID>& frameworks =
@@ -3162,7 +3167,7 @@ Future<Response> Master::Http::stateSummary(
               const TaskStateSummary& summary =
                 taskStateSummaries.framework(frameworkId);
 
-              // TODO(neilc): Update for new PARTITION_AWARE task statuses.
+              // TODO(neilc): Update for TASK_GONE and TASK_GONE_BY_OPERATOR.
               writer->field("TASK_STAGING", summary.staging);
               writer->field("TASK_STARTING", summary.starting);
               writer->field("TASK_RUNNING", summary.running);
@@ -3172,6 +3177,7 @@ Future<Response> Master::Http::stateSummary(
               writer->field("TASK_FAILED", summary.failed);
               writer->field("TASK_LOST", summary.lost);
               writer->field("TASK_ERROR", summary.error);
+              writer->field("TASK_UNREACHABLE", summary.unreachable);
 
               // Add the ids of all the slaves running this framework.
               const hashset<SlaveID>& slaves =

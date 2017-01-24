@@ -351,6 +351,30 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
         jsonTask.values["state"].as<JSON::String>().value);
   }
 
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_LOST"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+  }
+
   // We now complete the partition on the slave side as well. We
   // simulate a master loss event, which would normally happen during
   // a network partition. The slave should then reregister with the
@@ -452,6 +476,31 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
     EXPECT_EQ(
         "TASK_RUNNING",
         jsonTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_LOST"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_RUNNING"].as<JSON::Number>());
   }
 
   driver.stop();
@@ -705,6 +754,31 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
     EXPECT_EQ(
         "TASK_LOST",
         completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_LOST"].as<JSON::Number>());
   }
 
   driver.stop();
@@ -1207,6 +1281,25 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
     EXPECT_EQ(
         "TASK_KILLED",
         completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE( frameworks.values.empty());
   }
 
   // Also check the master's "/tasks" endpoint.
