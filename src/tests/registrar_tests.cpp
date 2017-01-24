@@ -269,11 +269,11 @@ TEST_F(RegistrarTest, MarkReachable)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  SlaveInfo info1;
-  info1.set_hostname("localhost");
-
   SlaveID id1;
   id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;
@@ -301,11 +301,11 @@ TEST_F(RegistrarTest, MarkUnreachable)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  SlaveInfo info1;
-  info1.set_hostname("localhost");
-
   SlaveID id1;
   id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;
@@ -344,11 +344,11 @@ TEST_F(RegistrarTest, PruneUnreachable)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  SlaveInfo info1;
-  info1.set_hostname("localhost");
-
   SlaveID id1;
   id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;
@@ -390,11 +390,11 @@ TEST_F(RegistrarTest, Remove)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  SlaveInfo info1;
-  info1.set_hostname("localhost");
-
   SlaveID id1;
   id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
   SlaveID id2;

@@ -184,7 +184,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
@@ -529,7 +528,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
@@ -816,7 +814,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   slaveFlags.resources = "cpus:2;mem:1024";
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
@@ -1067,7 +1064,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
@@ -1503,7 +1499,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
@@ -2999,7 +2994,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Owned<MasterDetector> detector1 = master.get()->createDetector();
-
   slave::Flags agentFlags1 = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector1.get(), agentFlags1);
   ASSERT_SOME(slave1);
@@ -3059,7 +3053,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   StandaloneMasterDetector detector2(master.get()->pid);
-
   slave::Flags agentFlags2 = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector2, agentFlags2);
   ASSERT_SOME(slave2);

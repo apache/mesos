@@ -948,7 +948,7 @@ TEST_P(MasterAPITest, ReserveResources)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo .set_role("role");
+  frameworkInfo.set_role("role");
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
@@ -1038,7 +1038,7 @@ TEST_P(MasterAPITest, UnreserveResources)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo .set_role("role");
+  frameworkInfo.set_role("role");
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
